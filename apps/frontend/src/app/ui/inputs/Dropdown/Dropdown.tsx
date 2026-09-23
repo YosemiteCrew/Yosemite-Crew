@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
 import classNames from 'classnames';
-import { Icon } from '@/app/ui/icons/Icon';
+
+import Field from '@/app/ui/Field';
 
 import countries from '@/app/lib/data/countryList';
 import DropdownPanel from './DropdownPanel';
@@ -10,6 +11,7 @@ import { useDropdownPositioning } from './useDropdownPositioning';
 import { useDropdownKeyboardNav } from './useDropdownKeyboardNav';
 
 import './Dropdown.css';
+import { deriveEmptyLabel } from '@/app/ui/inputs/Dropdown/emptyLabel';
 
 type DropdownType = 'country' | 'breed' | 'general';
 
@@ -26,6 +28,8 @@ type DropdownProps = {
   disabled?: boolean;
   returnObject?: boolean;
   portal?: boolean;
+  /** Text shown while nothing is selected. Defaults to `Select <placeholder>`. */
+  emptyLabel?: string;
 };
 
 const Dropdown = ({
@@ -41,10 +45,12 @@ const Dropdown = ({
   disabled = false,
   returnObject = false,
   portal = true,
+  emptyLabel,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
+  const controlId = useId();
   const errorId = useId();
   const searchInputId = useId();
 
@@ -164,14 +170,21 @@ const Dropdown = ({
       filteredList={filteredList}
       setActiveIndex={setActiveIndex}
       selectOption={selectOption}
+      value={value}
     />
   );
 
   return (
-    <div className="select-wrapper">
-      <span className="select-top-label">{placeholder}</span>
+    <Field
+      htmlFor={controlId}
+      label={placeholder}
+      error={error}
+      messageId={error ? errorId : undefined}
+      disabled={disabled}
+    >
       <div className={classNames('select-container', { 'select-open': open })} ref={dropdownRef}>
         <button
+          id={controlId}
           type="button"
           className={classNames(
             'select-input-container',
@@ -190,7 +203,16 @@ const Dropdown = ({
           disabled={disabled}
           onKeyDown={handleKeyDown}
         >
-          <span className="select-input-selected">{selected ? selected.label : ''}</span>
+          {/* Never an empty box: the design makes a placeholder mandatory on every
+              select. This control reuses `placeholder` as its label above, so the
+              empty state derives "Select <label>" unless a caller names its own. */}
+          <span
+            className={classNames('select-input-selected', {
+              'select-input-placeholder': !selected,
+            })}
+          >
+            {selected ? selected.label : (emptyLabel ?? deriveEmptyLabel(placeholder))}
+          </span>
           <span className="select-input-drop-icon" aria-hidden="true">
             <IoChevronDown color="var(--color-text-tertiary)" size={14} />
           </span>
@@ -199,14 +221,7 @@ const Dropdown = ({
         {open && !disabled && shouldPortal && portalStyle && createPortal(panel, document.body)}
         {open && !disabled && !shouldPortal && panel}
       </div>
-
-      {error && (
-        <div id={errorId} role="alert" className="Errors">
-          <Icon icon="mdi:error" width="16" height="16" aria-hidden="true" />
-          {error}
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 

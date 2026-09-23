@@ -84,21 +84,6 @@ const getDocumensoClient = (apiKeyOverride?: string) => {
   return client;
 };
 
-async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    body: new Uint8Array(pdf),
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Length": pdf.length.toString(),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Upload failed: ${response.status}`);
-  }
-}
-
 export type SignedDocument = {
   downloadUrl?: string;
   filename?: string;
@@ -106,6 +91,38 @@ export type SignedDocument = {
 };
 
 export type DocumensoExternalRole = "ADMIN" | "MANAGER" | "MEMBER";
+
+/**
+ * What is safe to log about a failed request.
+ *
+ * The raw error must never be logged here. Axios attaches the outbound request
+ * to the error as `config`, so an axios error from this file carries the
+ * Documenso API key in `config.headers.Authorization`, and the one from
+ * `generateExternalRedirectUrl` carries the external auth secret in
+ * `config.data`. The logger does not redact either: its production format is
+ * `json()`, which serialises the whole meta object, and the development
+ * format's field list replaces `req`, `res`, `request` and `response` but not
+ * `config` - it exists to keep log lines small, not to redact.
+ *
+ * So the first time a Documenso call fails is the first time the credential is
+ * written out. The four SDK calls in this file already log `.message` and
+ * `.statusCode`; this is the same treatment for the two axios ones.
+ */
+const describeError = (error: unknown) => {
+  // Read the status structurally rather than through `axios.isAxiosError`: the
+  // status is worth having and that helper is a module export a test double
+  // replaces, so depending on it makes the useful half of this untestable in
+  // the suite that has to prove the rest of it.
+  const response =
+    typeof error === "object" && error !== null && "response" in error
+      ? (error as { response?: { status?: number } }).response
+      : undefined;
+
+  return {
+    message: error instanceof Error ? error.message : String(error),
+    status: response?.status,
+  };
+};
 
 export class DocumensoService {
   static async createDocument({
@@ -129,16 +146,16 @@ export class DocumensoService {
       logger.info("Creating document with signature placement", {
         placement,
       });
-      const createDocumentResponse = await documenso.documents.createV0({
+      const payload = {
         title: title ?? "Form Submission",
         recipients: [
           {
             email: signerEmail,
             name: signerName ?? signerEmail,
-            role: "SIGNER",
+            role: "SIGNER" as const,
             fields: [
               {
-                type: "SIGNATURE",
+                type: "SIGNATURE" as const,
                 pageNumber: placement.pageNumber,
                 pageX: placement.pageX,
                 pageY: placement.pageY,
@@ -148,13 +165,16 @@ export class DocumensoService {
             ],
           },
         ],
+      };
+      const created = await documenso.documents.create({
+        payload,
+        file: {
+          fileName: "document.pdf",
+          content: new Uint8Array(pdf),
+        },
       });
 
-      const { document, uploadUrl } = createDocumentResponse;
-
-      await uploadPdfBuffer(pdf, uploadUrl);
-
-      return document;
+      return await documenso.documents.get({ documentId: created.id });
     } catch (error) {
       if (error instanceof errors.DocumensoError) {
         logger.error("API error:", error.message);
@@ -253,7 +273,10 @@ export class DocumensoService {
       const signeDocument = downloadResponse.data as SignedDocument;
       return signeDocument;
     } catch (error) {
-      logger.error("An unexpected error occurred:", error);
+      logger.error(
+        "Documenso signed-document download failed",
+        describeError(error),
+      );
     }
   }
 
@@ -309,7 +332,7 @@ export class DocumensoService {
 
       return `${baseUrl}${data.redirectUrl}`;
     } catch (error) {
-      logger.error("Documenso external auth error:", error);
+      logger.error("Documenso external auth error", describeError(error));
       throw error;
     }
   }

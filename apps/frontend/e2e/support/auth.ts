@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
 /**
  * Shared plumbing for the specs that sign in with a real credential.
@@ -59,8 +59,70 @@ export const skipUnlessAuthSurfaceDeployed = async () => {
   }
 };
 
+const LOOPBACK_HOST = /^(127\.0\.0\.1|localhost|\[::1\])$/;
+const relayedContexts = new WeakSet<BrowserContext>();
+
+/**
+ * Sends the app's API calls from the Playwright runner when the app is served on
+ * loopback against a deployed API.
+ *
+ * Deployed, app and API are same-site (dev.yosemitecrew.com and
+ * devapi.yosemitecrew.com): the API's CORS allowlist admits the page and its
+ * SameSite=Lax session cookies travel. Served from 127.0.0.1 in CI, neither holds.
+ * The preflight is refused before sign-in leaves the browser (every run of the
+ * authenticated job timed out on /signin), and a cookie set by a cross-site
+ * response is dropped. `route.fetch()` sends each request with the context's
+ * cookie jar and stores what the API sets. So every call is still answered by the
+ * real API and the real session is still exercised; only those two same-site
+ * guarantees are stood in for. A deployed target (E2E_BASE_URL) is left untouched.
+ */
+const relayApiForLoopbackApp = async (page: Page) => {
+  const context = page.context();
+  const apiBase = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  const appOrigin = new URL(page.url()).origin;
+  if (!apiBase || !LOOPBACK_HOST.test(new URL(appOrigin).hostname)) return;
+  if (relayedContexts.has(context)) return;
+  relayedContexts.add(context);
+
+  const cors = {
+    'access-control-allow-origin': appOrigin,
+    'access-control-allow-credentials': 'true',
+  };
+  await context.route(`${new URL(apiBase).origin}/**`, async (route) => {
+    const request = route.request();
+    if (request.method() === 'OPTIONS') {
+      const asked = request.headers();
+      await route.fulfill({
+        status: 204,
+        headers: {
+          ...cors,
+          'access-control-allow-methods': asked['access-control-request-method'] ?? 'GET',
+          'access-control-allow-headers': asked['access-control-request-headers'] ?? '',
+        },
+      });
+      return;
+    }
+    const response = await route.fetch();
+    // The body arrives decoded, so the encoding and length no longer describe it.
+    const headers = Object.fromEntries(
+      Object.entries(response.headers()).filter(
+        ([name]) => name !== 'content-encoding' && name !== 'content-length'
+      )
+    );
+    await route.fulfill({
+      response,
+      headers: {
+        ...headers,
+        ...cors,
+        'access-control-expose-headers': Object.keys(headers).join(','),
+      },
+    });
+  });
+};
+
 /** Fills and submits whichever sign-in form is currently on screen. */
 export const submitSignIn = async (page: Page, email: string, password: string) => {
+  await relayApiForLoopbackApp(page);
   const emailInput = page.locator('input[name="email"]');
   const passwordInput = page.locator('input[name="password"]');
 

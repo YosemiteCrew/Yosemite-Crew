@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import ResetPassword from '@/app/features/auth/pages/ResetPassword/ResetPassword';
 
+// no-story: thin Next.js route wrapper; real content is ResetPassword, already storied
 export const metadata: Metadata = {
   title: 'Reset Password — Yosemite Crew',
   description: 'Set a new password for your Yosemite Crew account.',

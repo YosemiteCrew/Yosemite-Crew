@@ -26,9 +26,9 @@ const HandlingToleranceEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  assessedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  assessedAt: z.iso.datetime(),
   fasScore: FasScoreEnum.optional(),
   nailTrimTolerance: HandlingToleranceEnum.optional(),
   handlingTolerance: HandlingToleranceEnum.optional(),

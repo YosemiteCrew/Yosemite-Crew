@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Yosemite Crew Veterinary Software Buyer'
+  short_description: 'Impartial vet software buying and contract guidance'
+  default_prompt: 'Use $yosemite-vet-software-buyer to help me assess veterinary software, uncover hidden costs and contract risks, and decide what to verify before buying without favoring any supplier.'

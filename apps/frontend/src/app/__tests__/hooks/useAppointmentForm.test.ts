@@ -69,6 +69,7 @@ jest.mock('@/app/lib/timezone', () => ({
     d.setHours(Math.floor(minuteOfDay / 60), minuteOfDay % 60, 0, 0);
     return d;
   }),
+  getDateKeyInPreferredTimeZone: jest.fn((date: Date) => date.toISOString().slice(0, 10)),
   isOnPreferredTimeZoneCalendarDay: jest.fn(() => false),
   utcClockTimeToPreferredTimeZoneClock: jest.fn((_time: string) => ({
     minutes: 540,
@@ -145,8 +146,11 @@ const { normalizeSlotsForSelectedDay } = jest.requireMock(
 const { resolveSlotDateTimesForSelectedDay } = jest.requireMock(
   '@/app/features/appointments/utils/slotNormalization'
 );
-const { isOnPreferredTimeZoneCalendarDay, utcClockTimeToPreferredTimeZoneClock } =
-  jest.requireMock('@/app/lib/timezone');
+const {
+  getDateKeyInPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+  utcClockTimeToPreferredTimeZoneClock,
+} = jest.requireMock('@/app/lib/timezone');
 const { loadInvoicesForOrgPrimaryOrg } = jest.requireMock(
   '@/app/features/billing/services/invoiceService'
 );
@@ -224,6 +228,10 @@ describe('useAppointmentForm', () => {
     (getCalendarPrefillMatchesForPrimaryOrg as jest.Mock).mockResolvedValue(null);
     (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([]);
     mockUpsertAppointment.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('initializes with default state', () => {
@@ -1472,6 +1480,18 @@ describe('useAppointmentForm', () => {
 
     const errors = result.current.validateForm(false);
     expect(errors.slot).toBe('Appointments cannot be booked for past dates.');
+  });
+
+  it('validates the selected day in the preferred timezone', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-09T00:30:00.000Z'));
+    (getDateKeyInPreferredTimeZone as jest.Mock).mockReturnValue('2026-09-08');
+
+    const { result } = renderHook(() => useAppointmentForm());
+    act(() => result.current.setSelectedDate(new Date('2026-09-08T12:00:00.000Z')));
+
+    expect(result.current.validateForm(false).slot).toBe('Please select a slot');
+    jest.useRealTimers();
   });
 
   it('validateForm flags a selected service that is no longer bookable', async () => {

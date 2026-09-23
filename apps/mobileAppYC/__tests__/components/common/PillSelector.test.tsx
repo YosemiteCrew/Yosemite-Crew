@@ -288,6 +288,37 @@ describe('PillSelector Component', () => {
       (FlatList.prototype as any).scrollToIndex.mockRestore();
     });
 
+    it('cancels a pending scroll when the selection changes before its timers fire', () => {
+      const scrollToIndexSpy = jest.fn();
+      jest
+        .spyOn(FlatList.prototype as any, 'scrollToIndex')
+        .mockImplementation(scrollToIndexSpy);
+
+      const {rerender} = render(
+        <PillSelector {...defaultProps} autoScroll selectedId="1" />,
+      );
+      // Reselect before either of "1"'s pending timers (100ms/400ms) fires.
+      rerender(<PillSelector {...defaultProps} autoScroll selectedId="3" />);
+
+      expect(() => jest.advanceTimersByTime(500)).not.toThrow();
+
+      // Every call must target "3" (index 2) - a call targeting "1" (index 0)
+      // would mean the superseded timers fired anyway and snapped the strip
+      // back to the option the user already moved off of.
+      expect(scrollToIndexSpy).toHaveBeenCalledTimes(2);
+      for (const call of scrollToIndexSpy.mock.calls) {
+        expect(call[0]).toEqual(
+          expect.objectContaining({
+            index: 2,
+            viewPosition: 0.5,
+            animated: true,
+          }),
+        );
+      }
+
+      (FlatList.prototype as any).scrollToIndex.mockRestore();
+    });
+
     it('does not scroll after the ref is cleared by an unmount before the timer fires', () => {
       const scrollToIndexSpy = jest.fn();
       jest

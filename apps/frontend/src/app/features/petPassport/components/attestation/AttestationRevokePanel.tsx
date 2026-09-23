@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useId } from 'react';
+import { Textarea } from '@/app/ui/Input';
 
 type AttestationRevokePanelProps = {
   reason: string;
@@ -33,7 +34,7 @@ const AttestationRevokePanel = ({
         <label htmlFor={reasonId} className="text-[12.5px] font-semibold text-[var(--ink-soft)]">
           Reason (optional, stored with the record)
         </label>
-        <textarea
+        <Textarea
           id={reasonId}
           value={reason}
           disabled={disabled}

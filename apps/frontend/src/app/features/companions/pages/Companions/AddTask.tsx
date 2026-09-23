@@ -51,7 +51,7 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
-        <ModalHeader title="Add task" onClose={() => setShowModal(false)} />
+        <ModalHeader title="New task" onClose={() => setShowModal(false)} />
 
         <div className="flex flex-col gap-6 w-full flex-1 justify-start overflow-y-auto scrollbar-hidden pt-1.5">
           <TaskFormFields

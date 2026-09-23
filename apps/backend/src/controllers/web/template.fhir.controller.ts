@@ -24,18 +24,18 @@ import { resolveVerifiedUserId } from "src/utils/request";
 
 const questionnaireResourceSchema = z
   .object({ resourceType: z.literal("Questionnaire") })
-  .passthrough();
+  .loose();
 const planDefinitionResourceSchema = z
   .object({ resourceType: z.literal("PlanDefinition") })
-  .passthrough();
+  .loose();
 const questionnaireResponseSchema = z
   .object({ resourceType: z.literal("QuestionnaireResponse") })
-  .passthrough();
+  .loose();
 
 const listQuerySchema = z.object({
   kind: z
     .union([
-      z.nativeEnum(PrismaTemplateKind),
+      z.enum(PrismaTemplateKind),
       z.enum([
         "SOAP_NOTE",
         "VITAL_RECORD",
@@ -48,8 +48,8 @@ const listQuerySchema = z.object({
       ]),
     ])
     .optional(),
-  status: z.nativeEnum(TemplateStatus).optional(),
-  scope: z.nativeEnum(TemplateScope).optional(),
+  status: z.enum(TemplateStatus).optional(),
+  scope: z.enum(TemplateScope).optional(),
 });
 
 const handleError = createFhirErrorHandler({

@@ -70,8 +70,8 @@ const Slotpicker = ({
     if (viewMonth !== newMonth) setViewMonth(newMonth);
   }
 
-  const dateStripRef = useRef<HTMLDivElement | null>(null);
-  const slotListRef = useRef<HTMLDivElement | null>(null);
+  const dateStripRef = useRef<HTMLFieldSetElement | null>(null);
+  const slotListRef = useRef<HTMLFieldSetElement | null>(null);
   const selectedDateRef = useRef<HTMLButtonElement | null>(null);
   const [canScrollDatesLeft, setCanScrollDatesLeft] = useState(false);
   const [canScrollDatesRight, setCanScrollDatesRight] = useState(false);
@@ -207,11 +207,22 @@ const Slotpicker = ({
         >
           <IoChevronBackOutline size={16} />
         </button>
-        <div
+        {/* fieldset/legend + aria-pressed/aria-current below: the selected day
+            and the selected slot used to be conveyed by fill colour alone, so a
+            screen-reader user heard a run of bare "Wed 02" day buttons and bare
+            times with nothing marking the one they had picked. The product's
+            other date strip (PhoneDayStrip) already announces both.
+            fieldset rather than role="group": it carries the same role natively,
+            and a legend is announced by screen readers that skip an aria-label
+            on a group. min-w-0 is not decorative - a fieldset defaults to
+            min-inline-size:min-content, which would stop this strip shrinking
+            and defeat its own overflow-x. */}
+        <fieldset
           ref={dateStripRef}
-          className="flex gap-2 overflow-x-auto scrollbar-x-float pb-1 flex-1"
+          className="flex min-w-0 gap-2 overflow-x-auto scrollbar-x-float pb-1 flex-1"
           onWheel={onWheelHorizontal}
         >
+          <legend className="sr-only">Select a day</legend>
           {days.map((day) => {
             const isCurrent = isSameDay(selectedDate, day);
             const isTodayDay = isSameDay(day, today);
@@ -230,6 +241,8 @@ const Slotpicker = ({
                 // it was just 2.23:1 text. Marking them disabled makes the
                 // existing visuals honest.
                 disabled={isPast}
+                aria-pressed={isCurrent}
+                aria-current={isTodayDay ? 'date' : undefined}
                 onClick={() => handleClickDate(day)}
                 className={[
                   'relative flex flex-col gap-1 items-center justify-center px-3 py-2 border rounded-xl! shrink-0 min-w-14',
@@ -245,7 +258,7 @@ const Slotpicker = ({
               </button>
             );
           })}
-        </div>
+        </fieldset>
         <button
           type="button"
           aria-label="Scroll dates right"
@@ -262,10 +275,11 @@ const Slotpicker = ({
       </div>
 
       {/* Time slots */}
-      <div
+      <fieldset
         ref={slotListRef}
-        className="flex flex-wrap gap-2 px-2 sm:px-3 mb-2 max-h-50 overflow-y-auto scrollbar-hidden"
+        className="flex min-w-0 flex-wrap gap-2 px-2 sm:px-3 mb-2 max-h-50 overflow-y-auto scrollbar-hidden"
       >
+        <legend className="sr-only">Select a time</legend>
         {timeSlots.length > 0 ? (
           timeSlots.map((slot, i) => {
             const selected = isSameSlot(selectedSlot, slot);
@@ -273,6 +287,7 @@ const Slotpicker = ({
               <button
                 type="button"
                 key={slot.startTime + i}
+                aria-pressed={selected}
                 onClick={() => setSelectedSlot(slot)}
                 className={`${selected ? 'bg-[var(--blue-strong)] text-white border-transparent! shadow-[0_6px_16px_var(--glow-b26)]' : 'border-input-border-default! bg-neutral-0 text-text-primary'} px-3.5 h-10 flex items-center justify-center border-[1.5px] rounded-[11px]! font-satoshi text-[12.5px]! font-semibold tabular-nums`}
               >
@@ -285,7 +300,7 @@ const Slotpicker = ({
             No slot available
           </div>
         )}
-      </div>
+      </fieldset>
     </div>
   );
 };

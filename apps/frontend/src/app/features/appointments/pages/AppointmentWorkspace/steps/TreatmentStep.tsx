@@ -15,7 +15,9 @@ import type {
   ScheduleTaskStatus,
 } from '@/app/features/appointments/types/workspace';
 import {
+  artifactVersionFromMeta,
   deletePrescriptionArtifact,
+  getClinicalArtifactMutationErrorMessage,
   savePrescriptionArtifact,
 } from '@/app/features/appointments/services/workspaceClinicalService';
 import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
@@ -74,6 +76,12 @@ type TreatmentStepProps = {
   encounterId?: string;
   authorId?: string;
   encounter: AppointmentEncounter;
+  /**
+   * The patient's species, used to keep species-specific immunologicals out of
+   * the prescribing search: ATCvet's QI codes are per-species, so an unfiltered
+   * search offers a cat clinic bovine and equine vaccines.
+   */
+  companionSpecies?: string;
   /** Resolve (creating via check-in if needed) the encounter id for clinical persistence. */
   ensureEncounterId?: () => Promise<string | undefined>;
   onOpenInvoice: () => void;
@@ -586,10 +594,15 @@ const usePrescriptionActions = ({
 
     const isPersisted = Boolean(id) && !id.startsWith('local-');
     if (!isPersisted || !organisationId || !target) return;
+    if (target.artifactVersion === undefined) {
+      addPrescription(appointmentId, target, target.id);
+      setPrescriptionError('Reload this prescription before removing it.');
+      return;
+    }
 
     try {
       // Backend voids the draft and cascades the treatment-item row.
-      const deleted = await deletePrescriptionArtifact(organisationId, id);
+      const deleted = await deletePrescriptionArtifact(organisationId, id, target.artifactVersion);
       // Route not available yet → fall back to deleting the linked treatment-item row.
       if (!deleted && encounterId) {
         await deletePrescriptionTreatmentItem(organisationId, encounterId, {
@@ -682,10 +695,19 @@ const usePrescriptionActions = ({
 // shows, and directs the clinician to reopen/amend, which has no affordance on this screen —
 // that would just trade one misleading message for another. The mapped copy mirrors the
 // finalized/billed wording handleRemovePrescription already uses for the same 409.
+// A saved prescription whose response carried no usable version is not finalized at all: the only
+// alternatives are guessing a version or omitting the precondition, and both dispense controlled
+// stock against a record this client never read. Worded for a clinician, and surfaced through the
+// same save-error banner as every other failure on this path - the one thing it must never do is
+// pass silently, because the medication would then never be dispensed.
+const UNVERSIONED_FINALIZE_MESSAGE =
+  'A prescription was saved but could not be finalized for dispensing. Reload the encounter and try again.';
+
 const getTreatmentSaveErrorMessage = (error: unknown): string =>
-  (error as { response?: { status?: number } })?.response?.status === 409
-    ? 'This prescription is already finalized and can no longer be edited.'
-    : getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.');
+  getClinicalArtifactMutationErrorMessage(
+    error,
+    getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.')
+  );
 
 /**
  * Treatment step: services/packages, prescription, and inpatient schedule.
@@ -699,6 +721,7 @@ const TreatmentStep = ({
   encounterId,
   authorId,
   encounter,
+  companionSpecies,
   ensureEncounterId,
   onOpenInvoice,
 }: TreatmentStepProps) => {
@@ -837,7 +860,7 @@ const TreatmentStep = ({
     // Saved prescription ids captured from the create/update responses, so finalize targets the
     // real artifact id (not the local `local-rx-…` id) and the post-save bootstrap merge — not a
     // local append — becomes the single source of truth for the list (avoids duplicate rows).
-    const savedInHouseIds: string[] = [];
+    const savedInHouseArtifacts: Array<{ id: string; version: number | undefined }> = [];
     try {
       // Persist any staged service/package rows.
       await persistTreatmentItems(organisationId, activeEncounterId, encounter.services);
@@ -861,8 +884,17 @@ const TreatmentStep = ({
             rx
           );
           const savedId = (savedRx as { id?: string } | undefined)?.id ?? rx.id;
-          if (savedId && rx.fulfillment !== 'PRESCRIPTION_ONLY') savedInHouseIds.push(savedId);
-          return { ...rx, id: savedId };
+          const savedVersion = artifactVersionFromMeta(savedRx);
+          // Collect every in-house row, version or not. A row whose response carried no usable
+          // version must not be quietly dropped from finalize — it is reported below instead.
+          if (savedId && rx.fulfillment !== 'PRESCRIPTION_ONLY') {
+            savedInHouseArtifacts.push({ id: savedId, version: savedVersion });
+          }
+          return {
+            ...rx,
+            id: savedId,
+            artifactVersion: savedVersion ?? rx.artifactVersion,
+          };
         })
       );
       // Authoritatively replace the list with exactly the saved rows (deduped by backend id) so
@@ -873,13 +905,28 @@ const TreatmentStep = ({
       );
       setPrescriptions(appointmentId, dedupedById);
       // Finalize in-house prescriptions (triggers inventory dispense) using the real saved ids.
-      await Promise.allSettled(
-        savedInHouseIds.map((id) => finalizePrescription(organisationId, id))
+      // `allSettled` so one conflicted row does not abandon the rest mid-flight; the outcomes are
+      // inspected below, after the re-hydrate, so a failure is reported rather than discarded.
+      // A row with no usable version is never finalized unconditionally - it fails here rather
+      // than silently skipping the dispense.
+      const finalizeOutcomes = await Promise.allSettled(
+        savedInHouseArtifacts.map(({ id, version }) =>
+          version === undefined
+            ? Promise.reject(new Error(UNVERSIONED_FINALIZE_MESSAGE))
+            : finalizePrescription(organisationId, id, { expectedVersion: version })
+        )
       );
       // Re-hydrate from the authoritative server state — replaces the staged local rows so the
       // saved prescription appears exactly once.
       const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
       mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
+      // A rejected finalize leaves that prescription a draft and its inventory dispense
+      // untriggered. Reported only now, so the re-hydrate above has already refreshed the
+      // versions a retry needs - but before the step can claim COMPLETED and open Invoice.
+      const failedFinalize = finalizeOutcomes.find((outcome) => outcome.status === 'rejected');
+      if (failedFinalize) {
+        throw (failedFinalize as PromiseRejectedResult).reason;
+      }
     } catch (error) {
       // Do NOT open Invoice when persistence fails — staged rows would otherwise
       // appear billable without a backing record.
@@ -944,6 +991,7 @@ const TreatmentStep = ({
         {scheduleError && <p className="text-caption-1 text-text-error">{scheduleError}</p>}
 
         <ServicesPackagesEditor
+          currency={encounter.currency}
           items={encounter.services}
           catalogItems={servicePackageCatalogItems}
           readOnly={readOnly}
@@ -954,9 +1002,11 @@ const TreatmentStep = ({
         />
 
         <PrescriptionEditor
+          currency={encounter.currency}
           items={prescriptionItems}
           catalogItems={prescriptionCatalogItems}
           templateItems={prescriptionTemplates}
+          companionSpecies={companionSpecies}
           readOnly={readOnly}
           // A prescription can be removed unless it is actually billed/paid (handled per-row via the
           // `billed` flag) or the encounter is view-only. Being "ready for billing" is NOT a lock —
@@ -978,7 +1028,7 @@ const TreatmentStep = ({
 
         <div className="flex flex-wrap justify-between gap-3">
           <Secondary
-            text={printingLabels ? 'Printing...' : 'Print Labels'}
+            text={printingLabels ? 'Printing...' : 'Print labels'}
             icon={<IoPrintOutline aria-hidden="true" />}
             onClick={() => void handlePrintPrescriptionLabels()}
             isDisabled={printingLabels}

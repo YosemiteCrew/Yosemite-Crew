@@ -118,6 +118,48 @@ jest.mock('@/app/features/companionHistory/components/CompanionHistoryTimeline',
   ),
 }));
 
+// Stub the async problem-list panel: like the timeline above, it fetches on
+// mount, which would fire a state update outside act() and trip the strict
+// console.error guard in jest.setup. This suite does not exercise it.
+jest.mock('@/app/features/companionHistory/components/ProblemListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="problem-list-panel">{companionId}</div>,
+}));
+
+// Stub the async allergy-list panel: like the timeline above, it fetches on
+// mount, which would fire a state update outside act() and trip the strict
+// console.error guard in jest.setup. This suite does not exercise it.
+jest.mock('@/app/features/companionHistory/components/AllergyListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="allergy-list-panel">{companionId}</div>,
+}));
+
+// Stub the async consent-list panel: like the timeline above, it fetches on
+// mount, which would fire a state update outside act() and trip the strict
+// console.error guard in jest.setup. This suite does not exercise it.
+jest.mock('@/app/features/companionHistory/components/ConsentListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="consent-list-panel">{companionId}</div>,
+}));
+
+// Stub the async documents-list panel: like the timeline above, it fetches on
+// mount, which would fire a state update outside act() and trip the strict
+// console.error guard in jest.setup. This suite does not exercise it.
+jest.mock('@/app/features/companionHistory/components/DocumentsListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="documents-list-panel">{companionId}</div>,
+}));
+
+jest.mock('@/app/features/companionHistory/components/FlagListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="flag-list-panel">{companionId}</div>,
+}));
+
+jest.mock('@/app/features/companionHistory/components/PocLabListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="poc-lab-list-panel">{companionId}</div>,
+}));
+
 jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
   useIsPhone: () => mockIsPhone,
   PHONE_MEDIA_QUERY: '(max-width: 767px)',
@@ -325,6 +367,11 @@ describe('CompanionHistoryPage', () => {
     render(<CompanionHistoryPage />);
 
     expect(screen.getByTestId('timeline')).toHaveTextContent('c-1-true');
+    expect(screen.getByTestId('allergy-list-panel')).toHaveTextContent('c-1');
+    expect(screen.getByTestId('consent-list-panel')).toHaveTextContent('c-1');
+    expect(screen.getByTestId('documents-list-panel')).toHaveTextContent('c-1');
+    expect(screen.getByTestId('flag-list-panel')).toHaveTextContent('c-1');
+    expect(screen.getByTestId('poc-lab-list-panel')).toHaveTextContent('c-1');
     expect(screen.getByText("Buddy's overview")).toBeInTheDocument();
     expect(screen.getByText('Labrador / Canine')).toBeInTheDocument();
 
@@ -759,9 +806,12 @@ describe('CompanionHistoryPage', () => {
       within(parentSection).getByText(`${label}:`).parentElement?.querySelector('span:last-child')
         ?.textContent ?? '';
 
-    // Empty parent id → Client ID falls back to the companion id.
-    expect(readDetail('Client ID')).toBe('c-1');
-    expect(readDetail('Client')).toBe('-');
+    /* Empty parent id → the pet-parent id falls back to the companion id. The
+       rows were "Client" / "Client ID" while the share card this record opens
+       called the same person "Owner"; both now use the protected term. */
+    expect(readDetail('Pet parent ID')).toBe('c-1');
+    expect(readDetail('Pet parent')).toBe('-');
+    expect(within(parentSection).queryByText('Client:')).not.toBeInTheDocument();
     expect(readDetail('Email')).toBe('-');
     expect(readDetail('Phone')).toBe('-');
   });

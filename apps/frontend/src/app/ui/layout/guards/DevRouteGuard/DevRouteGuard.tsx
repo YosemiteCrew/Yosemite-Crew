@@ -2,17 +2,10 @@
 import React from 'react';
 import { redirect, usePathname } from 'next/navigation';
 import { getStorageItem } from '@/app/lib/browserStorage';
+import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
 import { useAuthStore } from '@/app/stores/authStore';
 import { hasDeveloperRole, resolveHeldRoles } from '@/app/lib/postAuthRedirect';
 import NotADeveloperState from './NotADeveloperState';
-
-const isLocalDeveloperFallbackEnabled = () => {
-  if (process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD !== 'true') return false;
-  const hostname = (
-    process.env.YC_TEST_HOSTNAME ?? globalThis.window?.location?.hostname
-  )?.toLowerCase();
-  return hostname === 'localhost' || hostname === '127.0.0.1';
-};
 
 /**
  * Blocks access to developer routes unless authenticated with developer role.
@@ -29,10 +22,10 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const authStore = useAuthStore();
   const { status, role, roles } = authStore;
+  const isLocalGuardBypassed = useLocalGuardBypass();
   const isPending = status === 'idle' || status === 'checking';
   const isDevPath = pathname?.startsWith('/developers');
-  const devFlag =
-    isLocalDeveloperFallbackEnabled() && getStorageItem('session', 'devAuth') === 'true';
+  const devFlag = isLocalGuardBypassed && getStorageItem('session', 'devAuth') === 'true';
   /*
    * Asked of every role the account holds, not just the one `/v1/auth/me`
    * surfaces as `role`.

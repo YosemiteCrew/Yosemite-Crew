@@ -2,8 +2,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, shell } from 'electron';
 import { createIpcRegistry } from './ipc';
+import type { RetryContents } from '../shell/offline-retry';
 import { classifyNavigation, deepLinkToUrl, type getDesktopConfig } from './navigation-policy';
 import { openExternal, secureWebPreferences } from '../shell/window-config';
 import { applyThemeToWebContents, DEFAULT_ACCENT_COLOR } from '../ui/theming';
@@ -13,8 +14,10 @@ import {
   type TelehealthLaunchIntent,
 } from '../utils/telehealth';
 import { BUILTIN_ACTIONS } from '../ui/command-palette';
+import { buildTabContextMenu } from '../ui/tab-context-menu';
 import {
   DEFAULT_SETTINGS,
+  rejectedSettingKeys,
   type DesktopSettings,
   type SettingsStore,
 } from '../utils/settings-store';
@@ -51,6 +54,11 @@ export interface IpcServices {
   mainWindow: BrowserWindow | null;
   activeContents: () => Electron.WebContents | null;
   loadStartUrl: () => void;
+  // Reload the page whose load failed, in the webContents that failed it.
+  retryOfflineLoad: (sender: RetryContents) => void;
+  // The page a given webContents last failed to load, or the start URL when it
+  // has not failed one (the welcome screen's "open in browser").
+  offlineTargetFor: (sender: RetryContents) => string;
   enterTabMode: (url: string) => void;
   // Leave tab mode and return to the welcome screen (used when the last tab is
   // closed).
@@ -62,8 +70,10 @@ export interface IpcServices {
     close: (id: string) => void;
     activate: (id: string) => boolean;
     getState: () => {
-      tabs: Array<{ id: string; url: string; title?: string; zoom?: number }>;
+      tabs: Array<{ id: string; url: string; title?: string; zoom?: number; pinned?: boolean }>;
       activeId: string | null;
+      // Only ever read for its length, by the tab context menu.
+      closedStack?: readonly unknown[];
     };
     move: (id: string, toIndex: number) => boolean;
     pin: (id: string, pinned: boolean) => boolean;
@@ -88,7 +98,7 @@ export interface IpcServices {
   splitId: string | null;
   tabChromeView: Electron.WebContentsView | null;
   layoutTabChrome: () => void;
-  setTabSearch: (open: boolean) => void;
+  setChromeOverlay: (open: boolean) => void;
   setSplitTab: (id: string | null) => void;
   setTabOrientation: (mode: 'horizontal' | 'vertical') => void;
   saveSession: () => void;
@@ -239,12 +249,16 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     logger: services.logger,
   });
 
-  registry.handle('yc:reload', async () => {
-    services.loadStartUrl();
+  // The offline page's "Try again", its countdown and its `online` listener all
+  // land here, and all three can fire long after the user has moved to another
+  // tab. Act on the SENDER, never on the active tab, and reload the page that
+  // failed rather than the start URL.
+  registry.handle('yc:reload', async (event) => {
+    services.retryOfflineLoad(event.sender);
     return { ok: true };
   });
-  registry.handle('yc:open-in-browser', async () => {
-    await openExternal(services.config.startUrl.href);
+  registry.handle('yc:open-in-browser', async (event) => {
+    await openExternal(services.offlineTargetFor(event.sender));
     return { ok: true };
   });
   registry.handle('yc:start-signin', async () => {
@@ -275,9 +289,13 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     if (typeof partial !== 'object' || partial === null || Array.isArray(partial)) {
       return { ok: false, error: 'invalid-settings' };
     }
+    // `rejected` before `save`, so the caller can say which field it dropped.
+    // The other fields still persist: a mistyped Do Not Disturb time must not
+    // discard the toggle the user flipped in the same submission (issue #3298).
+    const rejected = rejectedSettingKeys(partial);
     const updated = store.save(partial);
     services.applySettings(updated);
-    return { ok: true, settings: updated };
+    return { ok: true, settings: updated, rejected };
   });
 
   registry.handle('yc:execute-command', async (_event, args) => {
@@ -594,7 +612,19 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
 
   registry.handle('yc:vault-stats', async () => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
-    return { ok: true, stats: services.documentVault.getStats() };
+    /*
+     * `encryptionAvailable` rides along with the stats so the vault window can
+     * state the real encryption status instead of asserting one. It used to
+     * print a green "OS keychain" pill unconditionally, on the reasoning that
+     * safeStorage is usually present on macOS - but the Linux AppImage and deb
+     * builds depend on a keyring, and when it is missing the vault refuses every
+     * write (ENCRYPTION_UNAVAILABLE) while the badge still read green.
+     */
+    return {
+      ok: true,
+      stats: services.documentVault.getStats(),
+      encryptionAvailable: services.documentVault.encryptionAvailable,
+    };
   });
 
   registry.handle('yc:vault-save-buffer', async (_event, args) => {
@@ -751,17 +781,11 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     };
     tabViewHost.setBounds(id, contentBounds);
     services.attachedTabId = id;
-    // Keep the tab-bar chrome view on TOP of the content view. Input is routed to
-    // the topmost sibling WebContentsView, so the content view we just added would
-    // otherwise capture every click/hover meant for the tabs and the
-    // new-tab/search/close controls. A bare addChildView on an already-attached
-    // view does not reliably re-order it, so remove then re-add to force the
-    // chrome strip back to the top of the stack.
-    const chrome = services.tabChromeView;
-    if (chrome && !chrome.webContents.isDestroyed()) {
-      services.mainWindow.contentView.removeChildView(chrome);
-      services.mainWindow.contentView.addChildView(chrome);
-    }
+    // The content view we just added is now topmost, and input is routed to the
+    // topmost sibling WebContentsView. The shared layout pass puts the tab-bar
+    // chrome back on top of it and then the idle-lock overlay on top of that, so
+    // a tab attached while the app is locked still lands under the lock.
+    services.layoutTabChrome();
   };
 
   const detachActiveTabView = (): void => {
@@ -783,6 +807,9 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
       ok: true,
       ...services.tabManager.getState(),
       orientation: services.tabOrientation,
+      // The tab bar marks the tab mounted in the right-hand split pane, so it
+      // needs the split tab alongside the active one.
+      splitId: services.splitId,
     };
   });
 
@@ -890,6 +917,44 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, id: dupId };
   });
 
+  // The tab bar's right-click menu is drawn by the OS, not by the page. A menu
+  // drawn in the page was clipped to the 40px chrome view and only its top edge
+  // was ever visible, so no item in it could be clicked (issue #3289); a native
+  // menu is clamped to the screen, closes on Escape, walks under the arrow keys
+  // and reaches a screen reader, none of which the page's <div>s did.
+  //
+  // The chosen item is pushed back to the tab bar rather than returned from
+  // this call: on macOS a popup's click handler runs after popup() has already
+  // returned, so a resolved-from-the-click promise would race the close. The
+  // tab bar then performs the action through the same tab IPC its own buttons
+  // use, which keeps one code path per action.
+  registry.handle('yc:tab-context-menu', async (event, args) => {
+    const id = args[0];
+    if (!services.tabManager || typeof id !== 'string') return { ok: false, error: 'invalid-args' };
+    const win = services.mainWindow;
+    if (!win || win.isDestroyed()) return { ok: false, error: 'not-ready' };
+    const items = buildTabContextMenu(services.tabManager.getState(), id);
+    if (!items) return { ok: false, error: 'tab-not-found' };
+    const sender = event.sender;
+    const menu = Menu.buildFromTemplate(
+      items.map((item) =>
+        item.separator
+          ? { type: 'separator' as const }
+          : {
+              label: item.label,
+              enabled: item.enabled,
+              click: (): void => {
+                if (!sender.isDestroyed()) {
+                  sender.send('yc:tab-context-action', { action: item.id, tabId: id });
+                }
+              },
+            }
+      )
+    );
+    menu.popup({ window: win });
+    return { ok: true };
+  });
+
   registry.handle('yc:tab-reopen-closed', async () => {
     if (
       !services.tabManager ||
@@ -910,8 +975,8 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, id };
   });
 
-  registry.handle('yc:tab-search', async (_event, args) => {
-    services.setTabSearch(args[0] === true);
+  registry.handle('yc:chrome-overlay', async (_event, args) => {
+    services.setChromeOverlay(args[0] === true);
     return { ok: true };
   });
 
@@ -1077,7 +1142,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
 
   registry.handle('yc:show-cheatsheet', async () => {
     if (services.tabChromeView && !services.tabChromeView.webContents.isDestroyed()) {
-      services.setTabSearch(true);
+      services.setChromeOverlay(true);
       void services.tabChromeView.webContents
         .executeJavaScript('window.__ycOpenCheatsheet && window.__ycOpenCheatsheet()')
         .catch((error) => services.logger.warn('cheatsheet_js_failed', { error }));

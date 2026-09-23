@@ -73,7 +73,6 @@ const config = (over: Partial<BookingPageConfig> = {}): BookingPageConfig => ({
   serviceIds: [],
   bookingWindowDays: 28,
   bufferMinutes: 10,
-  autoConfirm: false,
   welcomeMessage: null,
   replyToEmail: null,
   ...over,
@@ -187,14 +186,24 @@ export const ServicesStep: Story = {
     await expect(rows).toHaveLength(3);
     await expect(rows[0]).toHaveTextContent('Wellness consultation');
     await expect(rows[0]).toHaveTextContent('30 min · any practitioner');
+    /* The price is the shared `formatMoneyPrecise`, not the page's old
+       three-entry {EUR,USD,GBP} symbol table - so this pins the same formatter
+       Specialities prices from rather than a local copy of it. */
     await expect(rows[0]).toHaveTextContent('€72.00');
     await expect(canvas.queryByText('Full mouth radiograph')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Retired nail trim')).not.toBeInTheDocument();
 
-    // The selects carry the number the API stores, not the label.
-    await expect(canvas.getByRole('combobox', { name: 'Bookable window' })).toHaveValue('28');
-    await expect(canvas.getByRole('combobox', { name: 'Buffer between visits' })).toHaveValue('10');
-    await expect(canvas.getByRole('switch', { name: 'Requests need confirmation' })).toBeChecked();
+    // The Dropdowns carry the number the API stores as their selected label.
+    await expect(canvas.getByRole('button', { name: /Bookable window/ })).toHaveTextContent(
+      'Up to 4 weeks ahead'
+    );
+    await expect(canvas.getByRole('button', { name: /Buffer between visits/ })).toHaveTextContent(
+      '10 minutes'
+    );
+    await expect(canvas.getByText('Requests need confirmation.')).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole('switch', { name: 'Requests need confirmation' })
+    ).not.toBeInTheDocument();
 
     // The two selects share one `grid-cols-1 sm:grid-cols-2` row: two tracks and
     // two children here, and the same grid is what drops to one column on a
@@ -210,7 +219,8 @@ export const ServicesStep: Story = {
       description: {
         story:
           'The entry pane. Every bookable service arrives already selected, which is the point of ' +
-          'the derived-selection design - the clinic opts services out rather than in.',
+          'the derived-selection design - the clinic opts services out rather than in. Booking ' +
+          'requests always require staff confirmation.',
       },
     },
   },
@@ -361,7 +371,7 @@ export const ServicesStepEmpty: Story = {
 
     // Everything below the list is untouched by the empty state, and Continue is
     // live: an empty booking page can be carried straight through to step 2.
-    await expect(canvas.getByRole('combobox', { name: 'Bookable window' })).toBeEnabled();
+    await expect(canvas.getByRole('button', { name: /Bookable window/ })).toBeEnabled();
     await expect(canvas.getByRole('button', { name: 'Continue' })).toBeEnabled();
   },
   parameters: {

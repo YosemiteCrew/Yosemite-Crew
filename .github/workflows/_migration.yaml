@@ -117,6 +117,45 @@ jobs:
 
           echo "No existing migration was modified."
 
+      # Applying cleanly to an empty database is not the same as the code that
+      # is already deployed surviving the change.
+      #
+      # scripts/deploy/api-deploy.sh applies migrations and then boots and
+      # smoke-tests the new bundle before `pm2 restart` cuts over, so the OLD
+      # process serves traffic against the NEW schema for the length of that
+      # window - and if the smoke boot fails the script deliberately does not cut
+      # over, which leaves it there indefinitely. The rollback restores the code;
+      # nothing rolls back the schema.
+      #
+      # Additive migrations are unaffected, which is why this has not bitten yet.
+      # Raised by the Codex review on #2599, which renames three columns; that PR
+      # was safe because all three tables held zero rows, which is a fact about
+      # that PR and not about renames.
+      #
+      # This does not refuse the change - it refuses an UNDECLARED one. The
+      # declaration is the expand-contract reasoning written down next to the SQL
+      # it describes, where a reviewer sees it.
+      - name: Check destructive migrations say how the deployed code survives
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          # Only migrations this branch ADDS. An edit to an existing one is
+          # already refused by the immutability check above, and re-classifying
+          # the whole history would fail every pull request on migrations that
+          # shipped long ago.
+          added=()
+          while IFS= read -r path; do
+            [ -n "$path" ] && added+=("$path")
+          done < <(git diff --no-renames --diff-filter=A --name-only "$BASE_SHA...HEAD" \
+                     -- packages/database/prisma/migrations \
+                   | grep -E '/migration\.sql$' || true)
+
+          node scripts/ci/classify-migration.mjs "${added[@]+"${added[@]}"}"
+
       # `migrate diff --from-migrations` replays the whole history into a
       # throwaway database, so it needs one that is not the target.
       - name: Create shadow database
@@ -131,6 +170,12 @@ jobs:
       # order, to an empty database.
       - name: Apply migrations
         run: pnpm --filter @yosemite-crew/database run prisma:deploy
+
+      - name: Test deployed schema invariant checks
+        run: pnpm --filter @yosemite-crew/database run test:schema-invariants
+
+      - name: Check deployed schema invariants
+        run: pnpm --filter @yosemite-crew/database run schema:assert
 
       # `code_entry_search_text` (20260824160000_clinical_term_search_index) is
       # the prefilter behind clinical-term autocomplete, and it has two
@@ -253,65 +298,6 @@ jobs:
           }
           trap cleanup EXIT
 
-          # Four facts, because they fail in four different ways and a single
-          # count would hide which one broke. Expected: 1|0|1|1.
-          #
-          #   a. "Invoice" is still a plain table in public - not a view, and not
-          #      a partitioned parent.
-          #   b. It has no children. A partition or an INHERITS child would hold
-          #      invoices the parent's index does not cover.
-          #   c. The index protects THIS table (indrelid), is live rather than a
-          #      half-built corpse (indisvalid/indisready), is unconditional
-          #      (indpred), and is keyed on that one column (indnkeyatts/indkey).
-          #      Every one of those can be false while the name still exists.
-          #   d. It is the ONLY unique index over the column. A second one -
-          #      NULLS NOT DISTINCT, or composite and partial - would end the
-          #      NULL coexistence that every non-webhook invoice depends on,
-          #      without touching this one.
-          #
-          # What this CANNOT see: the column could stop being written at all, and
-          # the index would stay unique and unused. That belongs in a backend
-          # test that mints an invoice through StripeService, not here.
-          intent_attnum="(SELECT attnum FROM pg_attribute
-             WHERE attrelid = to_regclass('public.\"Invoice\"')
-               AND attname = 'providerPaymentIntentId' AND NOT attisdropped)"
-
-          facts=$(psql_ci -tAc "
-            SELECT
-              (SELECT count(*) FROM pg_class
-                 WHERE oid = to_regclass('public.\"Invoice\"') AND relkind = 'r')
-              || '|' ||
-              (SELECT count(*) FROM pg_inherits
-                 WHERE inhparent = to_regclass('public.\"Invoice\"'))
-              || '|' ||
-              (SELECT count(*) FROM pg_index i
-                 JOIN pg_class c ON c.oid = i.indexrelid
-                WHERE c.relname = 'Invoice_providerPaymentIntentId_key'
-                  AND i.indrelid = to_regclass('public.\"Invoice\"')
-                  AND i.indisunique AND i.indisvalid AND i.indisready
-                  AND i.indpred IS NULL
-                  AND i.indnkeyatts = 1
-                  AND i.indkey[0] = $intent_attnum)
-              || '|' ||
-              (SELECT count(*) FROM pg_index i
-                WHERE i.indrelid = to_regclass('public.\"Invoice\"')
-                  AND i.indisunique
-                  AND $intent_attnum = ANY((i.indkey::int2[])[0:i.indnkeyatts-1]));")
-
-          if [ "$facts" != "1|0|1|1" ]; then
-            echo "::error::The uniqueness guarantee on Invoice.providerPaymentIntentId has changed."
-            echo "Expected 1|0|1|1, got: $facts"
-            echo "  1st: \"Invoice\" is a plain table in public"
-            echo "  2nd: it has no partitions or inheritance children"
-            echo "  3rd: Invoice_providerPaymentIntentId_key is on THAT table, valid,"
-            echo "       unconditional, and keyed on providerPaymentIntentId alone"
-            echo "  4th: it is the only unique index over that column"
-            echo "That index is the only thing stopping a redelivered booking webhook"
-            echo "from minting a second invoice for one payment, because nothing"
-            echo "upstream deduplicates by Stripe event id."
-            exit 1
-          fi
-
           # Every non-intent value differs between the two colliding rows, so a
           # composite unique index on any other column would not refuse them and
           # this would correctly fail rather than pass by accident.
@@ -369,42 +355,6 @@ jobs:
           fi
 
           echo "The booking payment intent is unique, and NULLs still coexist."
-
-      # The Supabase advisor caught public."OrganizationDocumentAcknowledgements"
-      # shipping with RLS off. The cause was structural: RLS was only ever enabled
-      # by hand in the dashboard, so every new table was unprotected until someone
-      # remembered. This asserts it against the freshly migrated database, so a
-      # table added without RLS fails here rather than in a security advisor.
-      - name: Check row level security is enabled on every public table
-        shell: bash
-        env:
-          PGPASSWORD: ${{ github.run_id }}
-        run: |
-          set -euo pipefail
-
-          # DATABASE_URL carries Prisma's ?schema= parameter, which psql rejects,
-          # so connect with explicit flags like the shadow-database step above.
-          missing=$(psql -h localhost -U postgres -d yosemite_ci -tAc "
-            SELECT c.relname
-            FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE n.nspname = 'public'
-              AND c.relkind = 'r'
-              AND c.relname <> '_prisma_migrations'
-              AND NOT c.relrowsecurity
-            ORDER BY c.relname;")
-
-          if [ -n "$missing" ]; then
-            echo "::error::Tables in the public schema have row level security disabled."
-            echo "Supabase exposes public tables over PostgREST to the anon and"
-            echo "authenticated keys; without RLS those keys can read them directly."
-            echo "Add the table to the RLS migration rather than enabling it in the dashboard."
-            echo "--- tables without RLS ---"
-            echo "$missing"
-            exit 1
-          fi
-
-          echo "Row level security is enabled on every public table."
 
       - name: Check schema and migrations have not drifted
         shell: bash

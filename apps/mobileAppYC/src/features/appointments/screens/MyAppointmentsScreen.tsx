@@ -302,7 +302,6 @@ export const MyAppointmentsScreen: React.FC = () => {
       glassEffect="clear"
       interactive
       shadow="none"
-      colorScheme="light"
       style={styles.infoTile}
       fallbackStyle={styles.tileFallback}>
       <Text style={styles.tileTitle}>{title}</Text>

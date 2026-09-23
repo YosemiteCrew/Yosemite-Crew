@@ -47,7 +47,7 @@ const Row = ({ track }: { track: string }) => (
 export const Default: Story = {
   args: { columns: COLUMNS, track: TRACK },
   render: (args) => (
-    <div className="TableShell">
+    <div className="yc-card-surface TableShell">
       <TableHead {...args} />
       <Row track={args.track} />
       <Row track={args.track} />
@@ -59,7 +59,7 @@ export const NotSticky: Story = {
   name: 'Inside a drawer (not sticky)',
   args: { columns: COLUMNS, track: TRACK, sticky: false },
   render: (args) => (
-    <div className="TableShell">
+    <div className="yc-card-surface TableShell">
       <TableHead {...args} />
       <Row track={args.track} />
     </div>
@@ -86,7 +86,7 @@ export const RightAligned: Story = {
     track: 'minmax(0,1.7fr) 72px 130px 120px',
   },
   render: (args) => (
-    <div className="TableShell">
+    <div className="yc-card-surface TableShell">
       <TableHead {...args} />
     </div>
   ),
@@ -123,7 +123,7 @@ export const Consistency: StoryObj = {
       </div>
       <div>
         <p className="mb-2 text-[12px] text-[var(--ink-faint)]">TableHead — grid shell</p>
-        <div className="TableShell">
+        <div className="yc-card-surface TableShell">
           <TableHead
             columns={[
               { key: 'name', label: 'Name' },

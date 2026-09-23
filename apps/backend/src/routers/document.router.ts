@@ -109,6 +109,15 @@ router.get(
   DocumentController.listForPms,
 );
 
+// List just the consent documents for companion, from the e-signing portal (PMS)
+router.get(
+  "/pms/:patientId/consent",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("document:view:any"),
+  DocumentController.listConsentForPms,
+);
+
 // Get document details (PMS)
 router.get(
   "/pms/details/:documentId",

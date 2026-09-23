@@ -329,7 +329,6 @@ describe("booking-page.service", () => {
           serviceIds: [{ not: "" }] as unknown as string[],
           bookingWindowDays: 28,
           bufferMinutes: 10,
-          autoConfirm: false,
         }),
       ).rejects.toMatchObject({ status: 400 });
       expect(pm.productItem.findMany).not.toHaveBeenCalled();
@@ -352,7 +351,6 @@ describe("booking-page.service", () => {
         serviceIds: [],
         bookingWindowDays: 28,
         bufferMinutes: 10,
-        autoConfirm: false,
         welcomeMessage: null,
         replyToEmail: null,
       });
@@ -389,10 +387,13 @@ describe("booking-page.service", () => {
         serviceIds: ["svc-1"],
         bookingWindowDays: 56,
         bufferMinutes: 30,
-        autoConfirm: true,
         welcomeMessage: "Hello",
         replyToEmail: "front@example.com",
       });
+      expect(config).not.toHaveProperty("autoConfirm");
+      const select =
+        pm.publicBookingSettings.findUnique.mock.calls[0][0].select;
+      expect(select).not.toHaveProperty("autoConfirm");
     });
 
     it("reports configured=false when no settings row exists", async () => {
@@ -419,7 +420,6 @@ describe("booking-page.service", () => {
         serviceIds: [],
         bookingWindowDays: 28,
         bufferMinutes: 10,
-        autoConfirm: false,
         welcomeMessage: null,
         replyToEmail: null,
       });
@@ -449,7 +449,6 @@ describe("booking-page.service", () => {
       serviceIds: ["svc-1"],
       bookingWindowDays: 28,
       bufferMinutes: 10,
-      autoConfirm: false,
       welcomeMessage: "  Book a visit.  ",
       replyToEmail: "  Front@Example.COM ",
     };
@@ -499,6 +498,19 @@ describe("booking-page.service", () => {
             welcomeMessage: "Book a visit.",
             replyToEmail: "front@example.com",
           }),
+        }),
+      );
+    });
+
+    it("normalises the retired auto-confirm column to false on save", async () => {
+      pm.productItem.findMany.mockResolvedValue([{ id: "svc-1" }]);
+
+      await BookingPageService.saveConfig("org-1", input);
+
+      expect(pm.publicBookingSettings.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ autoConfirm: false }),
+          update: expect.objectContaining({ autoConfirm: false }),
         }),
       );
     });

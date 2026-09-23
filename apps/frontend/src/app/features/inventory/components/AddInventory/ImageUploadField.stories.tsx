@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import api from '@/app/services/axios';
 import ImageUploadField from './ImageUploadField';
 
 const ORG_ID = 'org-storybook-inventory';
@@ -225,8 +226,40 @@ export const OrganisationNotLoaded: Story = {
   },
 };
 
+/**
+ * Holds the presign request open for a fixed interval, then fails it.
+ *
+ * Without this the story raced the network. `handleFileChange` commits the blob
+ * preview and `isUploading` before its first await, but with no backend behind
+ * Storybook the presign call rejected in well under 150ms - measured - so by the
+ * time `userEvent.upload` had resolved its own awaits the component had often
+ * already fallen through to the failure state and torn the preview down. The
+ * in-flight assertions then failed on a frame that had genuinely existed and gone.
+ *
+ * Swapping the adapter rather than stubbing `fetch`: this path is axios, which
+ * uses XMLHttpRequest in the browser, so a `fetch` stub never sees it. Every other
+ * request still reaches the real adapter.
+ */
+const IN_FLIGHT_MS = 600;
+
+const stallPresign = () => {
+  const original = api.defaults.adapter;
+  api.defaults.adapter = ((config: { url?: string }) => {
+    if (config.url?.includes('/items/upload-url')) {
+      return new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new Error('Storybook: presign is stubbed to fail')), IN_FLIGHT_MS);
+      });
+    }
+    return (original as (c: unknown) => Promise<unknown>)(config);
+  }) as typeof api.defaults.adapter;
+  return () => {
+    api.defaults.adapter = original;
+  };
+};
+
 export const UploadInFlight: Story = {
   name: 'Uploading, then failing',
+  beforeEach: stallPresign,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
@@ -234,10 +267,11 @@ export const UploadInFlight: Story = {
 
     /* The in-flight frame, asserted synchronously rather than through `findBy`.
        `handleFileChange` sets the blob preview and `isUploading` BEFORE its first
-       await, and the await is a real XHR - which cannot settle inside the microtask
-       flush `userEvent` performs - so this state is committed and still standing here.
-       A retrying query would be no safer: if the state had already passed, no amount
-       of polling brings it back. */
+       await, so the state is committed by the time `userEvent.upload` resolves. A
+       retrying query would be no safer: if the state had already passed, no amount
+       of polling brings it back - which is exactly what used to happen here, and
+       why `stallPresign` above now holds the window open for a fixed interval
+       instead of leaving it to how fast the network refuses the request. */
     const image = canvas.getByRole('img', { name: 'Product image' });
     await expect(image.getAttribute('src')?.startsWith('blob:')).toBe(true);
     await expect(canvas.getByText('Uploading…')).toBeInTheDocument();
@@ -248,7 +282,7 @@ export const UploadInFlight: Story = {
        the terminal state here is the failure one; the generous timeout is because a
        real request is being waited on rather than a state machine. */
     await waitFor(() => expect(canvas.queryByText('Uploading…')).not.toBeInTheDocument(), {
-      timeout: 15000,
+      timeout: IN_FLIGHT_MS * 5,
     });
     await expect(canvas.getByText('Upload failed. Please try again.')).toBeInTheDocument();
     await expect(canvas.getByText('Upload image')).toBeInTheDocument();

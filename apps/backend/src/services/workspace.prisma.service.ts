@@ -1145,8 +1145,7 @@ const buildTreatmentItemsFromPrescriptions = (
     const medications = Array.isArray(record.prescription.medications)
       ? record.prescription.medications
       : [];
-    const firstMedication = medications.find((entry) => isRecord(entry)) as
-      Record<string, unknown> | undefined;
+    const firstMedication = medications.find((entry) => isRecord(entry));
     const productId =
       (firstMedication &&
         typeof firstMedication.inventoryItemId === "string" &&

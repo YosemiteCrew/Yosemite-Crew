@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import {
   PetClinicalRecordService,
   PetClinicalRecordError,
@@ -117,6 +118,7 @@ beforeEach(() => {
   prismaMock.clinicalArtifact.create.mockImplementation(echoArtifact);
   prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
     id: "art-1",
+    version: 3,
     status: "DRAFT",
     encounterId: "enc-1",
     kind: "IMMUNIZATION",
@@ -444,7 +446,14 @@ describe("PetClinicalRecordService.attestRecord", () => {
     expect(result.status).toBe("SIGNED");
     expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: "SIGNED" }),
+        // Attesting claims the generation it read and advances it (#3144), so a
+        // draft holding the pre-signature version loses its own claim - and so
+        // does this attestation if a revocation landed since the status read.
+        where: { id: "art-1", version: 3 },
+        data: expect.objectContaining({
+          status: "SIGNED",
+          version: { increment: 1 },
+        }),
       }),
     );
     expect(auditMock).toHaveBeenCalled();
@@ -470,6 +479,7 @@ describe("PetClinicalRecordService.attestRecord", () => {
   it("404s when the record has no encounter to prove ownership", async () => {
     prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
       id: "art-1",
+      version: 3,
       status: "DRAFT",
       encounterId: null,
       kind: "IMMUNIZATION",
@@ -482,6 +492,7 @@ describe("PetClinicalRecordService.attestRecord", () => {
   it("audits the event matching the record kind, not always vaccination", async () => {
     prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
       id: "art-1",
+      version: 3,
       status: "DRAFT",
       encounterId: "enc-1",
       kind: "RABIES_TITRATION",
@@ -495,6 +506,7 @@ describe("PetClinicalRecordService.attestRecord", () => {
   it("409s a record that is already attested", async () => {
     prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
       id: "art-1",
+      version: 3,
       status: "SIGNED",
       encounterId: "enc-1",
       kind: "IMMUNIZATION",
@@ -519,6 +531,7 @@ describe("PetClinicalRecordService.attestRecord", () => {
     // revocation columns, republishing a record pulled for error or fraud.
     prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
       id: "art-1",
+      version: 3,
       status: "VOID",
       encounterId: "enc-1",
       kind: "IMMUNIZATION",
@@ -565,7 +578,11 @@ describe("PetClinicalRecordService.revokeRecord", () => {
     expect(withReason.status).toBe("VOID");
     expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: "VOID" }),
+        where: { id: "art-1", version: 3 },
+        data: expect.objectContaining({
+          status: "VOID",
+          version: { increment: 1 },
+        }),
       }),
     );
     const withoutReason = await PetClinicalRecordService.revokeRecord(base);
@@ -612,6 +629,7 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
 
   const artifactWith = (over: Record<string, unknown>) => ({
     id: "art-1",
+    version: 3,
     status: "DRAFT",
     encounterId: "enc-1",
     kind: "IMMUNIZATION",
@@ -640,7 +658,13 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
     });
     expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: "IN_PROGRESS" }),
+        // Claimed against the generation read BEFORE the Documenso round trip,
+        // which is the longest read-to-write window of the three (#3144).
+        where: { id: "art-1", version: 3 },
+        data: expect.objectContaining({
+          status: "IN_PROGRESS",
+          version: { increment: 1 },
+        }),
       }),
     );
   });
@@ -735,6 +759,7 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
     ).rejects.toMatchObject({ statusCode: 404 });
     prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce({
       id: "art-1",
+      version: 3,
       status: "SIGNED",
       encounterId: "enc-1",
       kind: "IMMUNIZATION",
@@ -803,6 +828,112 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
     );
     await PetClinicalRecordService.requestRecordSignature(args);
     expect(documensoMock.createDocument).toHaveBeenCalled();
+  });
+});
+
+/**
+ * #3144, the case this claim exists for: these three transitions read a status,
+ * decide the next one in JS, and used to write it back by id alone - so a
+ * revocation committing inside that window was flipped straight back to SIGNED
+ * by an attestation that had never seen it. The claim turns the loser into a
+ * write that touches nothing.
+ */
+describe("passport transitions claim the generation they read (#3144)", () => {
+  const args = {
+    artifactId: "art-1",
+    patientId: "pat-1",
+    organisationId: "org-1",
+    actor: CTX.actor,
+  };
+
+  const lostClaim = () =>
+    new Prisma.PrismaClientKnownRequestError("No record was found", {
+      code: "P2025",
+      clientVersion: "6.19.3",
+    });
+
+  it("409s an attestation whose record was revoked in flight, and audits nothing", async () => {
+    prismaMock.clinicalArtifact.update.mockRejectedValueOnce(lostClaim());
+
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    // An audit row or an owner push for a signature that never landed would be
+    // worse than the lost write itself.
+    expect(auditMock).not.toHaveBeenCalled();
+    expect(sendToUserMock).not.toHaveBeenCalled();
+  });
+
+  it("409s a revocation whose record moved in flight, and audits nothing", async () => {
+    prismaMock.clinicalArtifact.update.mockRejectedValueOnce(lostClaim());
+
+    await expect(
+      PetClinicalRecordService.revokeRecord(args),
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("409s a signature request whose record moved during the Documenso round trip", async () => {
+    prismaMock.clinicalArtifact.update.mockRejectedValueOnce(lostClaim());
+
+    await expect(
+      PetClinicalRecordService.requestRecordSignature({
+        ...args,
+        signatoryName: "Dr Vet",
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("does not disguise an unrelated database failure as a conflict", async () => {
+    prismaMock.clinicalArtifact.update.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Deadlock", {
+        code: "P2034",
+        clientVersion: "6.19.3",
+      }),
+    );
+
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toMatchObject({ code: "P2034" });
+  });
+
+  it("projects the version on the reads that feed the claim", async () => {
+    // The prisma mock answers a findFirst regardless of its `select`, so no
+    // behavioural test here can notice a projection that forgot the column -
+    // and forgetting it is what turns the claim into an unconditional write.
+    // Assert the projection itself.
+    await PetClinicalRecordService.attestRecord(args);
+    expect(prismaMock.clinicalArtifact.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({ version: true }),
+      }),
+    );
+
+    prismaMock.clinicalArtifact.findFirst.mockClear();
+    await PetClinicalRecordService.revokeRecord(args);
+    expect(prismaMock.clinicalArtifact.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({ version: true }),
+      }),
+    );
+  });
+
+  it("refuses to write a record loaded without its version", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce({
+      id: "art-1",
+      status: "DRAFT",
+      encounterId: "enc-1",
+      kind: "IMMUNIZATION",
+    });
+
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toBeInstanceOf(PetClinicalRecordError);
+    // Prisma drops an `undefined` filter rather than matching no row, so the
+    // write must not happen at all rather than happen unconditionally.
+    expect(prismaMock.clinicalArtifact.update).not.toHaveBeenCalled();
   });
 });
 

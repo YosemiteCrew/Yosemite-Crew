@@ -68,7 +68,12 @@ export type TaskStatus =
   | 'in_progress'
   | 'cancelled';
 
-export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
+export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
+
+// Which occurrences a save/delete on a recurring task affects. Mobile only
+// ever offers a THIS/ALL choice; THIS_AND_FOLLOWING exists solely so this
+// type matches the backend's RecurrenceScope contract byte for byte.
+export type TaskRecurrenceScope = 'THIS' | 'THIS_AND_FOLLOWING' | 'ALL';
 export type OTFieldType =
   'TEXT' | 'NUMBER' | 'CHOICE' | 'BOOLEAN' | 'PHOTO' | 'VIDEO';
 

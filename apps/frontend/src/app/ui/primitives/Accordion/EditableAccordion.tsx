@@ -279,9 +279,11 @@ const isCurrencyField = (fieldKey: string) => {
 };
 
 const FieldValueRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border">
-    <div className="text-body-4-emphasis text-text-secondary">{label}</div>
-    <div className="text-body-4 text-text-primary text-right">{children}</div>
+  <div className="py-2.5! flex items-center justify-between gap-3 border-t border-[var(--hairline)]">
+    <div className="text-[13px] font-medium text-[var(--ink-muted)]">{label}</div>
+    <div className="min-w-0 text-right text-[13.5px] font-semibold text-[var(--ink)]">
+      {children}
+    </div>
   </div>
 );
 

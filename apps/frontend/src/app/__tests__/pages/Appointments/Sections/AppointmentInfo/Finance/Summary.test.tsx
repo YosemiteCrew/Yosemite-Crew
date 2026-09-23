@@ -38,15 +38,6 @@ jest.mock('@/app/hooks/useInvoices', () => ({
   useInvoicesForPrimaryOrgAppointment: (...args: any[]) => useInvoicesMock(...args),
 }));
 
-jest.mock('@/app/lib/money', () => ({
-  formatMoney: (value: number, currency: string) => `${currency} ${value}`,
-}));
-
-jest.mock('@/app/lib/validators', () => ({
-  toNumberSafe: (value: any) => Number(value || 0),
-  toTitle: (value: string) => value.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
-}));
-
 jest.mock('@/app/ui/tables/InvoiceTable', () => ({
   getStatusStyle: (status: string) => ({
     color: status === 'PAID' ? 'green' : 'gray',
@@ -118,8 +109,13 @@ describe('Finance Summary section', () => {
 
     expect(screen.getByTestId('editable-accordion')).toBeInTheDocument();
     expect(screen.getByText('Consultation')).toBeInTheDocument();
-    expect(screen.getByText('USD 80')).toBeInTheDocument();
-    expect(screen.getByText('USD 78')).toBeInTheDocument();
+    /* The real Intl helpers, not a hand-written stub that produced "USD 80".
+       These four rows used formatMoney (whole units, ambient org currency) while
+       the Finance page's identical panel used formatMoneyPrecise with the
+       invoice's own - so one invoice read "$1,235" on one screen and
+       "$1,234.50" on the other. */
+    expect(screen.getByText('$80.00')).toBeInTheDocument();
+    expect(screen.getByText('$78.00')).toBeInTheDocument();
     expect(screen.getByText('Online payment')).toBeInTheDocument();
     expect(screen.getByTestId('pay-actions-inv-pending')).toBeInTheDocument();
   });
@@ -128,8 +124,8 @@ describe('Finance Summary section', () => {
     useInvoicesMock.mockReturnValue([]);
     render(<Summary activeAppointment={activeAppointment} formData={formData} />);
 
-    expect(screen.getAllByText('USD 10').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('USD 1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$10.00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$1.00').length).toBeGreaterThan(0);
     expect(screen.getByTestId('pay-actions-none')).toBeInTheDocument();
   });
 

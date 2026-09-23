@@ -5,6 +5,8 @@ import { Appointment } from '@yosemite-crew/types';
 import {
   getMinutesSinceStartOfDayInPreferredTimeZone,
   getPreciseMinutesSinceStartOfDayInPreferredTimeZone,
+  getStartOfDayInPreferredTimeZone,
+  getStartOfNextDayInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 
@@ -214,10 +216,11 @@ export function getNowTopPxForHourRange(
 }
 
 export function isAllDayForDate(ev: Appointment, day: Date): boolean {
-  const startOfDay = new Date(day);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(day);
-  endOfDay.setHours(23, 59, 59, 999);
+  // `day` may be any instant within its clinic calendar day (a week-column can
+  // be anchored at preferred-timezone noon, not browser midnight), so the day's
+  // bounds must come from the preferred timezone rather than browser setHours.
+  const startOfDay = getStartOfDayInPreferredTimeZone(day);
+  const endOfDay = new Date(getStartOfNextDayInPreferredTimeZone(day).getTime() - 1);
   return ev.startTime <= startOfDay && ev.endTime >= endOfDay;
 }
 

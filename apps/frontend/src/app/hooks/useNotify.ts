@@ -20,11 +20,14 @@ type ToastConfigItem = {
   options?: ToastOptions;
 };
 
+// Geometry and surface come from the `.yc-toast` recipe in globals.css (and the
+// ToastContainer in ui/layout/ToastProvider), not from per-call utilities, so a
+// toast raised anywhere in the app is the same toast.
 const BASE_OPTIONS: ToastOptions = {
   closeButton: false,
   icon: false,
   hideProgressBar: true,
-  className: 'pl-5! pr-3! py-4! w-[400px]! rounded-2xl! shadow-0!',
+  className: 'yc-toast',
 };
 
 const TOAST_CONFIG: Record<NotifyType, ToastConfigItem> = {

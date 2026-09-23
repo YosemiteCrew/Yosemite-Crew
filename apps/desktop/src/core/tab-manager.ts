@@ -21,7 +21,7 @@ export interface TabManagerState {
   closedStack: TabSummary[];
 }
 
-interface TabManager {
+export interface TabManager {
   create(url: string, opts?: Partial<Pick<TabSummary, 'pinned' | 'title'>>): string;
   close(id: string): boolean;
   activate(id: string): boolean;
@@ -29,6 +29,8 @@ interface TabManager {
   pin(id: string, pinned: boolean): boolean;
   duplicate(id: string): string | null;
   reopenClosed(): string | null;
+  // Forget every tab, open or recently closed, e.g. on sign-out.
+  clear(): void;
   updateMeta(
     id: string,
     meta: Partial<
@@ -194,6 +196,12 @@ export const createTabManager = (initial?: TabSummary[]): TabManager => {
       tabs.push(restored);
       activeId = restored.id;
       return restored.id;
+    },
+
+    clear(): void {
+      tabs = [];
+      activeId = null;
+      closedStack.length = 0;
     },
 
     updateMeta(

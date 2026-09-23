@@ -200,6 +200,26 @@ describe('ChatChannelScreen', () => {
 
   // --- Rendering & Initialization Tests ---
 
+  it('shows no presence indicator, because nothing tracks presence', async () => {
+    /*
+     * The dot used to render unconditionally, so every vet always appeared
+     * online. Nothing subscribes to presence and the transport exposes none.
+     *
+     * Asserted structurally - the avatar holds the initials and nothing else.
+     * A first attempt matched on the style NAME containing "presence", which
+     * silently never bites: RN StyleSheet compiles styles to numeric ids, so
+     * re-adding the dot still passed.
+     */
+    const {getByTestId} = render(<ChatChannelScreen />);
+    const avatar = await waitFor(() => getByTestId('ChatHeaderAvatar'));
+
+    expect(avatar.props.children).toBeTruthy();
+    const children = Array.isArray(avatar.props.children)
+      ? avatar.props.children.filter(Boolean)
+      : [avatar.props.children];
+    expect(children).toHaveLength(1);
+  });
+
   it('renders loading state initially', async () => {
     (connectStreamUser as jest.Mock).mockImplementation(
       () => new Promise(() => {}),
@@ -336,6 +356,34 @@ describe('ChatChannelScreen', () => {
   it('handles specific network error message', async () => {
     (connectStreamUser as jest.Mock).mockRejectedValue(
       new Error('Connection network failed'),
+    );
+    const {getByText} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(
+        getByText('Network error. Please check your connection and try again.'),
+      ).toBeTruthy();
+    });
+  });
+
+  // streamChatService actually throws this exact, capital-K string - the
+  // matcher above must not depend on a lucky case match.
+  it('recognizes the real "Stream API Key not configured" error text', async () => {
+    (connectStreamUser as jest.Mock).mockRejectedValue(
+      new Error('Stream API Key not configured'),
+    );
+    const {getByText} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(
+        getByText('Chat is not configured. Please contact support.'),
+      ).toBeTruthy();
+    });
+  });
+
+  // axios's own connectivity failure is literally "Network Error" (capital
+  // N/E) - the matcher above must not depend on a lucky case match.
+  it('recognizes axios\'s real "Network Error" text', async () => {
+    (connectStreamUser as jest.Mock).mockRejectedValue(
+      new Error('Network Error'),
     );
     const {getByText} = render(<ChatChannelScreen />);
     await waitFor(() => {
@@ -567,11 +615,14 @@ describe('ChatChannelScreen', () => {
   });
 
   it('unsubscribes from typing events on unmount', async () => {
-    const {getByTestId, unmount} = render(<ChatChannelScreen />);
-    await waitFor(() => expect(getByTestId('StreamChat')).toBeTruthy());
-
+    const {unmount} = render(<ChatChannelScreen />);
+    // The subscribing effect runs a commit after the channel lands, so waiting
+    // on the rendered chat can settle before `on` has been called at all.
+    // Wait on the subscriptions themselves.
+    await waitFor(() =>
+      expect((mockChannel.on as jest.Mock).mock.results).toHaveLength(2),
+    );
     const subscriptions = (mockChannel.on as jest.Mock).mock.results;
-    expect(subscriptions.length).toBe(2);
 
     unmount();
 

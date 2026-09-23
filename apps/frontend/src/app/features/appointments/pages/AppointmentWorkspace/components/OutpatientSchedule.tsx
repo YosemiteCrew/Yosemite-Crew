@@ -48,7 +48,7 @@ const dayMarker = (iso: string): { weekday: string; day: string } => {
   return { weekday: WEEKDAYS[date.getDay()], day: String(date.getDate()) };
 };
 
-const StatusPill = ({ status }: { status: OutpatientVisitStatus }) => (
+const VisitStatusPill = ({ status }: { status: OutpatientVisitStatus }) => (
   <SharedStatusPill
     tone={getAppointmentStatusTone(STATUS_STYLE_KEY[status])}
     label={STATUS_LABEL[status]}
@@ -97,12 +97,22 @@ const VisitRow = ({ visit, isNext = false }: { visit: OutpatientVisit; isNext?: 
         </span>
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-body-4 font-bold text-text-primary">
+        {/* Wrap, do not truncate: `truncate` clips with an ellipsis and leaves
+            the tail of the title unreachable on a phone, which has no hover for
+            a `title` tooltip (#2790). Free text now flows to the lines it needs;
+            the `title` keeps the hover affordance for the widths where the row
+            still clips. */}
+        <span
+          className="block break-words text-body-4 font-bold text-text-primary"
+          title={visitTitle(visit)}
+        >
           {visitTitle(visit)}
         </span>
-        <span className="block truncate text-caption-1 text-text-tertiary">{subline}</span>
+        <span className="block break-words text-caption-1 text-text-tertiary" title={subline}>
+          {subline}
+        </span>
       </span>
-      <StatusPill status={visit.status} />
+      <VisitStatusPill status={visit.status} />
       <IoEllipsisHorizontal size={15} aria-hidden="true" className="shrink-0 text-text-tertiary" />
     </li>
   );
@@ -174,7 +184,7 @@ const OutpatientSchedule = ({
 
   return (
     <SectionContainer title="Task schedule" className="flex flex-col gap-4">
-      <div className="overflow-hidden rounded-[14px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="overflow-hidden yc-card-surface yc-card-surface--inset">
         <div className="flex items-center justify-between border-b border-card-border px-4 py-2.5">
           <span className="text-body-4 font-bold text-text-primary">
             Scheduled outpatient tasks · {schedule.total}

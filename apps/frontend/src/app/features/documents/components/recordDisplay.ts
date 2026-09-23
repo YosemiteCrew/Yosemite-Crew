@@ -111,7 +111,7 @@ export const getAttachmentSummary = (doc: CompanionRecord): string => {
 
 /**
  * Trailing status pills for a record. Source (Synced vs Manual) is always shown;
- * a record that is visible to the pet parent app also carries a "PMS visible"
+ * a record that is visible to the pet parent app also carries a "PIMS visible"
  * pill. Both preserve the semantics of the previous badges, restyled to the
  * design's pill treatment.
  */
@@ -119,7 +119,7 @@ export const getRecordStatusPills = (doc: CompanionRecord): RecordStatusPill[] =
   const pills: RecordStatusPill[] = [
     doc.syncedFromPms ? { label: 'Synced', tone: 'success' } : { label: 'Manual', tone: 'warning' },
   ];
-  if (doc.pmsVisible) pills.push({ label: 'PMS visible', tone: 'info' });
+  if (doc.pmsVisible) pills.push({ label: 'PIMS visible', tone: 'info' });
   return pills;
 };
 

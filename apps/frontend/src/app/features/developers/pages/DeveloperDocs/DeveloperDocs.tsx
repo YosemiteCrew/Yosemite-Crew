@@ -13,8 +13,9 @@ import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 
 import './DeveloperDocs.css';
 
-const DOCS_BASE_PATH = '/dev-docs/index.html';
-const GITHUB_EDIT_URL = 'https://github.com/YosemiteCrew/Yosemite-Crew/tree/dev/apps/dev-docs';
+const DOCS_BASE_PATH = '/docs';
+const GITHUB_EDIT_URL =
+  'https://github.com/YosemiteCrew/Yosemite-Crew/tree/dev/apps/frontend/content/docs';
 
 type NavItem = { id: string; label: string };
 type NavSection = { heading: string; items: NavItem[] };
@@ -50,6 +51,7 @@ type Article = {
   version: string;
   title: string;
   summary: string;
+  detail?: string;
   /*
    * Identifiers that appear in the article's RENDERED detail but not in its
    * summary - the endpoint path, the permission, the stored status.
@@ -69,7 +71,9 @@ const ARTICLES: Record<string, Article> = {
     version: 'v1',
     title: 'Overview',
     summary:
-      'The Yosemite Crew API is a FHIR R4 surface served under /fhir/v1, alongside a set of application endpoints under /v1. Requests are authorised with the session your account already holds. A generated reference is in the full documentation. Treat it as partial rather than complete: it declares four appointment paths where the router serves twenty-one, and it does not list the x-org-id header that organisation-scoped routes require, so a request built straight from it is rejected before reaching a controller.',
+      'Yosemite Crew exposes two separate API surfaces. The API-key-authenticated data plane is read-only and mounted at /v1/developer; the FHIR examples elsewhere in this reader use signed-in sessions and do not accept developer API keys.',
+    detail:
+      'The data plane currently serves GET /v1/developer/organizations, GET /v1/developer/usage, GET /v1/developer/appointments, and GET /v1/developer/appointments/:appointmentId. The generated reference in the full documentation includes these routes, but the backend routers remain the source of truth.',
   },
   authentication: {
     category: 'Getting started',
@@ -77,7 +81,9 @@ const ARTICLES: Record<string, Article> = {
     version: 'v1',
     title: 'Authentication',
     summary:
-      'Requests are authorised with the signed-in session, and organisation-scoped routes read the practice from an x-org-id header. Two limits worth knowing before you start. API keys created in this portal are not yet accepted anywhere: the key-authentication middleware exists but is mounted on no route. And a developer-only account has no practice membership and no role in the permission model, so organisation-scoped routes answer 400 or 403 for it. Today the API is reachable with a session belonging to a practice member; a developer account can browse this reference but cannot yet call the org-scoped surfaces it describes.',
+      'Send a key created in this portal as an Authorization: Bearer token to /v1/developer. The session-authenticated management routes under /v1/developers and the FHIR surface do not accept developer API keys.',
+    detail:
+      'GET /organizations discovers every practice where the key owner has a live active membership and needs no x-org-id. GET /usage is developer-owned and also needs no practice header. GET /appointments requires appointments:read, x-org-id, a live active membership, and appointment-read permission. GET /appointments/:appointmentId derives the practice from the record but rechecks the same live membership and permission. Keys belong to their owner rather than one permanent practice; keys created before appointments:read shipped carry no scopes and must be replaced to call appointment routes.',
   },
   appointments: {
     category: 'APIs',
@@ -209,6 +215,7 @@ const DeveloperDocs = () => {
         article?.category,
         article?.title,
         article?.summary,
+        article?.detail,
         ...(article?.searchTerms ?? []),
       ].some((field) => field?.toLowerCase().includes(q));
     };
@@ -224,7 +231,20 @@ const DeveloperDocs = () => {
     });
   };
 
-  const pageText = `${active.title}\n\n${active.summary}`;
+  const pageText = useMemo(() => {
+    const lines = [active.title, active.summary, active.detail].filter(Boolean);
+    if (isAppointments) {
+      lines.push(
+        'Endpoint: POST /fhir/v1/appointment/pms',
+        'Required scope: appointments:edit:any',
+        'Practice surface, not a developer one: needs an active practice membership and appointments:edit:any. A developer-only account holds neither; calling it with a developer session returns 400 or 403.',
+        'Body: FHIR R4 Appointment. Practice is read from an Organization participant (not x-org-id). Submitted status is ignored; created appointments are stored as UPCOMING. Parent must be a RelatedPerson participant.',
+        'Request (cURL):\n' + CURL_SAMPLE,
+        'Response (201):\n' + RESPONSE_SAMPLE
+      );
+    }
+    return lines.join('\n\n');
+  }, [active, isAppointments]);
 
   return (
     <DevRouteGuard>
@@ -234,14 +254,22 @@ const DeveloperDocs = () => {
             <IoArrowBack size={18} />
             <span>Back to portal</span>
           </Link>
-          <a
-            className="DocsOpenLink text-body-4-emphasis text-text-brand"
-            href={DOCS_BASE_PATH}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open full docs
-          </a>
+          <span className="DocsHeaderLinks">
+            <Link
+              href="/developers/playground"
+              className="DocsOpenLink text-body-4-emphasis text-text-brand"
+            >
+              Try the API
+            </Link>
+            <a
+              className="DocsOpenLink text-body-4-emphasis text-text-brand"
+              href={DOCS_BASE_PATH}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open full docs
+            </a>
+          </span>
         </div>
 
         <div className="DocsShell">
@@ -315,6 +343,7 @@ const DeveloperDocs = () => {
               <article className="DocsArticle">
                 <h3 className="DocsArticleTitle">{active.title}</h3>
                 <p className="DocsArticleText">{active.summary}</p>
+                {active.detail && <p className="DocsArticleText">{active.detail}</p>}
 
                 {isAppointments ? (
                   <>

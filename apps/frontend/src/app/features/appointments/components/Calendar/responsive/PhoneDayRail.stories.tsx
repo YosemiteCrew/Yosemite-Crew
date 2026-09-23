@@ -3,6 +3,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Appointment } from '@yosemite-crew/types';
 
 import PhoneDayRail from './PhoneDayRail';
+import { describeContrast, measureContrast } from './contrastProbe';
 
 const ORG_ID = 'org-storybook';
 /** 15 July 2026, as LOCAL calendar parts - see `makeAppointment`. */
@@ -83,10 +84,19 @@ const OVERLAPPING = build([
 ]);
 
 /** The rail is a phone surface, and its blocks are positioned as percentages of
- *  a fixed height, so the story has to give it a real box to lay out inside. */
+ *  a fixed height, so the story has to give it a real box to lay out inside.
+ *
+ *  The box needs `display: flex` as well as a height. `.yc-day-rail` sizes
+ *  itself with `flex: 1`, which resolves to nothing inside a block parent, so a
+ *  height alone left the rail at its 2px borders with every percentage-
+ *  positioned child collapsed and clipped by its own `overflow: hidden`. The
+ *  stories still rendered, and their assertions still passed - `toHaveLength(5)`
+ *  counts blocks that are in the DOM but invisible, and the `scrollWidth <=
+ *  innerWidth` check below cannot fail when nothing is laid out. So every
+ *  PhoneDayRail story was a green screenshot of a 2px strip. */
 const Phone = (Story: React.ComponentType) => (
   <div className="mx-auto w-[375px] bg-[var(--screen)] p-4">
-    <div style={{ height: 520 }}>
+    <div style={{ height: 520, display: 'flex', flexDirection: 'column' }}>
       <Story />
     </div>
   </div>
@@ -128,6 +138,18 @@ export const Default: Story = {
 
     // The now marker is inside the window, so both halves of it render.
     await expect(canvasElement.querySelector('[data-testid="day-rail-now-line"]')).not.toBeNull();
+
+    /* The rail must actually have laid out before anything below is worth
+       asserting. `.yc-day-rail` sizes with `flex: 1` and clips with
+       `overflow: hidden`, so in a non-flex parent it collapses to its 2px
+       borders and swallows every percentage-positioned child - and the two
+       checks that follow BOTH pass in that state: the blocks are still in the
+       DOM to be counted, and a page with nothing laid out cannot scroll
+       sideways. This guard is what stops the rest of this play function from
+       being green on a 2px strip. */
+    const rail = canvasElement.querySelector('.yc-day-rail');
+    await expect(rail).not.toBeNull();
+    await expect((rail as Element).getBoundingClientRect().height).toBeGreaterThan(100);
 
     // Nothing leaks sideways: the blocks are positioned with calc() against the
     // rail's own width, which is the part that breaks first at 375px.
@@ -178,6 +200,17 @@ export const StartVisit: Story = {
     // action must not offer itself on completed or upcoming blocks.
     const start = canvas.getAllByRole('button', { name: 'Start visit' });
     await expect(start).toHaveLength(1);
+
+    /* The pill sits on a fixed `--blue-strong` fill under literal white. It
+       shipped on `--blue` at 4.09:1, under AA - and identically in both themes,
+       because --blue is #257bed on each side. Measured on composited pixels; a
+       className check cannot fail on a colour change. */
+    const reading = measureContrast(start[0]);
+    await expect(
+      reading.ratio,
+      describeContrast('Start visit pill', reading)
+    ).toBeGreaterThanOrEqual(reading.required);
+
     await userEvent.click(start[0]);
     await expect(args.onStartVisit).toHaveBeenCalledTimes(1);
   },

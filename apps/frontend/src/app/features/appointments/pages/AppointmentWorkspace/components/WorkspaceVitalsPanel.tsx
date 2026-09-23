@@ -1,6 +1,11 @@
 import React from 'react';
 import { IoChevronForwardOutline, IoPulseOutline } from 'react-icons/io5';
 import type { ObservationRecord, Vitals } from '@/app/features/appointments/types/workspace';
+import {
+  formatReading,
+  temperatureReading,
+  weightReading,
+} from '@/app/features/appointments/lib/vitalsUnits';
 import { formatStampTime } from '@/app/lib/appointmentWorkspace';
 
 type WorkspaceVitalsPanelProps = {
@@ -69,10 +74,7 @@ const VitalsCard = ({
   canRecord: boolean;
   onRecordVitals: () => void;
 }) => (
-  <section
-    aria-label="Vitals"
-    className="overflow-hidden rounded-[14px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
-  >
+  <section aria-label="Vitals" className="overflow-hidden yc-card-surface yc-card-surface--inset">
     <div className="flex items-center justify-between px-4 pb-2.5 pt-3">
       <span
         className="text-[14px] font-bold leading-[130%] tracking-[-0.01em]"
@@ -93,10 +95,14 @@ const VitalsCard = ({
     {latest ? (
       <>
         <div className="grid grid-cols-2 border-t border-card-border">
-          <VitalCell label="Weight" value={withUnit(latest.weightLbs, 'lbs')} withBottomBorder />
+          <VitalCell
+            label="Weight"
+            value={formatReading(weightReading(latest), '—')}
+            withBottomBorder
+          />
           <VitalCell
             label="Temp"
-            value={withUnit(latest.tempF, '°F')}
+            value={formatReading(temperatureReading(latest), '—')}
             withLeftBorder
             withBottomBorder
           />
@@ -138,7 +144,7 @@ const ObservationToolsCard = ({
 }) => (
   <section
     aria-label="Observation tools"
-    className="overflow-hidden rounded-[14px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+    className="overflow-hidden yc-card-surface yc-card-surface--inset"
   >
     <div className="flex items-center justify-between px-4 pb-2.5 pt-3">
       <span

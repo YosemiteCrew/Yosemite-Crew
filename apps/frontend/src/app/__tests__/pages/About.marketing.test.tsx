@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -28,6 +30,16 @@ const mockStats = {
   contributors: '58',
   discord: '412',
 };
+
+interface CloudUsersShape {
+  totalUsers: string | null;
+  latestSignupAt: string | null;
+}
+const DEFAULT_CLOUD_USERS: CloudUsersShape = {
+  totalUsers: '452',
+  latestSignupAt: '2026-09-22T13:19:12.216Z',
+};
+let mockCloudUsers: CloudUsersShape = DEFAULT_CLOUD_USERS;
 
 const mockGithubContributors = [
   {
@@ -59,6 +71,8 @@ jest.mock('@/app/features/marketing/site', () => {
     CountUp: ({ value, className, style }: any) =>
       R.createElement('span', { className, style }, value),
     useGithubStats: () => mockStats,
+    useCloudUsers: () => mockCloudUsers,
+    timeAgo: (iso?: string) => (iso ? '14m ago' : null),
     useGithubContributors: () => mockGithubContributors,
     ABOUT_ORIGIN_PHOTO: '/images/marketing/about-origin.webp',
     GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
@@ -69,6 +83,10 @@ jest.mock('@/app/features/marketing/site', () => {
 import { About } from '@/app/features/marketing/pages/About/About';
 
 describe('About (marketing)', () => {
+  beforeEach(() => {
+    mockCloudUsers = DEFAULT_CLOUD_USERS;
+  });
+
   test('renders the hero heading and origin story', () => {
     render(<About />);
 
@@ -140,12 +158,11 @@ describe('About (marketing)', () => {
     expect(ankit).toHaveAttribute('target', '_blank');
     expect(ankit).toHaveAttribute('rel', 'noopener noreferrer');
 
+    // Departed members are no longer listed in the core team. They can still appear in the live
+    // GitHub contributor roster below, which comes from GitHub, not from this list.
     expect(
-      screen.getByRole('link', {
-        name: /Harshvardhan Parmar, Contributor, on LinkedIn/i,
-      })
-    ).toHaveAttribute('href', 'https://www.linkedin.com/in/harshvardhan-parmar/');
-    // Departed members are no longer listed in the core team.
+      screen.queryByRole('link', { name: /Harshvardhan Parmar, Contributor, on LinkedIn/i })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: /Sneha, Contributor, on LinkedIn/i })
     ).not.toBeInTheDocument();
@@ -163,7 +180,7 @@ describe('About (marketing)', () => {
       container.querySelector(
         'img[src="https://d2il6osz49gpup.cloudfront.net/aboutus-page/harshvardhan-profile_pic.png"]'
       )
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
   });
 
   test('renders the live github contributor roster with matching card styling', () => {
@@ -233,5 +250,55 @@ describe('About (marketing)', () => {
       'href',
       '/contact-us'
     );
+  });
+});
+
+describe('the origin-photo frame background routes through --page, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/About/About.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode it as a frozen page-background literal', () => {
+    expect(source).not.toContain('rgba(239,232,220');
+  });
+
+  it('routes it through --page via color-mix', () => {
+    expect(source).toContain("background: 'color-mix(in srgb, var(--page) 6%, transparent)'");
+  });
+});
+
+describe('About building-in-public stats', () => {
+  beforeEach(() => {
+    mockCloudUsers = DEFAULT_CLOUD_USERS;
+  });
+
+  test('leads the band with cloud users and says when the last signup was', () => {
+    render(<About />);
+
+    const label = screen.getByText('Cloud users');
+    const column = label.parentElement as HTMLElement;
+    expect(column).toHaveTextContent('452');
+    expect(column).toHaveTextContent('live \u00b7 last signup 14m ago');
+  });
+
+  test('keeps the four repository stats alongside it', () => {
+    render(<About />);
+
+    for (const label of ['Repository clones', 'Contributors', 'Discord members', 'Repo stars']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+  });
+
+  test('falls back to a placeholder and the generic source when the total is unknown', () => {
+    // The upstream reports failure as a 200 with a null total, so this is the
+    // ordinary outage path rather than an exotic one.
+    mockCloudUsers = { totalUsers: null, latestSignupAt: null };
+    render(<About />);
+
+    const column = screen.getByText('Cloud users').parentElement as HTMLElement;
+    expect(column).toHaveTextContent('\u00b7');
+    expect(column).toHaveTextContent('live via Yosemite Crew');
+    expect(column).not.toHaveTextContent('last signup');
   });
 });

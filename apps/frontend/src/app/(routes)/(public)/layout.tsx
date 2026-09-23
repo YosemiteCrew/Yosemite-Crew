@@ -2,6 +2,7 @@ import '@/app/features/marketing/site/marketing.css';
 
 import { PRE_PAINT_SCRIPT } from '@/app/ui/theme/prePaintScript';
 
+// no-story: pure pass-through that only pulls in a stylesheet and a pre-paint script; no visual content of its own
 interface PublicLayoutProps {
   children: React.ReactNode;
 }

@@ -388,6 +388,25 @@ describe("CompanionOrganisationController", () => {
         expect.objectContaining({ email: "test@test.com" }),
       );
       expect(res.status).toHaveBeenCalledWith(201);
+      // Not "Invite sent successfully": nothing reads `invitedViaEmail` to
+      // dispatch anything, so the row is created and no message leaves.
+      expect(res.json).toHaveBeenCalledWith({ message: "Invite created" });
+    });
+
+    it("does not claim the invite was sent, because nothing sends it", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validObjectId,
+      });
+      req.body = {
+        patientId: "c1",
+        organisationType: "HOSPITAL",
+        email: "someone@example.com",
+      };
+
+      await CompanionOrganisationController.sendInvite(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls.at(-1)?.[0];
+      expect(body.message).not.toMatch(/sent/i);
     });
 
     it("should succeed when name is provided", async () => {
@@ -503,6 +522,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should accept invite on success", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       (
         CompanionOrganisationService.acceptInvite as jest.Mock
       ).mockResolvedValue("acc_data");
@@ -512,6 +532,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle errors in acceptInvite", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       (
         CompanionOrganisationService.acceptInvite as jest.Mock
       ).mockRejectedValue(new Error("Test error"));
@@ -527,12 +548,14 @@ describe("CompanionOrganisationController", () => {
 
     it("should reject invite on success", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       await CompanionOrganisationController.rejectInvite(req, res);
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
     it("should handle errors in rejectInvite", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       (
         CompanionOrganisationService.rejectInvite as jest.Mock
       ).mockRejectedValue(new Error("Test error"));

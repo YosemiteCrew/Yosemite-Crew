@@ -6,11 +6,12 @@ import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
 import { attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
-import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
-import Image from 'next/image';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import { TASK_SCOPE_OPTIONS } from '@/app/features/tasks/pages/Tasks/taskScopeOptions';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import { useTaskStore } from '@/app/stores/taskStore';
@@ -153,20 +154,24 @@ const getTaskCardClassName = ({ isParentTask, isMuted, isDragging }: TaskCardVis
       : !isParentTask && 'hover:border-input-border-active! hover:bg-card-hover!'
   );
 
-const AssigneeAvatar = ({ assignedTo }: { assignedTo: MemberIdentity }) =>
-  assignedTo.imageUrl ? (
-    <Image
-      src={getSafeImageUrl(assignedTo.imageUrl, 'person')}
-      alt={assignedTo.name}
-      width={22}
-      height={22}
-      className="size-[22px] rounded-full border border-card-border object-cover"
-    />
-  ) : (
+const AssigneeAvatar = ({ assignedTo }: { assignedTo: MemberIdentity }) => {
+  const initials = (
     <span className="size-[22px] shrink-0 rounded-full bg-[var(--avatar-violet-bg)] text-[9px] font-bold text-[var(--avatar-violet-ink)] flex items-center justify-center">
       {getInitialsStatic(assignedTo.name)}
     </span>
   );
+  if (!assignedTo.imageUrl) return initials;
+  // A photo whose URL stopped resolving degrades to the same initials disc.
+  return (
+    <AvatarImage
+      src={getSafeImageUrl(assignedTo.imageUrl, 'person')}
+      alt={assignedTo.name}
+      size={22}
+      className="size-[22px] rounded-full border border-card-border object-cover"
+      fallback={initials}
+    />
+  );
+};
 
 const CompanionThumbnail = ({ companion }: { companion?: StoredCompanion }) => {
   const photoUrl = getCompanionThumbnailUrl(companion);
@@ -175,22 +180,20 @@ const CompanionThumbnail = ({ companion }: { companion?: StoredCompanion }) => {
       className="size-[22px] shrink-0 overflow-hidden rounded-full"
       style={{ backgroundColor: 'var(--avatar-amber-bg)' }}
     >
-      {photoUrl ? (
-        <Image
-          src={photoUrl}
-          alt={companion?.name ?? ''}
-          width={22}
-          height={22}
-          className="size-full object-cover"
-        />
-      ) : (
-        <span
-          className="flex size-full items-center justify-center text-[9px] font-bold"
-          style={{ color: 'var(--avatar-amber-ink)' }}
-        >
-          {getInitialsStatic(companion?.name ?? '').charAt(0)}
-        </span>
-      )}
+      <AvatarImage
+        src={photoUrl}
+        alt={companion?.name ?? ''}
+        size={22}
+        className="size-full object-cover"
+        fallback={
+          <span
+            className="flex size-full items-center justify-center text-[9px] font-bold"
+            style={{ color: 'var(--avatar-amber-ink)' }}
+          >
+            {getInitialsStatic(companion?.name ?? '').charAt(0)}
+          </span>
+        }
+      />
     </span>
   );
 };
@@ -331,14 +334,31 @@ type BoardToolbarProps = {
  * The design's board has no toolbar band — the columns sit directly on the page
  * and "New task" lives in the page header. Only the scope toggle survives here,
  * as a bare control row, because the board is the one view with no filter bar.
+ *
+ * The labels come from TASK_SCOPE_OPTIONS rather than being written here, because
+ * the list view's scope control is fed the same list. They were hardcoded, so the
+ * board called the wide scope "All tasks" while the list called it "Team" — one
+ * page, one concept, two names — and the guard in TaskFilterBar.test.tsx that
+ * keeps a scope name from colliding with an audience chip only reads the shared
+ * list, so it could never see the board's copy.
+ *
+ * The list is ordered mine-first, and TaskBoard.test.tsx pins both rendered
+ * names, so reordering it fails there rather than quietly swapping the segments.
  */
+const [MINE_SCOPE, ALL_SCOPE] = TASK_SCOPE_OPTIONS;
+const BOARD_SCOPE_OPTIONS = [ALL_SCOPE, MINE_SCOPE].map(({ key, name }) => ({
+  value: key,
+  label: name,
+}));
+
 const BoardToolbar = ({ showMineOnly, setShowMineOnly }: BoardToolbarProps) => (
   <div className="flex flex-wrap items-center justify-end gap-2">
-    <BoardScopeToggle
-      showMineOnly={showMineOnly}
-      onChange={setShowMineOnly}
-      allLabel="All tasks"
-      mineLabel="My tasks"
+    <SegmentedPill
+      options={BOARD_SCOPE_OPTIONS}
+      value={showMineOnly ? MINE_SCOPE.key : ALL_SCOPE.key}
+      onChange={(scope) => setShowMineOnly(scope === MINE_SCOPE.key)}
+      ariaLabel="Task scope"
+      size="toolbar"
     />
   </div>
 );
@@ -566,7 +586,7 @@ const TaskBoard = ({
       };
     }
     return {
-      name: resolved && resolved !== '-' ? resolved : teamNameById[normalizeId(raw)] || raw,
+      name: resolved && resolved !== '-' ? resolved : teamNameById[normalizeId(raw)] || '-',
       label,
     };
   };

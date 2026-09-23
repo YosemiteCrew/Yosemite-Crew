@@ -1,7 +1,8 @@
 # UI Tokens
 
-Primary source of tokens is `src/app/globals.css` under the `@theme` block.
-Shared semantic token definitions live in `packages/design-tokens/src/`.
+The source of tokens is `src/app/globals.css` under the `@theme` block - all 713 of them.
+`packages/design-tokens/src/` holds a parallel set of semantic definitions, but nothing
+imports it: it is a proposal, not a dependency. Edit `globals.css`.
 For the shared UI overview see [`README.md`](./README.md); for the full component list and status labels see [`INVENTORY.md`](./INVENTORY.md).
 
 ## Typography

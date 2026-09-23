@@ -1,20 +1,12 @@
 // src/services/networkChat.service.ts
-import { ChannelData, StreamChat } from "stream-chat";
+import { ChannelData } from "stream-chat";
 import crypto from "node:crypto";
 
-import { ChatServiceError } from "./chat.service";
+import { ChatServiceError, chatUserDisplayName } from "./chat.service";
 import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
 import { prisma } from "src/config/prisma";
-
-const STREAM_KEY = process.env.STREAM_API_KEY!;
-const STREAM_SECRET = process.env.STREAM_API_SECRET!;
-
-if (!STREAM_KEY || !STREAM_SECRET) {
-  throw new Error("Stream Chat credentials missing in env");
-}
-
-const streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
+import { getStreamServer } from "src/config/stream-client";
 
 const MAX_COLLEAGUE_RESULTS = 25;
 
@@ -263,8 +255,8 @@ export const NetworkChatService = {
       );
       const user = await UserService.getById(userId);
 
-      await streamServer.upsertUser({
-        name: user?.firstName + " " + user?.lastName || "User",
+      await getStreamServer().upsertUser({
+        name: chatUserDisplayName(user),
         id: userId,
         image:
           userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
@@ -285,7 +277,7 @@ export const NetworkChatService = {
       organisationIds: [requesterOrgId, otherOrgId],
     };
 
-    await streamServer.channel("team", channelId, channelData).create();
+    await getStreamServer().channel("team", channelId, channelData).create();
 
     const session = await prisma.chatSession.create({
       data: {

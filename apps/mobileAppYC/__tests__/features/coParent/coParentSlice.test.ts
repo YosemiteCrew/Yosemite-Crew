@@ -351,14 +351,17 @@ describe('coParentSlice', () => {
       expect(nextState.lastFetchedRole).toBeNull();
     });
 
-    it('does not overwrite defaultAccess if already set', () => {
+    it('refreshes defaultAccess on a later fetch instead of sticking to the first one', () => {
+      // promoteCoParentToPrimary (EditCoParentScreen) re-dispatches
+      // fetchParentAccess specifically to pick up a changed role/permissions;
+      // a stale first-fetch-wins default would defeat that refresh.
       const existingDefault = {companionId: null, role: 'original'};
       const startState = {
         ...initialState,
         defaultAccess: existingDefault as any,
       };
 
-      const newPayload = [{companionId: null, role: 'new'}]; // Should ideally use ??= to ignore this
+      const newPayload = [{companionId: null, role: 'new'}];
 
       const action = {
         type: fetchParentAccess.fulfilled.type,
@@ -366,7 +369,7 @@ describe('coParentSlice', () => {
       };
       const nextState = reducer(startState, action);
 
-      expect(nextState.defaultAccess).toEqual(existingDefault);
+      expect(nextState.defaultAccess).toEqual(newPayload[0]);
     });
 
     it('sets error on rejected', () => {

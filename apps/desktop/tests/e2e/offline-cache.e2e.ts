@@ -1,19 +1,16 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test';
-import electronPath from 'electron';
 import { _electron as electron } from '@playwright/test';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { electronLaunchOptions } from './launch';
 import { openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
   close: () => Promise<void>;
 };
-
-const APP_ROOT = path.resolve(__dirname, '..', '..');
-const ELECTRON_EXECUTABLE = electronPath as unknown as string;
 
 const startServer = async (
   handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
@@ -86,8 +83,7 @@ const startPimsServer = async (): Promise<TestServer> =>
 const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
   const profileDir = userDataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'yc-e2e-cache-'));
   const app = await electron.launch({
-    executablePath: ELECTRON_EXECUTABLE,
-    args: [APP_ROOT],
+    ...electronLaunchOptions(),
     env: {
       ...process.env,
       YC_DESKTOP_START_URL: `${pimsOrigin}/signin`,
@@ -107,14 +103,17 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
 const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
   page.evaluate(
     ({ m, a }: { m: string; a: unknown[] }) => {
-      const yc = (window as Record<string, unknown>).ycDesktop as Record<string, unknown>;
+      const yc = (window as unknown as Record<string, unknown>).ycDesktop as Record<
+        string,
+        unknown
+      >;
       if (yc && typeof yc === 'object' && typeof yc[m] === 'function') {
         return (yc[m] as (...args: unknown[]) => unknown)(...a);
       }
       return null;
     },
     { m: method, a: args }
-  );
+  ) as Promise<T>;
 
 const navigateViaMain = async (app: ElectronApplication, url: string): Promise<void> => {
   await app.evaluate(async ({ BrowserWindow }, u) => {
@@ -220,11 +219,12 @@ test.describe('offline-cache E2E', () => {
     }
 
     const response: unknown = await page.evaluate(() =>
-      (window as Record<string, unknown>).ycDesktop &&
-      typeof (window as Record<string, unknown>).ycDesktop === 'object'
-        ? ((window as Record<string, unknown>).ycDesktop as Record<string, unknown>).getCachedUrls
+      (window as unknown as Record<string, unknown>).ycDesktop &&
+      typeof (window as unknown as Record<string, unknown>).ycDesktop === 'object'
+        ? ((window as unknown as Record<string, unknown>).ycDesktop as Record<string, unknown>)
+            .getCachedUrls
           ? (
-              (window as Record<string, unknown>).ycDesktop as {
+              (window as unknown as Record<string, unknown>).ycDesktop as {
                 getCachedUrls: () => Promise<unknown>;
               }
             ).getCachedUrls()
@@ -251,10 +251,10 @@ test.describe('offline-cache E2E', () => {
     const readCachedContent = (): Promise<unknown> =>
       page.evaluate(
         (url) =>
-          (window as Record<string, unknown>).ycDesktop &&
-          typeof (window as Record<string, unknown>).ycDesktop === 'object'
+          (window as unknown as Record<string, unknown>).ycDesktop &&
+          typeof (window as unknown as Record<string, unknown>).ycDesktop === 'object'
             ? (
-                (window as Record<string, unknown>).ycDesktop as {
+                (window as unknown as Record<string, unknown>).ycDesktop as {
                   getCachedContent: (u: string) => Promise<unknown>;
                 }
               ).getCachedContent(url)

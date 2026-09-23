@@ -101,19 +101,17 @@ const analyticsValue = (over: Partial<{ turnsPerYear: number; trend: unknown[] }
 });
 
 const renderComponent = (props: Partial<React.ComponentProps<typeof TurnoverAnalytics>> = {}) => {
-  const setActiveView = jest.fn();
   const onReorder = jest.fn();
   const onViewHistory = jest.fn();
   render(
     <TurnoverAnalytics
       turnover={props.turnover ?? turnover}
       inventory={props.inventory ?? [carprofen, swabs]}
-      setActiveView={props.setActiveView ?? setActiveView}
       onReorder={props.onReorder ?? onReorder}
       onViewHistory={props.onViewHistory ?? onViewHistory}
     />
   );
-  return { setActiveView, onReorder, onViewHistory };
+  return { onReorder, onViewHistory };
 };
 
 beforeEach(() => {
@@ -171,12 +169,10 @@ describe('TurnoverAnalytics', () => {
     expect(within(panel).queryByText('LOW STOCK')).not.toBeInTheDocument();
   });
 
-  it('wires the segmented control back to view switching', () => {
-    const { setActiveView } = renderComponent();
-    fireEvent.click(screen.getByRole('tab', { name: 'Stock' }));
-    expect(setActiveView).toHaveBeenCalledWith('inventory');
-    fireEvent.click(screen.getByRole('tab', { name: 'Orders' }));
-    expect(setActiveView).toHaveBeenCalledWith('turnover');
+  it('leaves navigation and period selection to the parent surface', () => {
+    renderComponent();
+    expect(screen.queryByRole('tablist', { name: 'Inventory view' })).not.toBeInTheDocument();
+    expect(screen.queryByText('2026 · year to date')).not.toBeInTheDocument();
   });
 
   it('reorders the selected product', () => {

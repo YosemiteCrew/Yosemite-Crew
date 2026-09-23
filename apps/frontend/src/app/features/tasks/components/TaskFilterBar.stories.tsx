@@ -6,13 +6,13 @@ import { TASK_SCOPE_OPTIONS } from '@/app/features/tasks/pages/Tasks/taskScopeOp
 import TaskFilterBar from './TaskFilterBar';
 
 /**
- * A status pill is reached by its `title` (StatusPill mirrors the label into one),
- * not by accessible name: the label is painted `uppercase` and the wrapping button
- * has no `aria-label`, so a name query depends on whether the accname
- * implementation folds `text-transform` in. The title does not move.
+ * A status chip is reached by its accessible name. FilterChip renders no
+ * `title` and no `aria-label` of its own, so the button's name is its label
+ * text child - unlike the StatusPill it replaced, which mirrored the label
+ * into a `title` attribute instead.
  */
 const statusButton = (canvasElement: HTMLElement, label: string): HTMLElement =>
-  within(canvasElement).getByTitle(label).closest('button') as HTMLElement;
+  within(canvasElement).getByRole('button', { name: label });
 
 /**
  * Resolve a CSS custom property to the colour the browser actually paints, by
@@ -90,12 +90,15 @@ export const Default: Story = {
       );
     }
 
-    /* Five status options in, four pills out: the `all` entry is dropped. Asserted
-       as a count against the fixture rather than by naming the four, so adding a
-       status to the taxonomy does not quietly stop being rendered here. */
-    const pills = canvasElement.querySelectorAll('.yc-status-pill');
-    await expect(pills).toHaveLength(TaskStatusFilters.length - 1);
-    await expect(canvas.queryByTitle('All')).not.toBeInTheDocument();
+    /* Five status options in, four pills out: the `all` entry is dropped. Counted
+       against the whole toolbar rather than by naming the four, so adding a
+       status to the taxonomy does not quietly stop being rendered here. FilterChip
+       carries no class of its own telling a status pill apart from an audience
+       one (unlike the StatusPill markup this replaced), so this counts every
+       button rather than a status-only DOM subset. */
+    await expect(canvas.getAllByRole('button')).toHaveLength(
+      TaskFilters.length + TaskStatusFilters.length - 1
+    );
     // ...and exactly one control still reads "All": the audience pill.
     await expect(canvas.getAllByRole('button', { name: 'All' })).toHaveLength(1);
 
@@ -131,8 +134,15 @@ export const WithScope: Story = {
     const group = canvas.getByRole('group', { name: 'Task scope' });
     const scoped = within(group).getAllByRole('button');
     await expect(scoped).toHaveLength(2);
-    await expect(scoped[0]).toHaveAttribute('aria-pressed', 'true');
-    await expect(scoped[1]).toHaveAttribute('aria-pressed', 'false');
+
+    /* The wide scope sits FIRST and "My tasks" second, because the control is the
+       shared SegmentedPill the board view renders. The list used to draw its
+       own segmented control with the order reversed, so the same option changed
+       sides when you switched tabs. */
+    await expect(scoped[0]).toHaveTextContent('Team');
+    await expect(scoped[1]).toHaveTextContent('My tasks');
+    await expect(scoped[0]).toHaveAttribute('aria-pressed', 'false');
+    await expect(scoped[1]).toHaveAttribute('aria-pressed', 'true');
 
     /* "Team" is in this group and NOT among the audience pills - the audience
        option for staff is called "Staff" precisely so the toolbar does not carry
@@ -142,8 +152,12 @@ export const WithScope: Story = {
 
     /* Scope does not toggle off. Clicking the active button re-selects it rather
        than falling back to `all` the way the audience and status pills do. */
-    await userEvent.click(scoped[0]);
+    await userEvent.click(scoped[1]);
     await expect(args.setActiveScope).toHaveBeenCalledWith('mine');
+
+    // ...and the wide segment sets the other key rather than clearing the scope.
+    await userEvent.click(scoped[0]);
+    await expect(args.setActiveScope).toHaveBeenCalledWith('team');
   },
 };
 
@@ -168,7 +182,7 @@ export const ScopeNeedsItsSetter: Story = {
 };
 
 export const StatusSelected: Story = {
-  name: 'A selected status wears a ring, and nothing is dimmed',
+  name: 'A selected status wears a solid fill, and nothing is dimmed',
   args: { activeStatus: 'in_progress' },
   play: async ({ args, canvasElement }) => {
     const selected = statusButton(canvasElement, 'In progress');
@@ -181,12 +195,15 @@ export const StatusSelected: Story = {
       await expect(pill).toHaveAttribute('aria-pressed', 'false');
     }
 
-    /* Measured before anything is clicked: these buttons also carry
-       `focus-visible:ring-2`, so reading the shadow after an interaction risks
-       reading the focus ring instead of the selection ring. */
-    await expect(getComputedStyle(selected).boxShadow).not.toBe('none');
+    /* Selection used to be a ring copied from the focus style; FilterChip marks
+       the active chip with a solid fill instead (`--chip-selected-bg`), so
+       reading a shadow here would prove nothing. Measured before anything is
+       clicked, same reason as elsewhere in this file: a click could leave the
+       focus-visible ring behind and be mistaken for this fill. */
+    const selectedFill = resolveToken(canvasElement, 'var(--chip-selected-bg)');
+    await expect(getComputedStyle(selected).backgroundColor).toBe(selectedFill);
     for (const pill of others) {
-      await expect(getComputedStyle(pill).boxShadow).toBe('none');
+      await expect(getComputedStyle(pill).backgroundColor).not.toBe(selectedFill);
     }
 
     /* The half of the fix that has no visual trace of its own. Selection used to

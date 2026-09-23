@@ -52,6 +52,13 @@ jest.mock("src/config/prisma", () => ({
     },
     appointment: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    case: {
+      findMany: jest.fn(),
+    },
+    encounter: {
+      findMany: jest.fn(),
     },
     $transaction: jest.fn(async (fn: any) => fn(prisma)),
   },
@@ -106,6 +113,7 @@ const resetPrisma = () => {
   mockedPrisma.documentAttachment.deleteMany.mockReset();
   mockedPrisma.renderedDocument.findMany.mockReset();
   mockedPrisma.appointment.findUnique.mockReset();
+  mockedPrisma.appointment.findMany.mockReset();
   mockedPrisma.$transaction.mockReset();
   mockedPrisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
 };
@@ -148,10 +156,15 @@ describe("DocumentService", () => {
       id: uuidDocumentId,
     } as any);
     mockedPrisma.renderedDocument.findMany.mockResolvedValue([]);
+    mockedPrisma.case.findMany.mockResolvedValue([]);
+    mockedPrisma.encounter.findMany.mockResolvedValue([]);
     mockedPrisma.appointment.findUnique.mockResolvedValue({
       organisationId: uuidOrganisationId,
       patient: { id: uuidPatientId },
     } as any);
+    mockedPrisma.appointment.findMany.mockResolvedValue([
+      { id: uuidAppointmentId },
+    ] as any);
     mockedUpload.generatePresignedDownloadUrl.mockResolvedValue(
       "https://download/url",
     );
@@ -251,6 +264,390 @@ describe("DocumentService", () => {
       }),
     );
     expect(result).toHaveLength(1);
+  });
+
+  it("merges Documenso-signed documents from every one of the patient's appointments", async () => {
+    const otherAppointmentId = "77777777-8888-4999-8aaa-bbbbbbbbbbbb";
+    mockedPrisma.document.findMany.mockResolvedValue([]);
+    mockedPrisma.appointment.findMany.mockResolvedValue([
+      { id: uuidAppointmentId },
+      { id: otherAppointmentId },
+    ] as any);
+    mockedPrisma.renderedDocument.findMany.mockResolvedValue([
+      {
+        id: "rd-1",
+        organisationId: uuidOrganisationId,
+        sourceKind: "TEMPLATE_INSTANCE",
+        sourceId: "ti-1",
+        templateId: "tmpl-1",
+        templateVersion: 2,
+        kind: "CONSENT_FORM",
+        title: "Surgical consent",
+        status: "SIGNED",
+        pdfUrl: "https://cdn/consent.pdf",
+        signing: { status: "SIGNED" },
+        createdAt: now,
+        updatedAt: now,
+        templateInstance: {
+          appointmentId: uuidAppointmentId,
+          encounterId: null,
+        },
+        clinicalArtifact: null,
+      },
+    ] as any);
+
+    const result = await DocumentService.listForPms({
+      patientId: uuidPatientId,
+      organisationId: uuidOrganisationId,
+    });
+
+    expect(mockedPrisma.appointment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organisationId: uuidOrganisationId,
+          patient: { path: ["id"], equals: uuidPatientId },
+        },
+      }),
+    );
+    expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: uuidOrganisationId,
+          OR: [
+            {
+              templateInstance: {
+                is: {
+                  appointmentId: {
+                    in: [uuidAppointmentId, otherAppointmentId],
+                  },
+                },
+              },
+            },
+            {
+              clinicalArtifact: {
+                is: {
+                  appointmentId: {
+                    in: [uuidAppointmentId, otherAppointmentId],
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: "rd-1",
+      sourceKind: "TEMPLATE_INSTANCE",
+      signingStatus: "SIGNED",
+      pdfUrl: "https://cdn/consent.pdf",
+    });
+  });
+
+  it("excludes CONSENT-kind rendered documents when excludeKind is set", async () => {
+    mockedPrisma.document.findMany.mockResolvedValue([]);
+    mockedPrisma.appointment.findMany.mockResolvedValue([
+      { id: uuidAppointmentId },
+    ] as any);
+    // Signed consent PDFs are excluded before this ever reaches the app -
+    // Postgres itself filters them via the `kind: { not: ... }` clause below,
+    // so the mocked rows already reflect what filtered results look like.
+    mockedPrisma.renderedDocument.findMany.mockResolvedValue([
+      {
+        id: "rd-soap-1",
+        organisationId: uuidOrganisationId,
+        sourceKind: "TEMPLATE_INSTANCE",
+        sourceId: "ti-1",
+        templateId: "tmpl-1",
+        templateVersion: 1,
+        kind: "SOAP_NOTE",
+        title: "Soap note",
+        status: "SIGNED",
+        pdfUrl: "https://cdn/soap.pdf",
+        signing: { status: "SIGNED" },
+        signedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        templateInstance: {
+          appointmentId: uuidAppointmentId,
+          encounterId: null,
+        },
+        clinicalArtifact: null,
+      },
+    ] as any);
+
+    const result = await DocumentService.listForPms({
+      patientId: uuidPatientId,
+      organisationId: uuidOrganisationId,
+      excludeKind: "CONSENT",
+    });
+
+    expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          kind: { not: "CONSENT" },
+        }),
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result.some((doc) => doc.category === "CONSENT")).toBe(false);
+  });
+
+  it("still merges CONSENT-kind rendered documents when excludeKind is not set (companion-history timeline)", async () => {
+    mockedPrisma.document.findMany.mockResolvedValue([]);
+    mockedPrisma.appointment.findMany.mockResolvedValue([
+      { id: uuidAppointmentId },
+    ] as any);
+    mockedPrisma.renderedDocument.findMany.mockResolvedValue([
+      {
+        id: "rd-consent-1",
+        organisationId: uuidOrganisationId,
+        sourceKind: "TEMPLATE_INSTANCE",
+        sourceId: "ti-1",
+        templateId: "tmpl-1",
+        templateVersion: 1,
+        kind: "CONSENT",
+        title: "Surgical consent",
+        status: "SIGNED",
+        pdfUrl: "https://cdn/consent.pdf",
+        signing: { status: "SIGNED" },
+        signedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        templateInstance: {
+          appointmentId: uuidAppointmentId,
+          encounterId: null,
+        },
+        clinicalArtifact: null,
+      },
+    ] as any);
+
+    const result = await DocumentService.listForPms({
+      patientId: uuidPatientId,
+      organisationId: uuidOrganisationId,
+    });
+
+    const callArgs = mockedPrisma.renderedDocument.findMany.mock
+      .calls[0][0] as {
+      where: Record<string, unknown>;
+    };
+    expect(callArgs.where.kind).toBeUndefined();
+    expect(result.some((doc) => doc.category === "CONSENT")).toBe(true);
+  });
+
+  describe("listConsentDocumentsForPms", () => {
+    it("returns only CONSENT-kind rendered documents across every one of the patient's appointments", async () => {
+      const otherAppointmentId = "77777777-8888-4999-8aaa-bbbbbbbbbbbb";
+      mockedPrisma.appointment.findMany.mockResolvedValue([
+        { id: uuidAppointmentId },
+        { id: otherAppointmentId },
+      ] as any);
+      mockedPrisma.renderedDocument.findMany.mockResolvedValue([
+        {
+          id: "rd-consent-1",
+          organisationId: uuidOrganisationId,
+          sourceKind: "TEMPLATE_INSTANCE",
+          sourceId: "ti-1",
+          templateId: "tmpl-1",
+          templateVersion: 1,
+          kind: "CONSENT",
+          title: "Surgical consent",
+          status: "SIGNED",
+          pdfUrl: "https://cdn/consent.pdf",
+          signing: { status: "SIGNED" },
+          signedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          templateInstance: {
+            appointmentId: uuidAppointmentId,
+            encounterId: null,
+          },
+          clinicalArtifact: null,
+        },
+      ] as any);
+
+      const result = await DocumentService.listConsentDocumentsForPms({
+        patientId: uuidPatientId,
+        organisationId: uuidOrganisationId,
+      });
+
+      expect(mockedPrisma.patientOrganisation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organisationId: uuidOrganisationId,
+            patientId: uuidPatientId,
+          }),
+        }),
+      );
+      expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organisationId: uuidOrganisationId,
+            kind: "CONSENT",
+            OR: [
+              {
+                templateInstance: {
+                  is: {
+                    appointmentId: {
+                      in: [uuidAppointmentId, otherAppointmentId],
+                    },
+                  },
+                },
+              },
+              {
+                clinicalArtifact: {
+                  is: {
+                    appointmentId: {
+                      in: [uuidAppointmentId, otherAppointmentId],
+                    },
+                  },
+                },
+              },
+            ],
+          }),
+        }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: "rd-consent-1",
+        category: "CONSENT",
+        signingStatus: "SIGNED",
+        pdfUrl: "https://cdn/consent.pdf",
+      });
+    });
+
+    it("returns nothing for a patient with no appointments, cases or encounters, without querying rendered documents", async () => {
+      mockedPrisma.appointment.findMany.mockResolvedValue([]);
+      mockedPrisma.case.findMany.mockResolvedValue([]);
+      mockedPrisma.encounter.findMany.mockResolvedValue([]);
+
+      const result = await DocumentService.listConsentDocumentsForPms({
+        patientId: uuidPatientId,
+        organisationId: uuidOrganisationId,
+      });
+
+      expect(mockedPrisma.renderedDocument.findMany).not.toHaveBeenCalled();
+      expect(result).toEqual([]);
+    });
+
+    it("THE CASE THIS GATE EXISTS FOR: resolves a signed consent document whose TemplateInstance is linked only by caseId/encounterId, with no appointmentId", async () => {
+      // case-encounter.service.ts's package-expansion path can create a
+      // TemplateInstance with appointmentId left null and only caseId/
+      // encounterId set. Filtering the rendered-document lookup on
+      // appointmentId alone silently dropped exactly this document - the real
+      // report that started this fix.
+      mockedPrisma.appointment.findMany.mockResolvedValue([]);
+      mockedPrisma.case.findMany.mockResolvedValue([{ id: "case-1" }] as any);
+      mockedPrisma.encounter.findMany.mockResolvedValue([
+        { id: "enc-1" },
+      ] as any);
+      mockedPrisma.renderedDocument.findMany.mockResolvedValue([
+        {
+          id: "rd-consent-case-linked",
+          organisationId: uuidOrganisationId,
+          sourceKind: "TEMPLATE_INSTANCE",
+          sourceId: "ti-2",
+          templateId: "tmpl-2",
+          templateVersion: 1,
+          kind: "CONSENT",
+          title: "Anaesthesia consent",
+          status: "SIGNED",
+          pdfUrl: "https://cdn/anaesthesia-consent.pdf",
+          signing: { status: "SIGNED" },
+          signedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          templateInstance: { appointmentId: null, encounterId: "enc-1" },
+          clinicalArtifact: null,
+        },
+      ] as any);
+
+      const result = await DocumentService.listConsentDocumentsForPms({
+        patientId: uuidPatientId,
+        organisationId: uuidOrganisationId,
+      });
+
+      expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              { templateInstance: { is: { caseId: { in: ["case-1"] } } } },
+              { templateInstance: { is: { encounterId: { in: ["enc-1"] } } } },
+            ]),
+          }),
+        }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: "rd-consent-case-linked",
+        category: "CONSENT",
+      });
+    });
+
+    it("rejects a patient the caller's organisation cannot access", async () => {
+      mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
+
+      await expect(
+        DocumentService.listConsentDocumentsForPms({
+          patientId: uuidPatientId,
+          organisationId: uuidOrganisationId,
+        }),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      expect(mockedPrisma.appointment.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  it("scopes the rendered-document lookup to an explicit appointmentId filter", async () => {
+    const otherAppointmentId = "77777777-8888-4999-8aaa-bbbbbbbbbbbb";
+    mockedPrisma.appointment.findMany.mockResolvedValue([
+      { id: uuidAppointmentId },
+      { id: otherAppointmentId },
+    ] as any);
+    mockedPrisma.renderedDocument.findMany.mockResolvedValue([]);
+
+    await DocumentService.listForPms({
+      patientId: uuidPatientId,
+      organisationId: uuidOrganisationId,
+      appointmentId: uuidAppointmentId,
+    });
+
+    expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            {
+              templateInstance: {
+                is: { appointmentId: { in: [uuidAppointmentId] } },
+              },
+            },
+            {
+              clinicalArtifact: {
+                is: { appointmentId: { in: [uuidAppointmentId] } },
+              },
+            },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("never queries rendered documents for an appointment outside the patient's own history", async () => {
+    const foreignAppointmentId = "99999999-0000-4111-8222-333333333333";
+    mockedPrisma.appointment.findMany.mockResolvedValue([
+      { id: uuidAppointmentId },
+    ] as any);
+
+    const result = await DocumentService.listForPms({
+      patientId: uuidPatientId,
+      organisationId: uuidOrganisationId,
+      appointmentId: foreignAppointmentId,
+    });
+
+    expect(mockedPrisma.renderedDocument.findMany).not.toHaveBeenCalled();
+    expect(result.every((doc) => doc.sourceKind !== "TEMPLATE_INSTANCE")).toBe(
+      true,
+    );
   });
 
   describe("listForAppointmentPms tenant scope", () => {

@@ -49,6 +49,7 @@ type WorkspaceClinicalHydrationFields =
   | 'dischargeSavedAt'
   | 'dischargeSavedByName'
   | 'dischargeSummaryId'
+  | 'dischargeSummaryVersion'
   | 'documents';
 
 export type WorkspaceClinicalHydration = Partial<
@@ -101,6 +102,7 @@ type DischargeSummaryHydration = Pick<
   | 'dischargeSavedAt'
   | 'dischargeSavedByName'
   | 'dischargeSummaryId'
+  | 'dischargeSummaryVersion'
 >;
 
 const asIso = (value: unknown) => {
@@ -130,6 +132,38 @@ const compactExtensions = (items: Array<{ url: string; valueString?: string } | 
   items.filter((item): item is { url: string; valueString?: string } => Boolean(item));
 
 const getReferenceId = (reference?: string) => reference?.split('/').findLast(Boolean);
+
+/**
+ * The single rule for reading an artifact's version off a FHIR response: a positive safe integer
+ * `meta.versionId`, or `undefined` for anything else — including the documented case where a
+ * projection omits `meta.versionId` entirely. Exported because it decides whether the write that
+ * follows is guarded, and that decision must not drift between the step that makes it.
+ */
+export const artifactVersionFromMeta = (resource: unknown): number | undefined => {
+  const version = Number.parseInt(
+    (resource as { meta?: { versionId?: string } } | undefined)?.meta?.versionId ?? '',
+    10
+  );
+  return Number.isSafeInteger(version) && version > 0 ? version : undefined;
+};
+
+const ifMatchConfig = (version: number | undefined) =>
+  version === undefined ? undefined : { headers: { 'If-Match': `W/"${version}"` } };
+
+const CLINICAL_CONFLICT_STATUSES = new Set([409, 412, 428]);
+
+export const CLINICAL_ARTIFACT_CONFLICT_MESSAGE =
+  'This record changed. Your draft is still here. Reload the saved record before retrying.';
+
+export const getClinicalArtifactMutationErrorMessage = (
+  error: unknown,
+  fallback: string
+): string => {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  return status !== undefined && CLINICAL_CONFLICT_STATUSES.has(status)
+    ? CLINICAL_ARTIFACT_CONFLICT_MESSAGE
+    : fallback;
+};
 
 const displayFromReference = (
   reference: unknown,
@@ -217,6 +251,9 @@ const VITALS_EXT = {
   notes: 'https://yosemitecrew.com/fhir/StructureDefinition/vital-record-notes',
 };
 
+/** WHO CC's registered system URI for the veterinary ATC classification. */
+const ATCVET_SYSTEM_URI = 'http://www.whocc.no/atcvet';
+
 const PRESCRIPTION_EXT = {
   medications: 'https://yosemitecrew.com/fhir/StructureDefinition/prescription-medications',
   instructions: 'https://yosemitecrew.com/fhir/StructureDefinition/prescription-instructions',
@@ -278,6 +315,7 @@ const soapNoteFromComposition = (
     | undefined;
   return {
     id: resource.id ?? `soap-${resource.date ?? Date.now()}`,
+    artifactVersion: artifactVersionFromMeta(resource),
     chiefComplaint: '',
     subjective: toText(input.subjective),
     objective: toText(input.objective),
@@ -325,9 +363,12 @@ const vitalRecordFromObservation = (
   const recordedById = getReferenceId(performer?.reference) ?? input.recordedBy ?? undefined;
   return {
     id: resource.id ?? `vital-${index + 1}`,
+    artifactVersion: artifactVersionFromMeta(resource),
     code: `VT-${String(index + 1).padStart(3, '0')}`,
     weightLbs: typeof vitals.weightLbs === 'number' ? vitals.weightLbs : undefined,
+    weightKg: typeof vitals.weightKg === 'number' ? vitals.weightKg : undefined,
     tempF: typeof vitals.tempF === 'number' ? vitals.tempF : undefined,
+    tempC: typeof vitals.tempC === 'number' ? vitals.tempC : undefined,
     heartRateBpm: typeof vitals.heartRateBpm === 'number' ? vitals.heartRateBpm : undefined,
     respRateBpm: typeof vitals.respRateBpm === 'number' ? vitals.respRateBpm : undefined,
     painScore: typeof vitals.painScore === 'number' ? vitals.painScore : undefined,
@@ -354,6 +395,7 @@ const dischargeSummaryFromComposition = (
     // surface the raw author reference/id when no display is present.
     dischargeSavedByName: getClinicalAuthorName(resource, context),
     dischargeSummaryId: resource.id,
+    dischargeSummaryVersion: artifactVersionFromMeta(resource),
   };
 };
 
@@ -406,26 +448,57 @@ const clinicalArtifactAction = async <T>(
   artifactPath: 'soap-note' | 'prescription' | 'discharge-summary' | 'vital-record',
   artifactId: string,
   action: ClinicalArtifactAction,
+  expectedVersion: number,
   body: Record<string, unknown> = {}
 ) => {
   const res = await postData<T>(
     `/fhir/v1/clinical-artifact/organisation/${organisationId}/${artifactPath}/${artifactId}/${action}`,
-    body
+    body,
+    ifMatchConfig(expectedVersion)
   );
   return res.data;
 };
 
-export const finalizeSoapNote = (organisationId: string, soapNoteId: string) =>
-  clinicalArtifactAction<Composition>(organisationId, 'soap-note', soapNoteId, '$finalize');
+export const finalizeSoapNote = (
+  organisationId: string,
+  soapNoteId: string,
+  expectedVersion: number
+) =>
+  clinicalArtifactAction<Composition>(
+    organisationId,
+    'soap-note',
+    soapNoteId,
+    '$finalize',
+    expectedVersion
+  );
 
-export const reopenSoapNote = (organisationId: string, soapNoteId: string) =>
-  clinicalArtifactAction<Composition>(organisationId, 'soap-note', soapNoteId, '$reopen');
+export const reopenSoapNote = (
+  organisationId: string,
+  soapNoteId: string,
+  expectedVersion: number
+) =>
+  clinicalArtifactAction<Composition>(
+    organisationId,
+    'soap-note',
+    soapNoteId,
+    '$reopen',
+    expectedVersion
+  );
 
 export const amendSoapNote = (
   organisationId: string,
   soapNoteId: string,
+  expectedVersion: number,
   body: Record<string, unknown> = {}
-) => clinicalArtifactAction<Composition>(organisationId, 'soap-note', soapNoteId, '$amend', body);
+) =>
+  clinicalArtifactAction<Composition>(
+    organisationId,
+    'soap-note',
+    soapNoteId,
+    '$amend',
+    expectedVersion,
+    body
+  );
 
 export const saveSoapNote = async (context: ClinicalContext, note: SoapNoteEntry) => {
   // Custom-template override (structure swap): persist the schema + answers in the metadata
@@ -457,7 +530,11 @@ export const saveSoapNote = async (context: ClinicalContext, note: SoapNoteEntry
   // each save of a reloaded draft into a duplicate artifact.
   const canPatchDraft = isPersistedArtifactId(note.id) && !note.isFinalized;
   const res = canPatchDraft
-    ? await patchData<Composition>(`${endpoint}/${note.id}`, body)
+    ? await patchData<Composition>(
+        `${endpoint}/${note.id}`,
+        body,
+        ifMatchConfig(note.artifactVersion)
+      )
     : await postData<Composition>(endpoint, body);
   return res.data;
 };
@@ -509,25 +586,36 @@ export const getDischargeSummaryArtifact = async (
   return res.data;
 };
 
-export const finalizeDischargeSummary = (organisationId: string, dischargeSummaryId: string) =>
+export const finalizeDischargeSummary = (
+  organisationId: string,
+  dischargeSummaryId: string,
+  expectedVersion: number
+) =>
   clinicalArtifactAction<Composition>(
     organisationId,
     'discharge-summary',
     dischargeSummaryId,
-    '$finalize'
+    '$finalize',
+    expectedVersion
   );
 
-export const reopenDischargeSummary = (organisationId: string, dischargeSummaryId: string) =>
+export const reopenDischargeSummary = (
+  organisationId: string,
+  dischargeSummaryId: string,
+  expectedVersion: number
+) =>
   clinicalArtifactAction<Composition>(
     organisationId,
     'discharge-summary',
     dischargeSummaryId,
-    '$reopen'
+    '$reopen',
+    expectedVersion
   );
 
 export const amendDischargeSummary = (
   organisationId: string,
   dischargeSummaryId: string,
+  expectedVersion: number,
   body: Record<string, unknown> = {}
 ) =>
   clinicalArtifactAction<Composition>(
@@ -535,6 +623,7 @@ export const amendDischargeSummary = (
     'discharge-summary',
     dischargeSummaryId,
     '$amend',
+    expectedVersion,
     body
   );
 
@@ -604,15 +693,36 @@ export const getVitalRecord = async (organisationId: string, vitalRecordId: stri
   return res.data;
 };
 
-export const finalizeVitalRecord = (organisationId: string, vitalRecordId: string) =>
-  clinicalArtifactAction<Observation>(organisationId, 'vital-record', vitalRecordId, '$finalize');
+export const finalizeVitalRecord = (
+  organisationId: string,
+  vitalRecordId: string,
+  expectedVersion: number
+) =>
+  clinicalArtifactAction<Observation>(
+    organisationId,
+    'vital-record',
+    vitalRecordId,
+    '$finalize',
+    expectedVersion
+  );
 
-export const reopenVitalRecord = (organisationId: string, vitalRecordId: string) =>
-  clinicalArtifactAction<Observation>(organisationId, 'vital-record', vitalRecordId, '$reopen');
+export const reopenVitalRecord = (
+  organisationId: string,
+  vitalRecordId: string,
+  expectedVersion: number
+) =>
+  clinicalArtifactAction<Observation>(
+    organisationId,
+    'vital-record',
+    vitalRecordId,
+    '$reopen',
+    expectedVersion
+  );
 
 export const amendVitalRecord = (
   organisationId: string,
   vitalRecordId: string,
+  expectedVersion: number,
   body: Record<string, unknown> = {}
 ) =>
   clinicalArtifactAction<Observation>(
@@ -620,6 +730,7 @@ export const amendVitalRecord = (
     'vital-record',
     vitalRecordId,
     '$amend',
+    expectedVersion,
     body
   );
 
@@ -648,9 +759,10 @@ export const saveVitalRecord = async (
     templateVersionId: context.templateVersionId,
   };
   const vitalId = 'id' in vital ? vital.id : undefined;
+  const vitalVersion = 'artifactVersion' in vital ? vital.artifactVersion : undefined;
   const endpoint = `/fhir/v1/clinical-artifact/organisation/${context.organisationId}/vital-record`;
   const res = isPersistedArtifactId(vitalId)
-    ? await patchData<Observation>(`${endpoint}/${vitalId}`, body)
+    ? await patchData<Observation>(`${endpoint}/${vitalId}`, body, ifMatchConfig(vitalVersion))
     : await postData<Observation>(endpoint, body);
   return res.data;
 };
@@ -786,6 +898,7 @@ export const savePrescriptionArtifact = async (
     metadata: {
       brand: prescription.brand,
       genericName: prescription.genericName,
+      atcCode: prescription.atcCode,
       sku: prescription.sku,
       strengthUnit: prescription.strengthUnit,
       dose: prescription.dose,
@@ -807,7 +920,22 @@ export const savePrescriptionArtifact = async (
     // the inventory dispense). 'active' here would dispense on every plain save.
     status: 'draft',
     intent: 'order',
-    medicationCodeableConcept: { text: prescription.medicineName },
+    medicationCodeableConcept: {
+      text: prescription.medicineName,
+      // A coded prescription is readable outside Yosemite Crew; an uncoded one
+      // carries text only rather than a placeholder coding.
+      ...(prescription.atcCode
+        ? {
+            coding: [
+              {
+                system: ATCVET_SYSTEM_URI,
+                code: prescription.atcCode,
+                display: prescription.medicineName,
+              },
+            ],
+          }
+        : {}),
+    },
     medicationReference: { display: prescription.medicineName },
     subject: { display: 'Patient' },
     encounter:
@@ -827,9 +955,15 @@ export const savePrescriptionArtifact = async (
     templateVersionId: context.templateVersionId,
   };
   const prescriptionId = 'id' in prescription ? prescription.id : undefined;
+  const prescriptionVersion =
+    'artifactVersion' in prescription ? prescription.artifactVersion : undefined;
   const endpoint = `/fhir/v1/clinical-artifact/organisation/${context.organisationId}/prescription`;
   const res = isPersistedArtifactId(prescriptionId)
-    ? await patchData<MedicationRequest>(`${endpoint}/${prescriptionId}`, body)
+    ? await patchData<MedicationRequest>(
+        `${endpoint}/${prescriptionId}`,
+        body,
+        ifMatchConfig(prescriptionVersion)
+      )
     : await postData<MedicationRequest>(endpoint, body);
   return res.data;
 };
@@ -879,6 +1013,7 @@ const prescriptionFromMedicationRequest = (
   const finalized = resource.status === 'active';
   return {
     id: resource.id ?? `rx-${index + 1}`,
+    artifactVersion: artifactVersionFromMeta(resource),
     finalized,
     medicineName:
       str('medication', 'medicineName', 'name') ??
@@ -887,6 +1022,13 @@ const prescriptionFromMedicationRequest = (
       'Medication',
     brand: str('brand'),
     genericName: str('genericName'),
+    // Prefer the stored line, then the FHIR coding: a prescription written
+    // elsewhere may only carry the coding.
+    atcCode:
+      str('atcCode') ??
+      resource.medicationCodeableConcept?.coding?.find(
+        (coding) => coding.system === ATCVET_SYSTEM_URI
+      )?.code,
     sku: str('sku', 'inventoryItemSku'),
     strength: str('strength'),
     strengthUnit: str('strengthUnit'),
@@ -939,12 +1081,17 @@ export const listPrescriptionsForAppointment = async (
  * reservation and marks it CANCELLED. Contract: `200/204` on success; `409 Conflict` when the
  * prescription is already billed/paid (re-thrown for the caller to surface).
  */
-export const cancelPrescriptionArtifact = (organisationId: string, prescriptionId: string) =>
+export const cancelPrescriptionArtifact = (
+  organisationId: string,
+  prescriptionId: string,
+  expectedVersion: number
+) =>
   clinicalArtifactAction<MedicationRequest>(
     organisationId,
     'prescription',
     prescriptionId,
-    '$cancel'
+    '$cancel',
+    expectedVersion
   );
 
 /**
@@ -959,13 +1106,16 @@ export const cancelPrescriptionArtifact = (organisationId: string, prescriptionI
  */
 export const deletePrescriptionArtifact = async (
   organisationId: string,
-  prescriptionId: string
+  prescriptionId: string,
+  expectedVersion: number
 ): Promise<boolean> => {
   const statusOf = (error: unknown) =>
     (error as { response?: { status?: number } })?.response?.status;
   try {
     await deleteData(
-      `/fhir/v1/clinical-artifact/organisation/${organisationId}/prescription/${prescriptionId}`
+      `/fhir/v1/clinical-artifact/organisation/${organisationId}/prescription/${prescriptionId}`,
+      {},
+      ifMatchConfig(expectedVersion)
     );
     return true;
   } catch (error) {
@@ -975,7 +1125,7 @@ export const deletePrescriptionArtifact = async (
     // Non-draft (finalized) → cancel/void instead of delete. A 409 from cancel means it is
     // billed/paid and genuinely cannot be removed; surface that to the caller.
     if (status === 409) {
-      await cancelPrescriptionArtifact(organisationId, prescriptionId);
+      await cancelPrescriptionArtifact(organisationId, prescriptionId, expectedVersion);
       return true;
     }
     throw error;
@@ -1025,25 +1175,36 @@ export const generatePrescriptionLabels = async (
   return res.data?.url ?? res.data?.pdfUrl;
 };
 
-export const finalizePrescriptionArtifact = (organisationId: string, prescriptionId: string) =>
+export const finalizePrescriptionArtifact = (
+  organisationId: string,
+  prescriptionId: string,
+  expectedVersion: number
+) =>
   clinicalArtifactAction<MedicationRequest>(
     organisationId,
     'prescription',
     prescriptionId,
-    '$finalize'
+    '$finalize',
+    expectedVersion
   );
 
-export const reopenPrescriptionArtifact = (organisationId: string, prescriptionId: string) =>
+export const reopenPrescriptionArtifact = (
+  organisationId: string,
+  prescriptionId: string,
+  expectedVersion: number
+) =>
   clinicalArtifactAction<MedicationRequest>(
     organisationId,
     'prescription',
     prescriptionId,
-    '$reopen'
+    '$reopen',
+    expectedVersion
   );
 
 export const amendPrescriptionArtifact = (
   organisationId: string,
   prescriptionId: string,
+  expectedVersion: number,
   body: Record<string, unknown> = {}
 ) =>
   clinicalArtifactAction<MedicationRequest>(
@@ -1051,6 +1212,7 @@ export const amendPrescriptionArtifact = (
     'prescription',
     prescriptionId,
     '$amend',
+    expectedVersion,
     body
   );
 
@@ -1090,6 +1252,7 @@ export const loadWorkspaceClinicalArtifacts = async (
     patch.dischargeSavedAt = summary?.dischargeSavedAt;
     patch.dischargeSavedByName = summary?.dischargeSavedByName;
     patch.dischargeSummaryId = summary?.dischargeSummaryId;
+    patch.dischargeSummaryVersion = summary?.dischargeSummaryVersion;
   }
 
   return patch;

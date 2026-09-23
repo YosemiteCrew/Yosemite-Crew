@@ -2,8 +2,6 @@ import {createCommonCoParentStyles} from '../../../../src/features/coParent/styl
 import {mockTheme} from '../../../setup/mockTheme';
 
 describe('createCommonCoParentStyles', () => {
-  
-
   it('returns the correct styles based on the provided theme', () => {
     const styles = createCommonCoParentStyles(mockTheme);
 
@@ -29,7 +27,7 @@ describe('createCommonCoParentStyles', () => {
         fontSize: 18,
         fontWeight: '500',
         lineHeight: 21.6,
-        fontFamily: 'ClashGrotesk-Medium',
+        fontFamily: 'Satoshi-Medium',
         letterSpacing: -0.18,
       }),
       centerContent: {

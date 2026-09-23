@@ -1,3 +1,4 @@
+import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, waitFor, within } from 'storybook/test';
@@ -11,6 +12,7 @@ import { MarketingShell } from './MarketingShell';
    width, which is exactly what the aria-current story below counts. */
 import './marketing.css';
 import { useAuthStore, type AuthStore } from '@/app/stores/authStore';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /**
  * Session-cache keys owned by `useGithubStats` (module-private there). The nav's star
@@ -19,8 +21,6 @@ import { useAuthStore, type AuthStore } from '@/app/stores/authStore';
  * already a string - a missing discord value forces a refresh on its own. Seeding both
  * keeps two requests off the Storybook dev server on every mount.
  */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
 const CACHED_STATS = {
   stars: '2.4k',
@@ -29,8 +29,6 @@ const CACHED_STATS = {
   contributors: '128',
   discord: '3,182',
 };
-
-const OPENSTATUS_HOST = 'openstatus.dev';
 
 type AuthSeed = Pick<AuthStore, 'status' | 'user' | 'role'>;
 
@@ -45,7 +43,7 @@ const SIGNED_OUT: AuthSeed = { status: 'unauthenticated', user: null, role: null
  * it is still `idle`. A store seeded to a settled status is therefore what keeps the
  * SuperTokens session check off the wire, with no module stub anywhere.
  *
- * `fetch` is swapped because SiteFooter asks api.openstatus.dev for the platform status
+ * `fetch` is swapped because SiteFooter asks /api/platform-status for the platform status
  * on mount and colours its pill from the answer - left alone, the footer in these
  * stories would report however the real platform happened to be doing.
  *
@@ -71,7 +69,7 @@ const seed = () => () => {
   globalThis.localStorage.removeItem('yc_default_open_screen');
 
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).includes(OPENSTATUS_HOST)) {
+    if (String(input).startsWith(PLATFORM_STATUS_API_URL)) {
       return Promise.resolve(
         new Response(JSON.stringify({ status: 'operational' }), {
           status: 200,

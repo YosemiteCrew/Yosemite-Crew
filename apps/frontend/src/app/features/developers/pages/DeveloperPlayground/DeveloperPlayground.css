@@ -1,0 +1,202 @@
+.PlaygroundWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: var(--page);
+  font-family: var(--font-satoshi);
+}
+
+.PlaygroundBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--color-text-brand);
+  border: 1px solid var(--color-card-border);
+  background: var(--color-surface-card);
+}
+
+.PlaygroundBackLink:hover {
+  background: var(--color-card-hover);
+  border-color: var(--color-border-card-selected);
+}
+
+.PlaygroundShell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--screen);
+  border: 1px solid var(--color-card-border);
+}
+
+.PlaygroundIntro,
+.PlaygroundExport {
+  grid-column: 1 / -1;
+}
+
+.PlaygroundTitle {
+  font-family: var(--font-newsreader);
+  font-size: 28px;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.PlaygroundText {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+}
+
+.PlaygroundText strong {
+  color: var(--ink);
+}
+
+.PlaygroundForm,
+.PlaygroundResult,
+.PlaygroundExport {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.PlaygroundField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.PlaygroundLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.PlaygroundRequired {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.PlaygroundInput {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-card-border);
+  background: var(--field-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-satoshi);
+  font-size: 14px;
+}
+
+.PlaygroundInput.has-error {
+  border-color: var(--color-text-error);
+}
+
+.PlaygroundHint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.PlaygroundHint a {
+  color: var(--color-text-brand);
+  text-decoration: underline;
+}
+
+.PlaygroundError {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-error);
+}
+
+.PlaygroundFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--inset);
+  border: 1px solid var(--divider);
+  font-size: 13px;
+}
+
+.PlaygroundFacts dt {
+  color: var(--color-text-secondary);
+}
+
+.PlaygroundFacts dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.PlaygroundActions {
+  display: flex;
+  gap: 10px;
+}
+
+.PlaygroundPre {
+  margin: 0;
+  max-height: 480px;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--spot);
+  color: var(--spot-ink);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+.PlaygroundTabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.PlaygroundTab,
+.PlaygroundCopy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-card-border);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-family: var(--font-satoshi);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.PlaygroundTab.is-active {
+  background: var(--nav-active-bg);
+  color: var(--cyan-text);
+}
+
+.PlaygroundCopy {
+  margin-left: auto;
+}
+
+.PlaygroundCopy:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (max-width: 900px) {
+  .PlaygroundWrapper {
+    padding: 12px;
+  }
+
+  .PlaygroundShell {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+}

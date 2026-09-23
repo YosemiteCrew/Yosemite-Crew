@@ -8,12 +8,17 @@ import {
   IoTrendingUpOutline,
 } from 'react-icons/io5';
 import Search from '@/app/ui/inputs/Search';
+import { Textarea } from '@/app/ui/Input';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type { Vitals } from '@/app/features/appointments/types/workspace';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
-import { saveVitalRecord } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  artifactVersionFromMeta,
+  getClinicalArtifactMutationErrorMessage,
+  saveVitalRecord,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import { listVitalsTemplates } from '@/app/features/appointments/services/workspaceTemplateService';
 import { getCategoryTemplate } from '@/app/lib/forms';
 import {
@@ -21,6 +26,14 @@ import {
   vitalsFormDraftReducer,
   type DraftVitals,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/vitalsFormDraft';
+import {
+  formatReading,
+  temperatureKeyForUnit,
+  temperatureReading,
+  vitalUnitLabel,
+  weightKeyForUnit,
+  weightReading,
+} from '@/app/features/appointments/lib/vitalsUnits';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { getTemplateSchemaSnapshot } from '@/app/features/appointments/pages/AppointmentWorkspace/templateSchemaSnapshot';
 import type { FormField } from '@/app/features/forms/types/forms';
@@ -49,18 +62,37 @@ const FIELD_FALLBACKS: Record<keyof DraftVitals, Field> = {
   weightLbs: {
     key: 'weightLbs',
     label: 'Weight',
-    unit: 'lbs',
+    unit: vitalUnitLabel('weightLbs'),
     inputMode: 'decimal',
     min: 0,
     max: 2000,
   },
+  weightKg: {
+    key: 'weightKg',
+    label: 'Weight',
+    unit: vitalUnitLabel('weightKg'),
+    inputMode: 'decimal',
+    min: 0,
+    max: 900,
+  },
   tempF: {
     key: 'tempF',
     label: 'Temperature',
-    unit: '°F',
+    unit: vitalUnitLabel('tempF'),
     inputMode: 'decimal',
     min: 80,
     max: 110,
+  },
+  // The Celsius window is the Fahrenheit one converted, not a fresh clinical
+  // judgement: 80-110 °F is 26.7-43.3 °C, rounded outward so nothing a
+  // Fahrenheit template accepts is rejected here.
+  tempC: {
+    key: 'tempC',
+    label: 'Temperature',
+    unit: vitalUnitLabel('tempC'),
+    inputMode: 'decimal',
+    min: 26,
+    max: 44,
   },
   heartRateBpm: {
     key: 'heartRateBpm',
@@ -104,10 +136,19 @@ const DEFAULT_FIELDS: Field[] = [
 
 const normalizeKey = (value: string) => value.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
 
-const resolveDraftKey = (field: { key?: string; id?: string; label?: string }) => {
+/**
+ * Which vital a template field is, and - for the two vitals recorded on two scales -
+ * which scale it was declared in. The unit decides the key so the stored key states
+ * the unit truthfully; previously every "temp" field became tempF whatever the
+ * template said.
+ */
+const resolveDraftKey = (
+  field: { key?: string; id?: string; label?: string },
+  unit?: string
+): keyof DraftVitals | undefined => {
   const value = normalizeKey([field.key, field.id, field.label].filter(Boolean).join(' '));
-  if (value.includes('weight')) return 'weightLbs';
-  if (value.includes('temp')) return 'tempF';
+  if (value.includes('weight')) return weightKeyForUnit(unit);
+  if (value.includes('temp')) return temperatureKeyForUnit(unit);
   if (value.includes('heart') || value.includes('pulse')) return 'heartRateBpm';
   if (value.includes('resp')) return 'respRateBpm';
   if (value.includes('crt')) return 'crtSec';
@@ -128,17 +169,27 @@ const getUnitFromRecord = (value: unknown): string | undefined => {
   return typeof unit === 'string' ? unit : undefined;
 };
 
+const SCALED_KEYS = new Set<keyof DraftVitals>(['tempF', 'tempC', 'weightLbs', 'weightKg']);
+
+/**
+ * Temperature and weight ignore the configured string and render the unit their key
+ * means, because the key was chosen from that string a moment earlier - showing
+ * anything else would let the label disagree with what is stored. Every other vital
+ * has one scale, so its declared unit passes through as authored.
+ */
 const resolveVitalFieldUnit = (key: keyof DraftVitals, configuredUnit: string | undefined) => {
   if (key === 'mucousMembrane') return '';
+  if (SCALED_KEYS.has(key)) return FIELD_FALLBACKS[key].unit;
   return configuredUnit ?? FIELD_FALLBACKS[key].unit;
 };
 
 const defaultVitalFieldsFromFormsSchema = (): Field[] => {
   const fields = flattenFormFields(getCategoryTemplate('Vitals'));
   const mapped = fields.flatMap((field) => {
-    const key = resolveDraftKey({ id: field.id, label: field.label });
+    const declaredUnit = getUnitFromRecord(field.meta);
+    const key = resolveDraftKey({ id: field.id, label: field.label }, declaredUnit);
     if (!key) return [];
-    const unit = resolveVitalFieldUnit(key, getUnitFromRecord(field.meta));
+    const unit = resolveVitalFieldUnit(key, declaredUnit);
     return [
       {
         ...FIELD_FALLBACKS[key],
@@ -154,9 +205,10 @@ const templateToVitalFields = (template: TemplateLike): Field[] => {
   const fields =
     getTemplateSchemaSnapshot(template)?.sections.flatMap((section) => section.fields) ?? [];
   const mapped = fields.flatMap((field: TemplateFieldDefinition) => {
-    const key = resolveDraftKey(field);
+    const declaredUnit = getUnitFromRecord(field.rules);
+    const key = resolveDraftKey(field, declaredUnit);
     if (!key) return [];
-    const unit = resolveVitalFieldUnit(key, getUnitFromRecord(field.rules));
+    const unit = resolveVitalFieldUnit(key, declaredUnit);
     return [
       {
         ...FIELD_FALLBACKS[key],
@@ -269,25 +321,32 @@ const SegmentedPicker = ({
   </div>
 );
 
-type WeightTrend = { delta: number; sinceDate: string };
+type WeightTrend = { delta: number; unit: string; sinceDate: string };
 
 // Vitals are stored newest-first; the trend compares the two most recent records
 // that carry a weight so a missing weight in between never breaks the delta.
 const computeWeightTrend = (records: Vitals[]): WeightTrend | null => {
-  const withWeight = records.filter(
-    (entry): entry is Vitals & { weightLbs: number } => typeof entry.weightLbs === 'number'
-  );
+  const withWeight = records.flatMap((entry) => {
+    const weight = weightReading(entry);
+    return weight ? [{ entry, weight }] : [];
+  });
   if (withWeight.length < 2) return null;
-  const [newest, previous] = withWeight;
+  const [newest] = withWeight;
+  // Pounds and kilograms are not comparable, so the trend pairs the newest weight
+  // with the most recent earlier one recorded on the *same* scale. Subtracting
+  // across scales would invent a swing of tens of units out of a unit change.
+  const previous = withWeight.slice(1).find((item) => item.weight.key === newest.weight.key);
+  if (!previous) return null;
   return {
-    delta: newest.weightLbs - previous.weightLbs,
-    sinceDate: formatStampDate(previous.recordedAt),
+    delta: newest.weight.value - previous.weight.value,
+    unit: newest.weight.unit,
+    sinceDate: formatStampDate(previous.entry.recordedAt),
   };
 };
 
-const formatWeightDelta = (delta: number) => {
+const formatWeightDelta = (delta: number, unit: string) => {
   const rounded = Math.round(delta * 10) / 10;
-  return `${rounded > 0 ? '+' : ''}${rounded} lbs`;
+  return `${rounded > 0 ? '+' : ''}${rounded} ${unit}`;
 };
 
 // The draft/notes/creating trio always resets together (handleDiscard, and the
@@ -308,7 +367,9 @@ const parseNumber = (value: string): number | undefined => {
 
 const FIELD_LIMITS: Partial<Record<keyof DraftVitals, { min?: number; max?: number }>> = {
   weightLbs: { min: 0, max: 2000 },
+  weightKg: { min: 0, max: 900 },
   tempF: { min: 80, max: 110 },
+  tempC: { min: 26, max: 44 },
   heartRateBpm: { min: 0, max: 300 },
   respRateBpm: { min: 0, max: 150 },
   painScore: { min: 0, max: 10 },
@@ -369,8 +430,8 @@ const VitalRow = ({
       </div>
       {open && (
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-2xl border border-card-border p-3 text-body-4 text-text-primary">
-          <span>Weight: {entry.weightLbs ?? '-'} lbs</span>
-          <span>Temp: {entry.tempF ?? '-'} °F</span>
+          <span>Weight: {formatReading(weightReading(entry), '-')}</span>
+          <span>Temp: {formatReading(temperatureReading(entry), '-')}</span>
           <span>Heart rate: {entry.heartRateBpm ?? '-'} bpm</span>
           <span>Resp. rate: {entry.respRateBpm ?? '-'} bpm</span>
           <span>CRT: {entry.crtSec ?? '-'}</span>
@@ -382,6 +443,31 @@ const VitalRow = ({
     </li>
   );
 };
+
+const VitalsHistory = ({
+  vitals,
+  resolveRecorderName,
+  onNew,
+}: {
+  vitals: Vitals[];
+  resolveRecorderName: (entry: Vitals) => string;
+  onNew: () => void;
+}) => (
+  <div className="flex flex-col gap-3">
+    {vitals.length === 0 ? (
+      <p className="py-6 text-center text-body-4 text-text-secondary">No vitals recorded yet.</p>
+    ) : (
+      <ul className="rounded-2xl border border-card-border px-4">
+        {vitals.map((entry) => (
+          <VitalRow key={entry.id} entry={entry} resolveRecorderName={resolveRecorderName} />
+        ))}
+      </ul>
+    )}
+    <div className="flex justify-center">
+      <Primary text="New Vital" icon={<span aria-hidden="true">+</span>} onClick={onNew} />
+    </div>
+  </div>
+);
 
 /** Vitals tab: a "New vitals" form plus the recorded-vitals list. */
 const VitalsForm = ({
@@ -488,7 +574,9 @@ const VitalsForm = ({
 
     const nextVitals = {
       weightLbs: ifActive('weightLbs', parseNumber(draft.weightLbs)),
+      weightKg: ifActive('weightKg', parseNumber(draft.weightKg)),
       tempF: ifActive('tempF', parseNumber(draft.tempF)),
+      tempC: ifActive('tempC', parseNumber(draft.tempC)),
       heartRateBpm: ifActive('heartRateBpm', parseNumber(draft.heartRateBpm)),
       respRateBpm: ifActive('respRateBpm', parseNumber(draft.respRateBpm)),
       crtSec: ifActive('crtSec', draft.crtSec || undefined),
@@ -508,10 +596,17 @@ const VitalsForm = ({
         { organisationId, appointmentId, encounterId, authorId },
         nextVitals
       );
-      addVitals(appointmentId, nextVitals, (savedVital as { id?: string } | undefined)?.id);
+      addVitals(
+        appointmentId,
+        nextVitals,
+        (savedVital as { id?: string } | undefined)?.id,
+        artifactVersionFromMeta(savedVital)
+      );
     } catch (error) {
       console.error('Failed to save vitals', error);
-      setSaveError('Unable to save vitals. Please try again.');
+      setSaveError(
+        getClinicalArtifactMutationErrorMessage(error, 'Unable to save vitals. Please try again.')
+      );
       return;
     } finally {
       setIsSaving(false);
@@ -525,26 +620,11 @@ const VitalsForm = ({
 
   if (!creating) {
     return (
-      <div className="flex flex-col gap-3">
-        {vitals.length === 0 ? (
-          <p className="py-6 text-center text-body-4 text-text-secondary">
-            No vitals recorded yet.
-          </p>
-        ) : (
-          <ul className="rounded-2xl border border-card-border px-4">
-            {vitals.map((entry) => (
-              <VitalRow key={entry.id} entry={entry} resolveRecorderName={resolveRecorderName} />
-            ))}
-          </ul>
-        )}
-        <div className="flex justify-center">
-          <Primary
-            text="New Vital"
-            icon={<span aria-hidden="true">+</span>}
-            onClick={() => dispatchFormState({ type: 'SET_CREATING', value: true })}
-          />
-        </div>
-      </div>
+      <VitalsHistory
+        vitals={vitals}
+        resolveRecorderName={resolveRecorderName}
+        onNew={() => dispatchFormState({ type: 'SET_CREATING', value: true })}
+      />
     );
   }
 
@@ -621,7 +701,7 @@ const VitalsForm = ({
             )}
           </span>
           <span>
-            {formatWeightDelta(weightTrend.delta)} since {weightTrend.sinceDate}
+            {formatWeightDelta(weightTrend.delta, weightTrend.unit)} since {weightTrend.sinceDate}
           </span>
         </div>
       ) : null}
@@ -656,7 +736,7 @@ const VitalsForm = ({
       </div>
       <label className="flex flex-col gap-1">
         <span className="text-[12px] font-medium text-neutral-700">Notes (optional)</span>
-        <textarea
+        <Textarea
           value={notes}
           onChange={(e) => dispatchFormState({ type: 'SET_NOTES', value: e.target.value })}
           aria-label="Vitals notes"

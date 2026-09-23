@@ -19,6 +19,9 @@ jest.mock("src/config/prisma", () => ({
     codeEntry: {
       findMany: jest.fn(),
     },
+    codeMapping: {
+      findMany: jest.fn(),
+    },
     $queryRaw: jest.fn(),
   },
 }));
@@ -27,6 +30,8 @@ describe("ClinicalTermsService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.READ_FROM_POSTGRES = "false";
+    // Default: no crosswalks. Tests that assert on them override this.
+    (prisma.codeMapping.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   describe("parseConcepts", () => {
@@ -286,8 +291,89 @@ describe("ClinicalTermsService", () => {
           species: ["SA"],
           synonyms: ["Emesis", "Vomiting"],
           source: "VeNom",
+          codings: [],
         },
       ]);
+    });
+
+    it("attaches the strongest usable crosswalk per system in one batched query", async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        { code: "YC-1", display: "Vomiting", synonyms: [], meta: {} },
+        { code: "YC-2", display: "Gastritis", synonyms: [], meta: {} },
+      ]);
+      (prisma.codeMapping.findMany as jest.Mock).mockResolvedValue([
+        {
+          sourceCode: "YC-1",
+          targetSystem: "VENOM",
+          targetCode: "weak",
+          targetDisplay: null,
+          equivalence: "INEXACT",
+        },
+        {
+          sourceCode: "YC-1",
+          targetSystem: "VENOM",
+          targetCode: "strong",
+          targetDisplay: "V",
+          equivalence: "EQUAL",
+        },
+        {
+          sourceCode: "YC-1",
+          targetSystem: "SNOMED",
+          targetCode: "s1",
+          targetDisplay: null,
+          equivalence: "NARROWER",
+        },
+      ]);
+
+      const result = await ClinicalTermsService.suggestTerms({ q: "v" });
+
+      // One query for the whole page, over the deduped code set.
+      expect(prisma.codeMapping.findMany).toHaveBeenCalledTimes(1);
+      const where = (prisma.codeMapping.findMany as jest.Mock).mock.calls[0][0]
+        .where;
+      expect(where.sourceCode).toEqual({ in: ["YC-1", "YC-2"] });
+      expect(where.active).toBe(true);
+      // The export's usable-equivalence gate is applied here too, so the picker
+      // never advertises a crosswalk the export would refuse to emit.
+      expect(where.equivalence.in).not.toContain("UNMATCHED");
+      expect(where.equivalence.in).not.toContain("DISJOINT");
+
+      expect(result[0].codings).toEqual([
+        { system: "VENOM", code: "strong", display: "V", equivalence: "EQUAL" },
+        {
+          system: "SNOMED",
+          code: "s1",
+          display: undefined,
+          equivalence: "NARROWER",
+        },
+      ]);
+      // A term with no mapping rows carries an empty list, never undefined.
+      expect(result[1].codings).toEqual([]);
+    });
+
+    it("makes no crosswalk query when the page is empty", async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+      await ClinicalTermsService.suggestTerms({ q: "zzz" });
+      expect(prisma.codeMapping.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("buildSuggestionQuery vocabulary filter", () => {
+    const sqlFor = (params: Parameters<typeof buildSuggestionQuery>[0]) =>
+      buildSuggestionQuery(params).sql;
+
+    it("restricts to terms that hold a usable crosswalk in that vocabulary", () => {
+      const text = sqlFor({ q: "vom", vocabulary: "SNOMED" });
+      expect(text).toContain('"CodeMapping"');
+      expect(text).toContain('m."targetSystem"');
+      // The same gate the picker and export use: a row saying "no counterpart
+      // exists" must not qualify a term for a SNOMED-only list.
+      expect(text).toContain('m."equivalence" = ANY');
+      expect(text).toContain('m."active"');
+    });
+
+    it("adds no mapping join when no vocabulary is asked for", () => {
+      expect(sqlFor({ q: "vom" })).not.toContain('"CodeMapping"');
     });
   });
 
@@ -351,6 +437,22 @@ describe("ClinicalTermsService", () => {
       expect(sqlFor({ q: "a" }).text).not.toContain("'species'");
     });
 
+    it("passes concepts carrying no species tag through a species filter", () => {
+      // EXISTS over an empty array is false, so matching on the tag alone excludes an
+      // untagged concept from every filtered search rather than passing it through.
+      // 16 of the 11,742 shipped active concepts are untagged, all of them Procedure
+      // and all cross-species - rabies vaccination, castration, ID chip insertion -
+      // so a species-filtered Plan search would have lost exactly those.
+      const normalised = sqlFor({ q: "a", species: ["SA"] }).text.replace(
+        /\s+/g,
+        " ",
+      );
+
+      expect(normalised).toContain(
+        `OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(e."meta"->'species') = 'array' THEN e."meta"->'species' ELSE '[]'::jsonb END) sp)`,
+      );
+    });
+
     it("returns unscored rows when browsing without a query", () => {
       const { text } = sqlFor({});
 
@@ -362,6 +464,274 @@ describe("ClinicalTermsService", () => {
       expect(sqlFor({ limit: 5000 }).values).toContain(50);
       expect(sqlFor({ limit: -3 }).values).toContain(1);
       expect(sqlFor({}).values).toContain(10);
+    });
+  });
+
+  describe("buildSuggestionQuery token widening", () => {
+    const sqlFor = (params: Parameters<typeof buildSuggestionQuery>[0]) => {
+      const statement = buildSuggestionQuery(params);
+      return { text: statement.sql, values: statement.values };
+    };
+    // Distinctive so the row limit cannot be mistaken for a score in the values array.
+    const LIMIT = 37;
+    const wordPatterns = (values: unknown[]) =>
+      values.filter(
+        (v): v is string =>
+          typeof v === "string" && v.startsWith("\\m") && !/\s/u.test(v),
+      );
+
+    it("reaches a phrase the vocabulary only holds in pieces", () => {
+      // #3375: the whole query went into one LIKE, so "ear infection" matched none of
+      // the 11,742 shipped concepts and the picker showed an empty list.
+      const { values } = sqlFor({ q: "ear infection", limit: LIMIT });
+
+      expect(values).toContain("%ear%");
+      expect(values).toContain("%infection%");
+      // Widening is an OR, not a replacement: the whole phrase still drives the tiers.
+      expect(values).toContain("%ear infection%");
+    });
+
+    it("keeps the maintainer's second phrase working", () => {
+      const { values } = sqlFor({ q: "renal failure", limit: LIMIT });
+
+      expect(values).toContain("%renal failure%");
+      expect(values).toContain("%renal%");
+      expect(values).toContain("%failure%");
+    });
+
+    it("asks for a whole word, not a substring", () => {
+      // "ear" is inside "heart", "linear" and "clearance". \m and \M are the Postgres
+      // word boundaries; written as a single backslash they would be the letters m and M
+      // and every token would match nothing.
+      const { values } = sqlFor({ q: "ear infection", limit: LIMIT });
+
+      expect(values).toContain("\\mear\\M");
+      expect(values).toContain("\\minfection\\M");
+    });
+
+    it("keeps the single-word trigram prefilter and uses word boundaries only for scoring", () => {
+      const { text, values } = sqlFor({ q: "Vomiting", limit: LIMIT });
+
+      // The LIKE stays in the prefilter, where pg_trgm can serve it.
+      expect(values).toContain("%vomiting%");
+      // The boundary is a score condition, never a replacement filter.
+      expect(values).toContain("\\mvomiting\\M");
+      expect(text).toContain("~");
+    });
+
+    it("scores whole-word contains above mid-word-only contains", () => {
+      const { text, values } = sqlFor({ q: "ear", limit: LIMIT });
+      const normalised = text.replace(/\s+/g, " ");
+
+      expect(values).toContain("\\mear\\M");
+      expect(normalised).toMatch(
+        /WHEN lower\(e\."display"\) ~ .* THEN 100 WHEN EXISTS .* lower\(s\) ~ .* THEN 50 ELSE GREATEST\(\s*CASE WHEN lower\(e\."display"\) LIKE .* THEN 20 WHEN EXISTS .* LIKE .* THEN 10 ELSE 0 END, 0\s*\) END/,
+      );
+    });
+
+    it("treats regex punctuation in the query literally", () => {
+      const { values } = sqlFor({ q: "c++", limit: LIMIT });
+
+      expect(values).toContain("\\mc\\+\\+\\M");
+    });
+
+    it("drops a word too short for the trigram index to serve", () => {
+      // A two-character pattern cannot use pg_trgm, and one of them in the OR costs the
+      // whole statement its index: measured on the shipped vocabulary, "%cyst% OR %of%"
+      // is a sequential scan at 52 ms against 229 rows by BitmapOr for "%cyst% OR %iris%".
+      const { values } = sqlFor({ q: "cyst of iris", limit: LIMIT });
+
+      expect(values).toContain("%cyst%");
+      expect(values).toContain("%iris%");
+      expect(values).not.toContain("%of%");
+      expect(values).not.toContain("\\mof\\M");
+    });
+
+    it("bounds how many scans one keystroke can provoke", () => {
+      const { values } = sqlFor({
+        q: "aaa bbb ccc ddd eee fff",
+        limit: LIMIT,
+      });
+
+      expect(new Set(wordPatterns(values))).toEqual(
+        new Set(["\\maaa\\M", "\\mbbb\\M", "\\mccc\\M", "\\mddd\\M"]),
+      );
+    });
+
+    it("scores a widened row below every whole-phrase tier", () => {
+      // The property the whole change rests on: 50 is the weakest phrase tier, so as long
+      // as full token coverage plus the display bonus stays under it, widening can only
+      // append rows beneath today's results and can never reorder them. Read off the
+      // emitted parameters rather than the constants, so retuning the weights fails here.
+      for (const q of ["ear infection", "aaa bbb ccc ddd"]) {
+        const { values } = sqlFor({ q, limit: LIMIT });
+        const scores = values.filter(
+          (v): v is number => typeof v === "number" && v !== LIMIT,
+        );
+        const shares = scores.slice(0, -1);
+        const displayBonus = scores[scores.length - 1];
+
+        expect(shares).toHaveLength(wordPatterns(values).length / 2);
+        expect(
+          shares.reduce((total, share) => total + share, 0) + displayBonus,
+        ).toBeLessThan(50);
+      }
+    });
+
+    it("orders tied rows by code so a page is stable", () => {
+      // score and display alone are not a total order - the vocabulary ships two concepts
+      // labelled "Renal amyloidosis" and two labelled "Coagulopathy" - so which of a tied
+      // pair came first was decided by the query plan. Widening changes the plan.
+      const { text } = sqlFor({ q: "renal", limit: LIMIT });
+
+      expect(text).toContain("display ASC, code ASC");
+    });
+
+    it("orders rows inside a tier by how much of the label the query covers", () => {
+      // Inside a tier every row matched the same way, so the tier cannot separate them
+      // and the order fell through to the label alphabetically. That is what puts eight
+      // "Renal (kidney) ..." rows on the first page for "renal" and leaves the whole
+      // "Renal failure" family at positions 22 to 28.
+      const { text } = sqlFor({ q: "renal", limit: LIMIT });
+
+      expect(text).toContain(
+        "ORDER BY score DESC, length(display) ASC, display ASC, code ASC",
+      );
+    });
+
+    it("ranks by tier before coverage, so no row changes tier", () => {
+      // The tiebreak must stay a tiebreak. Ahead of score it would let a short label
+      // that merely contains the query outrank an exact match.
+      const { text } = sqlFor({ q: "renal", limit: LIMIT });
+
+      expect(text.indexOf("score DESC")).toBeLessThan(
+        text.indexOf("length(display)"),
+      );
+    });
+
+    it("leaves a browse with no query alphabetical", () => {
+      // With no query every row scores 0, so there is no tier to break a tie inside and
+      // nothing for coverage to mean. The browse list stays the alphabetical one.
+      const { text } = sqlFor({ limit: LIMIT });
+
+      expect(text).toContain("ORDER BY score DESC, display ASC, code ASC");
+      expect(text).not.toContain("length(display)");
+    });
+  });
+
+  describe("the recall gap in #3375, against the shipped vocabulary", () => {
+    // These read the vocabulary this repository ships rather than a hand-written fixture,
+    // so they fail if the data stops supporting the fix as well as if the code does.
+    type Concept = {
+      ycCode: string;
+      label: string;
+      active?: boolean;
+      designations?: { term: string }[];
+    };
+    const searchText = (concept: Concept) =>
+      [concept.label, ...(concept.designations ?? []).map((d) => d.term)]
+        .join(" ")
+        .toLowerCase();
+    const hasWord = (text: string, word: string) =>
+      new RegExp(`(^|[^\\p{L}\\p{N}])${word}([^\\p{L}\\p{N}]|$)`, "u").test(
+        text,
+      );
+
+    let concepts: Concept[];
+
+    beforeAll(() => {
+      concepts = (
+        JSON.parse(
+          fs.readFileSync(
+            path.join(process.cwd(), "data/yc_concepts.json"),
+            "utf-8",
+          ),
+        ) as Concept[]
+      ).filter((concept) => concept.active !== false);
+    });
+
+    it("holds no term containing the phrase a clinician types", () => {
+      // This is the defect. One LIKE over the whole query can only match a term that
+      // contains that exact phrase, and no shipped term does.
+      expect(
+        concepts.filter((concept) =>
+          searchText(concept).includes("ear infection"),
+        ),
+      ).toEqual([]);
+    });
+
+    it("holds terms containing both of its words", () => {
+      // ...while the concept the clinician wants is right there, worded with a
+      // parenthesis between the two words. Tokenising is what reaches it.
+      const reachable = concepts.filter(
+        (concept) =>
+          hasWord(searchText(concept), "ear") &&
+          hasWord(searchText(concept), "infection"),
+      );
+
+      expect(reachable.map((concept) => concept.label)).toContain(
+        "Ear (aural) infection",
+      );
+    });
+
+    it("identifies the shipped terms whose ear match is only mid-word", () => {
+      const query = "ear";
+      const substringMatches = concepts.filter((concept) =>
+        searchText(concept).includes(query),
+      );
+      const wholeWordMatches = substringMatches.filter((concept) =>
+        hasWord(searchText(concept), query),
+      );
+      const midWordOnly = substringMatches.filter(
+        (concept) => !hasWord(searchText(concept), query),
+      );
+
+      expect(wholeWordMatches.length).toBeGreaterThan(0);
+      expect(midWordOnly.length).toBeGreaterThan(wholeWordMatches.length);
+      expect(midWordOnly.length + wholeWordMatches.length).toBe(
+        substringMatches.length,
+      );
+    });
+
+    const renalTier = () =>
+      concepts.filter((concept) =>
+        concept.label.toLowerCase().startsWith("renal"),
+      );
+
+    it("spends an alphabetical first page on one family's variants", () => {
+      // The ordering complaint in the issue body, asserted against the data rather than
+      // quoted from it. Every one of these rows is in the display-prefix tier, so the
+      // tier cannot separate them and the label decides the page on its own.
+      const alphabetical = [...renalTier()].sort(
+        (a, b) =>
+          a.label.localeCompare(b.label) || a.ycCode.localeCompare(b.ycCode),
+      );
+
+      const firstPage = alphabetical.slice(0, 10);
+      const oneFamily = firstPage.filter((concept) =>
+        concept.label.startsWith("Renal (kidney)"),
+      );
+
+      expect(oneFamily.length).toBeGreaterThanOrEqual(8);
+      expect(
+        firstPage.some((concept) => concept.label.startsWith("Renal failure")),
+      ).toBe(false);
+    });
+
+    it("holds shorter renal labels naming the families that page hides", () => {
+      // ...and the terms the clinician is far more likely to want are in the same tier,
+      // distinguished only by the query accounting for more of the label. This is what
+      // the coverage tiebreak orders on, so it fails if the data stops supporting it.
+      const byCoverage = [...renalTier()].sort(
+        (a, b) =>
+          a.label.length - b.label.length ||
+          a.label.localeCompare(b.label) ||
+          a.ycCode.localeCompare(b.ycCode),
+      );
+
+      expect(byCoverage.slice(0, 10).map((concept) => concept.label)).toContain(
+        "Renal failure",
+      );
     });
   });
 

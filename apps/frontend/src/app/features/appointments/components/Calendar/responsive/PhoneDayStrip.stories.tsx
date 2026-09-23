@@ -4,6 +4,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Appointment } from '@yosemite-crew/types';
 
 import PhoneDayStrip from './PhoneDayStrip';
+import { describeContrast, measureContrast } from './contrastProbe';
 
 const ORG_ID = 'org-storybook';
 const NAMES = ['Poppy', 'Milo', 'Nala', 'Rufus', 'Juno', 'Otto', 'Sasha', 'Bruno'];
@@ -118,6 +119,25 @@ export const Default: Story = {
     await expect(new Set(tops).size).toBe(1);
     const widths = cells.map((c) => Math.round(c.getBoundingClientRect().width));
     await expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
+
+    /* The selected cell is a fixed tint, so its ink cannot be checked by eye in
+       one theme and assumed in the other - it is identical in both. Both labels
+       shipped under AA (2.98:1 weekday, 4.09:1 date) because the fill was
+       `--blue`, which is #257bed in light AND dark, under literal white.
+       Measured on the composited pixels: a class-name assertion here would stay
+       green through exactly that regression. */
+    const selected = pressed[0];
+    for (const [label, node] of [
+      ['weekday', selected.querySelector('.yc-day-strip__weekday')],
+      ['date', selected.querySelector('.yc-day-strip__date')],
+    ] as const) {
+      await expect(node).not.toBeNull();
+      const reading = measureContrast(node as Element);
+      await expect(
+        reading.ratio,
+        describeContrast(`selected day ${label}`, reading)
+      ).toBeGreaterThanOrEqual(reading.required);
+    }
   },
 };
 
@@ -192,5 +212,46 @@ export const NothingBookedAllWeek: Story = {
       within(canvasElement).getByRole('group', { name: 'Select a day' })
     ).toBeInTheDocument();
     await expect(within(canvasElement).getAllByRole('button')).toHaveLength(7);
+  },
+};
+
+/* The contrast assertion in `Default` runs in ONE theme, and it is not the one
+   that matters. `preview.ts` `initialGlobals` pins only `viewport`, so the theme
+   decorator falls to its `'light'` default and every play function in this file
+   measures the light ramp.
+
+   The selected cell is `--blue-strong`, which is theme-aware: #1657c9 light
+   (6.48:1) and #2f74d9 dark (4.54:1). **Dark is the side with 0.045 of headroom
+   over AA**, and it was the side nothing exercised - the justification for
+   pinning it with a test was written into the PR that shipped it, and the test
+   only covered the comfortable half.
+
+   A story global beats a URL/toolbar override, so pinning it here is not
+   advisory. */
+export const DarkSelectedCell: Story = {
+  name: 'Dark: the selected cell still clears AA',
+  globals: { viewport: { value: 'mobile', isRotated: false }, theme: 'dark' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const strip = canvas.getByRole('group', { name: 'Select a day' });
+    const selected = within(strip)
+      .getAllByRole('button')
+      .find((cell) => cell.getAttribute('aria-pressed') === 'true');
+    await expect(selected).toBeDefined();
+
+    // The theme really is dark - otherwise this is the light assertion twice.
+    await expect(document.documentElement.dataset.theme).toBe('dark');
+
+    for (const [label, node] of [
+      ['weekday', (selected as HTMLElement).querySelector('.yc-day-strip__weekday')],
+      ['date', (selected as HTMLElement).querySelector('.yc-day-strip__date')],
+    ] as const) {
+      await expect(node).not.toBeNull();
+      const reading = measureContrast(node as Element);
+      await expect(
+        reading.ratio,
+        describeContrast(`dark selected day ${label}`, reading)
+      ).toBeGreaterThanOrEqual(reading.required);
+    }
   },
 };

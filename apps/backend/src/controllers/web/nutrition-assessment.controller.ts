@@ -20,9 +20,9 @@ const FeedingRouteEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  assessedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  assessedAt: z.iso.datetime(),
   appetiteScore: AppetiteScoreEnum.optional(),
   bodyConditionScore: z.number().int().min(1).max(9).optional(),
   muscleConditionScore: z.number().int().min(1).max(4).optional(),

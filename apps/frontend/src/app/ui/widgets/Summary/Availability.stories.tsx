@@ -92,7 +92,7 @@ const meta = {
           'That is worth more than one interaction: the drawer carries five accordions (Org, ' +
           'Personal, Address and Professional details plus Availability), and it re-forms by ' +
           'breakpoint the same way the table does. Above 1280 the drawer is a 530px right-side ' +
-          'panel over a `--color-overlay-backdrop` scrim; below 768 `useIsPhone` swaps it to the ' +
+          'panel over a `--sh55` scrim; below 768 `useIsPhone` swaps it to the ' +
           'full-screen `yc-modal-fullscreen` form. Two quite different layouts, neither previously ' +
           'rendered.\n\n' +
           'The row control is itself two different elements by width, which is why the plays below ' +

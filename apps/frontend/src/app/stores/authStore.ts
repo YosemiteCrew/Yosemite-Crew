@@ -112,8 +112,9 @@ export type AuthStore = {
     password: string,
     firstName: string,
     lastName: string,
-    role?: string
-  ) => Promise<{ userId: string } | undefined>;
+    role?: string,
+    turnstileToken?: string
+  ) => Promise<{ userId: string; email: string } | undefined>;
   confirmSignUp: (email: string, code: string) => Promise<boolean>;
   verifyEmail: () => Promise<'OK' | 'INVALID_TOKEN'>;
   resendVerificationEmail: () => Promise<'OK' | 'ALREADY_VERIFIED'>;
@@ -139,6 +140,25 @@ const makeAuthError = (message: string, code: string): AuthError => {
   const error = new Error(message) as AuthError;
   error.code = code;
   return error;
+};
+
+// supertokens-web-js rejects with the fetch Response itself when the API answers a status it
+// does not model (a 500, a proxy's 502, a rate limit). `String()` of that is
+// "[object Response]", which the sign-in and sign-up forms then put on screen.
+const toAuthFailure = (error: unknown): Error => {
+  if (error instanceof Error) return error;
+  const status = (error as { status?: unknown } | null | undefined)?.status;
+  if (typeof status !== 'number') return new Error(String(error));
+  if (status === 429) {
+    return makeAuthError('Too many attempts. Please wait a minute and try again.', 'HTTP_429');
+  }
+  if (status >= 500) {
+    return makeAuthError(
+      'The service is temporarily unavailable. Please wait a moment and try again.',
+      `HTTP_${status}`
+    );
+  }
+  return makeAuthError('Something went wrong. Please try again.', `HTTP_${status}`);
 };
 
 const emailPasswordFormFields = (email: string, password: string) => [
@@ -270,11 +290,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // the name and role to provision with.
   pendingSignUp: readPendingSignUp(),
 
-  signUp: async (email, password, firstName, lastName, role = 'member') => {
+  signUp: async (email, password, firstName, lastName, role, turnstileToken) => {
     set({ loading: true, error: null });
     try {
       const response = await EmailPassword.signUp({
-        formFields: emailPasswordFormFields(email, password),
+        formFields: [
+          ...emailPasswordFormFields(email, password),
+          ...(turnstileToken ? [{ id: 'turnstileToken', value: turnstileToken }] : []),
+        ],
       });
       if (response.status === 'FIELD_ERROR') {
         const emailError = response.formFields.find(
@@ -291,7 +314,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (response.status === 'SIGN_UP_NOT_ALLOWED') {
         throw makeAuthError(response.reason, 'SIGN_UP_NOT_ALLOWED');
       }
-      const pending = { email, firstName, lastName, role };
+      const registeredEmail = response.user.emails?.[0] ?? email;
+      const pending = { email: registeredEmail, firstName, lastName, role: role ?? 'member' };
       set({ loading: false, pendingSignUp: pending });
       // Also persisted: verification links are routinely opened in a new tab or
       // after a reload, and the in-memory copy does not survive either. Without
@@ -303,10 +327,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       } catch (error) {
         logger.warn('Failed to send the verification email after sign up', error);
       }
-      return { userId: response.user.id };
+      return { userId: response.user.id, email: registeredEmail };
     } catch (error) {
       set({ loading: false });
-      throw error instanceof Error ? error : new Error(String(error));
+      throw toAuthFailure(error);
     }
   },
 
@@ -343,17 +367,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         formFields: emailPasswordFormFields(email, password),
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Authentication failed';
+      const failure = toAuthFailure(error);
       set({
         loading: false,
-        error: message,
+        error: failure.message,
         user: null,
         role: null,
         roles: [],
         status: 'unauthenticated',
         attributes: null,
       });
-      throw error instanceof Error ? error : new Error(String(error));
+      throw failure;
     }
 
     if (response.status !== 'OK') {
@@ -415,7 +439,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       response = await TOTP.verifyCode({ totp: code });
     } catch (error) {
       set({ loading: false });
-      throw error instanceof Error ? error : new Error(String(error));
+      throw toAuthFailure(error);
     }
     if (response.status === 'INVALID_TOTP_ERROR') {
       set({ loading: false });
@@ -447,7 +471,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       response = await Passwordless.consumeCode({ userInputCode: code });
     } catch (error) {
       set({ loading: false });
-      throw error instanceof Error ? error : new Error(String(error));
+      throw toAuthFailure(error);
     }
     if (
       response.status === 'INCORRECT_USER_INPUT_CODE_ERROR' ||

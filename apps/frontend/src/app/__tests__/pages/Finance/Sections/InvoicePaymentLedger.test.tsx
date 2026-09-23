@@ -44,13 +44,12 @@ describe('InvoicePaymentLedger', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders a payment row with caption, amount, receipt and receipt-sent strip', () => {
+  it('renders a payment row with caption, amount and the real receipt link', () => {
     render(
       <InvoicePaymentLedger
         invoice={makeInvoice({ stripeReceiptUrl: 'https://pay.stripe.com/receipts/r_1' })}
         currency="USD"
         payerName="Lena Hartmann"
-        payerEmail="lena@example.com"
       />
     );
 
@@ -58,12 +57,30 @@ describe('InvoicePaymentLedger', () => {
     expect(
       screen.getByText('Online payment · 12 Jun, 10:31 · by Lena Hartmann')
     ).toBeInTheDocument();
-    expect(screen.getByText('$86')).toBeInTheDocument();
+    expect(screen.getByText('$86.00')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Receipt' })).toHaveAttribute(
       'href',
       'https://pay.stripe.com/receipts/r_1'
     );
-    expect(screen.getByText('Receipt sent to lena@example.com')).toBeInTheDocument();
+    // No "Receipt sent to ...". Having the payer's address on file is not
+    // evidence anything was delivered, and nothing in the product emails an
+    // invoice receipt.
+    expect(screen.queryByText(/Receipt sent to/)).not.toBeInTheDocument();
+  });
+
+  it('never claims a receipt was sent, even with a payer email and a receipt url', () => {
+    render(
+      <InvoicePaymentLedger
+        invoice={makeInvoice({ stripeReceiptUrl: 'https://pay.stripe.com/receipts/r_1' })}
+        currency="USD"
+        payerName="Lena Hartmann"
+      />
+    );
+
+    expect(screen.queryByText(/Receipt sent to/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/lena@example.com/)).not.toBeInTheDocument();
+    // The link, which is a real signal, is still offered.
+    expect(screen.getByRole('link', { name: 'Receipt' })).toBeInTheDocument();
   });
 
   it('treats a paidAt timestamp as settled even when status is not paid', () => {
@@ -105,7 +122,7 @@ describe('InvoicePaymentLedger', () => {
     expect(screen.getByTestId('card-icon')).toBeInTheDocument();
   });
 
-  it('omits the receipt link and receipt-sent strip when data is missing', () => {
+  it('omits the receipt link when there is no receipt url', () => {
     render(<InvoicePaymentLedger invoice={makeInvoice({})} currency="USD" />);
 
     expect(screen.queryByRole('link', { name: 'Receipt' })).not.toBeInTheDocument();
@@ -122,7 +139,7 @@ describe('InvoicePaymentLedger', () => {
       <InvoicePaymentLedger invoice={makeInvoice({ totalAmount: undefined })} currency="USD" />
     );
     expect(screen.getByText('Paid in the pet-parent app')).toBeInTheDocument();
-    expect(screen.getByText('$0')).toBeInTheDocument();
+    expect(screen.getByText('$0.00')).toBeInTheDocument();
   });
 
   it('has no axe accessibility violations', async () => {
@@ -131,7 +148,6 @@ describe('InvoicePaymentLedger', () => {
         invoice={makeInvoice({ stripeReceiptUrl: 'https://pay.stripe.com/receipts/r_1' })}
         currency="USD"
         payerName="Lena Hartmann"
-        payerEmail="lena@example.com"
       />
     );
     const results = await axe(container);

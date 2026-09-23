@@ -149,8 +149,9 @@ describe('preload bridge', () => {
       { name: 'pinTab', channel: 'yc:tab-pin', args: ['tab-1', true] },
       { name: 'duplicateTab', channel: 'yc:tab-duplicate', args: ['tab-1'] },
       { name: 'reopenClosedTab', channel: 'yc:tab-reopen-closed' },
+      { name: 'showTabContextMenu', channel: 'yc:tab-context-menu', args: ['tab-1'] },
       { name: 'setTabZoom', channel: 'yc:tab-set-zoom', args: ['tab-1', 1.5] },
-      { name: 'tabSearch', channel: 'yc:tab-search', args: [true] },
+      { name: 'setChromeOverlay', channel: 'yc:chrome-overlay', args: [true] },
 
       { name: 'stopFindInPage', channel: 'yc:stop-find-in-page' },
       { name: 'openDevTools', channel: 'yc:open-devtools' },
@@ -176,14 +177,14 @@ describe('preload bridge', () => {
 
     cases.forEach(({ name, channel, args }) => {
       test(`${name} invokes ${channel}`, async () => {
-        const api = mockExposed.ycDesktop[name];
+        const api = mockExposed.ycDesktop![name];
         expect(typeof api).toBe('function');
         const result = await (api as (...a: unknown[]) => Promise<unknown>)(...(args ?? []));
         expect(result).toEqual({ ok: true });
         expect(mockInvoked).toHaveLength(1);
-        expect(mockInvoked[0].channel).toBe(channel);
+        expect(mockInvoked[0]!.channel).toBe(channel);
         if (args && args.length > 0) {
-          expect(mockInvoked[0].args).toEqual(args);
+          expect(mockInvoked[0]!.args).toEqual(args);
         }
       });
     });
@@ -192,13 +193,13 @@ describe('preload bridge', () => {
   describe('onShortcut', () => {
     test('registers a listener and returns a cleanup function', () => {
       const callback = jest.fn();
-      const cleanup = mockExposed.ycDesktop.onShortcut(callback);
+      const cleanup = mockExposed.ycDesktop!.onShortcut(callback);
 
       expect(typeof cleanup).toBe('function');
       const handler = mockListeners['yc:shortcut'];
       expect(handler).toBeDefined();
 
-      handler({}, 'new-patient');
+      handler!({}, 'new-patient');
       expect(callback).toHaveBeenCalledWith('new-patient');
 
       cleanup();
@@ -208,14 +209,14 @@ describe('preload bridge', () => {
     test('calling cleanup removes listener', () => {
       const cb1 = jest.fn();
       const cb2 = jest.fn();
-      const cleanup1 = mockExposed.ycDesktop.onShortcut(cb1);
-      mockExposed.ycDesktop.onShortcut(cb2);
+      const cleanup1 = mockExposed.ycDesktop!.onShortcut(cb1);
+      mockExposed.ycDesktop!.onShortcut(cb2);
 
       const handler = mockListeners['yc:shortcut'];
       expect(handler).toBeDefined();
 
       cleanup1();
-      handler({}, 'test');
+      handler!({}, 'test');
       expect(cb1).not.toHaveBeenCalled();
       expect(cb2).toHaveBeenCalledWith('test');
     });
@@ -224,12 +225,12 @@ describe('preload bridge', () => {
   describe('onIdleUnlockFailed', () => {
     test('fires the callback and unsubscribes on cleanup', () => {
       const callback = jest.fn();
-      const cleanup = mockExposed.ycDesktop.onIdleUnlockFailed(callback);
+      const cleanup = mockExposed.ycDesktop!.onIdleUnlockFailed(callback);
 
       const handler = mockListeners['yc:idle-unlock-failed'];
       expect(handler).toBeDefined();
 
-      handler({});
+      handler!({});
       expect(callback).toHaveBeenCalledTimes(1);
 
       cleanup();
@@ -237,62 +238,98 @@ describe('preload bridge', () => {
     });
   });
 
+  describe('onTabContextAction', () => {
+    test('passes the chosen item through and unsubscribes on cleanup', () => {
+      const callback = jest.fn();
+      const cleanup = mockExposed.ycDesktop!.onTabContextAction(callback);
+
+      const handler = mockListeners['yc:tab-context-action'];
+      expect(handler).toBeDefined();
+
+      handler!({}, { action: 'duplicate', tabId: 'tab-1' });
+      expect(callback).toHaveBeenCalledWith({ action: 'duplicate', tabId: 'tab-1' });
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(mockListeners['yc:tab-context-action']).toBeUndefined();
+    });
+  });
+
+  describe('onWindowMaximizedChanged', () => {
+    test('passes the state through and unsubscribes on cleanup', () => {
+      const callback = jest.fn();
+      const cleanup = mockExposed.ycDesktop!.onWindowMaximizedChanged(callback);
+
+      const handler = mockListeners['yc:window-maximized'];
+      expect(handler).toBeDefined();
+
+      handler!({}, true);
+      expect(callback).toHaveBeenCalledWith(true);
+      handler!({}, false);
+      expect(callback).toHaveBeenCalledWith(false);
+      expect(callback).toHaveBeenCalledTimes(2);
+
+      cleanup();
+      expect(mockListeners['yc:window-maximized']).toBeUndefined();
+    });
+  });
+
   describe('newTab with no args', () => {
     test('invokes yc:tab-new with undefined', async () => {
       mockInvoked.length = 0;
-      await mockExposed.ycDesktop.newTab();
+      await mockExposed.ycDesktop!.newTab();
       expect(mockInvoked).toHaveLength(1);
-      expect(mockInvoked[0].channel).toBe('yc:tab-new');
+      expect(mockInvoked[0]!.channel).toBe('yc:tab-new');
     });
   });
 
   describe('findInPage', () => {
     test('invokes yc:find-in-page with wrapped args object', async () => {
       mockInvoked.length = 0;
-      await mockExposed.ycDesktop.findInPage('needle', true, false);
+      await mockExposed.ycDesktop!.findInPage('needle', true, false);
       expect(mockInvoked).toHaveLength(1);
-      expect(mockInvoked[0].channel).toBe('yc:find-in-page');
-      expect(mockInvoked[0].args).toEqual([{ text: 'needle', forward: true, matchCase: false }]);
+      expect(mockInvoked[0]!.channel).toBe('yc:find-in-page');
+      expect(mockInvoked[0]!.args).toEqual([{ text: 'needle', forward: true, matchCase: false }]);
     });
   });
 
   describe('setSplitTab with null', () => {
     test('invokes yc:tab-set-split with null', async () => {
       mockInvoked.length = 0;
-      await mockExposed.ycDesktop.setSplitTab(null);
+      await mockExposed.ycDesktop!.setSplitTab(null);
       expect(mockInvoked).toHaveLength(1);
-      expect(mockInvoked[0].channel).toBe('yc:tab-set-split');
-      expect(mockInvoked[0].args).toEqual([null]);
+      expect(mockInvoked[0]!.channel).toBe('yc:tab-set-split');
+      expect(mockInvoked[0]!.args).toEqual([null]);
     });
   });
 
   describe('authenticateBiometric with no reason', () => {
     test('invokes yc:authenticate-biometric with undefined', async () => {
       mockInvoked.length = 0;
-      await mockExposed.ycDesktop.authenticateBiometric();
+      await mockExposed.ycDesktop!.authenticateBiometric();
       expect(mockInvoked).toHaveLength(1);
-      expect(mockInvoked[0].channel).toBe('yc:authenticate-biometric');
+      expect(mockInvoked[0]!.channel).toBe('yc:authenticate-biometric');
     });
   });
 
   describe('setSettings with empty object', () => {
     test('invokes yc:set-settings with empty object', async () => {
       mockInvoked.length = 0;
-      await mockExposed.ycDesktop.setSettings({});
+      await mockExposed.ycDesktop!.setSettings({});
       expect(mockInvoked).toHaveLength(1);
-      expect(mockInvoked[0].channel).toBe('yc:set-settings');
-      expect(mockInvoked[0].args).toEqual([{}]);
+      expect(mockInvoked[0]!.channel).toBe('yc:set-settings');
+      expect(mockInvoked[0]!.args).toEqual([{}]);
     });
   });
 
   describe('windowDragBy', () => {
     test('sends yc:window-drag-by with the pointer deltas (fire-and-forget)', () => {
       mockSent.length = 0;
-      const result = mockExposed.ycDesktop.windowDragBy(12, -7);
+      const result = mockExposed.ycDesktop!.windowDragBy(12, -7);
       expect(result).toBeUndefined();
       expect(mockSent).toHaveLength(1);
-      expect(mockSent[0].channel).toBe('yc:window-drag-by');
-      expect(mockSent[0].args).toEqual([12, -7]);
+      expect(mockSent[0]!.channel).toBe('yc:window-drag-by');
+      expect(mockSent[0]!.args).toEqual([12, -7]);
     });
   });
 
@@ -303,35 +340,58 @@ describe('preload bridge', () => {
       ['windowClose', 'yc:window-close'],
     ] as const)('%s sends %s with no args (fire-and-forget)', (method, channel) => {
       mockSent.length = 0;
-      const result = (mockExposed.ycDesktop[method] as () => unknown)();
+      const result = (mockExposed.ycDesktop![method] as () => unknown)();
       expect(result).toBeUndefined();
       expect(mockSent).toHaveLength(1);
-      expect(mockSent[0].channel).toBe(channel);
-      expect(mockSent[0].args).toEqual([]);
+      expect(mockSent[0]!.channel).toBe(channel);
+      expect(mockSent[0]!.args).toEqual([]);
     });
   });
 
   describe('idle lock', () => {
     test.each(['biometric', 'password'] as const)('idleUnlock forwards the %s mode', (mode) => {
       mockSent.length = 0;
-      const result = (mockExposed.ycDesktop.idleUnlock as (m: 'biometric' | 'password') => unknown)(
-        mode
-      );
+      const result = (
+        mockExposed.ycDesktop!.idleUnlock as (m: 'biometric' | 'password') => unknown
+      )(mode);
       expect(result).toBeUndefined();
       expect(mockSent).toHaveLength(1);
-      expect(mockSent[0].channel).toBe('yc:idle-unlock');
-      expect(mockSent[0].args).toEqual([mode]);
+      expect(mockSent[0]!.channel).toBe('yc:idle-unlock');
+      expect(mockSent[0]!.args).toEqual([mode]);
+    });
+  });
+
+  describe('platform', () => {
+    test('reports the host platform as a plain value', () => {
+      // The local pages label keyboard shortcuts and the system file manager
+      // from this, and a renderer's user agent cannot tell Windows from Linux.
+      expect(mockExposed.ycDesktop!.platform).toBe(process.platform);
+      expect(typeof mockExposed.ycDesktop!.platform).toBe('string');
     });
   });
 
   describe('api surface integrity', () => {
-    test('every method on YcDesktop is a function', () => {
+    // `platform` is the one value on the bridge; everything else is a call.
+    const VALUE_KEYS: (keyof YcDesktop)[] = ['platform'];
+
+    test('every member of YcDesktop except the platform value is a function', () => {
       const api = mockExposed.ycDesktop;
       const keys: (keyof YcDesktop)[] = Object.keys(
-        api as Record<string, unknown>
+        api as unknown as Record<string, unknown>
       ) as (keyof YcDesktop)[];
-      keys.forEach((key) => {
-        expect(typeof api[key]).toBe('function');
+      const methods = keys.filter((key) => !VALUE_KEYS.includes(key));
+      // The filter must remove exactly the value keys and leave a set to check,
+      // or this assertion passes on nothing.
+      expect(methods).toHaveLength(keys.length - VALUE_KEYS.length);
+      expect(methods.length).toBeGreaterThan(0);
+      methods.forEach((key) => {
+        expect(typeof api![key]).toBe('function');
+      });
+    });
+
+    test('the value keys really are on the bridge', () => {
+      VALUE_KEYS.forEach((key) => {
+        expect(mockExposed.ycDesktop).toHaveProperty(key);
       });
     });
   });

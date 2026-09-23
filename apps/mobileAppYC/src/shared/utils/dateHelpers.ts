@@ -73,7 +73,10 @@ export const getWeekDates = (selectedDate: Date): DateInfo[] => {
 /**
  * Get all dates in a month (with padding for full weeks)
  */
-export const getMonthDates = (monthDate: Date, selectedDate: Date): DateInfo[] => {
+export const getMonthDates = (
+  monthDate: Date,
+  selectedDate: Date,
+): DateInfo[] => {
   const dates: DateInfo[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -84,7 +87,11 @@ export const getMonthDates = (monthDate: Date, selectedDate: Date): DateInfo[] =
   // Get first day of month
   const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
   // Get last day of month
-  const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+  const lastDay = new Date(
+    monthDate.getFullYear(),
+    monthDate.getMonth() + 1,
+    0,
+  );
 
   // Get start of week for first day
   const startOfFirstWeek = new Date(firstDay);
@@ -95,7 +102,11 @@ export const getMonthDates = (monthDate: Date, selectedDate: Date): DateInfo[] =
   endOfLastWeek.setDate(lastDay.getDate() + (6 - lastDay.getDay()));
 
   // Generate all dates from start to end
-  for (let d = new Date(startOfFirstWeek); d <= endOfLastWeek; d.setDate(d.getDate() + 1)) {
+  for (
+    let d = new Date(startOfFirstWeek);
+    d <= endOfLastWeek;
+    d.setDate(d.getDate() + 1)
+  ) {
     const date = new Date(d);
     date.setHours(0, 0, 0, 0);
 
@@ -114,21 +125,21 @@ export const getMonthDates = (monthDate: Date, selectedDate: Date): DateInfo[] =
 };
 
 /**
- * Navigate to previous month
+ * Navigate to previous month. Anchors on the 1st before subtracting a month
+ * so a target month with fewer days than currentDate's day-of-month (e.g.
+ * March 31 -> February) cannot overflow into the month after next.
  */
 export const getPreviousMonth = (currentDate: Date): Date => {
-  const newDate = new Date(currentDate);
-  newDate.setMonth(currentDate.getMonth() - 1);
-  return newDate;
+  return new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
 };
 
 /**
- * Navigate to next month
+ * Navigate to next month. Anchors on the 1st before adding a month so a
+ * target month with fewer days than currentDate's day-of-month (e.g.
+ * January 31 -> February) cannot overflow past it.
  */
 export const getNextMonth = (currentDate: Date): Date => {
-  const newDate = new Date(currentDate);
-  newDate.setMonth(currentDate.getMonth() + 1);
-  return newDate;
+  return new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
 };
 
 /**

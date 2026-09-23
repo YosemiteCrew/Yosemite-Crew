@@ -93,9 +93,8 @@ const ChatChannelHeader: React.FC<{
         testID="HeaderBackButton">
         <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
       </PressableOpacity>
-      <View style={styles.avatar}>
+      <View style={styles.avatar} testID="ChatHeaderAvatar">
         <Text style={styles.avatarText}>{initials}</Text>
-        <View style={styles.presenceDot} />
       </View>
       <View style={styles.titleBlock}>
         <Text style={styles.name} numberOfLines={1}>
@@ -197,9 +196,15 @@ export const ChatChannelScreen: React.FC = () => {
           ? err.message
           : 'Failed to load chat. Please try again.';
 
-      if (err.message?.includes('API key')) {
+      // Lower-cased: the actual thrown/axios strings ("Stream API Key not
+      // configured", "Network Error") don't match the case these checks were
+      // written against, so the tailored messages below never fired and
+      // every failure - including a real connectivity drop - showed the
+      // generic "Failed to load chat" text instead.
+      const lowerMessage = err.message?.toLowerCase() ?? '';
+      if (lowerMessage.includes('api key')) {
         errorMessage = 'Chat is not configured. Please contact support.';
-      } else if (err.message?.includes('network')) {
+      } else if (lowerMessage.includes('network')) {
         errorMessage =
           'Network error. Please check your connection and try again.';
       }
@@ -410,17 +415,6 @@ const createHeaderStyles = (theme: any) =>
     avatarText: {
       ...theme.typography.subtitleBold14,
       color: theme.colors.avatarVioletInk,
-    },
-    presenceDot: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      width: 11,
-      height: 11,
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.success,
-      borderWidth: 2,
-      borderColor: theme.colors.screen,
     },
     titleBlock: {
       flex: 1,

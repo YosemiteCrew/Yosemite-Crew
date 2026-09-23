@@ -139,7 +139,7 @@ export function LegalDoc({
                 fontWeight: 700,
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
-                color: 'var(--ink-faint2)',
+                color: 'var(--ink-muted)',
                 paddingLeft: 14,
                 marginBottom: 8,
               }}

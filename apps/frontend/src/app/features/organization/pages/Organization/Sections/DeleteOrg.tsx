@@ -29,7 +29,7 @@ const DeleteOrg = () => {
         <Secondary
           danger
           href="#"
-          text="Delete…"
+          text="Delete organization"
           onClick={() => setDeletePopup(true)}
           className="min-h-0! h-[34px]! px-[15px]! text-[12px]! font-bold!"
         />

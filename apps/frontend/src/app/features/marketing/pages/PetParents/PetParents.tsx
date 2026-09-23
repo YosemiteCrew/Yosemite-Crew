@@ -86,7 +86,7 @@ const APPOINTMENT_ICON_STYLE: CSSProperties = {
   height: 40,
   borderRadius: 14,
   background: 'var(--blue-soft)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -97,7 +97,7 @@ const HERO_FLOAT_AVATAR_BLUE_STYLE: CSSProperties = {
   height: 30,
   borderRadius: 9999,
   background: 'var(--blue-soft)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -110,7 +110,7 @@ const HERO_FLOAT_AVATAR_GREEN_STYLE: CSSProperties = {
   height: 30,
   borderRadius: 10,
   background: 'var(--avatar-green-bg)',
-  color: '#006642',
+  color: 'var(--avatar-green-ink)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -159,7 +159,7 @@ const FEATURE_ICON_STYLE: CSSProperties = {
   height: 46,
   borderRadius: 14,
   background: 'var(--pill-raised)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -221,7 +221,7 @@ const COMPANIONS: readonly Companion[] = [
     name: 'Bella',
     border: '1.5px solid var(--blue)',
     avatarBg: 'var(--blue-soft)',
-    avatarColor: 'var(--blue)',
+    avatarColor: 'var(--blue-text)',
     nameWeight: 700,
     nameColor: 'var(--ink-body)',
   },
@@ -230,7 +230,7 @@ const COMPANIONS: readonly Companion[] = [
     name: 'Fjord',
     border: '1px solid var(--hairline)',
     avatarBg: 'var(--avatar-green-bg)',
-    avatarColor: '#006642',
+    avatarColor: 'var(--avatar-green-ink)',
     nameWeight: 500,
     nameColor: 'var(--ink-muted)',
   },
@@ -281,7 +281,7 @@ const REMINDERS: readonly Reminder[] = [
   {
     icon: IoShieldCheckmarkOutline,
     iconBg: 'var(--avatar-green-bg)',
-    iconColor: '#006642',
+    iconColor: 'var(--avatar-green-ink)',
     text: 'Fjord, vaccine due in 9 days',
   },
 ];
@@ -342,7 +342,7 @@ function HeroFloatCard({
       {avatar}
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>{title}</div>
-        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{subtitle}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{subtitle}</div>
       </div>
     </div>
   );
@@ -362,7 +362,7 @@ function HeroPhone() {
       <div
         style={{
           width: 300,
-          background: '#1d1c1b',
+          background: 'var(--spot)',
           borderRadius: 46,
           padding: 8,
           boxShadow: '0 40px 90px var(--sh20)',
@@ -378,7 +378,9 @@ function HeroPhone() {
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>9:41</span>
-            <span style={{ width: 78, height: 22, borderRadius: 9999, background: '#1d1c1b' }} />
+            <span
+              style={{ width: 78, height: 22, borderRadius: 9999, background: 'var(--spot)' }}
+            />
             <span style={{ display: 'flex', gap: 4, color: 'var(--ink-body)' }}>
               <IoCellular style={{ fontSize: 12 }} aria-hidden="true" />
               <IoBatteryFull style={{ fontSize: 14 }} aria-hidden="true" />
@@ -388,7 +390,7 @@ function HeroPhone() {
             style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}
           >
             <div>
-              <div style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+              <div style={{ fontSize: 13, color: 'var(--ink-muted)', letterSpacing: '-0.01em' }}>
                 Good morning, Lena
               </div>
               <div
@@ -438,7 +440,7 @@ function HeroPhone() {
                     fontSize: 12,
                     fontWeight: 700,
                     letterSpacing: '0.04em',
-                    color: 'var(--blue)',
+                    color: 'var(--blue-text)',
                     background: 'var(--blue-soft)',
                     borderRadius: 9999,
                     padding: '3px 9px',
@@ -455,7 +457,7 @@ function HeroPhone() {
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-body)' }}>
                     Sat 5 July, 09:00
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
                     Bella · Dr. Weber · Alpenblick
                   </div>
                 </div>
@@ -495,17 +497,17 @@ function HeroPhone() {
                 borderTop: '1px solid var(--inset)',
               }}
             >
-              <IoHome style={{ fontSize: 20, color: 'var(--blue)' }} aria-hidden="true" />
+              <IoHome style={{ fontSize: 20, color: 'var(--blue-text)' }} aria-hidden="true" />
               <IoCalendarOutline
-                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                style={{ fontSize: 20, color: 'var(--ink-muted)' }}
                 aria-hidden="true"
               />
               <IoChatbubbleOutline
-                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                style={{ fontSize: 20, color: 'var(--ink-muted)' }}
                 aria-hidden="true"
               />
               <IoPersonOutline
-                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                style={{ fontSize: 20, color: 'var(--ink-muted)' }}
                 aria-hidden="true"
               />
             </div>
@@ -567,7 +569,7 @@ function Hero() {
           zIndex: 1,
           pointerEvents: 'none',
           background:
-            'radial-gradient(74% 72% at 32% 50%, rgba(239,232,220,0.95) 0%, rgba(239,232,220,0.66) 38%, rgba(239,232,220,0.12) 72%, rgba(239,232,220,0) 86%), linear-gradient(180deg, rgba(239,232,220,0.6) 0%, rgba(239,232,220,0.3) 46%, rgba(239,232,220,0.06) 74%, rgba(239,232,220,0) 92%)',
+            'radial-gradient(74% 72% at 32% 50%, color-mix(in srgb, var(--page) 95%, transparent) 0%, color-mix(in srgb, var(--page) 66%, transparent) 38%, color-mix(in srgb, var(--page) 12%, transparent) 72%, color-mix(in srgb, var(--page) 0%, transparent) 86%), linear-gradient(180deg, color-mix(in srgb, var(--page) 60%, transparent) 0%, color-mix(in srgb, var(--page) 30%, transparent) 46%, color-mix(in srgb, var(--page) 6%, transparent) 74%, color-mix(in srgb, var(--page) 0%, transparent) 92%)',
         }}
       />
       <HeroGlow
@@ -726,7 +728,7 @@ function Story() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--spot-ink-faint)',
             }}
           >
             Whose history is it, anyway
@@ -740,7 +742,7 @@ function Story() {
               fontWeight: 500,
               lineHeight: 1.34,
               letterSpacing: '-0.035em',
-              color: '#eae2d5',
+              color: 'var(--spot-ink)',
               textWrap: 'pretty',
             }}
           >
@@ -754,7 +756,7 @@ function Story() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#ff90d4',
+                color: 'var(--pink)',
               }}
             >
               Your companion is yours. The record of their life should be too.
@@ -810,7 +812,7 @@ const FEATURES: readonly Feature[] = [
   {
     icon: IoShieldCheckmarkOutline,
     title: 'Report a reaction, protect the next animal',
-    body: 'If a medicine or vaccine goes wrong, report it in a few taps. It reaches the people who track drug safety, so one bad day helps keep the next animal well.',
+    body: 'If a medicine or vaccine goes wrong, record it in a few taps. It reaches your vet with the dose, the batch and the timeline already attached, so the report they file is the one that helps the next animal.',
     delay: 160,
   },
   {
@@ -885,7 +887,7 @@ function Features() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: 'var(--blue)',
+              color: 'var(--blue-text)',
             }}
           >
             What you can do

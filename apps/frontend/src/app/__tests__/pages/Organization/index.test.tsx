@@ -168,6 +168,25 @@ describe('Organization page', () => {
     expect(screen.getByTestId('document-e-signing')).toBeInTheDocument();
     expect(screen.getByTestId('delete-org')).toBeInTheDocument();
     expect(teamMock).toHaveBeenCalledWith(expect.objectContaining({ isVerified: true }));
+    expect(screen.getByTestId('team').parentElement).toBe(
+      screen.getByTestId('specialities').parentElement
+    );
+    expect(screen.getByTestId('rooms').parentElement).not.toBe(
+      screen.getByTestId('specialities').parentElement
+    );
+  });
+
+  it('lets each verified-org column end at its own height instead of stretching to match the taller one', () => {
+    usePrimaryOrgMock.mockReturnValue({ _id: 'org-1', name: 'Org', isVerified: true });
+
+    render(<Organization />);
+
+    // Neither column has its own border/background - each item inside is
+    // already its own card - so `items-stretch` bought no visual alignment
+    // and only left dead blank space below the shorter column's last card.
+    const grid = screen.getByTestId('team').parentElement?.parentElement;
+    expect(grid).toHaveClass('xl:items-start');
+    expect(grid).not.toHaveClass('xl:items-stretch');
   });
 
   it('hides gated sections for unverified org', () => {

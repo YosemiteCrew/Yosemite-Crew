@@ -269,7 +269,7 @@ export const PopoverOpen: Story = {
     await expect(tracks).toHaveLength(2);
     await expect(detailGrid.children).toHaveLength(8);
     await expect(within(panel).getByRole('button', { name: 'Poppy · Whitfield' })).toBeVisible();
-    await expect(within(panel).getByRole('button', { name: 'Start Appointment' })).toBeVisible();
+    await expect(within(panel).getByRole('button', { name: 'Start appointment' })).toBeVisible();
 
     // The other branch stayed shut - the two portals are separately gated.
     await expect(contextMenuEl()).toBeNull();

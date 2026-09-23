@@ -34,7 +34,9 @@ const AddAppointment = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      <div className="font-satoshi text-black-text text-[23px] font-medium">Add appointment</div>
+      <h2 className="text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+        New appointment
+      </h2>
       <Accordion title="Appointment details" defaultOpen showEditIcon={false} isEditing={true}>
         <div className="flex flex-col gap-3">
           <Dropdown

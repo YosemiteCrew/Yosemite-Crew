@@ -200,7 +200,6 @@ export const DocumentsScreen: React.FC = () => {
                 title={category.label}
                 subtitle={category.description ?? ''}
                 count={category.fileCount}
-                isSynced={category.isSynced}
                 onPress={() => handleCategoryPress(category.id)}
                 containerStyle={styles.categoryTile}
                 iconTint={

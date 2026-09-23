@@ -21,6 +21,7 @@ const TaskController = {
   createCustomTask: jest.fn(),
   listParentTasks: jest.fn(),
   updateTask: jest.fn(),
+  deleteTask: jest.fn(),
   changeStatus: jest.fn(),
 };
 
@@ -166,6 +167,15 @@ describe("task.router", () => {
       "tasks:view:any",
       "tasks:view:own",
     ]);
+  });
+
+  it("protects the mobile task delete route with requireMobileAuth", () => {
+    const deleteMobileTaskRoute = findRoute("/mobile/:taskId", "delete");
+
+    expect(deleteMobileTaskRoute).toBeDefined();
+    expect(deleteMobileTaskRoute?.stack.map((layer) => layer.handle)).toContain(
+      requireMobileAuth,
+    );
   });
 });
 

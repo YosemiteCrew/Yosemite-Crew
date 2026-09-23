@@ -1,8 +1,15 @@
 import {Alert, Linking, Platform} from 'react-native';
 import RNCalendarEvents from 'react-native-calendar-events';
 import type {Task} from '@/features/tasks/types';
+import {parseISODate} from '@/shared/utils/dateHelpers';
 
 import i18next from 'i18next';
+
+// task.date is a plain YYYY-MM-DD calendar date, never an instant. Parsing it
+// with `new Date(dateString)` reads it as UTC midnight, so a device west of
+// UTC then displays the previous local day. parseISODate builds the Date from
+// local year/month/day components instead, so the calendar day survives.
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 // Tasks created before calendar selection stored a provider name rather than a
 // device calendar id. Those values are not addressable, so let the OS pick the
 // default calendar instead of passing them through as an id.
@@ -206,7 +213,16 @@ const createSingleDosageEvent = async (
     return null;
   }
 
-  const eventDate = new Date(task.date || new Date());
+  let eventDate: Date;
+  if (task.date) {
+    if (!DATE_ONLY_PATTERN.test(task.date)) {
+      console.warn('[Calendar] Invalid dosage date:', task.date);
+      return null;
+    }
+    eventDate = parseISODate(task.date);
+  } else {
+    eventDate = new Date();
+  }
   eventDate.setHours(timeInfo.hours, timeInfo.minutes, 0, 0);
   const eventEnd = new Date(eventDate.getTime() + 30 * 60 * 1000);
 

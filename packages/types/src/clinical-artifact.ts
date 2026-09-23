@@ -6,6 +6,7 @@ import type {
   Extension,
   Immunization,
   MedicationRequest,
+  Meta,
   Observation,
   Procedure,
   Reference,
@@ -56,6 +57,17 @@ export const SOAP_CODED_SECTIONS = ['subjective', 'objective', 'assessment', 'pl
 
 export type SoapCodedSection = (typeof SOAP_CODED_SECTIONS)[number];
 
+/**
+ * A crosswalk recorded alongside a pick. Stored so the note shows the same
+ * codes the clinician saw when choosing, even if the mapping table later
+ * changes; the FHIR export still projects live from CodeMapping.
+ */
+export type SoapCodedTermCoding = {
+  system: string;
+  code: string;
+  equivalence?: string;
+};
+
 export type SoapCodedTerm = {
   /** Yosemite vocabulary code, e.g. YC-005416. */
   ycCode: string;
@@ -63,12 +75,17 @@ export type SoapCodedTerm = {
   label: string;
   /** VeNom-style domain the term belongs to, when known (e.g. Diagnosis). */
   domain?: string;
+  /** Cross-vocabulary codes shown at pick time (VeNom/SNOMED). */
+  codings?: SoapCodedTermCoding[];
 };
 
 export type SoapCodedProblems = Partial<Record<SoapCodedSection, SoapCodedTerm[]>>;
 
 /** Bound per section so a malformed or hostile payload cannot balloon the JSON column. */
 const MAX_CODED_TERMS_PER_SECTION = 50;
+
+/** Bounded like the section cap: a term has one crosswalk per system, not a list. */
+const MAX_CODINGS_PER_TERM = 8;
 
 const parseSoapCodedTerm = (value: unknown): SoapCodedTerm | null => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
@@ -78,7 +95,29 @@ const parseSoapCodedTerm = (value: unknown): SoapCodedTerm | null => {
   if (!ycCode || !label) return null;
   const domain =
     typeof entry.domain === 'string' && entry.domain.trim() ? entry.domain.trim() : undefined;
-  return domain === undefined ? { ycCode, label } : { ycCode, label, domain };
+  const codings = Array.isArray(entry.codings)
+    ? entry.codings
+        .map((value) => {
+          if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+          const coding = value as Record<string, unknown>;
+          const system = typeof coding.system === 'string' ? coding.system.trim() : '';
+          const code = typeof coding.code === 'string' ? coding.code.trim() : '';
+          if (!system || !code) return null;
+          const equivalence =
+            typeof coding.equivalence === 'string' && coding.equivalence.trim()
+              ? coding.equivalence.trim()
+              : undefined;
+          return equivalence === undefined ? { system, code } : { system, code, equivalence };
+        })
+        .filter((coding): coding is SoapCodedTermCoding => coding !== null)
+        .slice(0, MAX_CODINGS_PER_TERM)
+    : [];
+  return {
+    ycCode,
+    label,
+    ...(domain === undefined ? {} : { domain }),
+    ...(codings.length > 0 ? { codings } : {}),
+  };
 };
 
 /** One section's raw payload → valid terms: drops malformed entries, dedups by code, caps the count. */
@@ -139,6 +178,10 @@ export type SoapNoteRecord = {
     signedBy: string | null;
     signedAt: Date | null;
     summary: string | null;
+    // Optimistic-concurrency generation of the artifact (#3144). Optional like
+    // `patientId` above: it is carried by the projections that read the whole
+    // row, and a projection that omits it simply publishes no `meta.versionId`.
+    version?: number;
     createdAt: Date;
     updatedAt: Date;
   };
@@ -170,6 +213,7 @@ export type PrescriptionRecord = {
   prescription: {
     id: string;
     artifactId: string;
+    supersedesId: string | null;
     items?: unknown;
     medications: unknown;
     instructions: unknown;
@@ -690,9 +734,20 @@ const recordBundle = <T extends { artifact: { id: string } }>(
   })),
 });
 
+/**
+ * Publish the artifact's generation as `meta.versionId` (#3144).
+ *
+ * Only the four editable kinds carry it: `versionId` exists so a client can
+ * name the generation it is writing over, and the remaining kinds have no
+ * update path to name one on.
+ */
+const artifactMeta = (artifact: { version?: number }): Meta | undefined =>
+  artifact.version === undefined ? undefined : { versionId: String(artifact.version) };
+
 const soapNoteToComposition = (record: SoapNoteRecord): Composition => ({
   resourceType: 'Composition',
   id: record.artifact.id,
+  meta: artifactMeta(record.artifact),
   status: toStatus(record.artifact.status),
   type: toCodeableConcept('SOAP_NOTE', 'SOAP note'),
   title: record.artifact.summary ?? 'SOAP note',
@@ -740,12 +795,56 @@ const compositionToSoapNoteInput = (
   metadata: parseFlexibleJson(getExtensionValue(resource.extension, SOAP_METADATA_EXTENSION_URL)),
 });
 
+/** WHO CC's registered system URI for the veterinary ATC classification. */
+const ATCVET_SYSTEM_URI = 'http://www.whocc.no/atcvet';
+
+/**
+ * Rebuilds the medication concept from the stored lines. The first line carrying
+ * an ATCvet code names the medication; a prescription written without one keeps
+ * the generic placeholder rather than inventing a coding.
+ */
+const prescriptionMedicationConcept = (record: PrescriptionRecord) => {
+  const medications = record.prescription.medications;
+  if (!Array.isArray(medications)) return undefined;
+  for (const line of medications) {
+    if (typeof line !== 'object' || line === null) continue;
+    const entry = line as Record<string, unknown>;
+    const metadata =
+      typeof entry.metadata === 'object' && entry.metadata !== null
+        ? (entry.metadata as Record<string, unknown>)
+        : {};
+    const atcCode =
+      typeof entry.atcCode === 'string'
+        ? entry.atcCode
+        : typeof metadata.atcCode === 'string'
+          ? metadata.atcCode
+          : undefined;
+    if (!atcCode?.trim()) continue;
+    const display =
+      typeof entry.medication === 'string'
+        ? entry.medication
+        : typeof entry.medicineName === 'string'
+          ? entry.medicineName
+          : undefined;
+    return {
+      text: display,
+      coding: [{ system: ATCVET_SYSTEM_URI, code: atcCode.trim(), display }],
+    };
+  }
+  return undefined;
+};
+
 const prescriptionToMedicationRequest = (record: PrescriptionRecord): MedicationRequest => ({
   resourceType: 'MedicationRequest',
   id: record.artifact.id,
+  meta: artifactMeta(record.artifact),
   status: toTaskStatus(record.artifact.status),
   intent: 'order',
-  medicationCodeableConcept: toCodeableConcept('PRESCRIPTION', 'Prescription'),
+  // The medication the prescription is for, coded when the clinician picked a
+  // classified substance. A hardcoded 'PRESCRIPTION' concept here discarded the
+  // ATCvet coding the client sent, leaving every exported prescription uncoded.
+  medicationCodeableConcept:
+    prescriptionMedicationConcept(record) ?? toCodeableConcept('PRESCRIPTION', 'Prescription'),
   medicationReference: { reference: `MedicationRequest/${record.artifact.id}` },
   subject: requiredPatientReference(record.artifact),
   encounter: toReference(clinicalContextReference(record.artifact)),
@@ -813,6 +912,7 @@ const medicationRequestToPrescriptionInput = (
 const dischargeSummaryToComposition = (record: DischargeSummaryRecord): Composition => ({
   resourceType: 'Composition',
   id: record.artifact.id,
+  meta: artifactMeta(record.artifact),
   status: toStatus(record.artifact.status),
   type: toCodeableConcept('DISCHARGE_SUMMARY', 'Discharge summary'),
   title: record.artifact.summary ?? 'Discharge summary',
@@ -869,11 +969,10 @@ const compositionToDischargeSummaryInput = (
 });
 
 /**
- * The unit of a vital is currently encoded in its key name - tempF, weightLbs - which
- * means a FHIR Observation carrying a bare number is not interpretable: 212 could be
- * degrees Fahrenheit or Celsius, and a weight of 12 could be pounds or kilograms. That is
- * not hypothetical here, since vitals record weightLbs while the passport and body
- * condition surfaces record weightKg.
+ * The unit of a vital is encoded in its key name - tempF, tempC, weightLbs, weightKg -
+ * and the key is now chosen from the unit the recording template declared rather than
+ * from the field's label, so the name is load-bearing: a bare number is interpretable
+ * because the key it sits under says which scale it is on.
  *
  * UCUM is what FHIR expects for exactly this. A measured vital becomes a valueQuantity
  * carrying its unit as a code, so a receiving system can convert rather than guess.
@@ -883,17 +982,18 @@ const UCUM_SYSTEM = 'http://unitsofmeasure.org';
 /**
  * Vitals whose storage key determines their unit beyond doubt.
  *
- * tempF and weightLbs are deliberately absent. VitalsForm's resolveDraftKey routes any
- * template field whose label contains "temp" into tempF and any "weight" into weightLbs,
- * whatever unit that template declares - there is a test covering a field declared in
- * Celsius. Stamping [degF] on a Celsius reading would export 38.5 as severe hypothermia
- * rather than a normal canine temperature: a confident, wrong clinical claim, which is
- * worse than the unqualified number it replaced. They stay unqualified until the stored
- * vital carries the unit it was entered in.
+ * tempF and weightLbs were held out of this map while VitalsForm routed every field
+ * labelled "temp" into tempF whatever unit the template declared - stamping [degF] on a
+ * Celsius reading would have exported 38.5 as severe hypothermia rather than a normal
+ * canine temperature. The form now picks the key from the declared unit (see
+ * `lib/vitalsUnits`), so a value under tempF really was entered in Fahrenheit and the
+ * imperial scales can be qualified like the rest.
  */
 const VITAL_UNITS: Record<string, { unit: string; code: string }> = {
   tempC: { unit: '°C', code: 'Cel' },
+  tempF: { unit: '°F', code: '[degF]' },
   weightKg: { unit: 'kg', code: 'kg' },
+  weightLbs: { unit: 'lb', code: '[lb_av]' },
   heartRateBpm: { unit: 'beats/min', code: '/min' },
   respRateBpm: { unit: 'breaths/min', code: '/min' },
   crtSec: { unit: 's', code: 's' },
@@ -982,6 +1082,7 @@ const vitalRecordToObservation = (record: VitalRecordRecord): Observation => {
   return {
     resourceType: 'Observation',
     id: record.artifact.id,
+    meta: artifactMeta(record.artifact),
     status: toStatus(record.artifact.status),
     code: toCodeableConcept('VITAL_RECORD', 'Vital record'),
     subject: patientReference(record.artifact),

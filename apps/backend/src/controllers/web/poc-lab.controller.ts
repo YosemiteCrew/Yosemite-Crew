@@ -32,9 +32,9 @@ const LabResultParamSchema = z.object({
 });
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  conductedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  conductedAt: z.iso.datetime(),
   testType: PocTestTypeEnum,
   analyzerName: z.string().max(200).optional(),
   sampleType: z.string().max(100).optional(),

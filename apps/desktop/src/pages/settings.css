@@ -156,7 +156,9 @@ body {
   width: 130px;
   height: 4px;
   border-radius: var(--radius-pill);
-  background: var(--divider);
+  /* Was --divider, the same 1.37:1 / 1.15:1 as the toggle track. A 4px rail is
+     too thin to carry a ring, so the fill itself has to reach 3:1. */
+  background: var(--ink-faint);
   cursor: pointer;
 }
 
@@ -196,6 +198,11 @@ body {
   height: 24px;
   border-radius: var(--radius-pill);
   background: var(--divider);
+  /* The off state used to be --divider alone: 1.37:1 in light and 1.15:1 in dark
+     against the --screen group card, so the control was not visibly there. The
+     inset ring carries the 3:1 boundary instead of the fill, which keeps the
+     resting colour and adds no layout box. */
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
   transition: background 0.18s ease;
 }
 
@@ -214,6 +221,9 @@ body {
 
 .toggle input:checked + .slider {
   background: var(--blue);
+  /* --blue is already 3.70:1 light and 3.59:1 dark on the card, so the on state
+     does not need the ring. */
+  box-shadow: none;
 }
 
 .toggle input:checked + .slider::before {
@@ -257,18 +267,53 @@ body {
   color: var(--ink-faint);
 }
 
-/* ── Footer status + note ── */
+/* An inline error for the field the store refused, under the row it belongs
+   to. Last child of its card, so it does not sit between two `.row`s and take
+   their divider with it. */
+.field-error {
+  padding: 0 16px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--danger-text);
+}
+
+/* ── Save status + note ── */
+
+/* Pinned to the viewport rather than to the end of the page. The window is a
+   fixed 660x560 over about 1045px of content, so the old in-flow position put
+   every confirmation below the fold for the controls people actually change
+   (issue #3298). */
 .status {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 10;
+  max-width: calc(100% - 56px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: var(--screen);
+  box-shadow: var(--shadow-card);
   text-align: center;
   font-size: 12px;
   font-weight: 600;
   color: var(--success);
   opacity: 0;
+  /* The toast never takes a click: it covers the foot of the page while it
+     fades, and the note underneath it stays selectable. */
+  pointer-events: none;
   transition: opacity 0.2s ease;
 }
 
 .status.show {
   opacity: 1;
+}
+
+.status.error {
+  color: var(--danger-text);
+  border-color: var(--danger-border);
 }
 
 .note {

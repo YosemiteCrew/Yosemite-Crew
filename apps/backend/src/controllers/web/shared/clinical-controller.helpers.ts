@@ -59,7 +59,7 @@ export const coerceDateFields = (
 ) => {
   const out = { ...data };
   for (const key of keys) {
-    if (typeof out[key] === "string") out[key] = new Date(out[key] as string);
+    if (typeof out[key] === "string") out[key] = new Date(out[key]);
   }
   return out;
 };

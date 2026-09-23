@@ -294,6 +294,43 @@ export const ClosesAndOpens: Story = {
   },
 };
 
+export const Phone: Story = {
+  name: 'Phone (390): the number survives the row',
+  globals: { viewport: { value: 'mobile', isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    /* At 390px the header row is 342px and the desktop actions ask for 334 of it -
+       status pill, PDF link, Open appointment, close. `ModalHeader` gives the title
+       column `min-w-0` and the actions `shrink-0`, so the whole deficit came out of
+       the invoice number, which rendered at width 0: present, 26px tall, showing
+       nothing. `getByRole` could not see that - the text node is complete when the
+       paint is gone - so this measures the box instead. */
+    const heading = canvas.getByRole('heading', { name: '#INV-2026-0142' });
+    await expect(heading.scrollWidth).toBeLessThanOrEqual(heading.clientWidth + 1);
+    // Not vacuous: a heading that never rendered would also report 0 <= 1.
+    await expect(heading.clientWidth).toBeGreaterThan(100);
+
+    // Both controls survive the move out of the row - reachable, not merely present.
+    await expect(canvas.getByRole('link', { name: /Download invoice/ })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Open appointment' })).toBeEnabled();
+
+    // And the status is still on screen, under the title rather than beside it.
+    await expect(canvas.getByText('Paid')).toBeVisible();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The same header at a phone width. The row keeps the identity and the close button; the ' +
+          'status moves under the title and the two navigation controls take a row of their own. ' +
+          'This is a budget rather than a ranking - the actions alone exceeded the row by 74px, so ' +
+          'giving the title priority would only have chosen a different control to destroy.',
+      },
+    },
+  },
+};
+
 export const LongSubtitle: Story = {
   name: 'A long subtitle wraps, the actions do not move',
   args: {

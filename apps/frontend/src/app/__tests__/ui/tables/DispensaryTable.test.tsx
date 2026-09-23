@@ -38,7 +38,10 @@ const cardBranch = (container: HTMLElement) =>
 describe('DispensaryTable', () => {
   it('renders the empty state when there are no records', () => {
     render(<DispensaryTable filteredList={[]} />);
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    /* Copy is derived from the `itemNoun` the table passes for its footer, so
+       this pins that Dispensary says "requests" and not a generic "no data".
+       Both media branches are in the jsdom DOM, hence two nodes. */
+    expect(screen.getAllByText('No requests yet')).toHaveLength(2);
   });
 
   it('renders the owner last name appended to the patient name when petParentName is present', () => {
@@ -110,15 +113,28 @@ describe('DispensaryTable', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('formats USD amounts with a dollar sign', () => {
+  it('formats USD amounts with a dollar sign and no space', () => {
     render(<DispensaryTable filteredList={[baseRecord]} />);
-    expect(screen.getAllByText('$ 65.00').length).toBeGreaterThan(0);
+    // "$65.00", not "$ 65.00": the design writes money with no space after the
+    // symbol, and this table used to be the one surface that added one.
+    expect(screen.getAllByText('$65.00').length).toBeGreaterThan(0);
   });
 
-  it('formats non-USD amounts with the currency code as symbol', () => {
+  it("formats a non-USD amount with that currency's own symbol", () => {
+    /* Was pinned as "EUR 65.00" - the old hand-rolled formatter knew exactly one
+       symbol and printed the bare ISO code for everything else, so a European or
+       sterling clinic read a code where the rest of the app shows a symbol. */
     const record = { ...baseRecord, currency: 'eur' };
     render(<DispensaryTable filteredList={[record]} />);
-    expect(screen.getAllByText('EUR 65.00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('€65.00').length).toBeGreaterThan(0);
+    expect(screen.queryByText('EUR 65.00')).not.toBeInTheDocument();
+  });
+
+  it('keeps a currency with no minor unit whole', () => {
+    // Intl knows JPY has no decimals; the old `.toFixed(2)` invented two.
+    const record = { ...baseRecord, currency: 'jpy' };
+    render(<DispensaryTable filteredList={[record]} />);
+    expect(screen.getAllByText('¥65').length).toBeGreaterThan(0);
   });
 
   it('falls back to "—" for missing lead and location', () => {

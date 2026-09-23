@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Yosemite Crew Staff Onboarding'
+  short_description: 'Role-based onboarding and practice SOPs'
+  default_prompt: 'Use $yosemite-staff-onboarding to build a role-specific onboarding pack from our approved practice policies.'

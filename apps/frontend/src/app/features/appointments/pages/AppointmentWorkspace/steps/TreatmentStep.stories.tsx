@@ -475,7 +475,7 @@ const meta = {
         component:
           'The Treatment step: the schedule rail (inpatient tasks or the outpatient visit series), ' +
           'the services/packages editor, the prescription editor, and the running-total rail, plus ' +
-          'the Print Labels / Save treatment actions.\n\n' +
+          'the Print labels / Save treatment actions.\n\n' +
           'Three things about it are invisible in a screenshot and are what these stories exist ' +
           'to pin:\n\n' +
           '**The running total is not the sum of the two lists.** It counts only what the Invoice ' +
@@ -492,7 +492,7 @@ const meta = {
           'sync. A row placed on `encounter.schedule` is simply never read.\n\n' +
           'Most stories leave `organisationId` undefined, which is the one condition under which ' +
           'every catalog / template / inventory / task load in this file returns at its first ' +
-          'line - so they mount the real step with no service module stubbed. The Print Labels ' +
+          'line - so they mount the real step with no service module stubbed. The Print labels ' +
           'and save-failure stories do need an organisation, and answer the API from an ' +
           '`XMLHttpRequest.prototype` stub; nothing in this file reaches the network.\n\n' +
           'Not covered: the successful backend save (it needs a whole workspace-bootstrap ' +
@@ -546,7 +546,7 @@ export const Empty: Story = {
        prescription card and the footer button. They share one handler, so a
        query by name is ambiguous by design - assert the pair rather than
        pretending one of them is "the" button. */
-    await expect(canvas.getAllByRole('button', { name: 'Print Labels' })).toHaveLength(2);
+    await expect(canvas.getAllByRole('button', { name: 'Print labels' })).toHaveLength(2);
     await expect(saveButton(canvasElement)).toBeEnabled();
   },
   parameters: {
@@ -685,24 +685,34 @@ export const ViewOnly: Story = {
       canvas.queryByRole('searchbox', { name: 'Search medicines or prescription templates' })
     ).not.toBeInTheDocument();
 
-    /* The services search is NOT removed. It is deliberately always-on so that
-       billed rows never block adding new work, but the same branch leaves it
-       usable on a view-only encounter. Asserted as it behaves today, not as it
-       arguably should. */
+    /* The services search is removed too, on the same rule as the prescription
+       search above: a view-only encounter must not offer to add billable work.
+
+       This is the half that used to be left on. The note here previously said
+       the services search was "deliberately always-on so that billed rows never
+       block adding new work" and asserted it "as it behaves today, not as it
+       arguably should" - and that gap was the defect, not the design. A
+       discharged encounter is a closed legal record; offering a way to add
+       services to it is exactly what `markDischarged` sets `viewOnly` to
+       prevent, and the store now refuses those writes outright rather than
+       trusting this gate.
+
+       Queried for absence, not for a disabled input: a disabled-input assertion
+       would find nothing and pass for the wrong reason. */
     await expect(
-      canvas.getByRole('searchbox', { name: 'Search for services and packages' })
-    ).toBeInTheDocument();
+      canvas.queryByRole('searchbox', { name: 'Search for services and packages' })
+    ).not.toBeInTheDocument();
 
     // Printing an existing label is a read action and stays available.
-    await expect(canvas.getAllByRole('button', { name: 'Print Labels' })[1]).toBeEnabled();
+    await expect(canvas.getAllByRole('button', { name: 'Print labels' })[1]).toBeEnabled();
   },
   parameters: {
     docs: {
       description: {
         story:
-          'A locked encounter. Save is disabled, both editors lose their delete controls, and the ' +
-          'prescription search is taken off the page entirely. The services search stays - see ' +
-          'the note in the play function.',
+          'A locked encounter. Save is disabled, both editors lose their delete controls, and ' +
+          'both searches are taken off the page entirely - there is no way to add billable work ' +
+          'to a record that is closed.',
       },
     },
   },
@@ -1007,7 +1017,7 @@ export const Phone: Story = {
         story:
           'The populated step at 375px. `lg:flex-row` collapses so the 340px running-total rail ' +
           'stops being an aside and drops under the editors, the action row wraps rather than ' +
-          'shrinking Print Labels and Save treatment onto one line, and the inpatient schedule ' +
+          'shrinking Print labels and Save treatment onto one line, and the inpatient schedule ' +
           'row folds into a single column - its five fixed columns need ~600px and would take the ' +
           'whole workspace sideways otherwise. View it at the `mobile` viewport.',
       },
@@ -1020,7 +1030,7 @@ export const Phone: Story = {
  * ------------------------------------------------------------------ */
 
 export const PrintLabelsBeforeSaving: Story = {
-  name: 'Print Labels with nothing saved',
+  name: 'Print labels with nothing saved',
   args: {
     organisationId: ORG_ID,
     encounterId: ENCOUNTER_ID,
@@ -1033,7 +1043,7 @@ export const PrintLabelsBeforeSaving: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await userEvent.click(canvas.getAllByRole('button', { name: 'Print Labels' })[1]);
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Print labels' })[1]);
 
     /* A label is addressed to a persisted prescription, so with none there is
        nothing to ask for. The step says so instead of opening zero tabs and
@@ -1082,7 +1092,7 @@ const REHYDRATED_PRESCRIPTIONS: PrescriptionItem[] = [
 ];
 
 export const PrintLabelsDeduped: Story = {
-  name: 'Print Labels: one label per prescription',
+  name: 'Print labels: one label per prescription',
   args: {
     organisationId: ORG_ID,
     encounterId: ENCOUNTER_ID,
@@ -1100,7 +1110,7 @@ export const PrintLabelsDeduped: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await userEvent.click(canvas.getAllByRole('button', { name: 'Print Labels' })[1]);
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Print labels' })[1]);
 
     // Three rows, two prescriptions, two labels.
     await waitFor(() => {
@@ -1127,7 +1137,7 @@ export const PrintLabelsDeduped: Story = {
     /* The footer label reverts once the batch finishes; a stuck "Printing..."
        would leave the button permanently disabled. */
     await waitFor(() => {
-      expect(canvas.getAllByRole('button', { name: 'Print Labels' })).toHaveLength(2);
+      expect(canvas.getAllByRole('button', { name: 'Print labels' })).toHaveLength(2);
     });
   },
   parameters: {
@@ -1154,7 +1164,15 @@ export const SaveRejectedAsFinalized: Story = {
     withStoredEncounter(encounter({ prescription: [AMOXICILLIN] })),
     withApi([
       {
-        match: (method, url) => method === 'POST' && url.includes('/prescription'),
+        /* The prescription ARTIFACT write, which is the save this story is about:
+           a PATCH to /fhir/v1/clinical-artifact/.../prescription/... . Matching
+           `POST` + `/prescription` missed it entirely - the save fell through to
+           the default 200 and succeeded, so no alert was ever rendered. Worse,
+           `/prescription` also substring-matches the POST to
+           /v1/prescriptions/.../$finalize, so the 409 was landing on the finalize
+           call instead. Both halves are pinned here. */
+        match: (method, url) =>
+          method === 'PATCH' && url.includes('/clinical-artifact') && url.includes('/prescription'),
         // Held open briefly so the in-flight label is actually observable.
         reply: { status: 409, body: { message: 'Artifact is final.' }, delayMs: 250 },
       },

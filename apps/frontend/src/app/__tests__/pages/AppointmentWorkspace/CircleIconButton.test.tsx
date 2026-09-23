@@ -32,6 +32,20 @@ describe('CircleIconButton', () => {
     expect(screen.getByRole('button', { name: 'Delete' }).className).toContain('border-danger-600');
   });
 
+  // Nothing in globals.css gives a bare <button> the pointer cursor, so all 19
+  // call sites of this primitive showed an arrow over a clickable circle. The
+  // disabled state must still read not-allowed - it is the more specific
+  // selector, so it wins over cursor-pointer whatever the declaration order.
+  it('shows a pointer cursor, and not-allowed once disabled', () => {
+    const { rerender } = render(<CircleIconButton icon={icon} label="Edit" onClick={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Edit' }).className).toContain('cursor-pointer');
+
+    rerender(<CircleIconButton icon={icon} label="Edit" onClick={jest.fn()} disabled />);
+    expect(screen.getByRole('button', { name: 'Edit' }).className).toContain(
+      'disabled:cursor-not-allowed'
+    );
+  });
+
   it('calls onClick when pressed', () => {
     const onClick = jest.fn();
     render(<CircleIconButton icon={icon} label="Edit" onClick={onClick} />);

@@ -46,6 +46,18 @@ describe('<Accordion />', () => {
     expect(screen.queryByTestId('accordion-content')).not.toBeInTheDocument();
   });
 
+  test('uses a supplied accessible name for the toggle without changing its title', () => {
+    render(
+      <Accordion title="Create lab order" toggleAriaLabel="Toggle Create lab order section">
+        <div data-testid="accordion-content">Content</div>
+      </Accordion>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle Create lab order section' }));
+    expect(screen.getByText('Create lab order')).toBeInTheDocument();
+    expect(screen.getByTestId('accordion-content')).toBeInTheDocument();
+  });
+
   test('clicking edit button opens accordion and calls onEditClick', () => {
     const onEditClick = jest.fn();
     render(

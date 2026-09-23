@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
   __esModule: true,
@@ -47,7 +49,7 @@ describe('DeveloperDocs reader', () => {
       '/developers/home'
     );
     const openLink = screen.getByRole('link', { name: /Open full docs/i });
-    expect(openLink).toHaveAttribute('href', '/dev-docs/index.html');
+    expect(openLink).toHaveAttribute('href', '/docs');
     expect(openLink).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: /Edit on GitHub/i })).toBeInTheDocument();
 
@@ -71,9 +73,8 @@ describe('DeveloperDocs reader', () => {
   /*
    * These pages documented an API that did not exist: POST /v2/appointments
    * behind `Authorization: Bearer $YC_KEY`, badged "v2 - STABLE", plus a
-   * Webhooks page. The mounted prefixes are /fhir, /v1, /public and /ap, no
-   * route accepts an API key, and there is no WebhookSubscription model - so a
-   * developer following the sample got a 404 from a documented stable endpoint.
+   * Webhooks page. The API-key data plane now lives under /v1/developer, but the
+   * old /v2 sample still never existed and there is no WebhookSubscription model.
    */
   it('does not document surfaces the API does not serve', () => {
     const { container } = render(<DeveloperDocs />);
@@ -82,6 +83,31 @@ describe('DeveloperDocs reader', () => {
     expect(text).not.toContain('/v2/');
     expect(text).not.toContain('Bearer $YC_KEY');
     expect(screen.queryByRole('button', { name: 'Webhooks' })).not.toBeInTheDocument();
+  });
+
+  it('documents the mounted read-only API-key surface and its auth boundaries', () => {
+    const { container } = render(<DeveloperDocs />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    expect(container.textContent).toContain('API-key-authenticated data plane is read-only');
+    for (const path of [
+      '/v1/developer/organizations',
+      '/v1/developer/usage',
+      '/v1/developer/appointments',
+      '/v1/developer/appointments/:appointmentId',
+    ]) {
+      expect(container.textContent).toContain(path);
+    }
+    expect(container.textContent).toContain(
+      'FHIR examples elsewhere in this reader use signed-in sessions'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Authentication' }));
+    expect(container.textContent).toContain('Authorization: Bearer');
+    expect(container.textContent).toContain('appointments:read');
+    expect(container.textContent).toContain('x-org-id');
+    expect(container.textContent).toContain('live active membership');
+    expect(container.textContent).toContain('rather than one permanent practice');
   });
 
   /* The pill and the copyable sample are separate strings, so they can drift.
@@ -193,6 +219,53 @@ describe('DeveloperDocs reader', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
   });
 
+  /* ARTICLES.appointments has no `detail` field - the endpoint, scope, and
+     restrictions live only in JSX below `pageText`. Copy page must still carry
+     them, or an agent pasting the page misses the integration instructions
+     that are already on screen. Assert the copied string itself, not the
+     rendered DOM, since the DOM already had this text before the fix. */
+  it('carries the endpoint, scope, restriction and both samples into the copied page text', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    setClipboard(writeText);
+
+    render(<DeveloperDocs />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy page/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+
+    const copied = writeText.mock.calls[0][0] as string;
+    expect(copied).toContain('POST /fhir/v1/appointment/pms');
+    expect(copied).toContain('appointments:edit:any');
+    expect(copied).toMatch(/practice surface, not a developer one/i);
+    expect(copied).toContain('Organization/<practice-id>');
+    expect(copied).toContain('RelatedPerson/<parent-id>');
+    expect(copied).toContain('"status": "UPCOMING"');
+  });
+
+  /* Mutation guard for the `if (isAppointments)` branch: flipping it to `if (true)`
+     must fail here. Overview already mentions /v1/developer/appointments in its
+     own summary, so assert only the appointment-write payload that this PR adds. */
+  it('does not leak appointment-write copy into a non-appointments article', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    setClipboard(writeText);
+
+    render(<DeveloperDocs />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    fireEvent.click(screen.getByRole('button', { name: /Copy page/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+
+    const copied = writeText.mock.calls[0][0] as string;
+    expect(copied).toContain('Overview');
+    expect(copied).not.toContain('POST /fhir/v1/appointment/pms');
+    expect(copied).not.toContain('appointments:edit:any');
+    expect(copied).not.toMatch(/practice surface, not a developer one/i);
+    expect(copied).not.toContain('Organization/<practice-id>');
+    expect(copied).not.toContain('RelatedPerson/<parent-id>');
+    expect(copied).not.toContain('Request (cURL)');
+    expect(copied).not.toContain('Response (201)');
+  });
+
   it('copies the response code sample', async () => {
     const writeText = jest.fn().mockResolvedValue(undefined);
     setClipboard(writeText);
@@ -224,5 +297,39 @@ describe('DeveloperDocs reader', () => {
     fireEvent.click(screen.getByRole('button', { name: /Copy page/i }));
     await waitFor(() => expect(writeText).toHaveBeenCalled());
     expect(screen.getByRole('button', { name: /Copy page/i })).toBeInTheDocument();
+  });
+});
+
+describe('code panel reads ink from the fixed --spot-ink token', () => {
+  // .DocsCodePanel is painted from --spot, which stays dark in both themes.
+  // Its header border, label and code ink must come from --spot-ink (fixed
+  // the same way), not a frozen cream literal - otherwise light mode shows
+  // the dark-mode ink shade instead of the light-tuned one. .DocsMethod's
+  // ink stays a literal, justified in the baseline: it is pinned to
+  // --color-cyan's fixed fill, not --spot, so --spot-ink does not apply.
+  const css = readFileSync(
+    join(process.cwd(), 'src/app/features/developers/pages/DeveloperDocs/DeveloperDocs.css'),
+    'utf8'
+  );
+
+  it('does not hardcode the code panel chrome as frozen cream literals', () => {
+    expect(css).not.toMatch(/\.DocsCodePanelHead\s*{[^}]*rgba\(\s*244,\s*239,\s*230/);
+    expect(css).not.toMatch(/\.DocsCodePanelLabel\s*{[^}]*color:\s*rgba\(\s*244,\s*239,\s*230/);
+    expect(css).not.toMatch(/\.DocsCodePre\s*{[^}]*color:\s*#f4efe6/);
+  });
+
+  it('routes the code panel chrome through --spot-ink', () => {
+    expect(css).toMatch(
+      /\.DocsCodePanelHead\s*{[^}]*border-bottom:\s*1px solid color-mix\(in srgb, var\(--spot-ink\) 10%/
+    );
+    expect(css).toMatch(
+      /\.DocsCodePanelLabel\s*{[^}]*color:\s*color-mix\(in srgb, var\(--spot-ink\) 55%/
+    );
+    expect(css).toMatch(/\.DocsCodePre\s*{[^}]*color:\s*var\(--spot-ink\)/);
+  });
+
+  it('keeps .DocsMethod ink pinned to --color-cyan as a justified literal', () => {
+    expect(css).toMatch(/\.DocsMethod\s*{[^}]*background:\s*var\(--color-cyan\)/);
+    expect(css).toMatch(/\.DocsMethod\s*{[^}]*color:\s*#1d1c1b/);
   });
 });

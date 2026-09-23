@@ -12,9 +12,25 @@
   user-select: none;
 }
 
+/* macOS draws its traffic lights over the top-left corner of the window, so the
+   tab bar has to keep that corner clear. Horizontally the lights sit beside the
+   first tab, so the room is a left inset; in the vertical rail they sit ABOVE
+   it, so the same 78px inset would only push every title off the 240px rail
+   (issue #3290). The rail reserves a top inset instead. */
+#tabbar[data-platform='darwin'] {
+  padding-left: 78px;
+}
+
 /* ── Vertical tab sidebar ── */
 #tabbar[data-orientation='vertical'] {
   flex-direction: column;
+  /* Not `center`: the strip and the trailing controls are cross-axis items
+     here, and centring shrink-wraps them to their widest child, so a long tab
+     title made the strip wider than the rail and overflowed it on BOTH sides -
+     the left overflow being unreachable by the scrollbar the overflow created.
+     Stretching lets the tabs' own `width: 100%` / `min-width: 0` below take
+     effect, which is what makes the titles ellipsise instead. */
+  align-items: stretch;
   height: 100%;
   width: 240px;
   border-bottom: none;
@@ -22,9 +38,15 @@
   padding: 10px 8px;
   overflow-y: auto;
 }
+#tabbar[data-platform='darwin'][data-orientation='vertical'] {
+  padding-left: 8px;
+  /* Clears the traffic lights, which the window draws 14px tall at y: 13. */
+  padding-top: 40px;
+}
 #tabbar[data-orientation='vertical'] .tab-strip {
   flex-direction: column;
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 0;
   gap: 3px;
@@ -42,6 +64,13 @@
 #tabbar[data-orientation='vertical'] .tabbar-trailing {
   padding-left: 0;
   padding-top: 6px;
+  justify-content: center;
+}
+/* The caption block is flush with the strip's right edge when horizontal; in
+   the rail it is a full-width row of its own, so the negative inset would drag
+   it off the edge. */
+#tabbar[data-orientation='vertical'] .win-caption {
+  margin-right: 0;
   justify-content: center;
 }
 
@@ -114,6 +143,35 @@
 .tab--pinned {
   min-width: 34px;
   max-width: 48px;
+  justify-content: center;
+}
+
+.tab--pinned .tab-inner {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+/* The tab mounted in the right-hand split pane. Without a marker it looks like
+   any other background tab, so there is nothing tying a pane to its tab. It
+   gets a secondary-active fill plus an accent bar - quieter than .tab--active,
+   which keeps the raised, screen-coloured treatment for the primary pane. An
+   inset box-shadow would follow the 9px corner radius and read as a stray
+   outline, so the bar is drawn as its own element. */
+.tab--split {
+  background: var(--inset);
+  color: var(--ink);
+}
+
+.tab--split::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--blue);
+  pointer-events: none;
 }
 
 .tab--dragging {
@@ -180,9 +238,48 @@
 .tab-badge--offline {
   background: var(--blue);
   color: #fff;
+  position: relative;
+}
+
+/* The offline badge's slash is drawn rather than set as text: the app font has
+   no glyph for U+26A0, so a character would fall back to a mismatched system
+   one at this size. */
+.tab-badge--offline::after {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+
+/* Pinned-tab stand-ins for a missing favicon. */
+.tab-monogram {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 4px;
+  background: var(--inset);
+  color: var(--ink-body);
+}
+
+.tab-page-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 /* ── Audio indicator ── */
+/* A <button>, not a <span>: it toggles mute, so it needs a role, an accessible
+   name and the keyboard. Hence the border/background/padding reset. */
 .tab-audio {
   width: 14px;
   height: 14px;
@@ -194,6 +291,11 @@
   cursor: pointer;
   opacity: 0.75;
   transition: opacity 0.12s ease;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
 }
 .tab-audio:hover {
   opacity: 1;
@@ -223,7 +325,12 @@
 }
 
 .tab:hover .tab-close-btn,
-.tab--active .tab-close-btn {
+.tab--active .tab-close-btn,
+/* A close button that has focus but no opacity is a control the user can
+   press and cannot see - which is how Enter used to close a tab nobody could
+   point at. Focus makes it visible wherever it is. */
+.tab:focus-within .tab-close-btn,
+.tab-close-btn:focus-visible {
   opacity: 1;
 }
 
@@ -268,6 +375,14 @@
   color: var(--ink);
 }
 
+/* Matches the + button's optical size; the SVG replaces a text character the
+   app font does not carry. */
+.tab-action-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
 /* ── Windows / Linux caption controls (hidden on macOS; shown by tabbar.js) ── */
 .win-caption {
   display: none;
@@ -298,6 +413,12 @@
   fill: none;
   stroke: currentColor;
   stroke-width: 1.1;
+}
+
+/* The UA rule for [hidden] does not reach an <svg> here, so the maximise
+   button drew its Maximize and Restore glyphs on top of each other. */
+.win-btn svg[hidden] {
+  display: none;
 }
 
 .win-btn:hover {
@@ -335,42 +456,32 @@
   box-shadow: inset 2px 0 0 var(--blue);
 }
 
-/* ── Context menu ── */
-.context-menu {
-  position: fixed;
-  z-index: 1000;
-  background: var(--glass-93);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--hairline-soft);
-  border-radius: var(--radius-md);
-  box-shadow: 0 24px 60px var(--sh28);
-  padding: 6px;
-  min-width: 180px;
-  font-family: var(--font-satoshi);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-body);
-  -webkit-app-region: no-drag;
+/* ── Keyboard focus ──
+   The strip follows the ARIA tabs pattern: one tab is in the document tab
+   order, the arrow keys move between tabs, and the inner buttons are reached
+   from the tab rather than by walking N close buttons. That only works if the
+   focused thing is visible, and nothing in this file or tokens.css drew a
+   focus ring before. */
+.tab:focus-visible,
+.tab-close-btn:focus-visible,
+.tab-audio:focus-visible,
+.tab-action-btn:focus-visible,
+.win-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
 }
 
-.context-menu-item {
-  padding: 8px 11px;
-  color: var(--ink-body);
-  cursor: pointer;
-  border-radius: 8px;
-  transition:
-    background 0.1s ease,
-    color 0.1s ease;
-}
-
-.context-menu-item:hover {
-  background: var(--nav-active-bg);
-  color: var(--nav-active);
-}
-
-.context-menu-separator {
-  height: 1px;
-  background: var(--hairline-soft);
-  margin: 4px 8px;
+/* The tab row keeps one element per slot and hides the ones it does not need,
+   so the row's children never change identity and focus inside it survives a
+   poll. The attribute selector outranks the display rules above it, which the
+   UA's own [hidden] rule does not. */
+.tab-spinner[hidden],
+.tab-favicon[hidden],
+.tab-monogram[hidden],
+.tab-page-icon[hidden],
+.tab-label[hidden],
+.tab-badge[hidden],
+.tab-audio[hidden] {
+  display: none;
 }

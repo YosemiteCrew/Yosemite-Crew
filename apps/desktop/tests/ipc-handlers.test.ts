@@ -4,6 +4,20 @@ import path from 'node:path';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'yc-ipc-'));
 
+const menuPopup = jest.fn();
+// Captured so a test can click an item: Menu.popup() is fire-and-forget here,
+// and the chosen item is pushed back to the sender rather than returned.
+let lastMenuTemplate: Array<{
+  type?: string;
+  label?: string;
+  enabled?: boolean;
+  click?: () => void;
+}> = [];
+const buildFromTemplateMock = jest.fn((...args: unknown[]) => {
+  lastMenuTemplate = args[0] as typeof lastMenuTemplate;
+  return { popup: menuPopup };
+});
+
 const childWindow = {
   setMenuBarVisibility: jest.fn(),
   loadURL: jest.fn(() => Promise.resolve()),
@@ -26,11 +40,12 @@ jest.mock('electron', () => ({
     showMessageBox: jest.fn(() => Promise.resolve({ response: 0 })),
   },
   ipcMain: { handle: jest.fn() },
+  Menu: { buildFromTemplate: (...a: unknown[]) => buildFromTemplateMock(...a) },
   net: { isOnline: () => true },
   shell: { showItemInFolder: jest.fn() },
 }));
 
-const openExternal = jest.fn(() => Promise.resolve());
+const openExternal = jest.fn<Promise<void>, unknown[]>(() => Promise.resolve());
 jest.mock('../src/shell/window-config', () => ({
   openExternal: (...a: unknown[]) => openExternal(...a),
   secureWebPreferences: () => ({}),
@@ -45,10 +60,34 @@ import { createDualWitnessLog } from '../src/compliance/dual-witness';
 import { CsWriteError } from '../src/compliance/controlled-substance';
 import { AuditWriteError } from '../src/compliance/audit-log';
 import { getDesktopConfig } from '../src/core/navigation-policy';
+import { createOfflineRetryTargets } from '../src/shell/offline-retry';
 import { IPC_CHANNELS, validateIpcRequest } from '../src/core/ipc';
 import { BUILTIN_ACTIONS } from '../src/ui/command-palette';
 
-const event = { senderFrame: { url: 'https://yosemitecrew.com/dashboard' } };
+const OFFLINE_PAGE = 'file:///app/pages/offline.html';
+
+const makeSender = (id = 1, url = 'https://yosemitecrew.com/dashboard') => {
+  let current = url;
+  return {
+    id,
+    getURL: jest.fn(() => current),
+    loadURL: jest.fn((next: string) => {
+      current = next;
+      return Promise.resolve();
+    }),
+    once: jest.fn(),
+    send: jest.fn(),
+    isDestroyed: jest.fn(() => false),
+    showOfflinePage: () => {
+      current = OFFLINE_PAGE;
+    },
+  };
+};
+
+const event = {
+  senderFrame: { url: 'https://yosemitecrew.com/dashboard' },
+  sender: makeSender(),
+};
 
 const makeWc = () => ({
   findInPage: jest.fn(() => 7),
@@ -64,7 +103,10 @@ const makeWc = () => ({
 const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
   const wc = makeWc();
   const view = {};
-  return {
+  // Assigned rather than spread: spreading a Partial<IpcServices> makes every
+  // property of the result optional, so a required member such as idleUnlock
+  // comes out as `| undefined` and the whole literal stops being IpcServices.
+  const services: IpcServices = {
     config: getDesktopConfig({}),
     logger: {
       debug: jest.fn(),
@@ -96,10 +138,11 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
       activate: jest.fn(() => true),
       getState: jest.fn(() => ({
         tabs: [
-          { id: 't1', url: 'https://yosemitecrew.com/a', title: 'A', zoom: 1 },
-          { id: 't2', url: 'https://yosemitecrew.com/b', title: 'B' },
+          { id: 't1', url: 'https://yosemitecrew.com/a', title: 'A', zoom: 1, pinned: false },
+          { id: 't2', url: 'https://yosemitecrew.com/b', title: 'B', pinned: false },
         ],
         activeId: 't1',
+        closedStack: [],
       })),
       move: jest.fn(() => true),
       pin: jest.fn(() => true),
@@ -131,7 +174,7 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
       },
     } as never,
     layoutTabChrome: jest.fn(),
-    setTabSearch: jest.fn(),
+    setChromeOverlay: jest.fn(),
     setSplitTab: jest.fn(),
     setTabOrientation: jest.fn(),
     saveSession: jest.fn(),
@@ -212,8 +255,11 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
     minimizeWindow: jest.fn(),
     toggleMaximizeWindow: jest.fn(),
     closeWindow: jest.fn(),
-    ...overrides,
+    retryOfflineLoad: jest.fn(),
+    offlineTargetFor: jest.fn(() => 'https://yosemitecrew.com/'),
+    idleUnlock: jest.fn(),
   };
+  return Object.assign(services, overrides);
 };
 
 const register = (services: IpcServices) => {
@@ -227,11 +273,14 @@ const register = (services: IpcServices) => {
       listeners[ch] = fn;
     },
   } as never);
-  return Object.assign((channel: string, ...args: unknown[]) => handlers[channel](event, ...args), {
-    emit: (channel: string, ...args: unknown[]) => listeners[channel]?.(event, ...args),
-    emitAs: (sender: unknown, channel: string, ...args: unknown[]) =>
-      listeners[channel]?.(sender, ...args),
-  });
+  return Object.assign(
+    (channel: string, ...args: unknown[]) => handlers[channel]!(event, ...args),
+    {
+      emit: (channel: string, ...args: unknown[]) => listeners[channel]?.(event, ...args),
+      emitAs: (sender: unknown, channel: string, ...args: unknown[]) =>
+        listeners[channel]?.(sender, ...args),
+    }
+  );
 };
 
 describe('ipc-handlers — tab preview caching', () => {
@@ -321,9 +370,10 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:get-settings')).toMatchObject({ ok: true });
     expect(await call('yc:set-settings', { theme: 'dark' })).toMatchObject({
       ok: true,
+      rejected: [],
     });
-    expect(await call('yc:execute-command', BUILTIN_ACTIONS[0].id)).toMatchObject({ ok: true });
-    expect(services.runCommandAction).toHaveBeenCalledWith(BUILTIN_ACTIONS[0].id);
+    expect(await call('yc:execute-command', BUILTIN_ACTIONS[0]!.id)).toMatchObject({ ok: true });
+    expect(services.runCommandAction).toHaveBeenCalledWith(BUILTIN_ACTIONS[0]!.id);
     expect(await call('yc:get-palette-recents')).toMatchObject({ ok: true });
     expect(await call('yc:get-palette-actions')).toMatchObject({ ok: true });
     expect(await call('yc:close-palette')).toEqual({ ok: true });
@@ -333,6 +383,35 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:get-cached-content', 'https://hit')).toMatchObject({
       ok: true,
     });
+  });
+
+  // #3288: "Try again", the 20s countdown and the `online` listener all reach
+  // yc:reload, and any of them can fire after the user has moved to another tab.
+  test('offline retry reloads the sender, not whichever tab is active', async () => {
+    const retryTargets = createOfflineRetryTargets({
+      config: getDesktopConfig({}),
+      logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
+      offlinePageUrl: OFFLINE_PAGE,
+    });
+    const activeTab = makeSender(2, 'https://yosemitecrew.com/inbox');
+    const services = makeServices({
+      retryOfflineLoad: retryTargets.retry,
+      offlineTargetFor: retryTargets.targetFor,
+      activeContents: () => activeTab as never,
+    });
+    const call = register(services);
+    const offlineTab = event.sender;
+
+    retryTargets.remember(offlineTab, 'https://yosemitecrew.com/patients/42/labs');
+    offlineTab.showOfflinePage();
+
+    expect(await call('yc:open-in-browser')).toEqual({ ok: true });
+    expect(openExternal).toHaveBeenLastCalledWith('https://yosemitecrew.com/patients/42/labs');
+
+    expect(await call('yc:reload')).toEqual({ ok: true });
+    expect(offlineTab.loadURL).toHaveBeenCalledWith('https://yosemitecrew.com/patients/42/labs');
+    expect(activeTab.loadURL).not.toHaveBeenCalled();
+    expect(services.loadStartUrl).not.toHaveBeenCalled();
   });
 
   test('sync, notifications, biometric, theme, compliance, vault', async () => {
@@ -376,6 +455,11 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:vault-list')).toMatchObject({ ok: true });
     expect(await call('yc:vault-get', 'd')).toMatchObject({ ok: true });
     expect(await call('yc:vault-stats')).toMatchObject({ ok: true });
+    // The vault window's encryption badge is driven by this field. Without it
+    // the badge fell back to a hardcoded green "OS keychain", which was wrong
+    // on any machine where safeStorage is unavailable - and there the vault
+    // refuses every write, so the claim was exactly backwards.
+    expect(await call('yc:vault-stats')).toHaveProperty('encryptionAvailable');
     expect(
       await call('yc:vault-save-buffer', 'f.txt', Buffer.from('x').toString('base64'))
     ).toMatchObject({ ok: true });
@@ -461,9 +545,10 @@ describe('ipc-handlers — happy paths', () => {
       // The payload is renderer-controlled, so an exact string comparison let
       // "vet-1" witness for "vet-1 ".
       for (const witnessId of ['vet-1 ', ' vet-1', 'VET-1', ' Vet-1 ']) {
-        expect(
-          await call('yc:cs-record', { ...waste, witnessId, witnessName: 'Dr. X' })
-        ).toEqual({ ok: false, error: 'witness-must-differ' });
+        expect(await call('yc:cs-record', { ...waste, witnessId, witnessName: 'Dr. X' })).toEqual({
+          ok: false,
+          error: 'witness-must-differ',
+        });
       }
     });
 
@@ -504,7 +589,11 @@ describe('ipc-handlers — happy paths', () => {
         ...waste,
         witnessId: 'nurse-1',
         witnessName: 'Nurse Jane',
-      })) as { ok: boolean; witnessPinVerified: boolean; transaction: { witnessPinVerified: boolean } };
+      })) as {
+        ok: boolean;
+        witnessPinVerified: boolean;
+        transaction: { witnessPinVerified: boolean };
+      };
 
       expect(result.ok).toBe(true);
       expect(result.witnessPinVerified).toBe(false);
@@ -577,7 +666,9 @@ describe('ipc-handlers — happy paths', () => {
     expect(IPC_CHANNELS).not.toContain('yc:cs-set-witness-pin');
     expect(
       validateIpcRequest(
-        event,
+        // The double carries only the `url` this check reads; WebFrameMain has
+        // 38 more members no handler here touches.
+        event as unknown as Parameters<typeof validateIpcRequest>[0],
         'yc:cs-set-witness-pin',
         [{ witnessId: 'n1', witnessName: 'Jane', pin: '1234' }],
         getDesktopConfig({}),
@@ -609,7 +700,9 @@ describe('ipc-handlers — happy paths', () => {
     expect(services.logger.warn).toHaveBeenCalledWith('audit_append_rejected', expect.anything());
 
     // Ordinary entries are unaffected.
-    expect(await call('yc:audit-append', { action: 'patient:update', resourceType: 'patient' })).toMatchObject({ ok: true });
+    expect(
+      await call('yc:audit-append', { action: 'patient:update', resourceType: 'patient' })
+    ).toMatchObject({ ok: true });
   });
 
   test('a verified witness is recorded under the enrolled account name', async () => {
@@ -683,6 +776,95 @@ describe('ipc-handlers — happy paths', () => {
     expect(services.logger.info).not.toHaveBeenCalledWith('cs_recorded', expect.anything());
   });
 
+  // The shared layout pass ends by raising the idle-lock overlay, so every path
+  // that attaches a tab view must go through it or a tab attached mid-lock
+  // would sit above the lock.
+  test.each([
+    ['yc:tab-new', 'https://yosemitecrew.com/x'],
+    ['yc:tab-activate', 't1'],
+    ['yc:tab-duplicate', 't1'],
+    ['yc:tab-reopen-closed'],
+    ['yc:tab-close', 't2'],
+  ])('%s runs the shared layout pass after attaching a tab', async (channel, ...args) => {
+    const services = makeServices();
+    // Reopen a tab the fixture's state actually lists, so there is one to attach.
+    (services.tabManager as unknown as { reopenClosed: jest.Mock }).reopenClosed.mockReturnValue(
+      't2'
+    );
+    const call = register(services);
+    expect(await call(channel, ...args)).toMatchObject({ ok: true });
+    expect(services.layoutTabChrome).toHaveBeenCalled();
+  });
+
+  describe('yc:tab-context-menu', () => {
+    test('pops a native menu over the main window for a live tab', async () => {
+      const services = makeServices();
+      const call = register(services);
+      expect(await call('yc:tab-context-menu', 't1')).toEqual({ ok: true });
+      expect(menuPopup).toHaveBeenCalledWith({ window: services.mainWindow });
+      expect(lastMenuTemplate.map((item) => item.label)).toEqual([
+        'Duplicate',
+        'Pin tab',
+        undefined,
+        'Close tab',
+        'Close others',
+        'Close tabs to the right',
+        undefined,
+        'Reopen closed tab',
+      ]);
+    });
+
+    test('the chosen item is pushed back to the tab bar that asked', async () => {
+      const services = makeServices();
+      const call = register(services);
+      await call('yc:tab-context-menu', 't2');
+      const duplicate = lastMenuTemplate.find((item) => item.label === 'Duplicate');
+      duplicate?.click?.();
+      expect(event.sender.send).toHaveBeenCalledWith('yc:tab-context-action', {
+        action: 'duplicate',
+        tabId: 't2',
+      });
+    });
+
+    test('a menu left open past its tab bar does not push into a dead sender', async () => {
+      const services = makeServices();
+      const call = register(services);
+      await call('yc:tab-context-menu', 't1');
+      (event.sender.isDestroyed as jest.Mock).mockReturnValueOnce(true);
+      lastMenuTemplate.find((item) => item.label === 'Close tab')?.click?.();
+      expect(event.sender.send).not.toHaveBeenCalled();
+      (event.sender.isDestroyed as jest.Mock).mockReturnValue(false);
+    });
+
+    test('a tab closed between the right-click and this call has no menu', async () => {
+      const services = makeServices();
+      const call = register(services);
+      expect(await call('yc:tab-context-menu', 'gone')).toMatchObject({
+        ok: false,
+        error: 'tab-not-found',
+      });
+      expect(menuPopup).not.toHaveBeenCalled();
+    });
+
+    test('a non-string id is refused before any menu is built', async () => {
+      const call = register(makeServices());
+      expect(await call('yc:tab-context-menu', 7)).toMatchObject({
+        ok: false,
+        error: 'invalid-args',
+      });
+      expect(buildFromTemplateMock).not.toHaveBeenCalled();
+    });
+
+    test('there is no menu without a window to pop it over', async () => {
+      const call = register(makeServices({ mainWindow: null }));
+      expect(await call('yc:tab-context-menu', 't1')).toMatchObject({
+        ok: false,
+        error: 'not-ready',
+      });
+      expect(menuPopup).not.toHaveBeenCalled();
+    });
+  });
+
   test('tab + window + misc handlers', async () => {
     const services = makeServices();
     const call = register(services);
@@ -696,7 +878,7 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:tab-pin', 't1', true)).toMatchObject({ ok: true });
     expect(await call('yc:tab-duplicate', 't1')).toMatchObject({ ok: true });
     expect(await call('yc:tab-reopen-closed')).toMatchObject({ ok: true });
-    expect(await call('yc:tab-search', true)).toEqual({ ok: true });
+    expect(await call('yc:chrome-overlay', true)).toEqual({ ok: true });
     expect(await call('yc:tab-set-zoom', 't1', 1.2)).toMatchObject({
       ok: true,
     });
@@ -724,9 +906,22 @@ describe('ipc-handlers — happy paths', () => {
   test('yc:tab-close exits tab mode when the last tab closes', async () => {
     const services = makeServices();
     const call = register(services);
-    services.tabManager.getState.mockReturnValue({ tabs: [], activeId: null });
+    (services.tabManager!.getState as unknown as jest.Mock).mockReturnValue({
+      tabs: [],
+      activeId: null,
+    });
     expect(await call('yc:tab-close', 't1')).toMatchObject({ ok: true });
     expect(services.exitTabMode).toHaveBeenCalled();
+  });
+
+  // #3301: the tab bar marks the tab mounted in the right-hand pane, so the
+  // split tab has to travel with the rest of the tab state.
+  test('yc:tabs-get reports the split tab alongside the active one', async () => {
+    const services = makeServices();
+    const call = register(services);
+    expect(await call('yc:tabs-get')).toMatchObject({ ok: true, splitId: null });
+    services.splitId = 't2';
+    expect(await call('yc:tabs-get')).toMatchObject({ ok: true, splitId: 't2' });
   });
 
   test('yc:tab-close clears split state when the split tab is closed', async () => {
@@ -1054,5 +1249,30 @@ describe('ipc-handlers — not-ready / invalid branches', () => {
       const result = await call(channel, ...args);
       expect(result).toMatchObject({ ok: false });
     }
+  });
+});
+
+/*
+ * The handler answered `ok: true` whether or not a value survived validation,
+ * so the Preferences page confirmed a Do Not Disturb time the store had
+ * dropped (issue #3298).
+ */
+describe('yc:set-settings names the fields the store refused', () => {
+  test('a refused field is named while the rest of the submission still saves', async () => {
+    const services = makeServices();
+    const call = register(services);
+    const result = await call('yc:set-settings', { theme: 'dark', dndStart: '25:00' });
+    expect(result).toMatchObject({ ok: true, rejected: ['dndStart'] });
+    // The accepted field in the same submission is still applied: a mistyped
+    // time must not discard the control the user changed beside it.
+    expect(services.applySettings).toHaveBeenCalledWith(expect.objectContaining({ theme: 'dark' }));
+  });
+
+  test('a submission the store accepts in full reports nothing', async () => {
+    const call = register(makeServices());
+    expect(await call('yc:set-settings', { dndStart: '23:59' })).toMatchObject({
+      ok: true,
+      rejected: [],
+    });
   });
 });

@@ -4,6 +4,7 @@ import { IoCreateOutline, IoShieldCheckmark } from 'react-icons/io5';
 import { Organisation } from '@yosemite-crew/types';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import {
   COMPLETED_PILL_TOKENS,
   REQUESTED_PILL_TOKENS,
@@ -68,7 +69,7 @@ const OrgProfileBand = ({ org, canEdit, onEdit }: OrgProfileBandProps) => {
   const secondaryMeta = buildSecondaryMeta(org);
 
   return (
-    <div className="flex flex-col gap-[14px] rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-[22px]! py-5! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] sm:flex-row sm:items-center sm:gap-[18px]">
+    <div className="flex flex-col gap-[14px] yc-card-surface px-[22px]! py-5! sm:flex-row sm:items-center sm:gap-[18px]">
       <OrgAvatar org={org} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex flex-wrap items-center gap-[10px]">
@@ -96,14 +97,18 @@ const OrgProfileBand = ({ org, canEdit, onEdit }: OrgProfileBandProps) => {
         )}
       </div>
       {canEdit && (
-        <button
-          type="button"
+        /* Was a hand-rolled 38px pill, against the same label rendered as a 34px
+           pill on Settings - neither height on the 32/36/40/44 scale the shared
+           primitive offers, so the identical action changed size with the page.
+           `Secondary size="small"` is 36px / px-4 / 12.5px and carries the same
+           border and hover tokens the hand-rolled version copied. */
+        <Secondary
+          size="small"
+          text="Edit profile"
           onClick={onEdit}
-          className="inline-flex h-[38px] flex-none items-center gap-[7px] rounded-full border border-[var(--divider)] px-4! text-[12.5px] font-semibold text-[var(--ink-body)] hover:border-[var(--blue)] hover:text-[var(--blue-text)] transition-colors cursor-pointer"
-        >
-          <IoCreateOutline size={14} aria-hidden="true" />
-          Edit profile
-        </button>
+          icon={<IoCreateOutline aria-hidden="true" />}
+          className="flex-none cursor-pointer"
+        />
       )}
     </div>
   );

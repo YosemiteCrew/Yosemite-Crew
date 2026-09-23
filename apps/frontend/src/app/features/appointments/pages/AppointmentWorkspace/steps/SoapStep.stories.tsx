@@ -256,7 +256,7 @@ export const CustomTemplateFields: Story = {
     await expect(canvas.getByRole('radio', { name: 'Lameness grade: Grade II' })).not.toBeChecked();
 
     // Record Vitals survives the swap - it is inside CustomSoapFields too.
-    await expect(canvas.getByRole('button', { name: 'Record Vitals' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Record vitals' })).toBeInTheDocument();
   },
   parameters: {
     docs: {

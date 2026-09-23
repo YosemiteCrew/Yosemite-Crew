@@ -3,7 +3,7 @@ import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import {
   eventsForDayHour,
-  getWeekDays,
+  getWeekDaysInPreferredTimeZone,
   HOURS_IN_DAY,
 } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
@@ -12,7 +12,6 @@ import {
   getFirstRelevantTimedEventStart,
   getNowTopPxForHourRange,
   isAllDayForDate,
-  nextDay,
   scrollContainerToTarget,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
@@ -26,6 +25,8 @@ import CalendarHourLabel from '@/app/features/appointments/components/Calendar/c
 import {
   formatDateInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
+  getStartOfDayInPreferredTimeZone,
+  getStartOfNextDayInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
@@ -115,8 +116,13 @@ const useWeekAutoScroll = ({
     const currentTimedEvents = timedEventsRef.current;
     const currentRange = visibleHourRangeRef.current;
 
-    const rangeStart = days[0];
-    const effectiveRangeEnd = days.at(-1) ? nextDay(days.at(-1) as Date) : nextDay(days[0]);
+    // days[] entries are preferred-timezone noon anchors, not browser midnight, so
+    // the scroll-focus range must be built in the preferred timezone too - nextDay
+    // (browser setHours(0)+1) would land on the wrong instant in a custom zone,
+    // and using days[0] itself as the lower bound would exclude an early-morning
+    // event on the first day (its start time sits before that day's noon anchor).
+    const rangeStart = getStartOfDayInPreferredTimeZone(days[0]);
+    const effectiveRangeEnd = getStartOfNextDayInPreferredTimeZone(days.at(-1) ?? days[0]);
 
     let topPx: number;
     if (currentNowPosition) {
@@ -354,7 +360,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   availabilityLoaded = false,
   skipAutoScroll = false,
 }) => {
-  const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
+  const days = useMemo<Date[]>(() => getWeekDaysInPreferredTimeZone(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
   const onWheelHorizontal = useWheelToHorizontalScroll();
@@ -362,8 +368,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
   const height = getHourRowHeightPx(zoomMode);
+  // days[0] rather than weekStart: weekStart is a browser-local midnight used
+  // only as the calendar-day label the columns start from, so formatting it
+  // directly in the preferred timezone can report a different date than the
+  // first rendered column in a custom zone.
   const weekTimelineLabel = `Appointments week calendar starting ${formatDateInPreferredTimeZone(
-    weekStart,
+    days[0] ?? weekStart,
     {
       month: 'long',
       day: 'numeric',

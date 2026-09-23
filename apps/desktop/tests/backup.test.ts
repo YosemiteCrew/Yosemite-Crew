@@ -1,4 +1,5 @@
 import { createBackupService } from '../src/utils/backup';
+import { fsSeam } from './helpers/fs-seam';
 
 describe('createBackupService', () => {
   let mockFs: Record<string, string> = {};
@@ -10,29 +11,30 @@ describe('createBackupService', () => {
   let createdZipPaths: string[] = [];
 
   const makeDeps = (nowVal = 1000) => ({
-    readdirSync: jest.fn((dirPath: string) => {
-      if (mockDirs[dirPath]) return [...mockDirs[dirPath]];
-      return [];
+    readdirSync: fsSeam((dirPath: string) => {
+      const entries = mockDirs[dirPath];
+      return entries ? [...entries] : [];
     }),
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
+    readFileSync: fsSeam((filePath: string) => {
+      const contents = mockFs[filePath];
+      if (contents !== undefined) return contents;
       throw new Error('ENOENT');
     }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
+    writeFileSync: fsSeam((filePath: string, data: string) => {
       mockFs[filePath] = data;
     }),
     mkdirSync: jest.fn(),
-    existsSync: jest.fn(
+    existsSync: fsSeam(
       (filePath: string) =>
         mockFs[filePath] !== undefined ||
         mockDirs[filePath] !== undefined ||
         createdZipPaths.includes(filePath)
     ),
-    statSync: jest.fn((filePath: string) => {
-      if (mockStats[filePath]) return mockStats[filePath];
-      return { size: 100, isFile: () => true, isDirectory: () => false };
-    }),
-    unlinkSync: jest.fn((filePath: string) => {
+    statSync: fsSeam(
+      (filePath: string) =>
+        mockStats[filePath] ?? { size: 100, isFile: () => true, isDirectory: () => false }
+    ),
+    unlinkSync: fsSeam((filePath: string) => {
       delete mockFs[filePath];
       const idx = createdZipPaths.indexOf(filePath);
       if (idx >= 0) createdZipPaths.splice(idx, 1);
@@ -169,7 +171,7 @@ describe('createBackupService', () => {
 
   test('createBackup returns failure when archive fails', async () => {
     const deps = makeDeps();
-    deps.createArchive = jest.fn(async () => {
+    deps.createArchive = jest.fn<Promise<void>, [zipPath: string]>(async () => {
       throw new Error('Archive failed');
     });
     const svc = createBackupService(deps);
@@ -322,8 +324,8 @@ describe('createBackupService', () => {
 
     const list = svc2.listBackups('/backups');
     expect(list).toHaveLength(2);
-    expect(list[0].timestamp).toBe(2000);
-    expect(list[1].timestamp).toBe(1000);
+    expect(list[0]!.timestamp).toBe(2000);
+    expect(list[1]!.timestamp).toBe(1000);
   });
 
   test('pruneOldBackups removes excess backups', async () => {

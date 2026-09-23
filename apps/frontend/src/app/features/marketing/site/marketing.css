@@ -94,13 +94,13 @@
 }
 @keyframes ycStatusPulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 40%, transparent);
   }
   70% {
-    box-shadow: 0 0 0 7px rgba(0, 143, 93, 0);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--success) 0%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 0%, transparent);
   }
 }
 @keyframes ycDrift {
@@ -139,13 +139,13 @@
 /* Insights: live status pulse + commit-activity heartbeat. */
 @keyframes ycLive {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.45);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 45%, transparent);
   }
   70% {
-    box-shadow: 0 0 0 7px rgba(0, 143, 93, 0);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--success) 0%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 0%, transparent);
   }
 }
 @keyframes ycBeat {
@@ -414,8 +414,13 @@
   [data-hide-m] {
     display: none !important;
   }
+  /* minmax(0, 1fr) rather than a bare 1fr: a bare fr track keeps the implicit
+     `auto` minimum, so one wide item (the Insights live console) widens the
+     track past the container and every sibling stretches with it. Deliberately
+     not applied to [data-grid-2-m] - its narrower cells rely on that minimum to
+     hold the live stat counters, which overflow a hard-capped track. */
   [data-grid-1-m] {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
   [data-grid-2-m] {
     grid-template-columns: 1fr 1fr !important;
@@ -495,7 +500,8 @@
 }
 .yc-doc a {
   color: var(--blue-text);
-  text-decoration: none;
+  text-decoration: underline !important;
+  text-underline-offset: 0.14em;
 }
 .yc-doc a:hover {
   text-decoration: underline;
@@ -573,7 +579,7 @@
   display: block;
   font-size: 14px;
   letter-spacing: -0.01em;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
   text-decoration: none;
   padding: 7px 0 7px 14px;
   border-left: 2px solid transparent;
@@ -636,7 +642,7 @@
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--ink-faint2);
+    color: var(--ink-muted);
     cursor: pointer;
   }
   .yc-toc-toggle span {

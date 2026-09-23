@@ -78,6 +78,28 @@ const isGranted = (
   return (permissions as Record<string, unknown>)[feature] === true;
 };
 
+/**
+ * The whole access rule for one companion feature, in one place.
+ *
+ * Exported because it is not middleware-only. A read that resolves several
+ * companions at once cannot run this middleware per row, so it filters with
+ * this predicate instead - and if it reimplemented the rule it would drift from
+ * the one every path-keyed route enforces. The PRIMARY bypass is the half that
+ * gets forgotten: a primary parent's own permission set is a description of
+ * what they have DELEGATED, and `promoteLinkToPrimary` and `updatePermissions`
+ * both merge caller-supplied overrides over `PRIMARY_PARENT_PERMISSIONS`
+ * without pinning anything but `assignAsPrimaryParent`, so a PRIMARY link
+ * carrying `medicalRecords: false` is reachable and must still pass.
+ *
+ * Callers are responsible for the other two halves of the decision: the link
+ * must be `status: "ACTIVE"`, and no link at all is a refusal.
+ */
+export const hasCompanionFeature = (
+  role: string,
+  permissions: unknown,
+  feature: CompanionFeature,
+): boolean => role === "PRIMARY" || isGranted(permissions, feature);
+
 const notFound = (res: Response) =>
   res.status(404).json({ message: "Companion not found." });
 
@@ -128,7 +150,7 @@ const enforce = async (
 
     if (!link) return notFound(res);
 
-    if (link.role === "PRIMARY" || isGranted(link.permissions, feature)) {
+    if (hasCompanionFeature(link.role, link.permissions, feature)) {
       return next();
     }
 

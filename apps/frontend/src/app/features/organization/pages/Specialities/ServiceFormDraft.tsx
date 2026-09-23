@@ -166,7 +166,7 @@ const ServicePricingRow = ({
     />
     <FormInput
       intype="number"
-      inlabel="Default Discount (%)"
+      inlabel="Default discount (%)"
       value={defaultDiscount}
       onChange={(e) => onDefaultDiscountChange(e.target.value)}
       error={defaultDiscountError}
@@ -180,7 +180,7 @@ const ServicePricingRow = ({
     />
     <FormInput
       intype="text"
-      inlabel="Total Amount"
+      inlabel="Total amount"
       value={total > 0 ? formatMoney(total, currency) : ''}
       readonly
     />
@@ -339,7 +339,7 @@ const ServiceFormDraft = ({
     }
   };
 
-  const draftTitle = `${isEditing ? name || 'Service' : 'New Service'} (draft)`;
+  const draftTitle = `${isEditing ? name || 'Service' : 'New service'} (draft)`;
   const draftTitleSlot = (
     <>
       {previewCode && (

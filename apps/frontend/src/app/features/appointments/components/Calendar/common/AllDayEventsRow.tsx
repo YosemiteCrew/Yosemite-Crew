@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { Appointment } from '@yosemite-crew/types';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -44,6 +45,7 @@ const AllDayEventsRow = ({
     <div className="flex flex-wrap gap-[7px]">
       {allDayEvents.map((ev, idx) => {
         const itemKey = getEventKey(ev, idx, 'all-day');
+        const companion = ev.companion ?? ev.patient;
         return (
           <button
             key={itemKey}
@@ -58,16 +60,23 @@ const AllDayEventsRow = ({
             className="flex items-center gap-1.5 rounded-full! px-[10px] py-[5px] text-[11px] font-semibold font-satoshi"
             style={getStatusStyle(ev.status)}
           >
-            <Image
+            <AvatarImage
               src={getSafeImageUrl(
                 getAppointmentCompanionPhotoUrl(ev.companion),
-                (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
+                companion.species.toLowerCase() as ImageType
               )}
-              height={18}
-              width={18}
+              size={18}
               priority
               className="size-[18px] rounded-full object-cover"
               alt={''}
+              fallback={
+                <CompanionAvatar
+                  name={companion.name}
+                  seed={companion.id}
+                  size={18}
+                  textClassName="text-[9px]"
+                />
+              }
             />
             <span className="truncate max-w-40">{getCompanionDisplayName(ev)}</span>
             <span className="truncate max-w-30 font-normal">{ev.concern || ''}</span>

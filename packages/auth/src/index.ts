@@ -37,6 +37,9 @@ export type {
 export type { AuthProvider } from './auth-provider.js';
 export { AuthService } from './auth-service.js';
 export { setAuthService, getAuthService } from './auth-service-registry.js';
+// Host-injected hooks. `initSuperTokens(hooks)` registers them in the normal
+// path; the registry is exported so the wiring can be exercised directly.
+export { setAuthHooks, getAuthHooks } from './hooks.js';
 export type { AuthConfig, SuperTokensConfig } from './config.js';
 export { readAuthConfig, validateAuthConfig } from './config.js';
 export { createAuthProvider } from './create-auth-provider.js';

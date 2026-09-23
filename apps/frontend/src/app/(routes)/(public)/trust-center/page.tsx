@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { MarketingShell } from '@/app/features/marketing/site';
 import TrustCenter from '@/app/features/legal/pages/TrustCenter';
 
+// no-story: thin Next.js route wrapper; real content is TrustCenter, already storied
 export const metadata: Metadata = {
   title: 'Security, privacy and compliance · Yosemite Crew',
   description:

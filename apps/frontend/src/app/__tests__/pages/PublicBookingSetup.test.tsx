@@ -1,5 +1,6 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
 const notifyMock = jest.fn();
@@ -31,6 +32,13 @@ jest.mock('@/app/hooks/useOrgSelectors', () => ({
   usePrimaryOrg: () => primaryOrg,
 }));
 
+// Same stub ServicesTab's suite uses, so both surfaces price a currency-less
+// service off the same organisation value. '@/app/lib/money' is deliberately NOT
+// mocked - it is pure, and the point of these assertions is the real Intl output.
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
 jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: notifyMock }),
 }));
@@ -55,6 +63,8 @@ jest.mock('react-icons/io5', () => ({
   IoCopyOutline: () => <span data-testid="i-copy" />,
   IoGlobeOutline: () => <span data-testid="i-globe" />,
   IoSaveOutline: () => <span data-testid="i-save" />,
+  // Dropdown (converted native selects) renders its own chevron icon.
+  IoChevronDown: () => <span data-testid="i-chevron" />,
 }));
 
 import PublicBookingSetup from '@/app/features/onboarding/pages/PublicBookingSetup/PublicBookingSetup';
@@ -79,7 +89,6 @@ const config = (over: Partial<Record<string, unknown>> = {}) => ({
   serviceIds: [],
   bookingWindowDays: 28,
   bufferMinutes: 10,
-  autoConfirm: false,
   welcomeMessage: null,
   replyToEmail: null,
   ...over,
@@ -126,15 +135,45 @@ describe('PublicBookingSetup', () => {
 
   afterEach(() => setClipboard(undefined));
 
+  it('shows keyboard focus on every notched field', async () => {
+    /* globals.css suppresses the outline on input/select/textarea on the grounds
+       that "each field shows border-color on focus", and the inner controls here
+       add their own outline-none. These wrappers had neither, so tabbing through
+       this page gave a keyboard user no indication of where they were. The
+       affordance lives on the wrapper, so that is what this checks. Bookable
+       window and Buffer between visits now use the shared Dropdown component,
+       which manages its own focus affordance, so only the branding step's
+       notched fields remain to check here. */
+    await goToBranding();
+
+    // The notched-field recipe exactly: a hairline 14px box. Other 14px-radius
+    // elements on this page are buttons and are not focus surfaces.
+    const notched = document.querySelectorAll('[class*="border-[var(--hairline)] rounded-[14px]"]');
+    // Three on this step: logo, welcome message, reply-to email. The count
+    // only proves the query found the recipe - the per-field loop is the guard.
+    expect(notched.length).toBeGreaterThanOrEqual(3);
+    for (const field of notched) {
+      expect(field.className).toContain('focus-within:border-[var(--color-input-border-active)]');
+    }
+  });
+
   it('loads the catalog and lists only bookable, active services with formatted prices', async () => {
     await renderSetup();
 
     expect(loadCatalogMock).toHaveBeenCalledWith('org-1');
     expect(screen.getByText('What can pet parents book?')).toBeInTheDocument();
+    /* Prices come from the shared `formatMoneyPrecise`, not the page's old
+       three-entry {EUR,USD,GBP} symbol table. XCD used to print as the bare ISO
+       code plus a space ("XCD 48.00") because it was not one of the three, and a
+       service carrying no currency of its own was priced in EUR ("€10.00") -
+       the last euro default in the app. It now falls back to the organisation's
+       currency, the same source Specialities prices from. */
     expect(screen.getByText('€64.00')).toBeInTheDocument();
     expect(screen.getByText('$72.00')).toBeInTheDocument();
-    expect(screen.getByText('XCD 48.00')).toBeInTheDocument();
-    expect(screen.getByText('€10.00')).toBeInTheDocument();
+    expect(screen.getByText('EC$48.00')).toBeInTheDocument();
+    expect(screen.getByText('$10.00')).toBeInTheDocument();
+    expect(screen.queryByText('XCD 48.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('€10.00')).not.toBeInTheDocument();
     expect(screen.queryByText('Archived one')).not.toBeInTheDocument();
     expect(screen.queryByText('Not bookable')).not.toBeInTheDocument();
     // The wizard header carries the Yosemite Crew product mark, not an org initial.
@@ -216,21 +255,25 @@ describe('PublicBookingSetup', () => {
     expect(screen.getByText('What can pet parents book?')).toBeInTheDocument();
   });
 
-  it('updates availability selects and the confirmation toggle', async () => {
+  it('updates availability selects while confirmation remains fixed', async () => {
     await renderSetup();
 
-    const windowSelect = screen.getByLabelText('Bookable window') as HTMLSelectElement;
-    fireEvent.change(windowSelect, { target: { value: '56' } });
-    expect(windowSelect.value).toBe('56');
+    await userEvent.click(screen.getByRole('button', { name: /Bookable window/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Up to 8 weeks ahead'));
+    expect(screen.getByRole('button', { name: /Bookable window/ })).toHaveTextContent(
+      'Up to 8 weeks ahead'
+    );
 
-    const bufferSelect = screen.getByLabelText('Buffer between visits') as HTMLSelectElement;
-    fireEvent.change(bufferSelect, { target: { value: '30' } });
-    expect(bufferSelect.value).toBe('30');
+    await userEvent.click(screen.getByRole('button', { name: /Buffer between visits/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('30 minutes'));
+    expect(screen.getByRole('button', { name: /Buffer between visits/ })).toHaveTextContent(
+      '30 minutes'
+    );
 
-    const toggle = screen.getByRole('switch', { name: 'Requests need confirmation' });
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText('Requests need confirmation.')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('switch', { name: 'Requests need confirmation' })
+    ).not.toBeInTheDocument();
   });
 
   it('notifies when skipping setup', async () => {
@@ -422,12 +465,11 @@ describe('PublicBookingSetup', () => {
   });
 
   describe('loading stored configuration', () => {
-    it('restores the saved window, buffer, confirmation mode and copy', async () => {
+    it('restores the saved window, buffer and copy', async () => {
       getConfigMock.mockResolvedValue(
         config({
           bookingWindowDays: 56,
           bufferMinutes: 30,
-          autoConfirm: true,
           welcomeMessage: 'Stored welcome',
           replyToEmail: 'stored@example.com',
         })
@@ -435,16 +477,13 @@ describe('PublicBookingSetup', () => {
       await renderSetup();
 
       await waitFor(() =>
-        expect((screen.getByLabelText('Bookable window') as HTMLSelectElement).value).toBe('56')
+        expect(screen.getByRole('button', { name: /Bookable window/ })).toHaveTextContent(
+          'Up to 8 weeks ahead'
+        )
       );
-      expect((screen.getByLabelText('Buffer between visits') as HTMLSelectElement).value).toBe(
-        '30'
+      expect(screen.getByRole('button', { name: /Buffer between visits/ })).toHaveTextContent(
+        '30 minutes'
       );
-      expect(screen.getByRole('switch', { name: 'Requests need confirmation' })).toHaveAttribute(
-        'aria-checked',
-        'false'
-      );
-
       fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
       expect((screen.getByLabelText('Welcome message') as HTMLInputElement).value).toBe(
         'Stored welcome'
@@ -575,9 +614,10 @@ describe('PublicBookingSetup', () => {
       await waitFor(() => expect(getConfigMock).toHaveBeenCalled());
 
       fireEvent.click(screen.getByRole('button', { name: /Wellness & vaccination/ }));
-      fireEvent.change(screen.getByLabelText('Bookable window'), { target: { value: '14' } });
-      fireEvent.change(screen.getByLabelText('Buffer between visits'), { target: { value: '0' } });
-      fireEvent.click(screen.getByRole('switch', { name: 'Requests need confirmation' }));
+      await userEvent.click(screen.getByRole('button', { name: /Bookable window/ }));
+      await userEvent.click(within(screen.getByRole('listbox')).getByText('Up to 2 weeks ahead'));
+      await userEvent.click(screen.getByRole('button', { name: /Buffer between visits/ }));
+      await userEvent.click(within(screen.getByRole('listbox')).getByText('0 minutes'));
       fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
       fireEvent.change(screen.getByLabelText('Welcome message'), {
         target: { value: '  Come and see us  ' },
@@ -595,7 +635,6 @@ describe('PublicBookingSetup', () => {
         serviceIds: expect.not.arrayContaining(['s1']),
         bookingWindowDays: 14,
         bufferMinutes: 0,
-        autoConfirm: true,
         welcomeMessage: 'Come and see us',
         replyToEmail: 'desk@x.vet',
         // Unchanged: the practice did not touch the publish switch, so the save

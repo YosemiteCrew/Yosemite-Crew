@@ -89,9 +89,10 @@ const meta = {
           'Below 768px both re-form: `centered` becomes a bottom sheet with a grabber, `drawer` ' +
           'goes full-screen. Callers pass nothing extra for that, so the phone stories are the ' +
           'only place the swap is visible.\n\n' +
-          'The scrims differ as well, which is easy to miss without the stories side by side: the ' +
-          'centered panel and the phone sheet use `var(--sh55)` with a 6px blur, the desktop ' +
-          'drawer uses `--color-overlay-backdrop` with a 2px blur.',
+          'Both variants scrim with the same `var(--sh55)` at a 6px blur - the desktop drawer used ' +
+          'to dim with a lighter, separate `--color-overlay-backdrop` token at 2px, which under-dimmed ' +
+          'the drawer relative to every other overlay in the app and read as washed-out background ' +
+          'contrast behind the panel. Unified so every overlay in the app dims by the same amount.',
       },
     },
   },

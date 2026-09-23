@@ -1,19 +1,17 @@
 const quote = (file) => `"${file.replaceAll('"', '\\"')}"`;
 
-// secretlint globs its own arguments, so shell quoting alone is not enough: a
-// Next.js route path like `(share)/passport/[id]/X.tsx` reaches its matcher as
-// a pattern, `[id]` reads as a character class, and nothing matches. When EVERY
-// staged file is inside such a directory secretlint exits "Not found target
-// files" and the whole pre-commit hook fails, so a commit touching only dynamic
-// route files could never be made. Escaping the metacharacters makes the path
-// literal again. eslint and prettier take paths literally and need only `quote`.
-const globQuote = (file) => quote(file.replace(/[()[\]{}*?!]/g, (ch) => `\\${ch}`));
+// secretlint 13 takes file paths literally, so a Next.js route path like
+// `(share)/passport/[id]/X.tsx` needs only shell quoting. This file used to
+// escape `(`, `[` and `]` for the globbing 11.x; under 13.x an escaped path names
+// a file that does not exist. Staged alone it failed the hook with "Not found
+// target files", and next to any other staged file it was skipped without a
+// word, so a secret in a dynamic route was never scanned.
+// scripts/ci/lint-staged-secretlint.test.mjs runs this task the way lint-staged
+// does and fails if either comes back.
 const isMobilePath = (file) =>
   file.startsWith('apps/mobileAppYC/') || file.includes('/apps/mobileAppYC/');
 const isFrontendPath = (file) =>
   file.startsWith('apps/frontend/') || file.includes('/apps/frontend/');
-// Generated Docusaurus mirror (apps/dev-docs postbuild output) - never lint build artifacts.
-const isDevDocsMirrorPath = (file) => file.includes('apps/frontend/public/dev-docs/');
 const MOBILE_ESLINT_IGNORED_FILES = new Set([
   '.eslintrc.js',
   'jest.config.js',
@@ -56,7 +54,7 @@ module.exports = {
       .map((file) => toMobileRelativePath(file))
       .filter((file) => shouldLintWithMobileEslint(file));
     const frontendFiles = files
-      .filter((file) => isFrontendPath(file) && !isDevDocsMirrorPath(file))
+      .filter((file) => isFrontendPath(file))
       .map((file) => toFrontendRelativePath(file));
     const nonMobileFiles = files.filter(
       (file) =>
@@ -100,5 +98,5 @@ module.exports = {
     `prettier --write ${files.map(quote).join(' ')}`,
   ],
   '**/*.{js,jsx,ts,tsx,mjs,cjs,json,md,yml,yaml,env,txt,sh,swift,plist,properties,gradle,kt,kts,java,xml}':
-    (files) => [`secretlint --maskSecrets ${files.map(globQuote).join(' ')}`],
+    (files) => [`secretlint --maskSecrets ${files.map(quote).join(' ')}`],
 };

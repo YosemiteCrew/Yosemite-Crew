@@ -24,13 +24,11 @@ const CreateEquipmentSchema = z.object({
   model: z.string().optional(),
   serialNumber: z.string().optional(),
   manufacturer: z.string().optional(),
-  purchasedAt: z
-    .string()
+  purchasedAt: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),
-  warrantyExpiry: z
-    .string()
+  warrantyExpiry: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),
@@ -43,17 +41,12 @@ const AddMaintenanceLogSchema = z.object({
   maintenanceType: MaintenanceTypeEnum,
   performedBy: z.string().optional(),
   vendor: z.string().optional(),
-  scheduledAt: z
-    .string()
+  scheduledAt: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),
-  performedAt: z
-    .string()
-    .datetime()
-    .transform((v) => new Date(v)),
-  nextDueAt: z
-    .string()
+  performedAt: z.iso.datetime().transform((v) => new Date(v)),
+  nextDueAt: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),

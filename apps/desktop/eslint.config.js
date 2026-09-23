@@ -77,6 +77,31 @@ module.exports = [
     },
   },
   {
+    // These are loaded twice over: as page scripts by the local pages, and as
+    // CommonJS modules by their unit tests. The CommonJS export is behind a
+    // `typeof module` guard, so both globals are legitimately in play.
+    files: [
+      'src/pages/platform-labels.js',
+      'src/pages/window-caption.js',
+      'src/pages/palette-format.js',
+      'src/pages/carousel-autoplay.js',
+      'src/pages/tab-indicators.js',
+      'src/pages/settings-view.js',
+      'src/pages/vault-view.js',
+      'src/pages/tabbar-a11y.js',
+      'src/pages/tab-row.js',
+      'src/pages/tab-strip-diff.js',
+      'src/pages/idle-lock-controls.js',
+      'src/pages/tab-preview-position.js',
+    ],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.commonjs,
+      },
+    },
+  },
+  {
     // Browser/renderer scripts for the local file:// pages (externalized from
     // their HTML to keep a strict CSP without 'unsafe-inline').
     files: ['src/pages/**/*.js'],

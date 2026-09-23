@@ -36,6 +36,9 @@ import {initSuperTokens} from '@/features/auth/services/superTokensClient';
 import {ErrorBoundary} from '@/shared/components/common/ErrorBoundary';
 import {PreferencesProvider} from '@/features/preferences/PreferencesContext';
 import {GlobalLoaderProvider} from '@/context/GlobalLoaderContext';
+import {useAssistantSync} from '@/features/assistant/hooks/useAssistantSync';
+import {AppLockGate} from '@/features/appLock/AppLockGate';
+import type {AssistantNavigator} from '@/features/assistant/hooks/useAssistantSync';
 import {BottomFadeOverlay} from '@/shared/components/common';
 import {
   initializeNotifications,
@@ -566,7 +569,7 @@ function App(): React.JSX.Element {
                           ref={navigationRef}
                           onReady={handleNavigationReady}
                           onStateChange={handleNavigationStateChange}>
-                          <AppContent />
+                          <AppContent navigationRef={navigationRef} />
                         </NavigationContainer>
                       </StripeProvider>
                     </NotificationBootstrap>
@@ -581,8 +584,18 @@ function App(): React.JSX.Element {
   );
 }
 
-function AppContent(): React.JSX.Element {
+function AppContent({
+  navigationRef,
+}: {
+  navigationRef: AssistantNavigator;
+}): React.JSX.Element {
   const {theme, isDark} = useTheme();
+
+  // Keeps Siri's offline snapshot and the Android launcher shortcuts current,
+  // and routes any deep link a handoff intent parked for us. The container ref
+  // is passed rather than read from context: this sits at the app root, which
+  // is not always below a navigator.
+  useAssistantSync(navigationRef);
 
   return (
     <>
@@ -591,7 +604,9 @@ function AppContent(): React.JSX.Element {
         backgroundColor={theme.colors.background}
       />
       <ErrorBoundary>
-        <AppNavigator />
+        <AppLockGate>
+          <AppNavigator />
+        </AppLockGate>
       </ErrorBoundary>
       <BottomFadeOverlay height={30} intensity="medium" bottomOffset={0} />
     </>

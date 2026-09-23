@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { AvailabilityService } from "src/services/availability.service";
+import { organisationReferenceMatches } from "src/services/shared/organisation-membership";
 
 export class DashboardServiceError extends Error {
   constructor(
@@ -251,7 +252,7 @@ const mapRevenueTrendRows = (
 
 const getStaffOnDutyCount = async (organisationId: string) => {
   const mappings = await prisma.userOrganization.findMany({
-    where: { organizationReference: organisationId, active: true },
+    where: { active: true, OR: organisationReferenceMatches(organisationId) },
     select: { practitionerReference: true },
   });
 

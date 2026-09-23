@@ -10,6 +10,7 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {updateTask, deleteTask, setTaskCalendarEventId} from '@/features/tasks';
+import type {TaskRecurrenceScope} from '@/features/tasks';
 import type {AppDispatch} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
@@ -105,7 +106,7 @@ export const EditTaskScreen: React.FC = () => {
     }
   }, [navigation, source]);
 
-  const performSave = async () => {
+  const performSave = async (scope: TaskRecurrenceScope) => {
     /* istanbul ignore next -- unreachable: screen renders the not-found UI when task is null, so this defensive guard is never hit */
     if (!task) return;
 
@@ -125,7 +126,12 @@ export const EditTaskScreen: React.FC = () => {
       observationToolId: task.observationToolId ?? formData.observationalTool,
     });
     const updated = await dispatch(
-      updateTask({taskId: task.id, updates: taskData}),
+      updateTask({
+        taskId: task.id,
+        updates: taskData,
+        scope,
+        companionId: task.companionId,
+      }),
     ).unwrap();
 
     if (formData.syncWithCalendar) {
@@ -180,9 +186,9 @@ export const EditTaskScreen: React.FC = () => {
     handleSmartBack();
   };
 
-  const confirmSave = async () => {
+  const confirmSave = async (scope: TaskRecurrenceScope) => {
     try {
-      await performSave();
+      await performSave(scope);
     } catch (error) {
       showErrorAlert('Unable to update task', error);
     }
@@ -196,7 +202,7 @@ export const EditTaskScreen: React.FC = () => {
       taskSaveSheetRef.current?.open();
       return;
     }
-    performSave().catch(error =>
+    performSave('THIS').catch(error =>
       showErrorAlert('Unable to update task', error),
     );
   };
@@ -211,14 +217,14 @@ export const EditTaskScreen: React.FC = () => {
     confirmDeleteSheetRef.current?.open();
   };
 
-  const handleDeleteTask = async () => {
+  const handleDeleteTask = async (scope: TaskRecurrenceScope) => {
     /* istanbul ignore next -- unreachable: confirm sheet only renders when task is present */
     if (!task) return;
     if (task.calendarEventId) {
       await removeCalendarEvents(task.calendarEventId);
     }
     await dispatch(
-      deleteTask({taskId: task.id, companionId: task.companionId}),
+      deleteTask({taskId: task.id, companionId: task.companionId, scope}),
     ).unwrap();
     handleSmartBack();
   };
@@ -326,20 +332,20 @@ export const EditTaskScreen: React.FC = () => {
         <>
           <TaskSaveOptionsBottomSheet
             ref={taskSaveSheetRef}
-            onSaveAll={confirmSave}
-            onSaveForDay={confirmSave}
+            onSaveAll={() => confirmSave('ALL')}
+            onSaveForDay={() => confirmSave('THIS')}
           />
 
           <TaskDeleteBottomSheet
             ref={taskDeleteSheetRef}
             taskTitle={task.title}
             onDeleteAll={() =>
-              handleDeleteTask().catch(error =>
+              handleDeleteTask('ALL').catch(error =>
                 showErrorAlert('Unable to delete task', error),
               )
             }
             onDeleteForDay={() =>
-              handleDeleteTask().catch(error =>
+              handleDeleteTask('THIS').catch(error =>
                 showErrorAlert('Unable to delete task for this day', error),
               )
             }
@@ -353,7 +359,7 @@ export const EditTaskScreen: React.FC = () => {
           primaryButton={{
             label: 'Delete',
             onPress: () =>
-              handleDeleteTask().catch(error =>
+              handleDeleteTask('THIS').catch(error =>
                 showErrorAlert('Unable to delete task', error),
               ),
           }}

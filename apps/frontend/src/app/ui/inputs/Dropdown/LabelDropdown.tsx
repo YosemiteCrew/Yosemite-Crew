@@ -1,10 +1,12 @@
 import React, { useCallback, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
-import { IoIosWarning } from 'react-icons/io';
 import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
+import Field from '@/app/ui/Field';
+import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 import { useListboxKeyboardNav } from './useDropdownKeyboardNav';
 import { useDropdownPositioning } from './useDropdownPositioning';
+import { deriveEmptyLabel } from '@/app/ui/inputs/Dropdown/emptyLabel';
 
 type DropdownProps = {
   placeholder: string;
@@ -17,6 +19,8 @@ type DropdownProps = {
   icon?: React.ReactNode;
   portal?: boolean;
   noOptionsMessage?: string;
+  /** Text shown while nothing is selected. Defaults to `Select <placeholder>`. */
+  emptyLabel?: string;
   /**
    * Locks the control. Needed because `internalSelected` is deliberately the
    * source of truth for the visible label (see the comment on it), so a caller
@@ -24,6 +28,15 @@ type DropdownProps = {
    * that moves - showing an answer the record does not contain.
    */
   disabled?: boolean;
+  /**
+   * Drop the stacked label above the trigger, for callers that supply their own
+   * (the workspace meta bar renders it as a `legend` notched into the field
+   * border). The trigger's `aria-label` already carries "<label>: <value>", so
+   * nothing is lost - and omitting the element beats hiding it with CSS, which
+   * leaves the same text in the accessibility tree and renders twice the moment
+   * the selector stops matching.
+   */
+  hideLabel?: boolean;
 };
 
 const TERMINOLOGY_LOCK_SELECTOR = "[data-terminology-lock='true']";
@@ -36,14 +49,10 @@ const findDropdownOption = (options: DropdownOption[], defaultOption?: string) =
   );
 };
 
-// Design select trigger: 46px tall, 0 13px padding (right side widened for the
-// chevron), 13px radius, 1.5px --hairline, warm --field-bg, 13px value text.
 const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
-  const base =
-    'relative w-full flex h-[44px] items-center px-[13px] pr-9 min-w-30 rounded-[12px]! border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+  const base = `relative flex h-10 min-w-30 cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(hasErrorState)}`;
   if (open) return `${base} border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)] z-20`;
-  const border = hasErrorState ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!';
-  return `${base} ${border}`;
+  return base;
 };
 
 // Design menu row: 7px 11px padding, 8px radius, 12.5px / 600, --ink-body,
@@ -65,6 +74,8 @@ type DropdownPanelProps = {
   noOptionsMessage?: string;
   onOptionHover: (option: DropdownOption) => void;
   onOptionSelect: (option: DropdownOption) => void;
+  /** Currently selected value, so each option row can report `aria-selected`. */
+  selectedValue?: string;
 };
 
 const DropdownPanel = ({
@@ -79,11 +90,15 @@ const DropdownPanel = ({
   noOptionsMessage,
   onOptionHover,
   onOptionSelect,
+  selectedValue,
 }: DropdownPanelProps) => {
-  const emptyMessage = searchQuery ? 'No matches found' : (noOptionsMessage ?? 'No options');
+  const emptyMessage = searchQuery
+    ? 'No matches found'
+    : (noOptionsMessage ?? 'No options available');
   return (
     <div
       id={listboxId}
+      role="listbox"
       aria-label={placeholder}
       data-portal-dropdown
       data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
@@ -96,6 +111,8 @@ const DropdownPanel = ({
             key={option.value}
             id={`${listboxId}-option-${option.value}`}
             type="button"
+            role="option"
+            aria-selected={option.value === selectedValue}
             className={optionClassName(activeOptionId === `${listboxId}-option-${option.value}`)}
             onMouseEnter={() => onOptionHover(option)}
             onClick={() => onOptionSelect(option)}
@@ -122,6 +139,8 @@ type DropdownTriggerContentProps = {
   searchable: boolean;
   selected: DropdownOption | null;
   placeholder: string;
+  /** Shown while nothing is selected. Distinct from the stacked label above. */
+  emptyLabel: string;
   listboxId: string;
   searchQuery: string;
   activeOptionId?: string;
@@ -136,6 +155,7 @@ const DropdownTriggerContent = ({
   searchable,
   selected,
   placeholder,
+  emptyLabel,
   listboxId,
   searchQuery,
   activeOptionId,
@@ -153,7 +173,7 @@ const DropdownTriggerContent = ({
         type="text"
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        placeholder={selected ? selected.label : ''}
+        placeholder={selected ? selected.label : emptyLabel}
         aria-label={`Search ${placeholder}`}
         aria-controls={open ? listboxId : undefined}
         aria-activedescendant={activeOptionId}
@@ -164,9 +184,19 @@ const DropdownTriggerContent = ({
         className="w-full min-w-0 bg-transparent text-left text-[13px] text-[var(--ink-body)] focus-visible:outline-none placeholder:text-[var(--ink-faint)]"
       />
     )}
-    {(!open || !searchable) && selected && (
-      <span className="min-w-0 flex-1 text-left text-[var(--ink-body)] text-[13px] truncate">
-        {selected.label}
+    {(!open || !searchable) && (
+      // A select with nothing chosen shows its placeholder in --ink-faint, never
+      // an empty box: the design makes the placeholder mandatory on every select,
+      // and 159 triggers across the product rendered blank until something was
+      // picked, so a required field looked identical to a filled one. The text is
+      // "Select <label>", not the label itself, so it never repeats the stacked
+      // label sitting directly above it.
+      <span
+        className={`min-w-0 flex-1 truncate text-left text-[13px] ${
+          selected ? 'text-[var(--ink-body)]' : 'text-[var(--ink-faint)]'
+        }`}
+      >
+        {selected ? selected.label : emptyLabel}
       </span>
     )}
     <span className="absolute right-[13px] top-1/2 -translate-y-1/2 flex items-center justify-center">
@@ -200,11 +230,15 @@ const LabelDropdown = ({
   portal = true,
   noOptionsMessage,
   disabled = false,
+  hideLabel = false,
+  emptyLabel,
 }: DropdownProps) => {
   const [internalSelected, setInternalSelected] = useState<DropdownOption | null>(() =>
     findDropdownOption(options, defaultOption)
   );
   const listboxId = useId();
+  const controlId = useId();
+  const errorId = error ? `${controlId}-message` : undefined;
   const controlledSelected = findDropdownOption(options, defaultOption);
   // `internalSelected` is the single source of truth so a user click always moves
   // the label (selectOption sets it), even when a controlled parent never echoes
@@ -286,17 +320,28 @@ const LabelDropdown = ({
       noOptionsMessage={noOptionsMessage}
       onOptionHover={(option) => setActiveIndex(filteredOptions.indexOf(option))}
       onOptionSelect={selectOption}
+      selectedValue={selected?.value}
     />
   );
 
   return (
-    <div className="flex flex-col w-full">
-      <span className="mb-1.5 flex items-center gap-1 truncate text-[12px] font-semibold text-[var(--ink-soft)]">
-        {icon}
-        {placeholder}
-      </span>
+    <Field
+      htmlFor={controlId}
+      label={
+        hideLabel ? undefined : (
+          <span className="flex items-center gap-1 truncate">
+            {icon}
+            {placeholder}
+          </span>
+        )
+      }
+      error={error}
+      messageId={errorId}
+      disabled={disabled}
+    >
       <div className="w-full relative" ref={attachDropdownRef}>
         <button
+          id={controlId}
           type="button"
           disabled={disabled}
           className={triggerClassName(open, Boolean(error || hasError))}
@@ -310,6 +355,7 @@ const LabelDropdown = ({
           aria-expanded={open}
           aria-controls={open ? listboxId : undefined}
           aria-haspopup="listbox"
+          aria-describedby={errorId}
           onKeyDown={disabled ? undefined : handleKeyDown}
         >
           <DropdownTriggerContent
@@ -317,6 +363,7 @@ const LabelDropdown = ({
             searchable={searchable}
             selected={selected}
             placeholder={placeholder}
+            emptyLabel={emptyLabel ?? deriveEmptyLabel(placeholder)}
             listboxId={listboxId}
             searchQuery={searchQuery}
             activeOptionId={activeOptionId}
@@ -331,13 +378,7 @@ const LabelDropdown = ({
           <div className="absolute top-full left-0 mt-1 w-full">{panelNode}</div>
         )}
       </div>
-      {error && (
-        <div className="min-h-6 mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
-          <IoIosWarning className="text-text-error" size={14} />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 

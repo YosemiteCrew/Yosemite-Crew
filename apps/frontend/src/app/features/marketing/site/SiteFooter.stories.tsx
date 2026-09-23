@@ -1,3 +1,4 @@
+import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
@@ -6,6 +7,7 @@ import { SiteFooter } from './SiteFooter';
 // that stacks the three bottom rows on a phone both live here, and only
 // `(routes)/(public)/layout.tsx` loads the sheet in the app.
 import './marketing.css';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /**
  * Session-cache keys owned by `useGithubStats` (module-private there). Seeding the
@@ -14,8 +16,6 @@ import './marketing.css';
  * conditions have to hold or the hook fires `/api/community/*` at the Storybook dev
  * server on every mount and the star count lands whenever it lands.
  */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
 const CACHED_STATS = {
   stars: '2.4k',
@@ -25,13 +25,11 @@ const CACHED_STATS = {
   discord: '3,182',
 };
 
-const OPENSTATUS_HOST = 'openstatus.dev';
-
 /** Stands in for `window.scrollTo` so "Back to top" can be clicked without moving the canvas. */
 const scrollSpy = fn();
 
 /**
- * The footer asks api.openstatus.dev for the platform status on mount and colours
+ * The footer asks /api/platform-status for the platform status on mount and colours
  * the pill from the answer, so every story swaps `fetch` for a canned reply and puts
  * the real one back on unmount. Left alone, the tone of the pill would depend on how
  * the platform happened to be doing when the story was opened.
@@ -47,7 +45,7 @@ const seed = ({ status, seedStats = true }: { status: string | 'reject'; seedSta
     globalThis.window.scrollTo = scrollSpy as unknown as typeof globalThis.window.scrollTo;
 
     globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input).includes(OPENSTATUS_HOST)) {
+      if (String(input).startsWith(PLATFORM_STATUS_API_URL)) {
         if (status === 'reject') return Promise.reject(new Error('status api unreachable'));
         return Promise.resolve(
           new Response(JSON.stringify({ status }), {
@@ -143,10 +141,7 @@ export const Default: Story = {
        and the computed read underneath is what catches a token that no longer
        exists, which would otherwise leave a transparent dot. */
     await expect(dot.style.background).toBe('var(--success)');
-    // `#1d6b4f`, reserialised: the success label is the one tone written as a
-    // literal hex instead of a token, so it is also the one that does not follow
-    // the theme.
-    await expect(label.style.color).toBe('rgb(29, 107, 79)');
+    await expect(label.style.color).toBe('var(--success-text)');
     await expect(getComputedStyle(dot).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
 
     // Only the healthy pill pulses, and only it takes the green hover tone. Both
@@ -218,8 +213,8 @@ export const Degraded: Story = {
     await waitFor(() => {
       expect(label).toHaveTextContent('Degraded performance');
     });
-    await expect(dot.style.background).toBe('var(--amber)');
-    await expect(label.style.color).toBe('var(--amber)');
+    await expect(dot.style.background).toBe('var(--warn)');
+    await expect(label.style.color).toBe('var(--ink-body)');
     // No pulse and no green hover tone: the pill stops advertising health the
     // moment the tone leaves `success`.
     await expect(getComputedStyle(dot).animationName).toBe('none');
@@ -247,7 +242,7 @@ export const MajorOutage: Story = {
       expect(label).toHaveTextContent('Major outage');
     });
     await expect(dot.style.background).toBe('var(--danger)');
-    await expect(label.style.color).toBe('var(--danger)');
+    await expect(label.style.color).toBe('var(--danger-text)');
     await expect(getComputedStyle(dot).animationName).toBe('none');
   },
   parameters: {

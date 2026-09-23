@@ -1,5 +1,7 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 jest.mock('next/link', () => {
@@ -53,6 +55,16 @@ const defaultRepo = {
 let release: typeof defaultRelease = defaultRelease;
 let repo: typeof defaultRepo = defaultRepo;
 
+interface CloudUsersShape {
+  totalUsers: string | null;
+  latestSignupAt: string | null;
+}
+const DEFAULT_CLOUD_USERS: CloudUsersShape = {
+  totalUsers: '452',
+  latestSignupAt: '2026-09-22T13:19:12.216Z',
+};
+let cloudUsers: CloudUsersShape = DEFAULT_CLOUD_USERS;
+
 jest.mock('@/app/features/marketing/site', () => {
   const R = jest.requireActual<typeof import('react')>('react');
   return {
@@ -65,6 +77,8 @@ jest.mock('@/app/features/marketing/site', () => {
     GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
     DISCORD_INVITE_URL: 'https://discord.gg/SwM6mX85KD',
     useGithubStats: () => stats,
+    useCloudUsers: () => cloudUsers,
+    timeAgo: (iso?: string) => (iso ? '14m ago' : null),
     useLatestRelease: () => release,
     useRepoInsights: () => repo,
   };
@@ -76,6 +90,7 @@ describe('Insights page', () => {
   beforeEach(() => {
     release = defaultRelease;
     repo = defaultRepo;
+    cloudUsers = DEFAULT_CLOUD_USERS;
   });
 
   test('renders the hero and its live clone proof', () => {
@@ -148,5 +163,75 @@ describe('Insights page', () => {
 
     const { container } = render(<Insights />);
     expect(container.querySelector('img[src="https://av/ada.png"]')).toBeInTheDocument();
+  });
+
+  test('the manifesto line ink tracks the --spot-ink token, not a frozen literal', () => {
+    render(<Insights />);
+
+    const line = screen.getByText(/What you measure is what you actually care about/);
+    expect(line).toHaveStyle({ color: 'var(--spot-ink)' });
+  });
+});
+
+describe('the console and release cards read their primary ink from --spot-ink', () => {
+  // ConsoleMiniStats/MiniStat and LatestReleaseCard both sit on background:
+  // var(--spot), which never flips, so their headline ink must read
+  // var(--spot-ink) rather than a frozen copy of its dark-mode value.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/Insights/Insights.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the console/release ink as a frozen literal', () => {
+    expect(source).not.toContain("color: '#f4efe6'");
+  });
+
+  it('routes the console/release ink through --spot-ink', () => {
+    // Both MiniStat's value and LatestReleaseCard's tag share this exact
+    // `letterSpacing: '-0.03em'` immediately before `color`, which no other
+    // --spot-ink call site in this file uses - anchoring on it (rather than
+    // a bare count) keeps the assertion sensitive to reverting these two
+    // specific sites, not just any --spot-ink usage already in the file.
+    const occurrences =
+      source.match(/letterSpacing:\s*'-0\.03em',\s*color:\s*'var\(--spot-ink\)'/g) ?? [];
+    expect(occurrences).toHaveLength(2);
+  });
+});
+
+describe('Insights live stat band', () => {
+  beforeEach(() => {
+    release = defaultRelease;
+    repo = defaultRepo;
+    cloudUsers = DEFAULT_CLOUD_USERS;
+  });
+
+  test('leads with cloud users and dates the last signup', () => {
+    render(<Insights />);
+
+    const cell = screen.getByText('Cloud users').parentElement as HTMLElement;
+    expect(cell).toHaveTextContent('452');
+    expect(cell).toHaveTextContent('Last signup 14m ago.');
+  });
+
+  test('keeps the four repository stats in the same band', () => {
+    render(<Insights />);
+
+    // Scoped to the band: 'Contributors' also appears in the console mini-stats
+    // above it, so a page-wide query would pass without the band containing it.
+    const band = (screen.getByText('Cloud users').parentElement as HTMLElement)
+      .parentElement as HTMLElement;
+    for (const label of ['Repository clones', 'Contributors', 'Discord members', 'GitHub stars']) {
+      expect(within(band).getByText(label)).toBeInTheDocument();
+    }
+    expect(within(band).getByText('Cloud users')).toBeInTheDocument();
+  });
+
+  test('drops the signup sentence and shows a dash when the total is unknown', () => {
+    cloudUsers = { totalUsers: null, latestSignupAt: null };
+    render(<Insights />);
+
+    const cell = screen.getByText('Cloud users').parentElement as HTMLElement;
+    expect(cell).toHaveTextContent('\u2014');
+    expect(cell).not.toHaveTextContent('Last signup');
   });
 });

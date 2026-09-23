@@ -13,6 +13,17 @@ import {
   FinanceDiscountSettingsError,
   FinanceDiscountSettingsService,
 } from "src/services/finance/discount-settings";
+import {
+  ProviderReceiptService,
+  RECONCILIATION_STATUSES,
+  type AllocateResult,
+} from "src/services/finance/provider-receipt";
+import { ProviderReceiptAuditService } from "src/services/finance/provider-receipt-audit";
+import {
+  ClientAccountService,
+  type ClientAccountAllocationResult,
+} from "src/services/finance/client-account";
+import { parseKeysetCursor } from "src/services/shared/pagination";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
 import {
@@ -26,6 +37,7 @@ import {
 } from "src/services/appointment.prisma.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
+import { resolveAuthorizedOrganisationId } from "src/middlewares/authorized-organisation";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { resolveVerifiedUserId } from "src/utils/request";
 
@@ -33,7 +45,7 @@ const CreateInvoicePaymentSessionBodySchema = z.object({
   provider: z.string().trim().min(1).optional(),
   // Major units. Present when the caller is collecting a deposit rather than
   // the whole outstanding balance.
-  depositAmount: z.number().finite().positive().optional(),
+  depositAmount: z.number().positive().optional(),
 });
 
 const InvoiceItemBodySchema = z.object({
@@ -144,8 +156,8 @@ const SubscriptionCheckoutCompletedBodySchema = z.object({
     ])
     .optional(),
   cancelAtPeriodEnd: z.boolean().optional(),
-  currentPeriodStart: z.string().datetime().optional(),
-  currentPeriodEnd: z.string().datetime().optional(),
+  currentPeriodStart: z.iso.datetime().optional(),
+  currentPeriodEnd: z.iso.datetime().optional(),
   livemode: z.boolean().optional(),
   seatQuantity: z.number().int().nonnegative().optional(),
 });
@@ -166,10 +178,10 @@ const SubscriptionUpdatedBodySchema = z.object({
     ])
     .optional(),
   cancelAtPeriodEnd: z.boolean().optional(),
-  canceledAt: z.string().datetime().optional(),
+  canceledAt: z.iso.datetime().optional(),
   seatQuantity: z.number().int().nonnegative().optional(),
-  currentPeriodStart: z.string().datetime().optional(),
-  currentPeriodEnd: z.string().datetime().optional(),
+  currentPeriodStart: z.iso.datetime().optional(),
+  currentPeriodEnd: z.iso.datetime().optional(),
 });
 
 const SubscriptionLifecycleBodySchema = z.object({
@@ -185,7 +197,7 @@ const UsageEventBodySchema = z.object({
   referenceType: z.string().trim().min(1).optional(),
   referenceId: z.string().trim().min(1).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  occurredAt: z.string().datetime().optional(),
+  occurredAt: z.iso.datetime().optional(),
 });
 
 const UsageSnapshotBodySchema = z.object({
@@ -195,7 +207,7 @@ const UsageSnapshotBodySchema = z.object({
   appointmentsUsed: z.number().int().nonnegative().optional(),
   toolsUsed: z.number().int().nonnegative().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  snapshotAt: z.string().datetime().optional(),
+  snapshotAt: z.iso.datetime().optional(),
 });
 
 const RecordInvoicePaymentBodySchema = z.object({
@@ -204,13 +216,13 @@ const RecordInvoicePaymentBodySchema = z.object({
   amount: z.number().positive(),
   currency: z.string().trim().min(1).optional(),
   reference: z.string().trim().min(1).optional(),
-  receivedAt: z.string().datetime().optional(),
+  receivedAt: z.iso.datetime().optional(),
 });
 
 const CloseoutInvoiceBodySchema = z.object({
   settlementChannel: z.string().trim().min(1).optional(),
   reference: z.string().trim().min(1).optional(),
-  receivedAt: z.string().datetime().optional(),
+  receivedAt: z.iso.datetime().optional(),
 });
 
 const RefundPaymentBodySchema = z.object({
@@ -232,6 +244,190 @@ const ListInvoicesQuerySchema = z.object({
   parentId: z.string().trim().min(1).optional(),
   patientId: z.string().trim().min(1).optional(),
 });
+
+/**
+ * The reconciliation queue's filters.
+ *
+ * `status` is accepted once or repeated, because that is what Express hands
+ * over for `?status=A&status=B` and a queue is worked by state. The enum comes
+ * from the model, so a state added to the schema cannot be silently rejected
+ * here as unknown.
+ *
+ * The dates are ISO 8601 with an offset, not bare dates. A reconciliation
+ * window read in the operator's local midnight and applied against a UTC
+ * `capturedAt` moves the boundary by hours, so the caller states the instant
+ * and there is nothing to infer from a device timezone.
+ *
+ * `limit` is a string here and clamped in the service rather than rejected:
+ * the bound is the service's to own, and a caller asking for more gets a
+ * bounded page and the `limit` it actually got back in `meta`.
+ */
+const ProviderReceiptQuerySchema = z.object({
+  status: z
+    .union([
+      z.enum(RECONCILIATION_STATUSES),
+      z.array(z.enum(RECONCILIATION_STATUSES)),
+    ])
+    .optional(),
+  capturedFrom: z.iso.datetime({ offset: true }).optional(),
+  capturedTo: z.iso.datetime({ offset: true }).optional(),
+  limit: z.string().optional(),
+});
+
+/**
+ * The filter for the historical mismatch audit (#3170 delivery 4).
+ *
+ * The bounds are named `recorded*` rather than `captured*` because that is
+ * genuinely which clock they read: the audit windows on when the payment was
+ * recorded here, since `paidAt` is nullable and a window built from it would
+ * silently omit every settled payment that has none. Naming them after the
+ * capture would be a friendlier lie.
+ *
+ * Same offset rule as the reconciliation queue, for the same reason - a window
+ * taken at the operator's local midnight and applied against a UTC column
+ * moves the boundary by hours, so the caller states the instant.
+ */
+const ProviderReceiptAuditQuerySchema = z.object({
+  recordedFrom: z.iso.datetime({ offset: true }).optional(),
+  recordedTo: z.iso.datetime({ offset: true }).optional(),
+  limit: z.string().optional(),
+});
+
+/**
+ * One operator decision to apply a captured payment to invoices.
+ *
+ * `expectedVersion` and `idempotencyKey` are both required rather than
+ * optional, and neither substitutes for the other. The version says which
+ * state the decision was taken from, so a refund or another operator landing
+ * in between loses the write; the key says which decision this is, so a retry
+ * after a timeout is recognised as the same one. A client that omitted either
+ * would double-post money under exactly the conditions this endpoint exists to
+ * survive, so there is no default for either.
+ *
+ * Bounded at twenty lines. An operator splitting one capture across invoices
+ * is working through a handful, and the endpoint posts them sequentially -
+ * leaving the list unbounded would let one request hold a connection for as
+ * long as the caller liked.
+ */
+const ProviderReceiptAllocationBodySchema = z.object({
+  expectedVersion: z.number().int().min(0),
+  idempotencyKey: z.string().trim().min(1).max(200),
+  allocations: z
+    .array(
+      z.object({
+        invoiceId: z.uuid(),
+        // Major units, and strictly positive: a zero or negative line is not a
+        // smaller allocation, it is a different operation this route does not
+        // perform. `z.number()` already refuses NaN and Infinity in Zod 4, so
+        // no separate finiteness guard is needed - and one written as
+        // `.finite()` is deprecated.
+        amount: z.number().positive(),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+
+/**
+ * How each refusal is answered.
+ *
+ * Separated from the handler so the mapping can be read as a table. Every
+ * refusal that is about the state the caller decided from is a 409, and every
+ * one that is about the objects they named is a 404 or a 409 on the object -
+ * a 400 would tell them to fix a request that was well formed.
+ */
+const PROVIDER_RECEIPT_ALLOCATION_FAILURES: Record<
+  Exclude<AllocateResult["outcome"], "APPLIED" | "REPLAYED">,
+  { status: number; message: string }
+> = {
+  NOT_FOUND: { status: 404, message: "Receipt not found." },
+  NOT_ATTRIBUTED: {
+    status: 409,
+    message:
+      "This capture has not been attributed to an organisation yet, so it cannot be applied.",
+  },
+  FULLY_REFUNDED: {
+    status: 409,
+    message:
+      "This capture has been refunded in full; there is nothing to apply.",
+  },
+  VERSION_CONFLICT: {
+    status: 409,
+    message:
+      "The receipt changed since it was read. Reload it and submit the allocation again.",
+  },
+  ACCOUNT_MISMATCH: {
+    status: 409,
+    message:
+      "The money for this capture is not held in this organisation's connected account.",
+  },
+  EXCEEDS_RESIDUAL: {
+    status: 409,
+    message:
+      "The requested allocation is more than this capture has left to apply.",
+  },
+  INVOICE_NOT_ELIGIBLE: {
+    status: 409,
+    message: "An invoice in this allocation cannot take this payment.",
+  },
+};
+
+/**
+ * A reviewed plan handed back for confirmation (#3163).
+ *
+ * The body is the proposal's own shape rather than a flat list of lines,
+ * because each capture carries the version it was planned from and a flat list
+ * would have nowhere to put it.
+ *
+ * One `idempotencyKey` for the whole plan and not one per capture. It is one
+ * decision an operator took once, and a per-capture key would let a retry
+ * repeat half of it as a new decision.
+ *
+ * Bounded on both axes. Each capture is applied sequentially and each line
+ * within it posts sequentially, so an unbounded plan is an unbounded request.
+ */
+const ClientAccountAllocationBodySchema = z.object({
+  idempotencyKey: z.string().trim().min(1).max(200),
+  receipts: z
+    .array(
+      z.object({
+        receiptId: z.uuid(),
+        expectedVersion: z.number().int().min(0),
+        allocations: z
+          .array(
+            z.object({
+              invoiceId: z.uuid(),
+              // Strictly positive, as on the per-capture route: a zero or
+              // negative line is a different operation, not a smaller one.
+              amount: z.number().positive(),
+            }),
+          )
+          .min(1)
+          .max(20),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+
+/**
+ * How each zero-write refusal of a plan is answered.
+ *
+ * Both are 409 rather than 404. A 404 on the capture would confirm to anyone
+ * who can guess an id that it exists somewhere else in this organisation, and
+ * "this is not that client's" is a conflict between the request and the
+ * account it was sent to, not a missing object.
+ */
+const CLIENT_ACCOUNT_ALLOCATION_FAILURES: Record<
+  Exclude<ClientAccountAllocationResult["outcome"], "APPLIED" | "STOPPED">,
+  string
+> = {
+  DUPLICATE_RECEIPT: "Each capture may appear at most once in a plan.",
+  RECEIPT_NOT_THIS_CLIENT:
+    "A capture in this plan does not belong to this client's account.",
+  INVOICE_NOT_THIS_CLIENT:
+    "An invoice in this plan does not belong to this client.",
+};
 
 const normalizeProvider = (value?: string) =>
   value?.trim().toUpperCase() ?? "STRIPE";
@@ -392,6 +588,13 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        body.data.organisationId,
+      );
+      if (!organisationId) return;
+
       const items = body.data.items.map((item) => ({
         ...item,
         description: item.description ?? item.name,
@@ -401,7 +604,7 @@ export const FinanceController = {
         appointmentId: body.data.appointmentId,
         parentId: body.data.parentId,
         patientId: body.data.patientId,
-        organisationId: body.data.organisationId,
+        organisationId,
         paymentCollectionMethod: body.data.paymentCollectionMethod as
           "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC",
         items,
@@ -884,9 +1087,15 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request query" });
       }
 
-      const current = await FinanceSubscriptionService.getCurrentSubscription(
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
         query.data.organisationId,
       );
+      if (!organisationId) return;
+
+      const current =
+        await FinanceSubscriptionService.getCurrentSubscription(organisationId);
 
       return res.status(200).json(toFinanceSuccess(current));
     } catch (error) {
@@ -902,8 +1111,15 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        body.data.organisationId,
+      );
+      if (!organisationId) return;
+
       const subscription = await FinanceSubscriptionService.upsertSubscription({
-        orgId: body.data.organisationId,
+        orgId: organisationId,
         planCode: body.data.planCode,
         provider: body.data.provider,
         providerSubscriptionId: body.data.providerSubscriptionId,
@@ -924,8 +1140,15 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request query" });
       }
 
-      const snapshots = await FinanceSubscriptionService.listUsageSnapshots(
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
         query.data.organisationId,
+      );
+      if (!organisationId) return;
+
+      const snapshots = await FinanceSubscriptionService.listUsageSnapshots(
+        organisationId,
         {
           subscriptionId: query.data.subscriptionId ?? null,
           featureKey: query.data.featureKey ?? null,
@@ -1669,5 +1892,458 @@ export const FinanceController = {
       req as Request<Record<string, string>, unknown, Buffer>,
       res,
     );
+  },
+
+  /**
+   * The reconciliation queue for the authorized organisation (#3170).
+   *
+   * Read-only, so it is behind `billing:view:any` rather than an edit
+   * permission: an operator has to be able to SEE an unattributed capture
+   * before anyone can decide what to do with it, and nothing here changes a
+   * receipt.
+   *
+   * The organisation comes from `resolveAuthorizedOrganisationId`, never from
+   * the query, so a caller cannot name another tenant's organisation in the
+   * path and read its money.
+   */
+  async listProviderReceipts(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const query = ProviderReceiptQuerySchema.safeParse(req.query);
+      if (!query.success) {
+        /*
+         * The offending value is not echoed. It is caller-controlled, a raw
+         * CR/LF in it forges a second log line, and the message already tells
+         * the only party who can act on it what to send instead.
+         */
+        return res.status(400).json({
+          message:
+            "Invalid reconciliation filter. Check status, capturedFrom, capturedTo and limit.",
+        });
+      }
+
+      /*
+       * Rejected up front rather than passed through. A malformed cursor is a
+       * caller mistake, and answering 400 here is what lets every failure from
+       * the query itself be reported honestly as a 500 - inferring "bad
+       * cursor" from a thrown error would report a database outage as the
+       * caller's fault.
+       */
+      const cursor = parseKeysetCursor(req.query.cursor);
+      if (cursor === null) {
+        return res.status(400).json({
+          message:
+            "Unknown or malformed cursor. Use nextCursor from the previous response.",
+        });
+      }
+
+      const statuses = query.data.status;
+      const page = await ProviderReceiptService.listForReconciliation({
+        organisationId,
+        ...(statuses?.length
+          ? { statuses: Array.isArray(statuses) ? statuses : [statuses] }
+          : {}),
+        ...(query.data.capturedFrom
+          ? { capturedFrom: new Date(query.data.capturedFrom) }
+          : {}),
+        ...(query.data.capturedTo
+          ? { capturedTo: new Date(query.data.capturedTo) }
+          : {}),
+        ...(cursor ? { cursor } : {}),
+        limit: query.data.limit,
+      });
+
+      /*
+       * The three fields beside the rows are what stops this being a silently
+       * truncated list: a client that ignores them sees a short page, and one
+       * that reads them can tell the end of the data from the end of a page.
+       */
+      return res.status(200).json({
+        data: page.receipts,
+        meta: {
+          nextCursor: page.nextCursor,
+          hasMore: page.hasMore,
+          limit: page.limit,
+        },
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error listing provider receipts for reconciliation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * The historical mismatch audit (#3170 delivery 4).
+   *
+   * Reports settled provider payments that the journal does not corroborate,
+   * and repairs none of them. The issue is explicit that this audit performs
+   * no automatic guessed repair, which is why the route is a GET with no
+   * counterpart: there is nothing here to invoke a correction with, so no
+   * later caller can mistake one for being available.
+   *
+   * `billing:view:any`, like the queue beside it. The findings are this
+   * organisation's own payments and its own journal rows, which billing staff
+   * can already read one at a time; what the audit adds is that they are read
+   * against each other.
+   *
+   * The organisation comes from `resolveAuthorizedOrganisationId`, never the
+   * query, so a caller cannot name another tenant in the path and audit its
+   * money.
+   */
+  async auditProviderReceipts(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const query = ProviderReceiptAuditQuerySchema.safeParse(req.query);
+      if (!query.success) {
+        return res.status(400).json({
+          message:
+            "Invalid audit window. Check recordedFrom, recordedTo and limit.",
+        });
+      }
+
+      const cursor = parseKeysetCursor(req.query.cursor);
+      if (cursor === null) {
+        return res.status(400).json({
+          message:
+            "Unknown or malformed cursor. Use nextCursor from the previous response.",
+        });
+      }
+
+      const audit = await ProviderReceiptAuditService.auditHistoricalMismatches(
+        {
+          organisationId,
+          ...(query.data.recordedFrom
+            ? { recordedFrom: new Date(query.data.recordedFrom) }
+            : {}),
+          ...(query.data.recordedTo
+            ? { recordedTo: new Date(query.data.recordedTo) }
+            : {}),
+          ...(cursor ? { cursor } : {}),
+          limit: query.data.limit,
+        },
+      );
+
+      return res.status(200).json({
+        data: audit.mismatches,
+        meta: {
+          examined: audit.examined,
+          matched: audit.matched,
+          nextCursor: audit.nextCursor,
+          hasMore: audit.hasMore,
+          limit: audit.limit,
+        },
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error auditing provider receipts against payments", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * A client's available account credit (#3163).
+   *
+   * Read-only, so `billing:view:any` like the reconciliation queue beside it.
+   * The figure is this organisation's own captures against its own invoices,
+   * read together; nothing here moves money.
+   *
+   * The organisation comes from `resolveAuthorizedOrganisationId` and never
+   * from the path, and it is then applied to the invoice as well as the
+   * capture. A `Parent` is global rather than owned by one practice, so a
+   * client id alone is not a tenancy boundary - without the organisation on
+   * both sides this route would answer one practice's question with another
+   * practice's money.
+   */
+  async getClientAccountCredit(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const parentId = z.uuid().safeParse(req.params.parentId);
+      if (!parentId.success) {
+        return res.status(400).json({ message: "Invalid client id." });
+      }
+
+      const credit = await ClientAccountService.getAccountCredit({
+        organisationId,
+        parentId: parentId.data,
+      });
+
+      /*
+       * An empty array is the honest answer for a client with no credit, and
+       * it is the same answer as for a client this organisation has never
+       * invoiced. Distinguishing the two would turn this into a test for
+       * whether a given client id exists somewhere in the estate.
+       */
+      return res.status(200).json({ data: credit, error: null });
+    } catch (error) {
+      logger.error("Error reading client account credit", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * What applying this client's credit to their outstanding invoices would do
+   * (#3163).
+   *
+   * `billing:edit:any`, not the view permission the credit route beside it
+   * carries. This writes nothing, but it is the preview of a decision only a
+   * staff member who may take that decision has any use for, and the tighter
+   * of the two permissions is the safe one to attach to a new route.
+   *
+   * The proposal is returned whole, including the version of every capture it
+   * was taken from, because confirming it is a compare-and-set against that
+   * state - the allocation route refuses a decision taken from state that has
+   * since moved.
+   */
+  async getClientAccountAllocationProposal(
+    this: void,
+    req: Request,
+    res: Response,
+  ) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const parentId = z.uuid().safeParse(req.params.parentId);
+      if (!parentId.success) {
+        return res.status(400).json({ message: "Invalid client id." });
+      }
+
+      const proposal = await ClientAccountService.proposeAllocation({
+        organisationId,
+        parentId: parentId.data,
+      });
+
+      /*
+       * An empty array where there is nothing to propose, for the same reason
+       * the credit route returns one: a client with no spendable credit and a
+       * client this organisation has never invoiced must not be told apart by
+       * anyone who can guess an id.
+       */
+      return res.status(200).json({ data: proposal, error: null });
+    } catch (error) {
+      logger.error("Error proposing client account allocation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * Confirm a client account allocation plan (#3163).
+   *
+   * The organisation and the acting staff member come from the session, as on
+   * the per-capture route beside it: an allocation is an audited money
+   * movement and a request-supplied actor would put an unverified name on it.
+   *
+   * A plan that stopped part way is answered 200 and not 409. The request was
+   * performed, just not all of it, and a status code cannot say "two of five
+   * captures applied" - so the outcome is in the body where it can name which
+   * capture refused, what it refused with, and which captures were never
+   * tried. A 409 here would tell a client to retry a request that already
+   * moved money. The two refusals that write nothing at all are 409, because
+   * for those nothing was performed.
+   */
+  async applyClientAccountAllocation(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const actorId = resolveVerifiedUserId(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "Unauthenticated" });
+      }
+
+      const parentId = z.uuid().safeParse(req.params.parentId);
+      if (!parentId.success) {
+        return res.status(400).json({ message: "Invalid client id." });
+      }
+
+      const body = ClientAccountAllocationBodySchema.safeParse(req.body);
+      if (!body.success) {
+        // The offending value is not echoed: it is caller-controlled and a raw
+        // CR/LF in it forges a second log line.
+        return res.status(400).json({
+          message:
+            "Invalid plan. Send idempotencyKey and one to twenty captures, each with expectedVersion and one to twenty positive allocations.",
+        });
+      }
+
+      /*
+       * An invoice named twice under one capture, for the reason the
+       * per-capture route gives: summing them answers a request the caller did
+       * not make, and the one-allocation-per-pair rule downstream would refuse
+       * the second line as a conflict, which reads as somebody else's write.
+       */
+      for (const entry of body.data.receipts) {
+        const invoiceIds = entry.allocations.map((line) => line.invoiceId);
+        if (new Set(invoiceIds).size !== invoiceIds.length) {
+          return res.status(400).json({
+            message: "Each invoice may appear at most once under one capture.",
+          });
+        }
+      }
+
+      const result = await ClientAccountService.applyAllocation({
+        organisationId,
+        parentId: parentId.data,
+        actorId,
+        idempotencyKey: body.data.idempotencyKey,
+        receipts: body.data.receipts,
+      });
+
+      if (result.outcome !== "APPLIED" && result.outcome !== "STOPPED") {
+        return res.status(409).json({
+          message: CLIENT_ACCOUNT_ALLOCATION_FAILURES[result.outcome],
+          error: {
+            code: result.outcome,
+            ...("receiptId" in result ? { receiptId: result.receiptId } : {}),
+            ...("invoiceId" in result ? { invoiceId: result.invoiceId } : {}),
+          },
+        });
+      }
+
+      return res.status(200).json({
+        data: {
+          outcome: result.outcome,
+          appliedAmount: result.appliedAmount,
+          steps: result.steps,
+          notAttempted: result.notAttempted,
+        },
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error applying client account allocation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * Apply a captured payment to invoices (#3170 delivery 2).
+   *
+   * The organisation and the acting staff member both come from the session.
+   * Neither is read from the body: an allocation is an audited money movement,
+   * and a request-supplied actor would put a name on it that nobody verified.
+   */
+  async allocateProviderReceipt(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const actorId = resolveVerifiedUserId(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "Unauthenticated" });
+      }
+
+      const receiptId = z.uuid().safeParse(req.params.receiptId);
+      if (!receiptId.success) {
+        return res.status(400).json({ message: "Invalid receipt id." });
+      }
+
+      const body = ProviderReceiptAllocationBodySchema.safeParse(req.body);
+      if (!body.success) {
+        /*
+         * The offending value is not echoed, for the same reason the list
+         * route does not echo its filter: it is caller-controlled and a raw
+         * CR/LF in it forges a second log line.
+         */
+        return res.status(400).json({
+          message:
+            "Invalid allocation. Send expectedVersion, idempotencyKey and one to twenty positive allocations.",
+        });
+      }
+
+      /*
+       * Two lines naming the same invoice are rejected here rather than
+       * summed. Summing them would answer a request the caller did not make,
+       * and the one allocation per receipt and invoice rule downstream would
+       * refuse the second line anyway - as a conflict, which reads as though
+       * somebody else had allocated it.
+       */
+      const invoiceIds = body.data.allocations.map((line) => line.invoiceId);
+      if (new Set(invoiceIds).size !== invoiceIds.length) {
+        return res.status(400).json({
+          message: "Each invoice may appear at most once in an allocation.",
+        });
+      }
+
+      const result = await ProviderReceiptService.allocate({
+        organisationId,
+        receiptId: receiptId.data,
+        expectedVersion: body.data.expectedVersion,
+        idempotencyKey: body.data.idempotencyKey,
+        actorId,
+        allocations: body.data.allocations,
+      });
+
+      if (result.outcome !== "APPLIED" && result.outcome !== "REPLAYED") {
+        const failure = PROVIDER_RECEIPT_ALLOCATION_FAILURES[result.outcome];
+        return res.status(failure.status).json({
+          message: failure.message,
+          /*
+           * The machine-readable half. A UI showing "reload and try again"
+           * needs the stored version to reload TO, and one showing which
+           * invoice line to correct needs its id - so the details a client can
+           * act on travel beside the sentence a human reads.
+           */
+          error: {
+            code: result.outcome,
+            ...("version" in result ? { version: result.version } : {}),
+            ...("residual" in result
+              ? { residual: result.residual, requested: result.requested }
+              : {}),
+            ...("invoiceId" in result
+              ? { invoiceId: result.invoiceId, reason: result.reason }
+              : {}),
+          },
+        });
+      }
+
+      return res.status(200).json({
+        data: {
+          receipt: result.receipt,
+          remainingAmount: result.remainingAmount,
+          allocations: result.allocations,
+        },
+        /*
+         * `replayed` rather than a different status code. A retry that found
+         * the decision already taken succeeded, and answering it 409 would
+         * teach clients to treat their own successful write as a failure.
+         */
+        meta: { replayed: result.outcome === "REPLAYED" },
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error allocating a provider receipt", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
   },
 };

@@ -4,7 +4,10 @@ import { Secondary } from '@/app/ui/primitives/Buttons';
 import { LuClipboardList } from 'react-icons/lu';
 import type { SoapCodedProblems, SoapCodedSection, SoapCodedTerm } from '@yosemite-crew/types';
 import SoapCodedTermPicker from '@/app/features/appointments/pages/AppointmentWorkspace/components/SoapCodedTermPicker';
-import type { ClinicalTermDomain } from '@/app/features/appointments/services/clinicalTermsService';
+import type {
+  ClinicalTermDomain,
+  ClinicalTermSpecies,
+} from '@/app/features/appointments/services/clinicalTermsService';
 
 /**
  * Vocabulary domain each section's picker narrows to. Subjective captures what the
@@ -23,6 +26,8 @@ type NativeSoapFieldsProps = {
   assessment: string;
   plan: string;
   codedProblems?: SoapCodedProblems;
+  /** Species bucket for the coded-term pickers; omitted when there is no context. */
+  codedTermSpecies?: ClinicalTermSpecies;
   terminologyText: (text: string) => string;
   onSubjectiveChange: (html: string) => void;
   onObjectiveChange: (html: string) => void;
@@ -38,6 +43,7 @@ const NativeSoapFields = ({
   assessment,
   plan,
   codedProblems,
+  codedTermSpecies,
   terminologyText,
   onSubjectiveChange,
   onObjectiveChange,
@@ -50,6 +56,7 @@ const NativeSoapFields = ({
     <SoapCodedTermPicker
       sectionLabel={sectionLabel}
       domain={SECTION_DOMAIN[section]}
+      species={codedTermSpecies}
       selected={codedProblems?.[section] ?? []}
       onChange={(terms) => onCodedProblemsChange(section, terms)}
     />
@@ -88,7 +95,7 @@ const NativeSoapFields = ({
         {codedPicker('objective', 'Objective')}
         <div className="mt-3 flex justify-end">
           <Secondary
-            text="Record Vitals"
+            text="Record vitals"
             onClick={onRecordVitals}
             icon={<LuClipboardList aria-hidden="true" />}
           />

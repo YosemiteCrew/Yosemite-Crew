@@ -45,7 +45,15 @@ const Harness = ({
 
   return (
     <div className="flex min-h-[420px] flex-col gap-4 p-6">
-      <div className="flex items-center gap-3">
+      {/* `flex-wrap ... sm:flex-nowrap`, copied from SpecialityAccordionRevamp rather
+          than invented. It matters below the `sm` breakpoint, where the bar drops
+          `sm:w-64 sm:ml-auto` for a plain `w-full` and keeps `shrink-0`: in a row that
+          cannot wrap, a full-width item that refuses to shrink overflows by exactly the
+          width of whatever sits beside it - 75px of speciality name, measured at 390.
+          The real accordion wraps it onto its own line and never sees that. A harness
+          that models the parent loosely turns the parent's layout into a bug report
+          against the child. */}
+      <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
         <span className="text-[15px] font-bold text-[var(--ink)]">{specialityName}</span>
         <SpecialitySearchBar
           searchRef={searchRef}

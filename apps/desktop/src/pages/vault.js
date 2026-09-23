@@ -3,10 +3,14 @@
   const yc = globalThis.ycDesktop;
   if (!yc) return;
 
+  const view = globalThis.ycVaultView;
+
   let docs = [];
   let filtered = [];
   let selectedId = null;
   let loadTimer = null;
+  // The element that opened the preview, so closing it can put focus back.
+  let previewOpener = null;
 
   const el = function (id) {
     return document.getElementById(id);
@@ -19,6 +23,9 @@
   const docList = el('docList');
   const loadingMsg = el('loadingMsg');
   const emptyMsg = el('emptyMsg');
+  const noResultsMsg = el('noResultsMsg');
+  const noResultsTitle = el('noResultsTitle');
+  const clearSearch = el('clearSearch');
   const dropZone = el('dropZone');
   const previewPanel = el('previewPanel');
   const previewTitle = el('previewTitle');
@@ -30,6 +37,12 @@
   const previewReveal = el('previewReveal');
   const previewDel = el('previewDel');
   const previewClose = el('previewClose');
+
+  // The reveal button opens the host's file manager, so it has to name the one
+  // the user has: Finder only exists on macOS.
+  previewReveal.textContent = globalThis.ycPlatformLabels.revealLabel(
+    globalThis.ycPlatformLabels.detectPlatform(yc, navigator.userAgent)
+  );
 
   const formatBytes = function (b) {
     if (b < 1024) return b + ' B';
@@ -48,24 +61,22 @@
     });
   };
 
-  const fileIcon = function (mime) {
-    if (mime.startsWith('image/')) return '\u{1F5BC}';
-    if (/^text\/|^application\/(json|xml|javascript)/.test(mime)) return '\u{1F4DD}';
-    if (/pdf/.test(mime)) return '\u{1F4D1}';
-    if (/spreadsheet|excel|csv/.test(mime)) return '\u{1F4CA}';
-    return '\u{1F4C4}';
-  };
-
-  const isImage = function (mime) {
-    return mime.startsWith('image/');
-  };
+  const fileIcon = view.fileIcon;
+  const isImage = view.isImage;
 
   const loadStats = function () {
+    /*
+     * Reset to the neutral state before asking. `.badge` on its own is the green
+     * completed treatment, so leaving it alone would render a GREEN "checking…"
+     * on every load - and keep it green indefinitely if the request fails.
+     */
+    badgeEncryption();
     yc.vaultStats().then(function (res) {
       if (!res?.ok || !res.stats) return;
       const stats = res.stats;
       docCountEl.textContent = stats.count + ' document' + (stats.count === 1 ? '' : 's');
       sizeInfoEl.textContent = formatBytes(stats.totalSizeBytes || 0);
+      badgeEncryption(res.encryptionAvailable);
     });
     yc.getAppVersion().then(function () {
       // Get encryption status from vault-stats (we don't have a separate info channel)
@@ -74,12 +85,44 @@
     // Best-effort: check if vault-save works to infer readiness
   };
 
-  // We don't have vault-get-info, so check encryption from context:
-  // On macOS safeStorage is almost always available. Show status inline.
-  const badgeEncryption = function () {
-    // Can't detect encryption from renderer; just show status
-    encBadge.textContent = 'OS keychain';
-    encBadge.className = 'badge secure';
+  /*
+   * The encryption badge states what the main process reports, and nothing when
+   * it has not reported yet.
+   *
+   * It used to read a hardcoded green "OS keychain" on the reasoning that
+   * safeStorage is almost always available on macOS. That is a probability, not
+   * a fact: the Linux AppImage and deb builds depend on a keyring, and without
+   * one the vault refuses every write (ENCRYPTION_UNAVAILABLE) while the badge
+   * still claimed the documents were encrypted. The same app already prints the
+   * truth in Data > Document Vault Info, so the two surfaces disagreed.
+   */
+  const badgeEncryption = function (encryptionAvailable) {
+    if (encryptionAvailable === true) {
+      encBadge.textContent = 'OS keychain';
+      encBadge.className = 'badge';
+      encBadge.removeAttribute('title');
+      return;
+    }
+    if (encryptionAvailable === false) {
+      /*
+       * "Encryption unavailable", not "Not encrypted". This describes the
+       * keychain's CURRENT capability, which is the only thing the flag knows.
+       * Documents stored while the keychain was available stay encrypted on
+       * disk - losing access blocks new writes, it does not decrypt anything -
+       * so calling the vault "not encrypted" would misstate the files already
+       * in it, which is the same class of false claim this badge is here to
+       * stop making.
+       */
+      encBadge.textContent = 'Encryption unavailable';
+      encBadge.className = 'badge badge-warn';
+      encBadge.title =
+        'The OS keychain is unavailable, so the vault cannot store new documents. Documents saved earlier remain encrypted on disk.';
+      return;
+    }
+    // Unknown: say so rather than guessing either way.
+    encBadge.textContent = 'checking\u2026';
+    encBadge.className = 'badge badge-unknown';
+    encBadge.removeAttribute('title');
   };
 
   const filterDocs = function () {
@@ -175,7 +218,22 @@
     docList.innerHTML = '';
     docList.appendChild(frag);
     loadingMsg.style.display = 'none';
-    emptyMsg.style.display = list.length === 0 ? 'flex' : 'none';
+    showPlaceholder(list.length);
+  };
+
+  /*
+   * An empty list has two causes and they need different words. The page used
+   * to show the empty-vault message for both, so a search that matched nothing
+   * announced "No documents in the vault" while the header beside it still read
+   * "4 documents" and the search count read "0/4" (issue #3297).
+   */
+  const showPlaceholder = function (matchCount) {
+    const which = view.listPlaceholder(matchCount, docs.length);
+    emptyMsg.style.display = which === 'empty-vault' ? 'flex' : 'none';
+    noResultsMsg.style.display = which === 'no-results' ? 'flex' : 'none';
+    if (which === 'no-results') {
+      noResultsTitle.textContent = view.noResultsTitle(searchInput.value);
+    }
   };
 
   // Throttled load
@@ -194,15 +252,34 @@
       docs = (res.documents || []).sort(function (a, b) {
         return b.createdAt - a.createdAt;
       });
-      badgeEncryption();
       loadStats();
       filterDocs();
     });
   };
 
+  /*
+   * `.selected` used to be applied only by renderList, so the row of the
+   * document being previewed lit up on the NEXT render and not when the preview
+   * opened (issue #3297). Both entry points now move the mark themselves.
+   */
+  const markSelectedRow = function (id) {
+    for (const row of docList.children) {
+      const isSelected = row.dataset.id === id;
+      row.classList.toggle('selected', isSelected);
+      if (isSelected) row.setAttribute('aria-current', 'true');
+      else row.removeAttribute('aria-current');
+    }
+  };
+
   const openPreview = function (id) {
+    previewOpener = document.activeElement;
     selectedId = id;
     previewPanel.classList.add('open');
+    // `width: 0` hid the panel visually and left its four buttons in the tab
+    // order as invisible focus stops that still acted on the last previewed
+    // document. `inert` is what actually removes them (issue #3297).
+    previewPanel.removeAttribute('inert');
+    markSelectedRow(id);
     previewBody.scrollTop = 0;
     previewTitle.textContent = 'Loading…';
     previewImg.style.display = 'none';
@@ -263,6 +340,8 @@
       });
     }
 
+    previewClose.focus();
+
     previewExport.onclick = function () {
       exportDoc(id);
     };
@@ -276,8 +355,14 @@
 
   const closePreview = function () {
     previewPanel.classList.remove('open');
+    // Before restoring focus: `inert` blurs whatever inside the panel holds it,
+    // so focusing the opener afterwards is what decides where focus lands.
+    previewPanel.setAttribute('inert', '');
     selectedId = null;
+    markSelectedRow(null);
     previewImg.src = '';
+    if (previewOpener && document.contains(previewOpener)) previewOpener.focus();
+    previewOpener = null;
   };
 
   const exportDoc = function (id) {
@@ -357,6 +442,11 @@
 
   // ── Search ──
   searchInput.addEventListener('input', filterDocs);
+  clearSearch.addEventListener('click', function () {
+    searchInput.value = '';
+    filterDocs();
+    searchInput.focus();
+  });
 
   // ── Preview close ──
   previewClose.addEventListener('click', closePreview);
@@ -365,6 +455,6 @@
   });
 
   // ── Init ──
-  badgeEncryption();
+
   scheduleLoad();
 })();

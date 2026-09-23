@@ -46,8 +46,12 @@ export interface YcDesktop {
   pinTab: (id: string, pinned: boolean) => Promise<unknown>;
   duplicateTab: (id: string) => Promise<unknown>;
   reopenClosedTab: () => Promise<unknown>;
+  showTabContextMenu: (id: string) => Promise<unknown>;
+  onTabContextAction: (
+    callback: (payload: { action: string; tabId: string }) => void
+  ) => () => void;
   setTabZoom: (id: string, level: number) => Promise<unknown>;
-  tabSearch: (open: boolean) => Promise<unknown>;
+  setChromeOverlay: (open: boolean) => Promise<unknown>;
   findInPage: (text: string, forward?: boolean, matchCase?: boolean) => Promise<unknown>;
   stopFindInPage: () => Promise<unknown>;
   openDevTools: () => Promise<unknown>;
@@ -70,8 +74,16 @@ export interface YcDesktop {
   windowMinimize: () => void;
   windowToggleMaximize: () => void;
   windowClose: () => void;
+  // Main pushes the window's maximised (or full-screen) state so the caption
+  // button can show Maximize or Restore. Returns an unsubscribe function.
+  onWindowMaximizedChanged: (callback: (isMaximized: boolean) => void) => () => void;
   idleUnlock: (mode: 'biometric' | 'password') => void;
   onIdleUnlockFailed: (callback: () => void) => () => void;
+  // The host platform, as `process.platform` names it ('darwin', 'win32',
+  // 'linux'). The local pages need it to label keyboard shortcuts and the
+  // system file manager, and a renderer's user agent cannot tell Windows from
+  // Linux reliably. A plain value, not a channel: it never changes at runtime.
+  platform: string;
 }
 
 const api: YcDesktop = {
@@ -135,9 +147,20 @@ const api: YcDesktop = {
     ipcRenderer.invoke('yc:tab-pin', id, pinned),
   duplicateTab: (id: string): Promise<unknown> => ipcRenderer.invoke('yc:tab-duplicate', id),
   reopenClosedTab: (): Promise<unknown> => ipcRenderer.invoke('yc:tab-reopen-closed'),
+  showTabContextMenu: (id: string): Promise<unknown> =>
+    ipcRenderer.invoke('yc:tab-context-menu', id),
+  onTabContextAction: (
+    callback: (payload: { action: string; tabId: string }) => void
+  ): (() => void) => {
+    const handler = (_event: unknown, payload: { action: string; tabId: string }): void =>
+      callback(payload);
+    ipcRenderer.on('yc:tab-context-action', handler);
+    return () => ipcRenderer.removeListener('yc:tab-context-action', handler);
+  },
   setTabZoom: (id: string, level: number): Promise<unknown> =>
     ipcRenderer.invoke('yc:tab-set-zoom', id, level),
-  tabSearch: (open: boolean): Promise<unknown> => ipcRenderer.invoke('yc:tab-search', open),
+  setChromeOverlay: (open: boolean): Promise<unknown> =>
+    ipcRenderer.invoke('yc:chrome-overlay', open),
   findInPage: (text: string, forward?: boolean, matchCase?: boolean): Promise<unknown> =>
     ipcRenderer.invoke('yc:find-in-page', { text, forward, matchCase }),
   stopFindInPage: (): Promise<unknown> => ipcRenderer.invoke('yc:stop-find-in-page'),
@@ -158,6 +181,11 @@ const api: YcDesktop = {
   windowMinimize: (): void => ipcRenderer.send('yc:window-minimize'),
   windowToggleMaximize: (): void => ipcRenderer.send('yc:window-toggle-maximize'),
   windowClose: (): void => ipcRenderer.send('yc:window-close'),
+  onWindowMaximizedChanged: (callback: (isMaximized: boolean) => void): (() => void) => {
+    const handler = (_event: unknown, isMaximized: boolean): void => callback(isMaximized);
+    ipcRenderer.on('yc:window-maximized', handler);
+    return () => ipcRenderer.removeListener('yc:window-maximized', handler);
+  },
   idleUnlock: (mode: 'biometric' | 'password'): void => ipcRenderer.send('yc:idle-unlock', mode),
   // Success needs no event: the main process removes the whole overlay. Only a
   // refused or cancelled prompt leaves the page up with something to say.
@@ -166,6 +194,7 @@ const api: YcDesktop = {
     ipcRenderer.on('yc:idle-unlock-failed', handler);
     return () => ipcRenderer.removeListener('yc:idle-unlock-failed', handler);
   },
+  platform: process.platform,
 };
 
 contextBridge.exposeInMainWorld('ycDesktop', api);

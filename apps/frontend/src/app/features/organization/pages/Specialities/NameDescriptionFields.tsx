@@ -1,4 +1,5 @@
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { Textarea } from '@/app/ui/Input';
 
 type NameDescriptionFieldsProps = {
   name: string;
@@ -38,7 +39,7 @@ const NameDescriptionFields = ({
       >
         Description
       </label>
-      <textarea
+      <Textarea
         id={descId}
         aria-label="Description"
         value={description}

@@ -1,4 +1,4 @@
-import { listApiKeys, createApiKey, revokeApiKey } from '@/app/services/developerApiKeys';
+import { createApiKey, listApiKeys, revokeApiKey } from '@/app/services/developerApiKeys';
 import { getData, postData, deleteData } from '@/app/services/axios';
 
 jest.mock('@/app/services/axios', () => ({

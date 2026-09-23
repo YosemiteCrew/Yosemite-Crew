@@ -54,6 +54,8 @@ type InventoryItemDetails<ItemType = string> = {
   description?: string;
   imageUrl?: string;
   genericName?: string;
+  /** ATCvet substance code, set by the backfill. Read-only in the UI. */
+  atcCode?: string;
   strength?: string;
   dosageForm?: string;
   routeOfAdministration?: string;
@@ -61,17 +63,21 @@ type InventoryItemDetails<ItemType = string> = {
   controlledItem?: boolean;
   storageInstructions?: string;
   unitOfMeasure?: string;
-  packageQuantity?: number;
-  unitQuantity?: number;
+  /* `null`, not just optional. The API reads three states on these: undefined
+     leaves the stored value alone, null clears it, and a number sets it. A
+     blank form field means "cleared", and sending 0 for it is what stored an
+     unpriced item as costing nothing. See `toPayloadNumber` in ./utils. */
+  packageQuantity?: number | null;
+  unitQuantity?: number | null;
   stockUnitType?: string;
   storageLocation?: string;
-  minimumStock?: number;
+  minimumStock?: number | null;
   attributes?: Record<string, any>;
-  onHand?: number;
-  allocated?: number;
-  reorderLevel?: number;
-  unitCost?: number;
-  sellingPrice?: number;
+  onHand?: number | null;
+  allocated?: number | null;
+  reorderLevel?: number | null;
+  unitCost?: number | null;
+  sellingPrice?: number | null;
   currency?: string;
   vendorId?: string;
   status?: string;
@@ -90,8 +96,8 @@ export type InventoryBatchPayload = InventoryBatchIdentity & InventoryBatchDetai
 
 export type InventoryRequestPayload = InventoryBusinessContext &
   InventoryItemDetails<'MEDICAL' | 'NON_MEDICAL'> & {
-    initialOnHand?: number;
-    initialAllocated?: number;
+    initialOnHand?: number | null;
+    initialAllocated?: number | null;
     batches?: InventoryBatchPayload[];
   };
 
@@ -496,6 +502,8 @@ export const SafetyClassificationOptions: string[] = [
 
 export type ClassificationValues = {
   genericName?: string;
+  /** ATCvet substance code, set by the backfill. Read-only in the UI. */
+  atcCode?: string;
   form?: string;
   unitofMeasure?: string | string[];
   species?: string | string[];
@@ -644,6 +652,8 @@ export type BatchValues = {
 export interface InventoryItem {
   id?: string;
   organisationId?: string;
+  /** ATCvet substance code, set by the backfill. Read-only in the UI. */
+  atcCode?: string;
   businessType?: BusinessType;
   currency?: string;
   stockHealth?: StockHealthStatus;

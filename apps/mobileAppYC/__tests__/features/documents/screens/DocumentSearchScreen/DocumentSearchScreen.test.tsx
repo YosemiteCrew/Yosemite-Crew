@@ -9,6 +9,15 @@ import {
   clearSearchResults,
 } from '../../../../../src/features/documents/documentSlice';
 import {mockTheme} from '../../../../setup/mockTheme';
+import {parseISODate} from '../../../../../src/shared/utils/dateHelpers';
+
+// Real parseISODate by default; one test swaps in a sentinel return value.
+jest.mock('../../../../../src/shared/utils/dateHelpers', () => {
+  const actual = jest.requireActual(
+    '../../../../../src/shared/utils/dateHelpers',
+  );
+  return {...actual, parseISODate: jest.fn(actual.parseISODate)};
+});
 
 // --- Mocks ---
 
@@ -405,6 +414,20 @@ describe('DocumentSearchScreen', () => {
     ]);
     const {getByTestId} = render(<DocumentSearchScreen />);
     expect(getByTestId('doc-item-d1')).toBeTruthy();
+  });
+
+  it('reads a date-only issue date as a local calendar day in the meta line', () => {
+    // Jest cannot move the runner west of UTC, so a sentinel proves the meta
+    // line formats parseISODate's local Date, not `new Date('YYYY-MM-DD')`.
+    (parseISODate as jest.Mock).mockReturnValue(new Date(2099, 0, 1));
+    setupStore([makeDoc({id: 'd1', issueDate: '2026-09-15'})]);
+    const {getByText} = render(<DocumentSearchScreen />);
+    expect(parseISODate).toHaveBeenCalledWith('2026-09-15');
+    expect(getByText(/Jan 1$/)).toBeTruthy();
+    (parseISODate as jest.Mock).mockImplementation(
+      jest.requireActual('../../../../../src/shared/utils/dateHelpers')
+        .parseISODate,
+    );
   });
 
   it('clears results when submitting an empty query', () => {

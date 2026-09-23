@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useId, useState, type CSSProperties } from 'react';
-import { TicketCategory } from '@yosemite-crew/types';
+import { CONTACT_MESSAGE_MAX_LENGTH, TicketCategory } from '@yosemite-crew/types';
 import { isEmail } from 'validator';
 import axios from 'axios';
 import {
@@ -22,6 +22,8 @@ import {
 } from '@/app/features/marketing/site';
 import { postData } from '@/app/services/axios';
 import { makeOptions } from '@/app/lib/options';
+import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 
 const NEWSREADER = 'var(--font-newsreader)';
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
@@ -147,9 +149,17 @@ const fieldGroup: CSSProperties = { display: 'flex', flexDirection: 'column', ga
 const groupBlock: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16 };
 
 const errorLine: CSSProperties = {
-  color: 'var(--color-danger-600, #d53225)',
+  color: 'var(--color-danger-600)',
   fontSize: 14,
   marginTop: 4,
+  letterSpacing: '-0.01em',
+};
+
+const counterLine: CSSProperties = {
+  color: 'var(--ink-muted)',
+  fontSize: 13,
+  marginTop: 4,
+  textAlign: 'right',
   letterSpacing: '-0.01em',
 };
 
@@ -271,7 +281,7 @@ const VISUALLY_HIDDEN_INPUT_STYLE: CSSProperties = {
 };
 
 const requiredMark = (
-  <span aria-hidden="true" style={{ color: '#d53225' }}>
+  <span aria-hidden="true" style={{ color: 'var(--color-danger-700)' }}>
     {' '}
     *
   </span>
@@ -353,7 +363,7 @@ function ChannelCard({
         {icon}
       </span>
       <div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-muted)', letterSpacing: '-0.01em' }}>
           {kicker}
         </div>
         <div
@@ -393,6 +403,7 @@ function TextField({
   error,
 }: Readonly<TextFieldProps>) {
   const fieldId = useId();
+  const errorId = `${fieldId}-error`;
   return (
     <div style={fieldGroup}>
       <label className="yc-lbl" htmlFor={fieldId}>
@@ -405,10 +416,16 @@ function TextField({
         type={type}
         value={value}
         aria-label={label}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
-      {error ? <div style={errorLine}>{error}</div> : null}
+      {error ? (
+        <div id={errorId} style={errorLine}>
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -424,6 +441,11 @@ interface TextAreaFieldProps {
   error?: string;
 }
 
+/* Every use of this field is the contact `message`, which the SuperAdmin
+   mirror forwards verbatim and its intake refuses past
+   CONTACT_MESSAGE_MAX_LENGTH, so the bound lives here rather than at each call
+   site. The count is described rather than announced: a live region on a
+   per-keystroke counter reads the whole number out on every character. */
 function TextAreaField({
   label,
   ariaLabel,
@@ -435,6 +457,8 @@ function TextAreaField({
   error,
 }: Readonly<TextAreaFieldProps>) {
   const fieldId = useId();
+  const counterId = `${fieldId}-count`;
+  const errorId = `${fieldId}-error`;
   const style: CSSProperties = {
     resize: 'vertical',
     minHeight: minHeight ?? 116,
@@ -446,16 +470,26 @@ function TextAreaField({
         {label}
         {required ? requiredMark : null}
       </label>
-      <textarea
+      <Textarea
         id={fieldId}
         className="yc-field"
         style={style}
         value={value}
         aria-label={ariaLabel}
         placeholder={placeholder}
+        maxLength={CONTACT_MESSAGE_MAX_LENGTH}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${counterId} ${errorId}` : counterId}
         onChange={(e) => onChange(e.target.value)}
       />
-      {error ? <div style={errorLine}>{error}</div> : null}
+      <div id={counterId} style={counterLine}>
+        {`${value.length} of ${CONTACT_MESSAGE_MAX_LENGTH} characters`}
+      </div>
+      {error ? (
+        <div id={errorId} style={errorLine}>
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -668,8 +702,8 @@ function ContactHero() {
       >
         <ChannelCard
           href="mailto:support@yosemitecrew.com"
-          iconBg="rgba(37,123,237,0.10)"
-          iconBorder="rgba(37,123,237,0.18)"
+          iconBg="color-mix(in srgb, var(--blue) 10%, transparent)"
+          iconBorder="color-mix(in srgb, var(--blue) 18%, transparent)"
           iconColor="var(--blue)"
           icon={<IoAtOutline aria-hidden="true" style={{ fontSize: 22 }} />}
           kicker="Email"
@@ -677,8 +711,8 @@ function ContactHero() {
         />
         <ChannelCard
           href="tel:+4915227763275"
-          iconBg="rgba(0,143,93,0.10)"
-          iconBorder="rgba(0,143,93,0.18)"
+          iconBg="color-mix(in srgb, var(--success) 10%, transparent)"
+          iconBorder="color-mix(in srgb, var(--success) 18%, transparent)"
           iconColor="var(--success)"
           icon={<IoCallOutline aria-hidden="true" style={{ fontSize: 20 }} />}
           kicker="Phone"
@@ -687,6 +721,8 @@ function ContactHero() {
         <ChannelCard
           href={DISCORD_INVITE_URL}
           external
+          // Discord's own brand blurple (#5865F2) - not a design-system colour, so
+          // it stays a literal rather than being pointed at an unrelated token.
           iconBg="rgba(88,101,242,0.12)"
           iconBorder="rgba(88,101,242,0.22)"
           iconColor="#5865F2"
@@ -953,7 +989,7 @@ function SubmitError({ message }: Readonly<{ message: string }>) {
         alignItems: 'center',
         gap: 8,
         fontSize: 14,
-        color: '#d53225',
+        color: 'var(--color-danger-700)',
         letterSpacing: '-0.01em',
       }}
     >
@@ -972,7 +1008,7 @@ function PrivacyNote() {
         margin: 0,
         fontSize: 12.5,
         lineHeight: 1.5,
-        color: 'var(--ink-faint2)',
+        color: 'var(--ink-muted)',
         textAlign: 'center',
         letterSpacing: '-0.01em',
       }}
@@ -1017,27 +1053,13 @@ function DsarFields({ values, setters, errors, confirm, submit }: Readonly<DsarF
         onSelect={setters.setSubselectedRequest}
       />
 
-      <div style={groupBlock}>
-        <label className="yc-lbl" htmlFor="dsar-area">
-          Under the rights of which law are you making this request?
-          {requiredMark}
-        </label>
-        <select
-          id="dsar-area"
-          className="yc-field"
-          data-testid="dynamic-select"
-          aria-label="Under the rights of which law are you making this request?"
-          value={values.area}
-          onChange={(e) => setters.setArea(e.target.value)}
-        >
-          <option value="">Select one</option>
-          {areaOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Dropdown
+        placeholder="Under the rights of which law are you making this request?"
+        value={values.area}
+        onChange={setters.setArea}
+        options={areaOptions}
+        emptyLabel="Select one"
+      />
 
       <div style={groupBlock}>
         <div style={groupHeading}>You are submitting this request to</div>
@@ -1177,7 +1199,7 @@ const SUCCESS_ICON_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(0,143,93,0.12)',
+  background: 'color-mix(in srgb, var(--success) 12%, transparent)',
   color: 'var(--success)',
 };
 

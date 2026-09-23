@@ -2,6 +2,7 @@ import { PatientTransferService } from "../../src/services/patient-transfer.serv
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     patientTransfer: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -18,6 +19,8 @@ jest.mock("../../src/services/audit-trail.service", () => ({
 
 import { prisma } from "src/config/prisma";
 
+const mockPatientOrgFindFirst = prisma.patientOrganisation
+  .findFirst as jest.Mock;
 const mockCreate = prisma.patientTransfer.create as jest.Mock;
 const mockFindFirst = prisma.patientTransfer.findFirst as jest.Mock;
 const mockFindMany = prisma.patientTransfer.findMany as jest.Mock;
@@ -47,7 +50,12 @@ const baseTransfer = {
   updatedAt: new Date(),
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  // Default: the companion belongs to the caller's organisation. Cross-tenant
+  // is asserted explicitly in its own test below.
+  mockPatientOrgFindFirst.mockResolvedValue({ id: "patient-org-1" });
+});
 
 describe("PatientTransferService.create", () => {
   it("creates a specialist referral transfer record", async () => {
@@ -73,6 +81,24 @@ describe("PatientTransferService.create", () => {
     );
     expect(result.transferType).toBe("REFERRAL_SPECIALIST");
     expect(result.ownerInformed).toBe(true);
+  });
+
+  it("refuses to write against a companion in another organisation", async () => {
+    // The caller is a legitimate member of org-1; the companion is not.
+    mockPatientOrgFindFirst.mockResolvedValue(null);
+
+    await expect(
+      PatientTransferService.create({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        transferType: "REFERRAL_SPECIALIST",
+        receivingFacility: "City Veterinary Referral Centre",
+        transferredAt: new Date("2026-06-30T14:00:00Z"),
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    // Rejecting is not enough - nothing may be persisted on the way out.
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
 

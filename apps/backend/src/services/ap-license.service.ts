@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import logger from "src/utils/logger";
+import { apAuthorityBase } from "src/services/ap-authority";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -38,15 +39,6 @@ interface Cache<T> {
 let jwkCache: Cache<JWK[]> | null = null;
 let revokedCache: Cache<string[]> | null = null;
 
-function authorityBase(): string {
-  // The licence authority is SuperAdmin, not this API. Defaulting to the API's
-  // own host meant every deployment had to override this or fetch the signing
-  // key and revocation list from somewhere that does not serve them.
-  return (
-    process.env.AP_LICENSE_AUTHORITY_URL ?? "https://admin.yosemitecrew.com"
-  ).replace(/\/$/, "");
-}
-
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
@@ -61,7 +53,7 @@ async function getJwks(): Promise<JWK[]> {
     return jwkCache.value;
   }
   const data = await fetchJson<{ keys: JWK[] }>(
-    `${authorityBase()}/api/ap/signing-key.json`,
+    `${apAuthorityBase()}/api/ap/signing-key.json`,
   );
   jwkCache = { value: data.keys, fetchedAt: Date.now() };
   return data.keys;
@@ -81,7 +73,7 @@ async function getRevokedJtis(): Promise<string[]> {
   // no instance could ever be verified. The object form is still accepted in
   // case the authority is changed later.
   const data = await fetchJson<string[] | { revokedJtis?: string[] }>(
-    `${authorityBase()}/api/ap/revoked.json`,
+    `${apAuthorityBase()}/api/ap/revoked.json`,
   );
   const jtis = Array.isArray(data) ? data : (data.revokedJtis ?? []);
   revokedCache = { value: jtis, fetchedAt: Date.now() };

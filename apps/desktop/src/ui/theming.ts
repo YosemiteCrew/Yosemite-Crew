@@ -46,3 +46,20 @@ export const applyThemeToWebContents = async (
     return null;
   }
 };
+
+/*
+ * The background Electron paints while a local page is still loading.
+ *
+ * Preferences and the Document Vault were created with Electron's default
+ * white, so on a dark theme the window showed a white rectangle for the frames
+ * before the page painted (issue #3298). The value has to match what the page
+ * itself paints, which is `--screen` in `src/pages/tokens.css`;
+ * tests/theming.test.ts reads that file and fails if the two drift apart.
+ */
+export const LOCAL_PAGE_BACKGROUND = {
+  light: '#f7f3ec',
+  dark: '#2f271e',
+} as const;
+
+export const localPageBackgroundColor = (prefersDark: boolean): string =>
+  prefersDark ? LOCAL_PAGE_BACKGROUND.dark : LOCAL_PAGE_BACKGROUND.light;

@@ -92,6 +92,10 @@ jest.mock('@/app/lib/appointments', () => ({
 
 jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => ({
   getWeekDays: jest.fn(() => [new Date('2025-01-06T00:00:00Z'), new Date('2025-01-07T00:00:00Z')]),
+  getWeekDaysInPreferredTimeZone: jest.fn(() => [
+    new Date('2025-01-06T00:00:00Z'),
+    new Date('2025-01-07T00:00:00Z'),
+  ]),
 }));
 
 jest.mock('@/app/lib/timezone', () => ({
@@ -112,6 +116,19 @@ jest.mock('@/app/lib/timezone', () => ({
   utcClockTimeToPreferredTimeZoneClock: jest.fn((time: string) => {
     const [hours, minutes] = time.split(':').map(Number);
     return { minutes: hours * 60 + minutes, dayOffset: 0 };
+  }),
+  getDateKeyInPreferredTimeZone: jest.fn((date: Date) => date.toISOString().slice(0, 10)),
+  getBrowserLocalDateForPreferredCalendarDay: jest.fn((date: Date) => new Date(date)),
+  getStartOfDayInPreferredTimeZone: jest.fn((date: Date) => {
+    const start = new Date(date);
+    start.setUTCHours(0, 0, 0, 0);
+    return start;
+  }),
+  getStartOfNextDayInPreferredTimeZone: jest.fn((date: Date) => {
+    const start = new Date(date);
+    start.setUTCHours(0, 0, 0, 0);
+    start.setUTCDate(start.getUTCDate() + 1);
+    return start;
   }),
 }));
 

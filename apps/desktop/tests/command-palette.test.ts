@@ -98,8 +98,8 @@ describe('searchPalette', () => {
   test('finds exact match by label', () => {
     const results = searchPalette('Dashboard', TEST_ACTIONS, []);
     expect(results).toHaveLength(1);
-    expect(results[0].item.id).toBe('go-dashboard');
-    expect(results[0].score).toBe(100);
+    expect(results[0]!.item.id).toBe('go-dashboard');
+    expect(results[0]!.score).toBe(100);
   });
 
   test('finds match by keyword', () => {
@@ -113,7 +113,7 @@ describe('searchPalette', () => {
     const results = searchPalette('appointment', TEST_ACTIONS, []);
     expect(results.length).toBeGreaterThan(1);
     for (let i = 1; i < results.length; i++) {
-      expect(results[i].score).toBeLessThanOrEqual(results[i - 1].score);
+      expect(results[i]!.score).toBeLessThanOrEqual(results[i - 1]!.score);
     }
   });
 
@@ -158,12 +158,12 @@ describe('createRecentsStore', () => {
       'go-appointments'
     );
     expect(entries).toHaveLength(1);
-    expect(entries[0].id).toBe('go-appointments');
-    expect(entries[0].label).toBe('Appointments');
+    expect(entries[0]!.id).toBe('go-appointments');
+    expect(entries[0]!.label).toBe('Appointments');
 
     const loaded = store.load();
     expect(loaded).toHaveLength(1);
-    expect(loaded[0].id).toBe('go-appointments');
+    expect(loaded[0]!.id).toBe('go-appointments');
   });
 
   test('recordVisit deduplicates by id and moves to front', () => {
@@ -174,8 +174,8 @@ describe('createRecentsStore', () => {
 
     const loaded = store.load();
     expect(loaded).toHaveLength(2);
-    expect(loaded[0].id).toBe('go-appointments');
-    expect(loaded[1].id).toBe('go-patients');
+    expect(loaded[0]!.id).toBe('go-appointments');
+    expect(loaded[1]!.id).toBe('go-patients');
   });
 
   test('trims to MAX_RECENTS', () => {

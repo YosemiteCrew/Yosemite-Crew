@@ -1,0 +1,65 @@
+{
+  "name": "@yosemitecrew/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server exposing the Yosemite Crew developer data API to AI agents via a developer API key",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/YosemiteCrew/Yosemite-Crew/tree/main/packages/mcp-server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YosemiteCrew/Yosemite-Crew.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/YosemiteCrew/Yosemite-Crew/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "veterinary",
+    "yosemite-crew",
+    "ai-agents",
+    "practice-management"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "type": "module",
+  "bin": {
+    "yc-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "License.txt"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "axios": "^1.19.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "26.5.1",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
+    "tsx": "^4.23.13",
+    "typescript": "5.9.3"
+  }
+}

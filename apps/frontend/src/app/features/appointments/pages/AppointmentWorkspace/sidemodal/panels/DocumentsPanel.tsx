@@ -36,6 +36,7 @@ import {
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { isAuthRedirectError } from '@/app/services/axios';
+import { formatDisplayDate, formatTimeInPreferredTimeZone } from '@/app/lib/date';
 
 type DocumentsPanelProps = {
   appointmentId: string;
@@ -132,20 +133,6 @@ const SIGNING_STATUS_LABEL: Record<string, string> = {
   NOT_STARTED: 'Not started',
   IN_PROGRESS: 'Signing in progress',
   SIGNED: 'Signed',
-};
-
-const formatDate = (value: Date | string | undefined) => {
-  if (!value) return '-';
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
-const formatTime = (value: Date | string | undefined) => {
-  if (!value) return '';
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 };
 
 const StateBadge = ({ label, tone }: { label: string; tone: string }) => (
@@ -599,8 +586,12 @@ const AppointmentFormsPanel = ({
             title: form.name,
             audience,
             auth: resolveFormAuth(audience, formStatus === 'completed'),
-            date: formatDate(updatedAt),
-            time: formatTime(updatedAt),
+            // Was `toLocaleDateString(undefined, …)`/`toLocaleTimeString(undefined, …)`,
+            // the only browser-locale + device-zone formatting in the modal: an en-GB
+            // staff member read "3 Sept 2026 / 22:05" here and "Sep 3, 2026, 10:05 PM"
+            // one tab over in Activity. Both now pin en-US + getPreferredTimeZone().
+            date: formatDisplayDate(updatedAt, '-'),
+            time: formatTimeInPreferredTimeZone(updatedAt),
             submissionId: submission?._id,
           };
         })

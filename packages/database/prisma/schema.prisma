@@ -39,6 +39,18 @@ enum PrescriptionDispenseRequestStatus {
   DISPENSED
 }
 
+enum PrescriptionFillAuthorizationStatus {
+  ACTIVE
+  REVOKED
+  SUPERSEDED
+}
+
+enum PrescriptionFillReservationStatus {
+  RESERVED
+  COMPLETED
+  CANCELLED
+}
+
 enum PatientType {
   dog
   cat
@@ -171,6 +183,7 @@ enum CodeSystem {
   IDEXX
   SNOMED
   VENOM
+  ATCVET
 }
 
 enum CodeType {
@@ -184,6 +197,14 @@ enum CodeType {
   // relationship parents. Kept out of CLINICAL_TERM so clinical autocomplete does not
   // start offering category headings as if they were diagnoses.
   CLINICAL_CATEGORY
+  // An ATCvet substance: the fifth level of the code, the thing that is actually
+  // prescribed ("QJ01AA02 doxycycline").
+  MEDICATION
+  // The four grouping levels above a substance (anatomical main group through
+  // chemical subgroup). Held apart from MEDICATION for the same reason
+  // CLINICAL_CATEGORY is held apart from CLINICAL_TERM: prescribing autocomplete
+  // must offer substances, never the headings they sit under.
+  MEDICATION_CATEGORY
   OTHER
 }
 
@@ -438,6 +459,119 @@ model LabResult {
   @@unique([provider, resultId])
   @@index([provider, orderId])
   @@index([organisationId])
+}
+
+/// A provider result that could not be applied, held aside so that one
+/// unrecognised value cannot stop ingestion for every organisation.
+///
+/// IDEXX confirms a BATCH, not a row, and the poll is global - one client built
+/// from IDEXX_GLOBAL_USERNAME, with organisationId derived per result. Refusing
+/// to confirm a batch containing an unapplicable row therefore halts lab results
+/// for every clinic until the mapper learns the value. Recording the row here is
+/// what makes confirming the rest of the batch safe: the transition is held, not
+/// lost.
+///
+/// Deliberately has NO unique key. The failure this table exists to prevent is a
+/// result disappearing silently, and an upsert key would do exactly that to two
+/// rows in one batch that both arrived without a resultId. A duplicate is cheap;
+/// a dropped row is the bug.
+model LabResultQuarantine {
+  id             String    @id @default(uuid())
+  provider       String
+  batchId        String
+  /// Whatever the provider supplied. Null when it supplied nothing usable,
+  /// which is itself worth seeing rather than coercing to an empty string.
+  resultId       String?
+  orderId        String?
+  labOrderId     String?
+  organisationId String?
+  /// Why it was held. A plain string rather than an enum so a new reason needs
+  /// no migration; the values in use are named as constants in
+  /// idexx-results.service.ts.
+  reason         String
+  externalStatus String?
+  statusDetail   String?
+  modality       String?
+  /// The provider payload as received, so the row can be replayed once the
+  /// mapper is extended.
+  payload        Json?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([provider, resolvedAt])
+  @@index([provider, resultId])
+  @@index([organisationId])
+}
+
+enum MigrationAuditStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum MigrationAuditSection {
+  OWNERS
+  ANIMALS
+  APPOINTMENTS
+  ATTACHMENTS
+}
+
+/// Mirrors FHIR OperationOutcome.issue.severity so a report can be rendered
+/// with `@yosemite-crew/fhir` types at the API boundary without a second enum.
+enum MigrationAuditSeverity {
+  FATAL
+  ERROR
+  WARNING
+  INFORMATION
+}
+
+/// A read-only audit of a candidate migration bundle (#3056). Never writes
+/// clinic records - only records what a bundle contains and what is wrong
+/// with it, scoped to the organisation that uploaded it.
+///
+/// inputHash pins the run to the exact bytes it validated, so re-running the
+/// same bundle is detectably the same input rather than a fresh guess.
+model MigrationAuditRun {
+  id              String                 @id @default(uuid())
+  organisationId  String
+  createdByUserId String
+  status          MigrationAuditStatus   @default(PENDING)
+  /// sha256 of the concatenated source file bytes, in a fixed file order.
+  inputHash       String
+  /// { owners: s3Key, animals: s3Key, appointments: s3Key, attachments?: s3Key }
+  sourceFiles     Json
+  /// Per-section counts once COMPLETED: records seen, supported, not
+  /// assessed, duplicates, orphans. Absent while PENDING/RUNNING.
+  summary         Json?
+  errorMessage    String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  completedAt     DateTime?
+  issues          MigrationAuditIssue[]
+
+  @@index([organisationId, createdAt])
+  @@index([organisationId, inputHash])
+}
+
+/// One finding, pointing at the exact input row it came from. Never stores
+/// the row's raw cell content - a code plus row/column reference is enough to
+/// review, and it keeps an untrusted spreadsheet cell out of this table.
+model MigrationAuditIssue {
+  id          String                 @id @default(uuid())
+  auditRunId  String
+  auditRun    MigrationAuditRun      @relation(fields: [auditRunId], references: [id], onDelete: Cascade)
+  section     MigrationAuditSection
+  severity    MigrationAuditSeverity
+  code        String
+  diagnostics String
+  sourceFile  String
+  rowNumber   Int?
+  createdAt   DateTime               @default(now())
+
+  @@index([auditRunId])
+  @@index([auditRunId, section, severity])
 }
 
 model LabResultSyncState {
@@ -918,6 +1052,8 @@ model Parent {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
+  parasiteRiskSubscriptions ParasiteRiskSubscription[]
+
   @@index([email])
 }
 
@@ -1136,9 +1272,8 @@ model PublicBookingSettings {
   bookingWindowDays Int      @default(28)
   /// Padding added after a publicly booked slot.
   bufferMinutes     Int      @default(10)
-  /// False - the default - means a public request lands as REQUESTED for a human
-  /// to accept. True writes to the calendar directly, and is only ever honoured
-  /// after the requester has confirmed their email address.
+  /// Retained for schema compatibility. Public submissions always land as
+  /// requests for staff review, and application writes normalize this to false.
   autoConfirm       Boolean  @default(false)
   welcomeMessage    String?
   replyToEmail      String?
@@ -1695,7 +1830,7 @@ model OrganizationUsageCounter {
 /// Only the SHA-256 hash is stored; the plaintext secret is shown once at creation.
 model DeveloperApiKey {
   id             String                    @id @default(uuid())
-  organisationId String
+  ownerUserId    String
   name           String
   prefix         String                    @unique
   hashedKey      String                    @unique
@@ -1710,7 +1845,7 @@ model DeveloperApiKey {
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
 
-  @@index([organisationId])
+  @@index([ownerUserId])
   @@index([status])
   @@map("DeveloperApiKeys")
 }
@@ -1727,7 +1862,7 @@ enum DeveloperApiKeyStatus {
 
 model DeveloperSubscription {
   id                       String                      @id @default(uuid())
-  organisationId           String                      @unique
+  ownerUserId              String                      @unique
   plan                     DeveloperPlanTier           @default(free)
   status                   DeveloperSubscriptionStatus @default(active)
   stripeCustomerId         String?
@@ -1762,17 +1897,38 @@ enum DeveloperSubscriptionStatus {
 // Tracks per-org API call counts per billing period.
 // Free tier quota enforcement uses this; Pro tier batches here before reporting to Stripe meters.
 model DeveloperApiUsage {
-  id             String    @id @default(uuid())
-  organisationId String
-  billingPeriod  String
-  callCount      Int       @default(0)
-  lastReportedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  ownerUserId      String
+  billingPeriod    String
+  callCount        Int       @default(0)
+  meteredCallCount Int       @default(0)
+  lastReportedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  @@unique([organisationId, billingPeriod])
+  @@unique([ownerUserId, billingPeriod])
   @@index([billingPeriod])
   @@map("DeveloperApiUsage")
+}
+
+/// Durable Stripe meter delivery. The UUID is also the provider identifier, so
+/// retries after a timeout or process restart cannot count the call twice.
+model DeveloperMeterEvent {
+  id               String    @id @default(uuid())
+  ownerUserId      String
+  billingPeriod    String
+  callSequence     Int
+  stripeCustomerId String?
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime  @default(now())
+  lastAttemptAt    DateTime?
+  failureCode      String?
+  deliveredAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@unique([ownerUserId, billingPeriod, callSequence])
+  @@index([deliveredAt, nextAttemptAt])
+  @@index([ownerUserId, billingPeriod])
 }
 
 enum DevicePlatform {
@@ -1906,6 +2062,7 @@ enum TemplateKind {
   TASK_TEMPLATE
   CARE_PATHWAY
   INVOICE
+  CONSENT
 }
 
 enum RenderedDocumentStatus {
@@ -2027,6 +2184,7 @@ enum RecurrenceType {
   ONCE
   DAILY
   WEEKLY
+  MONTHLY
   CUSTOM
 }
 
@@ -2299,6 +2457,10 @@ model WaitlistEntry {
   status          WaitlistStatus @default(WAITING)
   offeredAt       DateTime?
   bookedAt        DateTime?
+  // The appointment `book()` created once a slot was actually found for this
+  // entry. Unique because booking is a one-time conversion, not a running
+  // link - an entry that is later re-added after cancelling starts a new row.
+  appointmentId   String?        @unique
   expiresAt       DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -2522,6 +2684,9 @@ model Form {
   versions    FormVersion[]
   submissions FormSubmission[]
 
+  draftImportsAsSource FormDraftImport[] @relation("FormDraftImportSource")
+  draftImportAsDraft   FormDraftImport?  @relation("FormDraftImportDraft")
+
   @@index([orgId, status])
   @@index([orgId, category])
   @@index([orgId, businessType, category, status])
@@ -2624,6 +2789,31 @@ model FormAssignment {
   @@index([organisationId, companionId])
   @@index([organisationId, status])
   @@index([templateId, templateVersion])
+}
+
+// A deterministic, human-reviewed conversion of supplied intake-form text into
+// a draft Form (#3055). Never auto-publishes: sourceForm stays untouched until
+// a person uses the existing separate publish endpoint on the draft Form. The
+// stored source snapshot lets the diff view detect a concurrent edit to the
+// source form and refuse to show a comparison against a base that has moved.
+model FormDraftImport {
+  id                      String   @id @default(uuid())
+  organisationId          String
+  sourceFormId            String?
+  sourceFormVersionAtImport Int?
+  sourceFormUpdatedAtImport DateTime?
+  draftFormId             String   @unique
+  suppliedText            String
+  unsupportedConstructs   Json
+  createdByUserId         String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  sourceForm Form? @relation("FormDraftImportSource", fields: [sourceFormId], references: [id], onDelete: SetNull)
+  draftForm  Form  @relation("FormDraftImportDraft", fields: [draftFormId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId])
+  @@index([sourceFormId])
 }
 
 model Template {
@@ -2833,6 +3023,13 @@ model ClinicalArtifact {
   signedBy          String?
   signedAt          DateTime?
   summary           String?
+  // Optimistic-concurrency counter for the whole artifact (#3144). Every write
+  // that changes this row's own status/summary/signature increments it exactly
+  // once, so a caller that read v3 can claim the write with `version: 3` in the
+  // WHERE and lose harmlessly when another session already moved it to v4.
+  // Subtype tables (SoapNote, Prescription, ...) have no counter of their own:
+  // they are only ever written inside the artifact's transaction.
+  version           Int                    @default(1)
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
 
@@ -2854,6 +3051,10 @@ model ClinicalArtifact {
   @@index([organisationId, caseId])
   @@index([templateId, templateVersion])
   @@index([templateVersionId])
+  // The owner-facing read has no organisation - a pet owner's animals may have
+  // been seen at several practices - so it filters on encounterId alone and no
+  // organisationId-leading index above applies to it. See #2709.
+  @@index([encounterId, status])
 }
 
 model SoapNote {
@@ -2876,6 +3077,7 @@ model SoapNote {
 model Prescription {
   id               String                        @id @default(uuid())
   artifactId       String                        @unique
+  supersedesId     String?                       @unique
   items            PrescriptionItem[]
   dispenseRequests PrescriptionDispenseRequest[]
   medications      Json?
@@ -2886,6 +3088,8 @@ model Prescription {
   updatedAt        DateTime                      @updatedAt
 
   artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  supersedes   Prescription? @relation("PrescriptionSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy Prescription? @relation("PrescriptionSupersession")
 
   @@index([artifactId])
 }
@@ -2914,7 +3118,8 @@ model PrescriptionItem {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescription       Prescription                    @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  fillAuthorizations PrescriptionFillAuthorization[]
 
   @@index([prescriptionId, sortOrder])
 }
@@ -2937,6 +3142,89 @@ model PrescriptionDispenseRequest {
 
   @@index([prescriptionId, status, requestedAt])
   @@index([organisationId, status])
+}
+
+/// Structured repeat eligibility for one prescription item (#3162).
+///
+/// `PrescriptionItem.refill` is free text. It stays displayed exactly as the
+/// clinician wrote it and carries no machine-authorised allowance: only a row
+/// here permits a repeat, and its absence is "Not authorised", never
+/// unlimited. An authority is immutable once issued - a correction is a new
+/// row pointing at the one it supersedes - so `version` only moves when a
+/// clinician issues a new authority for the item, which is what lets a stale
+/// `expectedVersion` be refused rather than silently applied.
+model PrescriptionFillAuthorization {
+  id                  String                              @id @default(uuid())
+  organisationId      String
+  patientId           String?
+  prescriptionId      String
+  itemId              String
+  version             Int                                 @default(1)
+  validUntil          DateTime
+  maxAdditionalFills  Int
+  perFillQuantity     Decimal
+  perFillQuantityUnit String
+  status              PrescriptionFillAuthorizationStatus @default(ACTIVE)
+  authorisedBy        String
+  authorisedAt        DateTime                            @default(now())
+  revokedBy           String?
+  revokedAt           DateTime?
+  revokedReason       String?
+  supersedesId        String?                             @unique
+  createdAt           DateTime                            @default(now())
+  updatedAt           DateTime                            @updatedAt
+
+  item         PrescriptionItem               @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  supersedes   PrescriptionFillAuthorization? @relation("PrescriptionFillAuthorizationSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy PrescriptionFillAuthorization? @relation("PrescriptionFillAuthorizationSupersession")
+  reservations PrescriptionFillReservation[]
+
+  @@unique([itemId, version])
+  @@index([organisationId, itemId, status])
+  @@index([organisationId, prescriptionId, status])
+}
+
+/// One fill allocated against an authorisation (#3162).
+///
+/// `fillOrdinal` is an allocation sequence, not a repeat index: ordinal 0 is
+/// the initial fill and a cancelled ordinal is never reused, so the unique
+/// index below can be total. A partial unique index would model "1..N with
+/// reuse" exactly, but Postgres partial indexes are not expressible in this
+/// datamodel and `_migration.yaml`'s drift check emits a DROP for any index
+/// the datamodel does not declare. Remaining capacity is therefore counted
+/// from the non-cancelled rows under an advisory lock, and this index is what
+/// turns a lost lock into a constraint violation rather than an
+/// over-allocation.
+///
+/// `fulfilledQuantity` accumulates on the same ordinal so a partial dispense
+/// does not consume a second repeat; the row completes only when it reaches
+/// `quantity`.
+model PrescriptionFillReservation {
+  id                String                            @id @default(uuid())
+  organisationId    String
+  authorizationId   String
+  itemId            String
+  dispenseRequestId String?
+  fillOrdinal       Int
+  quantity          Decimal
+  fulfilledQuantity Decimal                           @default(0)
+  quantityUnit      String
+  status            PrescriptionFillReservationStatus @default(RESERVED)
+  idempotencyKey    String
+  reservedBy        String?
+  reservedAt        DateTime                          @default(now())
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelledReason   String?
+  createdAt         DateTime                          @default(now())
+  updatedAt         DateTime                          @updatedAt
+
+  authorization PrescriptionFillAuthorization @relation(fields: [authorizationId], references: [id], onDelete: Cascade)
+
+  @@unique([authorizationId, fillOrdinal])
+  @@unique([organisationId, idempotencyKey])
+  @@index([organisationId, status])
+  @@index([dispenseRequestId])
 }
 
 model DischargeSummary {
@@ -3392,6 +3680,9 @@ model InventoryItem {
   attachments             Json?
   attributes              Json                  @default("{}")
   genericName             String?
+  /// ATCvet substance code for medicine items, when one could be matched
+  /// unambiguously. Stock that is not a medicine simply has none.
+  atcCode                 String?
   strength                String?
   dosageForm              String?
   routeOfAdministration   String?
@@ -3424,6 +3715,7 @@ model InventoryItem {
   @@index([organisationId, businessType])
   @@index([organisationId, status])
   @@index([organisationId, vendorId])
+  @@index([atcCode])
 }
 
 model InventoryBatch {
@@ -3648,7 +3940,9 @@ model Occupancy {
 model RegulatoryAuthority {
   id            String  @id @default(uuid())
   country       String?
-  iso2          String?
+  // One authority row per country: the seed upserts on this, and the lookup
+  // endpoint resolves a reporter's country to exactly one authority.
+  iso2          String? @unique
   iso3          String?
   authorityName String?
   phone         String?
@@ -3710,15 +4004,21 @@ model DeviceToken {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
-  userId    String
-  title     String
-  body      String
-  type      NotificationType
-  enabled   Boolean          @default(true)
-  isSeen    Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id         String           @id @default(uuid())
+  userId     String
+  title      String
+  body       String
+  type       NotificationType
+  enabled    Boolean          @default(true)
+  isSeen     Boolean          @default(false)
+  /// Set when the owner archives the notification from the mobile list. Nullable
+  /// rather than a boolean so the row records *when* it left the list, and so
+  /// every notification that predates archiving reads as not archived without a
+  /// backfill. Archiving never deletes: the row stays for audit, and the client
+  /// filters it out of the visible list.
+  archivedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
   @@index([userId])
 }
@@ -5561,9 +5861,18 @@ model ControlledSubstanceLog {
   balanceAfter       Float?
   administeredBy     String?
   notes              String?
+  /// The InventoryConsumptionEvent that moved the stock this entry records, and
+  /// the batch it was drawn from. Set only on entries the dispense and void
+  /// paths write; a hand-entered entry leaves both null. The pair is unique so
+  /// the database, not the call path, is what stops a replayed dispense from
+  /// being entered in the register twice - Postgres treats nulls as distinct,
+  /// so hand-entered rows never collide.
+  sourceEventId      String?
+  inventoryBatchId   String?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
+  @@unique([sourceEventId, inventoryBatchId])
   @@index([organisationId, drug])
   @@index([organisationId, loggedAt])
   @@map("ControlledSubstanceLog")
@@ -5854,6 +6163,10 @@ model DrugFormulary {
   organisationId String
   drugName       String
   genericName    String?
+  /// ATCvet substance code (CodeEntry.system = ATCVET, type = MEDICATION).
+  /// Nullable and never guessed: an unmatched or ambiguous drug stays uncoded
+  /// rather than being filed under the wrong therapeutic class.
+  atcCode        String?
   category       FormularyCategory @default(OTHER)
   manufacturer   String?
   concentration  String?
@@ -5867,6 +6180,7 @@ model DrugFormulary {
 
   @@index([organisationId, isActive])
   @@index([organisationId, category])
+  @@index([atcCode])
   @@map("DrugFormulary")
 }
 
@@ -6795,4 +7109,182 @@ model TaskRecommendationRule {
 
   @@index([species, isActive])
   @@index([taskDefinitionId])
+}
+
+enum ParasiteRiskTier {
+  LOW
+  MODERATE
+  HIGH
+  EXTREME
+}
+
+/// A cached parasite risk reading for one grid cell.
+/// Cells are ~25km squares, so no precise user location is ever stored here.
+model ParasiteRiskCell {
+  id           String           @id @default(uuid())
+  latBucket    Float
+  lonBucket    Float
+  countryCode  String
+  region       String
+  modelVersion String
+  overallTier  ParasiteRiskTier
+  degraded     Boolean          @default(false)
+  /// ParasiteRiskReading[] as computed by the climate models.
+  readings     Json
+  computedAt   DateTime         @default(now())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([latBucket, lonBucket, modelVersion])
+  @@index([computedAt])
+  @@index([countryCode])
+}
+
+/// A location a pet parent has asked to be alerted about.
+model ParasiteRiskSubscription {
+  id          String           @id @default(uuid())
+  parentId    String
+  latBucket   Float
+  lonBucket   Float
+  countryCode String
+  label       String
+  alertTier   ParasiteRiskTier @default(HIGH)
+  /// Map of parasiteId to the tier last alerted on, so a sustained high tier
+  /// does not re-notify every day.
+  alertedTiers Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  parent      Parent           @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, latBucket, lonBucket])
+  @@index([parentId])
+  @@index([latBucket, lonBucket])
+}
+
+/// Why a captured payment cannot be stored as a Payment or a PaymentAttempt:
+/// both require an invoiceId, so nothing can be recorded until an invoice
+/// exists. The appointment-booking webhook has five exits where the card has
+/// already been charged and no invoice can be minted - the appointment is
+/// gone, its appointmentType carries no service id, the service was hard-
+/// deleted with its speciality, a second legitimate intent collides with the
+/// one-invoice-per-appointment index, or the invoice named in the intent's
+/// metadata cannot be found. Every one of those wrote a log line and nothing
+/// else. (#3170)
+enum ProviderReceiptStatus {
+  /// Captured, but the organisation it belongs to could not be resolved.
+  UNATTRIBUTED
+  /// Attributed to an organisation, not yet applied to anything.
+  UNALLOCATED
+  /// Applied in full to an invoice.
+  ALLOCATED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+/// The ingestion journal for captured provider payments.
+///
+/// One row per captured payment, keyed by the provider's own reference so a
+/// redelivered webhook lands on the row it already wrote. Deliberately holds
+/// NO foreign key it could be blocked on: a missing invoice, a deleted
+/// appointment and an unresolvable organisation all still produce a row.
+///
+/// This is a journal, not a ledger. It never posts an account credit - that
+/// belongs to the canonical account receipt in #3163, which links to this row
+/// 1:1. Writing here twice must never mean crediting twice.
+model ProviderReceipt {
+  id                 String                @id @default(uuid())
+  provider           PaymentProvider
+  /// The connected merchant account the money landed in. Two organisations
+  /// using distinct accounts stay isolated even if a provider reference were
+  /// ever reused. Platform-account captures carry the PLATFORM sentinel rather
+  /// than NULL, because NULLs stay distinct in a Postgres unique index and
+  /// would let the same reference be journalled twice.
+  merchantAccountRef String
+  /// The provider's own reference for the capture - a Stripe PaymentIntent id.
+  paymentRef         String
+  /// Nullable on purpose. An UNATTRIBUTED receipt is the whole point: the money
+  /// is recorded first and attributed afterwards.
+  organisationId     String?
+  /// Set only where the ingesting path already knew it. Never guessed.
+  invoiceId          String?
+  appointmentId      String?
+  amount             Float
+  currency           String
+  capturedAt         DateTime
+  status             ProviderReceiptStatus @default(UNATTRIBUTED)
+  /// Why this receipt is in its current state, in the words of the path that
+  /// wrote it. Read by a human doing reconciliation; never parsed.
+  reason             String?
+  /// What the provider says it has given back on this capture, cumulative over
+  /// every refund against it - not the delta of one refund event. Stored that
+  /// way so a redelivered or out-of-order refund webhook is absorbed by
+  /// comparison instead of being added twice.
+  refundedAmount     Float                 @default(0)
+  /// How much of this capture an operator has applied to invoices, cumulative
+  /// over every allocation against it. The residual an operator may still
+  /// allocate is `amount - refundedAmount - allocatedAmount`, and that
+  /// subtraction is the whole reason this is a stored total rather than a sum
+  /// over the allocation rows: the guard that stops a capture being applied
+  /// twice has to be evaluated inside the same compare-and-set that writes it.
+  allocatedAmount    Float                 @default(0)
+  rawProviderPayload Json?
+  /// Bumped on every state change so an allocation can be made conditional on
+  /// the state it was read from (#3170 delivery 2).
+  version            Int                   @default(0)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  allocations ProviderReceiptAllocation[]
+
+  @@unique([provider, merchantAccountRef, paymentRef])
+  @@index([organisationId])
+  @@index([status])
+  @@index([invoiceId])
+  @@index([appointmentId])
+  @@index([capturedAt])
+}
+
+/// One operator decision to apply part of a captured payment to one invoice
+/// (#3170 delivery 2).
+///
+/// The receipt carries the totals; this carries who decided what, and it is
+/// what makes the decision reversible. A refund that has to release an
+/// allocation needs to know which invoices the money went to and how much
+/// went to each - the receipt's `invoiceId` holds at most one of them and says
+/// nothing about the split.
+///
+/// Holds no foreign key to `Invoice`. The journal's rule applies here too: a
+/// record of where money went must not be deletable by the cascade of the
+/// thing it points at, because that is precisely the history a reconciliation
+/// works from.
+model ProviderReceiptAllocation {
+  id             String  @id @default(uuid())
+  receiptId      String
+  invoiceId      String
+  amount         Float
+  /// Supplied by the caller so a retry after a timeout is recognised as the
+  /// same decision rather than posting the money a second time.
+  idempotencyKey String
+  /// The staff member who decided, taken from the session and never from the
+  /// request body.
+  actorId        String
+  /// The `Payment` this allocation posted, filled in once it is posted. NULL
+  /// means the decision is recorded but the money has not been applied yet -
+  /// the state a crash between the two leaves behind, and the state a retry
+  /// with the same idempotency key finishes.
+  paymentId      String?
+  appliedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  receipt ProviderReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  /// One allocation per receipt and invoice. It is what makes the readback
+  /// before posting exact: "has this capture already been applied to this
+  /// invoice" has one answer rather than a set of indistinguishable ones.
+  @@unique([receiptId, invoiceId])
+  @@index([receiptId, idempotencyKey])
+  @@index([invoiceId])
+  @@index([paymentId])
 }

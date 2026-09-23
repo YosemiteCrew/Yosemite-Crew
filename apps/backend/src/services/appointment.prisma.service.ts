@@ -21,6 +21,7 @@ import { FinancePaymentService } from "./finance/payment";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { isSpeciesCompatible } from "./shared/normalize-tokens";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -1050,6 +1051,53 @@ const ensureEncounterOnCheckIn = async (args: {
   return { encounterId: createdEncounter.id, caseId };
 };
 
+/**
+ * The front desk's arrival list and an appointment's own CHECKED_IN status
+ * are two independent state machines that share vocabulary without being
+ * wired together in this direction: `checkInAppointment` runs whenever an
+ * appointment is marked CHECKED_IN, which happens both when the front desk
+ * actually checks someone in (a PatientCheckIn row already exists by then)
+ * AND when staff move it there directly from the Board's "Change status"
+ * modal, which never creates one at all - so the Board shows the patient as
+ * checked in while the front desk's arrival list shows nobody.
+ *
+ * Best-effort and outside the status-change transaction on purpose: this is
+ * a visibility aid for the front desk, not a precondition for the status
+ * change itself, so a failure here must never roll back or block staff from
+ * marking someone checked in.
+ */
+const ensureFrontDeskArrival = async (
+  appointmentId: string,
+  organisationId: string,
+  row: AppointmentRow,
+): Promise<void> => {
+  try {
+    const existing = await prisma.patientCheckIn.findFirst({
+      where: { appointmentId },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const patientId = getPatientId(row.patient);
+    const clientId = getParentIdFromPatient(row.patient);
+    if (!patientId || !clientId) return;
+
+    const now = new Date();
+    await prisma.patientCheckIn.create({
+      data: {
+        organisationId,
+        patientId,
+        clientId,
+        appointmentId,
+        arrivedAt: now,
+        waitStartedAt: now,
+      },
+    });
+  } catch {
+    // Never let the arrival record block or fail the status change it rode in on.
+  }
+};
+
 const assertLeadAvailability = async (args: {
   tx: TransactionClient;
   organisationId: string;
@@ -1388,6 +1436,28 @@ const getParentIdFromRow = (row: AppointmentRow): string | undefined => {
   return typeof parentId === "string" && parentId.trim() ? parentId : undefined;
 };
 
+const canParentViewAppointment = async (
+  row: AppointmentRow,
+  parentId: string,
+): Promise<boolean> => {
+  const patientId = getPatientId(row.patient);
+  if (!patientId) return false;
+
+  const link = await prisma.parentPatient.findFirst({
+    where: {
+      parentId,
+      patientId,
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
+    },
+    select: { role: true, permissions: true },
+  });
+
+  return Boolean(
+    link && hasCompanionFeature(link.role, link.permissions, "appointments"),
+  );
+};
+
 const assertParentOwnsAppointment = (row: AppointmentRow, parentId: string) => {
   if (getParentIdFromRow(row) !== parentId) {
     throw new AppointmentPrismaServiceError(
@@ -1463,79 +1533,84 @@ const createAppointment = async (
     getPatientId(input.patient),
   );
 
-  const created = await prisma.$transaction(async (tx) => {
-    const patientId = getPatientId(input.patient);
-    const resolvedCaseId = await resolveCaseContext({
-      tx,
-      appointmentKind,
-      caseId,
-      organisationId: input.organisationId,
-      patientId,
-      parentId: input.patient.parent?.id,
-      concern: input.concern,
-    });
-
-    await assertEncounterMatchesAppointmentContext({
-      tx,
-      encounterId,
-      caseId: resolvedCaseId,
-      organisationId: input.organisationId,
-      patientId,
-    });
-
-    const templateDefaults = await resolveTemplateDefaultsForSelection({
-      tx,
-      organisationId: input.organisationId,
-      selection,
-    });
-    const appointmentType = attachTemplateDefaults(
-      input.appointmentType,
-      templateDefaults,
-    );
-
-    const appointment = await tx.appointment.create({
-      data: {
-        patient: toJsonValue(input.patient),
-        lead: input.lead ? toJsonValue(input.lead) : Prisma.JsonNull,
-        supportStaff: input.supportStaff ? toJsonValue(input.supportStaff) : [],
-        room: input.room ? toJsonValue(input.room) : Prisma.JsonNull,
-        appointmentType: appointmentType
-          ? toJsonValue(appointmentType)
-          : Prisma.JsonNull,
-        appointmentKind,
-        organisationId: input.organisationId,
-        appointmentDate: input.appointmentDate,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        timeSlot: input.timeSlot,
-        durationMinutes: input.durationMinutes,
-        status,
-        isEmergency: input.isEmergency ?? false,
-        concern: input.concern ?? null,
-        attachments: input.attachments
-          ? toJsonValue(input.attachments)
-          : Prisma.JsonNull,
-        formIds: input.formIds ?? [],
-        caseId: resolvedCaseId ?? null,
-        encounterId: encounterId ?? null,
-        productItemId: selection.productItemId,
-        expiresAt: null,
-      },
-    });
-
-    if (status === "UPCOMING") {
-      await upsertAppointmentOccupancy({
+  const created = await prisma.$transaction(
+    async (tx) => {
+      const patientId = getPatientId(input.patient);
+      const resolvedCaseId = await resolveCaseContext({
         tx,
-        appointmentId: appointment.id,
-        organisationId: appointment.organisationId,
-        leadId: input.lead?.id,
-        startTime: appointment.startTime,
-        endTime: appointment.endTime,
+        appointmentKind,
+        caseId,
+        organisationId: input.organisationId,
+        patientId,
+        parentId: input.patient.parent?.id,
+        concern: input.concern,
       });
-    }
 
-    return appointment;
-  });
+      await assertEncounterMatchesAppointmentContext({
+        tx,
+        encounterId,
+        caseId: resolvedCaseId,
+        organisationId: input.organisationId,
+        patientId,
+      });
+
+      const templateDefaults = await resolveTemplateDefaultsForSelection({
+        tx,
+        organisationId: input.organisationId,
+        selection,
+      });
+      const appointmentType = attachTemplateDefaults(
+        input.appointmentType,
+        templateDefaults,
+      );
+
+      const appointment = await tx.appointment.create({
+        data: {
+          patient: toJsonValue(input.patient),
+          lead: input.lead ? toJsonValue(input.lead) : Prisma.JsonNull,
+          supportStaff: input.supportStaff
+            ? toJsonValue(input.supportStaff)
+            : [],
+          room: input.room ? toJsonValue(input.room) : Prisma.JsonNull,
+          appointmentType: appointmentType
+            ? toJsonValue(appointmentType)
+            : Prisma.JsonNull,
+          appointmentKind,
+          organisationId: input.organisationId,
+          appointmentDate: input.appointmentDate,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          timeSlot: input.timeSlot,
+          durationMinutes: input.durationMinutes,
+          status,
+          isEmergency: input.isEmergency ?? false,
+          concern: input.concern ?? null,
+          attachments: input.attachments
+            ? toJsonValue(input.attachments)
+            : Prisma.JsonNull,
+          formIds: input.formIds ?? [],
+          caseId: resolvedCaseId ?? null,
+          encounterId: encounterId ?? null,
+          productItemId: selection.productItemId,
+          expiresAt: null,
+        },
+      });
+
+      if (status === "UPCOMING") {
+        await upsertAppointmentOccupancy({
+          tx,
+          appointmentId: appointment.id,
+          organisationId: appointment.organisationId,
+          leadId: input.lead?.id,
+          startTime: appointment.startTime,
+          endTime: appointment.endTime,
+        });
+      }
+
+      return appointment;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 
   // Linking the companion to the organisation happens only once the booking has
   // actually been persisted. It used to run BEFORE the transaction, so a payload
@@ -1724,13 +1799,20 @@ export const AppointmentPrismaService = {
   async approveRequestedFromPms(
     appointmentId: string,
     dto: AppointmentRequestDTO,
+    organisationId: string,
   ) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
@@ -1752,28 +1834,39 @@ export const AppointmentPrismaService = {
     }
 
     const patch = applyDtoPatch(row, dto, "UPCOMING");
-    const updated = await prisma.$transaction((tx) =>
-      approveRequestedFromPmsInTransaction({
-        tx,
-        appointmentId,
-        row,
-        patch,
-        patient: input.patient,
-        concern: input.concern,
-        leadId,
-      }),
+    const updated = await prisma.$transaction(
+      (tx) =>
+        approveRequestedFromPmsInTransaction({
+          tx,
+          appointmentId,
+          row,
+          patch,
+          patient: input.patient,
+          concern: input.concern,
+          leadId,
+        }),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
     return toResponse(updated);
   },
 
-  async rejectRequestedAppointment(appointmentId: string) {
+  async rejectRequestedAppointment(
+    appointmentId: string,
+    organisationId: string,
+  ) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
@@ -1859,7 +1952,37 @@ export const AppointmentPrismaService = {
       });
     });
 
+    await ensureFrontDeskArrival(appointmentId, organisationId, row);
+
     return toResponse(updated);
+  },
+
+  async updateAppointmentRoom(
+    appointmentId: string,
+    organisationId: string,
+    room: { id: string; name: string },
+  ) {
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
+
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+    });
+    assertExists(current as AppointmentRow | null, "Appointment not found");
+
+    // No caller uses the return value - this only exists to persist the
+    // room, so it skips the DTO conversion's extra payment-state queries.
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { room: toJsonValue(room), updatedAt: new Date() },
+    });
   },
 
   async admitAppointmentToInpatient(
@@ -2136,111 +2259,114 @@ export const AppointmentPrismaService = {
     });
     assertSelectionSupportsAppointmentKind(selection, appointmentKind);
     const patch = applyDtoPatch(row, dto, input.status ?? row.status);
-    const updated = await prisma.$transaction(async (tx) => {
-      const patientId = getPatientId(input.patient);
-      const resolvedCaseId = await resolveCaseContext({
-        tx,
-        appointmentKind,
-        caseId,
-        organisationId: row.organisationId,
-        patientId,
-        parentId: input.patient.parent?.id,
-        concern: input.concern,
-      });
-
-      await assertEncounterMatchesAppointmentContext({
-        tx,
-        encounterId,
-        caseId: resolvedCaseId,
-        organisationId: row.organisationId,
-        patientId,
-      });
-
-      const templateDefaults = await resolveTemplateDefaultsForSelection({
-        tx,
-        organisationId: row.organisationId,
-        selection,
-      });
-      const appointmentType = attachTemplateDefaults(
-        input.appointmentType ??
-          (row.appointmentType as AppointmentDomain["appointmentType"]),
-        templateDefaults,
-      );
-
-      if (patch.status === "UPCOMING") {
-        await upsertAppointmentOccupancy({
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        const patientId = getPatientId(input.patient);
+        const resolvedCaseId = await resolveCaseContext({
           tx,
-          appointmentId,
+          appointmentKind,
+          caseId,
           organisationId: row.organisationId,
-          leadId: input.lead?.id ?? getLeadIdFromRow(row),
-          startTime: patch.startTime,
-          endTime: patch.endTime,
+          patientId,
+          parentId: input.patient.parent?.id,
+          concern: input.concern,
         });
-      } else {
-        await upsertAppointmentOccupancy({
-          tx,
-          appointmentId,
-          organisationId: row.organisationId,
-          startTime: patch.startTime,
-          endTime: patch.endTime,
-        });
-      }
 
-      // On the transition into IN_PROGRESS, stamp the encounter's real actual-start so the
-      // workspace visit timer runs (bug #1903). Guarantee an encounter first: an appointment can
-      // reach IN_PROGRESS without one (e.g. a CHECKED_IN set from the edit form rather than the
-      // encounter-creating check-in action), and with no encounter there is nowhere to record the
-      // start, so the timer stays "Not started". Thread the ensured ids into the update below so it
-      // does not overwrite the freshly-linked case/encounter back to null.
-      let inProgressEncounterId = encounterId;
-      let inProgressCaseId = resolvedCaseId;
-      if (patch.status === "IN_PROGRESS" && row.status !== "IN_PROGRESS") {
-        if (!inProgressEncounterId) {
-          // Create the encounter from the PATCHED appointment context (patient, kind, type, case,
-          // concern, times) - the same values the update below writes - so a request that both
-          // starts the appointment AND edits it never links an encounter built from stale
-          // pre-update context.
-          const patchedRow = {
-            ...row,
-            patient: input.patient,
-            appointmentKind,
-            appointmentType,
-            concern: input.concern ?? row.concern,
-            startTime: patch.startTime,
-            endTime: patch.endTime,
-            caseId: resolvedCaseId ?? row.caseId,
-            encounterId: null,
-          } as AppointmentRow;
-          const ensured = await ensureEncounterOnCheckIn({
+        await assertEncounterMatchesAppointmentContext({
+          tx,
+          encounterId,
+          caseId: resolvedCaseId,
+          organisationId: row.organisationId,
+          patientId,
+        });
+
+        const templateDefaults = await resolveTemplateDefaultsForSelection({
+          tx,
+          organisationId: row.organisationId,
+          selection,
+        });
+        const appointmentType = attachTemplateDefaults(
+          input.appointmentType ??
+            (row.appointmentType as AppointmentDomain["appointmentType"]),
+          templateDefaults,
+        );
+
+        if (patch.status === "UPCOMING") {
+          await upsertAppointmentOccupancy({
             tx,
             appointmentId,
-            current: patchedRow,
-            caseId: resolvedCaseId,
+            organisationId: row.organisationId,
+            leadId: input.lead?.id ?? getLeadIdFromRow(row),
+            startTime: patch.startTime,
+            endTime: patch.endTime,
           });
-          inProgressEncounterId = ensured.encounterId;
-          inProgressCaseId = ensured.caseId ?? resolvedCaseId;
+        } else {
+          await upsertAppointmentOccupancy({
+            tx,
+            appointmentId,
+            organisationId: row.organisationId,
+            startTime: patch.startTime,
+            endTime: patch.endTime,
+          });
         }
-        await stampEncounterActualStartOnProgress({
-          tx,
-          encounterId: inProgressEncounterId,
-          startedAt: new Date(),
-        });
-      }
 
-      return tx.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          ...patch,
-          appointmentType: appointmentType
-            ? toJsonValue(appointmentType)
-            : toNullableJsonValue(row.appointmentType),
-          caseId: inProgressCaseId ?? null,
-          encounterId: inProgressEncounterId ?? null,
-          productItemId: selection.productItemId,
-          updatedAt: new Date(),
-        },
-      });
-    });
+        // On the transition into IN_PROGRESS, stamp the encounter's real actual-start so the
+        // workspace visit timer runs (bug #1903). Guarantee an encounter first: an appointment can
+        // reach IN_PROGRESS without one (e.g. a CHECKED_IN set from the edit form rather than the
+        // encounter-creating check-in action), and with no encounter there is nowhere to record the
+        // start, so the timer stays "Not started". Thread the ensured ids into the update below so it
+        // does not overwrite the freshly-linked case/encounter back to null.
+        let inProgressEncounterId = encounterId;
+        let inProgressCaseId = resolvedCaseId;
+        if (patch.status === "IN_PROGRESS" && row.status !== "IN_PROGRESS") {
+          if (!inProgressEncounterId) {
+            // Create the encounter from the PATCHED appointment context (patient, kind, type, case,
+            // concern, times) - the same values the update below writes - so a request that both
+            // starts the appointment AND edits it never links an encounter built from stale
+            // pre-update context.
+            const patchedRow = {
+              ...row,
+              patient: input.patient,
+              appointmentKind,
+              appointmentType,
+              concern: input.concern ?? row.concern,
+              startTime: patch.startTime,
+              endTime: patch.endTime,
+              caseId: resolvedCaseId ?? row.caseId,
+              encounterId: null,
+            } as AppointmentRow;
+            const ensured = await ensureEncounterOnCheckIn({
+              tx,
+              appointmentId,
+              current: patchedRow,
+              caseId: resolvedCaseId,
+            });
+            inProgressEncounterId = ensured.encounterId;
+            inProgressCaseId = ensured.caseId ?? resolvedCaseId;
+          }
+          await stampEncounterActualStartOnProgress({
+            tx,
+            encounterId: inProgressEncounterId,
+            startedAt: new Date(),
+          });
+        }
+
+        return tx.appointment.update({
+          where: { id: appointmentId },
+          data: {
+            ...patch,
+            appointmentType: appointmentType
+              ? toJsonValue(appointmentType)
+              : toNullableJsonValue(row.appointmentType),
+            caseId: inProgressCaseId ?? null,
+            encounterId: inProgressEncounterId ?? null,
+            productItemId: selection.productItemId,
+            updatedAt: new Date(),
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     if (patch.status === "COMPLETED") {
       await InvoiceService.markAppointmentReadyForBilling(appointmentId, {
@@ -2278,13 +2404,19 @@ export const AppointmentPrismaService = {
     return toResponse(updated);
   },
 
-  async cancelAppointment(appointmentId: string) {
+  async cancelAppointment(appointmentId: string, organisationId: string) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
@@ -2305,6 +2437,107 @@ export const AppointmentPrismaService = {
         where: { id: appointmentId },
         data: { status: "CANCELLED", updatedAt: new Date() },
       });
+    });
+
+    return toResponse(updated);
+  },
+
+  /**
+   * Same gap as `syncAppointmentOnArrival` (patient-check-in.service.ts), for
+   * the other end of a visit: PatientCheckIn.COMPLETED never touched the
+   * linked Appointment, so the Calendar kept showing "Checked in" for a visit
+   * the front desk had already closed out. A front-desk completion can land
+   * with the appointment still at CHECKED_IN - staff never explicitly moved
+   * it to IN_PROGRESS - so this bridges through IN_PROGRESS first;
+   * `assertAppointmentTransition` only allows one hop at a time. Also runs
+   * the same billing-readiness side effect `updateAppointmentPMS` runs on its
+   * own COMPLETED branch, so a visit closed from the front desk is actually
+   * closed out, not just relabelled.
+   */
+  async completeAppointment(appointmentId: string, organisationId: string) {
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
+
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+    });
+    const row = assertExists(
+      current as AppointmentRow | null,
+      "Appointment not found",
+    );
+
+    const needsInProgressBridge = row.status === "CHECKED_IN";
+    if (needsInProgressBridge) {
+      assertAppointmentTransition(
+        row.status,
+        "IN_PROGRESS",
+        "completeAppointment",
+      );
+    } else {
+      assertAppointmentTransition(
+        row.status,
+        "COMPLETED",
+        "completeAppointment",
+      );
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (needsInProgressBridge) {
+        await tx.appointment.update({
+          where: { id: appointmentId },
+          data: { status: "IN_PROGRESS", updatedAt: new Date() },
+        });
+      }
+      return tx.appointment.update({
+        where: { id: appointmentId },
+        data: { status: "COMPLETED", updatedAt: new Date() },
+      });
+    });
+
+    await InvoiceService.markAppointmentReadyForBilling(appointmentId, {
+      organisationId: row.organisationId,
+    });
+
+    return toResponse(updated);
+  },
+
+  /**
+   * Same gap as `completeAppointment`, for the NO_SHOW terminal status. Only
+   * reachable from UPCOMING per `assertAppointmentTransition` - a no-op in
+   * the common case where the check-in already advanced the appointment to
+   * CHECKED_IN, which is correct: a patient the desk has a check-in record
+   * for did show up.
+   */
+  async markAppointmentNoShow(appointmentId: string, organisationId: string) {
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
+
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+    });
+    const row = assertExists(
+      current as AppointmentRow | null,
+      "Appointment not found",
+    );
+    assertAppointmentTransition(row.status, "NO_SHOW", "markAppointmentNoShow");
+
+    const updated = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: "NO_SHOW", updatedAt: new Date() },
     });
 
     return toResponse(updated);
@@ -2335,7 +2568,8 @@ export const AppointmentPrismaService = {
     }
 
     const canViewAsActor = actorId && canViewOwnAppointment(row, actorId);
-    const canViewAsParent = parentId && getParentIdFromRow(row) === parentId;
+    const canViewAsParent =
+      parentId && (await canParentViewAppointment(row, parentId));
 
     if ((actorId || parentId) && !canViewAsActor && !canViewAsParent) {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);

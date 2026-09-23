@@ -163,6 +163,8 @@ export type {
   UserStatus,
 } from './support/support-types';
 
+export { CONTACT_MESSAGE_MAX_LENGTH } from './support/support-types';
+
 export type {
   ConvertToFhirVetProfileParams,
   OperatingHourType,
@@ -512,3 +514,22 @@ export type {
   AdverseEventReporterInfo,
   AdverseEventStatus,
 } from './adverse-event';
+export type {
+  ParasiteId,
+  ParasiteGroup,
+  ParasiteRiskCellReading,
+  ParasiteRiskReading,
+  ParasiteRiskSubscriptionInput,
+  ParasiteRiskSubscriptionRecord,
+  RiskCellCoordinates,
+  RiskRegion,
+  RiskTier,
+  RiskTrend,
+} from './parasite-risk';
+export {
+  RISK_CELL_SIZE_DEG,
+  RISK_TIERS,
+  isMoreSevereTier,
+  isTierAtLeast,
+  snapToRiskCell,
+} from './parasite-risk';

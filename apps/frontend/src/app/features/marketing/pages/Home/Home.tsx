@@ -29,6 +29,8 @@ import {
   useMagnet,
   useParallax,
   useGithubStats,
+  useCloudUsers,
+  timeAgo,
   HERO_AVATARS,
   COMPANION_PHOTOS,
   HERO_VIDEOS,
@@ -195,7 +197,7 @@ const MANIFESTO_STATEMENT_STYLE: CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.35,
   letterSpacing: '-0.035em',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   textWrap: 'pretty',
 };
 
@@ -278,7 +280,7 @@ const DEV_PLUGIN_ICON_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
 };
 
 const CTA_SUBTITLE_STYLE: CSSProperties = {
@@ -524,9 +526,30 @@ function HeroRecoveryCard() {
     >
       <div style={HERO_STAT_CARD_STYLE}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 26 }}>
-          <span style={{ width: 4, height: '40%', background: '#99bdec', borderRadius: 2 }} />
-          <span style={{ width: 4, height: '65%', background: '#6aa1eb', borderRadius: 2 }} />
-          <span style={{ width: 4, height: '50%', background: '#3b87ec', borderRadius: 2 }} />
+          <span
+            style={{
+              width: 4,
+              height: '40%',
+              background: 'var(--color-brand-600)',
+              borderRadius: 2,
+            }}
+          />
+          <span
+            style={{
+              width: 4,
+              height: '65%',
+              background: 'var(--color-brand-800)',
+              borderRadius: 2,
+            }}
+          />
+          <span
+            style={{
+              width: 4,
+              height: '50%',
+              background: 'var(--color-brand-925)',
+              borderRadius: 2,
+            }}
+          />
           <span style={{ width: 4, height: '90%', background: 'var(--blue)', borderRadius: 2 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -838,7 +861,7 @@ function CompanionCard({ src, alt, label, species }: CompanionCardProps) {
         >
           {label}
         </span>
-        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
+        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-muted)' }}>
           {species}
         </span>
       </div>
@@ -935,7 +958,7 @@ function Manifesto() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             Why we build
@@ -950,7 +973,7 @@ function Manifesto() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#82afec',
+                color: 'var(--spot-blue)',
               }}
             >
               We build for that afternoon.
@@ -962,7 +985,7 @@ function Manifesto() {
             style={{ marginTop: 48, display: 'flex', alignItems: 'center', gap: 16 }}
           >
             <span style={{ height: 1, width: 56, background: '#454341' }} aria-hidden="true" />
-            <span style={{ fontSize: 15, letterSpacing: '-0.01em', color: '#8f8984' }}>
+            <span style={{ fontSize: 15, letterSpacing: '-0.01em', color: 'var(--ink-faint)' }}>
               Offline-first · Desktop, web and mobile · Your data stays yours
             </span>
           </Reveal>
@@ -1009,7 +1032,7 @@ function ScheduleRow({
         background: 'var(--screen)',
       }}
     >
-      <span style={{ fontSize: 13, color: 'var(--ink-faint)', width: 40, flex: 'none' }}>
+      <span style={{ fontSize: 13, color: 'var(--ink-muted)', width: 40, flex: 'none' }}>
         {time}
       </span>
       <span style={{ ...SCHEDULE_ROW_AVATAR_STYLE, background: avatarBg, color: avatarColor }}>
@@ -1029,7 +1052,7 @@ function ScheduleRow({
         <span
           style={{
             fontSize: 12.5,
-            color: 'var(--ink-faint)',
+            color: 'var(--ink-muted)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -1073,7 +1096,7 @@ function PracticeCardHeader() {
           fontSize: 13,
           fontWeight: 500,
           letterSpacing: '-0.01em',
-          color: 'var(--ink-faint)',
+          color: 'var(--ink-muted)',
         }}
       >
         Today · Thursday 3 July
@@ -1084,7 +1107,7 @@ function PracticeCardHeader() {
           alignItems: 'center',
           gap: 6,
           fontSize: 12,
-          color: 'var(--success)',
+          color: 'var(--success-text)',
           fontWeight: 700,
         }}
       >
@@ -1116,7 +1139,7 @@ function PracticeSchedule() {
         >
           Schedule
         </span>
-        <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
+        <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
           12 visits · ↑ 2 from yesterday
         </span>
       </div>
@@ -1235,7 +1258,7 @@ function RecordRow({ icon, text, meta }: RecordRowProps) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <span style={RECORD_ROW_ICON_STYLE}>{icon}</span>
       <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', flex: 1 }}>{text}</span>
-      <span style={{ fontSize: 12, color: 'var(--ink-faint2)' }}>{meta}</span>
+      <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{meta}</span>
     </div>
   );
 }
@@ -1344,7 +1367,7 @@ function PhoneNextVisitCard() {
           <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-body)' }}>
             Sat 5 July · 09:00
           </span>
-          <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
+          <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
             Senior wellness · Dr. Weber
           </span>
         </div>
@@ -1541,12 +1564,19 @@ function DevApiHeader() {
         style={{
           fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
           fontSize: 12,
-          color: '#8f8984',
+          color: 'var(--ink-faint)',
         }}
       >
         GET /fhir/Patient/bella
       </span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: '#33a57d', letterSpacing: '0.06em' }}>
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: 'var(--color-success-500)',
+          letterSpacing: '0.06em',
+        }}
+      >
         200 OK
       </span>
     </div>
@@ -1566,49 +1596,49 @@ function DevApiResponse() {
         overflowX: 'auto',
       }}
     >
-      <span style={{ color: '#8f8984' }}>{'{'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;resourceType&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;Patient&quot;</span>
-      <span style={{ color: '#8f8984' }}>,</span>
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;resourceType&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;Patient&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;id&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;bella-2014&quot;</span>
-      <span style={{ color: '#8f8984' }}>,</span>
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;id&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;bella-2014&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;extension&quot;</span>
-      <span style={{ color: '#8f8984' }}>: [{'{'}</span>
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;extension&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>: [{'{'}</span>
       {'\n    '}
-      <span style={{ color: '#82afec' }}>&quot;url&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;.../animal-species&quot;</span>
-      <span style={{ color: '#8f8984' }}>,</span>
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;url&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;.../animal-species&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n    '}
-      <span style={{ color: '#82afec' }}>&quot;valueCode&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;canine&quot;</span>
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;valueCode&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;canine&quot;</span>
       {'\n  '}
-      <span style={{ color: '#8f8984' }}>{'}],'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'}],'}</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;name&quot;</span>
-      <span style={{ color: '#8f8984' }}>: [{'{'}</span>{' '}
-      <span style={{ color: '#82afec' }}>&quot;text&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;Bella&quot;</span>{' '}
-      <span style={{ color: '#8f8984' }}>{'}],'}</span>
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;name&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>: [{'{'}</span>{' '}
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;text&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;Bella&quot;</span>{' '}
+      <span style={{ color: 'var(--ink-faint)' }}>{'}],'}</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;managingOrganization&quot;</span>
-      <span style={{ color: '#8f8984' }}>: {'{'}</span>
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;managingOrganization&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>: {'{'}</span>
       {'\n    '}
-      <span style={{ color: '#82afec' }}>&quot;display&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;Alpenblick Clinic&quot;</span>
+      <span style={{ color: 'var(--spot-blue)' }}>&quot;display&quot;</span>
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;Alpenblick Clinic&quot;</span>
       {'\n  '}
-      <span style={{ color: '#8f8984' }}>{'}'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'}'}</span>
       {'\n'}
-      <span style={{ color: '#8f8984' }}>{'}'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'}'}</span>
     </pre>
   );
 }
@@ -1635,16 +1665,16 @@ function DevPluginCard() {
             fontSize: 13.5,
             fontWeight: 700,
             letterSpacing: '-0.02em',
-            color: '#eae2d5',
+            color: 'var(--spot-ink)',
           }}
         >
           AI Scribe · your plugin here
         </span>
-        <span style={{ fontSize: 12, color: '#8f8984' }}>
+        <span style={{ fontSize: 12, color: 'var(--spot-ink-faint)' }}>
           Publish to the marketplace in an afternoon
         </span>
       </div>
-      <span style={{ fontSize: 12, color: '#82afec', fontWeight: 500 }}>Install</span>
+      <span style={{ fontSize: 12, color: 'var(--spot-blue)', fontWeight: 500 }}>Install</span>
     </div>
   );
 }
@@ -1734,7 +1764,7 @@ function PrincipleCell({
         gap: 14,
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-faint2)' }}>{number}</span>
+      <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-muted)' }}>{number}</span>
       <h3
         style={{
           margin: 0,
@@ -1818,8 +1848,9 @@ function PrinciplesGrid() {
         padding="40px 0 40px 48px"
         borderLeft
       >
-        Records stay in the country where you practice, under laws you actually agreed to, not
-        wherever cheap servers happened to have spare room that week.
+        The platform is open source and self-hostable, so you can run it in the country you practice
+        in, under laws you actually agreed to, rather than wherever cheap servers happened to have
+        spare room that week.
       </PrincipleCell>
     </div>
   );
@@ -1836,7 +1867,7 @@ function Principles() {
         }}
       >
         <Reveal delay={0} style={{ maxWidth: 760 }}>
-          <Eyebrow color="var(--ink-faint)">Trust, the expensive kind</Eyebrow>
+          <Eyebrow color="var(--ink-muted)">Trust, the expensive kind</Eyebrow>
           <h2
             style={{
               fontFamily: SERIF,
@@ -1939,7 +1970,7 @@ function Metric({ value, label, source, delay }: MetricProps) {
       >
         {label}
       </span>
-      <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
+      <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-muted)' }}>
         {source}
       </span>
     </Reveal>
@@ -1948,6 +1979,8 @@ function Metric({ value, label, source, delay }: MetricProps) {
 
 function BuildingInPublic() {
   const stats = useGithubStats();
+  const cloudUsers = useCloudUsers();
+  const latestSignup = timeAgo(cloudUsers.latestSignupAt ?? undefined);
   return (
     <section style={{ background: 'var(--page)' }}>
       <div
@@ -1969,7 +2002,7 @@ function BuildingInPublic() {
           }}
         >
           <div style={{ maxWidth: 620 }}>
-            <Eyebrow color="var(--ink-faint)">Building in public</Eyebrow>
+            <Eyebrow color="var(--ink-muted)">Building in public</Eyebrow>
             <h2
               style={{
                 fontFamily: SERIF,
@@ -1998,34 +2031,40 @@ function BuildingInPublic() {
           data-grid-2-m="true"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(5, 1fr)',
             gap: 'clamp(24px, 3vw, 48px)',
             marginTop: 'clamp(40px, 5vw, 64px)',
           }}
         >
           <Metric
+            value={cloudUsers.totalUsers ?? '·'}
+            label="Cloud users"
+            source={latestSignup ? `live · last signup ${latestSignup}` : 'live via Yosemite Crew'}
+            delay={0}
+          />
+          <Metric
             value={stats.repositoryClones ?? '·'}
             label="Repository clones"
             source="live via GitHub"
-            delay={0}
+            delay={80}
           />
           <Metric
             value={stats.contributors ?? '·'}
             label="Contributors"
             source="live via GitHub"
-            delay={80}
+            delay={160}
           />
           <Metric
             value={stats.discord ?? '·'}
             label="Discord members"
             source="live via Discord"
-            delay={160}
+            delay={240}
           />
           <Metric
             value={stats.starsFull ?? '·'}
             label="Repo stars"
             source="live via GitHub"
-            delay={240}
+            delay={320}
           />
         </div>
       </div>

@@ -549,6 +549,46 @@ describe('AddInventory Component', () => {
     expect(screen.getByTestId('active-label')).toHaveTextContent('pricing');
   });
 
+  it('blocks a selling price below the purchase cost on the pricing step', () => {
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Item' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Cat' } });
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: '5' } });
+
+    fireEvent.click(screen.getByTestId('save-btn')); // basic -> classification
+    fireEvent.click(screen.getByTestId('save-btn')); // classification -> batch
+    fireEvent.click(screen.getByTestId('save-btn')); // batch -> stock
+    fireEvent.click(screen.getByTestId('save-btn')); // stock -> pricing
+    expect(screen.getByTestId('active-label')).toHaveTextContent('pricing');
+
+    // Selling below purchase cost - both present and numeric, so this is the
+    // one case only the new cross-field check can catch.
+    fireEvent.change(screen.getByTestId('in-cost'), { target: { value: '20' } });
+    fireEvent.change(screen.getByTestId('in-sell'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    expect(screen.getByTestId('active-label')).toHaveTextContent('pricing');
+  });
+
+  it('allows a selling price at or above the purchase cost through the pricing step', () => {
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Item' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Cat' } });
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: '5' } });
+
+    fireEvent.click(screen.getByTestId('save-btn')); // basic -> classification
+    fireEvent.click(screen.getByTestId('save-btn')); // classification -> batch
+    fireEvent.click(screen.getByTestId('save-btn')); // batch -> stock
+    fireEvent.click(screen.getByTestId('save-btn')); // stock -> pricing
+
+    fireEvent.change(screen.getByTestId('in-cost'), { target: { value: '20' } });
+    fireEvent.change(screen.getByTestId('in-sell'), { target: { value: '20' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    // Equal to cost is a valid (zero-margin) price, not a blocked one - advances off pricing.
+    expect(screen.getByTestId('active-label')).not.toHaveTextContent('pricing');
+  });
+
   it('validates the reorder level on the stock step', () => {
     render(<AddInventory {...props} />);
 

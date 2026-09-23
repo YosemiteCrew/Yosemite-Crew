@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   formatDateInPreferredTimeZone,
+  getDatePartsInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 
@@ -22,7 +23,11 @@ import {
  */
 const CalendarWeekDayCell = ({ day, now }: { day: Date; now: Date }) => {
   const weekday = formatDateInPreferredTimeZone(day, { weekday: 'short' });
-  const dateNumber = day.getDate();
+  // Read the day-of-month from the same preferred-timezone conversion `weekday`
+  // already uses, rather than the browser's own `getDate()` - otherwise the two
+  // labels can name different calendar days for a browser far enough from the
+  // clinic's preferred timezone.
+  const dateNumber = getDatePartsInPreferredTimeZone(day).day;
   const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
 
   return (

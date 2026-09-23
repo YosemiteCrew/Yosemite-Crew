@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { submitSignIn, waitForRouteAwayFrom } from './support/auth';
 
 // Signs in with a real credential, exactly as auth-flow.spec.ts does, so the
 // same artefact suppression applies: Playwright records input values verbatim
@@ -52,13 +53,8 @@ const signIn = async (page: Page) => {
   await page.goto(LOGIN_PATH, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('load', { timeout: 30_000 });
 
-  const emailInput = page.locator('input[name="email"]');
-  await expect(emailInput).toBeVisible();
-  await emailInput.fill(email);
-  await page.locator('input[name="password"]').fill(password);
-  await page.getByRole('button', { name: /^sign in$/i }).click();
-
-  await expect.poll(() => new URL(page.url()).pathname, { timeout: 60_000 }).not.toBe(LOGIN_PATH);
+  await submitSignIn(page, email, password);
+  await waitForRouteAwayFrom(page, LOGIN_PATH);
   return true;
 };
 

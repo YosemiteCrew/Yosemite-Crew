@@ -1,0 +1,196 @@
+import { toHtml } from 'hast-util-to-html';
+import { visit } from 'unist-util-visit';
+import type { Element } from 'hast';
+import { loadCorpus } from '@/app/features/docs/corpus';
+import { renderDoc } from '@/app/features/docs/render';
+
+/** Heading text, for naming the offending heading when an ordering check fails. */
+const textOf = (node: Element): string => {
+  let out = '';
+  visit(node, 'text', (child: { value: string }) => {
+    out += child.value;
+  });
+  return out.trim();
+};
+
+/*
+ * renderDoc returns a sanitised HAST tree, not an HTML string - the page
+ * renders it as React elements, so the feature has no innerHTML sink at all.
+ * These assertions are about the sanitiser's output, so they serialise the
+ * tree here; the production path never produces a string.
+ */
+
+/**
+ * The corpus is untrusted input: this is an open-source repository that accepts
+ * documentation pull requests, so a contributed page is attacker-controlled
+ * markdown. These tests are the security boundary, not a formatting check.
+ */
+describe('renderDoc sanitisation', () => {
+  const corpus = loadCorpus();
+  const asEntry = (body: string) => ({
+    ...corpus[0],
+    file: 'test.md',
+    body,
+  });
+
+  const render = async (markdown: string) =>
+    toHtml((await renderDoc(asEntry(markdown), corpus)).tree);
+
+  const carriesExecutableAttribute = (html: string) =>
+    /<[^>]+\son[a-z]+\s*=/i.test(html) ||
+    /<script|<iframe|<object|<embed|<form/i.test(html) ||
+    /<[^>]+\sstyle\s*=/i.test(html) ||
+    /(?:href|src)\s*=\s*["']?\s*(?:javascript|data):/i.test(html);
+
+  it.each([
+    ['a raw script tag', '<script>alert(1)</script>'],
+    ['an onerror attribute', '<img src=x onerror="alert(1)">'],
+    ['an attribute smuggled onto a heading', '## Bug {#x onclick="alert(1)"}'],
+    ['a javascript: link', '[click](javascript:alert(1))'],
+    ['an inline style', '<b style="position:fixed;top:0">x</b>'],
+    ['an iframe', '<iframe src="https://evil.test"></iframe>'],
+    ['an svg onload', '<svg onload="alert(1)"></svg>'],
+    ['a data: link', '[x](data:text/html;base64,PHNjcmlwdD4=)'],
+    ['a form', '<form action="//evil"><input name="p"></form>'],
+    ['a mouseover handler', '<a href="/x" onmouseover="alert(1)">y</a>'],
+    ['an object tag', '<object data="//evil"></object>'],
+    ['a meta refresh', '<meta http-equiv="refresh" content="0;url=//evil">'],
+  ])('strips %s', async (_label, markdown) => {
+    expect(carriesExecutableAttribute(await render(markdown))).toBe(false);
+  });
+
+  /*
+   * The attribute-injection case above is the one a hand-rolled allowlist gets
+   * wrong: a validator that walks only raw-HTML nodes never sees an attribute
+   * a markdown plugin wrote onto a heading. rehype-sanitize runs last over the
+   * finished tree, so the shape of the source does not matter.
+   */
+  it('renders a smuggled attribute as text rather than an attribute', async () => {
+    const html = await render('## Bug {#x onclick="alert(1)"}');
+    expect(html).toMatch(/<h2 id="[^"]*">/);
+    /*
+     * The braces survive as visible TEXT, which is correct and harmless - this
+     * pipeline has no markdown-it-attrs, so `{...}` is never interpreted. The
+     * assertion has to be about an ATTRIBUTE on an element, because a substring
+     * check would flag the literal text and read as a vulnerability that is not
+     * there.
+     */
+    expect(html).not.toMatch(/<[^>]+\sonclick\s*=/i);
+    expect(html).toContain('Bug {#x onclick="alert(1)"}');
+  });
+
+  it('keeps heading ids unprefixed, because they are a published URL surface', async () => {
+    const html = await render('## Prerequisites');
+    expect(html).toContain('id="prerequisites"');
+    expect(html).not.toContain('user-content-');
+  });
+
+  it('keeps the heading-anchor class used to exempt headings from prose-link styling', async () => {
+    const html = await render('## Prerequisites');
+    expect(html).toContain('class="DocsHeadingAnchor"');
+  });
+
+  it('preserves the sanitizer default class used by footnote back-links', async () => {
+    const html = await render('Reference[^1].\n\n[^1]: Footnote');
+    expect(html).toContain('class="data-footnote-backref"');
+  });
+
+  it('keeps highlighter class names, which the CSP-safe theme needs', async () => {
+    const html = await render('```ts\nconst a: number = 1;\n```');
+    expect(html).toMatch(/hljs/);
+    expect(html).not.toMatch(/\sstyle=/);
+  });
+
+  it('marks external links noopener and leaves internal ones alone', async () => {
+    const html = await render('[out](https://example.com) and [in](/apps/backend)');
+    expect(html).toMatch(/rel="noopener noreferrer"/);
+    expect(html).toMatch(/href="\/docs\/apps\/backend"/);
+  });
+});
+
+describe('renderDoc over the real corpus', () => {
+  const corpus = loadCorpus();
+
+  /*
+   * Axe's `heading-order` rule reads the whole rendered page, and DocsShell
+   * prints `<h1 className="DocsTitle">{title}</h1>` above the body
+   * (DocsShell.tsx). So the outline every page starts from is h1, and the
+   * body's own headings continue it - which is why `previous` is seeded at 1
+   * rather than at the first heading found.
+   *
+   * This runs over the whole corpus, not just the page that was reported: the
+   * defect was a markdown-authoring shape, and a per-page assertion would let
+   * the next contributed document reintroduce it unnoticed.
+   */
+  it('never skips a heading level on any page', async () => {
+    const skips: string[] = [];
+
+    for (const entry of corpus) {
+      const { tree } = await renderDoc(entry, corpus);
+      let previous = 1;
+      visit(tree, 'element', (node: Element) => {
+        const match = /^h([1-6])$/.exec(node.tagName);
+        if (!match) return;
+        const level = Number(match[1]);
+        if (level > previous + 1) {
+          skips.push(`${entry.file}: h${previous} -> h${level} at "${textOf(node)}"`);
+        }
+        previous = level;
+      });
+    }
+
+    expect(skips).toEqual([]);
+  });
+
+  it('labels the overview repository link as GitHub', async () => {
+    const overview = corpus.find((entry) => entry.id === 'overview');
+    expect(overview).toBeDefined();
+
+    const html = toHtml((await renderDoc(overview!, corpus)).tree);
+    expect(html).toContain(
+      '<a href="https://github.com/YosemiteCrew/Yosemite-Crew" target="_blank" rel="noopener noreferrer">GitHub</a>'
+    );
+    expect(html).not.toContain('>Twitter</a>');
+  });
+
+  it('keeps the overview prerequisites directly below the installation heading', async () => {
+    const overview = corpus.find((entry) => entry.id === 'overview');
+    expect(overview).toBeDefined();
+
+    const rendered = await renderDoc(overview!, corpus);
+    expect(rendered.toc).toContainEqual({ id: 'prerequisites', text: 'Prerequisites', depth: 2 });
+  });
+
+  it('renders every page without throwing', async () => {
+    const results = await Promise.all(
+      corpus.map(async (entry) => ({
+        file: entry.file,
+        html: toHtml((await renderDoc(entry, corpus)).tree),
+      }))
+    );
+    const empty = results.filter((result) => result.html.trim().length < 20);
+    expect(empty).toEqual([]);
+    expect(results).toHaveLength(corpus.length);
+  });
+
+  /*
+   * A docs site whose links 404 is the failure this whole migration exists to
+   * fix, so a link that resolves to nothing fails the build rather than
+   * shipping.
+   */
+  it('leaves no broken internal link anywhere in the corpus', async () => {
+    const broken: Record<string, string[]> = {};
+    for (const entry of corpus) {
+      const { brokenLinks } = await renderDoc(entry, corpus);
+      if (brokenLinks.length) broken[entry.file] = brokenLinks;
+    }
+    expect(broken).toEqual({});
+  });
+
+  it('extracts a table of contents', async () => {
+    const total = (
+      await Promise.all(corpus.map(async (e) => (await renderDoc(e, corpus)).toc.length))
+    ).reduce((sum, count) => sum + count, 0);
+    expect(total).toBeGreaterThan(300);
+  });
+});

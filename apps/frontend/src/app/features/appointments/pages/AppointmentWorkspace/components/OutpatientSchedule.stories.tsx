@@ -368,12 +368,28 @@ export const Phone: Story = {
       'Photobiomodulation and underwater treadmill rehabilitation review · session 2 of 6'
     );
     const row = title.closest('li') as HTMLElement;
+    const subline = within(row).getByText('09:30 · 20 min · Dr. Ravi Menon · Rehab suite');
     const pill = within(row).getByText('Scheduled');
 
-    // The title column is `min-w-0 flex-1 truncate`: it has to clip rather than
-    // widen the row. Without `min-w-0` the flex item refuses to shrink below its
-    // content and pushes the pill out past the card edge - invisible at 1280px.
-    await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
+    /* The title and subline WRAP instead of truncating (#2790). Reintroducing
+       `truncate` here clips the tail of the title and, on a phone, leaves it
+       unreachable - `scrollWidth > clientWidth` is the failure shape, so the
+       fitted assertions below are the guard.
+
+       The control keeps it honest: a title short enough to sit on one line
+       would make `scrollWidth <= clientWidth` pass for free whatever the
+       classes say. Measured with the wrap disabled as its nowrap width, the
+       long title must still overflow the column it ships in. Without `min-w-0`
+       on the flex column the title would also push the pill out past the card
+       edge - invisible at desktop widths - so the pill stays asserted inside. */
+    const columnWidth = title.clientWidth;
+    title.style.whiteSpace = 'nowrap';
+    const singleLineWidth = title.scrollWidth;
+    title.style.whiteSpace = '';
+    await expect(singleLineWidth).toBeGreaterThan(columnWidth);
+
+    await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth);
+    await expect(subline.scrollWidth).toBeLessThanOrEqual(subline.clientWidth);
     await expect(pill.getBoundingClientRect().right).toBeLessThanOrEqual(
       row.getBoundingClientRect().right
     );
@@ -382,9 +398,11 @@ export const Phone: Story = {
     docs: {
       description: {
         story:
-          'The row at phone width with a title long enough to need the clamp. The day marker, the ' +
-          'status pill and the overflow glyph are all `shrink-0`, so the title is the only part ' +
-          'that gives - and it has to.',
+          'The row at phone width with a title long enough to need more than one line. The day ' +
+          'marker, the status pill and the overflow glyph are all `shrink-0`, so the title is ' +
+          'the only part of the row that gives. Since #2790 it wraps rather than truncating: ' +
+          'the column stays the same width, the pill stays inside the card, and the tail of ' +
+          'the title is reachable on a surface that has no hover.',
       },
     },
   },

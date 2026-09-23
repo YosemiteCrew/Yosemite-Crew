@@ -31,6 +31,25 @@ const BEHAVIOURAL: ClinicalTermSuggestion = {
   synonyms: ['anomalía del comportamiento', 'Verhaltensauffälligkeit'],
 };
 
+/**
+ * A real pair from the shipped vocabulary: one small-animal concept and one equine
+ * concept, same label, same domain, same SNOMED crosswalk, different YC code.
+ */
+const ABSCESS_SA: ClinicalTermSuggestion = {
+  ycCode: 'YC-007141',
+  label: 'Abscess',
+  domain: 'Diagnosis',
+  species: ['SA'],
+  synonyms: [],
+  codings: [{ system: 'SNOMED', code: '128477000', equivalence: 'EQUIVALENT' }],
+};
+
+const ABSCESS_EQUINE: ClinicalTermSuggestion = {
+  ...ABSCESS_SA,
+  ycCode: 'YC-010840',
+  species: ['EQUINE'],
+};
+
 const PINNED: SoapCodedTerm[] = [
   { ycCode: 'YC-005416', label: 'Gastroenteritis', domain: 'Diagnosis' },
   { ycCode: 'YC-004120', label: 'Behavioural abnormality', domain: 'Diagnosis' },
@@ -390,5 +409,44 @@ export const Phone: Story = {
     await expect(globalThis.document.documentElement.scrollWidth).toBeLessThanOrEqual(
       globalThis.window.innerWidth
     );
+  },
+};
+
+/**
+ * The shipped vocabulary holds 189 pairs of active terms that share a label inside
+ * one domain - 185 of them a small-animal term and its equine counterpart - and 180
+ * of those pairs carry the same crosswalk. Typing the shared label puts both rows in
+ * the top ten for every one of the 189, so the species is the only thing that tells
+ * them apart, and the row shows it exactly when a label is repeated.
+ */
+export const AmbiguousLabel: Story = {
+  name: 'Two terms share a label',
+  beforeEach: withSuggestions({ items: [ABSCESS_SA, ABSCESS_EQUINE] }),
+  play: async ({ canvasElement }) => {
+    await userEvent.type(searchField(canvasElement), 'abscess');
+    await waitFor(() => expect(openResultsPanel(canvasElement)).not.toBeNull(), { timeout: 3000 });
+
+    const panel = within(resultsPanel(canvasElement));
+    await expect(panel.getByText('YC-007141 · SNOMED 128477000 · Small animal')).toBeVisible();
+    await expect(panel.getByText('YC-010840 · SNOMED 128477000 · Equine')).toBeVisible();
+  },
+};
+
+/**
+ * The counterpart: most terms carry several species, so naming it on every row
+ * would be noise on the rows that need it least. A label that appears once is
+ * unambiguous and keeps the origin line it has today.
+ */
+export const UniqueLabelKeepsItsOrigin: Story = {
+  name: 'A unique label shows no species',
+  beforeEach: withSuggestions({ items: [ABSCESS_SA, GDV] }),
+  play: async ({ canvasElement }) => {
+    await userEvent.type(searchField(canvasElement), 'a');
+    await userEvent.type(searchField(canvasElement), 'bscess');
+    await waitFor(() => expect(openResultsPanel(canvasElement)).not.toBeNull(), { timeout: 3000 });
+
+    const panel = within(resultsPanel(canvasElement));
+    await expect(panel.getByText('YC-007141 · SNOMED 128477000')).toBeVisible();
+    await expect(panel.queryByText(/Small animal/)).toBeNull();
   },
 };

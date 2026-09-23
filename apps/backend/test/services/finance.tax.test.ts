@@ -324,6 +324,77 @@ describe("finance tax helpers", () => {
     expect(snapshot.providerReferenceId).toBe("upcoming_in_2");
   });
 
+  it("uses the currency minor unit throughout a zero-decimal tax preview", async () => {
+    const createPreview = jest.fn().mockResolvedValue({
+      id: "upcoming_in_jpy",
+      total_excluding_tax: 1997,
+      total_taxes: [{ amount: 300 }],
+      automatic_tax: { enabled: true },
+    });
+    __setFinanceTaxStripeClientForTests({
+      invoices: { createPreview } as any,
+    } as any);
+
+    const snapshot = await previewInvoiceTaxSnapshot(undefined, {
+      provider: DEFAULT_TAX_PROVIDER,
+      taxBehavior: "EXCLUSIVE",
+      taxRatePercent: 15,
+      currency: "jpy",
+      invoiceDiscount: { type: "FIXED_AMOUNT", value: 3 },
+      pricing: {
+        subtotal: 2000,
+        lineDiscountTotal: 0,
+        taxableSubtotal: 1997,
+        taxTotal: 0,
+        invoiceDiscountTotal: 3,
+        totalAmount: 1997,
+        lines: [
+          {
+            grossAmount: 1000,
+            lineDiscountAmount: 0,
+            netAmount: 1000,
+            taxableAmount: 1000,
+            taxAmount: 0,
+            totalAmount: 1000,
+          },
+          {
+            grossAmount: 1000,
+            lineDiscountAmount: 0,
+            netAmount: 1000,
+            taxableAmount: 1000,
+            taxAmount: 0,
+            totalAmount: 1000,
+          },
+        ],
+      },
+      lineItems: [
+        { description: "Consultation", quantity: 1, unitPrice: 1000 },
+        { description: "Follow-up", quantity: 1, unitPrice: 1000 },
+      ],
+      customerAddress: {
+        line1: "1 Main St",
+        city: "Tokyo",
+        postal_code: "100-0001",
+        country: "JP",
+      },
+    });
+
+    expect(createPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currency: "jpy",
+        invoice_items: [
+          expect.objectContaining({ amount: 998 }),
+          expect.objectContaining({ amount: 999 }),
+        ],
+      }),
+    );
+    expect(snapshot.taxableSubtotal).toBe(1997);
+    expect(snapshot.taxAmount).toBe(300);
+    expect(snapshot.taxBreakdown).toEqual(
+      expect.objectContaining({ totalAmount: 2297 }),
+    );
+  });
+
   it("throws when the Stripe secret key is missing for automatic tax previews", async () => {
     await expect(
       previewInvoiceTaxSnapshot(undefined, {

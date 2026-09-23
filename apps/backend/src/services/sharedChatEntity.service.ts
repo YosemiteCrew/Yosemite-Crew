@@ -1,18 +1,9 @@
 // src/services/sharedChatEntity.service.ts
-import { StreamChat } from "stream-chat";
 import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { getStreamServer } from "src/config/stream-client";
 import { ChatServiceError } from "src/services/chat.service";
 import logger from "src/utils/logger";
-
-const STREAM_KEY = process.env.STREAM_API_KEY!;
-const STREAM_SECRET = process.env.STREAM_API_SECRET!;
-
-if (!STREAM_KEY || !STREAM_SECRET) {
-  throw new Error("Stream Chat credentials missing in env");
-}
-
-const streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
 
 // Group channels were created as Stream "team" channels; appointment and direct
 // channels as "messaging" (see chat.service.ts channel creation).
@@ -191,7 +182,7 @@ export const SharedChatEntityService = {
       appointmentId: session.appointmentId,
     });
 
-    const channel = streamServer.channel(
+    const channel = getStreamServer().channel(
       channelTypeForSession(session.type),
       channelId,
     );
@@ -257,7 +248,7 @@ export const SharedChatEntityService = {
 
     if (record.messageId) {
       try {
-        await streamServer.deleteMessage(record.messageId, true);
+        await getStreamServer().deleteMessage(record.messageId, true);
       } catch (err) {
         logger.warn("Failed to delete Stream message for revoked share", err);
       }

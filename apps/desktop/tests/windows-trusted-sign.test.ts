@@ -173,13 +173,13 @@ describe('windows trusted signing hook', () => {
     });
 
     expect(calls).toHaveLength(2);
-    expect(calls[0].command).toBe('pwsh');
-    expect(calls[0].args).toEqual(
+    expect(calls[0]!.command).toBe('pwsh');
+    expect(calls[0]!.args).toEqual(
       expect.arrayContaining(['-NoLogo', '-NoProfile', '-NonInteractive'])
     );
-    expect(calls[0].args.join('\n')).toContain('Install-Module -Name TrustedSigning');
-    expect(calls[1].args.join('\n')).toContain('Invoke-TrustedSigning @params');
-    expect(calls[1].args.join('\n')).toContain("Files = 'C:/dist/Yosemite Crew''s PIMS.exe'");
+    expect(calls[0]!.args.join('\n')).toContain('Install-Module -Name TrustedSigning');
+    expect(calls[1]!.args.join('\n')).toContain('Invoke-TrustedSigning @params');
+    expect(calls[1]!.args.join('\n')).toContain("Files = 'C:/dist/Yosemite Crew''s PIMS.exe'");
     expect(log).toHaveBeenCalledWith(
       "[windows-sign] Signing Yosemite Crew's PIMS.exe with Azure Trusted Signing."
     );

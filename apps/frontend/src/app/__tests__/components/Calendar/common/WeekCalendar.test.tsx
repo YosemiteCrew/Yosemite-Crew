@@ -4,13 +4,13 @@ import '@testing-library/jest-dom';
 
 import WeekCalendar from '@/app/features/appointments/components/Calendar/common/WeekCalendar';
 
-const mockGetWeekDays = jest.fn();
+const mockGetWeekDaysInPreferredTimeZone = jest.fn();
 const mockGetPrevWeek = jest.fn();
 const mockGetNextWeek = jest.fn();
 const mockEventsForDayHour = jest.fn();
 
 jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => ({
-  getWeekDays: (...args: any[]) => mockGetWeekDays(...args),
+  getWeekDaysInPreferredTimeZone: (...args: any[]) => mockGetWeekDaysInPreferredTimeZone(...args),
   getPrevWeek: (...args: any[]) => mockGetPrevWeek(...args),
   getNextWeek: (...args: any[]) => mockGetNextWeek(...args),
   eventsForDayHour: (...args: any[]) => mockEventsForDayHour(...args),
@@ -97,7 +97,7 @@ describe('WeekCalendar (Appointments)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetWeekDays.mockReturnValue(days);
+    mockGetWeekDaysInPreferredTimeZone.mockReturnValue(days);
     mockEventsForDayHour.mockReturnValue([events[1]]);
     mockGetPrevWeek.mockReturnValue(new Date('2024-12-30T00:00:00Z'));
     mockGetNextWeek.mockReturnValue(new Date('2025-01-13T00:00:00Z'));

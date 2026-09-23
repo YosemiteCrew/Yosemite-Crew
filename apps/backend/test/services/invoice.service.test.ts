@@ -12,6 +12,7 @@ import { NotificationService } from "../../src/services/notification.service";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
 import {
   FinancePaymentService,
+  cancelOpenCheckoutSessionAttempts,
   getInvoiceFinancialSummary,
 } from "../../src/services/finance/payment";
 import { sendEmailTemplate } from "../../src/utils/email";
@@ -97,6 +98,7 @@ jest.mock("../../src/services/finance/payment", () => ({
     refundInvoicePayments: jest.fn(),
   },
   getInvoiceFinancialSummary: jest.fn(),
+  cancelOpenCheckoutSessionAttempts: jest.fn(),
 }));
 
 jest.mock("../../src/utils/email", () => ({
@@ -355,6 +357,84 @@ describe("InvoiceService", () => {
       }),
     );
     expect(getOrgBillingCurrency).toHaveBeenCalledWith(organisationId);
+  });
+
+  const invoiceCreateDataFor = (currency: string) => {
+    (getOrgBillingCurrency as jest.Mock).mockResolvedValue(currency);
+    (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+      id: appointmentId,
+      organisationId,
+      patient: { id: patientId, parent: { id: parentId } },
+      companion: { id: patientId, parent: { id: parentId } },
+    });
+    (prisma.invoice.create as jest.Mock).mockResolvedValue({
+      id: `inv_${currency}`,
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency,
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      items: [],
+      subtotal: 0,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 0,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  };
+
+  it("posts a zero-decimal organisation currency in whole units", async () => {
+    invoiceCreateDataFor("jpy");
+
+    await InvoiceService.createDraftForAppointment({
+      appointmentId,
+      parentId,
+      organisationId,
+      patientId,
+      items: [{ description: "Consult", quantity: 3, unitPrice: 1200.5 }],
+      paymentCollectionMethod: "PAYMENT_LINK",
+    });
+
+    // 3 x 1200.5 is 3601.5, which is what two decimals would have persisted.
+    expect(prisma.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          currency: "jpy",
+          subtotal: 3602,
+          totalAmount: 3602,
+        }),
+      }),
+    );
+  });
+
+  it("keeps pricing an organisation currency the ledger cannot post exactly", async () => {
+    // HUF is refused by the ledger registry because ICU's display digits and
+    // ISO 4217's minor unit disagree. Refusing to price it at all would take
+    // invoicing away from those orgs, so they keep today's two decimals.
+    invoiceCreateDataFor("huf");
+
+    await InvoiceService.createDraftForAppointment({
+      appointmentId,
+      parentId,
+      organisationId,
+      patientId,
+      items: [{ description: "Consult", quantity: 3, unitPrice: 0.335 }],
+      paymentCollectionMethod: "PAYMENT_LINK",
+    });
+
+    expect(prisma.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "huf", totalAmount: 1.01 }),
+      }),
+    );
   });
 
   it("uses the organisation currency (not a hardcoded usd) for a non-US org", async () => {
@@ -1066,6 +1146,36 @@ describe("InvoiceService", () => {
     });
 
     expect(prisma.invoice.update).not.toHaveBeenCalled();
+  });
+
+  it("expires the Stripe checkout sessions when a credit note is issued", async () => {
+    // Cancelling only the local PaymentAttempt leaves the link the client
+    // already holds working, and it still charges the pre-credit amount. By
+    // then the local attempt is CANCELED, so the webhook has no open attempt to
+    // reconcile the payment against and the overcharge never appears here
+    // (#2598).
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_expire",
+      organisationId,
+      totalAmount: 100,
+      status: "AWAITING_PAYMENT",
+      creditNotes: [],
+    });
+    (prisma.creditNote.create as jest.Mock).mockResolvedValueOnce({
+      id: "cn_expire",
+      invoiceId: "inv_expire",
+      creditNoteNumber: "CN-1",
+      amount: 10,
+      status: "ISSUED",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await InvoiceService.issueCreditNote("inv_expire", { amount: 10 });
+
+    expect(cancelOpenCheckoutSessionAttempts).toHaveBeenCalledWith(
+      "inv_expire",
+    );
   });
 
   it("issues a credit note and records a finance event", async () => {
@@ -2471,6 +2581,19 @@ describe("InvoiceService", () => {
             createdAt: new Date("2026-06-18T11:00:00.000Z"),
             updatedAt: new Date("2026-06-18T11:00:00.000Z"),
           },
+          {
+            id: "refund_failed",
+            paymentId: "pay_1",
+            provider: "STRIPE",
+            providerRefundId: null,
+            amount: 25,
+            currency: "usd",
+            status: "FAILED",
+            reason: null,
+            rawProviderPayload: null,
+            createdAt: new Date("2026-06-18T12:00:00.000Z"),
+            updatedAt: new Date("2026-06-18T12:00:00.000Z"),
+          },
         ],
         createdAt: new Date("2026-06-18T09:00:00.000Z"),
         updatedAt: new Date("2026-06-18T10:00:00.000Z"),
@@ -2508,18 +2631,18 @@ describe("InvoiceService", () => {
     expect(result.invoice.settlementSummary).toEqual(
       expect.objectContaining({
         invoiceTotal: 100,
-        cashPaid: 50,
+        cashPaid: 40,
         credited: 10,
-        effectivePaid: 50,
-        balance: 40,
+        effectivePaid: 40,
+        balance: 50,
       }),
     );
     expect(result.invoice.settlementSummary.lineAllocations).toEqual([
       expect.objectContaining({
         id: "line_1",
-        cashApplied: 50,
+        cashApplied: 40,
         creditApplied: 10,
-        remaining: 40,
+        remaining: 50,
       }),
     ]);
   });
@@ -3167,6 +3290,26 @@ describe("InvoiceService", () => {
         (result as { paymentCollectionMethod: string }).paymentCollectionMethod,
       ).toBe("PAYMENT_INTENT");
     });
+
+    it("expires the Stripe sessions when the collection method changes", async () => {
+      // Changing how an invoice is collected invalidates the artifacts of the
+      // old method, and the code says so - but it only wrote CANCELED locally,
+      // so a parent still holding the previous checkout link could complete it
+      // against a method the practice had already moved away from (#2598).
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(openRow);
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        ...openRow,
+        paymentCollectionMethod: "PAYMENT_INTENT",
+      });
+
+      await InvoiceService.updatePaymentCollectionMethod(
+        "inv_pcm",
+        organisationId,
+        "payment_intent",
+      );
+
+      expect(cancelOpenCheckoutSessionAttempts).toHaveBeenCalledWith("inv_pcm");
+    });
   });
 
   describe("issueCreditNote guard rails", () => {
@@ -3720,6 +3863,83 @@ describe("InvoiceService", () => {
     expect(prisma.invoice.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { organisationId } }),
     );
+  });
+
+  it("returns settlement details for the whole list in two queries", async () => {
+    // The list used to return no settlementSummary at all, which left the
+    // client's getInvoiceOutstanding unable to take its preferred branch and
+    // falling back to total-minus-deposit - ignoring every recorded payment
+    // and credit note, and overstating what each invoice still owed (#2595).
+    const invoices = [
+      {
+        id: "inv_a",
+        organisationId,
+        items: [],
+        subtotal: 200,
+        totalAmount: 200,
+        depositCollectedAmount: 0,
+        currency: "gbp",
+        status: "AWAITING_PAYMENT",
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "inv_b",
+        organisationId,
+        items: [],
+        subtotal: 100,
+        totalAmount: 100,
+        depositCollectedAmount: 0,
+        currency: "gbp",
+        status: "AWAITING_PAYMENT",
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+    (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce(invoices);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pay_a",
+        invoiceId: "inv_a",
+        amount: 50,
+        refunds: [{ amount: 15, status: "SUCCEEDED" }],
+      },
+    ]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "cn_a", invoiceId: "inv_a", amount: 20 },
+    ]);
+
+    const results = await InvoiceService.listForOrganisation(organisationId);
+
+    // inv_a: 200 total, 35 net paid, 20 credited -> 145 outstanding.
+    expect(results[0].settlementSummary).toEqual(
+      expect.objectContaining({ cashPaid: 35, credited: 20, balance: 145 }),
+    );
+    // inv_b has neither, so it still owes the whole amount.
+    expect(results[1].settlementSummary).toEqual(
+      expect.objectContaining({ cashPaid: 0, credited: 0, balance: 100 }),
+    );
+
+    // Two queries for the page, not two per invoice.
+    expect(prisma.payment.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.creditNote.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.payment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { invoiceId: { in: ["inv_a", "inv_b"] } },
+      }),
+    );
+  });
+
+  it("returns an empty list without querying settlement at all", async () => {
+    (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(
+      InvoiceService.listForOrganisation(organisationId),
+    ).resolves.toEqual([]);
+    expect(prisma.payment.findMany).not.toHaveBeenCalled();
+    expect(prisma.creditNote.findMany).not.toHaveBeenCalled();
   });
 
   it("throws when adding items to a missing invoice", async () => {
@@ -5672,6 +5892,274 @@ describe("InvoiceService", () => {
       expect(prisma.invoice.findMany).toHaveBeenLastCalledWith(
         expect.objectContaining({ where: { patientId } }),
       );
+    });
+  });
+
+  // #3154 - every persisted invoice line carries a server-owned id.
+  //
+  // Before this, a line only kept an id when its caller happened to send one,
+  // so most persisted lines had no identity and the merge path had to match
+  // them on their own content - which cannot tell two legitimately identical
+  // rows apart.
+  describe("invoice line identity", () => {
+    const openInvoice = (
+      id: string,
+      items: Array<Record<string, unknown>>,
+      subtotal: number,
+    ) => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id,
+        appointmentId,
+        organisationId,
+        patientId,
+        parentId,
+        currency: "usd",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        items,
+        subtotal,
+        discountTotal: 0,
+        invoiceDiscountType: null,
+        invoiceDiscountValue: null,
+        invoiceDiscountTotal: 0,
+        taxTotal: 0,
+        taxPercent: 0,
+        totalAmount: subtotal,
+        taxSnapshot: { provider: "STRIPE", taxBehavior: "EXCLUSIVE" },
+        finalizedAt: null,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id,
+        organisationId,
+        items: [],
+        totalAmount: subtotal,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    };
+
+    const persistedItemsFromUpdate = () =>
+      ((prisma.invoice.update as jest.Mock).mock.calls.at(-1)![0].data
+        .items as Array<{ id?: unknown; name?: string }>) ?? [];
+
+    it("gives two identical lines on a new draft distinct ids", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: appointmentId,
+        organisationId,
+        patient: { id: patientId, parent: { id: parentId } },
+        companion: { id: patientId, parent: { id: parentId } },
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValue({
+        id: "inv_identity",
+        appointmentId,
+        organisationId,
+        patientId,
+        parentId,
+        currency: "usd",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        items: [],
+        subtotal: 20,
+        discountTotal: 0,
+        invoiceDiscountTotal: 0,
+        taxTotal: 0,
+        taxPercent: 0,
+        totalAmount: 20,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const line = { description: "Syringe", quantity: 1, unitPrice: 10 };
+      await InvoiceService.createDraftForAppointment({
+        appointmentId,
+        parentId,
+        organisationId,
+        patientId,
+        items: [{ ...line }, { ...line }],
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+
+      const items = (prisma.invoice.create as jest.Mock).mock.calls.at(-1)![0]
+        .data.items as Array<{ id?: unknown }>;
+      expect(items).toHaveLength(2);
+      expect(typeof items[0].id).toBe("string");
+      expect(typeof items[1].id).toBe("string");
+      expect(items[0].id).not.toBe(items[1].id);
+    });
+
+    it("keeps a line's id when that line is edited", async () => {
+      openInvoice(
+        "inv_keep_id",
+        [
+          {
+            id: "line_keep",
+            name: "Consult",
+            description: "Consult",
+            quantity: 1,
+            unitPrice: 100,
+            total: 100,
+          },
+        ],
+        100,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_keep_id", [
+        {
+          id: "line_keep",
+          name: "Consult",
+          description: "Consult",
+          quantity: 2,
+          unitPrice: 100,
+          total: 200,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(1);
+      expect(items[0].id).toBe("line_keep");
+    });
+
+    // The sharp one. An incoming line that NAMES an id is identifying a
+    // specific row. If that row is not on the invoice the caller is adding
+    // something new - it must not fall through to the content-key fallback and
+    // land on whichever unrelated row happens to read the same, which is the
+    // ordinary shape of a repeated consumable.
+    it("adds a line whose id is unknown instead of overwriting an identical one", async () => {
+      openInvoice(
+        "inv_ghost_id",
+        [
+          {
+            id: "line_present",
+            name: "Syringe",
+            description: "Syringe",
+            quantity: 1,
+            unitPrice: 10,
+            total: 10,
+          },
+        ],
+        10,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_ghost_id", [
+        {
+          id: "line_removed_earlier",
+          name: "Syringe",
+          description: "Syringe",
+          quantity: 1,
+          unitPrice: 10,
+          total: 10,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(2);
+      expect(items.map((item) => item.id)).toContain("line_present");
+    });
+
+    // An id-less incoming line is a client that does not send line ids at all.
+    // That fallback stays, so a resend still updates rather than duplicating.
+    it("still content-matches an incoming line that names no id", async () => {
+      openInvoice(
+        "inv_no_id_sent",
+        [
+          {
+            id: "line_present",
+            name: "Syringe",
+            description: "Syringe",
+            quantity: 1,
+            unitPrice: 10,
+            total: 10,
+          },
+        ],
+        10,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_no_id_sent", [
+        {
+          name: "Syringe",
+          description: "Syringe",
+          quantity: 1,
+          unitPrice: 10,
+          total: 10,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(1);
+    });
+
+    // The empty-string case is why this is `||` and not `??`. A line whose id
+    // is blank has no identity, and `??` would preserve it - after which every
+    // blank-id line would match every other blank-id line by id.
+    it("mints an id for a line whose stored id is blank", async () => {
+      openInvoice(
+        "inv_blank_id",
+        [
+          {
+            id: "   ",
+            name: "Consult",
+            description: "Consult",
+            quantity: 1,
+            unitPrice: 100,
+            total: 100,
+          },
+        ],
+        100,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_blank_id", [
+        {
+          name: "Bandage",
+          description: "Bandage",
+          quantity: 1,
+          unitPrice: 5,
+          total: 5,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(2);
+      const [restored] = items;
+      expect(typeof restored.id).toBe("string");
+      expect((restored.id as string).trim().length).toBeGreaterThan(0);
+    });
+
+    it("assigns an id to a line that was persisted before ids existed", async () => {
+      openInvoice(
+        "inv_legacy",
+        [
+          {
+            name: "Consult",
+            description: "Consult",
+            quantity: 1,
+            unitPrice: 100,
+            total: 100,
+          },
+        ],
+        100,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_legacy", [
+        {
+          name: "Bandage",
+          description: "Bandage",
+          quantity: 1,
+          unitPrice: 5,
+          total: 5,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(2);
+      for (const item of items) {
+        expect(typeof item.id).toBe("string");
+        expect((item.id as string).length).toBeGreaterThan(0);
+      }
     });
   });
 });

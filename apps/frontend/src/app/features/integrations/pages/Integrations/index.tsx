@@ -44,10 +44,10 @@ import {
   IoSettingsOutline,
   IoTrashOutline,
 } from 'react-icons/io5';
-import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
+import FilterChip from '@/app/ui/filters/FilterChip';
 
 type StatusTokens = { bg: string; text: string; border: string };
 
@@ -212,7 +212,7 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
             {device.deviceSerialNumber}
           </div>
         </div>
-        <StatusPill label={statusLabel} tokens={dt} showDot={statusKey === 'active'} />
+        <IntegrationStatusPill label={statusLabel} tokens={dt} showDot={statusKey === 'active'} />
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
         <div className="text-text-secondary">Last cloud poll</div>
@@ -235,7 +235,7 @@ const NEUTRAL_FALLBACK_TOKENS: StatusTokens = {
   border: 'var(--color-card-border)',
 };
 
-const StatusPill = ({
+const IntegrationStatusPill = ({
   status,
   label,
   tokens: tokensOverride,
@@ -334,7 +334,7 @@ const RecentOrdersList = ({ orders }: { orders: LabOrder[] }) => {
             <span className="min-w-0 truncate font-semibold text-text-primary">
               {formatOrderLabel(order)}
             </span>
-            <StatusPill label={formatOrderStatusLabel(order.status)} tokens={tokens} />
+            <IntegrationStatusPill label={formatOrderStatusLabel(order.status)} tokens={tokens} />
           </div>
         );
       })}
@@ -824,7 +824,7 @@ export const IdexxSettingsModal = ({
               <div className="grid grid-cols-2 gap-2 text-caption-1">
                 <div className="text-text-secondary">Credentials status</div>
                 <div className="text-right">
-                  <StatusPill
+                  <IntegrationStatusPill
                     label={credentialsStatusLabel}
                     tokens={credentialsStatusTokens[credentialsStatusKey]}
                   />
@@ -839,7 +839,7 @@ export const IdexxSettingsModal = ({
             <div className="flex flex-col gap-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-body-4 text-text-primary">Current status</div>
-                <StatusPill status={idexxIntegration?.status} />
+                <IntegrationStatusPill status={idexxIntegration?.status} />
               </div>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-caption-1 text-text-secondary">Connected since</div>
@@ -919,38 +919,28 @@ const IntegrationFilterTabs = ({
   activeFilter: IntegrationsPageState['activeFilter'];
   setActiveFilter: IntegrationsPageState['setActiveFilter'];
 }) => (
-  <fieldset className="flex items-center gap-2 flex-wrap">
-    <legend className="sr-only">Filter integrations</legend>
-    {integrationFilters.map((tab) => {
-      const isActive = activeFilter === tab.key;
-      return (
-        <button
-          key={tab.key}
-          type="button"
-          onClick={() => setActiveFilter(tab.key)}
-          aria-pressed={isActive}
-          className={clsx(
-            'rounded-full! border px-[13px] py-1.5 text-[12px] whitespace-nowrap transition-colors',
-            isActive
-              ? 'bg-[var(--chip-selected-bg)] border-[var(--chip-selected-border)] text-[var(--chip-selected-ink)] font-bold'
-              : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
-          )}
-        >
-          {tab.label}
-        </button>
-      );
-    })}
-  </fieldset>
+  <div /* NOSONAR: styled flex pill group; native <fieldset> defaults (block layout, border, required legend) break the pill design */
+    role="group"
+    aria-label="Filter integrations"
+    className="flex items-center gap-2 flex-wrap"
+  >
+    {integrationFilters.map((tab) => (
+      <FilterChip
+        key={tab.key}
+        label={tab.label}
+        active={activeFilter === tab.key}
+        onClick={() => setActiveFilter(tab.key)}
+      />
+    ))}
+  </div>
 );
 
-// Compact integration card — design: 16px/18px padding, 18px radius, a 10px
-// column gap and a 42px inline icon leading the title row.
-const INTEGRATION_CARD_CLASS =
-  'rounded-[18px] border px-[18px] py-4 w-full flex flex-col gap-2.5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
-const INTEGRATION_CARD_STYLE: React.CSSProperties = {
-  background: 'var(--screen)',
-  borderColor: 'var(--hairline)',
-};
+// Compact integration card — design: 16px/18px padding, a 10px column gap and a
+// 42px inline icon leading the title row. The frame is `.yc-card-surface`; this
+// card used to write the same recipe half as utilities and half as an inline
+// style object, which is why the shared class could not be applied to it by the
+// obvious edit.
+const INTEGRATION_CARD_CLASS = 'yc-card-surface px-[18px] py-4 w-full flex flex-col gap-2.5';
 const INTEGRATION_CARD_HEADER_CLASS = 'flex items-center gap-3';
 const INTEGRATION_CARD_TITLE_CLASS =
   'min-w-0 flex-1 truncate text-[14.5px] font-bold tracking-[-0.01em]';
@@ -993,7 +983,7 @@ const IdexxIntegrationCard = ({
   if (!s.showIdexxCard) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.idexx}>
           IDX
@@ -1001,7 +991,7 @@ const IdexxIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           IDEXX VetConnect PLUS
         </div>
-        <StatusPill
+        <IntegrationStatusPill
           status={s.idexxIntegration?.status}
           label={s.idexxEnabled ? 'Connected' : undefined}
         />
@@ -1066,7 +1056,7 @@ const MerckIntegrationCard = ({
   if (!s.showMerckCard) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.merck}>
           <IoBookOutline size={19} aria-hidden="true" />
@@ -1074,7 +1064,10 @@ const MerckIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           MSD Veterinary Manual
         </div>
-        <StatusPill status={s.merckIntegration?.status} />
+        <IntegrationStatusPill
+          status={s.merckIntegration?.status}
+          label={s.merckEnabled ? 'Connected' : undefined}
+        />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Search the veterinary manual from the workspace side rail without leaving the visit. Free
@@ -1122,7 +1115,7 @@ const RadIntegrationCard = ({
   if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.radAnalyzer}>
           RA
@@ -1130,22 +1123,10 @@ const RadIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           RadAnalyzer
         </div>
-        <StatusPill status="coming-soon" label="Coming soon" />
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
-      </div>
-      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <span
-          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
-          style={{
-            background: 'transparent',
-            color: 'var(--ink-body)',
-            border: '1px solid var(--divider)',
-          }}
-        >
-          Notify me
-        </span>
       </div>
     </div>
   );
@@ -1159,7 +1140,7 @@ const VetnioIntegrationCard = ({
   if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.vetnio}>
           VN
@@ -1167,23 +1148,11 @@ const VetnioIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Vetnio
         </div>
-        <StatusPill status="coming-soon" label="Coming soon" />
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered documentation for veterinary practices &mdash; instantly generate clinical notes,
         discharge summaries, and client communications from consultations.
-      </div>
-      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <span
-          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
-          style={{
-            background: 'transparent',
-            color: 'var(--ink-body)',
-            border: '1px solid var(--divider)',
-          }}
-        >
-          Notify me
-        </span>
       </div>
     </div>
   );
@@ -1197,7 +1166,7 @@ const QuickBooksIntegrationCard = ({
   if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.quickBooks}>
           QB
@@ -1205,23 +1174,11 @@ const QuickBooksIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           QuickBooks
         </div>
-        <StatusPill status="coming-soon" label="Coming soon" />
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Accounting sync for invoices, payments, customers, and financial workflows through
         QuickBooks Online.
-      </div>
-      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <span
-          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
-          style={{
-            background: 'transparent',
-            color: 'var(--ink-body)',
-            border: '1px solid var(--divider)',
-          }}
-        >
-          Notify me
-        </span>
       </div>
     </div>
   );
@@ -1235,7 +1192,7 @@ const LaikaIntegrationCard = ({
   if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.laika}>
           LK
@@ -1243,24 +1200,12 @@ const LaikaIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Laika
         </div>
-        <StatusPill status="coming-soon" label="Coming soon" />
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,
         reason through differentials, and get evidence-based guidance trained exclusively on
         veterinary medical data.
-      </div>
-      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <span
-          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
-          style={{
-            background: 'transparent',
-            color: 'var(--ink-body)',
-            border: '1px solid var(--divider)',
-          }}
-        >
-          Notify me
-        </span>
       </div>
     </div>
   );

@@ -94,40 +94,40 @@ export const trustCenterData = {
       'COMPLIANT',
       'US federal law on the validity of e-signatures.',
       'create-outline',
-      '#e6f2ff',
-      '#257bed'
+      'var(--blue-soft)',
+      'var(--blue)'
     ),
     iconCert(
       'UETA',
       'COMPLIANT',
       'US state law for electronic transactions.',
       'swap-horizontal-outline',
-      '#f5f3ff',
-      '#5b21b6'
+      'var(--avatar-violet-bg)',
+      'var(--avatar-violet-ink)'
     ),
     iconCert(
       'eIDAS (SES)',
       'COMPLIANT',
       'EU electronic identification, Level 1.',
       'finger-print-outline',
-      '#e6f4ef',
-      '#006642'
+      'var(--color-success-100)',
+      'var(--color-success-800)'
     ),
     iconCert(
       'ZertES',
       'PLANNED',
       'Swiss federal law on electronic signatures.',
       'ribbon-outline',
-      '#fef3e9',
-      '#af5e19'
+      'var(--color-warning-100)',
+      'var(--color-warning-800)'
     ),
     iconCert(
       'HIPAA',
       'PLANNED',
       'US protection for patient health information.',
       'medkit-outline',
-      '#e6f2ff',
-      '#257bed'
+      'var(--blue-soft)',
+      'var(--blue)'
     ),
   ] satisfies readonly Certification[],
 

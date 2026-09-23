@@ -45,6 +45,8 @@ export type ReadyState = {
 
 export type SoapNoteEntry = {
   id: string;
+  /** ClinicalArtifact generation used for optimistic concurrency on draft saves. */
+  artifactVersion?: number;
   chiefComplaint: string;
   subjective: string;
   objective: string;
@@ -121,8 +123,15 @@ export type SoapTemplate = {
 export type Vitals = {
   id: string;
   code: string;
+  /** ClinicalArtifact generation used for optimistic concurrency on edits. */
+  artifactVersion?: number;
+  // Temperature and weight are recorded on two scales; the key states which one
+  // this reading is in. Exactly one of each pair is populated - see
+  // `lib/vitalsUnits`, which resolves the key from the template's declared unit.
   weightLbs?: number;
+  weightKg?: number;
   tempF?: number;
+  tempC?: number;
   heartRateBpm?: number;
   respRateBpm?: number;
   crtSec?: string;
@@ -249,11 +258,20 @@ export type PrescriptionItem = {
    */
   labelPrescriptionId?: string;
   id: string;
+  /** ClinicalArtifact generation used for optimistic concurrency on edits and lifecycle actions. */
+  artifactVersion?: number;
   medicineName: string;
   /** Brand/trade name from inventory (e.g. "Calpol"), shown beside the generic. */
   brand?: string;
   /** Generic / composition name from inventory (e.g. "Paracetamol 650"). */
   genericName?: string;
+  /**
+   * ATCvet substance code. Inherited from the inventory item when prescribing
+   * from stock, or set directly when the clinician picks a substance from the
+   * classification. Exported as a FHIR coding so the prescription is readable
+   * outside Yosemite Crew.
+   */
+  atcCode?: string;
   /** Inventory SKU, shown as a small reference chip. */
   sku?: string;
   /** Concentration value from inventory (e.g. "650"). */
@@ -507,6 +525,8 @@ export type AppointmentEncounter = {
   dischargeSavedByName?: string;
   /** Backend artifact id once persisted, so later saves PATCH instead of POSTing a duplicate. */
   dischargeSummaryId?: string;
+  /** ClinicalArtifact generation used for discharge lifecycle preconditions. */
+  dischargeSummaryVersion?: number;
   documents: WorkspaceDocument[];
   readyForBilling: ReadyState;
   readyForDischarge: ReadyState;

@@ -146,6 +146,36 @@ export const clampPositionToWorkArea = (
 };
 
 /**
+ * Where a maximised window should land the moment the user starts dragging its
+ * title bar. A native title bar does not ignore the drag: it restores the
+ * window under the pointer, keeping the pointer at the same fraction across the
+ * (now narrower) title bar and at the same offset below its top edge, then
+ * moves normally from there.
+ *
+ * `cursor` is the pointer in screen coordinates and `maximized` the bounds the
+ * window had while maximised. Pure function so it can be unit tested without
+ * Electron's `screen` module; the caller clamps the result to the work area.
+ */
+export const restorePositionUnderCursor = (
+  maximized: { x: number; y: number; width: number; height: number },
+  restoredSize: WindowBounds,
+  cursor: { x: number; y: number }
+): { x: number; y: number } => {
+  // A zero width would only come from a window with no bounds to read; centring
+  // the pointer is the least surprising thing to do with it.
+  const fraction =
+    maximized.width > 0 ? clamp((cursor.x - maximized.x) / maximized.width, 0, 1) : 0.5;
+  // The drag starts in the title strip, so this is a small positive number. It
+  // is still clamped: a pointer below the restored height would put the title
+  // bar off the top of the window and out of reach.
+  const yOffset = clamp(cursor.y - maximized.y, 0, Math.max(0, restoredSize.height - 1));
+  return {
+    x: Math.round(cursor.x - fraction * restoredSize.width),
+    y: Math.round(cursor.y - yOffset),
+  };
+};
+
+/**
  * Persistence store keyed to a JSON file. `deps` is injectable for tests.
  */
 export const createWindowStateStore = (

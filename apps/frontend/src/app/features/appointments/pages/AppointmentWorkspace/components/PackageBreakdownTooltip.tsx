@@ -31,6 +31,7 @@ const PackageBreakdownTooltip = ({ item, currency }: PackageBreakdownTooltipProp
 
   return (
     <GlassTooltip
+      openOnClick
       content={
         <div className="flex min-w-130 flex-col gap-3 text-left">
           <div className="flex flex-col gap-0.5">

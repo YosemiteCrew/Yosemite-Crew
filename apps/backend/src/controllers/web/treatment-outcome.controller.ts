@@ -20,18 +20,18 @@ const RecordSchema = z.object({
   patientId: z.string().min(1),
   encounterId: z.string().optional(),
   episodeOfCareId: z.string().optional(),
-  recordedAt: z.string().datetime(),
+  recordedAt: z.iso.datetime(),
   recordedBy: z.string().optional(),
   outcomeType: OutcomeTypeEnum,
   clinicalNotes: z.string().optional(),
-  followUpDate: z.string().datetime().optional(),
+  followUpDate: z.iso.datetime().optional(),
   followUpNotes: z.string().optional(),
 });
 
 const UpdateSchema = z.object({
   outcomeType: OutcomeTypeEnum.optional(),
   clinicalNotes: z.string().optional(),
-  followUpDate: z.string().datetime().nullable().optional(),
+  followUpDate: z.iso.datetime().nullable().optional(),
   followUpNotes: z.string().optional(),
   resolved: z.boolean().optional(),
 });

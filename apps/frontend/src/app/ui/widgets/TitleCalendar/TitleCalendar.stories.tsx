@@ -32,6 +32,7 @@ const meta = {
     count: 24,
     activeView: 'calendar',
     showAdd: false,
+    addLabel: 'New appointment',
     setAddPopup: fn(),
     setActiveView: fn(),
   },
@@ -43,7 +44,7 @@ type Story = StoryObj<typeof meta>;
 /** Appointments, as the page ships it — no header CTA, three views. */
 export const Default: Story = {};
 
-/** With the `Add` CTA shown, which is what the header looks like on pages that keep it. */
+/** With the create CTA shown - labelled per page in the "New <thing>" form - which is what the header looks like on pages that keep it. */
 export const WithAddAction: Story = {
   name: 'With Add action',
   args: { showAdd: true, activeView: 'board' },
@@ -93,6 +94,7 @@ const InteractiveTitleCalendar = () => {
         activeView={activeView}
         setActiveView={setActiveView}
         showAdd
+        addLabel="New appointment"
         setAddPopup={setAddPopup}
       />
       <p className="text-[13px] text-[var(--ink-muted)]">

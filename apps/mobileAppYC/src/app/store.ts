@@ -2,6 +2,7 @@ import {configureStore, combineReducers} from '@reduxjs/toolkit';
 import {
   persistStore,
   persistReducer,
+  createTransform,
   FLUSH,
   REHYDRATE,
   PAUSE,
@@ -58,6 +59,17 @@ import {linkedBusinessesReducer} from '@/features/linkedBusinesses';
 import {notificationReducer} from '@/features/notifications';
 import formsReducer from '@/features/forms/formsSlice';
 import preferencesReducer from '@/features/preferences/preferencesSlice';
+import {assistantReducer} from '@/features/assistant';
+import {
+  appLockReducer,
+  appLockStatusReducer,
+  initialAppLockSettings,
+} from '@/features/appLock/appLockSlice';
+import {
+  parasiteRiskReducer,
+  type ParasiteRiskState,
+} from '@/features/parasiteRisk';
+import {snapToRiskCell} from '@yosemite-crew/types';
 
 const migrateV1ToV2 = (_state: any) => {
   console.log(
@@ -170,9 +182,32 @@ const migrateV8ToV9 = (state: any) => {
     state.expenses.summaryFailedCompanions =
       state.expenses.summaryFailedCompanions ?? {};
   }
+  if (!state.parasiteRisk) {
+    state.parasiteRisk = {
+      location: null,
+      reading: null,
+      recentLocations: [],
+      subscriptions: [],
+      loading: false,
+      subscriptionsLoading: false,
+      error: null,
+      disclaimerAcknowledged: false,
+      latestRiskRequestId: null,
+    };
+  }
 };
 
-// Keyed by the persisted version a state is migrating FROM.
+const migrateV9ToV10 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v9 to v10 - adding app lock settings',
+  );
+  // App lock is off until the user turns it on, so an upgrade starts with it
+  // off. Whether the app is locked right now is never saved (appLockStatus).
+  if (!state.appLock) {
+    state.appLock = {...initialAppLockSettings};
+  }
+};
+
 const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   1: migrateV1ToV2,
   2: migrateV2ToV3,
@@ -182,14 +217,57 @@ const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   6: migrateV6ToV7,
   7: migrateV7ToV8,
   8: migrateV8ToV9,
+  9: migrateV9ToV10,
 };
 
-const PERSIST_VERSION = 9;
+const PERSIST_VERSION = 10;
+
+type PersistedParasiteRiskState = Omit<
+  ParasiteRiskState,
+  'loading' | 'subscriptionsLoading'
+>;
+
+const snapLocation = (location: ParasiteRiskState['location']) => {
+  if (!location) {
+    return null;
+  }
+  return {...location, ...snapToRiskCell(location.lat, location.lon)};
+};
+
+// In-flight request flags must never reach storage: an app killed mid-request would
+// rehydrate with them true and show a spinner no running request is left to clear.
+const parasiteRiskTransform = createTransform<
+  ParasiteRiskState & {latestRiskRequestId?: string | null},
+  PersistedParasiteRiskState
+>(
+  ({
+    loading: _loading,
+    subscriptionsLoading: _subscriptionsLoading,
+    latestRiskRequestId: _latestRiskRequestId,
+    location,
+    recentLocations,
+    ...rest
+  }) => ({
+    ...rest,
+    location: snapLocation(location),
+    recentLocations: recentLocations.map(item => snapLocation(item)!),
+  }),
+  persisted => ({
+    ...persisted,
+    location: snapLocation(persisted.location),
+    recentLocations: persisted.recentLocations.map(item => snapLocation(item)!),
+    loading: false,
+    subscriptionsLoading: false,
+    latestRiskRequestId: null,
+  }),
+  {whitelist: ['parasiteRisk']},
+);
 
 const persistConfig = {
   key: 'root',
   version: PERSIST_VERSION,
   storage: storageForPersist,
+  transforms: [parasiteRiskTransform],
   whitelist: [
     'auth',
     'theme',
@@ -204,6 +282,8 @@ const persistConfig = {
     'notifications',
     'forms',
     'preferences',
+    'parasiteRisk',
+    'appLock',
   ],
   migrate: (state: any) => {
     const from = state?._persist?.version;
@@ -238,9 +318,25 @@ const rootReducer = combineReducers({
   notifications: notificationReducer,
   forms: formsReducer,
   preferences: preferencesReducer,
+  // Deliberately absent from `whitelist` below: the assistant transcript is a
+  // conversation, not a record. It should not survive a relaunch, and keeping
+  // it out of storage also keeps pet health chatter off disk.
+  assistant: assistantReducer,
+  parasiteRisk: parasiteRiskReducer,
+  appLock: appLockReducer,
+  // Deliberately absent from `whitelist`: whether the app is locked, covered
+  // or waiting on the OS prompt is never saved, so every cold start begins
+  // locked.
+  appLockStatus: appLockStatusReducer,
 });
 
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+// The state type is pinned explicitly: with `transforms` present, redux-persist's
+// config generic gives inference a second candidate and every slice on RootState
+// would otherwise widen to `| undefined`.
+const persistedReducer = persistReducer<ReturnType<typeof rootReducer>>(
+  persistConfig,
+  rootReducer,
+);
 
 export const store = configureStore({
   reducer: persistedReducer,

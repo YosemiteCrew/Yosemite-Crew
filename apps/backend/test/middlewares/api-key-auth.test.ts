@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   authorizeApiKey,
+  meterApiKeyUsage,
   requireScope,
 } from "../../src/middlewares/api-key-auth";
 import { DeveloperApiKeyService } from "../../src/services/developer-api-key.service";
@@ -31,7 +32,7 @@ const buildReq = (headers: Record<string, string> = {}): Request =>
 
 const verifiedKey = {
   id: "k",
-  organisationId: "org-9",
+  ownerUserId: "org-9",
   scopes: ["x"],
   environment: "live",
 };
@@ -41,7 +42,6 @@ describe("authorizeApiKey", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     next = jest.fn();
-    incrementMock.mockResolvedValue({ allowed: true, callCount: 1 });
   });
 
   it("401 when no key is presented", async () => {
@@ -63,7 +63,7 @@ describe("authorizeApiKey", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("binds the org and calls next for a valid Bearer key", async () => {
+  it("binds the key owner as the request user and calls next", async () => {
     verifyMock.mockResolvedValue(verifiedKey);
     const req = buildReq({ authorization: "Bearer yc_live_good" });
     const res = buildRes();
@@ -71,9 +71,13 @@ describe("authorizeApiKey", () => {
     await authorizeApiKey(req, res, next);
 
     expect(verifyMock).toHaveBeenCalledWith("yc_live_good");
-    expect((req as unknown as { organisationId: string }).organisationId).toBe(
-      "org-9",
-    );
+    /* The key identifies a PERSON. It sets `userId`, the field a session sets,
+       and deliberately leaves `organisationId` unset - a key carrying a baked-in
+       tenant could never stop reaching a former employer. */
+    expect((req as unknown as { userId: string }).userId).toBe("org-9");
+    expect(
+      (req as unknown as { organisationId?: string }).organisationId,
+    ).toBeUndefined();
     expect(next).toHaveBeenCalled();
   });
 
@@ -105,12 +109,57 @@ describe("authorizeApiKey", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("429 when quota is exceeded", async () => {
+  it("does not meter during authentication", async () => {
     verifyMock.mockResolvedValue(verifiedKey);
-    incrementMock.mockResolvedValue({ allowed: false, callCount: 1001 });
-    const res = buildRes();
     await authorizeApiKey(
       buildReq({ authorization: "Bearer yc_live_good" }),
+      buildRes(),
+      next,
+    );
+    expect(incrementMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps concurrent authentication-only requests unmetered", async () => {
+    verifyMock.mockResolvedValue(verifiedKey);
+    await Promise.all([
+      authorizeApiKey(
+        buildReq({ authorization: "Bearer yc_live_good" }),
+        buildRes(),
+        next,
+      ),
+      authorizeApiKey(
+        buildReq({ authorization: "Bearer yc_live_good" }),
+        buildRes(),
+        next,
+      ),
+    ]);
+
+    expect(next).toHaveBeenCalledTimes(2);
+    expect(incrementMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("meterApiKeyUsage", () => {
+  let next: NextFunction;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    next = jest.fn();
+    incrementMock.mockResolvedValue({ allowed: true, callCount: 1 });
+  });
+
+  it("401 without authenticated key context", async () => {
+    const res = buildRes();
+    await meterApiKeyUsage(buildReq(), res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(incrementMock).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("429 when quota is exceeded", async () => {
+    incrementMock.mockResolvedValue({ allowed: false, callCount: 1001 });
+    const res = buildRes();
+    await meterApiKeyUsage(
+      { apiKey: verifiedKey } as unknown as Request,
       res,
       next,
     );
@@ -118,15 +167,29 @@ describe("authorizeApiKey", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("calls incrementAndCheck with the organisationId", async () => {
-    verifyMock.mockResolvedValue(verifiedKey);
+  it("calls incrementAndCheck with the ownerUserId and the key's environment", async () => {
     const res = buildRes();
-    await authorizeApiKey(
-      buildReq({ authorization: "Bearer yc_live_good" }),
+    await meterApiKeyUsage(
+      { apiKey: verifiedKey } as unknown as Request,
       res,
       next,
     );
-    expect(incrementMock).toHaveBeenCalledWith("org-9");
+    expect(incrementMock).toHaveBeenCalledWith("org-9", "live");
+  });
+
+  it("forwards a test key's environment so it is not metered", async () => {
+    /* `verified.environment` was populated and attached to the request but never
+       consulted, so a yc_test_... key consumed quota and could produce a Stripe
+       meter event (#2549). The middleware is the only thing that knows which
+       environment authenticated; the service cannot discriminate unless this
+       passes it on. */
+    const res = buildRes();
+    await meterApiKeyUsage(
+      { apiKey: { ...verifiedKey, environment: "test" } } as unknown as Request,
+      res,
+      next,
+    );
+    expect(incrementMock).toHaveBeenCalledWith("org-9", "test");
   });
 });
 

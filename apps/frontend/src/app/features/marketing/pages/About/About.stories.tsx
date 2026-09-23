@@ -10,6 +10,7 @@ import { expect, waitFor, within } from 'storybook/test';
    too. The assertions below fail loudly if this import ever goes. */
 import '@/app/features/marketing/site/marketing.css';
 import { About } from './About';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /* ------------------------------------------------------------------ fixtures */
 
@@ -78,8 +79,6 @@ const NON_HUMAN_PAYLOAD = CONTRIBUTOR_PAYLOAD.filter(
 const GITHUB_API_HOST = 'api.github.com';
 const CONTRIBUTORS_PATH = '/contributors';
 const COMMUNITY_API_PATH = '/api/community/';
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
 const CACHED_STATS = {
   stars: '2.4k',
@@ -88,6 +87,15 @@ const CACHED_STATS = {
   contributors: '38',
   discord: '1,204',
 };
+
+/* `useCloudUsers` owns these and keeps them module-private. The tile is seeded
+   the same way the stats are, so "everything resolved" really does resolve
+   everything: the community route handlers do not exist in Storybook and are
+   answered 503 below, which would otherwise leave this one tile on its
+   placeholder in a story whose whole point is the populated state. */
+const CLOUD_USERS_CACHE_KEY = 'yc_cloud_users_v1';
+const CLOUD_USERS_TS_KEY = 'yc_cloud_users_ts_v1';
+const CACHED_CLOUD_USERS = { totalUsers: '8,140', latestSignupAt: '2026-09-22T12:00:00.000Z' };
 
 /** What a missing number falls back to: U+00B7 middle dot, not a dash or a zero. */
 const PLACEHOLDER = '·';
@@ -118,12 +126,18 @@ const withAboutData =
   (stats: typeof CACHED_STATS | null, contributors: ContributorsReply) => () => {
     const previousCache = globalThis.sessionStorage.getItem(STATS_CACHE_KEY);
     const previousTs = globalThis.sessionStorage.getItem(STATS_TS_KEY);
+    const previousCloud = globalThis.sessionStorage.getItem(CLOUD_USERS_CACHE_KEY);
+    const previousCloudTs = globalThis.sessionStorage.getItem(CLOUD_USERS_TS_KEY);
     if (stats) {
       globalThis.sessionStorage.setItem(STATS_CACHE_KEY, JSON.stringify(stats));
       globalThis.sessionStorage.setItem(STATS_TS_KEY, String(Date.now()));
+      globalThis.sessionStorage.setItem(CLOUD_USERS_CACHE_KEY, JSON.stringify(CACHED_CLOUD_USERS));
+      globalThis.sessionStorage.setItem(CLOUD_USERS_TS_KEY, String(Date.now()));
     } else {
       globalThis.sessionStorage.removeItem(STATS_CACHE_KEY);
       globalThis.sessionStorage.removeItem(STATS_TS_KEY);
+      globalThis.sessionStorage.removeItem(CLOUD_USERS_CACHE_KEY);
+      globalThis.sessionStorage.removeItem(CLOUD_USERS_TS_KEY);
     }
 
     const originalFetch = globalThis.fetch;
@@ -161,6 +175,8 @@ const withAboutData =
       globalThis.fetch = originalFetch;
       restoreSessionKey(STATS_CACHE_KEY, previousCache);
       restoreSessionKey(STATS_TS_KEY, previousTs);
+      restoreSessionKey(CLOUD_USERS_CACHE_KEY, previousCloud);
+      restoreSessionKey(CLOUD_USERS_TS_KEY, previousCloudTs);
     };
   };
 
@@ -213,7 +229,13 @@ const statTile = (canvasElement: HTMLElement, label: string) =>
 const reservedValue = (tile: HTMLElement) => tile.firstElementChild?.firstElementChild?.textContent;
 const shownValue = (tile: HTMLElement) => tile.firstElementChild?.children[1]?.textContent;
 
-const STAT_LABELS = ['Repository clones', 'Contributors', 'Discord members', 'Repo stars'];
+const STAT_LABELS = [
+  'Cloud users',
+  'Repository clones',
+  'Contributors',
+  'Discord members',
+  'Repo stars',
+];
 
 /* ---------------------------------------------------------------------- meta */
 
@@ -331,11 +353,11 @@ export const Default: Story = {
       await expect(avatar).toHaveAttribute('alt', '');
     }
 
-    /* The live roster is appended below the founding pair, never a replacement for
-       it. Both grids exist independently and both must be populated. */
+    /* The live roster is appended below the named core team, never a replacement for
+       it. Both grids exist independently and both must be populated. A contributor who
+       has left the core team can still appear in the live GitHub roster above. */
     await expect(labelsOf(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID)))).toEqual([
       'Ankit Upadhyay, Founder and contributor, on LinkedIn',
-      'Harshvardhan Parmar, Contributor, on LinkedIn',
     ]);
 
     /* Four tracks at laptop width, so three contributors leave the fourth slot empty
@@ -351,6 +373,7 @@ export const Default: Story = {
     /* Which cached field feeds which tile. `stars` ('2.4k') and `starsFull`
        ('2,431') are both in the same payload and both read perfectly well under
        "Repo stars", so swapping them is invisible without the exact string. */
+    await expect(reservedValue(statTile(canvasElement, 'Cloud users'))).toBe('8,140');
     await expect(reservedValue(statTile(canvasElement, 'Repository clones'))).toBe('67,134');
     await expect(reservedValue(statTile(canvasElement, 'Contributors'))).toBe('38');
     await expect(reservedValue(statTile(canvasElement, 'Discord members'))).toBe('1,204');
@@ -518,8 +541,10 @@ export const Phone: Story = {
        one of them and that section keeps four 80px columns on a 375px screen, with
        nothing anywhere to complain. The expected desktop row is spelled out so a
        change to a section's column count has to be made deliberately here too. */
+    // Order is beliefs, stats, core team, live roster. The stats band is five
+    // across since it gained the cloud-users tile; the other three are unchanged.
     await expect(gridsOf(canvasElement).map(trackCount)).toEqual(
-      helpersApply ? [2, 2, 2, 2] : [3, 4, 4, 4]
+      helpersApply ? [2, 2, 2, 2] : [3, 5, 4, 4]
     );
     // Named so the row above is readable: beliefs is the three-column one.
     await expect(trackCount(gridAt(canvasElement, BELIEFS_GRID))).toBe(helpersApply ? 2 : 3);

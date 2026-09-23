@@ -6,6 +6,15 @@ export interface DeveloperUsage {
   callCount: number;
   /** Calls included before metering starts; null on plans with no cap. */
   limit: number | null;
+  metering?: {
+    recorded: number;
+    reported: number;
+    pending: number;
+    status:
+      'current' | 'pending' | 'configuration_error' | 'delivery_error' | 'reconciliation_error';
+    failureCode: string | null;
+    oldestPendingAt: string | null;
+  } | null;
 }
 
 const BASE = '/v1/developers/usage';

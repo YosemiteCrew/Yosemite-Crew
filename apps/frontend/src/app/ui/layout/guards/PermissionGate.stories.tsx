@@ -49,7 +49,7 @@ const withMembership = (membership: UserOrganization | null, status: OrgStatus =
 
 /** Stand-in for whatever section the gate is wrapped around. */
 const GatedPanel = () => (
-  <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+  <div className="yc-card-surface px-5 py-4">
     <p className="text-[15px] font-semibold text-[var(--ink-body)]">Today&apos;s appointments</p>
     <p className="mt-1 text-[13px] text-[var(--ink-muted)]">
       12 booked, 3 awaiting confirmation. Visible because the role carries{' '}

@@ -174,12 +174,55 @@ describe('authStore (SuperTokens)', () => {
   });
 
   describe('signUp', () => {
+    it('does not show "[object Response]" when the API rejects with HTTP 500', async () => {
+      mockSignUpApi.mockRejectedValue({ status: 500, ok: false });
+
+      await expect(
+        useAuthStore.getState().signUp('new@test.com', 'Passw0rd!', 'New', 'User')
+      ).rejects.toThrow(
+        'The service is temporarily unavailable. Please wait a moment and try again.'
+      );
+      expect(useAuthStore.getState().loading).toBe(false);
+    });
+
     it('signs up, stores the pending profile, and sends a verification email', async () => {
-      mockSignUpApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockSignUpApi.mockResolvedValue({
+        status: 'OK',
+        user: { id: 'user-1', emails: ['firstlast@gmail.com'] },
+      });
 
       const result = await useAuthStore
         .getState()
-        .signUp('test@email.com', 'Test-password-1!', 'John', 'Doe');
+        .signUp(
+          'First.Last+wave@gmail.com',
+          'Test-password-1!',
+          'John',
+          'Doe',
+          undefined,
+          'verified-token'
+        );
+
+      expect(mockSignUpApi).toHaveBeenCalledWith({
+        formFields: [
+          { id: 'email', value: 'First.Last+wave@gmail.com' },
+          { id: 'password', value: 'Test-password-1!' },
+          { id: 'turnstileToken', value: 'verified-token' },
+        ],
+      });
+      expect(result).toEqual({ userId: 'user-1', email: 'firstlast@gmail.com' });
+      expect(useAuthStore.getState().pendingSignUp).toEqual({
+        email: 'firstlast@gmail.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        role: 'member',
+      });
+      expect(mockSendVerificationEmail).toHaveBeenCalled();
+    });
+
+    it('omits the bot token field when local development does not use Turnstile', async () => {
+      mockSignUpApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1', emails: [] } });
+
+      await useAuthStore.getState().signUp('test@email.com', 'Test-password-1!', 'John', 'Doe');
 
       expect(mockSignUpApi).toHaveBeenCalledWith({
         formFields: [
@@ -187,14 +230,6 @@ describe('authStore (SuperTokens)', () => {
           { id: 'password', value: 'Test-password-1!' },
         ],
       });
-      expect(result).toEqual({ userId: 'user-1' });
-      expect(useAuthStore.getState().pendingSignUp).toEqual({
-        email: 'test@email.com',
-        firstName: 'John',
-        lastName: 'Doe',
-        role: 'member',
-      });
-      expect(mockSendVerificationEmail).toHaveBeenCalled();
     });
 
     it('keeps a custom role in the pending sign-up profile', async () => {
@@ -215,7 +250,7 @@ describe('authStore (SuperTokens)', () => {
         .getState()
         .signUp('test@email.com', 'Test-password-1!', 'John', 'Doe');
 
-      expect(result).toEqual({ userId: 'user-1' });
+      expect(result).toEqual({ userId: 'user-1', email: 'test@email.com' });
       expect(logger.warn).toHaveBeenCalledWith(
         'Failed to send the verification email after sign up',
         expect.any(Error)
@@ -420,6 +455,24 @@ describe('authStore (SuperTokens)', () => {
       expect(useAuthStore.getState().error).toBe('offline');
     });
 
+    // supertokens-web-js rejects with the fetch Response itself on a status it does not
+    // model; this is the shape statusOf and the store read (a plain object stands in for it).
+    it.each([
+      [500, 'The service is temporarily unavailable. Please wait a moment and try again.'],
+      [502, 'The service is temporarily unavailable. Please wait a moment and try again.'],
+      [429, 'Too many attempts. Please wait a minute and try again.'],
+      [400, 'Something went wrong. Please try again.'],
+    ])('says what happened when the API rejects sign in with HTTP %i', async (status, message) => {
+      mockSignInApi.mockRejectedValue({ status, ok: false });
+
+      const attempt = useAuthStore.getState().signIn('user@test.com', 'pass');
+
+      await expect(attempt).rejects.toThrow(message);
+      await expect(attempt).rejects.toMatchObject({ code: `HTTP_${status}` });
+      expect(useAuthStore.getState().error).toBe(message);
+      expect(useAuthStore.getState().status).toBe('unauthenticated');
+    });
+
     it('wraps non-Error sign-in rejections', async () => {
       mockSignInApi.mockRejectedValue('string error message');
 
@@ -524,6 +577,15 @@ describe('authStore (SuperTokens)', () => {
   });
 
   describe('completeTotpChallenge', () => {
+    it('does not show "[object Response]" when the API rejects with HTTP 500', async () => {
+      mockVerifyTotpCode.mockRejectedValue({ status: 500, ok: false });
+
+      await expect(useAuthStore.getState().completeTotpChallenge('123456')).rejects.toThrow(
+        'The service is temporarily unavailable. Please wait a moment and try again.'
+      );
+      expect(useAuthStore.getState().loading).toBe(false);
+    });
+
     it('verifies the code and finishes the sign in', async () => {
       mockVerifyTotpCode.mockResolvedValue({ status: 'OK' });
       useAuthStore.setState({
@@ -615,6 +677,15 @@ describe('authStore (SuperTokens)', () => {
   });
 
   describe('completeEmailOtpChallenge', () => {
+    it('does not show "[object Response]" when the API rejects with HTTP 500', async () => {
+      mockConsumeCode.mockRejectedValue({ status: 500, ok: false });
+
+      await expect(useAuthStore.getState().completeEmailOtpChallenge('123456')).rejects.toThrow(
+        'The service is temporarily unavailable. Please wait a moment and try again.'
+      );
+      expect(useAuthStore.getState().loading).toBe(false);
+    });
+
     it('consumes the code and finishes the sign in', async () => {
       mockConsumeCode.mockResolvedValue({
         status: 'OK',

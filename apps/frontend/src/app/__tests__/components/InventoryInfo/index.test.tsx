@@ -2,12 +2,16 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import InventoryInfo from '@/app/features/inventory/components/InventoryInfo';
 import { BusinessType } from '@/app/features/organization/types/org';
+import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
 // ----------------------------------------------------------------------------
 
 jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
+  parseInventoryCalendarDateParts: jest.requireActual(
+    '@/app/features/inventory/pages/Inventory/utils'
+  ).parseInventoryCalendarDateParts,
   formatDisplayDate: jest.fn((val) => (val ? `Formatted ${val}` : '')),
   toStringSafe: jest.fn((val) => (val === null || val === undefined ? '' : String(val))),
   formatCurrencyValue: jest.fn((val, currency) =>
@@ -102,33 +106,49 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </button>
   ),
-  Secondary: ({ text, onClick, isDisabled }: any) => (
-    <button onClick={onClick} disabled={isDisabled} data-testid="secondary-btn">
+  // The destructive footer action renders as the outlined danger Secondary, so
+  // it gets its own test id and `getAction()` below resolves whichever of the
+  // two trailing actions the panel is showing.
+  Secondary: ({ text, onClick, isDisabled, danger }: any) => (
+    <button
+      onClick={onClick}
+      disabled={isDisabled}
+      data-testid={danger ? 'danger-btn' : 'secondary-btn'}
+    >
       {text}
     </button>
   ),
 }));
 
+const getAction = () => screen.queryByTestId('danger-btn') ?? screen.getByTestId('primary-btn');
+
 jest.mock('@/app/ui/inputs/Datepicker', () => ({
   __esModule: true,
-  default: ({ currentDate, setCurrentDate, placeholder }: any) => (
-    <>
-      <input
-        data-testid={`datepicker-${placeholder}`}
-        value={currentDate ? currentDate.toISOString().split('T')[0] : ''}
-        onChange={(e) => {
-          const d = e.target.value ? new Date(e.target.value) : null;
-          setCurrentDate(d);
-        }}
-      />
-      {/* Drives the updater-function form of setCurrentDate. */}
-      <button
-        type="button"
-        data-testid={`datepicker-updater-${placeholder}`}
-        onClick={() => setCurrentDate((prev: Date | null) => prev ?? new Date(2030, 2, 4))}
-      />
-    </>
-  ),
+  default: ({ currentDate, setCurrentDate, placeholder }: any) => {
+    const localDate = currentDate
+      ? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(
+          currentDate.getDate()
+        ).padStart(2, '0')}`
+      : '';
+    return (
+      <>
+        <input
+          data-testid={`datepicker-${placeholder}`}
+          value={localDate}
+          onChange={(e) => {
+            const d = e.target.value ? new Date(e.target.value) : null;
+            setCurrentDate(d);
+          }}
+        />
+        {/* Drives the updater-function form of setCurrentDate. */}
+        <button
+          type="button"
+          data-testid={`datepicker-updater-${placeholder}`}
+          onClick={() => setCurrentDate((prev: Date | null) => prev ?? new Date(2030, 2, 4))}
+        />
+      </>
+    );
+  },
 }));
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
@@ -337,7 +357,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.getByText('Item 1')).toBeInTheDocument();
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Delete item');
+    expect(getAction()).toHaveTextContent('Delete item');
   });
 
   it('opens directly on the requested initialSection (Restock → Stock Control)', () => {
@@ -366,11 +386,11 @@ describe('InventoryInfo Component', () => {
   it('handles validation failure in Basic Info', async () => {
     render(<InventoryInfo {...defaultProps} />);
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Save');
+    expect(getAction()).toHaveTextContent('Save');
     expect(screen.getByTestId('secondary-btn')).toHaveTextContent('Cancel');
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdate).toHaveBeenCalledWith(
@@ -432,8 +452,36 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(dropdown);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
+  });
+
+  it('opens a midnight UTC expiry on the same picker day and preserves it on unrelated edits', async () => {
+    const itemWithUtcExpiry = {
+      ...defaultProps.activeInventory,
+      batches: [
+        {
+          ...defaultProps.activeInventory.batches![0],
+          expiryDate: '2026-03-01T00:00:00.000Z',
+        },
+      ],
+    } as InventoryItem;
+    render(<InventoryInfo {...defaultProps} activeInventory={itemWithUtcExpiry} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    expect(screen.getAllByTestId('datepicker-Exp Date')[0]).toHaveValue('2026-03-01');
+    fireEvent.change(screen.getAllByTestId('input-barcode')[0], {
+      target: { value: 'UNCHANGED-DATE' },
+    });
+    await act(async () => {
+      fireEvent.click(getAction());
+    });
+
+    expect(mockOnUpdateBatch).toHaveBeenCalledWith(
+      'item-1',
+      expect.arrayContaining([expect.objectContaining({ expiryDate: '2026-03-01T00:00:00.000Z' })])
+    );
   });
 
   it('saves batch-section barcode and expiry warning per batch, without mirroring to item attributes', async () => {
@@ -447,7 +495,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getAllByText(/Expiring warning before/i)[0]);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdateBatch).toHaveBeenCalledWith(
@@ -473,7 +521,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getByTestId('accordion-edit-btn'));
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     // FIX: Added waitFor because validation often has async or state-update tick delays
@@ -486,10 +534,10 @@ describe('InventoryInfo Component', () => {
   it('hides an active item', async () => {
     render(<InventoryInfo {...defaultProps} />);
 
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Delete item');
+    expect(getAction()).toHaveTextContent('Delete item');
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     await act(async () => {
@@ -504,10 +552,10 @@ describe('InventoryInfo Component', () => {
     const hiddenItem = { ...activeInventory, status: 'HIDDEN' };
     render(<InventoryInfo {...defaultProps} activeInventory={hiddenItem} />);
 
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Restore item');
+    expect(getAction()).toHaveTextContent('Restore item');
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUnhide).toHaveBeenCalledWith('item-1');
@@ -537,7 +585,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdate).toHaveBeenCalled();
@@ -594,7 +642,7 @@ describe('InventoryInfo Component', () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdateBatch).toHaveBeenCalledWith(
@@ -626,7 +674,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(screen.getByTestId('center-modal')).toBeInTheDocument();
@@ -641,7 +689,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     // The drawer and the delete confirmation each render a ModalHeader; the
@@ -658,7 +706,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     await act(async () => {
@@ -679,7 +727,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} activeInventory={hiddenItem} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(consoleSpy).toHaveBeenCalledWith('Failed to unhide inventory item:', expect.any(Error));
@@ -764,7 +812,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(consoleSpy).toHaveBeenCalledWith(
@@ -804,7 +852,7 @@ describe('InventoryInfo Component', () => {
 
     fireEvent.click(screen.getByTestId('accordion-edit-btn'));
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     // The fallback batch carries no _id, so it is matched positionally against
@@ -845,7 +893,7 @@ describe('InventoryInfo Component', () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdateBatch).not.toHaveBeenCalled();
@@ -858,7 +906,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdate).toHaveBeenCalledWith(expect.objectContaining({ vendor: {} }));
@@ -876,8 +924,8 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
 
-    fireEvent.click(screen.getByTestId('primary-btn'));
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Saving...');
+    fireEvent.click(getAction());
+    expect(getAction()).toHaveTextContent('Saving...');
 
     // The in-flight save short-circuits any further save attempt.
     fireEvent.click(screen.getByTestId('simulate-invalid-save'));
@@ -897,7 +945,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} activeInventory={unnamed} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(

@@ -33,8 +33,14 @@ jest.mock('@/app/features/appointments/services/workspaceTemplateService', () =>
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the shared artifact-version parser stays under test; only the
+  // network calls below are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   getRenderedDocument: jest.fn(),
-  saveDischargeSummaryArtifact: jest.fn().mockResolvedValue({ id: 'saved-summary' }),
+  saveDischargeSummaryArtifact: jest.fn().mockResolvedValue({
+    id: 'saved-summary',
+    meta: { versionId: '8' },
+  }),
 }));
 
 // Capability gating: grant document:view:any so document actions render.
@@ -215,6 +221,29 @@ describe('SummaryStep', () => {
       backgroundColor: 'var(--color-pill-success-bg)',
     });
     expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-1');
+  });
+
+  it('reveals a clipped document title by tap, not only by hover', async () => {
+    const longTitle =
+      'Discharge summary and post-operative medication plan for a lengthy hospital stay';
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ title: longTitle }),
+    ]);
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    const titleSpan = await screen.findByText(longTitle);
+    expect(titleSpan).toHaveClass('truncate');
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    // A mouse hover is not available on a touchscreen - a tap on the
+    // truncated label itself must be enough to read the full value.
+    fireEvent.click(titleSpan.closest('.glass-tooltip') as HTMLElement);
+    await waitFor(() => {
+      expect(screen.getByRole('tooltip')).toHaveTextContent(longTitle);
+    });
   });
 
   it('places the follow-up date field after the discharge editor', () => {

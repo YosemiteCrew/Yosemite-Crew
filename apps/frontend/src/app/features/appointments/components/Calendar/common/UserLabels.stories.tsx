@@ -12,11 +12,12 @@ const RAVI = 'practitioner-ravi';
 const PRIYA = 'practitioner-priya';
 
 /**
- * A real asset on an allow-listed CDN host, so the photo branch renders through
- * next/image the way it does in the product instead of falling back to markup a
- * blocked host would produce.
+ * A same-origin fixture served by Storybook itself, not the production CDN -
+ * #2853. `user.image` reaches `AvatarImage` with no sanitiser in between (see
+ * `UserLabels.tsx`), so a local path renders through next/image exactly as a
+ * real photo would, without the request leaving the browser.
  */
-const CDN_PHOTO = 'https://d2il6osz49gpup.cloudfront.net/avatar/business1.png';
+const CDN_PHOTO = '/images/storybook-fixtures/avatar-photo.png';
 
 const teamMember = (practionerId: string, name: string, extras: Partial<Team> = {}): Team => ({
   _id: `team-${practionerId}`,
@@ -151,9 +152,20 @@ const meta = {
   decorators: [
     /* The labels have no ground of their own - in the planner they sit on the
        --screen-2 band that CalendarTeamNamesRow paints. Rendering them on the bare
-       preview canvas would hide every contrast problem the header actually has. */
+       preview canvas would hide every contrast problem the header actually has.
+
+       The band also SCROLLS, which is not decoration either. This grid is `min-w-max`
+       on a 170px-per-column track and CalendarTeamNamesRow is `min-w-max` around it,
+       because the header has to stay in lockstep with the appointment columns beneath
+       it - it is built to be wider than the screen and to scroll with the planner.
+       A band that only painted the colour let that overrun escape onto the document,
+       so a width sweep read the deliberate design as a phone-layout bug. maxWidth
+       keeps the band inside whatever canvas it is given; the overrun scrolls. */
     (Story) => (
-      <div data-band="" style={{ width: 520, background: 'var(--screen-2)' }}>
+      <div
+        data-band=""
+        style={{ width: 520, maxWidth: '100%', overflowX: 'auto', background: 'var(--screen-2)' }}
+      >
         <Story />
       </div>
     ),

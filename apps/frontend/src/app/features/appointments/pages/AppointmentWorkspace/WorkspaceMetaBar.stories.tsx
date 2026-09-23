@@ -75,9 +75,16 @@ const outpatient = (patch: Partial<AppointmentEncounter> = {}): AppointmentEncou
     ...patch,
   });
 
-/** The listbox portals to `document.body`, so the bar needs room below it. */
+/**
+ * The listbox portals to `document.body`, so the bar needs room below it.
+ *
+ * The ground is `--page`, which is what `body` actually paints - NOT `--screen`,
+ * which is a different token in both themes. The floating labels notch
+ * themselves against the real ground, so a story rendered on `--screen` would
+ * show the very patch this component was fixed to remove.
+ */
 const Room = (Story: React.ComponentType) => (
-  <div className="min-h-[420px] w-full p-6" style={{ background: 'var(--screen)' }}>
+  <div className="min-h-[420px] w-full p-6" style={{ background: 'var(--page)' }}>
     <Story />
   </div>
 );
@@ -105,7 +112,8 @@ const meta = {
           'genuinely fragile one. `EditableMetaDropdown` does not wrap `LabelDropdown` in a styled ' +
           'shell; it reaches *into* it with descendant selectors keyed on its exact DOM nesting. ' +
           "`[&>div>span]` takes LabelDropdown's ordinary stacked 12px label and re-renders it " +
-          'notched into the border - `absolute -top-[7px] left-3`, `bg-[var(--screen)]`, ' +
+          'notched into the border - `absolute -top-[7px] left-3`, `bg-[var(--page)]` (the token ' +
+          '`body` actually paints, so the notch lines up), ' +
           '`px-[5px]`, 10.5px on `--ink-faint` - so it lines up with the `MetaFieldShell` labels ' +
           'beside it. `[&>div>div>button]` then overrides the trigger to a 14px radius, a ' +
           '`--field-bg` fill and 13.5px/600 text so it matches the read-only fields rather than ' +

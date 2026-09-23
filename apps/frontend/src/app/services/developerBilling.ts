@@ -2,15 +2,10 @@ import { getData, postData } from '@/app/services/axios';
 
 export type DeveloperPlanTier = 'free' | 'pro' | 'enterprise';
 export type DeveloperSubscriptionStatus =
-  | 'active'
-  | 'trialing'
-  | 'past_due'
-  | 'canceled'
-  | 'incomplete';
+  'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete';
 
 export interface DeveloperSubscription {
   id: string | null;
-  organisationId: string;
   plan: DeveloperPlanTier;
   status: DeveloperSubscriptionStatus;
   stripeSubscriptionItemId: string | null;

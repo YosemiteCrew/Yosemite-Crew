@@ -1,6 +1,6 @@
 import React from 'react';
 import { Invoice } from '@yosemite-crew/types';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { getInvoiceOutstanding } from '@/app/lib/financeMetrics';
 
 type InvoiceSummaryPanelProps = {
@@ -10,6 +10,11 @@ type InvoiceSummaryPanelProps = {
 
 const InvoiceSummaryPanel = ({ invoice, currency }: InvoiceSummaryPanelProps) => {
   const outstanding = getInvoiceOutstanding(invoice);
+  // The invoice's own currency, and to the penny. The prop is an organisation
+  // value that is always USD (#2597), and these figures have to reconcile with
+  // the stored amount and with the credit ledger below - 144.60 rounded to 145
+  // is a different number to the client.
+  const money = recordCurrency(invoice, currency);
   const taxLabel = invoice.taxPercent ? `Tax · ${invoice.taxPercent}%` : 'Tax';
 
   return (
@@ -19,26 +24,26 @@ const InvoiceSummaryPanel = ({ invoice, currency }: InvoiceSummaryPanelProps) =>
         <div className="flex items-center justify-between text-[13px] text-[var(--ink-muted)]">
           <span>Subtotal</span>
           <span className="tabular-nums text-[13px] font-semibold text-[var(--ink-body)]">
-            {formatMoney(invoice.subtotal ?? 0, currency)}
+            {formatMoneyPrecise(invoice.subtotal ?? 0, money)}
           </span>
         </div>
         <div className="flex items-center justify-between text-[13px] text-[var(--ink-muted)]">
           <span>Discount</span>
           <span className="tabular-nums text-[13px] font-semibold text-[var(--ink-body)]">
-            {formatMoney(invoice.discountTotal ?? 0, currency)}
+            {formatMoneyPrecise(invoice.discountTotal ?? 0, money)}
           </span>
         </div>
         <div className="flex items-center justify-between text-[13px] text-[var(--ink-muted)]">
           <span>{taxLabel}</span>
           <span className="tabular-nums text-[13px] font-semibold text-[var(--ink-body)]">
-            {formatMoney(invoice.taxTotal ?? 0, currency)}
+            {formatMoneyPrecise(invoice.taxTotal ?? 0, money)}
           </span>
         </div>
         <span className="h-px bg-card-border" aria-hidden="true" />
         <div className="flex items-baseline justify-between">
           <span className="text-[13.5px] font-bold text-[var(--ink)]">Total</span>
           <span className="text-[24px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
-            {formatMoney(invoice.totalAmount ?? 0, currency)}
+            {formatMoneyPrecise(invoice.totalAmount ?? 0, money)}
           </span>
         </div>
         <div className="flex items-center justify-between text-[13px] text-[var(--ink-muted)]">
@@ -49,7 +54,7 @@ const InvoiceSummaryPanel = ({ invoice, currency }: InvoiceSummaryPanelProps) =>
               color: outstanding > 0 ? 'var(--warn-text)' : 'var(--success-text)',
             }}
           >
-            {formatMoney(outstanding, currency)}
+            {formatMoneyPrecise(outstanding, money)}
           </span>
         </div>
       </div>

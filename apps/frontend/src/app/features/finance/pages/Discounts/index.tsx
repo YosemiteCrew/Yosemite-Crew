@@ -98,7 +98,7 @@ const DiscountsContent = () => {
     <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex items-center justify-between w-full flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <h1 className="text-text-primary text-heading-2">Discounts</h1>
+          <h1 className="text-page-title">Discounts</h1>
           <GlassTooltip
             content="Set the maximum overall discount anyone can apply to an invoice in the appointment workspace. Per-service and per-product caps are separate limits, set under Organization > Specialities."
             side="bottom"

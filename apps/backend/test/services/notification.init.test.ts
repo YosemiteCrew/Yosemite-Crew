@@ -23,14 +23,15 @@ const importFreshWithAdmin = (
     jest.doMock("node:fs", () => ({
       existsSync,
     }));
-    jest.doMock("firebase-admin", () => ({
+    jest.doMock("firebase-admin/app", () => ({
       __esModule: true,
-      default: {
-        apps,
-        initializeApp,
-        credential: { cert },
-        messaging: jest.fn(),
-      },
+      getApps: jest.fn(() => apps),
+      initializeApp,
+      cert,
+    }));
+    jest.doMock("firebase-admin/messaging", () => ({
+      __esModule: true,
+      getMessaging: jest.fn(),
     }));
     require("../../src/services/notification.service");
   });

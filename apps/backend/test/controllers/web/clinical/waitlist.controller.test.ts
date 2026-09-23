@@ -121,9 +121,11 @@ runClinicalControllerSuite({
     {
       handler: "book",
       params: { organisationId: ORG_ID, entryId: RECORD_ID },
+      body: { appointmentId: SECOND_ID },
       serviceMethod: "book",
-      expectArgs: [RECORD_ID, ORG_ID, USER_ID],
+      expectArgs: [RECORD_ID, ORG_ID, SECOND_ID, USER_ID],
       fallback: "Failed to book waitlist entry",
+      invalidPayload: { appointmentId: "" },
     },
     {
       handler: "cancel",

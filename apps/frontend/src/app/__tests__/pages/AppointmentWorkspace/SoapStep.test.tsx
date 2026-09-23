@@ -13,6 +13,9 @@ import {
 expect.extend(toHaveNoViolations);
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the pure conflict-message helper and the shared
+  // conflict copy stay under test; only the network calls are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   saveSoapNote: jest.fn(),
 }));
 
@@ -66,7 +69,10 @@ describe('SoapStep', () => {
     reset();
     onRecordVitals.mockClear();
     onSaveAndNext.mockClear();
-    (saveSoapNote as jest.Mock).mockResolvedValue({ id: 'soap-saved' });
+    (saveSoapNote as jest.Mock).mockResolvedValue({
+      id: 'soap-saved',
+      meta: { versionId: '6' },
+    });
     (getWorkspaceTemplateById as jest.Mock).mockReset();
     (getWorkspaceTemplateById as jest.Mock).mockResolvedValue(undefined);
     (resolveSoapTemplate as jest.Mock).mockReset();
@@ -427,6 +433,10 @@ describe('SoapStep', () => {
     expect(savedNote.codedProblems).toEqual({
       assessment: [{ ycCode: 'YC-000123', label: 'Gastritis' }],
     });
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]).toMatchObject({
+      id: 'soap-saved',
+      artifactVersion: 6,
+    });
   });
 
   it('shows picked coded terms as chips and lists them in the signed note history', () => {
@@ -501,7 +511,9 @@ describe('SoapStep', () => {
   it('surfaces the backend error and does NOT sign or advance when the save fails', async () => {
     // Override the global throwing console.error spy: the handler logs on failure.
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    (saveSoapNote as jest.Mock).mockRejectedValueOnce(new Error('SOAP save rejected'));
+    (saveSoapNote as jest.Mock).mockRejectedValueOnce(
+      new Error('Your session was refreshed. Review your unsaved changes and save again.')
+    );
     onSaveAndNext.mockClear();
     seedAndGet();
     useAppointmentWorkspaceStore.getState().upsertSoap(APPT, { subjective: '<p>history</p>' });
@@ -521,7 +533,9 @@ describe('SoapStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('SOAP save rejected');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your session was refreshed. Review your unsaved changes and save again.'
+    );
     // Critical: a failed save must not advance the step or mark the note COMPLETED.
     expect(onSaveAndNext).not.toHaveBeenCalled();
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.status).not.toBe(

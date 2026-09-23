@@ -75,6 +75,22 @@ type ClinicalTermMeta = {
   codes?: ClinicalConcept["codes"];
 };
 
+/** A usable crosswalk to another vocabulary, shown beside the term as it is picked. */
+export type ClinicalTermCoding = {
+  system: CodeSystem;
+  code: string;
+  display?: string;
+  equivalence: MappingEquivalence;
+};
+
+/**
+ * Restrict results to terms that actually carry a usable crosswalk to one
+ * vocabulary. A practice that works in SNOMED wants a list it can code in
+ * SNOMED; showing terms with no SNOMED counterpart wastes their time and
+ * produces records they cannot export the way they need.
+ */
+export type VocabularyFilter = "VENOM" | "SNOMED";
+
 export type ClinicalTermSuggestion = {
   ycCode: string;
   label: string;
@@ -82,6 +98,13 @@ export type ClinicalTermSuggestion = {
   species: ClinicalSpecies[];
   synonyms: string[];
   source?: string;
+  /**
+   * VeNom/SNOMED crosswalks for this term, strongest equivalence per system.
+   * Read from CodeMapping — the same table and the same usable-equivalence gate
+   * the FHIR export uses — so what a clinician sees while picking is exactly
+   * what the record will carry.
+   */
+  codings: ClinicalTermCoding[];
 };
 
 const EXTERNAL_CODE_SYSTEM_MAP: Record<string, CodeSystem> = {
@@ -193,6 +216,9 @@ const toSuggestion = (entry: {
       : [],
     synonyms: toUniqueStrings(normalizeSynonyms(entry.synonyms)),
     source: typeof meta.source === "string" ? meta.source : undefined,
+    // Filled in by suggestTerms from CodeMapping; empty for callers that build a
+    // suggestion without the crosswalk lookup.
+    codings: [],
   };
 };
 
@@ -217,11 +243,70 @@ const jsonTextArray = (expression: Prisma.Sql) =>
 const synonymMatches = (predicate: Prisma.Sql) =>
   Prisma.sql`EXISTS (SELECT 1 FROM ${jsonTextArray(SYNONYMS_COLUMN)} s WHERE ${predicate})`;
 
+/**
+ * pg_trgm cannot serve a pattern shorter than three characters, and one such token in
+ * the OR below costs the whole statement its index. Measured on the 11,742 shipped
+ * concepts: "%cyst% OR %of%" is a sequential scan, 2,209 rows and 937 buffers at 52 ms,
+ * while "%cyst% OR %iris%" is a BitmapOr over the trigram index, 229 rows and 138
+ * buffers. Two-letter words in a clinical phrase are "of", "in" and "to", which carry no
+ * selectivity anyway, so the floor costs recall nothing and buys back the index.
+ */
+const MIN_QUERY_TOKEN_LENGTH = 3;
+/**
+ * A bound on the OR-ed trigram scans one keystroke can provoke. Measured over the 73
+ * query sample in test/fixtures: recall and mean position are identical at 4, 5, 6 and
+ * 8 tokens, while p95 latency is 15.2 ms at 4 against 50.6 ms at 8 and the worst case is
+ * 40 ms against 211 ms. Four is where the sample stops paying for more.
+ *
+ * A query longer than this is scored on its first four words, and coverage is a share of
+ * those four. The sample holds no query whose fifth word is the only discriminating one,
+ * so that is a property of the sample rather than a proof that none exists.
+ */
+const MAX_QUERY_TOKENS = 4;
+/**
+ * Full token coverage scores TOKEN_COVERAGE_WEIGHT and a partial match less, so the
+ * ceiling stays below 50, the weakest whole-phrase tier. Widening can therefore only
+ * append rows beneath today's results; it can never reorder them.
+ */
+const TOKEN_COVERAGE_WEIGHT = 40;
+const TOKEN_DISPLAY_BONUS = 5;
+
+/**
+ * The word-shaped fragments of a query. Split on everything that is not a letter or a
+ * digit, so "otitis externa", "otitis-externa" and "ear (aural) infection" tokenise the
+ * same way and a token can never carry a LIKE wildcard or a regex metacharacter.
+ *
+ * Empty for a single-word query, which needs no widening: every row holding that word
+ * holds it as a substring too, so the whole-phrase tiers already score all of them.
+ */
+const queryTokens = (query: string): string[] => {
+  const words = query.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (words.length < 2) return [];
+  return [...new Set(words)]
+    .filter((word) => word.length >= MIN_QUERY_TOKEN_LENGTH)
+    .slice(0, MAX_QUERY_TOKENS);
+};
+
+/**
+ * \m and \M are Postgres word boundaries. Substring matching a term is far too loose to
+ * rank on - "ear" sits inside "heart", "linear" and "clearance", which is 332 of the
+ * 11,742 shipped concepts against 75 that contain the actual word - so the prefilter
+ * matches substrings, for the trigram index, and the high score demands a whole word.
+ * Escaping keeps punctuation in a full query literal rather than turning it into regex.
+ */
+const wordMatch = (haystack: Prisma.Sql, token: string) => {
+  const literal = token.replace(/[\\^$.*+?()[\]{}|]/g, String.raw`\$&`);
+  const wholeWord = String.raw`\m${literal}\M`;
+  return Prisma.sql`${haystack} ~ ${wholeWord}`;
+};
+
 export type SuggestTermsParams = {
   q?: string;
   domain?: ClinicalDomain;
   species?: ClinicalSpecies[];
   limit?: number;
+  /** Only terms with a usable crosswalk to this vocabulary. */
+  vocabulary?: VocabularyFilter;
 };
 
 /**
@@ -241,6 +326,7 @@ export const buildSuggestionQuery = (
   const escaped = query ? escapeLike(query) : "";
   const containsPattern = `%${escaped}%`;
   const prefixPattern = `${escaped}%`;
+  const tokens = query ? queryTokens(query) : [];
 
   // Filtering and scoring happen in SQL. Doing it in JavaScript meant first pulling a
   // fixed slice of rows, which silently made most of the vocabulary unsearchable.
@@ -256,9 +342,19 @@ export const buildSuggestionQuery = (
     // elements rather than from synonyms::text, so a synonym containing a quote or
     // backslash is searchable rather than appearing JSON-escaped. This is a prefilter
     // over a superset; scoreExpression below decides the real matches.
-    filters.push(
+    // Widening is an OR, never a replacement: the whole-phrase pattern still runs and
+    // still drives the same tiers. The token patterns only admit rows the phrase cannot
+    // reach into the scoring stage, where scoreExpression decides whether they are a
+    // real match. "ear infection" is a substring of no shipped term, so without the
+    // token patterns this prefilter returns nothing at all for it.
+    const textMatches = [
       Prisma.sql`code_entry_search_text(e."display", e."synonyms") LIKE ${containsPattern} ESCAPE '\\'`,
-    );
+      ...tokens.map((token) => {
+        const tokenPattern = `%${escapeLike(token)}%`;
+        return Prisma.sql`code_entry_search_text(e."display", e."synonyms") LIKE ${tokenPattern} ESCAPE '\\'`;
+      }),
+    ];
+    filters.push(Prisma.sql`(${Prisma.join(textMatches, " OR ")})`);
   }
 
   if (params.domain) {
@@ -266,9 +362,40 @@ export const buildSuggestionQuery = (
   }
 
   if (params.species?.length) {
-    const speciesElements = jsonTextArray(SPECIES_META);
+    // An untagged concept is one with no species restriction, not one that belongs to
+    // no species. EXISTS over an empty array is false, so matching on the tag alone
+    // would drop every untagged row from every filtered search - 16 of the 11,742
+    // shipped active concepts, all of them Procedure, and they are the cross-species
+    // ones: rabies vaccination, castration, ID chip insertion, anti-parasitic therapy.
+    // Filtering a dog appointment would have hidden exactly those from the Plan picker.
+    //
+    //   node -e 'const a=require("./apps/backend/data/yc_concepts.json");
+    //     for (const c of a) if (c.active !== false && !(c.species||[]).length)
+    //       console.log(c.ycCode, c.domain, c.label)'
+    //
+    // jsonTextArray coerces a missing key, a null and a non-array alike to '[]', so the
+    // untagged arm is true for all three as well as for a literal empty array.
     filters.push(
-      Prisma.sql`EXISTS (SELECT 1 FROM ${speciesElements} sp WHERE sp = ANY(${params.species}))`,
+      Prisma.sql`(
+        EXISTS (SELECT 1 FROM ${jsonTextArray(SPECIES_META)} sp WHERE sp = ANY(${params.species}))
+        OR NOT EXISTS (SELECT 1 FROM ${jsonTextArray(SPECIES_META)} sp)
+      )`,
+    );
+  }
+
+  if (params.vocabulary) {
+    // Same usable-equivalence gate the picker and the export apply, so a term is
+    // only offered under a vocabulary filter when that vocabulary genuinely holds
+    // a counterpart for it - not merely a row saying "no counterpart exists".
+    filters.push(
+      Prisma.sql`EXISTS (
+        SELECT 1 FROM "CodeMapping" m
+        WHERE m."sourceCode" = e."code"
+          AND m."sourceSystem" = 'YOSEMITECODE'::"CodeSystem"
+          AND m."targetSystem" = ${params.vocabulary}::"CodeSystem"
+          AND m."active"
+          AND m."equivalence" = ANY(${USABLE_SUGGESTION_EQUIVALENCES}::"MappingEquivalence"[])
+      )`,
     );
   }
 
@@ -280,19 +407,87 @@ export const buildSuggestionQuery = (
     Prisma.sql`lower(s) LIKE ${containsPattern} ESCAPE '\\'`,
   );
 
+  const searchText = Prisma.sql`code_entry_search_text(e."display", e."synonyms")`;
+  const loweredDisplay = Prisma.sql`lower(e."display")`;
+  const displayWholeWord = wordMatch(loweredDisplay, query ?? "");
+  const synonymWholeWord = synonymMatches(
+    wordMatch(Prisma.sql`lower(s)`, query ?? ""),
+  );
+
+  // How much of the query this row accounts for. Each token carries an equal share of
+  // TOKEN_COVERAGE_WEIGHT, so a row matching both words of a two-word query ranks with
+  // one matching all four words of a four-word query rather than being penalised for the
+  // shorter question. The share is computed here rather than divided in SQL so every
+  // value the statement binds is an integer literal.
+  //
+  // A row matching no token scores 0 here. The lower substring tiers below preserve
+  // partial-word autocomplete without letting those candidates tie a whole-word match.
+  const tokenShare = Math.floor(TOKEN_COVERAGE_WEIGHT / (tokens.length || 1));
+  const tokenScore = tokens.length
+    ? Prisma.sql`(${Prisma.join(
+        tokens.map(
+          (token) =>
+            Prisma.sql`CASE WHEN ${wordMatch(searchText, token)} THEN ${tokenShare} ELSE 0 END`,
+        ),
+        " + ",
+      )})
+        + CASE WHEN ${Prisma.join(
+          tokens.map((token) => wordMatch(loweredDisplay, token)),
+          " OR ",
+        )} THEN ${TOKEN_DISPLAY_BONUS} ELSE 0 END`
+    : Prisma.sql`0`;
+
   const scoreExpression = query
     ? Prisma.sql`CASE
           WHEN lower(e."display") = ${query} THEN 400
           WHEN ${synonymExact} THEN 300
           WHEN lower(e."display") LIKE ${prefixPattern} ESCAPE '\\' THEN 200
           WHEN ${synonymPrefix} THEN 150
-          WHEN lower(e."display") LIKE ${containsPattern} ESCAPE '\\' THEN 100
-          WHEN ${synonymContains} THEN 50
-          ELSE 0
+          WHEN ${displayWholeWord} THEN 100
+          WHEN ${synonymWholeWord} THEN 50
+          ELSE GREATEST(
+            CASE
+              WHEN lower(e."display") LIKE ${containsPattern} ESCAPE '\\' THEN 20
+              WHEN ${synonymContains} THEN 10
+              ELSE 0
+            END,
+            ${tokenScore}
+          )
         END`
     : Prisma.sql`0`;
 
   const scoreFilter = query ? Prisma.sql`score > 0` : Prisma.sql`TRUE`;
+
+  // Inside one tier every row matched the same query the same way, so the tier says
+  // nothing about which of them the clinician meant and the order fell through to the
+  // label alphabetically. That clusters a concept family: the query "renal" in domain
+  // Diagnosis matches 119 concepts, and eight of the first ten are "Renal (kidney) ..."
+  // rows, of which six are variants of one congenital anomaly. The whole "Renal failure"
+  // family - acute, chronic, anuric, polyuric and unspecified - sits at positions 22 to
+  // 28, off the page the picker shows.
+  //
+  // In the three tiers matched against "display" - 400 exact, 200 prefix, 100 contains -
+  // the query is a fixed length and occurs in the label, so ordering by label length
+  // ascending is ordering by the share of the label the query accounts for, largest share
+  // first: "renal" is 5 of the 13 characters of "Renal failure" and 5 of the 47 of "Renal
+  // (kidney) anomaly, congenital - Polycystic kidney disease (PKD)". It is the same
+  // coverage idea the token score above already uses, applied to the label instead of to
+  // the query, and it needs nothing the row does not already carry.
+  //
+  // In the three synonym tiers - 300, 150, 50 - and for a token row that matched only
+  // through the synonym half of code_entry_search_text, the query need not occur in
+  // "display" at all, so length is not measuring coverage there. It is a different
+  // arbitrary key than alphabetical rather than a better one, and it is used anyway
+  // because one ORDER BY is worth more than a scalar subquery over
+  // jsonb_array_elements_text per prefilter row on a keystroke path.
+  //
+  // This orders rows inside a tier only. No row changes tier, so a term that outranks
+  // another today by matching more exactly still outranks it. With no query every row
+  // scores 0, there is no tier to break a tie inside, and the browse list stays
+  // alphabetical.
+  const ordering = query
+    ? Prisma.sql`ORDER BY score DESC, length(display) ASC, display ASC, code ASC`
+    : Prisma.sql`ORDER BY score DESC, display ASC, code ASC`;
 
   return Prisma.sql`
     SELECT code, display, synonyms, meta, score FROM (
@@ -302,9 +497,91 @@ export const buildSuggestionQuery = (
       WHERE ${Prisma.join(filters, " AND ")}
     ) scored
     WHERE ${scoreFilter}
-    ORDER BY score DESC, display ASC
+    ${ordering}
     LIMIT ${safeLimit}
   `;
+};
+
+/**
+ * Equivalences that assert a usable counterpart, mirroring the export gate: a
+ * term shown with a SNOMED code in the picker must be a term that actually
+ * exports with that SNOMED code.
+ */
+const USABLE_SUGGESTION_EQUIVALENCES: MappingEquivalence[] = [
+  "RELATEDTO",
+  "EQUIVALENT",
+  "EQUAL",
+  "WIDER",
+  "SUBSUMES",
+  "NARROWER",
+  "SPECIALIZES",
+  "INEXACT",
+];
+
+/** Strongest first, so one system contributes its best crosswalk only. */
+const SUGGESTION_EQUIVALENCE_RANK: MappingEquivalence[] = [
+  "EQUAL",
+  "EQUIVALENT",
+  "NARROWER",
+  "SPECIALIZES",
+  "WIDER",
+  "SUBSUMES",
+  "RELATEDTO",
+  "INEXACT",
+];
+
+/**
+ * One batched query for the whole result page, keyed by YC code. Never one
+ * query per suggestion: this runs on every keystroke past the debounce.
+ */
+const crossCodesFor = async (
+  ycCodes: string[],
+): Promise<Map<string, ClinicalTermCoding[]>> => {
+  const wanted = [...new Set(ycCodes)];
+  const result = new Map<string, ClinicalTermCoding[]>();
+  if (wanted.length === 0) return result;
+
+  const rows = await prisma.codeMapping.findMany({
+    where: {
+      sourceSystem: "YOSEMITECODE",
+      sourceCode: { in: wanted },
+      active: true,
+      equivalence: { in: USABLE_SUGGESTION_EQUIVALENCES },
+    },
+    select: {
+      sourceCode: true,
+      targetSystem: true,
+      targetCode: true,
+      targetDisplay: true,
+      equivalence: true,
+    },
+    // Deterministic before ranking, so equal-strength rows resolve the same way
+    // on every keystroke rather than flickering between codes.
+    orderBy: { targetCode: "asc" },
+  });
+
+  const rank = (equivalence: MappingEquivalence) => {
+    const index = SUGGESTION_EQUIVALENCE_RANK.indexOf(equivalence);
+    return index === -1 ? SUGGESTION_EQUIVALENCE_RANK.length : index;
+  };
+
+  for (const row of rows) {
+    const held = result.get(row.sourceCode) ?? [];
+    const existing = held.find((coding) => coding.system === row.targetSystem);
+    const candidate: ClinicalTermCoding = {
+      system: row.targetSystem,
+      code: row.targetCode,
+      display: row.targetDisplay ?? undefined,
+      equivalence: row.equivalence,
+    };
+    if (!existing) {
+      held.push(candidate);
+    } else if (rank(row.equivalence) < rank(existing.equivalence)) {
+      held.splice(held.indexOf(existing), 1, candidate);
+    }
+    result.set(row.sourceCode, held);
+  }
+  return result;
 };
 
 export const ClinicalTermsService = {
@@ -355,6 +632,13 @@ export const ClinicalTermsService = {
     const rows = await prisma.$queryRaw<ClinicalTermRow[]>(
       buildSuggestionQuery(params),
     );
-    return rows.map((row) => toSuggestion(row));
+    const suggestions = rows.map((row) => toSuggestion(row));
+    const codings = await crossCodesFor(
+      suggestions.map((suggestion) => suggestion.ycCode),
+    );
+    return suggestions.map((suggestion) => ({
+      ...suggestion,
+      codings: codings.get(suggestion.ycCode) ?? [],
+    }));
   },
 };

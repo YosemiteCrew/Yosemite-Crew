@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { z } from "zod";
 import logger from "../../utils/logger";
 import {
   ParentCompanionService,
@@ -7,6 +8,38 @@ import {
 import { ParentService } from "src/services/parent.service";
 import type { ParentCompanionPermissions } from "@yosemite-crew/types";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
+
+/*
+ * `ParentPatient.permissions` is the input to an authorisation decision -
+ * `companion-access.ts` reads it on every companion-gated route - so the body
+ * that writes it is a trust boundary and gets parsed, not cast. A cast checks
+ * nothing at runtime, and the previous one let any JSON object through to be
+ * merged over the stored record verbatim (#2710).
+ *
+ * `satisfies` rather than a hand-kept list: adding a key to
+ * `ParentCompanionPermissions` without adding it here, or leaving one here that
+ * the type no longer has, is a compile error. The alternative is a list that
+ * silently stops covering the feature someone added last week.
+ */
+const PERMISSION_SHAPE = {
+  assignAsPrimaryParent: z.boolean(),
+  emergencyBasedPermissions: z.boolean(),
+  appointments: z.boolean(),
+  companionProfile: z.boolean(),
+  documents: z.boolean(),
+  expenses: z.boolean(),
+  tasks: z.boolean(),
+  chatWithVet: z.boolean(),
+  medicalRecords: z.boolean(),
+} satisfies Record<keyof ParentCompanionPermissions, z.ZodBoolean>;
+
+/*
+ * Strict, so an unrecognised key is a 400 rather than a silent drop. A caller
+ * who sends `medicalRecods: false` has made a mistake that matters, and
+ * answering 200 to it would report a permission change that never happened.
+ * Every key is optional because a PATCH may carry one.
+ */
+const permissionUpdateSchema = z.object(PERMISSION_SHAPE).partial().strict();
 
 const resolveAuthenticatedUserId = (req: Request): string | undefined => {
   const userId = (req as AuthenticatedRequest).userId;
@@ -103,9 +136,6 @@ export const ParentCompanionController = {
         authUserId!,
       );
       const { patientId, targetParentId } = req.params;
-      const updates = (
-        typeof req.body === "object" && req.body ? req.body : {}
-      ) as Partial<ParentCompanionPermissions>;
 
       if (!requestingParent) {
         return res
@@ -118,6 +148,23 @@ export const ParentCompanionController = {
           .status(400)
           .json({ message: "Invalid parent or companion ID." });
       }
+
+      /*
+       * Parsed after the auth and id checks, so an unauthenticated caller
+       * learns nothing about the body's shape. The offending body is not
+       * logged - it is caller-controlled, and the 400 already reaches the only
+       * party who can act on it.
+       */
+      const parsedUpdates = permissionUpdateSchema.safeParse(
+        typeof req.body === "object" && req.body ? req.body : {},
+      );
+      if (!parsedUpdates.success) {
+        return res.status(400).json({
+          message: "Invalid permissions payload.",
+          errors: z.flattenError(parsedUpdates.error),
+        });
+      }
+      const updates: Partial<ParentCompanionPermissions> = parsedUpdates.data;
 
       const updated = await ParentCompanionService.updatePermissions(
         resolveParentId(requestingParent),

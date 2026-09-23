@@ -93,10 +93,27 @@ export const Organization = () => {
 
   return (
     <div className="yc-page-content flex flex-col gap-[14px]">
+      {/* Page-header contract: every page opens with the serif title and a
+          subtitle. This page used to start straight on the profile card, so it
+          was the one PIMS screen with no H1. */}
+      <div className="flex min-w-0 flex-col gap-[3px]">
+        <h1 className="text-page-title">Organization</h1>
+        <p className="text-[13.5px] text-[var(--ink-muted)]">
+          Clinic profile, team, rooms, specialities and the services you offer
+        </p>
+      </div>
       <Profile primaryOrg={primaryorg} />
       {primaryorg.isVerified ? (
-        <div className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] xl:items-stretch">
-          <Team isVerified={primaryorg.isVerified} />
+        // Neither column has a border/background of its own - each item inside
+        // is already its own bordered card - so stretching the shorter column
+        // to match the taller one bought no visual alignment and only left dead
+        // blank space below its last card (reported below the Payment card).
+        // `items-start` lets each column end at its own natural height.
+        <div className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] xl:items-start">
+          <div className="flex min-h-0 flex-col gap-[14px]">
+            <Team isVerified={primaryorg.isVerified} />
+            <Specialities />
+          </div>
           <div className="flex min-h-0 flex-col gap-[14px]">
             <Rooms />
             <Payment />
@@ -104,9 +121,11 @@ export const Organization = () => {
           </div>
         </div>
       ) : (
-        <DeleteOrg />
+        <>
+          <Specialities />
+          <DeleteOrg />
+        </>
       )}
-      <Specialities />
       {primaryorg.isVerified && (
         <>
           <LinkedMedicalDevices />

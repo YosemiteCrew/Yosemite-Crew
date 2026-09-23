@@ -107,6 +107,9 @@ jest.mock('@/app/features/forms/services/formSigningService', () => ({
   downloadSubmissionPdf: jest.fn(),
 }));
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the shared artifact-version parser stays under test; only the
+  // network calls below are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   saveVitalRecord: jest.fn(),
   createPmsObservationSubmission: jest.fn(),
 }));
@@ -653,7 +656,7 @@ describe('TasksPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /new task/i }));
     // Shared task form: pick an assignee, set the title, save.
     fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
-    fireEvent.click(await screen.findByRole('button', { name: 'Dr. Tim Apple' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Dr. Tim Apple' }));
     fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Recheck incision' },
     });
@@ -678,7 +681,7 @@ describe('TasksPanel', () => {
     expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /new task/i }));
     fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
-    fireEvent.click(await screen.findByRole('button', { name: 'Yasmin Hadid' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Yasmin Hadid' }));
     fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Give meds at 8pm' },
     });
@@ -757,7 +760,7 @@ describe('TasksPanel', () => {
     render(<TasksPanel appointmentId={APPT} />);
 
     fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Dr. Tim Apple' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Dr. Tim Apple' }));
     // Reassignment persists to the backing task (single source of truth) so the
     // Schedule timeline reflects the same assignee — no divergent local update.
     await waitFor(() => expect(updateTask).toHaveBeenCalled());

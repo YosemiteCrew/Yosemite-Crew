@@ -59,6 +59,7 @@ describe("clinicalArtifactFhirMapper", () => {
     prescription: {
       id: "rx-1",
       artifactId: "artifact-2",
+      supersedesId: null,
       medications: [{ name: "Amoxicillin" }],
       instructions: "BID",
       notes: "after food",
@@ -162,6 +163,48 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(input.status).toBe("COMPLETED");
     expect(input.subjective).toEqual({ chiefComplaint: "Cough" });
     expect(input.assessment).toEqual({ diagnosis: "Flu" });
+  });
+
+  it("exports the ATCvet coding a coded prescription line carries", () => {
+    // The mapper previously hardcoded a 'PRESCRIPTION' concept, so a coded
+    // prescription left the system uncoded no matter what the client sent.
+    const coded = {
+      ...prescriptionRecord,
+      prescription: {
+        ...prescriptionRecord.prescription,
+        medications: [
+          {
+            medication: "doxycycline",
+            metadata: { atcCode: "QJ01AA02" },
+          },
+        ],
+      },
+    };
+
+    const resource =
+      clinicalArtifactFhirMapper.prescriptionToMedicationRequest(coded);
+
+    expect(resource.medicationCodeableConcept?.coding).toEqual([
+      {
+        system: "http://www.whocc.no/atcvet",
+        code: "QJ01AA02",
+        display: "doxycycline",
+      },
+    ]);
+    expect(resource.medicationCodeableConcept?.text).toBe("doxycycline");
+  });
+
+  it("keeps the generic concept when no line carries a code", () => {
+    const resource =
+      clinicalArtifactFhirMapper.prescriptionToMedicationRequest(
+        prescriptionRecord,
+      );
+    // An uncoded prescription must not gain an invented coding.
+    expect(
+      resource.medicationCodeableConcept?.coding?.some(
+        (coding) => coding.system === "http://www.whocc.no/atcvet",
+      ),
+    ).toBeFalsy();
   });
 
   it("maps prescriptions to and from MedicationRequest", () => {
@@ -796,22 +839,38 @@ describe("clinicalArtifactFhirMapper", () => {
         (c) => c.code?.coding?.[0]?.code === key,
       );
 
-    it("refuses to claim a unit for tempF, because the form may write Celsius into it", () => {
-      // VitalsForm.resolveDraftKey routes any field whose label contains "temp" into
-      // tempF whatever unit the template declares, and a Celsius template has its own
-      // test. Stamping [degF] here would export 38.5 as severe hypothermia rather than
-      // a normal canine temperature: confidently wrong beats ambiguous, the wrong way.
-      const component = componentFor({ tempF: 38.5 }, "tempF");
-
-      expect(component).toMatchObject({ valueDecimal: 38.5 });
-      expect(component).not.toHaveProperty("valueQuantity");
+    it("states the unit for tempF, now that only a Fahrenheit template writes it", () => {
+      // These two were exported as bare decimals while VitalsForm routed every field
+      // labelled "temp" into tempF whatever unit the template declared - stamping
+      // [degF] on a Celsius reading would have exported 38.5 as severe hypothermia.
+      // The form now picks the key from the declared unit, so the key is trustworthy
+      // and the reading can be qualified.
+      expect(
+        componentFor({ tempF: 101.4 }, "tempF")?.valueQuantity,
+      ).toMatchObject({
+        unit: "°F",
+        code: "[degF]",
+      });
     });
 
-    it("refuses to claim a unit for weightLbs for the same reason", () => {
-      const component = componentFor({ weightLbs: 12 }, "weightLbs");
+    it("states the unit for weightLbs for the same reason", () => {
+      expect(
+        componentFor({ weightLbs: 12 }, "weightLbs")?.valueQuantity,
+      ).toMatchObject({
+        unit: "lb",
+        code: "[lb_av]",
+      });
+    });
 
-      expect(component).toMatchObject({ valueDecimal: 12 });
-      expect(component).not.toHaveProperty("valueQuantity");
+    it("keeps each scale distinct rather than exporting one as the other", () => {
+      // The regression that motivated this: a Celsius reading must never leave the
+      // system wearing a Fahrenheit code, in either direction.
+      expect(componentFor({ tempC: 38.5 }, "tempC")?.valueQuantity?.code).toBe(
+        "Cel",
+      );
+      expect(componentFor({ tempF: 38.5 }, "tempF")?.valueQuantity?.code).toBe(
+        "[degF]",
+      );
     });
 
     it("states the unit where the storage key does determine it", () => {
@@ -912,6 +971,41 @@ describe("clinicalArtifactFhirMapper", () => {
       ).toMatchObject({
         valueString: "pink",
       });
+    });
+  });
+
+  describe("artifact version (#3144)", () => {
+    // Deliberately not 1, and different from `templateVersion` above, so a
+    // mapper reading the wrong counter cannot coincide with the right one.
+    const ARTIFACT_VERSION = 7;
+
+    const withVersion = <T extends { artifact: object }>(record: T) => ({
+      ...record,
+      artifact: { ...record.artifact, version: ARTIFACT_VERSION },
+    });
+
+    it("publishes the artifact generation as meta.versionId on a SOAP composition", () => {
+      expect(
+        clinicalArtifactFhirMapper.soapNoteToComposition(
+          withVersion(soapRecord),
+        ).meta,
+      ).toEqual({ versionId: "7" });
+    });
+
+    it("publishes it on a prescription as well", () => {
+      expect(
+        clinicalArtifactFhirMapper.prescriptionToMedicationRequest(
+          withVersion(prescriptionRecord),
+        ).meta,
+      ).toEqual({ versionId: "7" });
+    });
+
+    it("omits meta entirely for a projection that does not carry the version", () => {
+      // An absent generation must not be published as a real one - a client
+      // would then send a precondition it never read.
+      expect(
+        clinicalArtifactFhirMapper.soapNoteToComposition(soapRecord).meta,
+      ).toBeUndefined();
     });
   });
 });

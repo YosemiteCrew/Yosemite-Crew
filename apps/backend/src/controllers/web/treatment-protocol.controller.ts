@@ -28,7 +28,7 @@ const StepSchema = z.object({
   stepType: StepTypeEnum,
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
-  inventoryItemId: z.string().uuid().optional(),
+  inventoryItemId: z.uuid().optional(),
   doseValue: z.number().positive().optional(),
   doseUnit: z.string().max(50).optional(),
   routeOfAdmin: z.string().max(100).optional(),
@@ -59,8 +59,8 @@ const UpdateBodySchema = z.object({
 
 const ApplyBodySchema = z.object({
   encounterId: z.string().min(1),
-  patientId: z.string().uuid(),
-  appointmentDate: z.string().datetime().optional(),
+  patientId: z.uuid(),
+  appointmentDate: z.iso.datetime().optional(),
 });
 
 const ListQuerySchema = z.object({

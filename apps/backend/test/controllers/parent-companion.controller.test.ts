@@ -410,6 +410,112 @@ describe("ParentCompanionController.updatePermissions", () => {
     expect(jsonMock).toHaveBeenCalledWith(updated);
   });
 
+  /*
+   * `ParentPatient.permissions` is what companion-access.ts reads on every
+   * companion-gated route, so the body that writes it is parsed rather than
+   * cast (#2710). These three are the boundary: an unknown key, a non-boolean,
+   * and the full known set.
+   */
+  it("400s on an unrecognised key rather than storing it", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockedParentService.findByLinkedUserId as any).mockResolvedValue({
+      id: OWNER_PARENT_ID,
+    });
+    req.body = { appointments: true, isSuperUser: true };
+
+    await ParentCompanionController.updatePermissions(
+      req as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(400);
+    expect(mockedLinkService.updatePermissions).not.toHaveBeenCalled();
+  });
+
+  /*
+   * A silent drop would answer 200 to a caller who mistyped a feature name,
+   * reporting a permission change that never happened.
+   */
+  it("400s rather than silently dropping a mistyped feature name", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockedParentService.findByLinkedUserId as any).mockResolvedValue({
+      id: OWNER_PARENT_ID,
+    });
+    req.body = { medicalRecods: false };
+
+    await ParentCompanionController.updatePermissions(
+      req as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(400);
+    expect(mockedLinkService.updatePermissions).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a string", "true"],
+    ["a number", 1],
+    ["null", null],
+    ["an object", {}],
+  ])(
+    "400s when a permission is %s rather than a boolean",
+    async (_l, value) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedParentService.findByLinkedUserId as any).mockResolvedValue({
+        id: OWNER_PARENT_ID,
+      });
+      req.body = { appointments: value };
+
+      await ParentCompanionController.updatePermissions(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedLinkService.updatePermissions).not.toHaveBeenCalled();
+    },
+  );
+
+  /*
+   * The schema must not be narrower than the type it guards: a feature the
+   * product ships and the schema does not know is a 400 on a legitimate call.
+   */
+  it("accepts every known permission key", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockedParentService.findByLinkedUserId as any).mockResolvedValue({
+      id: OWNER_PARENT_ID,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockedLinkService.updatePermissions as any).mockResolvedValue(
+      buildLink(OUTSIDER_PARENT_ID, "ACTIVE"),
+    );
+    const everyKey = {
+      assignAsPrimaryParent: false,
+      emergencyBasedPermissions: true,
+      appointments: true,
+      companionProfile: true,
+      documents: true,
+      expenses: true,
+      tasks: true,
+      chatWithVet: true,
+      medicalRecords: true,
+    };
+    req.body = everyKey;
+
+    await ParentCompanionController.updatePermissions(
+      req as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(mockedLinkService.updatePermissions).toHaveBeenCalledWith(
+      OWNER_PARENT_ID,
+      OUTSIDER_PARENT_ID,
+      PATIENT_ID,
+      everyKey,
+    );
+  });
+
   it("treats a non-object body as an empty update set", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (mockedParentService.findByLinkedUserId as any).mockResolvedValue({

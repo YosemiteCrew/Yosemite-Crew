@@ -1,23 +1,17 @@
 // src/services/chat.service.ts
-import { ChannelData, StreamChat } from "stream-chat";
+import { ChannelData } from "stream-chat";
 import dayjs from "dayjs";
 import crypto from "node:crypto";
+import { z } from "zod";
 
 import { ChatSessionDocument, ChatSessionType } from "../models/chatSession";
 import { AppointmentDocument } from "../models/appointment";
 import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
 import { prisma } from "src/config/prisma";
+import { getStreamServer } from "src/config/stream-client";
 
-const STREAM_KEY = process.env.STREAM_API_KEY!;
-const STREAM_SECRET = process.env.STREAM_API_SECRET!;
 const SYSTEM_USER_ID = "system-yosemite";
-
-if (!STREAM_KEY || !STREAM_SECRET) {
-  throw new Error("Stream Chat credentials missing in env");
-}
-
-const streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
 
 // Appointment chat window
 const PRE_WINDOW_MINUTES = 60 * 24;
@@ -49,6 +43,11 @@ type YosemiteChannelResponse = ChannelData & {
   name?: string;
   isPrivate?: boolean;
 };
+
+export const chatUserDisplayName = (
+  user?: { firstName?: string | null; lastName?: string | null } | null,
+) =>
+  [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "User";
 
 export class ChatServiceError extends Error {
   constructor(
@@ -222,13 +221,13 @@ export const ChatService = {
     if (!userId) throw new ChatServiceError("userId is required");
 
     return {
-      token: streamServer.createToken(userId),
+      token: getStreamServer().createToken(userId),
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     };
   },
 
   async initSystemUserOnce() {
-    await streamServer.upsertUser({
+    await getStreamServer().upsertUser({
       id: SYSTEM_USER_ID,
       name: "Yosemite System",
       role: "admin",
@@ -263,7 +262,7 @@ export const ChatService = {
       throw new ChatServiceError("Parent not found in appointment", 404);
     }
 
-    await streamServer.upsertUser({
+    await getStreamServer().upsertUser({
       id: parentId,
       name: companion?.parent?.name || "Pet Owner",
       role: "user",
@@ -272,7 +271,7 @@ export const ChatService = {
     const lead = appointment.lead as { id?: string; name?: string } | null;
     const vetId = lead?.id ?? null;
     if (vetId) {
-      await streamServer.upsertUser({
+      await getStreamServer().upsertUser({
         id: vetId,
         name: lead?.name || "Vet",
         role: "user",
@@ -285,7 +284,7 @@ export const ChatService = {
     const members = [parentId];
     if (vetId) members.push(vetId);
 
-    await streamServer.upsertUser({
+    await getStreamServer().upsertUser({
       id: SYSTEM_USER_ID,
       name: "Yosemite System",
       role: "admin",
@@ -309,7 +308,9 @@ export const ChatService = {
       members,
     };
 
-    await streamServer.channel("messaging", channelId, channelData).create();
+    await getStreamServer()
+      .channel("messaging", channelId, channelData)
+      .create();
 
     const session = await prisma.chatSession.create({
       data: {
@@ -364,8 +365,8 @@ export const ChatService = {
       );
       const user = await UserService.getById(userId);
 
-      await streamServer.upsertUser({
-        name: user?.firstName + " " + user?.lastName || "User",
+      await getStreamServer().upsertUser({
+        name: chatUserDisplayName(user),
         id: userId,
         image:
           userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
@@ -384,7 +385,9 @@ export const ChatService = {
       organisationIds: [organisationId],
     };
 
-    await streamServer.channel("team", channelId, directChannelData).create();
+    await getStreamServer()
+      .channel("team", channelId, directChannelData)
+      .create();
 
     const session = await prisma.chatSession.create({
       data: {
@@ -431,8 +434,8 @@ export const ChatService = {
       );
       const user = await UserService.getById(userId);
 
-      await streamServer.upsertUser({
-        name: user?.firstName + " " + user?.lastName || "User",
+      await getStreamServer().upsertUser({
+        name: chatUserDisplayName(user),
         id: userId,
         image:
           userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
@@ -451,7 +454,7 @@ export const ChatService = {
       organisationIds: [organisationId],
     };
 
-    await streamServer.channel("team", channelId, channelData).create();
+    await getStreamServer().channel("team", channelId, channelData).create();
 
     const session = await prisma.chatSession.create({
       data: {
@@ -513,7 +516,7 @@ export const ChatService = {
 
     assertCanCloseSession(session, actorUserId);
 
-    const channel = streamServer.channel(
+    const channel = getStreamServer().channel(
       getStreamChannelType(session.type),
       session.channelId,
     );
@@ -563,8 +566,8 @@ export const ChatService = {
       );
       const user = await UserService.getById(userId);
 
-      await streamServer.upsertUser({
-        name: user?.firstName + " " + user?.lastName || "User",
+      await getStreamServer().upsertUser({
+        name: chatUserDisplayName(user),
         id: userId,
         image:
           userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
@@ -578,7 +581,7 @@ export const ChatService = {
       data: { members: updatedMembers },
     });
 
-    const channel = streamServer.channel("team", session.channelId);
+    const channel = getStreamServer().channel("team", session.channelId);
     await channel.addMembers(newMembers);
 
     return toChatSessionDocument(updated);
@@ -614,7 +617,7 @@ export const ChatService = {
       data: { members: nextMembers },
     });
 
-    const channel = streamServer.channel("team", session.channelId);
+    const channel = getStreamServer().channel("team", session.channelId);
     await channel.removeMembers(memberIds);
 
     return toChatSessionDocument(updated);
@@ -645,7 +648,7 @@ export const ChatService = {
       },
     });
 
-    const channel = streamServer.channel("team", session.channelId);
+    const channel = getStreamServer().channel("team", session.channelId);
 
     const data: YosemiteChannelResponse = {
       name: updates.title,
@@ -657,14 +660,20 @@ export const ChatService = {
   },
 
   async deleteGroup(sessionId: string, actorUserId: string) {
+    const parsedSessionId = z.uuid().safeParse(sessionId);
+    if (!parsedSessionId.success) {
+      throw new ChatServiceError("sessionId is required");
+    }
+    const safeSessionId = String(parsedSessionId.data);
+
     const session = await prisma.chatSession.findFirst({
-      where: { id: sessionId },
+      where: { id: safeSessionId },
     });
     if (!session) return;
 
     assertGroupAdminPrisma(session, actorUserId);
 
-    const channel = streamServer.channel("team", session.channelId);
+    const channel = getStreamServer().channel("team", session.channelId);
 
     try {
       await channel.delete();
@@ -672,6 +681,8 @@ export const ChatService = {
       // Stream failure should not block DB cleanup
     }
 
-    await prisma.chatSession.deleteMany({ where: { id: sessionId } });
+    await prisma.chatSession.deleteMany({
+      where: { id: safeSessionId },
+    });
   },
 };

@@ -7,6 +7,7 @@ import {
   finalizePrescriptionArtifact,
   finalizeSoapNote,
   finalizeVitalRecord,
+  getClinicalArtifactMutationErrorMessage,
   getDischargeSummaryArtifact,
   getPrescriptionArtifact,
   getSoapNote,
@@ -67,10 +68,26 @@ describe('workspaceClinicalService', () => {
     deleteDataMock.mockReset();
   });
 
+  it.each([409, 412, 428])('uses the draft-preserving conflict message for HTTP %s', (status) => {
+    expect(
+      getClinicalArtifactMutationErrorMessage({ response: { status } }, 'Fallback mutation error')
+    ).toContain('Your draft is still here');
+  });
+
+  it('keeps the caller fallback for unrelated mutation failures', () => {
+    expect(
+      getClinicalArtifactMutationErrorMessage(
+        { response: { status: 500 } },
+        'Fallback mutation error'
+      )
+    ).toBe('Fallback mutation error');
+  });
+
   it('lists SOAP notes from the clinical artifact FHIR endpoint', async () => {
     postDataMock.mockResolvedValueOnce({
       data: bundle('Composition', {
         id: 'soap-1',
+        meta: { versionId: '7' },
         status: 'final',
         date: '2026-04-20T09:00:00.000Z',
         author: [{ display: 'Dr Meredith Grey' }],
@@ -94,6 +111,7 @@ describe('workspaceClinicalService', () => {
     expect(notes[0]).toEqual(
       expect.objectContaining({
         id: 'soap-1',
+        artifactVersion: 7,
         status: 'COMPLETED',
         signedByName: 'Dr Meredith Grey',
       })
@@ -246,6 +264,7 @@ describe('workspaceClinicalService', () => {
       },
       {
         id: 'soap-2',
+        artifactVersion: 7,
         chiefComplaint: '',
         subjective: '<p>S</p>',
         objective: '<p>O</p>',
@@ -258,7 +277,8 @@ describe('workspaceClinicalService', () => {
 
     expect(patchDataMock).toHaveBeenCalledWith(
       '/fhir/v1/clinical-artifact/organisation/org-1/soap-note/soap-2',
-      expect.objectContaining({ resourceType: 'Composition' })
+      expect.objectContaining({ resourceType: 'Composition' }),
+      { headers: { 'If-Match': 'W/"7"' } }
     );
     expect(postDataMock).not.toHaveBeenCalled();
   });
@@ -279,6 +299,7 @@ describe('workspaceClinicalService', () => {
       },
       {
         id: 'soap-3',
+        artifactVersion: 11,
         chiefComplaint: '',
         subjective: '<p>S</p>',
         objective: '<p>O</p>',
@@ -292,7 +313,8 @@ describe('workspaceClinicalService', () => {
 
     expect(patchDataMock).toHaveBeenCalledWith(
       '/fhir/v1/clinical-artifact/organisation/org-1/soap-note/soap-3',
-      expect.objectContaining({ resourceType: 'Composition' })
+      expect.objectContaining({ resourceType: 'Composition' }),
+      { headers: { 'If-Match': 'W/"11"' } }
     );
     expect(postDataMock).not.toHaveBeenCalled();
   });
@@ -427,48 +449,54 @@ describe('workspaceClinicalService', () => {
   it('calls clinical artifact lifecycle actions for supported artifact families', async () => {
     postDataMock.mockResolvedValue({ data: { id: 'artifact-1' } });
 
-    await finalizeSoapNote('org-1', 'soap-1');
-    await reopenSoapNote('org-1', 'soap-1');
-    await amendSoapNote('org-1', 'soap-1', { reason: 'Correction' });
-    await finalizePrescriptionArtifact('org-1', 'rx-1');
-    await reopenPrescriptionArtifact('org-1', 'rx-1');
-    await amendPrescriptionArtifact('org-1', 'rx-1', { reason: 'Dose correction' });
-    await finalizeDischargeSummary('org-1', 'dc-1');
-    await reopenDischargeSummary('org-1', 'dc-1');
-    await amendDischargeSummary('org-1', 'dc-1', { reason: 'Follow-up change' });
-    await finalizeVitalRecord('org-1', 'vital-1');
-    await reopenVitalRecord('org-1', 'vital-1');
-    await amendVitalRecord('org-1', 'vital-1', { reason: 'Unit correction' });
+    await finalizeSoapNote('org-1', 'soap-1', 4);
+    await reopenSoapNote('org-1', 'soap-1', 4);
+    await amendSoapNote('org-1', 'soap-1', 4, { reason: 'Correction' });
+    await finalizePrescriptionArtifact('org-1', 'rx-1', 4);
+    await reopenPrescriptionArtifact('org-1', 'rx-1', 4);
+    await amendPrescriptionArtifact('org-1', 'rx-1', 4, { reason: 'Dose correction' });
+    await finalizeDischargeSummary('org-1', 'dc-1', 4);
+    await reopenDischargeSummary('org-1', 'dc-1', 4);
+    await amendDischargeSummary('org-1', 'dc-1', 4, { reason: 'Follow-up change' });
+    await finalizeVitalRecord('org-1', 'vital-1', 4);
+    await reopenVitalRecord('org-1', 'vital-1', 4);
+    await amendVitalRecord('org-1', 'vital-1', 4, { reason: 'Unit correction' });
 
     expect(postDataMock).toHaveBeenNthCalledWith(
       1,
       '/fhir/v1/clinical-artifact/organisation/org-1/soap-note/soap-1/$finalize',
-      {}
+      {},
+      { headers: { 'If-Match': 'W/"4"' } }
     );
     expect(postDataMock).toHaveBeenNthCalledWith(
       2,
       '/fhir/v1/clinical-artifact/organisation/org-1/soap-note/soap-1/$reopen',
-      {}
+      {},
+      { headers: { 'If-Match': 'W/"4"' } }
     );
     expect(postDataMock).toHaveBeenNthCalledWith(
       3,
       '/fhir/v1/clinical-artifact/organisation/org-1/soap-note/soap-1/$amend',
-      { reason: 'Correction' }
+      { reason: 'Correction' },
+      { headers: { 'If-Match': 'W/"4"' } }
     );
     expect(postDataMock).toHaveBeenNthCalledWith(
       6,
       '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-1/$amend',
-      { reason: 'Dose correction' }
+      { reason: 'Dose correction' },
+      { headers: { 'If-Match': 'W/"4"' } }
     );
     expect(postDataMock).toHaveBeenNthCalledWith(
       9,
       '/fhir/v1/clinical-artifact/organisation/org-1/discharge-summary/dc-1/$amend',
-      { reason: 'Follow-up change' }
+      { reason: 'Follow-up change' },
+      { headers: { 'If-Match': 'W/"4"' } }
     );
     expect(postDataMock).toHaveBeenNthCalledWith(
       12,
       '/fhir/v1/clinical-artifact/organisation/org-1/vital-record/vital-1/$amend',
-      { reason: 'Unit correction' }
+      { reason: 'Unit correction' },
+      { headers: { 'If-Match': 'W/"4"' } }
     );
   });
 
@@ -523,6 +551,7 @@ describe('workspaceClinicalService', () => {
       {
         id: 'vital-1',
         code: 'VT-001',
+        artifactVersion: 5,
         tempF: 101.2,
         recordedByName: 'Sarah Mitchell',
         recordedAt: '2026-04-20T09:00:00.000Z',
@@ -535,7 +564,8 @@ describe('workspaceClinicalService', () => {
 
     expect(patchDataMock).toHaveBeenCalledWith(
       '/fhir/v1/clinical-artifact/organisation/org-1/vital-record/vital-1',
-      expect.objectContaining({ resourceType: 'Observation' })
+      expect.objectContaining({ resourceType: 'Observation' }),
+      { headers: { 'If-Match': 'W/"5"' } }
     );
     expect(postDataMock).toHaveBeenNthCalledWith(
       1,
@@ -652,6 +682,38 @@ describe('workspaceClinicalService', () => {
     expect(summary.dischargeSavedByName).not.toBe('user-1');
   });
 
+  it('emits an ATCvet coding on a coded prescription and none on an uncoded one', async () => {
+    postDataMock.mockResolvedValue({ data: { resourceType: 'MedicationRequest', id: 'rx-1' } });
+
+    const base = {
+      medicineName: 'doxycycline',
+      fulfillment: 'PRESCRIPTION_ONLY' as const,
+    };
+    await savePrescriptionArtifact(
+      { organisationId: 'org-1', appointmentId: 'appt-1' },
+      { ...base, atcCode: 'QJ01AA02' }
+    );
+    const [, coded] = postDataMock.mock.calls[0] as [
+      string,
+      { medicationCodeableConcept?: { text?: string; coding?: Array<Record<string, string>> } },
+    ];
+    expect(coded.medicationCodeableConcept?.coding).toEqual([
+      {
+        system: 'http://www.whocc.no/atcvet',
+        code: 'QJ01AA02',
+        display: 'doxycycline',
+      },
+    ]);
+
+    // An uncoded prescription carries text only rather than a placeholder coding.
+    await savePrescriptionArtifact({ organisationId: 'org-1', appointmentId: 'appt-1' }, base);
+    const [, uncoded] = postDataMock.mock.calls[1] as [
+      string,
+      { medicationCodeableConcept?: { coding?: unknown } },
+    ];
+    expect(uncoded.medicationCodeableConcept?.coding).toBeUndefined();
+  });
+
   it('saves prescriptions as a FHIR MedicationRequest with appointment context', async () => {
     postDataMock.mockResolvedValueOnce({
       data: { resourceType: 'MedicationRequest', id: 'rx-1' },
@@ -720,6 +782,7 @@ describe('workspaceClinicalService', () => {
       },
       {
         id: 'rx-1',
+        artifactVersion: 6,
         medicineName: 'Gabapentin',
         dosage: '100mg',
         frequency: 'BID',
@@ -729,7 +792,8 @@ describe('workspaceClinicalService', () => {
 
     expect(patchDataMock).toHaveBeenCalledWith(
       '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-1',
-      expect.objectContaining({ resourceType: 'MedicationRequest' })
+      expect.objectContaining({ resourceType: 'MedicationRequest' }),
+      { headers: { 'If-Match': 'W/"6"' } }
     );
     expect(postDataMock).not.toHaveBeenCalled();
   });
@@ -738,16 +802,18 @@ describe('workspaceClinicalService', () => {
     const notFound = { response: { status: 404 } };
     deleteDataMock.mockRejectedValueOnce(notFound);
 
-    await expect(deletePrescriptionArtifact('org-1', 'rx-missing')).rejects.toBe(notFound);
+    await expect(deletePrescriptionArtifact('org-1', 'rx-missing', 3)).rejects.toBe(notFound);
     expect(deleteDataMock).toHaveBeenCalledWith(
-      '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-missing'
+      '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-missing',
+      {},
+      { headers: { 'If-Match': 'W/"3"' } }
     );
   });
 
   it('returns false only for unavailable prescription delete routes', async () => {
     deleteDataMock.mockRejectedValueOnce({ response: { status: 405 } });
 
-    await expect(deletePrescriptionArtifact('org-1', 'rx-legacy')).resolves.toBe(false);
+    await expect(deletePrescriptionArtifact('org-1', 'rx-legacy', 3)).resolves.toBe(false);
   });
 
   it('loads encounter-scoped prescriptions and gets a prescription by id', async () => {
@@ -1000,12 +1066,13 @@ describe('workspaceClinicalService', () => {
     deleteDataMock.mockRejectedValueOnce({ response: { status: 409 } });
     postDataMock.mockResolvedValueOnce({ data: { resourceType: 'MedicationRequest' } });
 
-    const removed = await deletePrescriptionArtifact('org-1', 'rx-1');
+    const removed = await deletePrescriptionArtifact('org-1', 'rx-1', 3);
 
     expect(removed).toBe(true);
     expect(postDataMock).toHaveBeenCalledWith(
       '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-1/$cancel',
-      {}
+      {},
+      { headers: { 'If-Match': 'W/"3"' } }
     );
   });
 

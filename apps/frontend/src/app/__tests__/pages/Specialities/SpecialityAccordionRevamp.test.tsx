@@ -268,7 +268,7 @@ describe('SpecialityAccordionRevamp', () => {
   it('opens the add service draft from the header action', () => {
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'New Service' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New service' }));
 
     expect(mockOpenAddService).toHaveBeenCalled();
     expect(mockOpenAddPackage).not.toHaveBeenCalled();
@@ -278,7 +278,7 @@ describe('SpecialityAccordionRevamp', () => {
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
 
     fireEvent.click(screen.getByTestId('tab-packages'));
-    fireEvent.click(screen.getByRole('button', { name: 'New Package' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New package' }));
 
     expect(mockOpenAddPackage).toHaveBeenCalled();
   });
@@ -671,16 +671,16 @@ describe('SpecialityAccordionRevamp', () => {
 
   // --- Section 10: add-new via the Primary button ---
 
-  it('opens the add-service flow from the New Service button', () => {
+  it('opens the add-service flow from the New service button', () => {
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
-    fireEvent.click(screen.getByRole('button', { name: 'New Service' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New service' }));
     expect(mockServicesOpenAdd).toHaveBeenCalled();
   });
 
-  it('opens the add-package flow from the New Package button', () => {
+  it('opens the add-package flow from the New package button', () => {
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
     fireEvent.click(screen.getByTestId('tab-packages'));
-    fireEvent.click(screen.getByRole('button', { name: 'New Package' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New package' }));
     expect(mockPackagesOpenAdd).toHaveBeenCalled();
   });
 
@@ -688,8 +688,8 @@ describe('SpecialityAccordionRevamp', () => {
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
     fireEvent.click(screen.getByTestId('tab-archive'));
     // `activeTab !== 'archive'` false → no add button rendered
-    expect(screen.queryByRole('button', { name: 'New Service' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'New Package' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New service' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New package' })).not.toBeInTheDocument();
   });
 
   // --- Section 11: delete flow ---

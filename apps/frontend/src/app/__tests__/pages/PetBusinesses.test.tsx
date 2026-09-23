@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -13,7 +15,7 @@ jest.mock('next/image', () => ({
 
 jest.mock('@/app/features/marketing/site', () => ({
   HeroVideo: () => <div data-testid="hero-video" />,
-  Reveal: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Reveal: ({ children, as: Comp = 'div', style }: any) => <Comp style={style}>{children}</Comp>,
   Spotlight: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ReleasePill: ({ label, version }: { label: string; version: string }) => (
     <div data-testid="release-pill">
@@ -188,5 +190,29 @@ describe('PetBusinesses page', () => {
     expect(
       screen.getByText(/Self-host free forever, or let us run it pay-as-you-go/i)
     ).toBeInTheDocument();
+  });
+
+  test('the spotlight statement ink tracks the --spot-ink token, not a frozen literal', () => {
+    render(<PetBusinesses />);
+
+    const statement = screen.getByText(/There's a dog-eared notebook next to the keyboard/);
+    expect(statement.parentElement).toHaveStyle({ color: 'var(--spot-ink)' });
+  });
+});
+
+describe('the desktop-app status dot pulse routes through --success, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/PetBusinesses/PetBusinesses.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the pulse-ring as a frozen success literal', () => {
+    expect(source).not.toContain('rgba(0,143,93');
+  });
+
+  it('routes the pulse-ring through --success via color-mix', () => {
+    expect(source).toContain(
+      "boxShadow: '0 0 0 3px color-mix(in srgb, var(--success) 16%, transparent)'"
+    );
   });
 });

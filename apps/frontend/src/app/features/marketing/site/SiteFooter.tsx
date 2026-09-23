@@ -39,7 +39,7 @@ const colHead: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-  color: 'var(--ink-faint2)',
+  color: 'var(--ink-muted)',
 };
 const colLink: CSSProperties = {
   fontSize: 15,
@@ -80,7 +80,7 @@ const chip: CSSProperties = {
   borderRadius: 9999,
   fontSize: 12.5,
   letterSpacing: '-0.01em',
-  color: 'var(--ink-6b)',
+  color: 'var(--ink-muted)',
   background: 'var(--pill-raised)',
 };
 const FOOTER_APPS_STYLE: CSSProperties = {
@@ -113,7 +113,7 @@ const STAR_COUNT_STYLE: CSSProperties = {
   gap: 4,
   paddingLeft: 11,
   marginLeft: 2,
-  borderLeft: '1px solid rgba(239,232,220,0.22)',
+  borderLeft: '1px solid color-mix(in srgb, var(--page) 22%, transparent)',
   color: '#e5dccf',
   fontVariantNumeric: 'tabular-nums',
 };
@@ -145,7 +145,7 @@ const BACK_TO_TOP_STYLE: CSSProperties = {
   gap: 7,
   fontSize: 13,
   letterSpacing: '-0.01em',
-  color: '#837d78',
+  color: 'var(--ink-muted)',
   background: 'transparent',
   border: 'none',
   whiteSpace: 'nowrap',
@@ -254,7 +254,7 @@ function FooterBrand() {
           fontSize: 14.5,
           lineHeight: 1.6,
           letterSpacing: '-0.015em',
-          color: '#837d78',
+          color: 'var(--ink-muted)',
         }}
       >
         The open-source operating system for animal health. Free to self-host, and built in the
@@ -455,16 +455,16 @@ function FooterApps({ stars }: Readonly<{ stars: string | null }>) {
 // an outage. These map the resolved tone onto the pill's colours.
 const STATUS_TONE_DOT: Record<string, string> = {
   success: 'var(--success)',
-  warning: 'var(--amber)',
+  warning: 'var(--warn)',
   danger: 'var(--danger)',
   neutral: 'var(--ink-faint)',
 };
 
 const STATUS_TONE_TEXT: Record<string, string> = {
-  success: '#1d6b4f',
-  warning: 'var(--amber)',
-  danger: 'var(--danger)',
-  neutral: 'var(--ink-faint)',
+  success: 'var(--success-text)',
+  warning: 'var(--ink-body)',
+  danger: 'var(--danger-text)',
+  neutral: 'var(--ink-muted)',
 };
 
 function FooterCompliance() {
@@ -505,7 +505,7 @@ function FooterCompliance() {
             fontWeight: 700,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
-            color: 'var(--ink-faint2)',
+            color: 'var(--ink-muted)',
             borderLeft: '1px solid #e0dcd8',
             paddingLeft: 10,
           }}
@@ -555,11 +555,11 @@ function FooterBottom() {
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
+        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-muted)' }}>
           © 2026 DuneXploration UG (haftungsbeschränkt) · Am Finther Weg 7, 55127 Mainz ·
           support@yosemitecrew.com · +49 152 277 63275
         </span>
-        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
+        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-muted)' }}>
           Geschäftsführer: Ankit Upadhyay · Amtsgericht Mainz HRB 52778 · VAT: DE367920596 ·
           Yosemite Crew™ is a trademark of DuneXploration UG.
         </span>

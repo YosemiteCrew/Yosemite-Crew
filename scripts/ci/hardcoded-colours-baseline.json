@@ -1,0 +1,416 @@
+{
+  "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
+  "generated_at": "dd20db6ed9703b8ee8c5d79bda2b938983dbbae5",
+  "total": 0,
+  "justified": {
+    "apps/frontend/src/app/(routes)/(app)/chat/page.css": {
+      "n": 1,
+      "why": "A bespoke box-shadow (rgba(15, 23, 42, 0.08)) with no exact match in the --sh* family - same reasoning as the widget shadows justified in PR #2985."
+    },
+    "apps/frontend/src/app/(routes)/(public)/accessibility/report/AccessibilityReportClient.stories.tsx": {
+      "n": 1,
+      "why": "'#e6ddd0' appears only in the story's doc-string, documenting a real bug on the same data-yc-surface=\"light\" pinned-card pattern as PaymentStatusContent: the card is a literal bg-white in both themes, so without the pin the themed --ink-body (#e6ddd0 in dark) put the confirmation copy at 1.34:1 - white on white."
+    },
+    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.stories.tsx": {
+      "n": 4,
+      "why": "'#1d1c1b' appears in the meta description's prose, documenting --ink-fixed's value. The three rgb(...) literals are computed-style assertions pinning the app's own success/danger token values (commented at each call site as deliberate, verifying the card's intentionally-fixed-light surface keeps its icon colour in both themes) - getComputedStyle() always returns the resolved colour, never the variable name."
+    },
+    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.tsx": {
+      "n": 3,
+      "why": "Three rgba() literals forming a decorative gradient, on a surface explicitly pinned light via data-yc-surface=\"light\" (commented at the call site: 'a receipt that inverts under a dark OS setting reads as a different document'). Deliberately not theme-aware by design."
+    },
+    "apps/frontend/src/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar.stories.tsx": {
+      "n": 1,
+      "why": "A named const holding --blue-text's light-mode resolved value ('rgb(22, 87, 201)'), used only so the dark-theme story can assert it did NOT get this value - a negative computed-style assertion, not an authored literal."
+    },
+    "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
+      "n": 1,
+      "why": "The toggle knob is deliberately fixed white in both themes, and the reason is recorded at the call site: --screen flips, so in espresso the off knob was #2f271e on a #3a3128 track, a contrast of 1.15, and vanished. Tokenising this re-introduces that bug."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/AllDayEventsRow.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/CalendarTeamNamesRow.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/CalendarWeekDayCell.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/MenuActionsList.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/NowIndicator.stories.tsx": {
+      "n": 4,
+      "why": "Four computed-style assertions against real, deliberately-resolved token values, each commented at the call site: --blue's fixed fill ('rgb(37, 123, 237)', asserted identically in both themes) and --blue-text, which lightens from 'rgb(22, 87, 201)' in light to 'rgb(143, 182, 245)' in dark so the time label stays readable on espresso. getComputedStyle() always returns the resolved colour, never the variable name, so these have no token-referencing form to migrate to."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/SlotGridLines.stories.tsx": {
+      "n": 2,
+      "why": "Two computed-style assertions pinning --hairline's resolved value in each theme ('rgb(229, 220, 207)' light, 'rgb(64, 54, 43)' dark), commented at the call site as deliberate: to prove the token actually flipped rather than a literal surviving the theme switch. getComputedStyle() always returns the resolved colour, never the variable name."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/StaffInput.stories.tsx": {
+      "n": 2,
+      "why": "One 'rgba(0, 0, 0, 0)' computed-style assertion (the standard 'nothing painted here' oracle) and one asserting --screen's resolved espresso value ('rgb(47, 39, 30)'), commented at the call site as deliberate: to prove the chip's background tracks the token rather than a light literal that only works on bone."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/TimedEventMarker.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/UserLabels.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/ZoomInMarker.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/ZoomOutMarker.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/Task/WeekCalendar.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/BilledBadge.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/OutpatientSchedule.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/ReadyToggle.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/RxBadge.stories.tsx": {
+      "n": 1,
+      "why": "A named const holding --color-text-brand's light-mode resolved value ('rgb(22, 87, 201)'), used only so the dark-theme story can assert it did NOT get this value - a negative computed-style assertion, not an authored literal."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/StaffField.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TitleAddIcon.stories.tsx": {
+      "n": 1,
+      "why": "A named const holding --color-text-brand's light-mode resolved value ('rgb(22, 87, 201)'), used only so the dark-theme story can assert it did NOT get this value - a negative computed-style assertion, not an authored literal."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer.stories.tsx": {
+      "n": 4,
+      "why": "'rgb(247,243,236)' and 'rgb(47,39,30)' each appear twice, all inside the story's doc-string, which deliberately renders and documents a live bug: PackageBreakdownTooltip's text and background both resolve to --screen, so the text is measurably the same colour as the surface under it (1.00:1 in both themes) - prose measuring a real regression, not an authored literal."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/DischargeDateTimeModal.stories.tsx": {
+      "n": 1,
+      "why": "'rgba(234, 55, 41, 0.18)' appears only in the story's doc-string, describing --color-danger-100's real resolved value as part of measuring a genuine legibility bug (the same --color-neutral-0/--screen collapse documented in TotalBillContainer.stories.tsx) - prose about a token's value, not an authored literal."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/AllDocumentsTable.stories.tsx": {
+      "n": 6,
+      "why": "All six literals (#525659, #fff, #1a1a1a, rgba(0,0,0,.4), #6b6b6b, #ddd) sit inside a fake generated HTML document string - a stand-in discharge-summary preview, styled like paper (Georgia serif, its own background/ink/shadow) - used so the story exercises the real getSafePdfPreviewUrl code path without a binary fixture. Same pattern as PdfPreviewOverlay.stories.tsx (see PR #2986): a previewed document's own styling, not themed app chrome."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep.tsx": {
+      "n": 2,
+      "why": "A <style> string written into a print popup's document.head. That window loads none of this app's CSS, so every custom property is undefined there and var(--ink) would paint the browser default rather than the invoice's ink."
+    },
+    "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.tsx": {
+      "n": 1,
+      "why": "The account-type segmented control's active-tab shadow (rgba(29, 28, 27, 0.08)) is close to but not an exact match for any --sh* step (--sh03 is 0.03, --sh05 is 0.05, --sh10 is 0.1) - swapping to the nearest step would be a value change, not a preserving refactor."
+    },
+    "apps/frontend/src/app/features/auth/pages/SignUp/SignUp.tsx": {
+      "n": 1,
+      "why": "White ink on the Terms checkbox's fixed var(--blue) fill - the same justified pattern as ChatContainer.css's --str-chat__on-primary-color: --blue is declared identically in both theme blocks, so a fixed white literal carries no theme risk."
+    },
+    "apps/frontend/src/app/features/chat/components/ChannelHeaderBar.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/chat/components/ChatComposer.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/chat/components/ChatContainer.css": {
+      "n": 2,
+      "why": "--str-chat__on-primary-color and --str-chat__on-unread-badge-color are white ink sitting on var(--blue), which is declared identically (#257bed) in both light and dark blocks - it does not actually flip, so a fixed white literal carries no theme risk here, unlike the --spot-family cases elsewhere in this sweep where the underlying surface does flip."
+    },
+    "apps/frontend/src/app/features/chat/components/ChatContainer.stories.tsx": {
+      "n": 2,
+      "why": "Both occurrences are Storybook play-function test assertions comparing a computed style against 'rgb(241, 235, 225)' - the resolved value of --screen-2, verifying the footer/empty-state icon actually painted the intended surface rather than falling through to a stylesheet that failed to apply. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/chat/components/ChatSidebarHeader.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/companionHistory/components/AuditTimeline.stories.tsx": {
+      "n": 4,
+      "why": "One standard 'rgba(0, 0, 0, 0)' computed-style assertion, plus three literals ('#a6271d', '#f2938a', 'rgb(48, 47, 46)') appearing only in the story's doc-string, documenting --danger-text's real per-theme values as part of describing a genuine bug this same story caught (a Tailwind class compiling to no rule at all across five PIMS error messages)."
+    },
+    "apps/frontend/src/app/features/companionHistory/components/HistoryEmptyState.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.tsx": {
+      "n": 2,
+      "why": "The time badge overlays a photo (BandMedia), which is not theme-aware, so its scrim (rgba(29,28,27,0.55), --ink's light value) and text (#f7f3ec, --screen's light value) are deliberately fixed rather than reading the flipping --ink/--screen tokens - reading --screen would go near-black in dark and vanish against the dark scrim, the exact class of bug this sweep exists to catch, just inverted."
+    },
+    "apps/frontend/src/app/features/companions/pages/Companions/SpeciesTabs.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/developers/pages/DeveloperDocs/DeveloperDocs.css": {
+      "n": 1,
+      "why": "`.DocsMethod`'s ink is pinned to #1d1c1b for the same reason as DeveloperPlugins' `.dev-website-cta.primary` and DeveloperSettings' `.dev-switch.on .dev-switch-thumb`: its fill is --color-cyan, which is declared once and never flips, so a token that resolves through --ink would go cream-on-cyan in espresso. No token exists for ink pinned against a --color-cyan fill specifically."
+    },
+    "apps/frontend/src/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins.css": {
+      "n": 2,
+      "why": "`.dev-website-cta.primary`'s ink is pinned to #1d1c1b because its own fill, --color-cyan, is declared once and never flips - --ink resolves to a cream in espresso, which measured 1.37 cream-on-cyan contrast against 10.83 in light. No token exists for ink pinned against a --color-cyan fill specifically (--spot-ink is tuned for --spot, a different fixed background); see the comment at the declaration for the full measurement."
+    },
+    "apps/frontend/src/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins.stories.tsx": {
+      "n": 2,
+      "why": "Both occurrences are Storybook play-function test assertions comparing a computed style against a literal, not a colour authored in this codebase: 'rgba(0, 0, 0, 0)' is the browser's own canonical getComputedStyle() value for 'nothing painted here' (a border-colour assertion), and 'rgb(244, 239, 230)' is the expected computed colour of .dev-website-title inside the Dark story, verifying it renders --spot-ink's dark-mode value. A design-token reference would never match a computed style string, so both literals have to stay exactly this to keep testing what they test."
+    },
+    "apps/frontend/src/app/features/developers/pages/DeveloperSettings/DeveloperSettings.css": {
+      "n": 3,
+      "why": "The switch thumb's two fixed colours are both explained at their declarations: #ffffff (off) is the design system's own `.switch::after` spec - the previous --color-surface-card resolved to --screen and flipped, vanishing at 1:1-ish contrast against the espresso track (see the comment there). #1d1c1b x2 (on-state thumb) is ink pinned against --color-cyan's fill, which is declared once and never flips - the same unresolved 'no token for ink on a --color-cyan fill' case as DeveloperPlugins.css's .dev-website-cta.primary."
+    },
+    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceInfo.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceSummaryPanel.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/finance/pages/Finance/Sections/PhoneInvoiceList.stories.tsx": {
+      "n": 3,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/forms/pages/Forms/Sections/FormInfo.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/guides/pages/Guides.tsx": {
+      "n": 5,
+      "why": "Two overlay badges (a play button and a duration pill) painted on a video thumbnail image, same reasoning as InClinicTodayBand.tsx: fixed light background/ink/shadow (rgba(247,243,236,0.92), #1d1c1b, rgba(0,0,0,0.35), rgba(0,0,0,0.62), #f7f3ec) because the underlying media is not theme-aware."
+    },
+    "apps/frontend/src/app/features/integrations/pages/Integrations/IdexxSettingsModal.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/integrations/pages/MerckManuals/MerckReaderPortal.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/legal/pages/DmcaCopyrightPolicy.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/legal/pages/LegalContent.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/legal/pages/TrustCenter.stories.tsx": {
+      "n": 5,
+      "why": "PILL_COLOURS is explicitly commented '`getStatusPillStyle`, resolved' - computed-style test-oracle values, not authored literals. The fifth ('rgba(0, 0, 0, 0)') is the standard 'nothing painted here' oracle."
+    },
+    "apps/frontend/src/app/features/legal/pages/TrustCenter.tsx": {
+      "n": 2,
+      "why": "CARD_BG (#faf7f1) and a border colour (#e6ded1) are close to but not exact matches for any token (--color-screen is #f7f3ec, --color-hairline is #e5dccf) - left as literals when PR #2963 tokenised this file's other 8 exact-match literals, and still not exact matches now."
+    },
+    "apps/frontend/src/app/features/marketing/pages/About/About.tsx": {
+      "n": 3,
+      "why": "'#454341' is a bespoke faint border on a --spot-ink-tinted button, no exact match in the token set (checked --ink/--ink-body/--divider/--hairline families). '#e0d8ce' (the two borderTop dividers) is likewise a bespoke divider tint close to but distinct from --divider (#d6d1cd) and --hairline (#e5dccf) - checked both, neither is an exact match, so migrating would shift the rendered value rather than preserve it."
+    },
+    "apps/frontend/src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx": {
+      "n": 3,
+      "why": "Discord's own brand blurple (rgb(88,101,242) / #5865F2), used only for the Discord channel-card icon - not a design-system colour, so it stays a literal rather than being pointed at an unrelated token."
+    },
+    "apps/frontend/src/app/features/marketing/pages/DevelopersPage/DevelopersPage.tsx": {
+      "n": 29,
+      "why": "Three unrelated groups of deliberate illustration colours, none derivable from an existing token without changing the rendered value: (1) the fake terminal/code-editor mockup's remaining chrome (traffic-light dots #454341, header rule #302f2e, terminal body text #d6d1cd) - its string colour (#8acbb4) and '$' prompt (#54b492) were tokenised via the fixed --color-success-300/-400 ramp entries once that ramp was discovered to be fixed (see this PR); (2) the marketplace comparison-bar illustration (track #2c2926, border #35322f, striped fill #4a4643/#423e3b, and the already-investigated #2f6fc0 border - see PR #2977) plus its own bespoke near-black gradient card (#232120 to #1a1918, border #35322f); (3) three icon glyphs at a single-file-only muted grey (#6f6a66, not reused elsewhere), two fixed-white ink spots (#ffffff) on fills that are themselves fixed (the 100%-filled blue bar, and the marketplace-status hero figure on --spot), and one decorative gloss overlay (rgba(255,255,255,0.18)) - the same justified pattern as ChatContainer.css's white-on-fixed-blue ink, just inline rather than in a stylesheet."
+    },
+    "apps/frontend/src/app/features/marketing/pages/Home/Home.tsx": {
+      "n": 9,
+      "why": "The same fake terminal/code-editor mockup chrome justified in DevelopersPage.tsx (traffic-light dots #454341 x3, header rule #302f2e x2, terminal body text #d6d1cd - its string/prompt colours were tokenised via --color-success-300/-500 in this PR, same as DevelopersPage.tsx's). Plus two more single-file bespoke spots: an avatar-stack placeholder background (#e6e3e0) and a phone-mockup bezel (#1d1c1b x2) - the bezel is a physical-device colour on a decorative illustration, not a themed app surface, the same reasoning as the media-overlay literals justified in Guides.tsx and InClinicTodayBand.tsx (PR #2990)."
+    },
+    "apps/frontend/src/app/features/marketing/pages/Insights/Insights.stories.tsx": {
+      "n": 1,
+      "why": "FALLBACK_LANGUAGE_COLOUR is a computed-style assertion (documented at the const) - the resolved form of --spot-ink-faint (#a9a39e), asserted against the rendered swatch colour for the one language with no explicit LANG_COLORS entry."
+    },
+    "apps/frontend/src/app/features/marketing/pages/Insights/Insights.tsx": {
+      "n": 8,
+      "why": "The two --spot cards (a live GitHub-stats console and a latest-release card - both background: var(--spot)) are always dark in both themes, so the inks on them are fixed rather than theme-flipping. Every ink that PAINTS TEXT on them now reads from --spot-ink-faint: the two contrast failures, #8a8074 (4.39:1) and #6b6155 (2.81:1), and also #a89e90 x2, which was a contrast pass (6.45:1 on the light theme's --spot #1d1c1b, 6.96:1 on the dark theme's #17140f) but a tokenisation debt - the dark-mode value of the flipping --ink-muted, picked independently and 0.37 off --spot-ink-faint's #a9a39e. That is why this count fell from 17. The rest are fills and rules, none of them copy: a bespoke near-black commit panel (#232120) and its three hairline borders (#302f2e x3), matching DevelopersPage.tsx's EconomicsCard pattern; a 'LIVE' status pair (dot #2bbd86 - --success's dark-mode value, no matching --spot-success-strength token exists - and its paired label #6cd6a3 at 9.55:1); the shared terminal-mockup text colour #d6d1cd at 11.23:1 (see DevelopersPage.tsx); and the shared bespoke CTA border #454341 (see DevelopersPage.tsx's CLOSING_PORTAL_LINK_STYLE)."
+    },
+    "apps/frontend/src/app/features/marketing/pages/PetBusinesses/PetBusinesses.tsx": {
+      "n": 2,
+      "why": "'#837d78' is a bespoke faint/secondary label tint (also used identically in SiteFooter.tsx) with no exact match in --ink-faint/--ink-muted/--ink-body. '#e6ded1' is a bespoke section divider on a var(--page) surface, distinct from --divider (#d6d1cd) and --hairline (#e5dccf) - checked both, no exact match."
+    },
+    "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.stories.tsx": {
+      "n": 3,
+      "why": "'rgb(29, 28, 27)' and 'rgba(0, 0, 0, 0)' are computed-style assertions pinning the billing toggle's on/off pill background (documented at the const declaration) - getComputedStyle() only ever returns a resolved colour, never a token name, so there is no token-referencing form to migrate to; the value matches the now-tokenized var(--spot) exactly. '#1d1c1b' at line 117 is inside the story's markdown doc-string prose, not a rendered style."
+    },
+    "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.tsx": {
+      "n": 8,
+      "why": "All eight sit on BusinessPlanCard's var(--spot) always-dark surface as ink/foreground colours, not backgrounds. '#f7f3ec' (the billing-toggle active label and the CTA chip background) is close to but not an exact match for --spot-ink (#eae2d5/#f4efe6) or --screen (which flips) - checked both. The two '#1d1c1b' ink usages (badgeColor on a --spot-blue badge, and the CTA chip's own text) match --spot's value exactly but --spot is a surface token, not an ink token, and reusing it for a foreground role was already rejected as a pattern in DeveloperDocs' .DocsMethod (PR #2984) - same call here for consistency. '#ffffff' is the oversized price figure's intentionally stronger-than-spot-ink emphasis colour. '#d6d1cd' (feature copy + the PlanFeatureList colour prop) coincidentally matches --divider's light-mode value, but --divider flips (to #3a3128) and this is ink on an always-dark card, not a border, so using it would go invisible in dark mode - a false match, not a real one. '#302f2e' is the feature-list's own divider line colour on that same always-dark card; sibling cards use var(--inset) for this, which isn't available here since --inset flips and would vanish against --spot."
+    },
+    "apps/frontend/src/app/features/marketing/site/assets.ts": {
+      "n": 2,
+      "why": "Same GITHUB_STAR_CTA_STYLE pairing as Pricing.tsx's BUSINESS_CTA_STYLE (see that entry) - '#f7f3ec' has no exact fixed-token match and '#1d1c1b' is ink-on-a-light-chip, not the --spot surface role, so it stays a literal for the same reason as .DocsMethod (PR #2984)."
+    },
+    "apps/frontend/src/app/features/marketing/site/AuthShell.tsx": {
+      "n": 8,
+      "why": "The brand panel's own bespoke near-black gradient (#2a2723 to #131210, matching DevelopersPage.tsx's EconomicsCard pattern - see PR #2992). The remaining five (subtitle/footer ink #b7ac9d x2, point text #d8cec0, star icon gold #ffd479, 'Star on GitHub' emphasis white #fff) are single-file bespoke choices with no matching token - #fff in particular is a deliberately brighter emphasis colour next to surrounding --spot-ink copy, the same pattern as Pricing.tsx's price figure and DevelopersPage.tsx's '0%' hero figure."
+    },
+    "apps/frontend/src/app/features/marketing/site/marketing.css": {
+      "n": 1,
+      "why": "A pure-white gloss/sheen highlight on .yc-btn-primary's hover sweep - a lightening overlay independent of theme, not tied to any ink/surface token."
+    },
+    "apps/frontend/src/app/features/marketing/site/MarketingShell.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/marketing/site/motion.stories.tsx": {
+      "n": 2,
+      "why": "Bespoke demo-only styling for the Spotlight story's illustration box, with no exact match in the token set - not a real page surface."
+    },
+    "apps/frontend/src/app/features/marketing/site/motion.tsx": {
+      "n": 2,
+      "why": "The Spotlight component's cursor-follow glow colour (rgb(90,160,255)) - a distinct, brighter blue chosen for this specific hover effect, not an exact match for --blue (rgb(37,123,237)) or any --glow-b* stop."
+    },
+    "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": {
+      "n": 1,
+      "why": "A computed-style assertion verifies that the footer status dot is not transparent. getComputedStyle() serialises transparency as 'rgba(0, 0, 0, 0)', so a design token cannot express the expected value."
+    },
+    "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": {
+      "n": 5,
+      "why": "'#e0dcd8' (x2, an outline-pill border and a divider), '#cfe9dd' (another outline-pill border), and '#e5dccf' (text ink whose light value only coincidentally matches --hairline) are bespoke tints with no theme-safe token match. '#f5c518' is GitHub's brand star yellow."
+    },
+    "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": {
+      "n": 12,
+      "why": "LANG_COLORS is a deliberate categorical palette (GitHub-style per-language repo-stats colours) - each language needs a visually distinct swatch, and only two of the thirteen (TypeScript, HTML) happened to coincide with an existing fixed token (--blue, --pink respectively, tokenised in this PR). The rest (JavaScript, CSS/SCSS, Kotlin, Swift, Objective-C, Java, Ruby, Shell, Dockerfile, Python) and the LANG_FALLBACK tail colour are bespoke hues with no match anywhere in the token set - a qualitative palette, not derivable from the design system."
+    },
+    "apps/frontend/src/app/features/onboarding/pages/StripeOnboarding/index.tsx": {
+      "n": 1,
+      "why": "Stripe's own brand purple, handed to loadConnectAndInitialize's appearance.variables. Stripe Connect renders in its own iframe and cannot read this document's custom properties, so a var() here resolves to nothing and the embed falls back to Stripe's default."
+    },
+    "apps/frontend/src/app/features/organization/pages/Organization/Sections/Rooms/roomSectionPrimitives.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/petPassport/components/attestation/AttestationDocumentPanel.stories.tsx": {
+      "n": 10,
+      "why": "Every literal in this file lives inside SCAN_SVG, a data-URI SVG standing in for a photographed certificate the panel previews. The string is URL-encoded into the image src, so the browser renders it as a standalone document that cannot read this app's custom properties - a var() there resolves to the browser default and paints a scan that does not exist. These colours are the content of a scan (paper and print), not UI chrome."
+    },
+    "apps/frontend/src/app/features/petPassport/components/attestation/RecordAttestationModal.stories.tsx": {
+      "n": 9,
+      "why": "Every literal in this file lives inside SCAN_SVG, a data-URI SVG standing in for a photographed certificate the modal previews. The string is URL-encoded into the image src, so the browser renders it as a standalone document that cannot read this app's custom properties - a var() there resolves to the browser default and paints a scan that does not exist. These colours are the content of a scan (paper and print), not UI chrome."
+    },
+    "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.stories.tsx": {
+      "n": 3,
+      "why": "All three literals are prose in the story's docs description, restating the wallet-pass palette (--pbg #efe8dc, --pfg #1d1c1b, --pml #6b6763) the component reproduces from the pass service. WalletPassPreview.tsx is already justified for the same palette: the real pass is rendered by Apple/Google Wallet outside this app and cannot read our custom properties, so the preview must not flip with the theme. A token reference here would document a token, not paint it - this line is the on-file record of that fixed palette."
+    },
+    "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.tsx": {
+      "n": 8,
+      "why": "Reproduces the wallet-pass service's fixed pass colours (background #EFE8DC, foreground #1D1C1B, label #6B6763, per the comment at the top of the file). Apple Wallet and Google Wallet render the real pass outside this app and do not follow its theme, so a preview that flipped in dark mode would show the user a pass that does not exist."
+    },
+    "apps/frontend/src/app/features/settings/pages/Settings/Sections/YourOrganizations.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/tasks/components/TaskFilterBar.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/tasks/components/TaskFormBody.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/tasks/components/TaskWeekAgenda.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/ui/layout/Notifications/Notifications.css": {
+      "n": 1,
+      "why": "Already commented at the declaration: white text on a fixed var(--blue-strong) fill - the same justified pattern as ChatContainer.css's --str-chat__on-primary-color."
+    },
+    "apps/frontend/src/app/ui/layout/PhoneShell/PhoneShell.css": {
+      "n": 1,
+      "why": "Already commented at the declaration: white text on a fixed var(--blue-strong) fill - the same justified pattern as ChatContainer.css's --str-chat__on-primary-color."
+    },
+    "apps/frontend/src/app/ui/overlays/Modal/ConfirmModal.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/ui/overlays/Modal/GuidePlayerModal.stories.tsx": {
+      "n": 2,
+      "why": "The doc-string at the top of this file already explains both literals in full: the video surface is deliberately painted with a hard-coded near-black #1d1c1b and a literal #f7f3ec ink instead of tokens, because a video frame is dark in both themes - explicitly flagged in the story's own prose as 'exactly the kind of thing a token sweep would \"fix\" by mistake.'"
+    },
+    "apps/frontend/src/app/ui/overlays/Modal/VideoPlayerModal.stories.tsx": {
+      "n": 3,
+      "why": "All three literals (#1d2b3a x2, #ffffff) sit inside an inline SVG data-URI used only as a fake poster image for the story, so the video story never has to make a network request - a mocked asset's own artwork, not themed app UI."
+    },
+    "apps/frontend/src/app/ui/overlays/PdfPreviewOverlay.stories.tsx": {
+      "n": 6,
+      "why": "All six literals (#525659, #fff, #1a1a1a, rgba(0,0,0,.4), #6b6b6b, #ddd) sit inside a fake generated HTML document string - a stand-in invoice preview, styled like paper (Georgia serif, its own background/ink/shadow) - used so the story exercises the real getSafePdfPreviewUrl code path without a binary fixture. A previewed document's own styling, not themed app chrome."
+    },
+    "apps/frontend/src/app/ui/overlays/Toast/Toast.css": {
+      "n": 2,
+      "why": "Already commented at the declaration: --auth-toast-ink/--auth-toast-ink-muted are the light-theme ink values, deliberately pinned because the three toast background tints (--color-toast-error/warning/success-bg) are fixed pastels that do not flip with the theme. The themed --ink/--ink-body went cream in espresso, putting cream text on a peach bar (1.01-1.37:1) - a user who mistyped a password in dark mode was shown an empty coloured strip."
+    },
+    "apps/frontend/src/app/ui/primitives/RichTextEditor/FloatingToolbar.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/ui/theme/themeCore.ts": {
+      "n": 2,
+      "why": "The fallback for <meta name=\"theme-color\"> when getComputedStyle has not yet resolved --page (first paint, and SSR-hydration order). The meta element's content attribute is read by the browser chrome, which does not resolve CSS custom properties, so it must be a literal colour."
+    },
+    "apps/frontend/src/app/ui/widgets/DynamicChart/ChartCanvas.stories.tsx": {
+      "n": 4,
+      "why": "The #fff/#ccc pair (in a documentation string, not CSS) and the rgb(255, 255, 255)/rgb(204, 204, 204) pair (computed-style assertions) all describe recharts' own default tooltip styling - the story deliberately passes no custom styling to either <Tooltip />, so the bubble renders recharts' bare default and reads no design token at all. Not app-authored colour; tokenising would misrepresent what the story documents."
+    },
+    "apps/frontend/src/app/ui/widgets/Faq/Faq.css": {
+      "n": 2,
+      "why": "Two bespoke box-shadow literals: the resting-state shadow is a near-black-navy tint with no byte-identical match in the --sh* family (see LaunchGrowTab.css's .LaunchTabDiv.active for why swapping to a --sh* token would change the rendered light-mode shadow rather than preserve it); the expanded-state shadow is close to but not an exact match for --blue's rgb(37, 123, 237), so treating it as --blue-derived would be a value change, not a preserving refactor."
+    },
+    "apps/frontend/src/app/ui/widgets/LaunchGrowTab/LaunchGrowTab.css": {
+      "n": 3,
+      "why": "Three independent bespoke literals, all commented at their declarations: the active-tab shadow is plain black with no byte-identical --sh* match; the mobile tab-nav background is the fixed light-blue tint from LaunchGrowTab.tsx's growtab.color ('#E9F2FD') at 95% opacity, reused only within this one widget; the mobile active-tab glow is a standalone colored shadow (the desktop active tab uses plain black instead) close to but not an exact match for --blue's rgb(37, 123, 237)."
+    },
+    "apps/frontend/src/app/ui/widgets/LaunchGrowTab/LaunchGrowTab.tsx": {
+      "n": 3,
+      "why": "Fixed light-blue tab tints (ids 2-4 of Launchtabs), deliberately NOT theme-flipping: LaunchGrowTab.css's .BuildText pins --ink-fixed against these backgrounds specifically because they stay light in both themes (a themed ink there put fixed-dark text on a dark card at 1.16:1 in espresso). Single-purpose pastels invented for this tab set, not derived from the shared palette - id 1 already reads through the real --blue-strong token, these three don't have an equivalent. '#E9F2FD' reappears once more in LaunchGrowTab.css's mobile-tab-nav background at 95% opacity, the only overlap and still local to this widget."
+    },
+    "apps/frontend/src/app/ui/widgets/TeamSlide/TeamSlide.css": {
+      "n": 2,
+      "why": "Two plain-black box-shadow literals (resting and hover state on the LinkedIn badge) with no byte-identical match in the --sh* family - see LaunchGrowTab.css's .LaunchTabDiv.active for the same reasoning."
+    },
+    "apps/frontend/src/app/ui/widgets/UploadImage/UploadImage.css": {
+      "n": 1,
+      "why": "A warm-brown 8-digit-hex box-shadow (~10% alpha) with no exact match in --sh* or --ink (#1d1c1b) - a distinct bespoke value."
+    }
+  },
+  "files": {}
+}

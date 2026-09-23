@@ -4,9 +4,12 @@ import { User } from "@yosemite-crew/types";
 import { getAuthService } from "@yosemite-crew/auth";
 import { OrganizationService } from "./organization.service";
 import { UserOrganizationService } from "./user-organization.service";
+import { DeveloperBillingService } from "./developer-billing.service";
 import { prisma } from "src/config/prisma";
-
-const SUPERTOKENS_PROVIDER = "supertokens";
+import {
+  practitionerReferenceFilter,
+  resolveCanonicalUserId,
+} from "./shared/staff-identity";
 
 export class UserServiceError extends Error {
   constructor(
@@ -97,28 +100,6 @@ const sanitizeUserAttributes = (payload: User) => {
     email: email.toLowerCase(),
     isActive,
   };
-};
-
-const resolveCanonicalUserId = async (
-  userId: string,
-): Promise<string | null> => {
-  const existing = await prisma.user.findFirst({
-    where: { userId },
-    select: { userId: true },
-  });
-  if (existing) {
-    return existing.userId ?? userId;
-  }
-
-  const identity = await prisma.authIdentity.findFirst({
-    where: {
-      provider: SUPERTOKENS_PROVIDER,
-      providerUserId: userId,
-    },
-    select: { appUserId: true },
-  });
-
-  return identity?.appUserId ?? null;
 };
 
 type UserDomain = {
@@ -264,6 +245,7 @@ export const UserService = {
     if (!existing) {
       return false;
     }
+    const safeResolvedUserId = String(resolvedUserId);
 
     // Match BOTH the id that was supplied and the canonical one it resolved to.
     // A migrated account has two: the provider alias the client calls with, and
@@ -271,15 +253,9 @@ export const UserService = {
     // Querying only the supplied alias found no mappings, so deletion removed no
     // organisation roles and reported success while the still-authenticated
     // session kept every permission those mappings grant.
-    const practitionerIds = [
-      ...new Set([userId, resolvedUserId].filter(Boolean)),
-    ];
     const mappings = await prisma.userOrganization.findMany({
       where: {
-        OR: practitionerIds.flatMap((practitionerId) => [
-          { practitionerReference: practitionerId },
-          { practitionerReference: `Practitioner/${practitionerId}` },
-        ]),
+        OR: practitionerReferenceFilter([userId, resolvedUserId]),
       },
       select: { id: true, roleCode: true, organizationReference: true },
     });
@@ -299,17 +275,34 @@ export const UserService = {
       await UserOrganizationService.deleteById(mapping.id);
     }
 
+    // The developer's API keys, subscription and usage counters are keyed on
+    // the user, not on an organisation, so removing organisation memberships
+    // above leaves them behind. The subscription in particular keeps billing:
+    // cancel it before the account stops existing.
+    await DeveloperBillingService.cancelForOwner(safeResolvedUserId);
+    await prisma.developerApiKey.deleteMany({
+      where: { ownerUserId: safeResolvedUserId },
+    });
+    await prisma.developerMeterEvent.deleteMany({
+      where: { ownerUserId: safeResolvedUserId },
+    });
+    await prisma.developerApiUsage.deleteMany({
+      where: { ownerUserId: safeResolvedUserId },
+    });
+
     await Promise.all([
-      prisma.userProfile.deleteMany({ where: { userId: resolvedUserId } }),
-      prisma.baseAvailability.deleteMany({ where: { userId: resolvedUserId } }),
-      prisma.weeklyAvailabilityOverride.deleteMany({
-        where: { userId: resolvedUserId },
+      prisma.userProfile.deleteMany({ where: { userId: safeResolvedUserId } }),
+      prisma.baseAvailability.deleteMany({
+        where: { userId: safeResolvedUserId },
       }),
-      prisma.occupancy.deleteMany({ where: { userId: resolvedUserId } }),
+      prisma.weeklyAvailabilityOverride.deleteMany({
+        where: { userId: safeResolvedUserId },
+      }),
+      prisma.occupancy.deleteMany({ where: { userId: safeResolvedUserId } }),
     ]);
 
     const updated = await prisma.user.updateMany({
-      where: { userId: resolvedUserId },
+      where: { userId: safeResolvedUserId },
       data: { isActive: false },
     });
 

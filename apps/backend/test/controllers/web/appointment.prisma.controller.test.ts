@@ -339,7 +339,7 @@ describe("AppointmentPrismaController", () => {
   });
 
   it("accepts and rejects requested appointments", async () => {
-    req.params = { appointmentId: "appt_1" };
+    req.params = { appointmentId: "appt_1", organisationId: "org_1" };
     req.body = { resourceType: "Appointment" } as any;
     mockedService.approveRequestedFromPms.mockResolvedValue({
       id: "appt_1",
@@ -354,9 +354,11 @@ describe("AppointmentPrismaController", () => {
     expect(mockedService.approveRequestedFromPms).toHaveBeenCalledWith(
       "appt_1",
       req.body,
+      "org_1",
     );
     expect(mockedService.rejectRequestedAppointment).toHaveBeenCalledWith(
       "appt_1",
+      "org_1",
     );
   });
 
@@ -603,7 +605,10 @@ describe("AppointmentPrismaController", () => {
       "appt_1",
       "parent_1",
     );
-    expect(mockedService.cancelAppointment).toHaveBeenCalledWith("appt_1");
+    expect(mockedService.cancelAppointment).toHaveBeenCalledWith(
+      "appt_1",
+      "org_1",
+    );
     expect(mockedService.getById).toHaveBeenCalledWith("appt_1", {
       organisationId: "org_1",
       actorId: undefined,
@@ -737,6 +742,9 @@ describe("AppointmentPrismaController", () => {
       ["checkInAppointmentForPMS", "checkInAppointment"],
       ["admitFromPMS", "admitAppointmentToInpatient"],
       ["attachFormsToAppointment", "attachFormsToAppointment"],
+      ["acceptRequested", "approveRequestedFromPms"],
+      ["rejectRequested", "rejectRequestedAppointment"],
+      ["cancelFromPMS", "cancelAppointment"],
     ])(
       "%s refuses to act without an authorized organisation",
       async (handler, serviceMethod) => {
@@ -775,6 +783,57 @@ describe("AppointmentPrismaController", () => {
 
       await AppointmentController.admitFromPMS(req as any, res as any);
 
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it("passes the middleware-derived org (not the URL) to accept/reject/cancel", async () => {
+      req.params = { appointmentId: "appt_1", organisationId: "org_attacker" };
+      req.body = { resourceType: "Appointment" } as any;
+      (req as any).organisationId = "org_owner";
+      mockedService.approveRequestedFromPms.mockResolvedValue({
+        id: "appt_1",
+      } as any);
+      mockedService.rejectRequestedAppointment.mockResolvedValue({
+        id: "appt_1",
+      } as any);
+      mockedService.cancelAppointment.mockResolvedValue({
+        id: "appt_1",
+      } as any);
+
+      await AppointmentController.acceptRequested(req as any, res as any);
+      await AppointmentController.rejectRequested(req as any, res as any);
+      await AppointmentController.cancelFromPMS(req as any, res as any);
+
+      expect(mockedService.approveRequestedFromPms).toHaveBeenCalledWith(
+        "appt_1",
+        req.body,
+        "org_owner",
+      );
+      expect(mockedService.rejectRequestedAppointment).toHaveBeenCalledWith(
+        "appt_1",
+        "org_owner",
+      );
+      expect(mockedService.cancelAppointment).toHaveBeenCalledWith(
+        "appt_1",
+        "org_owner",
+      );
+    });
+
+    it("surfaces a service 404 for a cross-tenant accept/reject/cancel", async () => {
+      const notFound = Object.assign(new Error("Appointment not found"), {
+        statusCode: 404,
+      });
+      req.params = { appointmentId: "appt_in_org_b", organisationId: "org_a" };
+      req.body = { resourceType: "Appointment" } as any;
+      mockedService.approveRequestedFromPms.mockRejectedValue(notFound);
+      mockedService.rejectRequestedAppointment.mockRejectedValue(notFound);
+      mockedService.cancelAppointment.mockRejectedValue(notFound);
+
+      await AppointmentController.acceptRequested(req as any, res as any);
+      expect(res.status).toHaveBeenCalledWith(404);
+      await AppointmentController.rejectRequested(req as any, res as any);
+      expect(res.status).toHaveBeenCalledWith(404);
+      await AppointmentController.cancelFromPMS(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(404);
     });
   });

@@ -373,12 +373,12 @@ export const RecordVitals: Story = {
     const canvas = within(canvasElement);
     await canvas.findByRole('textbox', { name: 'Objective examination' });
 
-    const button = canvas.getByRole('button', { name: 'Record Vitals' });
+    const button = canvas.getByRole('button', { name: 'Record vitals' });
 
     /* Exactly one, and it is inside the Objective card. Vitals ARE the objective
        section, so this action drifting into Subjective or Plan would read as a
        different workflow while every text assertion still passed. */
-    await expect(canvas.getAllByRole('button', { name: 'Record Vitals' })).toHaveLength(1);
+    await expect(canvas.getAllByRole('button', { name: 'Record vitals' })).toHaveLength(1);
     const objectiveCard = cardOf(sectionTitle(canvas, 'Objective (Examination)'));
     await expect(objectiveCard.contains(button)).toBe(true);
 

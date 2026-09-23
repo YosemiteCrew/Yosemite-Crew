@@ -11,6 +11,7 @@ import '@/app/features/marketing/site/marketing.css';
 import { GITHUB_API_REPO, GITHUB_REPO_URL } from '@/app/features/marketing/site';
 
 import { Insights } from './Insights';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /* ------------------------------------------------------------------ endpoints */
 
@@ -24,7 +25,15 @@ import { Insights } from './Insights';
  * them unstubbed is a 404 and a permanently placeholdered card.
  */
 type Endpoint =
-  'repo' | 'languages' | 'commits' | 'contributors' | 'heartbeat' | 'stats' | 'discord' | 'release';
+  | 'repo'
+  | 'languages'
+  | 'commits'
+  | 'contributors'
+  | 'heartbeat'
+  | 'stats'
+  | 'discord'
+  | 'release'
+  | 'cloudUsers';
 
 const ENDPOINTS: Endpoint[] = [
   'repo',
@@ -35,9 +44,11 @@ const ENDPOINTS: Endpoint[] = [
   'stats',
   'discord',
   'release',
+  'cloudUsers',
 ];
 
 const endpointOf = (url: string): Endpoint | null => {
+  if (url.includes('/api/community/cloud-users')) return 'cloudUsers';
   if (url.includes('/api/community/github-stats')) return 'stats';
   if (url.includes('/api/community/discord-members')) return 'discord';
   if (url.includes('/api/community/github-releases')) return 'release';
@@ -252,6 +263,12 @@ const statsPayload = () => ({
 
 const discordPayload = () => ({ discordMembers: '3,182' });
 
+/* Strings, not numbers: the count is localised by the `/api/community/cloud-users`
+   proxy, and this stub stands in for the proxy rather than for the panel behind
+   it. A number here would be dropped by the hook's own field check and the tile
+   would sit on its placeholder with every request looking successful. */
+const cloudUsersPayload = () => ({ totalUsers: '8,140', latestSignupAt: minutesAgo(12) });
+
 /* Midday local, not a `...T00:00:00Z` literal: the card formats with
    `toLocaleDateString`, so a UTC literal reads as the previous day anywhere west
    of Greenwich and the assertion below would pass or fail by timezone. */
@@ -288,6 +305,8 @@ const bodyFor = (endpoint: Endpoint): unknown => {
       return statsPayload();
     case 'discord':
       return discordPayload();
+    case 'cloudUsers':
+      return cloudUsersPayload();
     default:
       return releasePayload();
   }
@@ -296,10 +315,19 @@ const bodyFor = (endpoint: Endpoint): unknown => {
 /* ------------------------------------------------------- session cache (stale) */
 
 /** Keys owned by `useGithubStats` / `useLatestRelease`, module-private there. */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 const RELEASE_CACHE_KEY = 'yc_rel_platform_v1';
-const SESSION_KEYS = [STATS_CACHE_KEY, STATS_TS_KEY, RELEASE_CACHE_KEY];
+/* `useCloudUsers` owns these two and keeps them module-private, same as the
+   stats pair above. They are cleared with the rest so a warm cache from an
+   earlier story cannot answer this one without a request. */
+const CLOUD_USERS_CACHE_KEY = 'yc_cloud_users_v1';
+const CLOUD_USERS_TS_KEY = 'yc_cloud_users_ts_v1';
+const SESSION_KEYS = [
+  STATS_CACHE_KEY,
+  STATS_TS_KEY,
+  RELEASE_CACHE_KEY,
+  CLOUD_USERS_CACHE_KEY,
+  CLOUD_USERS_TS_KEY,
+];
 
 /* Values a repeat visitor would already have in session storage, chosen so that
    every one of them is a string that appears nowhere else on the page. */
@@ -336,7 +364,7 @@ interface FixtureOptions {
 }
 
 /**
- * Answers all eight endpoints, and restores both `fetch` and the session cache on
+ * Answers all nine endpoints, and restores both `fetch` and the session cache on
  * unmount.
  *
  * The cache has to be put back rather than merely cleared: a failing stats pass
@@ -404,6 +432,12 @@ const flatten = (node: Element | null | undefined): string =>
 /** U+2014, what every unresolved number falls back to. Not a hyphen, not a zero. */
 const PLACEHOLDER = '—';
 
+/* Named, because three stories assert an all-placeholder band and each of them
+   used to spell the count as a bare 4. Adding a fifth tile left all three
+   comparing a 5-element array against a 4-element one, which reads as a content
+   failure rather than as a stale count. */
+const BAND_TILE_COUNT = 5;
+
 /* The hero console is four stacked blocks with no test ids, so it is walked from
    the one piece of copy that is unique to it. */
 const commitActivityRow = (canvasElement: HTMLElement) =>
@@ -434,6 +468,16 @@ const bandTiles = (canvasElement: HTMLElement) =>
    string the page handed down, with no rAF loop to wait out. */
 const reservedValue = (tile: HTMLElement) => flatten(tile.firstElementChild?.firstElementChild);
 const bandLabel = (tile: HTMLElement) => flatten(tile.children[1]);
+
+/* By label, not by index. These assertions used to read `bandTiles(...)[0]` and
+   silently meant "repository clones" only because it happened to be first;
+   putting cloud users at the head of the band turned them into a comparison
+   against the wrong tile. */
+const bandTileNamed = (canvasElement: HTMLElement, label: string): HTMLElement => {
+  const tile = bandTiles(canvasElement).find((candidate) => bandLabel(candidate) === label);
+  if (!tile) throw new Error(`no band tile labelled ${label}`);
+  return tile;
+};
 
 const cardByHeading = (canvasElement: HTMLElement, heading: string) =>
   within(canvasElement).getByText(heading).closest('[data-reveal], div') as HTMLElement;
@@ -487,7 +531,8 @@ const expectEveryCardResolved = async (canvasElement: HTMLElement) => {
     await expect(within(peopleCard(canvasElement)).getAllByRole('link')).toHaveLength(9);
     await expect(languageLegend(canvasElement)).toHaveLength(7);
     await expect(heartbeatBars(canvasElement)).toHaveLength(52);
-    await expect(reservedValue(bandTiles(canvasElement)[0])).toBe('67,134');
+    await expect(reservedValue(bandTileNamed(canvasElement, 'Repository clones'))).toBe('67,134');
+    await expect(reservedValue(bandTileNamed(canvasElement, 'Cloud users'))).toBe('8,140');
     await expect(canvas.getByText(RELEASE_TAG)).toBeInTheDocument();
   });
 };
@@ -507,7 +552,7 @@ const meta = {
       description: {
         component:
           'The `/insights` "building in public" page: hero with a live GitHub console, the ' +
-          'four-stat band, the manifesto, the repository pulse (languages, latest release, ' +
+          'five-stat band, the manifesto, the repository pulse (languages, latest release, ' +
           'commits, facts, contributors), three principles and the closing CTA.\n\n' +
           'It is the most state-heavy marketing page in the app, and almost none of that state ' +
           'is visible in a screenshot of the settled page.\n\n' +
@@ -537,7 +582,7 @@ const meta = {
     },
   },
   tags: ['autodocs'],
-  /* Pinned rather than inherited: the four-across stat band and the two-column
+  /* Pinned rather than inherited: the five-across stat band and the two-column
      pulse grids asserted below are decided by a media query, and leaving the width
      to the project default would make those assertions hostage to `preview.ts`. */
   globals: { viewport: { value: 'laptop', isRotated: false } },
@@ -579,12 +624,14 @@ export const Default: Story = {
        neighbour worth pinning: it is the one console figure that comes from the
        repo-insights stream rather than the stats stream. */
     await expect(bandTiles(canvasElement).map(bandLabel)).toEqual([
+      'Cloud users',
       'Repository clones',
       'Contributors',
       'Discord members',
       'GitHub stars',
     ]);
     await expect(bandTiles(canvasElement).map(reservedValue)).toEqual([
+      '8,140',
       '67,134',
       '38',
       '3,182',
@@ -725,7 +772,9 @@ export const EveryCardWaiting: Story = {
        flag anywhere - each card renders its own copy while its own slice is null.
        Every number falls back to an em dash rather than a zero: a zero here is a
        claim, and a wrong one. */
-    await expect(bandTiles(canvasElement).map(reservedValue)).toEqual(Array(4).fill(PLACEHOLDER));
+    await expect(bandTiles(canvasElement).map(reservedValue)).toEqual(
+      Array(BAND_TILE_COUNT).fill(PLACEHOLDER)
+    );
     for (const label of ['Stars', 'Forks', 'Contributors']) {
       await expect(consoleStat(canvasElement, label)).toBe(PLACEHOLDER);
     }
@@ -817,7 +866,9 @@ export const GithubUnreachable: Story = {
     for (const copy of PLACEHOLDER_COPY) {
       await expect(canvas.getByText(copy)).toBeInTheDocument();
     }
-    await expect(bandTiles(canvasElement).map(reservedValue)).toEqual(Array(4).fill(PLACEHOLDER));
+    await expect(bandTiles(canvasElement).map(reservedValue)).toEqual(
+      Array(BAND_TILE_COUNT).fill(PLACEHOLDER)
+    );
     for (const label of ['Stars', 'Forks', 'Contributors']) {
       await expect(consoleStat(canvasElement, label)).toBe(PLACEHOLDER);
     }
@@ -845,7 +896,15 @@ export const GithubUnreachable: Story = {
 
 export const LiveModeRefusesCache: Story = {
   name: 'Live mode refuses the session cache',
-  beforeEach: withInsightsData({ hold: ['stats', 'discord', 'release'], stale: true }),
+  /* `cloudUsers` is held alongside them for a different reason, worth stating:
+     it has no live mode, so it would answer from its own session cache and sit
+     resolved beside four placeholders. Holding its request keeps this story
+     about what `live: true` does, rather than about the one hook that does not
+     take the flag. */
+  beforeEach: withInsightsData({
+    hold: ['stats', 'discord', 'release', 'cloudUsers'],
+    stale: true,
+  }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
@@ -858,7 +917,9 @@ export const LiveModeRefusesCache: Story = {
     await waitFor(async () => {
       await expect(commitRows(canvasElement)).toHaveLength(5);
     });
-    await expect(bandTiles(canvasElement).map(reservedValue)).toEqual(Array(4).fill(PLACEHOLDER));
+    await expect(bandTiles(canvasElement).map(reservedValue)).toEqual(
+      Array(BAND_TILE_COUNT).fill(PLACEHOLDER)
+    );
     await expect(consoleStat(canvasElement, 'Stars')).toBe(PLACEHOLDER);
     await expect(canvas.getByText('Loading...')).toBeInTheDocument();
     for (const stale of STALE_STRINGS) {
@@ -870,7 +931,7 @@ export const LiveModeRefusesCache: Story = {
 
     releaseHeld();
     await waitFor(async () => {
-      await expect(reservedValue(bandTiles(canvasElement)[0])).toBe('67,134');
+      await expect(reservedValue(bandTileNamed(canvasElement, 'Repository clones'))).toBe('67,134');
       await expect(canvas.getByText(RELEASE_TAG)).toBeInTheDocument();
     });
     // The live values replaced the placeholders; the cached ones never appeared.
@@ -913,9 +974,9 @@ export const Phone: Story = {
     const stacking = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-grid-1-m]'));
     await expect(stacking.map(trackCount)).toEqual(helpersApply ? [1, 1, 1, 1] : [2, 2, 2, 3]);
 
-    // The stat band is the only `data-grid-2-m` here: four across, two on a phone.
+    // The stat band is the only `data-grid-2-m` here: five across, two on a phone.
     const band = canvasElement.querySelector('[data-grid-2-m]') as HTMLElement;
-    await expect(trackCount(band)).toBe(helpersApply ? 2 : 4);
+    await expect(trackCount(band)).toBe(helpersApply ? 2 : BAND_TILE_COUNT);
 
     // Both CTA pairs stack, at a different breakpoint from the grids.
     const ctaRows = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-stack-m]'));

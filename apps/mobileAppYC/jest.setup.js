@@ -619,12 +619,29 @@ jest.mock('@/features/auth/services/socialAuth', () => ({
 }));
 
 // Mock Keychain to avoid native module dependency
+// The app-lock entries below carry the library's real enum values, because
+// those strings are what the native side reads.
 jest.mock('react-native-keychain', () => ({
   setGenericPassword: jest.fn(async () => true),
   getGenericPassword: jest.fn(async () => null),
   resetGenericPassword: jest.fn(async () => true),
+  hasGenericPassword: jest.fn(async () => false),
   ACCESSIBLE: {
     WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
+    WHEN_PASSCODE_SET_THIS_DEVICE_ONLY:
+      'AccessibleWhenPasscodeSetThisDeviceOnly',
+  },
+  ACCESS_CONTROL: {
+    BIOMETRY_ANY_OR_DEVICE_PASSCODE: 'BiometryAnyOrDevicePasscode',
+  },
+  STORAGE_TYPE: {AES_GCM: 'KeystoreAESGCM'},
+  BIOMETRY_TYPE: {
+    TOUCH_ID: 'TouchID',
+    FACE_ID: 'FaceID',
+    OPTIC_ID: 'OpticID',
+    FINGERPRINT: 'Fingerprint',
+    FACE: 'Face',
+    IRIS: 'Iris',
   },
   SECURITY_LEVEL: {SECURE_SOFTWARE: 'SECURE_SOFTWARE'},
 }));

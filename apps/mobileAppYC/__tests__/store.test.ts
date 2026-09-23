@@ -83,8 +83,26 @@ describe('Redux Store', () => {
         notifications: expect.anything(),
         forms: expect.anything(),
         preferences: expect.anything(),
+        parasiteRisk: expect.anything(),
+        appLock: expect.anything(),
+        appLockStatus: expect.anything(),
       }),
     );
+  });
+
+  it('starts with app lock off and the in-memory status locked', () => {
+    const state = store.getState();
+
+    expect(state.appLock).toEqual({
+      enabled: false,
+      timeoutMs: 60_000,
+      ownerId: null,
+    });
+    expect(state.appLockStatus).toEqual({
+      locked: true,
+      covered: true,
+      authenticating: false,
+    });
   });
 
   it('configures redux-persist correctly', () => {
@@ -92,7 +110,7 @@ describe('Redux Store', () => {
 
     expect(config).toBeDefined();
     expect(config.key).toBe('root');
-    expect(config.version).toBe(9);
+    expect(config.version).toBe(10);
     expect(config.storage).toBeDefined();
     expect(config.migrate).toEqual(expect.any(Function));
   });
@@ -112,7 +130,100 @@ describe('Redux Store', () => {
       'notifications',
       'forms',
       'preferences',
+      'parasiteRisk',
+      'appLock',
     ]);
+  });
+
+  it('never persists whether the app is locked right now', () => {
+    expect(capturedConfig.persistConfig.whitelist).not.toContain(
+      'appLockStatus',
+    );
+  });
+
+  describe('Parasite risk transform', () => {
+    const getTransform = () => capturedConfig.persistConfig.transforms[0];
+
+    const stateWithFlags = {
+      location: {
+        label: 'Berlin',
+        countryCode: 'DE',
+        lat: 52.520008,
+        lon: 13.404954,
+      },
+      reading: null,
+      recentLocations: [
+        {label: 'Berlin', countryCode: 'DE', lat: 52.520008, lon: 13.404954},
+      ],
+      subscriptions: [],
+      loading: true,
+      subscriptionsLoading: true,
+      latestRiskRequestId: 'request-1',
+      error: null,
+      disclaimerAcknowledged: true,
+    };
+
+    it('registers the transform on the persist config', () => {
+      expect(capturedConfig.persistConfig.transforms).toHaveLength(1);
+    });
+
+    it('strips in-flight flags before writing to storage', () => {
+      const persisted = getTransform().in(stateWithFlags, 'parasiteRisk', {});
+
+      expect(persisted).not.toHaveProperty('loading');
+      expect(persisted).not.toHaveProperty('subscriptionsLoading');
+      expect(persisted).not.toHaveProperty('latestRiskRequestId');
+      expect(persisted).toEqual({
+        location: {
+          label: 'Berlin',
+          countryCode: 'DE',
+          lat: 52.625,
+          lon: 13.375,
+        },
+        reading: null,
+        recentLocations: [
+          {
+            label: 'Berlin',
+            countryCode: 'DE',
+            lat: 52.625,
+            lon: 13.375,
+          },
+        ],
+        subscriptions: [],
+        error: null,
+        disclaimerAcknowledged: true,
+      });
+    });
+
+    it('rehydrates in-flight flags as false', () => {
+      const persisted = getTransform().in(stateWithFlags, 'parasiteRisk', {});
+      const rehydrated = getTransform().out(persisted, 'parasiteRisk', {});
+
+      expect(rehydrated).toEqual({
+        ...persisted,
+        loading: false,
+        subscriptionsLoading: false,
+        latestRiskRequestId: null,
+      });
+    });
+
+    it('forces stale persisted flags to false on rehydrate', () => {
+      const rehydrated = getTransform().out(stateWithFlags, 'parasiteRisk', {});
+
+      expect(rehydrated.loading).toBe(false);
+      expect(rehydrated.subscriptionsLoading).toBe(false);
+      expect(rehydrated.latestRiskRequestId).toBeNull();
+      expect(rehydrated.location).toEqual(
+        expect.objectContaining({lat: 52.625, lon: 13.375}),
+      );
+    });
+
+    it('leaves other slices untouched', () => {
+      const otherSlice = {loading: true};
+
+      expect(getTransform().in(otherSlice, 'auth', {})).toBe(otherSlice);
+      expect(getTransform().out(otherSlice, 'auth', {})).toBe(otherSlice);
+    });
   });
 
   it('configures middleware ignored redux-persist actions', () => {
@@ -502,6 +613,17 @@ describe('Redux Store', () => {
       expect(newState.appointments.lastLoadedAt).toEqual({});
       expect(newState.expenses.lastLoadedAt).toEqual({});
       expect(newState.notifications.lastLoadedAt).toEqual({});
+      expect(newState.parasiteRisk).toEqual({
+        location: null,
+        reading: null,
+        recentLocations: [],
+        subscriptions: [],
+        loading: false,
+        subscriptionsLoading: false,
+        error: null,
+        disclaimerAcknowledged: false,
+        latestRiskRequestId: null,
+      });
     });
 
     it('leaves existing v9 staleness state untouched', async () => {
@@ -513,6 +635,72 @@ describe('Redux Store', () => {
 
       expect(newState.tasks.activeRequests).toEqual({c1: 'r1'});
       expect(newState.tasks.lastLoadedAt).toEqual({c1: 123});
+    });
+
+    it('keeps existing parasite risk state during v8 -> v9 migration', async () => {
+      const oldState = {
+        parasiteRisk: {
+          disclaimerAcknowledged: true,
+        },
+      };
+
+      const newState = await runMigrate(7, oldState);
+
+      expect(newState.parasiteRisk).toEqual({
+        disclaimerAcknowledged: true,
+      });
+    });
+
+    it('handles v9 -> v10 migration and adds app lock defaults, touching nothing else', async () => {
+      const oldState = {
+        auth: {user: {id: 'u1'}, status: 'authenticated'},
+        tasks: {items: [{id: 't1'}], activeRequests: {}, lastLoadedAt: {}},
+        preferences: {
+          weightOverride: 'kg',
+          distanceOverride: null,
+          currencyOverride: 'EUR',
+        },
+        parasiteRisk: {disclaimerAcknowledged: true},
+        theme: {mode: 'dark'},
+      };
+      const before = JSON.parse(JSON.stringify(oldState));
+
+      const newState = await runMigrate(9, oldState);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrating from v9 to v10'),
+      );
+      const {appLock, _persist, ...rest} = newState;
+      expect(appLock).toEqual({
+        enabled: false,
+        timeoutMs: 60_000,
+        ownerId: null,
+      });
+      expect(_persist).toEqual({version: 9});
+      expect(rest).toEqual(before);
+      expect(newState).not.toHaveProperty('appLockStatus');
+    });
+
+    it('keeps existing app lock settings during v9 -> v10 migration', async () => {
+      const newState = await runMigrate(9, {
+        appLock: {enabled: true, timeoutMs: 0, ownerId: 'parent-1'},
+      });
+
+      expect(newState.appLock).toEqual({
+        enabled: true,
+        timeoutMs: 0,
+        ownerId: 'parent-1',
+      });
+    });
+
+    it('adds app lock defaults to users more than one version behind', async () => {
+      const newState = await runMigrate(7, {});
+
+      expect(newState.appLock).toEqual({
+        enabled: false,
+        timeoutMs: 60_000,
+        ownerId: null,
+      });
     });
 
     it('handles non-matching versions gracefully', async () => {

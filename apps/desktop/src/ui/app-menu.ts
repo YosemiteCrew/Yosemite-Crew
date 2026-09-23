@@ -23,6 +23,8 @@ export interface MenuActions {
   tabMode: () => boolean;
   attachedTabId: () => string | null;
   tabManager: { getState: () => { tabs: Array<{ id: string }> } } | null;
+  // True while the idle lock is up (read at click time, like the getters above).
+  isLocked: () => boolean;
   verifyAuditTrail: () => void;
   exportCsDailyLog: () => void;
   showDeaStatus: () => void;
@@ -36,6 +38,7 @@ export interface MenuActions {
   showPrintStatus: () => void;
   startTelehealth: (intent?: Record<string, unknown>) => string;
   telehealthProviderName: string;
+  showCheatsheet: () => void;
   exportDiagnostics: (window: Electron.BrowserWindow | null) => void;
   mainWindow: Electron.BrowserWindow | null;
   helpLinks: ReadonlyArray<{ label: string; url: string }>;
@@ -51,7 +54,7 @@ export interface MenuActions {
 
 const tr = (key: MessageKey): string => translateMessage(key, app.getLocale());
 
-export const createAppMenu = (actions: MenuActions): void => {
+export const buildMenuTemplate = (actions: MenuActions): MenuItemConstructorOptions[] => {
   const isMac = process.platform === 'darwin';
 
   // Forward a shortcut id to the focused tab's renderer. Find / Find Next /
@@ -59,6 +62,15 @@ export const createAppMenu = (actions: MenuActions): void => {
   const sendShortcut = (shortcutId: string): void => {
     const wc = actions.activeContents();
     if (wc && !wc.isDestroyed()) wc.send('yc:shortcut', shortcutId);
+  };
+
+  // Not `role: 'quit'` — the role would supply the accelerator but replace the
+  // translated label with the system one. Declaring the accelerator here keeps
+  // tr('menu.quit') and still shows ⌘Q beside the item.
+  const quit: MenuItemConstructorOptions = {
+    label: tr('menu.quit'),
+    accelerator: 'Cmd+Q',
+    click: () => app.quit(),
   };
 
   const template: MenuItemConstructorOptions[] = [
@@ -90,7 +102,7 @@ export const createAppMenu = (actions: MenuActions): void => {
               { role: 'hideOthers' as const },
               { role: 'unhide' as const },
               { type: 'separator' as const },
-              { label: tr('menu.quit'), click: () => app.quit() },
+              quit,
             ],
           },
         ]
@@ -200,14 +212,20 @@ export const createAppMenu = (actions: MenuActions): void => {
       submenu: [
         { role: 'reload' },
         { role: 'forceReload' },
-        {
-          label: 'Toggle Developer Tools',
-          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
-          click: () => {
-            const wc = actions.activeContents();
-            if (wc && !wc.isDestroyed()) wc.toggleDevTools();
-          },
-        },
+        // Development builds only: a shipped build has no DevTools item, and so
+        // no shortcut for it either.
+        ...(app.isPackaged
+          ? []
+          : [
+              {
+                label: 'Toggle Developer Tools',
+                accelerator: isMac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+                click: () => {
+                  const wc = actions.activeContents();
+                  if (wc && !wc.isDestroyed()) wc.toggleDevTools();
+                },
+              },
+            ]),
         { type: 'separator' as const },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
@@ -302,6 +320,12 @@ export const createAppMenu = (actions: MenuActions): void => {
       role: 'help',
       submenu: [
         {
+          label: 'Keyboard Shortcuts',
+          accelerator: 'CmdOrCtrl+/',
+          click: actions.showCheatsheet,
+        },
+        { type: 'separator' as const },
+        {
           label: tr('menu.checkForUpdates'),
           click: () => actions.checkForUpdates(),
         },
@@ -320,5 +344,26 @@ export const createAppMenu = (actions: MenuActions): void => {
     },
   ];
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  // While the idle lock is up nothing here may act on the workspace behind it,
+  // whether by click or accelerator: every item with its own handler is inert
+  // until unlock, Quit excepted. Role items act on the focused contents, which
+  // the lock keeps on the lock page.
+  const holdWhileLocked = (items: MenuItemConstructorOptions[]): MenuItemConstructorOptions[] =>
+    items.map((item) => {
+      const { click, submenu } = item;
+      const held = { ...item };
+      if (click && item !== quit) {
+        held.click = (...args) => {
+          if (!actions.isLocked()) click(...args);
+        };
+      }
+      if (Array.isArray(submenu)) held.submenu = holdWhileLocked(submenu);
+      return held;
+    });
+
+  return holdWhileLocked(template);
+};
+
+export const createAppMenu = (actions: MenuActions): void => {
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate(actions)));
 };

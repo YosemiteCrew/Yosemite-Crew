@@ -1,7 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
+import { CONTACT_MESSAGE_MAX_LENGTH } from '@yosemite-crew/types';
 import ContactusPage from '@/app/features/marketing/pages/ContactusPage/ContactusPage';
 import { postData } from '@/app/services/axios';
 
@@ -29,8 +32,52 @@ describe('ContactusPage', () => {
     expect(screen.getByText('support@yosemitecrew.com')).toBeInTheDocument();
     expect(screen.getByText('+49 152 277 63275')).toBeInTheDocument();
     expect(screen.getByText('Join the Discord')).toBeInTheDocument();
+    for (const kicker of ['Email', 'Phone', 'Community']) {
+      expect(screen.getByText(kicker)).toHaveStyle({ color: 'var(--ink-muted)' });
+    }
     expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
     expect(screen.getByPlaceholderText('Your Message')).toBeInTheDocument();
+  });
+
+  it('uses the readable muted token for the privacy note', () => {
+    render(<ContactusPage />);
+    expect(
+      screen.getByText(
+        'We use your details only to handle this request. No lists, no selling, no noise.'
+      )
+    ).toHaveStyle({ color: 'var(--ink-muted)' });
+  });
+
+  /* #3361: this message is mirrored verbatim into the SuperAdmin intake, which
+     refuses a longer one with a permanent 400 - so it would be stored here and
+     never delivered. The bound belongs on the field the visitor types into. */
+  it('bounds the message at the SuperAdmin intake limit and shows the count', () => {
+    render(<ContactusPage />);
+
+    const message = screen.getByPlaceholderText('Your Message');
+    expect(message).toHaveAttribute('maxlength', String(CONTACT_MESSAGE_MAX_LENGTH));
+
+    const counter = screen.getByText(`0 of ${CONTACT_MESSAGE_MAX_LENGTH} characters`);
+    expect(message.getAttribute('aria-describedby')).toContain(counter.id);
+
+    fireEvent.change(message, { target: { value: 'seven!!' } });
+    expect(screen.getByText(`7 of ${CONTACT_MESSAGE_MAX_LENGTH} characters`)).toBeInTheDocument();
+  });
+
+  it('bounds the complaint and data-request messages at the same limit', () => {
+    render(<ContactusPage />);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
+    expect(screen.getByPlaceholderText('Your Message')).toHaveAttribute(
+      'maxlength',
+      String(CONTACT_MESSAGE_MAX_LENGTH)
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Data Service Access Request' }));
+    expect(screen.getByPlaceholderText('Your Message')).toHaveAttribute(
+      'maxlength',
+      String(CONTACT_MESSAGE_MAX_LENGTH)
+    );
   });
 
   it('should render the Discord channel as an external link', () => {
@@ -145,13 +192,49 @@ describe('ContactusPage', () => {
         target: { value: 'A message' },
       });
 
-      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+      const email = screen.getByLabelText('Enter Email Address');
+      fireEvent.change(email, {
         target: { value: 'not-an-email' },
       });
       fireEvent.click(screen.getAllByRole('button', { name: 'Send message' })[0]);
 
-      expect(await screen.findByText('Invalid email address')).toBeInTheDocument();
+      const error = await screen.findByText('Invalid email address');
+      expect(email).toHaveAttribute('aria-invalid', 'true');
+      expect(email.getAttribute('aria-describedby')).toContain(error.id);
       expect(mockedPostData).not.toHaveBeenCalled();
+
+      fireEvent.change(email, { target: { value: 'john.doe@example.com' } });
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), { target: { value: ' ' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Send message' })[0]);
+
+      await waitFor(() =>
+        expect(screen.queryByText('Invalid email address')).not.toBeInTheDocument()
+      );
+      expect(email).not.toHaveAttribute('aria-invalid');
+      expect(email).not.toHaveAttribute('aria-describedby');
+      expect(mockedPostData).not.toHaveBeenCalled();
+    });
+
+    it('associates required-field errors while preserving the message counter description', async () => {
+      render(<ContactusPage />);
+      const name = screen.getByLabelText('Full Name');
+      const message = screen.getByPlaceholderText('Your Message');
+      const counter = screen.getByText(`0 of ${CONTACT_MESSAGE_MAX_LENGTH} characters`);
+
+      fireEvent.change(name, { target: { value: ' ' } });
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'john.doe@example.com' },
+      });
+      fireEvent.change(message, { target: { value: ' ' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Send message' })[0]);
+
+      const nameError = await screen.findByText('Full name is required');
+      const messageError = screen.getByText('Message is required');
+      expect(name).toHaveAttribute('aria-invalid', 'true');
+      expect(name.getAttribute('aria-describedby')).toContain(nameError.id);
+      expect(message).toHaveAttribute('aria-invalid', 'true');
+      expect(message.getAttribute('aria-describedby')).toContain(counter.id);
+      expect(message.getAttribute('aria-describedby')).toContain(messageError.id);
     });
 
     it('should enable submit button when general enquiry form is valid and submit successfully', async () => {
@@ -335,9 +418,12 @@ describe('ContactusPage', () => {
           'Submit data service access request as The person whose name appears above'
         )
       );
-      fireEvent.change(screen.getByTestId('dynamic-select'), {
-        target: { value: 'UK_GDPR' },
-      });
+      await userEvent.click(
+        screen.getByRole('button', { name: /Under the rights of which law are you making/ })
+      );
+      await userEvent.click(
+        within(screen.getByRole('listbox')).getByText('UK GDPR / Data Protection Act 2018')
+      );
       fireEvent.click(
         screen.getByLabelText(
           'Submit data service access request to Access your personal information'
@@ -455,5 +541,43 @@ describe('ContactusPage', () => {
       expect(screen.queryByText('submitting...')).not.toBeInTheDocument();
       expect(screen.getByText('Send message')).toBeInTheDocument();
     });
+  });
+});
+
+describe('ContactusPage routes its danger/blue/success accents through real tokens', () => {
+  // --color-danger-700, --blue and --success all flip per theme; the icon glyphs already
+  // read them via var(), so a frozen literal alongside them (the required-mark asterisk,
+  // the submit error, or an icon's bg/border tint) would silently stop matching the glyph
+  // colour the moment the theme flips. Source-text assertions, not computed-style ones:
+  // color-mix()/var() are opaque strings to jsdom, so getComputedStyle can't resolve them.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the danger red as a frozen literal', () => {
+    expect(source).not.toContain("'#d53225'");
+  });
+
+  it('routes both danger-red usages through --color-danger-700', () => {
+    const occurrences = source.match(/var\(--color-danger-700\)/g) ?? [];
+    expect(occurrences).toHaveLength(2);
+  });
+
+  it('routes the email channel-card tint through --blue via color-mix', () => {
+    expect(source).toContain('iconBg="color-mix(in srgb, var(--blue) 10%, transparent)"');
+    expect(source).toContain('iconBorder="color-mix(in srgb, var(--blue) 18%, transparent)"');
+  });
+
+  it('routes the phone channel-card tint and the success-confirmation icon through --success via color-mix', () => {
+    expect(source).toContain('iconBg="color-mix(in srgb, var(--success) 10%, transparent)"');
+    expect(source).toContain('iconBorder="color-mix(in srgb, var(--success) 18%, transparent)"');
+    expect(source).toContain("background: 'color-mix(in srgb, var(--success) 12%, transparent)'");
+  });
+
+  it('leaves the Discord channel-card on its own brand colour, unmigrated', () => {
+    // Discord's official blurple - not a design-system token, so it should NOT be touched.
+    expect(source).toContain('iconBg="rgba(88,101,242,0.12)"');
+    expect(source).toContain('iconColor="#5865F2"');
   });
 });

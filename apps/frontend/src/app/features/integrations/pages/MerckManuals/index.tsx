@@ -942,6 +942,10 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   );
 };
 
+// no-story: both ProtectedMerckManuals (below) and EmbeddedMerckManuals are
+// ProtectedRoute/OrgGuard/Suspense compositions with no UI of their own, only
+// a loading skeleton; the real screen is MerckManualsPage, whose visible
+// pieces are covered by MerckReaderPortal.stories.tsx.
 const ProtectedMerckManuals = () => (
   <ProtectedRoute skeleton={MERCK_PAGE_SKELETON}>
     <OrgGuard skeleton={MERCK_PAGE_SKELETON}>

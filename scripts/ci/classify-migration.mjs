@@ -1,0 +1,601 @@
+#!/usr/bin/env node
+/**
+ * Fails a pull request that adds a migration whose SQL breaks the code that is
+ * already deployed, unless the migration says in writing why it does not.
+ *
+ * The hazard is a property of how this repository deploys, not of any one
+ * migration. `scripts/deploy/api-deploy.sh` applies migrations and then boots
+ * and smoke-tests the new bundle before `pm2 restart` cuts over, so the OLD
+ * process serves traffic against the NEW schema for the length of that window -
+ * and if the smoke boot fails the script deliberately does not cut over, which
+ * leaves the old process on the new schema indefinitely. The rollback restores
+ * the code. Nothing rolls back the schema.
+ *
+ * Additive migrations are unaffected, which is why this has not bitten yet.
+ * A migration that removes or renames something a running query still names
+ * turns every request touching that table into a 500 for the length of the
+ * window, and a failed deploy makes that permanent until someone intervenes.
+ *
+ * Raised by the Codex review on #2599, which renames three columns. That PR was
+ * safe on its own terms - all three tables held zero rows - but the hazard is
+ * general and applies to the first rename on a populated table.
+ *
+ * The declaration this asks for is the expand-contract step made explicit:
+ *
+ *     -- deployed-code-survives: the replacement column shipped in
+ *     --   20260901120000_add_new_name and the reader was updated in #2610, so
+ *     --   no deployed query names the old one.
+ *
+ * That is a claim a reviewer can check, sitting in the diff next to the SQL it
+ * describes. It is not a suppression switch: the hazard is still reported, and
+ * the text is what a reviewer reads before approving.
+ *
+ *   node scripts/ci/classify-migration.mjs <migration.sql...>
+ *
+ * Exits non-zero if any file has a hazard with no declaration.
+ */
+import { readFileSync } from 'node:fs';
+import { basename, dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { resolveWithin } from './safe-path.mjs';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+
+/**
+ * The marker that declares a hazard survivable, and the floor its explanation
+ * has to clear. The floor exists because "-- deployed-code-survives: ok" would
+ * satisfy a bare presence check while saying nothing, and this gate is only
+ * worth having if the sentence it forces is one a reviewer can disagree with.
+ */
+export const DECLARATION_MARKER = 'deployed-code-survives:';
+export const MIN_DECLARATION_LENGTH = 30;
+
+/**
+ * Removes SQL comments, leaving string and identifier literals intact.
+ *
+ * Both halves matter and they pull in opposite directions:
+ *
+ *   Comments MUST go. Prisma writes a warning header on exactly the migrations
+ *   this gate cares about - "You are about to drop the column `companion` on
+ *   the `AdverseEventReport` table" - and a substring match over the raw file
+ *   would fire on that prose whether or not the statement below it survives.
+ *   20260615100345_parent_patient_migration is a real example in this repo.
+ *
+ *   Literals MUST STAY. Migrations here run DDL out of a string inside a DO
+ *   block (`EXECUTE 'UPDATE "AdverseEventReport" SET ...'`, same file), so
+ *   blanking literal bodies - the obvious way to stop a `--` inside a string
+ *   being read as a comment - would hide the very statements that are most
+ *   worth catching.
+ *
+ * So this tracks quoting only well enough to know when a `--` or a `/*` is
+ * really a comment: inside '...' or "..." it is not. Postgres block comments
+ * nest, so the depth is counted rather than scanning for the first close.
+ *
+ * Dollar-quoted bodies ($$ ... $$) are deliberately NOT treated as opaque. A DO
+ * block's body is ordinary SQL, comments inside it are real comments, and its
+ * statements are real statements.
+ */
+export const stripSqlComments = (sql) => {
+  let out = '';
+  let i = 0;
+
+  while (i < sql.length) {
+    const pair = sql.slice(i, i + 2);
+
+    if (pair === '--') {
+      while (i < sql.length && sql[i] !== '\n') i += 1;
+      // The newline itself is left for the next pass, so line structure - and
+      // therefore the reported line numbers - survive.
+      continue;
+    }
+
+    if (pair === '/*') {
+      let depth = 1;
+      i += 2;
+      while (i < sql.length && depth > 0) {
+        if (sql.slice(i, i + 2) === '/*') {
+          depth += 1;
+          i += 2;
+          continue;
+        }
+        if (sql.slice(i, i + 2) === '*/') {
+          depth -= 1;
+          i += 2;
+          continue;
+        }
+        // Newlines inside the comment are kept so line numbers do not shift.
+        if (sql[i] === '\n') out += '\n';
+        i += 1;
+      }
+      out += ' ';
+      continue;
+    }
+
+    if (sql[i] === "'" || sql[i] === '"') {
+      const quote = sql[i];
+      out += quote;
+      i += 1;
+      // A doubled quote ('' inside a literal) needs no special case: closing at
+      // the first and reopening at the second covers exactly the same text, so
+      // no `--` can surface outside a literal between them.
+      while (i < sql.length) {
+        if (sql[i] === quote) {
+          out += quote;
+          i += 1;
+          break;
+        }
+        out += sql[i];
+        i += 1;
+      }
+      continue;
+    }
+
+    out += sql[i];
+    i += 1;
+  }
+
+  return out;
+};
+
+/**
+ * Splits comment-free SQL into statements on `;`, ignoring one inside a literal.
+ *
+ * Statement scope only matters for the three rules below that need two keywords
+ * together - ALTER TABLE + RENAME TO, ALTER TYPE + RENAME TO, and the ADD COLUMN
+ * clauses. Every other rule is a single keyword and survives any split.
+ *
+ * A dollar-quoted body ($$ ... $$) is deliberately NOT held together. Splitting
+ * inside one gives TIGHTER statements, and tighter is the safe direction here: a
+ * DO block that renames an index in one branch and alters a table in another
+ * would, held whole, satisfy `ALTER TABLE` and `RENAME TO` at once and report a
+ * table rename that is not there. Real `ALTER TABLE ... RENAME TO` is a single
+ * statement either way, so nothing is lost.
+ */
+export const splitStatements = (sql) => {
+  const statements = [];
+  let current = '';
+  let i = 0;
+
+  while (i < sql.length) {
+    if (sql[i] === "'" || sql[i] === '"') {
+      const quote = sql[i];
+      current += quote;
+      i += 1;
+      // Doubled quotes re-pair on their own; see stripSqlComments.
+      while (i < sql.length) {
+        if (sql[i] === quote) {
+          current += quote;
+          i += 1;
+          break;
+        }
+        current += sql[i];
+        i += 1;
+      }
+      continue;
+    }
+
+    if (sql[i] === ';') {
+      statements.push(current);
+      current = '';
+      i += 1;
+      continue;
+    }
+
+    current += sql[i];
+    i += 1;
+  }
+
+  statements.push(current);
+  return statements.filter((s) => s.trim() !== '');
+};
+
+const normalise = (statement) => statement.replace(/\s+/g, ' ').trim().toUpperCase();
+
+/**
+ * Every clause introduced by ADD COLUMN, so a required column with no default
+ * is still found when it shares a statement with a column that has one.
+ * `ALTER TABLE "X" ADD COLUMN "a" TEXT NOT NULL, ADD COLUMN "b" INT DEFAULT 0`
+ * is one statement, and asking whether DEFAULT appears anywhere in it would
+ * clear the first clause on the strength of the second.
+ */
+const addColumnClauses = (upper) => upper.split('ADD COLUMN').slice(1);
+
+/**
+ * What "the deployed code stops working" looks like in SQL.
+ *
+ * Deliberately NOT here, because neither breaks a running query:
+ *   DROP INDEX      - costs a plan, not a result. `ALTER INDEX ... RENAME TO`
+ *                     likewise: index names appear in no application query, and
+ *                     Prisma emits them routinely, so flagging them would make
+ *                     this gate noise. That is why the table rename below has
+ *                     to check for ALTER TABLE rather than matching RENAME TO
+ *                     on its own.
+ *   DROP CONSTRAINT - old code keeps reading and writing. Dropping a UNIQUE
+ *                     changes what a race can produce, which is a correctness
+ *                     question for review, not a break at cutover.
+ *
+ * ALTER TYPE ... RENAME TO is here: Prisma sends enum values with an explicit
+ * cast to the type name, so a deployed client keeps naming the old type.
+ */
+/**
+ * The second way a migration breaks deployed code, and the one the rules above
+ * cannot see: it leaves every object exactly as it was and changes who may read
+ * it.
+ *
+ * `ALTER TABLE "X" FORCE ROW LEVEL SECURITY` alters no column, drops nothing and
+ * renames nothing, so every rule above passes it as additive. On a table with no
+ * policies it takes every row out of the running code's sight at the moment it
+ * commits - before the cutover, and permanently if the deploy then stops. That
+ * is precisely the failure this gate exists to stop, arriving through a door it
+ * was not watching.
+ *
+ * CI CANNOT CATCH THESE FOR YOU, WHICH IS WHY THEY ARE HERE. The migration
+ * workflow connects as `postgres`, and a table's owner bypasses row-level
+ * security - so a test that applies one of these and then reads a row passes in
+ * CI whatever it would do in production. A static rule and a written declaration
+ * are the only checks available; there is no dynamic one to fall back on.
+ *
+ * Whether ENABLE alone is survivable turns on which role the API connects as,
+ * and that is recorded nowhere in this repository - `apps/backend/.env.example`
+ * names no database connection variable at all. So it cannot be settled from the
+ * diff, which is exactly the case the declaration is for: the migrations already
+ * doing this assert "the API connects as the owning role" in prose, and this
+ * asks for that assertion in a form a reviewer is shown.
+ *
+ * Deliberately NOT here, because each of these widens access or touches nothing
+ * that exists:
+ *   GRANT                          - adds a privilege.
+ *   DISABLE / NO FORCE ROW LEVEL   - restores the bypass rather than removing it.
+ *     SECURITY                       Both contain a flagged phrase as a
+ *                                    substring, so the tests below anchor on the
+ *                                    negating word rather than searching for the
+ *                                    positive one.
+ *   CREATE POLICY, permissive      - on an RLS table with no policies, a
+ *                                    permissive policy is the difference between
+ *                                    seeing nothing and seeing something. AS
+ *                                    RESTRICTIVE is the narrowing form and IS
+ *                                    flagged.
+ *   ALTER DEFAULT PRIVILEGES       - governs objects created later. It cannot
+ *                                    change what the deployed code reads today.
+ *
+ * Those four are safe by PostgreSQL's own semantics. One more is excluded on a
+ * weaker footing and the difference is worth keeping visible:
+ *
+ *   SECURITY LABEL                 - does nothing without a label provider, and
+ *                                    none is configured on this database. That
+ *                                    is a fact about this deployment with
+ *                                    nothing in this repository pinning it -
+ *                                    the same footing as the premise under the
+ *                                    ENABLE rule, not the same as the four
+ *                                    above. Raised by ankit-yc on #2731.
+ *
+ * These read the same normalised statement text as the rules above, so they
+ * inherit that machinery exactly: a hazard word in a comment is not a hazard,
+ * and one inside a string literal is - because a DO block's DDL lives in a
+ * literal, which is the trade stripSqlComments documents. Pinned both ways in
+ * the tests so an access rule cannot quietly diverge from a shape rule.
+ */
+const ACCESS_RULES = [
+  {
+    dimension: 'access',
+    kind: 'enables row-level security',
+    // No guard against DISABLE, deliberately: "DISABLE" does not contain
+    // "ENABLE" as a substring, so the plain match is already exact. NO FORCE
+    // below DOES contain FORCE and therefore needs one - the asymmetry is real
+    // and a guard here would be a branch no mutation could redden.
+    test: (u) => u.includes('ENABLE ROW LEVEL SECURITY'),
+  },
+  {
+    dimension: 'access',
+    kind: 'removes the owner bypass on row-level security',
+    test: (u) =>
+      u.includes('FORCE ROW LEVEL SECURITY') && !u.includes('NO FORCE ROW LEVEL SECURITY'),
+  },
+  {
+    dimension: 'access',
+    kind: 'revokes a privilege',
+    // Except inside ALTER DEFAULT PRIVILEGES, which is excluded below and was
+    // being flagged here anyway: that statement governs objects created later,
+    // so it cannot change what the deployed code reads today whichever verb it
+    // carries. The exclusion comment said so and the rule did not - and the
+    // test written for it used the GRANT form, which this rule was never going
+    // to match, so it agreed with the comment while the code disagreed.
+    // Raised by the Aikido review of #2731.
+    test: (u) => /\bREVOKE\b/.test(u) && !u.includes('ALTER DEFAULT PRIVILEGES'),
+  },
+  {
+    dimension: 'access',
+    kind: 'changes an object owner',
+    // REASSIGN OWNED BY is OWNER TO applied to every object a role owns, in one
+    // statement - and on this database that is the single statement that takes
+    // all eleven row-level-security tables out of the API's sight at once,
+    // because every one of them rests on the owner bypass. Its sibling in the
+    // same command family, DROP OWNED BY, is already below.
+    test: (u) => /\bOWNER TO\b/.test(u) || u.includes('REASSIGN OWNED BY'),
+  },
+  {
+    dimension: 'access',
+    kind: 'narrows or removes a row-level policy',
+    test: (u) =>
+      u.includes('DROP POLICY') ||
+      u.includes('ALTER POLICY') ||
+      (u.includes('CREATE POLICY') && u.includes('AS RESTRICTIVE')),
+  },
+  {
+    dimension: 'access',
+    kind: 'drops objects owned by a role',
+    test: (u) => u.includes('DROP OWNED BY'),
+  },
+  {
+    dimension: 'access',
+    kind: 'removes a role or its ability to connect',
+    // CONNECTION LIMIT 0 denies every new connection as completely as NOLOGIN
+    // does. Anchored on the zero: a positive limit is a cap, and -1 is the
+    // default meaning no limit at all.
+    //
+    // ROLE|USER because they are exact aliases in PostgreSQL rather than near
+    // synonyms - ALTER USER and DROP USER are the same statements - so matching
+    // one spelling is matching half the language. `0+` for the same reason a
+    // word boundary alone is not enough: CONNECTION LIMIT 00 is still zero.
+    // Both raised by ankit-yc on #2731.
+    test: (u) =>
+      /\bDROP (ROLE|USER)\b/.test(u) ||
+      (/\bALTER (ROLE|USER)\b/.test(u) &&
+        (u.includes('NOLOGIN') || /\bCONNECTION LIMIT 0+\b/.test(u))),
+  },
+];
+
+const RULES = [
+  { kind: 'drops a table', test: (u) => u.includes('DROP TABLE') },
+  { kind: 'drops a column', test: (u) => u.includes('DROP COLUMN') },
+  { kind: 'renames a column', test: (u) => u.includes('RENAME COLUMN') },
+  { kind: 'renames a table', test: (u) => u.includes('ALTER TABLE') && u.includes('RENAME TO') },
+  {
+    kind: 'renames an enum type',
+    test: (u) => u.includes('ALTER TYPE') && u.includes('RENAME TO'),
+  },
+  { kind: 'drops an enum type', test: (u) => u.includes('DROP TYPE') },
+  { kind: 'drops a view', test: (u) => u.includes('DROP VIEW') },
+  { kind: 'drops a schema', test: (u) => u.includes('DROP SCHEMA') },
+  { kind: 'truncates a table', test: (u) => u.includes('TRUNCATE') },
+  {
+    kind: 'makes an existing column NOT NULL',
+    test: (u) => u.includes('SET NOT NULL'),
+  },
+  {
+    kind: 'changes a column type',
+    test: (u) => u.includes('SET DATA TYPE') || (u.includes('ALTER COLUMN') && /\bTYPE\b/.test(u)),
+  },
+  {
+    kind: 'adds a required column with no default',
+    test: (u) => addColumnClauses(u).some((c) => c.includes('NOT NULL') && !c.includes('DEFAULT')),
+  },
+  {
+    // Not an access change - the object still exists and the grants are
+    // unchanged - but a deployed query naming it unqualified stops resolving,
+    // which is the same break by a different route.
+    kind: 'moves an object to another schema',
+    test: (u) => u.includes('SET SCHEMA'),
+  },
+  ...ACCESS_RULES,
+];
+
+/**
+ * The hazards in one migration's SQL, as {kind, statement} pairs.
+ * Exported so the classification that reds a build is testable on its own.
+ */
+export const classifyMigrationSql = (sql) => {
+  const hazards = [];
+
+  for (const statement of splitStatements(stripSqlComments(sql))) {
+    const upper = normalise(statement);
+    for (const rule of RULES) {
+      if (rule.test(upper)) {
+        hazards.push({
+          kind: rule.kind,
+          dimension: rule.dimension ?? 'shape',
+          statement: statement.replace(/\s+/g, ' ').trim(),
+        });
+      }
+    }
+  }
+
+  return hazards;
+};
+
+/**
+ * A line comment whose first content IS the marker. Anchored on purpose.
+ *
+ * A plain substring search over the raw file was a gate bypass: the marker text
+ * inside a string literal - `INSERT ... VALUES ('deployed-code-survives: ...')`
+ * - would have been read as a declaration and cleared the hazardous statement
+ * next to it. Raised by the Aikido review on this change.
+ *
+ * Requiring the comment to START with the marker also rules out a comment that
+ * merely mentions it in passing. The cost is that a declaration written inside
+ * a block comment is not recognised; the failure message names the `--` form,
+ * and refusing an unrecognised declaration fails safe.
+ */
+const DECLARATION_LINE = new RegExp(`^\\s*--\\s*${DECLARATION_MARKER}`);
+
+/**
+ * The explanation attached to the marker, or null.
+ *
+ * Read from the RAW file, before comments are stripped - the declaration is
+ * itself a comment. Continuation lines let the sentence be a sentence: the
+ * marker line plus every `--` line immediately following it are joined.
+ */
+export const readDeclaration = (sql) => {
+  const lines = sql.split('\n');
+  const start = lines.findIndex((line) => DECLARATION_LINE.test(line));
+  if (start === -1) return null;
+
+  const first = lines[start].slice(
+    lines[start].indexOf(DECLARATION_MARKER) + DECLARATION_MARKER.length
+  );
+  const parts = [first.trim()];
+
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i].trim();
+    if (!line.startsWith('--')) break;
+    parts.push(line.replace(/^--\s?/, '').trim());
+  }
+
+  const text = parts.join(' ').replace(/\s+/g, ' ').trim();
+  return text === '' ? null : text;
+};
+
+/**
+ * Declarations for migrations that are already APPLIED and so cannot carry one
+ * inline: Prisma checksums an applied migration, and the immutability step in
+ * _migration.yaml refuses the edit. A migration belongs here only when the rule
+ * that flags it was added after it merged. This gate classifies what a pull
+ * request ADDS, so such a migration passes on `dev` and surfaces on the first
+ * dev-to-main promotion that carries it, where nothing can be changed any more.
+ *
+ * Closed by date. RETROACTIVE_CUTOFF is the day after the youngest rule shipped
+ * (the access rules, #2724, on 2026-09-05). A migration stamped on or after it
+ * was classified by every rule when it merged, so it must declare inline, next
+ * to its SQL, and an entry for it here is ignored. The same length floor applies.
+ */
+export const RETROACTIVE_CUTOFF = '20260906000000';
+export const RETROACTIVE_DECLARATIONS = Object.freeze({
+  '20260830190000_developer_resources_user_scoped':
+    'the deployed main code reads organisationId on all three tables, but production held 0 ' +
+    'rows in each on 2026-09-23, counted before the September promotion. For the ' +
+    'migrate-to-cutover window a request presenting a developer key errors instead of ' +
+    "answering 401, and the portal's empty key, usage and billing lists error. No key exists " +
+    'to break and no row moves.',
+  '20260905130000_lab_result_quarantine':
+    'LabResultQuarantine is created by this same migration, so no deployed query names it, and ' +
+    'row-level security on a table the running code has never read cannot hide a row it ' +
+    'reads. Checked against main on 2026-09-23: nothing outside the migrations names the table.',
+});
+
+/** The retroactive declaration for a migration, or null if it may not have one. */
+export const retroactiveDeclaration = (name, declarations = RETROACTIVE_DECLARATIONS) => {
+  const stamp = /^\d{14}_/.test(name) ? name.slice(0, 14) : null;
+  if (stamp === null || stamp >= RETROACTIVE_CUTOFF) return null;
+  return Object.hasOwn(declarations, name) ? declarations[name] : null;
+};
+
+/**
+ * @returns {{name: string, hazards: Array, declaration: string|null,
+ *            verdict: 'ok'|'undeclared'|'declaration-too-short'}}
+ */
+export const reviewMigration = ({ name, sql, retroactive = RETROACTIVE_DECLARATIONS }) => {
+  const hazards = classifyMigrationSql(sql);
+  const declaration = readDeclaration(sql) ?? retroactiveDeclaration(name, retroactive);
+
+  if (hazards.length === 0) return { name, hazards, declaration, verdict: 'ok' };
+  if (declaration === null) return { name, hazards, declaration, verdict: 'undeclared' };
+  if (declaration.length < MIN_DECLARATION_LENGTH) {
+    return { name, hazards, declaration, verdict: 'declaration-too-short' };
+  }
+  return { name, hazards, declaration, verdict: 'ok' };
+};
+
+/** `.../migrations/20260901120000_atcvet_code_system/migration.sql` -> the directory name. */
+export const migrationName = (path) =>
+  basename(path) === 'migration.sql' ? basename(dirname(path)) : path;
+
+const main = (paths) => {
+  if (paths.length === 0) {
+    console.log('No new migrations in this pull request.');
+    return 0;
+  }
+
+  let failed = 0;
+
+  for (const path of paths) {
+    // The CI step feeds this repo-relative paths straight out of
+    // `git diff --name-only`, but it is a command-line script and the argument
+    // is not otherwise constrained. resolveWithin is the same containment the
+    // other scripts here apply to paths they did not author.
+    const resolved = resolveWithin(repoRoot, path);
+    if (resolved === null) {
+      console.log(`::error::${path} resolves outside the repository.`);
+      failed += 1;
+      continue;
+    }
+
+    const sql = readFileSync(resolved, 'utf8');
+    const review = reviewMigration({ name: migrationName(relative(repoRoot, resolved)), sql });
+
+    if (review.hazards.length === 0) {
+      console.log(`ok  ${review.name}: additive only.`);
+      continue;
+    }
+
+    const listed = review.hazards.map((h) => `      - ${h.kind}: ${h.statement}`).join('\n');
+
+    if (review.verdict === 'ok') {
+      console.log(`ok  ${review.name}: ${review.hazards.length} hazard(s), declared.`);
+      console.log(listed);
+      console.log(`      declared: ${review.declaration}`);
+      if (readDeclaration(sql) === null) {
+        console.log(
+          `      (recorded in RETROACTIVE_DECLARATIONS: applied before the rule existed)`
+        );
+      }
+      continue;
+    }
+
+    failed += 1;
+    // "the schema" is wrong for an access hazard: FORCE ROW LEVEL SECURITY
+    // alters nothing about the schema and takes every row out of the running
+    // code's sight anyway. Naming the right one is what tells the reader which
+    // of the two paragraphs below applies to them.
+    const changes = review.hazards.some((h) => h.dimension === 'access')
+      ? review.hazards.every((h) => h.dimension === 'access')
+        ? 'changes who may read the schema'
+        : 'changes the schema and who may read it'
+      : 'changes the schema';
+    console.log(
+      `::error file=${path}::${review.name} ${changes} in a way the deployed code may not survive.`
+    );
+    console.log(listed);
+
+    if (review.verdict === 'declaration-too-short') {
+      console.log(`    The ${DECLARATION_MARKER} note is ${review.declaration.length} characters:`);
+      console.log(`      "${review.declaration}"`);
+      console.log(
+        `    It needs at least ${MIN_DECLARATION_LENGTH} - enough to say something a reviewer can disagree with.`
+      );
+      continue;
+    }
+
+    console.log(`    api-deploy.sh applies migrations before it cuts over, so the CURRENTLY`);
+    console.log(`    DEPLOYED code runs against this schema for the length of the smoke window -`);
+    console.log(`    and for good, if the smoke boot fails and the deploy stops without cutting`);
+    console.log(`    over. The code rollback does not roll the schema back.`);
+    console.log(`    Either ship the expand step first (add the new thing, move the readers,`);
+    console.log(`    remove the old thing in a later release), or say why no deployed reader`);
+    console.log(`    names what this changes, in the migration itself:`);
+    console.log(`      -- ${DECLARATION_MARKER} <why the deployed code keeps working>`);
+
+    if (review.hazards.some((h) => h.dimension === 'access')) {
+      console.log(`    An access hazard above changes no column and drops nothing, so the`);
+      console.log(`    expand step does not apply to it - what changes is which rows the`);
+      console.log(`    connecting role can see, at the moment the statement commits.`);
+      console.log(`    NOTE THAT CI CANNOT CHECK THIS ONE FOR YOU: the migration job connects`);
+      console.log(`    as postgres, and a table's owner bypasses row-level security, so a test`);
+      console.log(`    that applies this and reads a row passes here whatever production does.`);
+      console.log(`    Say which role the API connects as and why this leaves its reads intact.`);
+    }
+  }
+
+  if (failed > 0) {
+    // Deliberately not "N migrations change the schema": a path that resolves
+    // outside the repository counts here too, and was never read.
+    console.log(`\n${failed} of ${paths.length} new migration(s) did not pass.`);
+    return 1;
+  }
+
+  console.log(`\nEvery new migration is additive or explains how the deployed code survives it.`);
+  return 0;
+};
+
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+  process.exit(main(process.argv.slice(2)));
+}

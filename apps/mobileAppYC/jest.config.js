@@ -24,7 +24,7 @@ module.exports = {
   // `nanoid` is ESM-only from v5; @react-navigation and @gorhom/portal import it,
   // so without transforming it Jest parses its `export` and fails the suite.
   transformIgnorePatterns: [
-    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|react-native-blob-util|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime|nanoid)/)',
+    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|react-native-blob-util|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime|nanoid|decode-uri-component)/)',
   ],
   moduleFileExtensions: [
     'ios.js',
@@ -106,4 +106,9 @@ module.exports = {
   maxWorkers: '50%',
   // Ensure lingering native timers/handles from mocks don't hang the runner
   forceExit: true,
+  // Screen tests drive long multi-field flows through a full RN render tree, so
+  // wall-clock cost scales with machine load: on a loaded runner the same case
+  // that takes ~2s alone can cross jest's 5s default and fail without the code
+  // changing. Match apps/frontend's 30s so a timeout means a real hang.
+  testTimeout: 30000,
 };

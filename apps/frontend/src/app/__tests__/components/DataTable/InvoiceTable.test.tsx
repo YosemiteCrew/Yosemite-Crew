@@ -7,6 +7,7 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 
 import InvoiceTable from '@/app/ui/tables/InvoiceTable';
 import { getInvoiceStatusStyle, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
+import { formatDateLabel } from '@/app/lib/forms';
 import { Invoice } from '@yosemite-crew/types';
 
 const useAppointmentsForPrimaryOrgMock = jest.fn();
@@ -26,12 +27,17 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+// A plain <img> that forwards `onError`, so the dead-photo path is reachable.
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, className }: any) => (
-    <span data-testid="companion-avatar" className={className}>
-      {alt}
-    </span>
+  default: ({ alt, className, src, onError }: any) => (
+    <img
+      data-testid="companion-avatar"
+      className={className}
+      alt={alt}
+      src={src}
+      onError={onError}
+    />
   ),
 }));
 
@@ -50,6 +56,7 @@ const capturedColumnWidths = () => {
       actions: widthOf(columnsFor(true), 'actions'),
     },
     tablet: {
+      invoice: widthOf(columnsFor(false), 'invoice-number'),
       status: widthOf(columnsFor(false), 'status'),
       parent: widthOf(columnsFor(false), 'appointment-id'),
       actions: widthOf(columnsFor(false), 'actions'),
@@ -70,11 +77,15 @@ jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
       <div data-testid={`${prefix}generic-table`}>
         {data.map((item: any, idx: number) => (
           <div key={item.id + idx} data-testid={`${prefix}row`}>
-            {columns.map((col: any) => (
-              <div key={col.key} data-testid={`${prefix}cell-${col.key}`}>
-                {col.render ? col.render(item) : item[col.key]}
-              </div>
-            ))}
+            {columns.map((col: any) => {
+              const { render: cellRenderer, key } = col;
+              const content = cellRenderer ? cellRenderer(item) : item[key];
+              return (
+                <div key={key} data-testid={`${prefix}cell-${key}`}>
+                  {content}
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>
@@ -90,10 +101,17 @@ jest.mock('@/app/ui/cards/InvoiceCard', () => ({
 jest.mock('react-icons/io5', () => ({
   IoEye: () => <span data-testid="eye-icon" />,
   IoOpenOutline: () => <span data-testid="open-icon" />,
+  /* Needed by the shared `NoDataMessage` the empty state renders. A hand-listed
+     icon mock silently returns undefined for anything it forgot, which React
+     reports as an invalid element type from inside the component rather than as
+     a missing mock. */
+  IoFileTrayOutline: () => <span data-testid="empty-icon" />,
 }));
 
+// formatDateLabel is a jest.fn so the assertions below can pin WHICH date field
+// each cell formats, not just the string it renders.
 jest.mock('@/app/lib/forms', () => ({
-  formatDateLabel: () => 'Jan 1',
+  formatDateLabel: jest.fn(() => 'Jan 1'),
   formatTimeLabel: () => '10:00 AM',
 }));
 
@@ -153,7 +171,7 @@ describe('InvoiceTable', () => {
     fireEvent.click(desktop.getByRole('button', { name: 'Open finance details for Buddy' }));
 
     expect(desktop.getByText('Sam / Buddy')).toBeInTheDocument();
-    expect(desktop.getByText('#inv-1')).toBeInTheDocument();
+    expect(desktop.getByText('#inv-1')).toHaveClass('cell-truncate');
     expect(desktop.getByTestId('companion-avatar').parentElement?.tagName).toBe('DIV');
     // Design's date cell is one muted line — the time rides the identity
     // sub-line, so it is not repeated here.
@@ -182,10 +200,28 @@ describe('InvoiceTable', () => {
     expect(setViewInvoice).toHaveBeenCalledWith(true);
   });
 
+  // Design rule: the initials fallback is mandatory, never an empty circle. A
+  // companion photo whose URL stopped resolving degrades to the monogram on the
+  // species-tinted disc that already rings the row avatar.
+  it('swaps a dead companion photo for the monogram', () => {
+    render(<InvoiceTable filteredList={[invoice]} />);
+    const desktop = within(screen.getByTestId('generic-table'));
+    expect(desktop.queryByText('B')).not.toBeInTheDocument();
+
+    fireEvent.error(desktop.getByTestId('companion-avatar'));
+
+    expect(desktop.queryByTestId('companion-avatar')).not.toBeInTheDocument();
+    expect(desktop.getByText('B')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('shows an accessible empty state when no invoices match', () => {
     render(<InvoiceTable filteredList={[]} />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('No invoices match the current filters.');
+    /* The phone band keeps its `output` (role="status") wrapper, so this stays
+       the one announced empty state on the page — but the copy is now derived
+       from the table's own noun instead of blaming filters that may not be
+       applied. */
+    expect(screen.getByRole('status')).toHaveTextContent('No invoices yet');
   });
 
   it('has no axe accessibility violations', async () => {
@@ -275,7 +311,7 @@ describe('InvoiceTable', () => {
     expect(cell.queryByText(/Wellness exam/)).not.toBeInTheDocument();
   });
 
-  it('renders an empty subtitle and no date cell when the appointment is not found', () => {
+  it('renders an empty subtitle and a dash in the Appointment cell when the appointment is not found', () => {
     useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
 
     render(<InvoiceTable filteredList={[invoice]} />);
@@ -284,9 +320,38 @@ describe('InvoiceTable', () => {
       screen.getByTestId('cell-appointment-id').querySelector('.appointment-profile-sub')
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Open finance details/ })).not.toBeInTheDocument();
+    // An invoice converted from an estimate carries no appointmentId at all, so
+    // this cell used to render completely blank - an unexplained hole in the
+    // row. It shows the table's missing-value dash now.
+    expect(screen.getByTestId('cell-date')).toHaveTextContent('-');
   });
 
-  describe('tablet column set (768-1279)', () => {
+  /* The desktop column over `appointment.appointmentDate` was headed "Date" -
+     the same word InvoiceCard and PhoneInvoiceList put over `invoice.createdAt`.
+     An invoice raised three days after the visit read "Sep 3" on a laptop and
+     "Sep 6" on a phone under one label. The header names its field now. */
+  it('heads the appointment-date column "Appointment" and formats the appointment date, not the invoice date', () => {
+    const dated = { ...invoice, createdAt: new Date('2025-01-04T10:00:00.000Z') } as Invoice;
+
+    render(<InvoiceTable filteredList={[dated]} />);
+
+    const dateColumn = mockGenericTableCalls
+      .find((c) => isDesktopVariant(c.tableClassName))!
+      .columns.find((col: any) => col.key === 'date');
+    expect(dateColumn.label).toBe('Appointment');
+    expect(formatDateLabel).toHaveBeenCalledWith(new Date('2025-01-01T10:00:00.000Z'));
+    expect(formatDateLabel).not.toHaveBeenCalledWith(dated.createdAt);
+  });
+
+  describe('tablet/laptop column set (768-1535)', () => {
+    it('keeps the full ledger off laptop widths where the persistent sidebar leaves it too narrow', () => {
+      const { container } = render(<InvoiceTable filteredList={[invoice]} />);
+
+      const bands = [...container.querySelectorAll('div')];
+      expect(bands.some((band) => band.classList.contains('2xl:flex'))).toBe(true);
+      expect(bands.some((band) => band.classList.contains('2xl:hidden'))).toBe(true);
+    });
+
     it('prunes to six columns and folds the dropped meta into the sub-lines', () => {
       useAppointmentsForPrimaryOrgMock.mockReturnValue([
         {
@@ -343,6 +408,14 @@ describe('InvoiceTable', () => {
       const widths = capturedColumnWidths();
       expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(176);
       expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(176);
+    });
+
+    it('keeps compact invoice references wide enough to show their full identifier', () => {
+      render(<InvoiceTable filteredList={[invoice]} />);
+
+      expect(Number.parseInt(capturedColumnWidths().tablet.invoice, 10)).toBeGreaterThanOrEqual(
+        140
+      );
     });
 
     it('gives Actions a column wide enough for its own header', () => {

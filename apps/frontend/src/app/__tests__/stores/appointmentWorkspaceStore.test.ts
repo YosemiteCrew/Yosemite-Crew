@@ -139,10 +139,11 @@ describe('appointmentWorkspaceStore', () => {
     expect(enc?.soap[0].subjective).toBe('<p>hi</p>');
     expect(enc?.soap[0].plan).toBe('<p>plan</p>');
 
-    getStore().signSoap(APPT, 'Dr Tim', false);
+    getStore().signSoap(APPT, 'Dr Tim', false, 'soap-server-1', 6);
     enc = getStore().getEncounter(APPT);
     expect(enc?.soap[0].signedByName).toBe('Dr Tim');
     expect(enc?.soap[0].status).toBe('COMPLETED');
+    expect(enc?.soap[0]).toMatchObject({ id: 'soap-server-1', artifactVersion: 6 });
     expect(enc?.stepStatus.SOAP).toBe('COMPLETED');
   });
 
@@ -335,7 +336,12 @@ describe('appointmentWorkspaceStore', () => {
 
   it('adds vitals and observations with generated codes', () => {
     seed();
-    getStore().addVitals(APPT, { weightLbs: 55, recordedByName: 'Sarah', recordedAt: 'now' });
+    getStore().addVitals(
+      APPT,
+      { weightLbs: 55, recordedByName: 'Sarah', recordedAt: 'now' },
+      'vital-server-1',
+      7
+    );
     getStore().addObservation(APPT, {
       toolKey: 'FGS',
       toolName: 'Feline grimace scale',
@@ -345,6 +351,7 @@ describe('appointmentWorkspaceStore', () => {
     });
     const enc = getStore().getEncounter(APPT);
     expect(enc?.vitals[0].code).toBe('VT-001');
+    expect(enc?.vitals[0]).toMatchObject({ id: 'vital-server-1', artifactVersion: 7 });
     expect(enc?.observations[0].code).toBe('OT-001');
   });
 
@@ -392,6 +399,41 @@ describe('appointmentWorkspaceStore', () => {
         .getEncounter(APPT)
         ?.services.find((s) => s.id === added.id)
     ).toBeUndefined();
+  });
+
+  it('refuses to add, update or remove services on a discharged encounter', () => {
+    seed();
+    getStore().addLineItem(APPT, {
+      refId: 's1',
+      kind: 'SERVICE',
+      name: 'X-ray',
+      qty: 1,
+      unitPriceCents: 5000,
+      amountCents: 5000,
+    });
+    const existing = getStore().getEncounter(APPT)!.services.at(-1)!;
+
+    getStore().markDischarged(APPT, new Date().toISOString());
+    expect(getStore().getEncounter(APPT)?.viewOnly).toBe(true);
+
+    /* The editor already hides its search and locks its rows when `readOnly` is
+       passed, but that is a UI gate on one call site. A discharged encounter must
+       not gain, lose or re-price billable services through the action itself -
+       otherwise any future caller reaching past the editor reopens the hole. */
+    getStore().addLineItem(APPT, {
+      refId: 's2',
+      kind: 'SERVICE',
+      name: 'Ultrasound',
+      qty: 1,
+      unitPriceCents: 9000,
+      amountCents: 9000,
+    });
+    getStore().updateLineItem(APPT, existing.id, { qty: 99 });
+    getStore().removeLineItem(APPT, existing.id);
+
+    const services = getStore().getEncounter(APPT)!.services;
+    expect(services.map((s) => s.name)).toEqual(['X-ray']);
+    expect(services[0].qty).toBe(1);
   });
 
   it('does not create local schedule rows when adding line items', () => {
@@ -1221,9 +1263,10 @@ describe('appointmentWorkspaceStore', () => {
     expect(enc.dischargeSavedByName).toBe('Dr Tim');
     expect(enc.dischargeSavedAt).toBeTruthy();
     // Re-saving with a backend id keeps it for future PATCHes.
-    getStore().saveDischargeSummary(APPT, 'Dr Tim', 'ds-server-1');
+    getStore().saveDischargeSummary(APPT, 'Dr Tim', 'ds-server-1', 8);
     enc = getStore().getEncounter(APPT)!;
     expect(enc.dischargeSummaryId).toBe('ds-server-1');
+    expect(enc.dischargeSummaryVersion).toBe(8);
 
     getStore().reopenDischargeSummary(APPT);
     enc = getStore().getEncounter(APPT)!;

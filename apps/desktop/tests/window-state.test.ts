@@ -9,6 +9,7 @@ import {
   normalizeWindowState,
   clampToVisibleDisplays,
   clampPositionToWorkArea,
+  restorePositionUnderCursor,
   MIN_VISIBLE_DRAG_PX,
   createWindowStateStore,
   manageWindow,
@@ -174,8 +175,13 @@ describe('manageWindow', () => {
       webContents: { getZoomLevel: () => 1 },
     });
 
-    manageWindow(win as never, { save: (s) => saved.push(s) });
-    listeners.close();
+    manageWindow(win as never, {
+      save: (s) => {
+        saved.push(s);
+        return true;
+      },
+    });
+    listeners.close!();
 
     expect(saved).toHaveLength(1);
     expect(saved[0]).toEqual({
@@ -194,13 +200,22 @@ describe('manageWindow', () => {
       const saved: Array<{ width: number }> = [];
       const { win, listeners } = makeWindow({});
 
-      manageWindow(win as never, { save: (s) => saved.push(s as { width: number }) }, 400);
-      listeners.resize();
-      listeners.move();
+      manageWindow(
+        win as never,
+        {
+          save: (s) => {
+            saved.push(s as { width: number });
+            return true;
+          },
+        },
+        400
+      );
+      listeners.resize!();
+      listeners.move!();
       expect(saved).toHaveLength(0);
       jest.advanceTimersByTime(400);
       expect(saved).toHaveLength(1);
-      expect(saved[0].width).toBe(1100);
+      expect(saved[0]!.width).toBe(1100);
     } finally {
       jest.useRealTimers();
     }
@@ -209,8 +224,13 @@ describe('manageWindow', () => {
   test('does not persist when the window is already destroyed', () => {
     const saved: unknown[] = [];
     const { win, listeners } = makeWindow({ isDestroyed: () => true });
-    manageWindow(win as never, { save: (s) => saved.push(s) });
-    listeners.close();
+    manageWindow(win as never, {
+      save: (s) => {
+        saved.push(s);
+        return true;
+      },
+    });
+    listeners.close!();
     expect(saved).toHaveLength(0);
   });
 
@@ -224,8 +244,13 @@ describe('manageWindow', () => {
         },
       },
     });
-    manageWindow(win as never, { save: (s) => saved.push(s) });
-    listeners.close();
+    manageWindow(win as never, {
+      save: (s) => {
+        saved.push(s);
+        return true;
+      },
+    });
+    listeners.close!();
     expect(saved[0]).toEqual({
       x: 1,
       y: 2,
@@ -336,5 +361,67 @@ describe('clampPositionToWorkArea', () => {
       x: 99_999,
       y: 99_999,
     });
+  });
+});
+
+describe('restorePositionUnderCursor', () => {
+  // A 2560-wide maximised window restoring to its 1280-wide saved size: the
+  // pointer has to stay under the same part of the title bar, or the window
+  // jumps out from under the drag (issue #3293).
+  const maximized = { x: 0, y: 0, width: 2560, height: 1400 };
+  const restored = { width: 1280, height: 800 };
+
+  test('keeps the pointer at the same fraction across the narrower title bar', () => {
+    // Pointer three quarters across the maximised bar -> three quarters across
+    // the restored one, so the window's left edge lands at 1920 - 0.75 * 1280.
+    expect(restorePositionUnderCursor(maximized, restored, { x: 1920, y: 12 })).toEqual({
+      x: 960,
+      y: 0,
+    });
+  });
+
+  test.each([
+    [0, 0],
+    [1280, 640],
+    [2560, 1280],
+  ])('a pointer at screen x=%i restores the window to x=%i', (cursorX, expectedX) => {
+    expect(restorePositionUnderCursor(maximized, restored, { x: cursorX, y: 8 }).x).toBe(expectedX);
+  });
+
+  test('keeps the pointer at the same offset below the top edge', () => {
+    const offScreenTop = { x: 40, y: 300, width: 2560, height: 1400 };
+    expect(restorePositionUnderCursor(offScreenTop, restored, { x: 1320, y: 318 }).y).toBe(300);
+  });
+
+  test('a pointer outside the maximised bounds cannot push the window past its edges', () => {
+    const left = restorePositionUnderCursor(maximized, restored, { x: -500, y: 10 });
+    const right = restorePositionUnderCursor(maximized, restored, { x: 4000, y: 10 });
+    expect(left.x).toBe(-500);
+    expect(right.x).toBe(4000 - restored.width);
+  });
+
+  test('a pointer below the restored height still leaves the title bar reachable', () => {
+    // Clamped to height - 1, so the window top can never end up above the
+    // pointer by more than the window itself is tall.
+    const { y } = restorePositionUnderCursor(maximized, restored, { x: 1280, y: 1300 });
+    expect(y).toBe(1300 - (restored.height - 1));
+  });
+
+  test('centres the pointer rather than dividing by a zero width', () => {
+    const noWidth = { x: 0, y: 0, width: 0, height: 0 };
+    expect(restorePositionUnderCursor(noWidth, restored, { x: 900, y: 0 }).x).toBe(
+      900 - restored.width / 2
+    );
+  });
+
+  test('returns whole pixels', () => {
+    const odd = { x: 0, y: 0, width: 1367, height: 768 };
+    const { x, y } = restorePositionUnderCursor(
+      odd,
+      { width: 1025, height: 701 },
+      { x: 411, y: 7 }
+    );
+    expect(Number.isInteger(x)).toBe(true);
+    expect(Number.isInteger(y)).toBe(true);
   });
 });

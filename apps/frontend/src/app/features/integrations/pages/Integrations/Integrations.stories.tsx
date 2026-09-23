@@ -258,24 +258,16 @@ export const ComingSoonFilter: Story = {
 
     await waitFor(() => expect(cards(canvasElement)).toHaveLength(4));
     await expect(canvas.getAllByText('Coming soon')).toHaveLength(5); // 4 pills + the tab label
-    await expect(canvas.getAllByText('Notify me')).toHaveLength(4);
+    await expect(canvas.queryByText('Notify me')).not.toBeInTheDocument();
     await expect(canvas.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
     await expect(canvas.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
-
-    /* "Notify me" is a `<span>`, not a control - the placeholder cards have no
-       action wired up yet. Asserting the tag keeps a future change from turning
-       them into buttons that do nothing. */
-    for (const label of canvas.getAllByText('Notify me')) {
-      await expect(label.tagName).toBe('SPAN');
-    }
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The four placeholder cards. Their CTA is a styled `<span>` rather than a button, so ' +
-          'nothing here is focusable - the only interactive elements left on the page are the ' +
-          'filter tabs and the title tooltip.',
+          'The four placeholder cards have no CTA until an interest-notification workflow exists; ' +
+          'the only interactive elements left on the page are the filter tabs and the title tooltip.',
       },
     },
   },

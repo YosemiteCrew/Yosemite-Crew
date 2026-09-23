@@ -27,11 +27,11 @@ const FREE_FEATURES: FeatureItem[] = [
 ];
 
 const BUSINESS_FEATURES: FeatureItem[] = [
-  { label: 'Unlimited appointments & tools', dot: '#54b492' },
-  { label: 'Team, rooms & departments', dot: '#54b492' },
-  { label: 'Billing, invoicing & Stripe payments', dot: '#54b492' },
-  { label: 'Financial reporting & analytics', dot: '#54b492' },
-  { label: 'Dedicated Discord support', dot: '#54b492' },
+  { label: 'Unlimited appointments & tools', dot: 'var(--color-success-400)' },
+  { label: 'Team, rooms & departments', dot: 'var(--color-success-400)' },
+  { label: 'Billing, invoicing & Stripe payments', dot: 'var(--color-success-400)' },
+  { label: 'Financial reporting & analytics', dot: 'var(--color-success-400)' },
+  { label: 'Dedicated Discord support', dot: 'var(--color-success-400)' },
 ];
 
 const ENTERPRISE_FEATURES: FeatureItem[] = [
@@ -80,7 +80,7 @@ const billingBtnStyle = (active: boolean): React.CSSProperties => ({
   fontWeight: 600,
   letterSpacing: '-0.01em',
   transition: 'color 200ms, background 200ms',
-  background: active ? '#1d1c1b' : 'transparent',
+  background: active ? 'var(--spot)' : 'transparent',
   color: active ? '#f7f3ec' : 'var(--ink-muted)',
 });
 
@@ -223,7 +223,7 @@ const NOFEE_HEADING_STYLE: React.CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.34,
   letterSpacing: '-0.035em',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   textWrap: 'pretty',
 };
 
@@ -384,10 +384,20 @@ function BillingToggle({
           borderRadius: '9999px',
         }}
       >
-        <button type="button" onClick={() => onSelect(false)} style={billingBtnStyle(!yearly)}>
+        <button
+          type="button"
+          aria-pressed={!yearly}
+          onClick={() => onSelect(false)}
+          style={billingBtnStyle(!yearly)}
+        >
           Monthly
         </button>
-        <button type="button" onClick={() => onSelect(true)} style={billingBtnStyle(yearly)}>
+        <button
+          type="button"
+          aria-pressed={yearly}
+          onClick={() => onSelect(true)}
+          style={billingBtnStyle(yearly)}
+        >
           Yearly
         </button>
       </div>
@@ -429,7 +439,7 @@ function FreePlanCard() {
           fontWeight: 700,
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          color: 'var(--ink-faint)',
+          color: 'var(--ink-muted)',
         }}
       >
         Free
@@ -472,10 +482,10 @@ function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: s
     <Reveal delay={100} style={BUSINESS_CARD_STYLE}>
       <PlanBadgeHeader
         label="Business"
-        labelColor="#82afec"
+        labelColor="var(--spot-blue)"
         badge="RECOMMENDED"
         badgeColor="#1d1c1b"
-        badgeBg="#82afec"
+        badgeBg="var(--spot-blue)"
       />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '20px 0 4px' }}>
         <span
@@ -490,7 +500,9 @@ function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: s
           {price}
         </span>
       </div>
-      <div style={{ fontSize: '14px', color: '#a9a39e', marginBottom: '18px' }}>{period}</div>
+      <div style={{ fontSize: '14px', color: 'var(--spot-ink-faint)', marginBottom: '18px' }}>
+        {period}
+      </div>
       <p
         style={{
           margin: '0 0 22px',
@@ -526,9 +538,9 @@ function EnterprisePlanCard() {
     >
       <PlanBadgeHeader
         label="Enterprise"
-        labelColor="var(--ink-faint)"
+        labelColor="var(--ink-muted)"
         badge="COMING SOON"
-        badgeColor="var(--ink-faint)"
+        badgeColor="var(--ink-muted)"
         badgeBg="var(--inset)"
       />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '20px 0 4px' }}>
@@ -745,7 +757,7 @@ function NoFeeSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             Why we take no cut
@@ -761,7 +773,7 @@ function NoFeeSection() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#82afec',
+                color: 'var(--spot-blue)',
               }}
             >
               You pay your vet, and your statement says your vet.

@@ -18,6 +18,8 @@ import CalendarHourLabel from '@/app/features/appointments/components/Calendar/c
 import {
   formatDateInPreferredTimeZone,
   getHourInPreferredTimeZone,
+  getStartOfDayInPreferredTimeZone,
+  getStartOfNextDayInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
@@ -124,10 +126,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     nowPosition,
     scrollContainer,
     skip: !!draggedTaskId || !days.length,
-    rangeStart: days[0],
-    rangeEnd: days.at(-1)
-      ? new Date(new Date(days.at(-1) as Date).setHours(24, 0, 0, 0))
-      : undefined,
+    // days[] entries are preferred-timezone noon anchors, not browser midnight:
+    // days[0] itself would exclude an early-morning task on the first day, and
+    // setHours(24) on the last day reads browser-local, not the clinic's, day.
+    rangeStart: days[0] ? getStartOfDayInPreferredTimeZone(days[0]) : undefined,
+    rangeEnd: days.at(-1) ? getStartOfNextDayInPreferredTimeZone(days.at(-1) as Date) : undefined,
     hourRowGapPx: HOUR_ROW_GAP_PX,
     hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
   });

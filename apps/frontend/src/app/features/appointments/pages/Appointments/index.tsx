@@ -21,7 +21,7 @@ const ViewAppointmentOverviewModal = React.lazy(
     import('@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal')
 );
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
-import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { startOfPreferredTimeZoneDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import {
   useAppointmentsForPrimaryOrg,
@@ -43,6 +43,14 @@ const ChangeStatus = React.lazy(
 const ChangeRoom = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom')
 );
+const WaitlistPanel = React.lazy(
+  () => import('@/app/features/appointments/components/Waitlist/WaitlistPanel')
+);
+const FrontDeskBoardPanel = React.lazy(
+  () => import('@/app/features/appointments/components/FrontDeskBoard/FrontDeskBoardPanel')
+);
+import type { WaitlistEntryView } from '@/app/features/appointments/components/Waitlist/Waitlist';
+import { bookWaitlistEntry } from '@/app/features/appointments/services/waitlistService';
 import { useSearchStore } from '@/app/stores/searchStore';
 import Filters from '@/app/ui/filters/Filters';
 import {
@@ -70,6 +78,12 @@ import {
 } from '@/app/features/settings/utils/pmsPreferences';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
+import {
+  buildPreferredTimeZoneDayInstant,
+  getDateKeyInPreferredTimeZone,
+  getDatePartsInPreferredTimeZone,
+  getMinutesSinceStartOfDayInPreferredTimeZone,
+} from '@/app/lib/timezone';
 
 const AppointmentsSkeleton = () => <PageSkeleton variant="planner" />;
 const APPOINTMENTS_SKELETON = <AppointmentsSkeleton />;
@@ -77,6 +91,32 @@ const APPOINTMENTS_SKELETON = <AppointmentsSkeleton />;
 const PlannerViewSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
 );
+
+// Parses a "YYYY-MM-DD"-prefixed calendar day (from a waitlist entry's
+// earliestDate, or the page's own `?date=` query param) into the preferred
+// time zone's instant for that day, rejecting anything that doesn't round-trip
+// to the same calendar day (e.g. an out-of-range day-of-month).
+const parseCalendarDateParam = (value: string | null): Date | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  if (!match) return null;
+
+  const date = buildPreferredTimeZoneDayInstant(
+    Number(match[1]),
+    Number(match[2]),
+    Number(match[3])
+  );
+  const parts = getDatePartsInPreferredTimeZone(date);
+  return parts.year === Number(match[1]) &&
+    parts.month === Number(match[2]) &&
+    parts.day === Number(match[3])
+    ? date
+    : null;
+};
+
+const getTodayInPreferredTimeZone = (): Date => {
+  const today = getDatePartsInPreferredTimeZone(new Date());
+  return buildPreferredTimeZoneDayInstant(today.year, today.month, today.day);
+};
 
 const AppointmentsTable = dynamic(() => import('@/app/ui/tables/Appointments'), {
   loading: () => <PlannerViewSkeleton />,
@@ -325,6 +365,8 @@ const useAppointmentsView = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showFrontDesk, setShowFrontDesk] = useState(false);
   const [addAppointmentPrefill, setAddAppointmentPrefill] =
     useState<AppointmentDraftPrefill | null>(null);
   const [viewPopup, setViewPopup] = useState(false);
@@ -347,6 +389,7 @@ const useAppointmentsView = () => {
   }, [canEditAny, canEditOwn, activeAppointment, currentUserLeadId]);
 
   const profile = usePrimaryOrgProfile();
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrgType = useOrgStore((s) =>
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
@@ -366,8 +409,29 @@ const useAppointmentsView = () => {
       setActiveView(next);
     });
   };
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
+  // Defaults to today; the `?date=` watcher below (which also runs on this
+  // first render) overrides it before paint when the URL already names a day,
+  // so a reload, deep link, or shared URL lands on the same day.
+  const [currentDate, setCurrentDate] = useState<Date>(() => getTodayInPreferredTimeZone());
+  // Every calendar/board view changes the date through this, not the raw
+  // setter, so `?date=` always reflects what's on screen (reload/share-safe).
+  // An imperative push from the handler rather than an effect keyed on
+  // currentDate - a router object recreated per render (real in some
+  // embeddings, and how the test double behaves) would otherwise refire that
+  // effect on every unrelated re-render.
+  const handleCurrentDateChange: React.Dispatch<React.SetStateAction<Date>> = (next) => {
+    const resolvedDate =
+      typeof next === 'function' ? (next as (prev: Date) => Date)(currentDate) : next;
+    setCurrentDate(resolvedDate);
+    const dateKey = getDateKeyInPreferredTimeZone(resolvedDate);
+    if (searchParams.get('date') === dateKey) return;
+    const params = new URLSearchParams(window.location.search);
+    params.set('date', dateKey);
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
+  const [waitlistBooking, setWaitlistBooking] = useState<WaitlistEntryView | null>(null);
+  const [waitlistRefreshKey, setWaitlistRefreshKey] = useState(0);
+  const [weekStart, setWeekStart] = useState(() => startOfPreferredTimeZoneDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({
     activeView,
     topOffset: activeView === 'list' ? 72 : 16,
@@ -387,9 +451,25 @@ const useAppointmentsView = () => {
   // effect, so the derived value is correct on the same commit as the change.
   const weekKey = `${activeCalendar}:${currentDate.getTime()}`;
   useOnValueChange(weekKey, () => {
-    const nextWeekStart = activeCalendar === 'week' ? startOfDay(currentDate) : weekStart;
+    const nextWeekStart =
+      activeCalendar === 'week' ? startOfPreferredTimeZoneDay(currentDate) : weekStart;
     if (nextWeekStart.getTime() !== weekStart.getTime()) {
       setWeekStart(nextWeekStart);
+    }
+  });
+
+  // Follow `?date=` into currentDate - on the very first render (hydrating
+  // from a reload, deep link, or shared URL), and later for a change that
+  // did not originate from handleCurrentDateChange (browser back/forward, or
+  // a fresh navigation to a link carrying a different date). Render-time
+  // prev-comparison (see the null-sentinel note above) instead of an effect,
+  // since this calls setCurrentDate itself.
+  const dateParam = searchParams.get('date');
+  useOnValueChange(dateParam, () => {
+    const parsedDate = parseCalendarDateParam(dateParam);
+    if (!parsedDate) return;
+    if (getDateKeyInPreferredTimeZone(parsedDate) !== getDateKeyInPreferredTimeZone(currentDate)) {
+      setCurrentDate(parsedDate);
     }
   });
 
@@ -473,9 +553,62 @@ const useAppointmentsView = () => {
       'w-full h-[calc(100vh-236px)] min-h-[500px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
   });
 
-  const openAddAppointment = () => {
+  const clearWaitlistAppointment = () => {
+    setWaitlistBooking(null);
     setAddAppointmentPrefill(null);
+  };
+
+  const setAddAppointmentModalVisibility: React.Dispatch<React.SetStateAction<boolean>> = (
+    nextOpen
+  ) => {
+    const resolvedOpen = typeof nextOpen === 'function' ? nextOpen(addPopup) : nextOpen;
+    if (!resolvedOpen) clearWaitlistAppointment();
+    setAddPopup(resolvedOpen);
+  };
+
+  const openAddAppointment = () => {
+    clearWaitlistAppointment();
     setAddPopup(true);
+  };
+
+  const openWaitlistAppointment = (entry: WaitlistEntryView) => {
+    const today = getTodayInPreferredTimeZone();
+    const requestedDate = parseCalendarDateParam(entry.earliestDate) ?? today;
+    const date =
+      Number.isNaN(requestedDate.getTime()) || requestedDate < today ? today : requestedDate;
+    setWaitlistBooking(entry);
+    setAddAppointmentPrefill({
+      date,
+      minuteOfDay: getMinutesSinceStartOfDayInPreferredTimeZone(date),
+      leadId: entry.preferredLeadId ?? undefined,
+    });
+    setAddPopup(true);
+  };
+
+  const completeWaitlistBooking = async (createdAppointment?: Appointment) => {
+    if (!waitlistBooking || !primaryOrgId) return;
+    const createdPatientId = createdAppointment?.patient?.id ?? createdAppointment?.companion?.id;
+    if (!createdAppointment?.id || createdPatientId !== waitlistBooking.patientId) {
+      notify('warning', {
+        title: 'Waitlist not updated',
+        text: !createdAppointment?.id
+          ? 'The appointment could not be confirmed. Review the waitlist before booking this patient again.'
+          : 'The appointment was created for a different patient. Review the waitlist before booking this patient again.',
+      });
+      setWaitlistBooking(null);
+      return;
+    }
+    try {
+      await bookWaitlistEntry(primaryOrgId, waitlistBooking.id, createdAppointment.id);
+      setWaitlistRefreshKey((key) => key + 1);
+    } catch {
+      notify('warning', {
+        title: 'Appointment booked',
+        text: 'The waitlist could not be updated. Refresh it before booking this patient again.',
+      });
+    } finally {
+      setWaitlistBooking(null);
+    }
   };
 
   // The phone shell's FAB has no reference to this page's create flow; opt in so
@@ -511,12 +644,13 @@ const useAppointmentsView = () => {
         activeCalendar={activeCalendar}
         setActiveCalendar={handleActiveCalendarChange}
         currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
+        setCurrentDate={handleCurrentDateChange}
         weekStart={weekStart}
         setWeekStart={setWeekStart}
         setReschedulePopup={setReschedulePopup}
         canEditAppointments={canEditAppointments}
         onCreateFromCalendarSlot={(prefill) => {
+          clearWaitlistAppointment();
           setAddAppointmentPrefill(prefill);
           setAddPopup(true);
         }}
@@ -535,7 +669,7 @@ const useAppointmentsView = () => {
       <AppointmentBoard
         appointments={filteredList}
         currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
+        setCurrentDate={handleCurrentDateChange}
         canEditAppointments={canEditAppointments}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
@@ -577,7 +711,7 @@ const useAppointmentsView = () => {
         <TitleCalendar
           title="Appointments"
           description="Schedule and manage appointments across day, week, and team views"
-          setAddPopup={setAddPopup}
+          setAddPopup={setAddAppointmentModalVisibility}
           count={appointments.length}
           activeView={activeView}
           setActiveView={handleActiveViewChange}
@@ -590,6 +724,66 @@ const useAppointmentsView = () => {
           deniedResource="Appointments"
           deniedDetail="the appointment schedule"
         >
+          <section aria-labelledby="appointments-waitlist-heading" className="mb-3">
+            <button
+              type="button"
+              onClick={() => setShowWaitlist((open) => !open)}
+              aria-expanded={showWaitlist}
+              aria-controls="appointments-waitlist-panel"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-4 py-2.5 text-left shadow-[0_1px_2px_var(--sh03)] transition-colors hover:bg-[var(--inset)]"
+            >
+              <span
+                id="appointments-waitlist-heading"
+                className="text-[13.5px] font-bold text-[var(--ink)]"
+              >
+                Waitlist
+              </span>
+              <span className="text-[12px] font-semibold text-[var(--ink-muted)]">
+                {showWaitlist ? 'Hide' : 'Show'}
+              </span>
+            </button>
+            {showWaitlist && (
+              <div id="appointments-waitlist-panel" className="mt-3">
+                <React.Suspense fallback={<PlannerViewSkeleton />}>
+                  <WaitlistPanel
+                    key={waitlistRefreshKey}
+                    onBookAppointment={openWaitlistAppointment}
+                  />
+                </React.Suspense>
+              </div>
+            )}
+          </section>
+          <section aria-labelledby="appointments-front-desk-heading" className="mb-3">
+            <button
+              type="button"
+              onClick={() => setShowFrontDesk((open) => !open)}
+              aria-expanded={showFrontDesk}
+              aria-controls="appointments-front-desk-panel"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-4 py-2.5 text-left shadow-[0_1px_2px_var(--sh03)] transition-colors hover:bg-[var(--inset)]"
+            >
+              <span>
+                <span
+                  id="appointments-front-desk-heading"
+                  className="block text-[13.5px] font-bold text-[var(--ink)]"
+                >
+                  Front desk
+                </span>
+                <span className="block text-[12px] font-medium text-[var(--ink-muted)]">
+                  Arrivals, rooms and visit handoff
+                </span>
+              </span>
+              <span className="text-[12px] font-semibold text-[var(--ink-muted)]">
+                {showFrontDesk ? 'Hide' : 'Show'}
+              </span>
+            </button>
+            {showFrontDesk && (
+              <div id="appointments-front-desk-panel" className="mt-3">
+                <React.Suspense fallback={<PlannerViewSkeleton />}>
+                  <FrontDeskBoardPanel />
+                </React.Suspense>
+              </div>
+            )}
+          </section>
           <div className={wrapperClassName}>
             {activeView === 'list' && (
               <Filters
@@ -612,10 +806,12 @@ const useAppointmentsView = () => {
           <React.Suspense fallback={null}>
             <AddAppointmentCentralModal
               showModal={addPopup}
-              setShowModal={setAddPopup}
+              setShowModal={setAddAppointmentModalVisibility}
               setActiveFilter={setActiveFilter}
               setActiveStatus={setActiveStatus}
               prefill={addAppointmentPrefill}
+              initialCompanionId={waitlistBooking?.patientId}
+              onAppointmentCreated={completeWaitlistBooking}
               onPrefillConsumed={() => setAddAppointmentPrefill(null)}
             />
             {activeAppointment && (

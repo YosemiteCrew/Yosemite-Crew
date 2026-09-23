@@ -12,8 +12,13 @@ import Stripe from "stripe";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
-import { roundMoney } from "./pricing";
+import { getNetPaymentAmount, roundMoney } from "./pricing";
+import {
+  fromStripeMinorUnits,
+  toStripeMinorUnits,
+} from "src/utils/stripe-minor-units";
 import { markInvoiceTreatmentItemsSettled } from "./settlement";
+import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
 
 type PaymentLineSummary = {
   id: string;
@@ -25,6 +30,38 @@ type InvoiceFinancialSummary = {
   paid: number;
   credited: number;
   balance: number;
+};
+
+type InvoiceFinancialSummaryInput = {
+  id: string;
+  totalAmount: number;
+  depositCollectedAmount?: number | null;
+};
+
+const summariseInvoice = (
+  invoice: InvoiceFinancialSummaryInput,
+  payments: Array<{
+    amount: number;
+    refunds: Array<{ amount: number; status: string }>;
+  }>,
+  creditNotes: Array<{ amount: number }>,
+): InvoiceFinancialSummary => {
+  const paid = roundMoney(
+    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
+  );
+  const credited = roundMoney(
+    creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
+  );
+  const effectivePaid = roundMoney(
+    Math.max(paid, roundMoney(invoice.depositCollectedAmount ?? 0)),
+  );
+  return {
+    paid: effectivePaid,
+    credited,
+    balance: roundMoney(
+      Math.max(0, invoice.totalAmount - effectivePaid - credited),
+    ),
+  };
 };
 
 const EMPTY_METADATA = {} as Record<string, unknown>;
@@ -70,6 +107,7 @@ type StripeCheckoutSessionClient = {
       id: string;
       status: string;
       amount: number;
+      currency: string;
     }>;
   };
 };
@@ -201,48 +239,101 @@ type CreatePaymentIntentForInvoiceOptions = {
   settlementChannel?: PrismaSettlementChannel | null;
 };
 
+export const getInvoiceFinancialSummaries = async (
+  invoices: readonly InvoiceFinancialSummaryInput[],
+): Promise<Map<string, InvoiceFinancialSummary>> => {
+  if (invoices.length === 0) return new Map();
+
+  const invoiceIds = invoices.map((invoice) => invoice.id);
+  const [payments, creditNotes] = await Promise.all([
+    prisma.payment.findMany({
+      where: {
+        invoiceId: { in: invoiceIds },
+        status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
+      },
+      select: {
+        invoiceId: true,
+        amount: true,
+        refunds: {
+          where: { status: "SUCCEEDED" },
+          select: { amount: true, status: true },
+        },
+      },
+    }),
+    prisma.creditNote.findMany({
+      where: { invoiceId: { in: invoiceIds }, status: "ISSUED" },
+      select: { invoiceId: true, amount: true },
+    }),
+  ]);
+
+  const paymentsByInvoice = new Map<string, typeof payments>();
+  for (const payment of payments) {
+    const bucket = paymentsByInvoice.get(payment.invoiceId);
+    if (bucket) bucket.push(payment);
+    else paymentsByInvoice.set(payment.invoiceId, [payment]);
+  }
+  const creditNotesByInvoice = new Map<string, typeof creditNotes>();
+  for (const creditNote of creditNotes) {
+    const bucket = creditNotesByInvoice.get(creditNote.invoiceId);
+    if (bucket) bucket.push(creditNote);
+    else creditNotesByInvoice.set(creditNote.invoiceId, [creditNote]);
+  }
+
+  return new Map(
+    invoices.map((invoice) => [
+      invoice.id,
+      summariseInvoice(
+        invoice,
+        paymentsByInvoice.get(invoice.id) ?? [],
+        creditNotesByInvoice.get(invoice.id) ?? [],
+      ),
+    ]),
+  );
+};
+
 export const getInvoiceFinancialSummary = async (
   invoiceId: string,
   totalAmount: number,
   depositCollectedAmount = 0,
+  client: Pick<PaymentTxClient, "payment" | "creditNote"> = prisma,
 ): Promise<InvoiceFinancialSummary> => {
   const [payments, creditNotes] = await Promise.all([
-    prisma.payment.findMany({
-      where: { invoiceId, status: "SUCCEEDED" },
-      select: { amount: true },
+    client.payment.findMany({
+      where: {
+        invoiceId,
+        status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
+      },
+      select: {
+        amount: true,
+        refunds: {
+          where: { status: "SUCCEEDED" },
+          select: { amount: true, status: true },
+        },
+      },
     }),
-    prisma.creditNote.findMany({
+    client.creditNote.findMany({
       where: { invoiceId, status: "ISSUED" },
       select: { amount: true },
     }),
   ]);
-
-  const paid = roundMoney(
-    payments.reduce((sum, payment) => sum + payment.amount, 0),
+  return summariseInvoice(
+    { id: invoiceId, totalAmount, depositCollectedAmount },
+    payments,
+    creditNotes,
   );
-  const credited = roundMoney(
-    creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
-  );
-  const effectivePaid = roundMoney(
-    Math.max(paid, roundMoney(depositCollectedAmount)),
-  );
-
-  return {
-    paid: effectivePaid,
-    credited,
-    balance: roundMoney(Math.max(0, totalAmount - effectivePaid - credited)),
-  };
 };
 
 const getOutstandingBalance = async (
   invoiceId: string,
   totalAmount: number,
   depositCollectedAmount = 0,
+  client: Pick<PaymentTxClient, "payment" | "creditNote"> = prisma,
 ) => {
   const summary = await getInvoiceFinancialSummary(
     invoiceId,
     totalAmount,
     depositCollectedAmount,
+    client,
   );
   return {
     paid: summary.paid,
@@ -513,6 +604,19 @@ export const resolveStripeConnectedAccountId = async (params: {
   return resolveOrganisationStripeAccountId(invoice?.organisationId);
 };
 
+/**
+ * Whether a Stripe expiry failure means the session is already closed.
+ *
+ * `StripeInvalidRequestError` is what Stripe returns for a session that is not
+ * in the open state - already expired, or completed by the client. That is a
+ * terminal condition: the link cannot collect anything further, so there is
+ * nothing to expire. Every other error type leaves the session's state unknown.
+ */
+const isTerminalSessionError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  (error as { type?: unknown }).type === "StripeInvalidRequestError";
+
 const expireCheckoutSessionAtProvider = async (params: {
   invoiceId: string;
   sessionId: string;
@@ -532,13 +636,30 @@ const expireCheckoutSessionAtProvider = async (params: {
       toStripeAccountOptions(connectedAccountId),
     );
   } catch (error) {
-    // Stripe rejects expiry for sessions it already expired or completed; the
-    // local attempt is cancelled either way and the webhook rejects late pays.
-    logger.warn("Failed to expire stale Stripe checkout session", {
+    // Stripe rejects expiry for a session that is not open - one it has already
+    // expired, or one the client completed. Either way the link cannot collect
+    // again, so there is nothing left to expire and the caller may proceed.
+    if (isTerminalSessionError(error)) {
+      logger.warn("Stripe checkout session was already closed", {
+        invoiceId: params.invoiceId,
+        sessionId: params.sessionId,
+        error,
+      });
+      return;
+    }
+
+    // Anything else - a network fault, a 5xx, a rate limit, bad credentials -
+    // means we do not know that the link is dead, and it very likely is not.
+    // Swallowing here would let the caller reduce what is owed, cancel the
+    // local attempt, and leave a live link collecting the pre-credit amount:
+    // exactly the case this expiry exists to prevent. Fail instead, so the
+    // caller aborts before writing anything.
+    logger.error("Could not expire Stripe checkout session", {
       invoiceId: params.invoiceId,
       sessionId: params.sessionId,
       error,
     });
+    throw error;
   }
 };
 
@@ -692,41 +813,6 @@ type CheckoutLineItemSource = {
   discountPercent?: number;
 };
 
-/**
- * Currencies Stripe treats as ZERO-DECIMAL: the API takes the amount in the
- * currency's own units, not in hundredths.
- *
- * Multiplying by 100 unconditionally overcharges every one of them by 100x -
- * a 1,000 JPY invoice would be submitted as 100,000 JPY. The currency became
- * configurable per invoice, so this is no longer hypothetical.
- *
- * https://docs.stripe.com/currencies#zero-decimal
- */
-const ZERO_DECIMAL_CURRENCIES = new Set([
-  "bif",
-  "clp",
-  "djf",
-  "gnf",
-  "jpy",
-  "kmf",
-  "krw",
-  "mga",
-  "pyg",
-  "rwf",
-  "ugx",
-  "vnd",
-  "vuv",
-  "xaf",
-  "xof",
-  "xpf",
-]);
-
-/** An amount in the smallest unit Stripe accepts for `currency`. */
-const toStripeMinorUnits = (amount: number, currency: string): number =>
-  ZERO_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase())
-    ? Math.round(amount)
-    : Math.round(amount * 100);
-
 // Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
 // UNLESS we must charge a remaining/adjusted balance instead: when a prior
 // payment or credit has been applied, or when an invoice-level adjustment makes
@@ -742,28 +828,88 @@ const buildCheckoutSessionLineItems = (params: {
 }) => {
   const { invoice, items, summary, invoiceCurrency } = params;
 
-  const discountedItemSum = roundMoney(
-    items.reduce((sum: number, item) => {
-      const typed = item as CheckoutLineItemSource;
-      if (typeof typed.total === "number") {
-        return sum + typed.total;
-      }
-      const unitPrice =
-        typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
-      const quantity = typeof typed.quantity === "number" ? typed.quantity : 0;
-      const discountPercent =
-        typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-      return sum + unitPrice * quantity * (1 - discountPercent / 100);
-    }, 0),
-  );
   const preTaxInvoiceTotal = roundMoney(
     invoice.totalAmount -
       (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
   );
+
+  // Build the itemised lines BEFORE deciding whether to use them, so the guard
+  // below weighs the money this session would actually collect rather than a
+  // second formula for it. The two used to be computed independently and agreed
+  // only by coincidence: the guard summed posted line totals while the session
+  // submitted a per-UNIT amount Stripe multiplies by the quantity, so a unit
+  // price the currency cannot represent lost its remainder once per unit and
+  // the guard saw nothing wrong (#3305). Two 8.165 units sum to 16.33 under
+  // either rounding, so the comparison passed, the session charged 1632 against
+  // a 1633 invoice, and the checkout-completed handler settled it as paid.
+  const itemisedLineItems = items.map((item) => {
+    const typed = item as CheckoutLineItemSource;
+    const unitPrice = typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
+    const quantity =
+      typeof typed.quantity === "number" && typed.quantity > 0
+        ? typed.quantity
+        : 1;
+    const discountPercent =
+      typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
+    // What the line must collect: the stored snapshot total the invoice was
+    // totalled from, falling back to the product when there is no snapshot.
+    const lineAmount = toStripeMinorUnits(
+      roundMoney(
+        typeof typed.total === "number"
+          ? typed.total
+          : unitPrice * quantity * (1 - discountPercent / 100),
+      ),
+      invoiceCurrency,
+    );
+    const unitAmount = toStripeMinorUnits(
+      roundMoney(unitPrice * (1 - discountPercent / 100)),
+      invoiceCurrency,
+    );
+    // Keep Stripe's per-unit presentation ("2 x $30.00") wherever the units
+    // genuinely add up to the posted total, which is every unit price the
+    // currency can represent. Where they cannot, the line collapses to a single
+    // unit at its posted total and carries the quantity in its description
+    // instead. A checkout that prints one unit is a presentation loss; one that
+    // collects less than the invoice says is owed is a silent shortfall.
+    const unitsReconstructLine = unitAmount * quantity === lineAmount;
+    const name = typed.name ?? typed.description ?? "Service";
+    return {
+      price_data: {
+        currency: invoiceCurrency,
+        product_data: {
+          name,
+          // A collapsed line prints as one unit, so the quantity moves into the
+          // description or the checkout stops saying how many were bought. It
+          // replaces the line's own description rather than appending to it,
+          // because `name` is always present and a conditional prefix would add
+          // a branch whose empty arm nothing ever reaches.
+          description: unitsReconstructLine
+            ? (typed.description ?? undefined)
+            : `${quantity} x ${name}`,
+        },
+        unit_amount: unitsReconstructLine ? unitAmount : lineAmount,
+      },
+      quantity: unitsReconstructLine ? quantity : 1,
+    };
+  });
+
+  const itemisedTotal = itemisedLineItems.reduce(
+    (sum, line) => sum + line.price_data.unit_amount * line.quantity,
+    0,
+  );
+  // Read `!==` as "the itemised lines do not collect the pre-tax total". It is
+  // compared in minor units, which is both the unit Stripe is given and an
+  // exact integer comparison - the amounts either side of the previous `!==`
+  // were floats. A tie still lands here, because invoice pricing posts the
+  // total by quantizing exact integers (8.165 -> 8.17) while these lines round
+  // the scaled float the other way (8.165 -> 8.16); that selects the balance
+  // line, which charges what is owed. Giving the itemised branch the ledger
+  // quantizer is the payment slice of #3153, not this one. Pinned in
+  // finance.payment.test.ts.
   const useBalanceLine =
     summary.paid > 0 ||
     summary.credited > 0 ||
-    discountedItemSum !== preTaxInvoiceTotal;
+    itemisedTotal !== toStripeMinorUnits(preTaxInvoiceTotal, invoiceCurrency);
 
   // Disabling automatic tax is only safe when the balance we are about to charge
   // ALREADY includes tax. An invoice whose tax was never calculated - drafts are
@@ -799,31 +945,7 @@ const buildCheckoutSessionLineItems = (params: {
   return {
     useBalanceLine,
     disableAutomaticTax,
-    lineItems: items.map((item) => {
-      const typed = item as CheckoutLineItemSource;
-      const unitPrice =
-        typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
-      const discountPercent =
-        typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-      const effectiveUnitAmount = toStripeMinorUnits(
-        roundMoney(unitPrice * (1 - discountPercent / 100)),
-        invoiceCurrency,
-      );
-      return {
-        price_data: {
-          currency: invoiceCurrency,
-          product_data: {
-            name: typed.name ?? typed.description ?? "Service",
-            description: typed.description ?? undefined,
-          },
-          unit_amount: effectiveUnitAmount,
-        },
-        quantity:
-          typeof typed.quantity === "number" && typed.quantity > 0
-            ? typed.quantity
-            : 1,
-      };
-    }),
+    lineItems: itemisedLineItems,
   };
 };
 
@@ -886,7 +1008,18 @@ const buildDepositLineItem = (params: {
 
 // A PAYMENT_LINK invoice switching to an in-app PaymentIntent must first
 // retire its open Checkout Sessions so the same balance cannot be paid twice.
-const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
+/**
+ * Expire every open Stripe checkout session for an invoice at the provider,
+ * then cancel the local attempts.
+ *
+ * Exported because cancelling the local row alone is not enough: a link already
+ * in the client's hands keeps resolving at Stripe and still charges the old
+ * amount, and the local attempt is by then CANCELED so the webhook has no open
+ * attempt to reconcile against. Provider expiry failures are logged and
+ * swallowed - Stripe rejects expiry for sessions it has already expired or
+ * completed, and the local cancel stands either way.
+ */
+export const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
   const staleSessionAttempts = await prisma.paymentAttempt.findMany({
     where: {
       invoiceId,
@@ -910,11 +1043,17 @@ const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
     });
   }
 
+  // The same status predicate the select above uses. Without it this rewrote
+  // EVERY Stripe checkout attempt on the invoice, including SUCCEEDED ones -
+  // destroying the record of a payment that actually completed. The original
+  // caller guards the invoice to AWAITING_PAYMENT/PENDING so it never bit
+  // there, but issueCreditNote deliberately allows crediting a paid invoice.
   await prisma.paymentAttempt.updateMany({
     where: {
       invoiceId,
       provider: "STRIPE",
       providerCheckoutSessionId: { not: null },
+      status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
     },
     data: {
       status: "CANCELED",
@@ -1012,7 +1151,7 @@ const getStripeClient = (): StripeCheckoutSessionClient => {
   }
 
   stripeClient = new Stripe(apiKey, {
-    apiVersion: "2026-01-28.clover",
+    apiVersion: STRIPE_PINNED_API_VERSION,
   }) as unknown as StripeCheckoutSessionClient;
 
   return stripeClient;
@@ -1059,6 +1198,256 @@ const loadCheckoutEligibleInvoice = async (
   }
 
   return invoice;
+};
+
+// The payments read and the reconstruct write happen together under the
+// invoice-scoped key recordInvoicePayment takes. When the invoice has no
+// Payment row yet this reconstructs one for the full total, and
+// getInvoiceFinancialSummary counts it the moment it lands - which made it the
+// last way an invoice's paid total could move without passing through that
+// lock: a capture could read the balance, the reconstructed row could land
+// after that read, and the invoice would be credited twice for one settlement.
+// A different key would serialize nothing.
+const loadRefundablePaymentUnderLock = async (invoiceId: string) =>
+  prisma.$transaction(async (tx) => {
+    const lockKey = `invoice-payment:${invoiceId}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const lockedInvoice = await tx.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        payments: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    if (!lockedInvoice) {
+      throw new FinancePaymentError("Invoice not found", 404);
+    }
+
+    const latestPaymentAttempt = await tx.paymentAttempt.findFirst({
+      where: {
+        invoiceId,
+        provider: "STRIPE",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        providerPaymentIntentId: true,
+      },
+    });
+
+    if (
+      !lockedInvoice.payments.length &&
+      !latestPaymentAttempt?.providerPaymentIntentId
+    ) {
+      throw new FinancePaymentError("Invoice has no refundable payment", 409);
+    }
+
+    const existingPayment = lockedInvoice.payments[0];
+    const intentId =
+      existingPayment?.providerPaymentId ??
+      latestPaymentAttempt?.providerPaymentIntentId ??
+      null;
+
+    if (existingPayment) {
+      return {
+        invoice: lockedInvoice,
+        payment: existingPayment,
+        paymentIntentId: intentId,
+      };
+    }
+
+    if (!intentId) {
+      throw new FinancePaymentError(
+        "Invoice has no refundable payment intent",
+        409,
+      );
+    }
+
+    // Still absent under the lock, so nothing landed while we waited.
+    const reconstructed = await tx.payment.create({
+      data: {
+        invoiceId,
+        provider: "STRIPE",
+        settlementChannel: "STRIPE",
+        providerPaymentId: intentId,
+        amount: lockedInvoice.totalAmount,
+        currency: lockedInvoice.currency,
+        status: "SUCCEEDED",
+        paidAt: lockedInvoice.paidAt ?? new Date(),
+        rawProviderPayload: {
+          source: "finance.refundInvoicePayment",
+          invoiceId,
+        },
+      },
+    });
+
+    return {
+      invoice: lockedInvoice,
+      payment: reconstructed,
+      paymentIntentId: intentId,
+    };
+  });
+
+type RefundablePayment = Awaited<
+  ReturnType<typeof loadRefundablePaymentUnderLock>
+>["payment"];
+
+// The provider round-trip sits between the two transactions, not inside
+// either: a network call in an interactive transaction spends Prisma's 5s
+// budget while holding a pool connection.
+const executeProviderRefund = async (params: {
+  invoiceId: string;
+  payment: RefundablePayment;
+  paymentIntentId: string | null;
+}) => {
+  const { invoiceId, payment, paymentIntentId } = params;
+
+  let providerRefundId: string | null = null;
+  let refundStatus = "succeeded";
+  let amountRefunded = payment.amount;
+
+  if (payment.provider === "STRIPE") {
+    if (!paymentIntentId) {
+      throw new FinancePaymentError(
+        "Invoice has no Stripe payment intent to refund",
+        409,
+      );
+    }
+
+    const connectedAccountId = await resolveStripeConnectedAccountId({
+      invoiceId,
+      paymentIntentId,
+    });
+    const requestOptions = toStripeAccountOptions(connectedAccountId);
+
+    const stripe = getStripeClient();
+    const paymentIntent = await stripe.paymentIntents.retrieve(
+      paymentIntentId,
+      {
+        expand: ["latest_charge"],
+      },
+      requestOptions,
+    );
+
+    const charge = paymentIntent?.latest_charge;
+    const chargeId = typeof charge === "string" ? charge : (charge?.id ?? null);
+    if (!chargeId) {
+      throw new FinancePaymentError("No charge found for refund", 409);
+    }
+
+    const refund = await stripe.refunds.create(
+      { charge: chargeId },
+      requestOptions,
+    );
+
+    providerRefundId = refund.id;
+    refundStatus = refund.status;
+    amountRefunded = roundMoney(
+      fromStripeMinorUnits(refund.amount, refund.currency),
+    );
+  }
+
+  return { providerRefundId, refundStatus, amountRefunded };
+};
+
+// The Refund row, the Payment status and the invoice status move together
+// behind the same key the read above took, which is the key the capture path
+// takes. recordInvoicePayment rejects a capture whose invoice reads REFUNDED,
+// and it reads that status under the lock - so leaving the write of it out
+// here gave that guard a window to read stale. Between `refund.create` landing
+// and the status write, the invoice's paid total has already dropped but it
+// still reads PAID, and a capture arriving in that gap is applied to an
+// invoice this method is on its way to marking refunded.
+//
+// `invoice.metadata` is re-read in here too. The snapshot from the read
+// transaction is older than the provider round-trip, and spreading it into a
+// whole-column write discards anything written to `metadata` in between.
+const writeRefundUnderLock = async (params: {
+  invoiceId: string;
+  payment: RefundablePayment;
+  providerRefundId: string | null;
+  refundStatus: string;
+  amountRefunded: number;
+  reason?: string;
+}) => {
+  const {
+    invoiceId,
+    payment,
+    providerRefundId,
+    refundStatus,
+    amountRefunded,
+    reason,
+  } = params;
+
+  return prisma.$transaction(async (tx) => {
+    const lockKey = `invoice-payment:${invoiceId}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const lockedInvoice = await tx.invoice.findUnique({
+      where: { id: invoiceId },
+    });
+
+    if (!lockedInvoice) {
+      throw new FinancePaymentError("Invoice not found", 404);
+    }
+
+    const createdRefund = await tx.refund.create({
+      data: {
+        paymentId: payment.id,
+        provider: payment.provider,
+        providerRefundId,
+        amount: amountRefunded,
+        currency: payment.currency,
+        status: mapRefundStatus(refundStatus),
+        reason: reason ?? undefined,
+        rawProviderPayload: {
+          source: "finance.refundInvoicePayment",
+          invoiceId,
+          paymentId: payment.id,
+          providerRefundId,
+          refundStatus,
+        },
+      },
+    });
+
+    const refundedPayment = await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: "REFUNDED",
+        rawProviderPayload: {
+          source: "finance.refundInvoicePayment",
+          invoiceId,
+          refundId: createdRefund.id,
+          providerRefundId,
+        },
+      },
+    });
+
+    const refundedInvoice = await tx.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: "REFUNDED",
+        metadata: {
+          ...((lockedInvoice.metadata as Record<string, unknown> | null) ??
+            EMPTY_METADATA),
+          cancellationReason: reason ?? undefined,
+          refundId: providerRefundId ?? createdRefund.id,
+          amount: amountRefunded,
+          refundDate: new Date().toISOString(),
+        },
+      },
+      include: { payments: true },
+    });
+
+    return {
+      refund: createdRefund,
+      updatedPayment: refundedPayment,
+      updatedInvoice: refundedInvoice,
+    };
+  });
 };
 
 export const FinancePaymentService = {
@@ -1378,147 +1767,25 @@ export const FinancePaymentService = {
     invoiceId: string,
     reason?: string,
   ): Promise<RefundInvoiceResult> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: {
-        payments: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
-    });
+    const { invoice, payment, paymentIntentId } =
+      await loadRefundablePaymentUnderLock(invoiceId);
 
-    if (!invoice) {
-      throw new FinancePaymentError("Invoice not found", 404);
-    }
+    const { providerRefundId, refundStatus, amountRefunded } =
+      await executeProviderRefund({ invoiceId, payment, paymentIntentId });
 
-    const latestPaymentAttempt = await prisma.paymentAttempt.findFirst({
-      where: {
+    const { refund, updatedPayment, updatedInvoice } =
+      await writeRefundUnderLock({
         invoiceId,
-        provider: "STRIPE",
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        providerPaymentIntentId: true,
-      },
-    });
-
-    if (
-      !invoice.payments.length &&
-      !latestPaymentAttempt?.providerPaymentIntentId
-    ) {
-      throw new FinancePaymentError("Invoice has no refundable payment", 409);
-    }
-
-    const existingPayment = invoice.payments[0];
-    const paymentIntentId =
-      existingPayment?.providerPaymentId ??
-      latestPaymentAttempt?.providerPaymentIntentId ??
-      null;
-
-    let payment = existingPayment ?? null;
-    if (!payment) {
-      if (!paymentIntentId) {
-        throw new FinancePaymentError(
-          "Invoice has no refundable payment intent",
-          409,
-        );
-      }
-
-      payment = await prisma.payment.create({
-        data: {
-          invoiceId,
-          provider: "STRIPE",
-          settlementChannel: "STRIPE",
-          providerPaymentId: paymentIntentId,
-          amount: invoice.totalAmount,
-          currency: invoice.currency,
-          status: "SUCCEEDED",
-          paidAt: invoice.paidAt ?? new Date(),
-          rawProviderPayload: {
-            source: "finance.refundInvoicePayment",
-            invoiceId,
-          },
-        },
-      });
-    }
-
-    let providerRefundId: string | null = null;
-    let refundStatus = "succeeded";
-    let amountRefunded = payment.amount;
-
-    if (payment.provider === "STRIPE") {
-      if (!paymentIntentId) {
-        throw new FinancePaymentError(
-          "Invoice has no Stripe payment intent to refund",
-          409,
-        );
-      }
-
-      const connectedAccountId = await resolveStripeConnectedAccountId({
-        invoiceId,
-        paymentIntentId,
-      });
-      const requestOptions = toStripeAccountOptions(connectedAccountId);
-
-      const stripe = getStripeClient();
-      const paymentIntent = await stripe.paymentIntents.retrieve(
-        paymentIntentId,
-        {
-          expand: ["latest_charge"],
-        },
-        requestOptions,
-      );
-
-      const charge = paymentIntent?.latest_charge;
-      const chargeId =
-        typeof charge === "string" ? charge : (charge?.id ?? null);
-      if (!chargeId) {
-        throw new FinancePaymentError("No charge found for refund", 409);
-      }
-
-      const refund = await stripe.refunds.create(
-        { charge: chargeId },
-        requestOptions,
-      );
-
-      providerRefundId = refund.id;
-      refundStatus = refund.status;
-      amountRefunded = roundMoney(refund.amount / 100);
-    }
-
-    const refund = await prisma.refund.create({
-      data: {
-        paymentId: payment.id,
-        provider: payment.provider,
+        payment,
         providerRefundId,
-        amount: amountRefunded,
-        currency: payment.currency,
-        status: mapRefundStatus(refundStatus),
-        reason: reason ?? undefined,
-        rawProviderPayload: {
-          source: "finance.refundInvoicePayment",
-          invoiceId,
-          paymentId: payment.id,
-          providerRefundId,
-          refundStatus,
-        },
-      },
-    });
+        refundStatus,
+        amountRefunded,
+        reason,
+      });
 
-    const updatedPayment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "REFUNDED",
-        rawProviderPayload: {
-          source: "finance.refundInvoicePayment",
-          invoiceId,
-          refundId: refund.id,
-          providerRefundId,
-        },
-      },
-    });
-
+    // Outside the transaction: recordEvent closes over the module-level client,
+    // so calling it in there would run on a second connection against rows the
+    // transaction still holds.
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,
       eventType: "INVOICE_REFUNDED",
@@ -1533,22 +1800,6 @@ export const FinancePaymentService = {
         reason: reason ?? null,
       },
       occurredAt: new Date(),
-    });
-
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: {
-        status: "REFUNDED",
-        metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ??
-            EMPTY_METADATA),
-          cancellationReason: reason ?? undefined,
-          refundId: providerRefundId ?? refund.id,
-          amount: amountRefunded,
-          refundDate: new Date().toISOString(),
-        },
-      },
-      include: { payments: true },
     });
 
     return {
@@ -1779,52 +2030,6 @@ export const FinancePaymentService = {
   },
 
   async recordInvoicePayment(invoiceId: string, input: InvoicePaymentInput) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: { payments: { where: { status: "SUCCEEDED" } } },
-    });
-
-    if (!invoice) {
-      throw new FinancePaymentError("Invoice not found", 404);
-    }
-
-    if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
-      throw new FinancePaymentError("Invoice cannot accept payment", 409);
-    }
-
-    const isDepositPayment =
-      input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
-      input.settlementChannel === "DEPOSIT" ||
-      invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
-
-    if (isDepositPayment && invoice.visitBillingStage === "READY_FOR_BILLING") {
-      throw new FinancePaymentError(
-        "Deposit payments are not allowed after the invoice is ready for billing",
-        409,
-      );
-    }
-
-    const { paid, balance } = await getOutstandingBalance(
-      invoiceId,
-      invoice.totalAmount,
-      invoice.depositCollectedAmount ?? 0,
-    );
-
-    if (balance <= 0) {
-      return {
-        invoice,
-        paymentAttempt: null,
-        payment: null,
-        balanceAfterPayment: 0,
-        paidToDate: paid,
-        appliedAmount: 0,
-        // Nothing was applied, so this is not a fresh success either. A caller
-        // that notifies the pet parent must not fire for a redelivery that
-        // arrives after the balance is already closed.
-        replayed: true,
-      };
-    }
-
     const requestedAmount = roundMoney(input.amount);
     if (requestedAmount <= 0) {
       throw new FinancePaymentError(
@@ -1833,12 +2038,10 @@ export const FinancePaymentService = {
       );
     }
 
-    const appliedAmount = roundMoney(Math.min(requestedAmount, balance));
     const receivedAt = input.receivedAt ?? new Date();
-    const isPartial = appliedAmount < balance || paid > 0;
 
-    // The attempt write, the Payment insert and the invoice update move
-    // together or not at all.
+    // The balance read, attempt write, Payment insert and invoice update move
+    // together or not at all, behind one invoice-scoped lock.
     //
     // They used to be three sequential awaits, which is what made every replay
     // guard here unsound: a P2002 on Payment.paymentAttemptId proved the payment
@@ -1846,7 +2049,9 @@ export const FinancePaymentService = {
     // and the invoice update left a covered invoice that was never marked PAID,
     // and a deposit whose collected amount never moved. No amount of reasoning
     // on the recovery path can distinguish that from a clean replay, because the
-    // database does not record which of the three steps ran.
+    // database does not record which of the three steps ran. Keeping the
+    // balance read outside that atomic block left a second race: two distinct
+    // captures could both read the same balance and each apply all of it.
     //
     // FinanceEventService.recordEvent stays outside deliberately: it closes over
     // the module-level client, so calling it in here would run on a second
@@ -1854,6 +2059,57 @@ export const FinancePaymentService = {
     let settled;
     try {
       settled = await prisma.$transaction(async (tx) => {
+        const lockKey = `invoice-payment:${invoiceId}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+        const invoice = await tx.invoice.findUnique({
+          where: { id: invoiceId },
+          include: { payments: { where: { status: "SUCCEEDED" } } },
+        });
+        if (!invoice) {
+          throw new FinancePaymentError("Invoice not found", 404);
+        }
+        if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
+          throw new FinancePaymentError("Invoice cannot accept payment", 409);
+        }
+
+        const isDepositPayment =
+          input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
+          input.settlementChannel === "DEPOSIT" ||
+          invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
+        if (
+          isDepositPayment &&
+          invoice.visitBillingStage === "READY_FOR_BILLING"
+        ) {
+          throw new FinancePaymentError(
+            "Deposit payments are not allowed after the invoice is ready for billing",
+            409,
+          );
+        }
+
+        const { paid, balance } = await getOutstandingBalance(
+          invoiceId,
+          invoice.totalAmount,
+          invoice.depositCollectedAmount ?? 0,
+          tx,
+        );
+        if (balance <= 0) {
+          return {
+            invoice,
+            paymentAttempt: null,
+            payment: null,
+            balanceAfterPayment: 0,
+            paidToDate: paid,
+            appliedAmount: 0,
+            // Nothing was applied, so this is not a fresh success either. A
+            // caller that notifies the pet parent must not fire for a
+            // redelivery that arrives after the balance is already closed.
+            replayed: true as const,
+          };
+        }
+
+        const appliedAmount = roundMoney(Math.min(requestedAmount, balance));
+        const isPartial = appliedAmount < balance || paid > 0;
         const paymentAttempt = input.paymentAttemptId
           ? await tx.paymentAttempt.update({
               where: { id: input.paymentAttemptId },
@@ -1918,7 +2174,15 @@ export const FinancePaymentService = {
           client: tx,
         });
 
-        return { paymentAttempt, payment, updatedInvoice };
+        return {
+          invoice,
+          paymentAttempt,
+          payment,
+          updatedInvoice,
+          appliedAmount,
+          isPartial,
+          replayed: false as const,
+        };
       });
     } catch (error) {
       if (!isUniqueConstraintViolation(error) || !input.paymentAttemptId) {
@@ -1961,7 +2225,16 @@ export const FinancePaymentService = {
       };
     }
 
-    const { paymentAttempt, payment, updatedInvoice } = settled;
+    if (settled.replayed) return settled;
+
+    const {
+      invoice,
+      paymentAttempt,
+      payment,
+      updatedInvoice,
+      appliedAmount,
+      isPartial,
+    } = settled;
 
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,
@@ -2221,61 +2494,88 @@ export const FinancePaymentService = {
       return { action: "NO_INVOICE" as const };
     }
 
-    if (invoice.status === "REFUNDED") {
-      return { action: "ALREADY_REFUNDED" as const, invoice };
-    }
+    // Stripe redelivers on any non-2xx and nothing upstream deduplicates by
+    // event id, so two deliveries of one refund can be in here at the same
+    // time. The REFUNDED check was the only thing stopping them both writing,
+    // and it read outside any lock, before three unlocked writes. Both would
+    // pass it and both would insert a Refund - and Refund has no unique
+    // constraint on providerRefundId - so the same money is subtracted twice by
+    // getNetPaymentAmount and the invoice reads under-paid. A full refund hides
+    // that behind its max(0, ...) clamp; a partial one bills the client for the
+    // difference.
+    //
+    // So the check and the writes take the invoice-scoped key the capture path
+    // takes, and the status is re-read under it: a second delivery then reads
+    // REFUNDED and stops. The lookup above stays outside because it only
+    // resolves which invoice this is; nothing is decided on it.
+    return prisma.$transaction(async (tx) => {
+      const lockKey = `invoice-payment:${invoice.id}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
-    const payment = await prisma.payment.findFirst({
-      where: {
-        invoiceId: invoice.id,
-        ...(input.paymentIntentId
-          ? { providerPaymentId: input.paymentIntentId }
-          : {}),
-      },
-      orderBy: { createdAt: "desc" },
-    });
+      const lockedInvoice = await tx.invoice.findUnique({
+        where: { id: invoice.id },
+      });
 
-    if (payment) {
-      await prisma.refund.create({
+      if (!lockedInvoice) {
+        return { action: "NO_INVOICE" as const };
+      }
+
+      if (lockedInvoice.status === "REFUNDED") {
+        return { action: "ALREADY_REFUNDED" as const, invoice: lockedInvoice };
+      }
+
+      const payment = await tx.payment.findFirst({
+        where: {
+          invoiceId: lockedInvoice.id,
+          ...(input.paymentIntentId
+            ? { providerPaymentId: input.paymentIntentId }
+            : {}),
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (payment) {
+        await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            provider: payment.provider,
+            providerRefundId: input.chargeId ?? null,
+            amount: input.amount,
+            currency: input.currency,
+            status: "SUCCEEDED",
+            reason: input.reason ?? undefined,
+            rawProviderPayload: {
+              source: "finance.markInvoiceRefundedFromWebhook",
+              invoiceId: lockedInvoice.id,
+              paymentIntentId: input.paymentIntentId ?? null,
+              chargeId: input.chargeId ?? null,
+            },
+          },
+        });
+
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { status: "REFUNDED" },
+        });
+      }
+
+      const updated = await tx.invoice.update({
+        where: { id: lockedInvoice.id },
         data: {
-          paymentId: payment.id,
-          provider: payment.provider,
-          providerRefundId: input.chargeId ?? null,
-          amount: input.amount,
-          currency: input.currency,
-          status: "SUCCEEDED",
-          reason: input.reason ?? undefined,
-          rawProviderPayload: {
-            source: "finance.markInvoiceRefundedFromWebhook",
-            invoiceId: invoice.id,
-            paymentIntentId: input.paymentIntentId ?? null,
-            chargeId: input.chargeId ?? null,
+          status: "REFUNDED",
+          metadata: {
+            ...((lockedInvoice.metadata as Record<string, unknown> | null) ??
+              EMPTY_METADATA),
+            refundId: input.chargeId ?? undefined,
+            amount: input.amount,
+            refundDate: new Date().toISOString(),
+            cancellationReason: input.reason ?? undefined,
           },
         },
       });
 
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "REFUNDED" },
-      });
-    }
-
-    const updated = await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: "REFUNDED",
-        metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ??
-            EMPTY_METADATA),
-          refundId: input.chargeId ?? undefined,
-          amount: input.amount,
-          refundDate: new Date().toISOString(),
-          cancellationReason: input.reason ?? undefined,
-        },
-      },
+      return { action: "REFUNDED" as const, invoice: updated };
     });
-
-    return { action: "REFUNDED" as const, invoice: updated };
   },
 
   async handleInvoicePaymentFailed(input: {

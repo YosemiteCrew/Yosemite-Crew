@@ -492,7 +492,9 @@ describe('TaskCalendar drag and creation behavior', () => {
     render(<TaskCalendar {...baseProps} />);
 
     expect(screen.getByTestId('resolved-name-known')).toHaveTextContent('Dr One');
-    expect(screen.getByTestId('resolved-name-unknown')).toHaveTextContent('ghost-id');
+    // An id with no member-map entry and no team-roster row must read as unknown,
+    // never as the raw id it failed to resolve.
+    expect(screen.getByTestId('resolved-name-unknown')).toHaveTextContent('-');
     expect(screen.getByTestId('resolved-name-empty')).toHaveTextContent('-');
   });
 

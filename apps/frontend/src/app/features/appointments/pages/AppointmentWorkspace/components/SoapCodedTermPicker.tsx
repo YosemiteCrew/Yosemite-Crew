@@ -7,8 +7,101 @@ import WorkspaceSearchResultRow from '@/app/features/appointments/pages/Appointm
 import {
   suggestClinicalTerms,
   type ClinicalTermDomain,
+  type ClinicalTermSpecies,
   type ClinicalTermSuggestion,
+  type VocabularyFilter,
 } from '@/app/features/appointments/services/clinicalTermsService';
+
+/**
+ * Vocabulary scope for the search. "All" offers every term and shows whichever
+ * crosswalks exist; picking a vocabulary narrows the list to terms that can
+ * actually be coded in it, which is what a practice working in SNOMED (or
+ * VeNom) alone needs — a list with no dead ends.
+ */
+const VOCABULARY_SCOPES: Array<{ value: VocabularyFilter | 'ALL'; label: string }> = [
+  { value: 'ALL', label: 'All' },
+  { value: 'VENOM', label: 'VeNom' },
+  { value: 'SNOMED', label: 'SNOMED' },
+];
+
+const SCOPE_LABEL: Record<VocabularyFilter, string> = { VENOM: 'VeNom', SNOMED: 'SNOMED' };
+
+/** Short vocabulary labels; the picker has no room for full system URIs. */
+const SYSTEM_LABEL: Record<string, string> = {
+  VENOM: 'VeNom',
+  SNOMED: 'SNOMED',
+  IDEXX: 'IDEXX',
+  YOSEMITECODE: 'YC',
+};
+
+/**
+ * An equivalence that is not exact is stated, never hidden: a vet reading
+ * "SNOMED 422400008" should know at a glance whether that is the same concept
+ * or a broader/narrower one.
+ */
+const INEXACT_EQUIVALENCES = new Set([
+  'NARROWER',
+  'SPECIALIZES',
+  'WIDER',
+  'SUBSUMES',
+  'RELATEDTO',
+  'INEXACT',
+]);
+
+const codingLabel = (coding: { system: string; code: string; equivalence?: string }) => {
+  const system = SYSTEM_LABEL[coding.system] ?? coding.system;
+  const qualifier =
+    coding.equivalence && INEXACT_EQUIVALENCES.has(coding.equivalence.toUpperCase())
+      ? ` (${coding.equivalence.toLowerCase()})`
+      : '';
+  return `${system} ${coding.code}${qualifier}`;
+};
+
+const SPECIES_LABEL: Record<string, string> = {
+  SA: 'Small animal',
+  LA: 'Large animal',
+  FARM: 'Farm',
+  EXOTICS: 'Exotics',
+  EQUINE: 'Equine',
+  AVIAN: 'Avian',
+};
+
+/**
+ * YC code, then each vocabulary crosswalk, then the synonym that matched.
+ *
+ * `showSpecies` is set only for a label that appears more than once in the current
+ * results. The vocabulary ships 189 pairs of terms that share a label within a
+ * domain, 185 of them a small-animal term and its equine counterpart, and 180 of
+ * those carry the same crosswalk - so without the species the two rows are
+ * character for character identical and the clinician is choosing at random. Most
+ * terms carry several species, so showing it on every row would be noise on the
+ * rows that need it least.
+ */
+const buildOrigin = (
+  suggestion: ClinicalTermSuggestion,
+  synonym: string | undefined,
+  showSpecies: boolean
+): string => {
+  const parts: string[] = [suggestion.ycCode];
+  for (const coding of suggestion.codings ?? []) parts.push(codingLabel(coding));
+  if (showSpecies && suggestion.species.length) {
+    parts.push(suggestion.species.map((code) => SPECIES_LABEL[code] ?? code).join(', '));
+  }
+  if (synonym) parts.push(`matches “${synonym}”`);
+  return parts.join(' · ');
+};
+
+/** Labels held by more than one row, lower-cased. These are the ambiguous ones. */
+const repeatedLabels = (suggestions: ClinicalTermSuggestion[]): Set<string> => {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const suggestion of suggestions) {
+    const label = suggestion.label.toLowerCase();
+    if (seen.has(label)) repeated.add(label);
+    seen.add(label);
+  }
+  return repeated;
+};
 
 const MIN_QUERY_LENGTH = 2;
 const SUGGEST_DEBOUNCE_MS = 250;
@@ -30,6 +123,12 @@ type SoapCodedTermPickerProps = {
   sectionLabel: string;
   /** Vocabulary domain to narrow suggestions to; omit to search every domain. */
   domain?: ClinicalTermDomain;
+  /**
+   * Species bucket of the companion being charted. Omitted when the appointment has
+   * no species context, or the species has no bucket - the list then stays as wide
+   * as it is without one rather than being narrowed on a guess.
+   */
+  species?: ClinicalTermSpecies;
   selected: SoapCodedTerm[];
   onChange: (terms: SoapCodedTerm[]) => void;
 };
@@ -43,12 +142,18 @@ type SoapCodedTermPickerProps = {
 const SoapCodedTermPicker = ({
   sectionLabel,
   domain,
+  species,
   selected,
   onChange,
 }: SoapCodedTermPickerProps) => {
   const anchorRef = useRef<HTMLDivElement>(null);
+  const [scope, setScope] = useState<VocabularyFilter | 'ALL'>('ALL');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ClinicalTermSuggestion[]>([]);
+  /* A scoped search that finds nothing must say so. Without this the dropdown
+     simply does not open, which reads as "search is broken" rather than "no term
+     in this vocabulary matches" - the one case the scope control makes common. */
+  const [emptyQuery, setEmptyQuery] = useState<string | null>(null);
   // Monotonic request id: a slow earlier response must never overwrite a newer one.
   const requestSeqRef = useRef(0);
 
@@ -64,23 +169,42 @@ const SoapCodedTermPicker = ({
       () => {
         if (belowMinimum) {
           setResults([]);
+          setEmptyQuery(null);
           return;
         }
-        suggestClinicalTerms({ q: trimmed, domain, limit: SUGGEST_LIMIT })
+        suggestClinicalTerms({
+          q: trimmed,
+          domain,
+          species,
+          limit: SUGGEST_LIMIT,
+          ...(scope === 'ALL' ? {} : { vocabulary: scope }),
+        })
           .then((items) => {
-            if (requestSeqRef.current === requestId) setResults(items);
+            if (requestSeqRef.current !== requestId) return;
+            setResults(items);
+            setEmptyQuery(items.length === 0 ? trimmed : null);
           })
           .catch((error) => {
             console.error('Unable to suggest clinical terms:', error);
-            if (requestSeqRef.current === requestId) setResults([]);
+            if (requestSeqRef.current !== requestId) return;
+            setResults([]);
+            // An error is not "nothing matched"; leave the explanation off.
+            setEmptyQuery(null);
           });
       },
       belowMinimum ? 0 : SUGGEST_DEBOUNCE_MS
     );
     return () => clearTimeout(timer);
-  }, [query, domain]);
+  }, [query, domain, species, scope]);
+
+  /* Only worth explaining when a scope is on. An unscoped search that finds
+     nothing is just a query with no matches, and the closed dropdown says that
+     well enough. */
+  const scopedEmpty = emptyQuery !== null && scope !== 'ALL' ? { query: emptyQuery, scope } : null;
 
   const selectedCodes = useMemo(() => new Set(selected.map((term) => term.ycCode)), [selected]);
+
+  const ambiguousLabels = useMemo(() => repeatedLabels(results), [results]);
 
   // Duplicates can't reach here: the result row for an already-picked code is
   // disabled, and the shared parser dedups again on the way back in.
@@ -91,6 +215,15 @@ const SoapCodedTermPicker = ({
         ycCode: suggestion.ycCode,
         label: suggestion.label,
         ...(suggestion.domain ? { domain: suggestion.domain } : {}),
+        ...(suggestion.codings?.length
+          ? {
+              codings: suggestion.codings.map((coding) => ({
+                system: coding.system,
+                code: coding.code,
+                equivalence: coding.equivalence,
+              })),
+            }
+          : {}),
       },
     ]);
     setQuery('');
@@ -113,6 +246,14 @@ const SoapCodedTermPicker = ({
             >
               <span>{term.label}</span>
               <span className="font-normal text-text-tertiary">{term.ycCode}</span>
+              {term.codings?.map((coding) => (
+                <span
+                  key={`${coding.system}-${coding.code}`}
+                  className="rounded-full bg-neutral-0 px-1.5 py-0.5 text-caption-2 font-normal text-text-secondary"
+                >
+                  {codingLabel(coding)}
+                </span>
+              ))}
               <button
                 type="button"
                 aria-label={`Remove ${term.label}`}
@@ -125,6 +266,31 @@ const SoapCodedTermPicker = ({
           ))}
         </ul>
       )}
+      <div
+        className="flex items-center gap-1"
+        role="radiogroup"
+        aria-label={`Vocabulary for ${sectionLabel} coded terms`}
+      >
+        {VOCABULARY_SCOPES.map((option) => {
+          const active = scope === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setScope(option.value)}
+              className={`rounded-full border px-2.5 py-1 text-caption-2 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
+                active
+                  ? 'border-transparent bg-neutral-200 text-text-primary'
+                  : 'border-card-border bg-transparent text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
       <div ref={anchorRef} className="relative w-full sm:max-w-90">
         <Search
           value={query}
@@ -135,20 +301,31 @@ const SoapCodedTermPicker = ({
         />
         <SearchResultsDropdown
           anchorRef={anchorRef}
-          open={results.length > 0}
+          open={results.length > 0 || scopedEmpty !== null}
           onClose={() => setQuery('')}
         >
+          {scopedEmpty !== null ? (
+            <p className="px-4 py-3 text-caption-1 text-text-secondary">
+              No term with a {SCOPE_LABEL[scopedEmpty.scope]} code matches “{scopedEmpty.query}”.{' '}
+              <button
+                type="button"
+                onClick={() => setScope('ALL')}
+                className="font-semibold text-text-brand underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+              >
+                Search all vocabularies
+              </button>
+            </p>
+          ) : null}
           <ul>
             {results.map((suggestion) => {
               const synonym = matchedSynonym(suggestion, query);
+              const ambiguous = ambiguousLabels.has(suggestion.label.toLowerCase());
               const alreadyAdded = selectedCodes.has(suggestion.ycCode);
               return (
                 <WorkspaceSearchResultRow
                   key={suggestion.ycCode}
                   name={suggestion.label}
-                  origin={
-                    synonym ? `${suggestion.ycCode} · matches “${synonym}”` : suggestion.ycCode
-                  }
+                  origin={buildOrigin(suggestion, synonym, ambiguous)}
                   disabled={alreadyAdded}
                   disabledReason={alreadyAdded ? 'Added' : undefined}
                   onSelect={() => addTerm(suggestion)}

@@ -52,7 +52,13 @@ describe('YourOrganizations', () => {
 
     render(<YourOrganizations />);
 
-    expect(screen.getByRole('heading', { name: 'Your organizations' })).toBeInTheDocument();
+    // Pins the shared PreferenceGroup primitive (its title is an <h3>, and "New
+    // organization" is rendered through PreferenceGroup's `action` slot in the
+    // title row) rather than a hand-rolled `.yc-card-surface` section that
+    // reimplemented the same header layout independently.
+    expect(
+      screen.getByRole('heading', { name: 'Your organizations', level: 3 })
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New organization' })).toHaveAttribute(
       'href',
       '/create-org'

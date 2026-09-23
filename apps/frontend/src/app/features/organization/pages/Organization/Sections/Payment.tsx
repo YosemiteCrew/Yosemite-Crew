@@ -16,7 +16,15 @@ const resolveStatus = (chargesEnabled?: boolean, payoutsEnabled?: boolean): Paym
   if (chargesEnabled) {
     return {
       connected: true,
-      text: payoutsEnabled ? 'Charges enabled · payouts weekly' : 'Charges enabled',
+      /*
+       * "payouts weekly" was invented. `payoutsEnabled` mirrors Stripe's
+       * `account.payouts_enabled`, a capability boolean carrying no schedule,
+       * and nothing in the product reads a payout interval. The claim was wrong
+       * for any clinic on Stripe's rolling daily default, or on a monthly or
+       * manual schedule - and it sat beside a live status dot, so it read as
+       * account state rather than copy.
+       */
+      text: payoutsEnabled ? 'Charges and payouts enabled' : 'Charges enabled',
     };
   }
   return { connected: false, text: 'Not connected yet' };
@@ -41,7 +49,7 @@ const Payment = () => {
       allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}
       fallback={<Fallback resource="billing and subscription" />}
     >
-      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5! py-[15px]! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="flex items-center gap-3 yc-card-surface px-5! py-[15px]!">
         <span className="flex size-9 flex-none items-center justify-center rounded-[11px] bg-[var(--blue-soft)] text-[var(--blue-text)]">
           <IoCardOutline size={16} aria-hidden="true" />
         </span>

@@ -48,7 +48,7 @@ const makeDeps = (overrides: Partial<StatusDialogDeps> = {}): StatusDialogDeps =
   } as never,
   config: getDesktopConfig({}),
   auditLog: {
-    verifyAll: () => ({ valid: 3, tampered: 0 }),
+    verifyAll: () => ({ valid: 3, tampered: 0, otherKey: 0 }),
     verifyChain: () => true,
     size: () => 3,
     getIntegrity: () => ({
@@ -160,7 +160,7 @@ describe('status dialogs — happy paths', () => {
   test('verifyAuditTrail names the problem when the log is not intact', () => {
     const deps = makeDeps({
       auditLog: {
-        verifyAll: () => ({ valid: 1, tampered: 0 }),
+        verifyAll: () => ({ valid: 1, tampered: 0, otherKey: 0 }),
         verifyChain: () => false,
         size: () => 1,
         getIntegrity: () => ({
@@ -185,7 +185,7 @@ describe('status dialogs — happy paths', () => {
     const deps = makeDeps({
       auditLog: {
         // With a session-only key every historical entry fails its check.
-        verifyAll: () => ({ valid: 0, tampered: 12 }),
+        verifyAll: () => ({ valid: 0, tampered: 12, otherKey: 0 }),
         verifyChain: () => false,
         size: () => 12,
         getIntegrity: () => ({
@@ -205,6 +205,119 @@ describe('status dialogs — happy paths', () => {
     expect(detail).toContain('CANNOT BE CHECKED');
     expect(detail).not.toContain('Tampered: 12');
     expect(detail).toContain('signing key could not be read');
+  });
+
+  test('verifyAuditTrail reports previous-key entries separately, and not as tampering', () => {
+    const deps = makeDeps({
+      auditLog: {
+        // Entries signed while the keychain was unreadable. They cannot be
+        // re-checked, but they are not evidence of tampering (#2553), so they
+        // get their own line and must not turn the dialog into an alarm.
+        verifyAll: () => ({ valid: 7, tampered: 0, otherKey: 4 }),
+        verifyChain: () => true,
+        size: () => 11,
+        getIntegrity: () => ({
+          ok: true,
+          reason: null,
+          quarantinePath: null,
+          recordsLoaded: 11,
+          watermarkCount: 11,
+          tornTail: false,
+          signingKey: 'persisted' as const,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const call = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0];
+    expect(call.detail).toContain('Signed with a previous key: 4');
+    expect(call.detail).toContain('not evidence of tampering');
+    // The count stays out of Tampered, and out of the problem verdict: a clean
+    // log with previous-key entries is still a clean log.
+    expect(call.detail).toContain('Tampered: 0');
+    expect(call.detail).not.toContain('Tampered: 4');
+    expect(call.message).toBe('Audit Trail Integrity');
+    expect(call.type).toBe('info');
+  });
+
+  test('verifyAuditTrail says nothing about previous keys when there are none', () => {
+    const deps = makeDeps();
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('Valid signatures: 3');
+    expect(detail).not.toContain('Signed with a previous key');
+  });
+
+  test('verifyAuditTrail uses warning dialog when integrity check fails', () => {
+    const deps = makeDeps({
+      auditLog: {
+        verifyAll: () => ({ valid: 1, tampered: 0 }),
+        verifyChain: () => false,
+        size: () => 1,
+        getIntegrity: () => ({
+          ok: false,
+          reason: '4 record(s) missing (expected 5, found 1)',
+          quarantinePath: '/data/audit-log.jsonl.corrupt-1700000000',
+          recordsLoaded: 1,
+          watermarkCount: 5,
+          tornTail: false,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const call = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0];
+    expect(call.type).toBe('warning');
+    expect(call.message).toBe('Audit trail problem found');
+  });
+
+  test('verifyAuditTrail uses info dialog when everything is intact', () => {
+    const deps = makeDeps({
+      auditLog: {
+        verifyAll: () => ({ valid: 3, tampered: 0 }),
+        verifyChain: () => true,
+        size: () => 3,
+        getIntegrity: () => ({
+          ok: true,
+          reason: null,
+          quarantinePath: null,
+          recordsLoaded: 3,
+          watermarkCount: 3,
+          tornTail: false,
+          signingKey: 'persisted' as const,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const call = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0];
+    expect(call.type).toBe('info');
+    expect(call.message).toBe('Audit Trail Integrity');
+  });
+
+  test('verifyAuditTrail uses warning dialog when tampered entries exist', () => {
+    const deps = makeDeps({
+      auditLog: {
+        verifyAll: () => ({ valid: 2, tampered: 1 }),
+        verifyChain: () => true,
+        size: () => 3,
+        getIntegrity: () => ({
+          ok: true,
+          reason: null,
+          quarantinePath: null,
+          recordsLoaded: 3,
+          watermarkCount: 3,
+          tornTail: false,
+          signingKey: 'persisted' as const,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const call = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0];
+    expect(call.type).toBe('warning');
+    expect(call.message).toBe('Audit trail problem found');
   });
 
   test('a compliance export from a damaged register carries a warning', () => {

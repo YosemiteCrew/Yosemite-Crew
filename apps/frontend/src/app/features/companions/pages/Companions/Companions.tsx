@@ -7,6 +7,7 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
 const COMPANIONS_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import Filters from '@/app/ui/filters/Filters';
+import FilterChip from '@/app/ui/filters/FilterChip';
 import CompanionsTable, { type CompanionsViewMode } from '@/app/ui/tables/CompanionsTable';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
@@ -27,7 +28,6 @@ import {
   IoGridOutline,
   IoInformationCircleOutline,
   IoReorderThreeOutline,
-  IoSwapVerticalOutline,
 } from 'react-icons/io5';
 import clsx from 'clsx';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
@@ -244,7 +244,7 @@ const Companions = () => {
           </span>
           {canEditCompanions && (
             <Primary
-              text={terminologyText('Add companion')}
+              text={terminologyText('New companion')}
               onClick={openAddCompanion}
               icon={<IoAdd size={18} aria-hidden="true" />}
               className="max-md:hidden! shrink-0"
@@ -271,20 +271,11 @@ const Companions = () => {
                 setActiveStatus={setActiveStatus}
                 showAddButton={false}
               />
-              <button
-                type="button"
-                aria-pressed={sortByRecentVisit}
+              <FilterChip
+                label={terminologyText('Last visit')}
+                active={sortByRecentVisit}
                 onClick={() => setSortByRecentVisit((value) => !value)}
-                className={clsx(
-                  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors',
-                  sortByRecentVisit
-                    ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] text-[var(--chip-selected-ink)]'
-                    : 'border-[var(--hairline)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
-                )}
-              >
-                <IoSwapVerticalOutline size={12} aria-hidden="true" />
-                {terminologyText('Last visit')}
-              </button>
+              />
             </div>
           </div>
           <div ref={plannerSectionRef} className={plannerSectionClassName}>

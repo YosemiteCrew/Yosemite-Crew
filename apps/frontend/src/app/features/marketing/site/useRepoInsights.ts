@@ -56,11 +56,11 @@ const EMPTY: RepoInsights = {
 const GITHUB_ACCEPT = 'application/vnd.github+json';
 
 const LANG_COLORS: Record<string, string> = {
-  TypeScript: '#257bed',
+  TypeScript: 'var(--blue)',
   JavaScript: '#d99a2b',
   CSS: '#38ccd8',
   SCSS: '#38ccd8',
-  HTML: '#ff90d4',
+  HTML: 'var(--pink)',
   Kotlin: '#8a6fb0',
   Swift: '#c98a5e',
   'Objective-C': '#7c9bb5',
@@ -70,7 +70,7 @@ const LANG_COLORS: Record<string, string> = {
   Dockerfile: '#6b6763',
   Python: '#4a7fb0',
 };
-const LANG_FALLBACK = ['#8f8984', '#a9a39e', '#b8b2ac'];
+const LANG_FALLBACK = ['var(--ink-faint)', 'var(--ink-faint2)', '#b8b2ac'];
 
 const langColor = (name: string, index: number): string =>
   LANG_COLORS[name] ?? LANG_FALLBACK[index % LANG_FALLBACK.length];
@@ -80,7 +80,7 @@ const compact = (n: number | undefined): string => {
   return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
 };
 
-const timeAgo = (iso?: string): string => {
+export const timeAgo = (iso?: string): string => {
   if (!iso) return '';
   const seconds = (Date.now() - new Date(iso).getTime()) / 1000;
   if (seconds < 90) return 'just now';

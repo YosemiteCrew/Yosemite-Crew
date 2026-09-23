@@ -34,7 +34,10 @@ describe('Payment organization section', () => {
     render(<Payment />);
 
     expect(screen.getByText('Payments · Stripe')).toBeInTheDocument();
-    expect(screen.getByText('Charges enabled · payouts weekly')).toBeInTheDocument();
+    expect(screen.getByText('Charges and payouts enabled')).toBeInTheDocument();
+    // "payouts weekly" was invented: payoutsEnabled mirrors Stripe's
+    // account.payouts_enabled, a capability boolean carrying no schedule.
+    expect(screen.queryByText(/weekly/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Manage' })).toHaveAttribute(
       'href',
       '/stripe-onboarding?orgId=org-1'

@@ -53,9 +53,13 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
 
 jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   __esModule: true,
-  default: ({ title, data }: any) => (
+  default: ({ title, data, fields }: any) => (
     <div data-testid={`editable-${title}`}>
       {title}:{data?.templateSource ?? 'none'}
+      {fields
+        ?.find((field: any) => field.key === 'services')
+        ?.options?.map((option: any) => option.label)
+        .join(',')}
     </div>
   ),
 }));
@@ -188,6 +192,31 @@ describe('FormInfo', () => {
 
     expect(screen.getByText('View form')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+
+  it('does not expose an unavailable linked service identifier', () => {
+    render(
+      <FormInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeForm={
+          {
+            _id: 'f-service',
+            name: 'Consent',
+            status: 'Published',
+            schema: [],
+            services: ['missing-service-id'],
+          } as any
+        }
+        onEdit={jest.fn()}
+        serviceOptions={[]}
+      />
+    );
+
+    expect(screen.getByTestId('editable-Usage & visibility')).toHaveTextContent(
+      'Unavailable service'
+    );
+    expect(screen.queryByText('missing-service-id')).not.toBeInTheDocument();
   });
 
   it('publishes editable organisation template records through template APIs', async () => {

@@ -1,8 +1,14 @@
-import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosResponse,
+  AxiosRequestConfig,
+  CreateAxiosDefaults,
+} from 'axios';
 import Session from 'supertokens-web-js/recipe/session';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { hardSignOut } from '@/app/hooks/useAuth';
+import { SESSION_WRITE_REPLAY_BLOCKED_HEADER } from '@/app/lib/authClient';
 import { logger } from '@/app/lib/logger';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -18,16 +24,26 @@ const DEFAULT_API_TIMEOUT_MS = 60_000;
 // Product API calls are authorized by httpOnly session cookies on the API
 // domain (SuperTokens) — no Authorization header. `withCredentials` sends the
 // cookies cross-origin; the supertokens-web-js SDK (initialized via
-// authClient) globally intercepts XHR/fetch and transparently refreshes an
-// expired session before retrying, so no manual refresh logic lives here.
-const api: AxiosInstance = axios.create({
+// authClient) guards the fetch transport. Safe reads retain transparent
+// refresh/retry, while writes return unsaved for explicit resubmission.
+//
+// `'User-Agent': false`: axios's fetch adapter adds `User-Agent: axios/<version>`
+// to every request unless one is already set, even in a browser. Chromium drops
+// it, but Firefox and Safari send it, which makes every call preflight for
+// `user-agent`, a header the API's CORS answer does not allow, so every API call
+// failed in those browsers. `false` is kept by the adapter and never serialised.
+export const API_CLIENT_DEFAULTS = {
+  adapter: 'fetch',
   baseURL: BASE_URL,
   timeout: DEFAULT_API_TIMEOUT_MS,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
+    'User-Agent': false,
   },
-});
+} satisfies CreateAxiosDefaults;
+
+const api: AxiosInstance = axios.create(API_CLIENT_DEFAULTS);
 
 type GetDataParams = Record<string, unknown>;
 type GetDataOptions = {
@@ -150,11 +166,21 @@ const shouldRedirectToSignIn = () => {
   return !pathname.startsWith('/signin');
 };
 
+// `reason=session-expired` is read by SignIn to show a "you were signed out"
+// notice - without it, a session lapsing mid-use looks identical to just
+// landing on the sign-in page, with no indication anything happened. A pure,
+// exported helper so the URL it builds is unit-testable directly - jsdom's
+// window.location.replace is not a configurable property in every environment,
+// so asserting against a mocked call site is not reliable.
+export const buildSignInRedirectUrl = (currentRoute: string): string => {
+  const next = encodeURIComponent(currentRoute);
+  return `/signin?next=${next}&reason=session-expired`;
+};
+
 const redirectToSignIn = () => {
   if (!shouldRedirectToSignIn()) return;
-  const next = encodeURIComponent(getCurrentRoute());
   try {
-    globalThis.window.location.replace(`/signin?next=${next}`);
+    globalThis.window.location.replace(buildSignInRedirectUrl(getCurrentRoute()));
   } catch (error) {
     logger.warn('Failed to redirect to sign in after auth loss', error);
   }
@@ -266,6 +292,10 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetriableAxiosRequestConfig | undefined;
     const status = error.response?.status;
+
+    if (error.response?.headers?.[SESSION_WRITE_REPLAY_BLOCKED_HEADER] === 'true') {
+      throw new Error('Your session was refreshed. Review your unsaved changes and save again.');
+    }
 
     // Transient failures (rate limiting, gateway/5xx, timeouts) on idempotent
     // reads: retry a few times with backoff so a slow/overloaded backend doesn't
@@ -390,10 +420,12 @@ export const putData = async <T, D = unknown>(
 // DELETE Request
 export const deleteData = async <T>(
   endpoint: string,
-  params: Record<string, unknown> = {}
+  params: Record<string, unknown> = {},
+  config?: ApiRequestConfig
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.delete<T>(endpoint, {
+      ...config,
       params,
     });
   } catch (error: unknown) {
