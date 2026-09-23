@@ -51,7 +51,11 @@ describe('AppLockGate', () => {
         },
       },
     });
-    (useAuth as jest.Mock).mockReturnValue({isLoggedIn: true, logout});
+    (useAuth as jest.Mock).mockReturnValue({
+      isLoggedIn: true,
+      logout,
+      user: {id: 'owner'},
+    });
     (useAppDispatch as jest.Mock).mockReturnValue(dispatch);
     (useAppSelector as jest.Mock).mockImplementation(
       (selector: (value: typeof state) => unknown) => selector(state),

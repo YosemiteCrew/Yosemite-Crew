@@ -26,7 +26,7 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   const {theme} = useTheme();
   const {t} = useTranslation();
   const dispatch = useAppDispatch();
-  const {isLoggedIn, logout} = useAuth();
+  const {isLoggedIn, logout, user} = useAuth();
   const settings = useAppSelector(state => state.appLock);
   const status = useAppSelector(state => state.appLockStatus);
   const backgroundRef = useRef<{wall: number; mono: number | null} | null>(
@@ -36,6 +36,8 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   const authenticatingRef = useRef(status.authenticating);
   authenticatingRef.current = status.authenticating;
   const [failure, setFailure] = useState<string | null>(null);
+  const currentUserId = user?.parentId ?? user?.id ?? null;
+  const isOwner = !settings.ownerId || settings.ownerId === currentUserId;
 
   useEffect(() => {
     setPrivacy(settings.enabled, settings.timeoutMs).catch(() => undefined);
@@ -52,6 +54,7 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
     }
     activeRef.current = true;
     const onStateChange = async (next: AppStateStatus) => {
+      if (authenticatingRef.current) return;
       if (next === 'background' || next === 'inactive') {
         backgroundRef.current = {wall: Date.now(), mono: await monotonicNow()};
         return;
@@ -86,64 +89,70 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   }, [dispatch, isLoggedIn, settings.enabled, settings.timeoutMs]);
 
   const handleUnlock = useCallback(async () => {
-    if (status.authenticating) return;
+    if (status.authenticating || !isOwner) return;
     setFailure(null);
+    authenticatingRef.current = true;
     dispatch(authenticatingChanged(true));
     const result: AppLockResult = await unlock();
     dispatch(authenticatingChanged(false));
+    authenticatingRef.current = false;
     if (result.ok) {
       dispatch(appUnlocked());
       await coverRendered();
     } else {
       setFailure(t(`appLock.failure.${result.reason}`));
     }
-  }, [dispatch, status.authenticating, t]);
+  }, [dispatch, isOwner, status.authenticating, t]);
 
-  if (!settings.enabled || !isLoggedIn || !status.locked)
-    return <>{children}</>;
+  const locked = settings.enabled && isLoggedIn && status.locked;
 
   return (
     <>
       <View
-        importantForAccessibility="no-hide-descendants"
-        pointerEvents="none">
+        style={styles.content}
+        importantForAccessibility={locked ? 'no-hide-descendants' : 'auto'}
+        accessibilityElementsHidden={locked}
+        pointerEvents={locked ? 'none' : 'auto'}>
         {children}
       </View>
-      <View style={[styles.root, {backgroundColor: theme.colors.screen}]}>
-        <View
-          accessible
-          accessibilityLabel={t('appLock.lockedLabel')}
-          style={styles.card}>
-          <Text style={[styles.title, {color: theme.colors.ink}]}>
-            {t('appLock.lockedTitle')}
-          </Text>
-          <Text style={[styles.caption, {color: theme.colors.inkMuted}]}>
-            {failure ?? t('appLock.lockedCaption')}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('appLock.unlock')}
-            disabled={status.authenticating}
-            onPress={handleUnlock}
-            style={[styles.button, {backgroundColor: theme.colors.blue}]}>
-            <Text style={[styles.buttonText, {color: theme.colors.white}]}>
-              {status.authenticating
-                ? t('appLock.waiting')
-                : t('appLock.unlock')}
+      {locked ? (
+        <View style={[styles.root, {backgroundColor: theme.colors.screen}]}>
+          <View
+            accessible
+            accessibilityLabel={t('appLock.lockedLabel')}
+            style={styles.card}>
+            <Text style={[styles.title, {color: theme.colors.ink}]}>
+              {t('appLock.lockedTitle')}
             </Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={logout}>
-            <Text style={[styles.signOut, {color: theme.colors.inkMuted}]}>
-              {t('appLock.signOut')}
+            <Text style={[styles.caption, {color: theme.colors.inkMuted}]}>
+              {failure ?? t('appLock.lockedCaption')}
             </Text>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('appLock.unlock')}
+              disabled={status.authenticating || !isOwner}
+              onPress={handleUnlock}
+              style={[styles.button, {backgroundColor: theme.colors.blue}]}>
+              <Text style={[styles.buttonText, {color: theme.colors.white}]}>
+                {status.authenticating
+                  ? t('appLock.waiting')
+                  : t('appLock.unlock')}
+              </Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={logout}>
+              <Text style={[styles.signOut, {color: theme.colors.inkMuted}]}>
+                {t('appLock.signOut')}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
+      ) : null}
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  content: {flex: 1},
   root: {
     position: 'absolute',
     inset: 0,
