@@ -31,6 +31,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/developers/documentation',
   '/developers/form-draft-import',
   '/developers/home',
+  '/developers/playground',
   '/developers/plugins',
   '/developers/settings',
   '/developers/signin',

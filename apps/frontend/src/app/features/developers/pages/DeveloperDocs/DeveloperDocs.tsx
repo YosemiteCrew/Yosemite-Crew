@@ -240,7 +240,7 @@ const DeveloperDocs = () => {
         'Practice surface, not a developer one: needs an active practice membership and appointments:edit:any. A developer-only account holds neither; calling it with a developer session returns 400 or 403.',
         'Body: FHIR R4 Appointment. Practice is read from an Organization participant (not x-org-id). Submitted status is ignored; created appointments are stored as UPCOMING. Parent must be a RelatedPerson participant.',
         'Request (cURL):\n' + CURL_SAMPLE,
-        'Response (201):\n' + RESPONSE_SAMPLE,
+        'Response (201):\n' + RESPONSE_SAMPLE
       );
     }
     return lines.join('\n\n');
@@ -254,14 +254,22 @@ const DeveloperDocs = () => {
             <IoArrowBack size={18} />
             <span>Back to portal</span>
           </Link>
-          <a
-            className="DocsOpenLink text-body-4-emphasis text-text-brand"
-            href={DOCS_BASE_PATH}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open full docs
-          </a>
+          <span className="DocsHeaderLinks">
+            <Link
+              href="/developers/playground"
+              className="DocsOpenLink text-body-4-emphasis text-text-brand"
+            >
+              Try the API
+            </Link>
+            <a
+              className="DocsOpenLink text-body-4-emphasis text-text-brand"
+              href={DOCS_BASE_PATH}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open full docs
+            </a>
+          </span>
         </div>
 
         <div className="DocsShell">

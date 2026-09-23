@@ -91,6 +91,7 @@ export const devRoutes: RouteItem[] = [
   { name: 'Website - Builder', href: '/developers/website-builder' },
   { name: 'Plugins', href: '/developers/plugins' },
   { name: 'Documentation', href: '/developers/documentation' },
+  { name: 'API Playground', href: '/developers/playground' },
 ];
 
 export const headerAppRoutes: RouteItem[] = [

@@ -16,6 +16,12 @@
   flex-wrap: wrap;
 }
 
+.DocsHeaderLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
+}
+
 .DocsBackLink {
   display: inline-flex;
   align-items: center;
