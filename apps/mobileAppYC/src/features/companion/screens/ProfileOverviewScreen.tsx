@@ -78,6 +78,7 @@ type SectionVisual = {
 const SECTION_VISUALS: Record<string, SectionVisual> = {
   overview: {icon: 'reader-outline', bg: 'blueSoft', ink: 'blueText'},
   medical_records: {icon: 'pulse-outline', bg: 'pinkGlow', ink: 'pink'},
+  prescriptions: {icon: 'medkit-outline', bg: 'blueSoft', ink: 'blueText'},
   parent: {
     icon: 'person-outline',
     bg: 'avatarVioletBg',
@@ -127,6 +128,11 @@ const SECTION_TEMPLATES: ProfileSection[] = [
     id: 'medical_records',
     title: 'Health records',
     titleKey: 'medicalRecords.title',
+  },
+  {
+    id: 'prescriptions',
+    title: 'Prescriptions',
+    titleKey: 'prescriptions.title',
   },
   {id: 'parent', title: 'Parent'},
   {id: 'passport', title: 'Pet Passport', titleKey: 'passport.title'},
@@ -368,6 +374,11 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       case 'medical_records':
         navigateIfAllowed('medicalRecords', 'health records', () =>
           navigation.navigate('MedicalRecords', {companionId}),
+        );
+        break;
+      case 'prescriptions':
+        navigateIfAllowed('medicalRecords', 'prescriptions', () =>
+          navigation.navigate('Prescriptions', {companionId}),
         );
         break;
       case 'parent':
