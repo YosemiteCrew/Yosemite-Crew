@@ -6,7 +6,7 @@ slug: /apps/backend/api/medication-reconciliation
 
 Manages medication reconciliation records — the comparison of a patient's home medications against hospital/clinic orders to catch discrepancies (omitted, added, changed dose/frequency/route, duplicate, or contraindicated) at a transition of care. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are scoped to an organisation.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/medication-reconciliations
 

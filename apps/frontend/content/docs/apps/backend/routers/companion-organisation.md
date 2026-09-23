@@ -6,7 +6,7 @@ slug: /apps/backend/api/companion-organisation
 
 Manages the link between a companion (a pet) and an organisation (a clinic): linking, invites, approval, and revocation. Routes without a prefix are called by the mobile app (pet parents); routes under `/pms` are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### POST /link
 

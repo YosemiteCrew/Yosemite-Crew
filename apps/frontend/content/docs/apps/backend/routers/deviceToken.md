@@ -6,7 +6,7 @@ slug: /apps/backend/api/deviceToken
 
 Registers and unregisters push-notification device tokens. Called by the mobile app so the backend can deliver push notifications to a signed-in user's device.
 
-**Endpoints**
+## Endpoints
 
 ### POST /register
 

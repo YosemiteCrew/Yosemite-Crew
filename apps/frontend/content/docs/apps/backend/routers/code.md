@@ -6,7 +6,7 @@ slug: /apps/backend/api/code
 
 Looks up clinical coding data: internal code entries and cross-system mappings, VeNom/SNOMED clinical term suggestions (VeNom is the UK veterinary clinical terminology; SNOMED is the broader human/veterinary clinical terminology), and ATCvet medication suggestions (the WHO anatomical therapeutic chemical classification for veterinary medicines). Every endpoint has a `/mobile`-prefixed twin so the mobile app can read the same data under mobile authentication.
 
-**Endpoints**
+## Endpoints
 
 ### GET /entries
 

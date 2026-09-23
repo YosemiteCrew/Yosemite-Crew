@@ -6,7 +6,7 @@ slug: /apps/backend/api/room-unit
 
 CRUD endpoints for an individual room unit (for example a specific kennel or bed within a room/room group), modeled as the FHIR `Location` resource. None of these routes carry `:organisationId` in the path, so it is resolved by `withOrgPermissions`/`withRoomUnitOrgPermissions` from the `x-org-id` header, an `organisationId` query parameter, or (on create) the request body — update and delete instead resolve it by looking up the unit's own stored organisation. All routes require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

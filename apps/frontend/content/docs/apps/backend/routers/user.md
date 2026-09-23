@@ -6,7 +6,7 @@ slug: /apps/backend/api/user
 
 Endpoints for a user account: creating, fetching, updating the name, and deleting a user. See the [User Profile API](./user-profile.md) for per-organisation profile details and the [User Organization API](./user-organization.md) for organisation memberships.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

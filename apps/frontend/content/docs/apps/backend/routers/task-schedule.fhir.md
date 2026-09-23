@@ -6,7 +6,7 @@ slug: /apps/backend/api/task-schedule.fhir
 
 Manages the recurring task schedule generated when a PlanDefinition-style template instance is applied (see the [Template FHIR API](./template.fhir.md) for creating and publishing the `PlanDefinition` templates and their instances): listing an encounter's generated schedules, and applying, pausing, resuming, cancelling, or regenerating a template instance's schedule. Every operation returns the schedule as a FHIR `Task` resource, distinct from the individual tasks the schedule produces (see the [Task FHIR API](./task.fhir.md)). Mounted at `/fhir/v1/task-schedule`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /organisation/:organisationId/encounter/:encounterId
 

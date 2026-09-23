@@ -6,7 +6,7 @@ slug: /apps/backend/api/genetic-health-screen
 
 Manages genetic and hereditary health screening records for a companion (pet) within a PMS organisation: DNA disease-panel results plus OFA (Orthopedic Foundation for Animals) orthopedic, cardiac, and eye certifications. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/genetic-health-screens
 

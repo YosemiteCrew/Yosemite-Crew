@@ -6,7 +6,7 @@ slug: /apps/backend/api/task.fhir
 
 Exposes tasks as the FHIR `Task` resource: listing an organisation's employee tasks or a companion's (patient's) tasks, creating and updating a task from a `Task` resource, fetching one, and changing its status through the FHIR `$status` operation. This is a separate surface from the [Task API](./task.md), which is the plain JSON CRUD surface (`/v1/task`) for the same underlying tasks and their libraries/templates — this router is mounted at `/fhir/v1/task` and both request bodies and responses are FHIR `Task` resources rather than the plain-JSON shapes `TaskController` uses.
 
-**Endpoints**
+## Endpoints
 
 ### GET /organisation/:organisationId
 

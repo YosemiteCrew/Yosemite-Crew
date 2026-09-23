@@ -6,7 +6,7 @@ slug: /apps/backend/api/post-op-care-plan
 
 Manages a patient's post-operative care plan in the PIMS (Practice Information Management System, the clinic-facing web app) — pain score, analgesia protocol, wound-care instructions, activity restrictions, dietary and fluid-therapy notes, and scheduled reviews after surgery. A plan tracks status through `ACTIVE`, `COMPLETED`, or `CANCELLED`, and a dedicated review endpoint records a follow-up check without a full update. All routes require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/post-op-care-plans
 

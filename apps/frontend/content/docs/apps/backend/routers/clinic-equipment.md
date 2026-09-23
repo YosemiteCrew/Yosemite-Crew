@@ -6,7 +6,7 @@ slug: /apps/backend/api/clinic-equipment
 
 Tracks clinic equipment inventory (name, model, serial number, manufacturer, purchase date, warranty expiry, operational status, location) and its maintenance history (routine service, calibration, repair, inspection, cleaning, replacement, software update). All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are gated by organisation RBAC (role-based access control).
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/clinic-equipment
 

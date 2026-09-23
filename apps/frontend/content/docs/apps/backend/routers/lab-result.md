@@ -6,7 +6,7 @@ slug: /apps/backend/api/lab-result
 
 Lists and fetches lab results (and their PDF reports) stored for a given lab `:provider` within an organisation. Shares its `/v1/labs` mount with the [Lab Order API](./lab-order.md), which owns the `/orders`, `/tests`, `/ivls`, and `/census` sub-paths; this router owns `/results`. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions. The PDF-returning routes only support the `IDEXX` provider and stream `application/pdf` directly rather than JSON.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/:provider/results
 

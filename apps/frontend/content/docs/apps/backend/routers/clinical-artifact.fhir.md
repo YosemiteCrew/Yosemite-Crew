@@ -6,7 +6,7 @@ slug: /apps/backend/api/clinical-artifact-fhir
 
 FHIR (Fast Healthcare Interoperability Resources) surface for four clinical artifact kinds tied to an appointment or encounter: SOAP notes (`Composition`), prescriptions (`MedicationRequest`), discharge summaries (`Composition`), and vital records (`Observation`). Each mutable kind supports create, get, update, and the custom FHIR operations `$finalize`, `$reopen`, and `$amend` (prescriptions add `$cancel`); operation names are prefixed with `$` per FHIR convention. Immunizations, rabies titrations, parasite treatments, and clinical examinations are read-only here — they're captured through the pet-passport flow and signed via Documenso, so there is no create/update route for them. Request bodies are FHIR resources; only `resourceType` is strictly validated before the payload is mapped into the internal record, so extra fields pass through. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app), require organisation RBAC (role-based access control), and are rate-limited to 120 requests per 15 minutes per key. Note that several "get" and "list" operations are exposed as `POST` rather than `GET`, matching the FHIR search-by-`POST` idiom.
 
-**Endpoints**
+## Endpoints
 
 ### POST /organisation/:organisationId/appointment/:appointmentId/soap-notes
 

@@ -6,7 +6,7 @@ slug: /apps/backend/api/fluid-therapy-plan
 
 Manages inpatient fluid therapy plans: fluid type and rate, volume and duration, and status over the course of an admission. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions. Validation and not-found errors from the service layer come back as `{ message }`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/fluid-therapy-plans
 
