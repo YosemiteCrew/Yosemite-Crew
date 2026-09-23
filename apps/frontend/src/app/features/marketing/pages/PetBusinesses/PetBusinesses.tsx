@@ -73,7 +73,7 @@ const FEATURE_CHECK_ICON_STYLE: CSSProperties = {
   height: 26,
   borderRadius: 8,
   background: 'var(--blue-soft)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -237,7 +237,7 @@ const HERO_FLOAT_ICON_BLUE_STYLE: CSSProperties = {
   height: 30,
   borderRadius: 10,
   background: 'var(--blue-soft)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -249,7 +249,7 @@ const RECORD_AVATAR_STYLE: CSSProperties = {
   height: 48,
   borderRadius: 9999,
   background: 'var(--blue-soft)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -287,7 +287,7 @@ const MODULE_CARD_ICON_STYLE: CSSProperties = {
   height: 44,
   borderRadius: 13,
   background: 'var(--pill-raised)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -611,7 +611,7 @@ function ScheduleRow({
         borderRadius: 14,
       }}
     >
-      <span style={{ fontSize: 12.5, color: 'var(--ink-faint)', width: 38, flex: 'none' }}>
+      <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', width: 38, flex: 'none' }}>
         {time}
       </span>
       <span style={{ ...SCHEDULE_ROW_INITIAL_STYLE, background: initialBg, color: initialColor }}>
@@ -628,7 +628,7 @@ function ScheduleRow({
         >
           {name}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{detail}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{detail}</div>
       </div>
       {badge}
     </div>
@@ -651,7 +651,7 @@ function SidebarItem({ icon, label, active = false }: Readonly<SidebarItemProps>
         padding: '9px 10px',
         borderRadius: 12,
         background: active ? 'var(--blue-soft)' : undefined,
-        color: active ? 'var(--blue)' : 'var(--ink-muted)',
+        color: active ? 'var(--blue-text)' : 'var(--ink-muted)',
         fontSize: 13.5,
         fontWeight: active ? 700 : 500,
       }}
@@ -673,7 +673,7 @@ interface StatCardProps {
 function StatCard({ label, value, sub, subColor, subWeight }: Readonly<StatCardProps>) {
   return (
     <div style={{ border: '1px solid var(--hairline)', borderRadius: 16, padding: 14 }}>
-      <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{label}</div>
       <div
         style={{
           fontSize: 24,
@@ -713,7 +713,7 @@ function HeroWindowBar() {
         <span
           style={{
             fontSize: 12.5,
-            color: 'var(--ink-faint2)',
+            color: 'var(--ink-muted)',
             letterSpacing: '-0.01em',
             background: 'var(--inset)',
             padding: '5px 16px',
@@ -729,7 +729,7 @@ function HeroWindowBar() {
           alignItems: 'center',
           gap: 6,
           fontSize: 12,
-          color: 'var(--success)',
+          color: 'var(--success-text)',
           fontWeight: 700,
         }}
       >
@@ -764,7 +764,7 @@ function HeroSidebar() {
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-body)' }}>
             Alpenblick
           </span>
-          <span style={{ fontSize: 12, color: 'var(--ink-faint2)' }}>Veterinary Clinic</span>
+          <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>Veterinary Clinic</span>
         </div>
       </div>
       <span
@@ -772,7 +772,7 @@ function HeroSidebar() {
           fontSize: 12,
           fontWeight: 700,
           letterSpacing: '0.1em',
-          color: 'var(--ink-faint2)',
+          color: 'var(--ink-muted)',
           padding: '8px 8px 4px',
         }}
       >
@@ -800,7 +800,7 @@ function HeroSidebar() {
           fontSize: 12,
           fontWeight: 700,
           letterSpacing: '0.1em',
-          color: 'var(--ink-faint2)',
+          color: 'var(--ink-muted)',
           padding: '12px 8px 4px',
         }}
       >
@@ -834,7 +834,7 @@ function HeroScheduleHeader() {
       }}
     >
       <div>
-        <div style={{ fontSize: 12, color: 'var(--ink-faint2)', letterSpacing: '-0.01em' }}>
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)', letterSpacing: '-0.01em' }}>
           Thursday, 3 July
         </div>
         <div
@@ -891,16 +891,16 @@ function HeroStatCards() {
         label="Booked today"
         value="12"
         sub="↑ 2 from yesterday"
-        subColor="var(--success)"
+        subColor="var(--success-text)"
         subWeight={600}
       />
       <StatCard
         label="In the building"
         value="3"
         sub="2 waiting · 1 in room"
-        subColor="var(--ink-faint)"
+        subColor="var(--ink-muted)"
       />
-      <StatCard label="Invoiced" value="€1,840" sub="0% platform fee" subColor="var(--ink-faint)" />
+      <StatCard label="Invoiced" value="€1,840" sub="0% platform fee" subColor="var(--ink-muted)" />
     </div>
   );
 }
@@ -912,7 +912,7 @@ function HeroScheduleList() {
         time="08:30"
         initial="B"
         initialBg="var(--blue-soft)"
-        initialColor="var(--blue)"
+        initialColor="var(--blue-text)"
         name="Bella · Labrador"
         detail="Senior wellness · Dr. Weber"
         badge={
@@ -926,7 +926,7 @@ function HeroScheduleList() {
         initialColor="var(--avatar-violet-ink)"
         name="Miso · Shorthair"
         detail="Dental follow-up · Dr. Osei"
-        badge={<StatusBadge label="In progress" bg="var(--blue-soft)" color="var(--blue)" />}
+        badge={<StatusBadge label="In progress" bg="var(--blue-soft)" color="var(--blue-text)" />}
       />
       <ScheduleRow
         time="09:30"
@@ -962,7 +962,7 @@ function HeroFloatCards() {
           <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-body)' }}>
             Wifi dropped, still typing
           </div>
-          <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Nothing lost · syncs later</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>Nothing lost · syncs later</div>
         </div>
       </div>
       <div data-hero-float="true" style={HERO_FLOAT_CARD_B_STYLE}>
@@ -973,7 +973,7 @@ function HeroFloatCards() {
           <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-body)' }}>
             Export everything
           </div>
-          <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Leaving is free</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>Leaving is free</div>
         </div>
       </div>
     </>
@@ -1054,8 +1054,10 @@ function NotebookSection() {
               fontSize: 12,
               fontWeight: 700,
               letterSpacing: '0.14em',
+              // --spot-ink-faint, not --ink-muted: this eyebrow sits on --spot,
+              // which never flips. 6.82:1 here; --ink-muted would be 2.2:1.
               textTransform: 'uppercase',
-              color: 'var(--ink-faint)',
+              color: 'var(--spot-ink-faint)',
             }}
           >
             The real incumbent
@@ -1116,7 +1118,7 @@ function RecordsIntro() {
           fontWeight: 700,
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: 'var(--blue)',
+          color: 'var(--blue-text)',
         }}
       >
         Companions &amp; records
@@ -1167,7 +1169,7 @@ function RecordsTimeline() {
           fontSize: 12,
           fontWeight: 700,
           letterSpacing: '0.1em',
-          color: 'var(--ink-faint2)',
+          color: 'var(--ink-muted)',
         }}
       >
         TIMELINE
@@ -1207,7 +1209,7 @@ function RecordsTimeline() {
             fontSize: 12,
             fontWeight: 700,
             letterSpacing: '0.08em',
-            color: 'var(--ink-faint2)',
+            color: 'var(--ink-muted)',
             marginBottom: 6,
           }}
         >
@@ -1260,7 +1262,7 @@ function RecordsCard() {
             >
               Bella
             </div>
-            <div style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
+            <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
               Labrador Retriever · ♀ · 11 yrs · #A-2014
             </div>
           </div>
@@ -1322,7 +1324,7 @@ function TimelineRow({ icon, iconBg, iconColor, title, meta }: Readonly<Timeline
       </span>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink-body)' }}>{title}</div>
-        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{meta}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{meta}</div>
       </div>
     </div>
   );
@@ -1444,7 +1446,7 @@ function FinanceIntro({ linkRef }: Readonly<FinanceIntroProps>) {
           fontWeight: 700,
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: 'var(--blue)',
+          color: 'var(--blue-text)',
         }}
       >
         Finance
@@ -1480,7 +1482,7 @@ function FinanceIntro({ linkRef }: Readonly<FinanceIntroProps>) {
             fontWeight: 700,
             color: 'var(--ink-body)',
             textDecoration: 'underline',
-            textDecorationColor: 'var(--blue)',
+            textDecorationColor: 'var(--blue-text)',
             textDecorationThickness: '2px',
             textUnderlineOffset: '3px',
           }}
@@ -1592,7 +1594,7 @@ function OfflineSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: 'var(--ink-faint)',
+              color: 'var(--ink-muted)',
             }}
           >
             Built for the worst afternoon
@@ -1703,7 +1705,7 @@ function CalculatorsSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: 'var(--blue)',
+              color: 'var(--blue-text)',
             }}
           >
             Clinical tools, built in
@@ -1775,7 +1777,7 @@ function CalculatorsSection() {
                   style={{
                     fontFamily: 'ui-monospace, Menlo, monospace',
                     fontSize: 12,
-                    color: 'var(--ink-faint)',
+                    color: 'var(--ink-muted)',
                   }}
                 >
                   {calc.unit}
@@ -1792,12 +1794,12 @@ function CalculatorsSection() {
             gap: 10,
             marginTop: 26,
             fontSize: 13.5,
-            color: 'var(--ink-faint)',
+            color: 'var(--ink-muted)',
             letterSpacing: '-0.01em',
           }}
         >
           <IoInformationCircleOutline
-            style={{ fontSize: 17, color: 'var(--ink-faint2)' }}
+            style={{ fontSize: 17, color: 'var(--ink-muted)' }}
             aria-hidden="true"
           />
           <span>
@@ -1925,7 +1927,7 @@ function ModulesSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: 'var(--blue)',
+              color: 'var(--blue-text)',
             }}
           >
             One system, not six tabs
@@ -1960,7 +1962,7 @@ function ModulesSection() {
                 fontWeight: 700,
                 color: 'var(--ink-body)',
                 textDecoration: 'underline',
-                textDecorationColor: 'var(--blue)',
+                textDecorationColor: 'var(--blue-text)',
                 textDecorationThickness: '2px',
                 textUnderlineOffset: '3px',
               }}

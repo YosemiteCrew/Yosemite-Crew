@@ -45,6 +45,9 @@ describe('Pricing (marketing)', () => {
     expect(screen.getByText('Free')).toBeInTheDocument();
     expect(screen.getByText('Business')).toBeInTheDocument();
     expect(screen.getByText('Enterprise')).toBeInTheDocument();
+    expect(screen.getByText('Free')).toHaveStyle({ color: 'var(--ink-muted)' });
+    expect(screen.getByText('Enterprise')).toHaveStyle({ color: 'var(--ink-muted)' });
+    expect(screen.getByText('COMING SOON')).toHaveStyle({ color: 'var(--ink-muted)' });
 
     // Real per-plan features from the prototype
     expect(screen.getByText('IDEXX + MSD Veterinary Manual')).toBeInTheDocument();
@@ -59,20 +62,29 @@ describe('Pricing (marketing)', () => {
   test('billing toggle switches the Business price from monthly to yearly', () => {
     render(<Pricing />);
 
+    const monthly = screen.getByRole('button', { name: 'Monthly' });
+    const yearly = screen.getByRole('button', { name: 'Yearly' });
+
     // Defaults to monthly: €12 per user / month
+    expect(monthly).toHaveAttribute('aria-pressed', 'true');
+    expect(yearly).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByText('€12')).toBeInTheDocument();
     expect(screen.getByText('per user / month')).toBeInTheDocument();
     expect(screen.queryByText('€10')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Yearly' }));
+    fireEvent.click(yearly);
 
     // Yearly: €10 per user / month, billed yearly
+    expect(monthly).toHaveAttribute('aria-pressed', 'false');
+    expect(yearly).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('€10')).toBeInTheDocument();
     expect(screen.getByText('per user / month, billed yearly')).toBeInTheDocument();
     expect(screen.queryByText('€12')).not.toBeInTheDocument();
 
     // Switch back to monthly
-    fireEvent.click(screen.getByRole('button', { name: 'Monthly' }));
+    fireEvent.click(monthly);
+    expect(monthly).toHaveAttribute('aria-pressed', 'true');
+    expect(yearly).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByText('€12')).toBeInTheDocument();
   });
 

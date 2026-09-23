@@ -54,6 +54,11 @@ export interface RenderedDoc {
  * arbitrary data attributes. rehype-sanitize's default already strips event
  * handlers and javascript: URLs; this only widens it where a feature needs it.
  */
+const defaultAnchorAttributes = defaultSchema.attributes?.a ?? [];
+const defaultAnchorClassNames = defaultAnchorAttributes.flatMap((attribute) =>
+  Array.isArray(attribute) && attribute[0] === 'className' ? attribute.slice(1) : []
+);
+
 const schema: Schema = {
   ...defaultSchema,
   /*
@@ -80,7 +85,15 @@ const schema: Schema = {
     h4: [...(defaultSchema.attributes?.h4 ?? []), 'id'],
     h5: [...(defaultSchema.attributes?.h5 ?? []), 'id'],
     h6: [...(defaultSchema.attributes?.h6 ?? []), 'id'],
-    a: [...(defaultSchema.attributes?.a ?? []), 'id', 'rel', 'target', ['className']],
+    a: [
+      ...defaultAnchorAttributes.filter(
+        (attribute) => !(Array.isArray(attribute) && attribute[0] === 'className')
+      ),
+      'id',
+      'rel',
+      'target',
+      ['className', ...defaultAnchorClassNames, 'DocsHeadingAnchor'],
+    ],
   },
 };
 

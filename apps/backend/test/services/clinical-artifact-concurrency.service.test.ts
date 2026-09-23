@@ -214,12 +214,16 @@ describe("ClinicalArtifact optimistic concurrency", () => {
   it("claims the artifact on a lifecycle transition too", async () => {
     mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(soapRow());
 
-    await ClinicalArtifactService.finalizeSoapNote(soapNoteId, organisationId);
+    await ClinicalArtifactService.finalizeSoapNote(
+      soapNoteId,
+      organisationId,
+      CALLER_VERSION,
+    );
 
     expect(whereOfArtifactUpdate()).toEqual({
       id: artifactId,
       organisationId,
-      version: STORED_VERSION,
+      version: CALLER_VERSION,
     });
     expect(dataOfArtifactUpdate().status).toBe("COMPLETED");
   });

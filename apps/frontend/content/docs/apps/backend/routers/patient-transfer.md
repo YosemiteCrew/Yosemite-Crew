@@ -6,7 +6,7 @@ slug: /apps/backend/api/patient-transfer
 
 Manages a patient's transfer or referral record for the PIMS (Practice Information Management System, the clinic-facing web app): referring or discharging a patient to another facility or vet, carrying the clinical handoff details — diagnoses, ongoing treatments, dispensed medications, case summary, and critical alerts — that travel with them. All routes require organisation RBAC (role-based access control) permissions on `companions`.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/patient-transfers
 

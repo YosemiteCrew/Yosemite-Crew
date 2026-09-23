@@ -279,6 +279,28 @@ describe('DeveloperBilling page', () => {
       expect(screen.getByText(/Metered — billed at the end/)).toBeInTheDocument();
     });
 
+    it('shows an actionable warning when durable metering needs attention', async () => {
+      getSubscriptionMock.mockResolvedValue(proSub);
+      getUsageMock.mockResolvedValue({
+        ...meteredUsage,
+        metering: {
+          recorded: 48_250,
+          reported: 48_248,
+          pending: 2,
+          status: 'configuration_error',
+          failureCode: 'missing_meter_configuration',
+          oldestPendingAt: '2026-08-20T10:00:00.000Z',
+        },
+      });
+
+      render(<DeveloperBilling />);
+
+      const warning = await screen.findByRole('alert');
+      expect(warning).toHaveTextContent('2 calls remain safely queued');
+      expect(warning).toHaveTextContent('missing_meter_configuration');
+      expect(warning).toHaveTextContent('Contact support');
+    });
+
     it('hides the meter but keeps the plan cards when usage fails to load', async () => {
       getUsageMock.mockRejectedValue(new Error('network'));
       render(<DeveloperBilling />);

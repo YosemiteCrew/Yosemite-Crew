@@ -6,7 +6,7 @@ slug: /apps/backend/api/parasite-risk
 
 Serves modelled parasite risk to the mobile app: a risk reading for the grid cell containing a coordinate, plus the locations a pet parent has subscribed to for alerts. All routes are mobile-only and scoped to the authenticated pet parent (resolved from the auth user's linked parent record) — there is no PIMS (Practice Information Management System) or organisation surface.
 
-**Endpoints**
+## Endpoints
 
 ### GET /
 

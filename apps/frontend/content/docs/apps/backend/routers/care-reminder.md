@@ -6,7 +6,7 @@ slug: /apps/backend/api/care-reminder
 
 Manages care reminders sent to clients on behalf of a patient — vaccination boosters, annual checkups, parasite treatment, dental cleaning, follow-ups, and custom reminders. Covers single and bulk creation, listing, sending, marking a reminder as responded to (optionally linking the appointment that resulted), and cancelling. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are gated by organisation RBAC (role-based access control).
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/care-reminders
 

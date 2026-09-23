@@ -6,7 +6,7 @@ slug: /apps/backend/api/mobile-prescription
 
 Lets a signed-in pet parent list the prescriptions for their companions from the mobile app, using keyset (cursor-based) pagination.
 
-**Endpoints**
+## Endpoints
 
 ### GET /mobile
 

@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { basename, dirname, resolve } from 'node:path';
-import { existsSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import {
+  baseFromMergeCommit,
+  changedFiles,
+  parentsOf,
   classify,
   groupTestsByWorkspace,
+  authTestsOf,
   scriptTestsOf,
   selectDiscoverable,
   workspaceOf,
@@ -113,6 +118,15 @@ test('routes a changed test to the workspace that can run it', () => {
   // was missing, every desktop test change reported "outside a known workspace"
   // and the gate failed a PR that had in fact proved its change.
   assert.equal(workspaceOf('apps/desktop/tests/window-config.test.ts'), '@yosemite-crew/desktop');
+  assert.equal(
+    workspaceOf('packages/agent-runtime/test/contract.test.ts'),
+    '@yosemite-crew/agent-runtime'
+  );
+  assert.equal(workspaceOf('packages/mcp-server/test/client.test.ts'), '@yosemite-crew/mcp-server');
+  // auth runs node --test over compiled output, so its paths must not be
+  // handed to jest.
+  assert.equal(workspaceOf('packages/auth/src/auth-service.test.ts'), undefined);
+  assert.equal(workspaceOf('packages/types/src/x.test.ts'), undefined);
 });
 
 test('groups tests per workspace and drops what this gate cannot run', () => {
@@ -175,6 +189,21 @@ test('the root runner claims only what node --test can load', () => {
       'scripts/ci/__tests__/helper.ts',
     ]),
     []
+  );
+});
+
+test('routes only compiled auth tests to the auth node:test runner', () => {
+  assert.deepEqual(
+    authTestsOf([
+      'packages/auth/src/auth-service.test.ts',
+      'packages/auth/src/providers/legacy-cognito/legacy-token-verifier.test.ts',
+      'packages/auth/src/support.ts',
+      'packages/types/src/types.test.ts',
+    ]),
+    [
+      'packages/auth/src/auth-service.test.ts',
+      'packages/auth/src/providers/legacy-cognito/legacy-token-verifier.test.ts',
+    ]
   );
 });
 
@@ -438,8 +467,17 @@ test('resolveInside accepts what is inside and refuses what is not', () => {
   // path naming something above the repository root would be resolved and run.
   assert.equal(resolveInside('/tmp/d', 'report.json'), '/tmp/d/report.json');
   assert.equal(resolveInside('/tmp/d', 'a/b.json'), '/tmp/d/a/b.json');
-  assert.equal(resolveInside('/tmp/d', '/tmp/d/report.json'), '/tmp/d/report.json');
-  for (const outside of ['..', '../report.json', '/etc/passwd', 'a/../../b', '.']) {
+  for (const outside of [
+    '..',
+    '../report.json',
+    '/tmp/d/report.json',
+    '/etc/passwd',
+    'a/../../b',
+    '.',
+    'a//b',
+    'a\\b',
+    'a\0b',
+  ]) {
     assert.throws(() => resolveInside('/tmp/d', outside), /not inside/, outside);
   }
 });
@@ -500,5 +538,112 @@ test('changed paths are made absolute and confined to the repository', () => {
   // A path naming something above the root is refused, not resolved and run.
   for (const outside of ['../elsewhere/a.test.ts', '/etc/passwd', 'apps/../../a.test.ts']) {
     assert.throws(() => absolutePathsIn(root, [outside]), /not inside/, outside);
+  }
+});
+
+test('changed test paths cannot escape through a symbolic link', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'mutation-gate-root-'));
+  const outside = `${root}-outside.test.ts`;
+  try {
+    writeFileSync(outside, 'not a repository test');
+    symlinkSync(outside, resolve(root, 'outside.test.ts'));
+    assert.throws(
+      () => absolutePathsIn(root, ['outside.test.ts']),
+      /refusing a symbolic-link test path/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { force: true });
+  }
+});
+
+test('the base comes from the merge commit, not from the event payload', () => {
+  // #3530: the event's base sha is the base branch tip when the event fired,
+  // and the merge ref is recomputed as the base branch moves. The merge
+  // commit's own first parent is the only base that cannot drift away from the
+  // commit being diffed.
+  assert.equal(baseFromMergeCommit(['a9920024', 'a5f7ba79'], 'a5f7ba79'), 'a9920024');
+});
+
+test('a checkout that is not the merge commit yields no base at all', () => {
+  // Both of these have a plausible `parents[0]` - the branch's own previous
+  // commit - which would narrow the range to one commit with no error at all.
+  assert.equal(baseFromMergeCommit(['a5f7ba79'], 'a5f7ba79'), null, 'a head-sha checkout');
+  assert.equal(
+    baseFromMergeCommit(['0cb8629c', 'a9920024'], 'a5f7ba79'),
+    null,
+    'a branch that merged its base in by hand'
+  );
+});
+
+test('the range excludes what the base branch merged after this branch forked', () => {
+  // Reproduces #3530 against a real repository: a base branch that moves on
+  // after the branch forks, and the merge commit GitHub recomputes from the two.
+  const repo = mkdtempSync(resolve(tmpdir(), 'gate-base-skew-'));
+  const hooks = resolve(repo, 'no-hooks');
+  const git = (...args) =>
+    execFileSync(
+      'git',
+      [
+        '-C',
+        repo,
+        '-c',
+        `core.hooksPath=${hooks}`,
+        '-c',
+        'user.email=t@example.com',
+        '-c',
+        'user.name=T',
+        ...args,
+      ],
+      { encoding: 'utf8' }
+    ).trim();
+  const commit = (file, body) => {
+    writeFileSync(resolve(repo, file), body);
+    git('add', file);
+    git('commit', '-q', '-m', file);
+    return git('rev-parse', 'HEAD');
+  };
+
+  try {
+    mkdirSync(hooks);
+    git('init', '-q', '-b', 'base');
+    // The base branch tip when the pull request event fired, which is what the
+    // job used to be handed as its base.
+    const baseShaAtEventTime = commit('base.ts', 'export const a = 1;\n');
+
+    git('checkout', '-q', '-b', 'feature');
+    commit('feature.ts', 'export const b = 2;\n');
+    const head = commit('feature.test.ts', 'test("b", () => {});\n');
+
+    // Another pull request lands on the base branch while this one is open.
+    git('checkout', '-q', 'base');
+    const movedBase = commit('foreign.test.ts', 'test("foreign", () => {});\n');
+
+    // The --base fallback, used by workflow_dispatch and local runs, where HEAD
+    // is the branch itself. Three-dot is what keeps a base branch that has moved
+    // on out of the range there; a two-dot range would report `foreign.test.ts`
+    // as a file this branch deleted.
+    git('checkout', '-q', head);
+    assert.deepEqual(changedFiles(movedBase, git), ['feature.test.ts', 'feature.ts']);
+    git('checkout', '-q', 'base');
+
+    // refs/pull/<n>/merge, recomputed against the base branch as it is NOW.
+    git('merge', '-q', '--no-ff', '--no-verify', 'feature');
+    const parents = parentsOf('HEAD', git);
+
+    const base = baseFromMergeCommit(parents, head);
+    assert.equal(base, parents[0]);
+    assert.deepEqual(changedFiles(base, git), ['feature.test.ts', 'feature.ts']);
+
+    // The control. The same range taken from the event's base sha hands the
+    // gate a test this branch never wrote, whose failure it would report as
+    // this branch proving itself. Without this the assertion above could be
+    // passing on a fixture incapable of reproducing the bug.
+    assert.ok(
+      changedFiles(baseShaAtEventTime, git).includes('foreign.test.ts'),
+      'the fixture must be able to reproduce the misattribution'
+    );
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
   }
 });

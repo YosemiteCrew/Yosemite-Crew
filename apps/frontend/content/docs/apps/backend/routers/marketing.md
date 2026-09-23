@@ -6,7 +6,7 @@ slug: /apps/backend/api/marketing
 
 Serves marketing data consumed by the public site. Currently a single endpoint returning the current Discord community member count; the response is cached for five minutes.
 
-**Endpoints**
+## Endpoints
 
 ### GET /discord-members
 

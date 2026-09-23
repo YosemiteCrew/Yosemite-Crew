@@ -6,7 +6,7 @@ slug: /apps/backend/api/organisation-invite
 
 Lets an invited user act on organisation invites: accept or decline a specific invite by token, and list their own pending invites. Invites are created from the [Organization API](./organization.md).
 
-**Endpoints**
+## Endpoints
 
 ### POST /:token/accept
 

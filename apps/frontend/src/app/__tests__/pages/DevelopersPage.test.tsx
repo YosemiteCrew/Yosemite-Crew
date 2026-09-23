@@ -140,11 +140,12 @@ describe('DevelopersPage', () => {
     expect(body).not.toContain('—');
   });
 
-  it('renders the FHIR response codes with cyan keys', () => {
-    // Hero Patient response key uses the cyan-text token (light value #38ccd8),
-    // which flips to a brighter cyan on the dark theme's response card.
+  it('renders the hero response with readable semantic tokens', () => {
     const heroKey = screen.getByText('"id"');
-    expect(heroKey.style.color).toBe('var(--cyan-text)');
+    expect(heroKey.style.color).toBe('var(--blue-text)');
+    const heroResponse = heroKey.closest('div') as HTMLElement;
+    expect(within(heroResponse).getByText('GET')).toHaveStyle({ color: 'var(--success-text)' });
+    expect(within(heroResponse).getByText('200 OK')).toHaveStyle({ color: 'var(--success-text)' });
 
     // The bundle.json block keys sit on an always-dark code card, so they keep the
     // same cyan fill in both themes - now the --cyan token, which resolves to the

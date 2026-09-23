@@ -6,7 +6,7 @@ slug: /apps/backend/api/user-profile
 
 Manages a user's profile within a specific organisation (create, update, fetch, and profile-picture uploads). Called by the PIMS (Practice Information Management System, the clinic-facing web app). See the [User API](./user.md) for the underlying user account.
 
-**Endpoints**
+## Endpoints
 
 ### POST /:organizationId/profile
 

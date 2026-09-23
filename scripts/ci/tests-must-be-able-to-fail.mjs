@@ -38,9 +38,9 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** A test file, by this repository's own conventions. */
@@ -66,6 +66,25 @@ export const isCheckableSource = (file) => {
 };
 
 /**
+ * Shared packages whose tests this gate can run, by directory.
+ *
+ * Only jest workspaces belong here. `@yosemite-crew/auth` runs its tests with
+ * `node --test` over compiled output, so handing its paths to `pnpm --filter
+ * auth exec jest` would fail on a runner that is not there - which this gate
+ * cannot distinguish from the import failure it reads as evidence. Auth tests
+ * are selected and run separately below.
+ *
+ * Until #3049 nothing under `packages/` mapped at all, so a PR whose only
+ * tests were in a shared package reported "outside a known workspace" and the
+ * gate refused to judge it. Same blind spot as desktop and `scripts/`, one
+ * directory across.
+ */
+const PACKAGE_WORKSPACES = {
+  'agent-runtime': '@yosemite-crew/agent-runtime',
+  'mcp-server': '@yosemite-crew/mcp-server',
+};
+
+/**
  * The workspace a changed test belongs to.
  *
  * The first version ran `pnpm --filter frontend` unconditionally, so a PR whose
@@ -78,14 +97,19 @@ export const isCheckableSource = (file) => {
  * test change read as "outside a known workspace" and fail the gate.
  */
 export const workspaceOf = (file) => {
-  const match = /^apps\/([^/]+)\//.exec(file);
-  if (!match) return undefined;
-  return {
-    frontend: 'frontend',
-    backend: 'backend',
-    mobileAppYC: 'mobileAppYC',
-    desktop: '@yosemite-crew/desktop',
-  }[match[1]];
+  const app = /^apps\/([^/]+)\//.exec(file);
+  if (app) {
+    return {
+      frontend: 'frontend',
+      backend: 'backend',
+      mobileAppYC: 'mobileAppYC',
+      desktop: '@yosemite-crew/desktop',
+    }[app[1]];
+  }
+
+  const pkg = /^packages\/([^/]+)\//.exec(file);
+  if (!pkg) return undefined;
+  return PACKAGE_WORKSPACES[pkg[1]];
 };
 
 /** Groups test paths by the workspace whose runner can execute them. */
@@ -120,6 +144,10 @@ export const groupTestsByWorkspace = (tests) => {
  * reads as evidence.
  */
 export const scriptTestsOf = (tests) => tests.filter((t) => /^scripts\/.+\.test\.mjs$/.test(t));
+
+/** Changed auth tests executed by that package's compiled node:test runner. */
+export const authTestsOf = (tests) =>
+  tests.filter((t) => /^packages\/auth\/src\/.+\.test\.ts$/.test(t));
 
 export const classify = (files) => ({
   source: files.filter(isCheckableSource),
@@ -170,10 +198,7 @@ export const categorizeSourceFiles = (source, existsAtBase, existsAtHead) => {
  * - wrongly, because the path never reached the runner - which is a bug, and
  *   until #3264 was indistinguishable from the first.
  *
- * Both sides arrive already resolved through `realpathSync`, because jest
- * prints absolute paths and `/var` is a symlink to `/private/var` on macOS -
- * the same trap the direct-invocation check at the bottom of this file
- * documents.
+ * Both sides are absolute paths rooted at the repository returned by git.
  */
 export const selectDiscoverable = (paths, discovered) => {
   const set = new Set(discovered);
@@ -279,6 +304,49 @@ export const verdict = ({
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 
 /**
+ * The files this branch itself changed.
+ *
+ * Three-dot deliberately: the left end is the merge base of `base` and `HEAD`,
+ * so a base branch that has moved on since `base` was captured contributes
+ * nothing. A two-dot range is a plain comparison of two trees and would report
+ * every file the base branch changed after the fork point as though this branch
+ * had reverted it.
+ *
+ * The left end still has to be the right commit: on a pull request that is the
+ * merge commit's first parent, not the event's base sha. See
+ * `baseFromMergeCommit`.
+ */
+export const changedFiles = (base, run = git) =>
+  run('diff', '--name-only', `${base}...HEAD`).split('\n').filter(Boolean);
+
+/**
+ * The base of the range, read off the checkout instead of the event payload.
+ *
+ * On a `pull_request` event the checkout is refs/pull/<n>/merge: a merge commit
+ * whose FIRST parent is the base branch tip it was computed against and whose
+ * SECOND parent is the pull request head. That first parent is the one base
+ * that cannot go stale, because the commit being diffed was computed from it.
+ *
+ * `github.event.pull_request.base.sha` is the base branch tip when the event
+ * FIRED. The merge ref is recomputed as the base branch moves; the event sha is
+ * not. Everything merged in between then falls inside the range and is
+ * attributed to this pull request - and this gate reads a failure anywhere in
+ * the range as the branch proving itself, so another pull request's failing
+ * test became this one's evidence (#3530).
+ *
+ * Returns null unless HEAD really is that merge commit. A head-sha checkout has
+ * one parent, and a branch that merged its base in by hand has two whose second
+ * is not the pull request head; in both, `parents[0]` is the branch's own
+ * previous commit and the range would silently narrow to a single commit.
+ */
+export const baseFromMergeCommit = (parents, headSha) =>
+  parents.length === 2 && headSha && parents[1] === headSha ? parents[0] : null;
+
+/** The parents of a commit, oldest first. Input for `baseFromMergeCommit`. */
+export const parentsOf = (rev, run = git) =>
+  run('rev-list', '--parents', '-n1', rev).split(' ').slice(1);
+
+/**
  * One workspace's changed test paths, absolute and confined to the repository.
  *
  * They arrive from `git diff --name-only`, which is outside input as far as
@@ -286,16 +354,17 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
  * runner - so they are confined before either happens rather than after.
  */
 export const absolutePathsIn = (repoRoot, paths) =>
-  paths.map((path) => real(resolveInside(repoRoot, path)));
-
-/** Resolves a path the way jest prints one, tolerating one that is already gone. */
-const real = (path) => {
-  try {
-    return realpathSync(path);
-  } catch {
-    return path;
-  }
-};
+  paths.map((path) => {
+    const absolute = resolveInside(repoRoot, path);
+    try {
+      if (lstatSync(absolute).isSymbolicLink()) {
+        throw new Error(`refusing a symbolic-link test path: ${path}`);
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+    return absolute;
+  });
 
 const jest = (ws, jestArgs, options) =>
   execFileSync('pnpm', ['--filter', ws, 'exec', 'jest', '--ci', ...jestArgs], options);
@@ -305,8 +374,7 @@ const discoverableIn = (ws, absolutePaths) => {
   const listed = jest(ws, ['--listTests', '--passWithNoTests'], { encoding: 'utf8' })
     .split('\n')
     .map((line) => line.trim())
-    .filter(Boolean)
-    .map(real);
+    .filter(Boolean);
   return selectDiscoverable(absolutePaths, listed);
 };
 
@@ -371,20 +439,22 @@ export const withJestReport = (runJest) => {
 };
 
 /**
- * `candidate` resolved against `dir`, or a throw if it does not land inside it.
+ * `candidate` appended to the trusted repository root, or a throw if it could escape it.
  *
  * Used where a path arrives from outside this script. Refusing is the right
  * answer rather than a clamp: a changed-file list that names something above
  * the repository root is not a list this gate can act on.
  */
 export const resolveInside = (dir, candidate) => {
-  const base = resolve(dir);
-  const target = resolve(base, candidate);
-  const within = relative(base, target);
-  if (within === '' || within.startsWith('..') || isAbsolute(within)) {
+  const parts = candidate.split('/');
+  if (
+    candidate.includes('\\') ||
+    candidate.includes('\0') ||
+    parts.some((part) => part === '' || part === '.' || part === '..')
+  ) {
     throw new Error(`refusing a path that is not inside ${dir}: ${candidate}`);
   }
-  return target;
+  return `${dir.endsWith('/') ? dir : `${dir}/`}${parts.join('/')}`;
 };
 
 /**
@@ -472,6 +542,25 @@ const runChangedScriptTests = (absolutePaths) => {
   }
 };
 
+/** Builds auth, then runs only the changed tests from its compiled output. */
+const runChangedAuthTests = (repoRoot, paths) => {
+  console.log(`running ${paths.length} changed auth test file(s) against the base`);
+  try {
+    execFileSync('pnpm', ['--filter', '@yosemite-crew/auth', 'run', 'build'], {
+      stdio: 'inherit',
+    });
+    const compiled = paths.map((path) =>
+      path.replace(/^packages\/auth\/src\//, 'packages/auth/dist/src/').replace(/\.ts$/, '.js')
+    );
+    execFileSync('node', ['--test', ...absolutePathsIn(repoRoot, compiled)], {
+      stdio: 'inherit',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const main = () => {
   const args = process.argv.slice(2);
   const get = (flag, fallback) => {
@@ -501,14 +590,30 @@ const main = () => {
     return;
   }
 
-  const base = get('--base', 'origin/dev');
+  // --head-sha is how a pull request run identifies itself. Without it - a
+  // workflow_dispatch, or a local run - there is no merge commit to read a base
+  // off, and --base falls back to the base branch.
+  const headSha = get('--head-sha', '');
+  const parents = headSha ? parentsOf('HEAD') : [];
+  const base = headSha ? baseFromMergeCommit(parents, headSha) : get('--base', 'origin/dev');
   const allowUnchangedBehaviour = args.includes('--allow-unchanged-behaviour');
+
+  if (base === null) {
+    console.error(
+      `HEAD is ${git('rev-parse', 'HEAD')} with parent(s) ${parents.join(' ') || '(none)'},\n` +
+        `which is not the merge commit for head ${headSha}. The base this gate diffs\n` +
+        "against is that merge commit's first parent, so without it the range is not this\n" +
+        "branch's change set and a failure in it would not be this branch's proof (#3530).\n" +
+        'Check out refs/pull/<n>/merge - that is the actions/checkout default.'
+    );
+    process.exit(1);
+  }
 
   // --runTestsByPath resolves against the workspace rootDir, not the repo root,
   // so the repo-relative paths a diff yields have to be made absolute first.
   const repoRoot = git('rev-parse', '--show-toplevel');
 
-  const files = git('diff', '--name-only', `${base}...HEAD`).split('\n').filter(Boolean);
+  const files = changedFiles(base);
   const { source, tests } = classify(files);
 
   console.log(`source files changed: ${source.length}`);
@@ -555,11 +660,12 @@ const main = () => {
 
     const byWorkspace = groupTestsByWorkspace(runnableTests);
     const scriptTests = scriptTestsOf(runnableTests);
+    const authTests = authTestsOf(runnableTests);
     try {
       if (runnableTests.length === 0) {
         console.log('every changed test file was deleted by this branch; nothing left to run');
         nothingRunnable = 'all-tests-deleted';
-      } else if (byWorkspace.size === 0 && scriptTests.length === 0) {
+      } else if (byWorkspace.size === 0 && scriptTests.length === 0 && authTests.length === 0) {
         console.log('no runnable unit tests changed (e2e only, or outside a known workspace)');
         nothingRunnable = 'e2e-only';
       } else {
@@ -569,12 +675,13 @@ const main = () => {
         // survive their own revert"; one failing anywhere proves they do not.
         const scriptsPassed =
           scriptTests.length === 0 || runChangedScriptTests(absolutePathsIn(repoRoot, scriptTests));
-        const ranAnything = run.ranAnything || scriptTests.length > 0;
+        const authPassed = authTests.length === 0 || runChangedAuthTests(repoRoot, authTests);
+        const ranAnything = run.ranAnything || scriptTests.length > 0 || authTests.length > 0;
         // `allPassed` starts true and nothing ran to falsify it, so reading it
         // as "the tests survived their own revert" would be the vacuous pass
         // `--passWithNoTests` used to hand out for a branch whose only test
         // change is a `__tests__/support/` helper.
-        testsPassedAgainstBase = ranAnything ? run.allPassed && scriptsPassed : null;
+        testsPassedAgainstBase = ranAnything ? run.allPassed && scriptsPassed && authPassed : null;
         if (!ranAnything) nothingRunnable = 'no-tests-in-changed-tests';
       }
     } finally {

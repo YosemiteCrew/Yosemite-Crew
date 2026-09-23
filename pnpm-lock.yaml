@@ -1042,6 +1042,24 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/agent-runtime:
+    devDependencies:
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@types/node':
+        specifier: 26.5.1
+        version: 26.5.1
+      jest:
+        specifier: ^30.5.1
+        version: 30.5.1(@types/node@26.5.1)(ts-node@10.9.2)
+      ts-jest:
+        specifier: ^29.4.12
+        version: 29.4.12(@babel/core@7.29.6)(esbuild@0.28.2)(jest@30.5.1)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/auth:
     dependencies:
       cors:

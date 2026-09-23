@@ -199,11 +199,29 @@ jobs:
         # pageInvariants and routeSweepExtractors need no session, so they run
         # here and therefore on every pull request - the rules and the DOM
         # extraction are gated pre-merge even though the sweep that uses them
-        # can only run where credentials exist.
+        # can only run where credentials exist. docs-mobile and
+        # marketing-hero-mobile are public too, and they are the specs that
+        # drive a phone viewport; this list is explicit, so a spec left off it
+        # never runs anywhere. It has already happened twice: #3502 added
+        # marketing-hero-mobile, read a green `Frontend E2E Required`, and the
+        # spec had not run at all; session-write-replay then sat unlisted from
+        # the day it was written (#3535).
+        #
+        # Adding the file here is no longer something anyone has to remember.
+        # scripts/ci/check-e2e-spec-coverage.mjs fails the core job when a spec
+        # under apps/frontend/e2e is named by no workflow, so the omission is
+        # now red rather than silent.
+        #
+        # session-write-replay belongs on THIS list rather than the
+        # authenticated one below: it fulfils every API call with `page.route`
+        # and fabricates its own front token, so it needs no credentials, and
+        # putting it below would make it unreachable from a fork.
         run: >-
           pnpm --filter frontend exec playwright test
           e2e/smoke.spec.ts e2e/a11y.spec.ts
           e2e/pageInvariants.spec.ts e2e/routeSweepExtractors.spec.ts
+          e2e/docs-mobile.spec.ts e2e/marketing-hero-mobile.spec.ts
+          e2e/no-js.spec.ts e2e/session-write-replay.spec.ts
 
       - name: Upload Playwright HTML report
         if: always()

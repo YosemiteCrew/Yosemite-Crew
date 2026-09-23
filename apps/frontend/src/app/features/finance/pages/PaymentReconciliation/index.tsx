@@ -10,8 +10,13 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useInvoiceStore } from '@/app/stores/invoiceStore';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { useInvoicesForPrimaryOrg, useLoadInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 import { useProviderReceipts } from '@/app/features/finance/hooks/useProviderReceipts';
+import type { ProviderReceipt } from '@/app/features/finance/types/providerReceipt';
+import AllocateReceiptDialog from '@/app/features/finance/pages/PaymentReconciliation/Sections/AllocateReceiptDialog';
 import {
   ALL_STATUSES_KEY,
   RECONCILIATION_STATUS_FILTERS,
@@ -32,19 +37,56 @@ const dateFieldClass =
   'rounded-2xl border border-input-border-default focus-within:border-input-border-active ' +
   'bg-transparent px-4 py-2.5 text-body-4 text-text-primary outline-none';
 
+/**
+ * Fetches this organisation's invoices, and exists as a component so that it
+ * can be mounted conditionally.
+ *
+ * `useLoadInvoicesForPrimaryOrg` is a hook, so calling it from the screen would
+ * pull every invoice on first paint for every reader of the queue - including
+ * the ones without permission to apply anything. Mounting it with the allocate
+ * dialog makes choosing a capture the thing that asks for them. The hook keeps
+ * its own "already loaded" guard, so reopening the dialog does not refetch.
+ */
+const ReconciliationInvoiceLoader = () => {
+  useLoadInvoicesForPrimaryOrg();
+  return null;
+};
+
 const PaymentReconciliationContent = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
   const [activeStatus, setActiveStatus] = useState<string>(ALL_STATUSES_KEY);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [allocating, setAllocating] = useState<ProviderReceipt | null>(null);
 
-  const { receipts, loading, loadingMore, error, hasMore, loadMore, reload } = useProviderReceipts(
-    primaryOrgId ?? undefined,
-    toStatusFilter(activeStatus),
-    utcDayStart(fromDate),
-    utcDayEnd(toDate)
-  );
+  const { receipts, loading, loadingMore, error, hasMore, loadMore, reload, replaceReceipt } =
+    useProviderReceipts(
+      primaryOrgId ?? undefined,
+      toStatusFilter(activeStatus),
+      utcDayStart(fromDate),
+      utcDayEnd(toDate)
+    );
+
+  /*
+   * The invoices an allocation can name come from the store the finance
+   * screens already fill, rather than from a second endpoint. The picker
+   * narrows them with the same conditions the allocate route enforces, and the
+   * route remains the thing that decides.
+   *
+   * These two are selectors over what is already loaded; the fetch is mounted
+   * separately below, and only once an operator has chosen a capture to apply.
+   */
+  const invoices = useInvoicesForPrimaryOrg();
+  const invoicesLoading = useInvoiceStore((s) => s.status === 'loading');
+
+  /*
+   * `billing:edit:any`, matching the route the action calls. The screen itself
+   * is gated on `billing:view:any`, so a billing role that may read the queue
+   * and not move money gets the queue without the action.
+   */
+  const { can } = usePermissions();
+  const canAllocateReceipts = can(PERMISSIONS.BILLING_EDIT_ANY);
 
   const isFiltered = activeStatus !== ALL_STATUSES_KEY || Boolean(fromDate) || Boolean(toDate);
 
@@ -141,6 +183,22 @@ const PaymentReconciliationContent = () => {
         hasMore={hasMore}
         isFiltered={isFiltered}
         onLoadMore={loadMore}
+        {...(canAllocateReceipts ? { onAllocate: setAllocating } : {})}
+      />
+
+      {allocating !== null && <ReconciliationInvoiceLoader />}
+
+      <AllocateReceiptDialog
+        receipt={allocating}
+        organisationId={primaryOrgId ?? ''}
+        invoices={invoices}
+        invoicesLoading={invoicesLoading}
+        onClose={() => setAllocating(null)}
+        onAllocated={replaceReceipt}
+        onRequestReload={() => {
+          setAllocating(null);
+          reload();
+        }}
       />
     </div>
   );

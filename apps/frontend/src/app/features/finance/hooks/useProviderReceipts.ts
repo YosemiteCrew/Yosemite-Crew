@@ -21,6 +21,15 @@ export type ProviderReceiptQueue = {
   hasMore: boolean;
   loadMore: () => void;
   reload: () => void;
+  /**
+   * Put the stored receipt back over the row it replaces, by id.
+   *
+   * The readback after an allocation, not an optimistic edit: the caller passes
+   * what the server answered with. A no-op when the id is not on any loaded
+   * page, so a late answer for a row a filter change has already discarded
+   * cannot reintroduce it.
+   */
+  replaceReceipt: (receipt: ProviderReceipt) => void;
 };
 
 /**
@@ -122,5 +131,19 @@ export const useProviderReceipts = (
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
 
-  return { receipts, loading, loadingMore, error, hasMore, loadMore, reload };
+  /*
+   * Replaced in place rather than refetched, and kept even when its new state
+   * no longer matches the active filter.
+   *
+   * Refetching would discard every page after the first, losing the operator's
+   * place in a queue they are working down. Dropping the row because it is now
+   * ALLOCATED and the filter says UNALLOCATED would take the result of the
+   * write off the screen at the moment it succeeded - the reading is stale
+   * against the filter, not against the money, and the next reload settles it.
+   */
+  const replaceReceipt = useCallback((updated: ProviderReceipt) => {
+    setReceipts((prev) => prev.map((receipt) => (receipt.id === updated.id ? updated : receipt)));
+  }, []);
+
+  return { receipts, loading, loadingMore, error, hasMore, loadMore, reload, replaceReceipt };
 };

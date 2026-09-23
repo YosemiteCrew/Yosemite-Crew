@@ -10,6 +10,8 @@ import {
 } from "../../src/services/inventory-consumption.service";
 import { clinicalArtifactFhirMapper } from "../../src/services/fhir-clinical-artifact.mapper";
 import { renderPrescriptionLabelPdf } from "../../src/services/rendered-document-renderer.service";
+import { UNVERSIONED_CLINICAL_MUTATION_MARKER } from "../../src/controllers/web/fhir-controller.shared";
+import logger from "../../src/utils/logger";
 
 jest.mock("../../src/services/clinical-artifact.service", () => ({
   ClinicalArtifactService: {
@@ -104,7 +106,7 @@ describe("PrescriptionController", () => {
         organisationId: "org-1",
         prescriptionId: "rx-1",
       },
-      body: {},
+      body: { expectedVersion: 3 },
       headers: {},
     };
     buildResponse();
@@ -198,6 +200,7 @@ describe("PrescriptionController", () => {
       "rx-1",
       "org-1",
       { actorId: "vet-session", canEditAny: false },
+      3,
     );
   });
 
@@ -222,7 +225,50 @@ describe("PrescriptionController", () => {
       "rx-1",
       "org-1",
       { actorId: "supervisor-1", canEditAny: true },
+      3,
     );
+  });
+
+  // #3144 deploy order: a tab on the previous bundle posts $finalize with an empty body. It must
+  // still finalize and dispense - degraded to no precondition, as dev behaves today - rather than
+  // 400ing for the length of the deploy. A rejected finalize is also an undispensed medication.
+  it("finalizes without a precondition when the client sends no expectedVersion", async () => {
+    mockedClinicalService.finalizePrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-1" },
+      prescription: { id: "rx-1", medications: [{ quantity: 1 }] },
+    } as never);
+
+    await PrescriptionController.finalize(
+      { ...req, method: "POST", body: {} } as Request,
+      res as Response,
+    );
+
+    expect(mockedClinicalService.finalizePrescription).toHaveBeenCalledWith(
+      "rx-1",
+      "org-1",
+      { actorId: "", canEditAny: false },
+      undefined,
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+
+    // #3496 step 0: the degraded finalize is the only thing that can report itself, and #3496's
+    // entry condition is a count of exactly these. Without this line the condition is unmeasurable.
+    expect(logger.warn).toHaveBeenCalledWith(
+      UNVERSIONED_CLINICAL_MUTATION_MARKER,
+      { operation: "prescription-finalize", method: "POST" },
+    );
+  });
+
+  // A supplied value is still validated: zero/negative/non-integer is a client bug, not an old
+  // client, and must not be quietly dropped into an unconditional finalize.
+  it("rejects a malformed expectedVersion rather than finalizing unconditionally", async () => {
+    await PrescriptionController.finalize(
+      { ...req, body: { expectedVersion: 0 } } as Request,
+      res as Response,
+    );
+
+    expect(mockedClinicalService.finalizePrescription).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(400);
   });
 
   it("finalizes a prescription", async () => {
@@ -237,8 +283,12 @@ describe("PrescriptionController", () => {
       "rx-1",
       "org-1",
       { actorId: "", canEditAny: false },
+      3,
     );
     expect(statusMock).toHaveBeenCalledWith(200);
+    // A finalize that DID carry a precondition must not be counted, or #3496's entry condition
+    // never reaches zero however many clients upgrade.
+    expect(logger.warn).not.toHaveBeenCalled();
     expect(jsonMock).toHaveBeenCalledWith(
       expect.objectContaining({
         resourceType: "MedicationRequest",

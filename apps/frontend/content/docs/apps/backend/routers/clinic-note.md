@@ -6,7 +6,7 @@ slug: /apps/backend/api/clinic-note
 
 Free-text notes attached to a patient, client, or appointment (the note's "subject"), typed as general, billing, communication, follow-up, or alert, with the ability to pin/unpin a note for visibility. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are gated by organisation RBAC (role-based access control).
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/clinic-notes
 

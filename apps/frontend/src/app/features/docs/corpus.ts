@@ -5,9 +5,16 @@ import matter from 'gray-matter';
 /**
  * Reads the developer documentation corpus off disk.
  *
- * The 52 markdown files under content/docs are the source of truth. Nothing is
+ * The markdown files under content/docs are the source of truth. Nothing is
  * generated at request time - every page is prerendered - so this runs at build
  * time only.
+ *
+ * Deliberately uncounted: this said "the 52 markdown files" long after the
+ * corpus had tripled, because a figure in a comment decays silently every time
+ * a page is contributed and nothing reads it. A count earns its place here only
+ * where a test can contradict it - see searchIndex.test.ts, which pins both the
+ * index size budget and the claim that the router reference is the bulk of the
+ * corpus. This one carried no argument and was only ever a thing to get wrong.
  */
 
 export const DOCS_CONTENT_ROOT = path.join(process.cwd(), 'content', 'docs');
