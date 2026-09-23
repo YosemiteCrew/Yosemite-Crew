@@ -159,6 +159,7 @@ jest.mock("../../src/services/finance/client-account", () => ({
   __esModule: true,
   ClientAccountService: {
     getAccountCredit: jest.fn(),
+    proposeAllocation: jest.fn(),
   },
 }));
 jest.mock("src/utils/logger", () => ({
@@ -2156,6 +2157,117 @@ describe("FinanceController.getClientAccountCredit", () => {
     const res = buildRes();
 
     await FinanceController.getClientAccountCredit(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
+  });
+});
+
+describe("FinanceController.getClientAccountAllocationProposal", () => {
+  const PARENT = "22222222-2222-4222-8222-222222222222";
+
+  const buildRes = () =>
+    ({
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    }) as unknown as Response;
+
+  const buildReq = (overrides: Record<string, unknown> = {}) =>
+    ({
+      params: { organisationId: "org_1", parentId: PARENT },
+      query: {},
+      organisationId: "org_1",
+      ...overrides,
+    }) as unknown as Request;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    (ClientAccountService.proposeAllocation as jest.Mock).mockResolvedValue([]);
+  });
+
+  it("scopes the proposal to the authorized organisation, not the path", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(
+      buildReq({
+        params: { organisationId: "org_victim", parentId: PARENT },
+        organisationId: "org_attacker",
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(ClientAccountService.proposeAllocation).not.toHaveBeenCalled();
+  });
+
+  it("rejects a client id that is not a uuid without reaching the service", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(
+      buildReq({ params: { organisationId: "org_1", parentId: "not-a-uuid" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.proposeAllocation).not.toHaveBeenCalled();
+  });
+
+  it("returns the plan with the versions it was taken from", async () => {
+    const proposal = [
+      {
+        currency: "gbp",
+        availableCredit: 150,
+        proposedAmount: 150,
+        residualCredit: 0,
+        outstandingBefore: 180,
+        outstandingAfter: 30,
+        lines: [
+          { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 100 },
+          { receiptId: "receipt-1", invoiceId: "invoice-2", amount: 50 },
+        ],
+        credits: [
+          {
+            receiptId: "receipt-1",
+            version: 3,
+            capturedAt: new Date("2026-09-01T10:00:00.000Z"),
+            availableCredit: 150,
+          },
+        ],
+      },
+    ];
+    (ClientAccountService.proposeAllocation as jest.Mock).mockResolvedValue(
+      proposal,
+    );
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(buildReq(), res);
+
+    expect(ClientAccountService.proposeAllocation).toHaveBeenCalledWith({
+      organisationId: "org_1",
+      parentId: PARENT,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ data: proposal, error: null });
+  });
+
+  it("answers an empty list the same for nothing to propose and an unknown client", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ data: [], error: null });
+  });
+
+  it("reports a failed read as a server error rather than as nothing to apply", async () => {
+    // Answering [] on a thrown query would tell an operator this client has no
+    // credit to apply, which is the one wrong answer that looks like a real one.
+    (ClientAccountService.proposeAllocation as jest.Mock).mockRejectedValue(
+      new Error("database down"),
+    );
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(buildReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });

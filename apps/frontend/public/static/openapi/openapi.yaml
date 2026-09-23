@@ -8204,6 +8204,165 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/clients/{parentId}/account-credit/allocation-proposal':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/organisation/{organisationId}/clients/{parentId}/account-credit/allocation-proposal'
+      operationId: get_v1_finance_organisation_organisationId_clients_parentId_account_credit_allocation_proposal
+      description: "What applying this client's credit to their outstanding invoices would do (#3163), writing nothing. The default #3163 asks for is oldest debt first with whatever is left over staying as unapplied credit, and it has to be reviewable before it is confirmed rather than chosen at send time - which is why this is a separate read instead of a flag on the allocations route. The lines returned are exactly the lines the confirming call would send, and each capture is returned with the version it was planned from, so confirming is a compare-and-set against the state the operator saw. Only captures this organisation could actually apply are drawn on, so the total here is legitimately smaller than the account-credit route, which answers the different question of what the client has paid that no invoice claimed, whichever merchant account it landed in. billing:edit:any rather than the billing:view:any of that route: nothing is written, but a plan for applying money is only useful to someone allowed to apply it."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          description: The client. A value that is not a UUID is answered 400 rather than read as an empty result.
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: The proposed allocation, one entry per currency that has credit to spend
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    description: 'One entry per currency with spendable credit, ordered by currency code. Currencies are planned separately and never netted. An empty array means there is nothing to propose, and is the same answer given for a client this organisation has never invoiced.'
+                    items:
+                      type: object
+                      required:
+                        - currency
+                        - availableCredit
+                        - proposedAmount
+                        - residualCredit
+                        - outstandingBefore
+                        - outstandingAfter
+                        - lines
+                        - credits
+                      properties:
+                        currency:
+                          type: string
+                          description: ISO 4217 code, as recorded on the captures.
+                        availableCredit:
+                          type: number
+                          description: What this organisation could apply in this currency before the proposal.
+                        proposedAmount:
+                          type: number
+                          description: What the lines below would apply.
+                        residualCredit:
+                          type: number
+                          description: Credit the proposal would leave unapplied, which stays available.
+                        outstandingBefore:
+                          type: number
+                          description: What the client owes in this currency across their open invoices.
+                        outstandingAfter:
+                          type: number
+                          description: What they would still owe once the proposal was applied.
+                        lines:
+                          type: array
+                          description: 'One capture applied to one invoice, in the order the plan fills them: oldest debt first, oldest money first, each tie broken on the id so the same data produces the same plan on a second read. A capture already applied to an invoice is never paired with it again - the journal refuses that as a double-apply, so proposing it would propose an action that cannot be taken.'
+                          items:
+                            type: object
+                            required:
+                              - receiptId
+                              - invoiceId
+                              - amount
+                            properties:
+                              receiptId:
+                                type: string
+                                description: The capture the money comes from, and the id the allocations route takes.
+                              invoiceId:
+                                type: string
+                                description: The invoice it would be applied to.
+                              amount:
+                                type: number
+                                description: Never more than that invoice's outstanding balance nor more than the capture has left.
+                        credits:
+                          type: array
+                          description: 'Every capture in this currency the plan could draw on, including ones no line used - an operator editing the lines before confirming needs their versions too.'
+                          items:
+                            type: object
+                            required:
+                              - receiptId
+                              - version
+                              - capturedAt
+                              - availableCredit
+                            properties:
+                              receiptId:
+                                type: string
+                              version:
+                                type: integer
+                                description: The version this plan was taken from. The allocations route refuses a decision taken from state that has since moved.
+                              capturedAt:
+                                type: string
+                                format: date-time
+                              availableCredit:
+                                type: number
+                                description: 'amount - refundedAmount - allocatedAmount for this capture.'
+                  error:
+                    nullable: true
+        400:
+          description: A client id that is not a UUID, or no organisation could be resolved for the caller
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        401:
+          description: No staff session presented
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: The caller has no active membership of this organisation, or holds no billing:edit:any permission in it
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   '/v1/finance/organisation/{organisationId}/provider-receipts':
     get:
       tags:
