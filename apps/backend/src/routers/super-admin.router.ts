@@ -35,10 +35,8 @@ router.patch(
 // Backfill endpoint uses shared-secret auth (x-backfill-key) so the SuperAdmin
 // panel can trigger it without a Yosemite-Crew session. The panel's
 // YOSEMITE_BACKFILL_KEY must match the backend's YOSEMITE_BACKFILL_KEY.
-router.post(
-  "/contact-backfill",
-  requireBackfillKey,
-  SuperAdminContactBackfillController.triggerBackfill,
+router.post("/contact-backfill", requireBackfillKey, (req, res) =>
+  SuperAdminContactBackfillController.triggerBackfill(req, res),
 );
 
 export default router;
