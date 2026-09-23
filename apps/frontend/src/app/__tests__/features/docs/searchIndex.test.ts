@@ -67,6 +67,17 @@ describe('search index', () => {
     expect(toSearchText('## Heading\n\n<!-- hidden -->\n\nbody')).toBe('Heading body');
   });
 
+  /*
+   * The premise the header's inline-code decision rests on, gated instead of
+   * quoted. It used to be stated as a page count in the comment, which went
+   * four times out of date before anyone read it again. A share is what the
+   * argument actually needs, and unlike a count it survives a contributed page.
+   */
+  it('has the router reference as the bulk of the corpus', () => {
+    const routerPages = index.filter((doc) => doc.section === 'Backend API');
+    expect(routerPages.length).toBeGreaterThan(index.length / 2);
+  });
+
   it('stays far smaller than the plugin index it replaces', () => {
     const bytes = Buffer.byteLength(JSON.stringify(index));
     expect(bytes).toBeLessThan(400 * 1024);

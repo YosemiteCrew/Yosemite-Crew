@@ -9,12 +9,13 @@ import type { SearchDoc } from './searchIndex';
  * Client-side documentation search.
  *
  * The index is a prerendered JSON route, fetched once on first focus rather
- * than on mount, so a reader who never searches never pays for it. It is about
- * 344 KB for the 156-page corpus.
+ * than on mount, so a reader who never searches never pays for it. Its size is
+ * held under 400 KB by searchIndex.test.ts rather than quoted here, where
+ * nothing could contradict the figure.
  *
  * Matching is deliberately simple: every term must appear in the title or the
- * body text. That is enough for 156 pages and avoids shipping a scoring library
- * for a corpus this size. Titles rank above body hits.
+ * body text. That is enough at that size and avoids shipping a scoring library.
+ * Titles rank above body hits.
  */
 
 const INDEX_URL = '/docs/search-index.json';

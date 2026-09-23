@@ -10,8 +10,9 @@ import { loadCorpus, type DocEntry } from './corpus';
  * in it is public regardless of what the page renders.
  *
  * INLINE code spans are deliberately KEPT. Stripping them too would be the easy
- * over-correction and it would gut the corpus: the 36 router reference pages
- * are almost entirely inline code, so removing those spans would make
+ * over-correction and it would gut the corpus: the router reference pages are
+ * the bulk of it and are almost entirely inline code, so removing those spans
+ * would make
  * `requireWebAuth` or `UserController.getById` unfindable - which is precisely
  * what someone searching these pages is looking for. The secret lives in a
  * fence, so fences alone carry the security property.
