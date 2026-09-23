@@ -26,7 +26,7 @@ export const useAppLockLifecycle = ({
     null,
   );
   const activeRef = useRef(false);
-  const authenticatingRef = useRef(false);
+  const isAppLockPromptActive = useRef(false);
   const promptInactiveRef = useRef(false);
   const skipNextActiveRef = useRef(false);
 
@@ -40,7 +40,7 @@ export const useAppLockLifecycle = ({
     activeRef.current = true;
 
     const handleResume = async () => {
-      if (authenticatingRef.current) return;
+      if (isAppLockPromptActive.current) return;
       const background = backgroundRef.current;
       backgroundRef.current = null;
       if (!background) {
@@ -61,7 +61,7 @@ export const useAppLockLifecycle = ({
     };
 
     const onStateChange = async (next: AppStateStatus) => {
-      if (authenticatingRef.current) {
+      if (isAppLockPromptActive.current) {
         promptInactiveRef.current =
           next === 'background' || next === 'inactive';
         return;
@@ -71,7 +71,9 @@ export const useAppLockLifecycle = ({
         return;
       }
       if (next === 'background' || next === 'inactive') {
-        backgroundRef.current = {wall: Date.now(), mono: await monotonicNow()};
+        const entry = {wall: Date.now(), mono: null as number | null};
+        backgroundRef.current = entry;
+        entry.mono = await monotonicNow();
         return;
       }
       if (next === 'active') await handleResume();
@@ -83,7 +85,7 @@ export const useAppLockLifecycle = ({
 
   return {
     activeRef,
-    authenticatingRef,
+    isAppLockPromptActive,
     promptInactiveRef,
     skipNextActiveRef,
   };
