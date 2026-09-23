@@ -11,8 +11,9 @@ import type { SearchDoc } from './searchIndex';
  * Client-side documentation search.
  *
  * The index is a prerendered JSON route, fetched once on first focus rather
- * than on mount, so a reader who never searches never pays for it. It is about
- * 344 KB for the 156-page corpus.
+ * than on mount, so a reader who never searches never pays for it. Its size is
+ * held under 400 KB by searchIndex.test.ts rather than quoted here, where
+ * nothing could contradict the figure.
  *
  * Exact all-term matches render first. When fewer than three pages match, a
  * same-origin server route may widen candidates to any matching term and ask

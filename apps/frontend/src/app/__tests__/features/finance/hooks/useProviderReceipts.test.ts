@@ -190,4 +190,43 @@ describe('useProviderReceipts', () => {
     });
     expect(result.current.hasMore).toBe(false);
   });
+  /*
+   * The readback after an allocation. Driven through the hook because the
+   * screen's own path to it runs through a dialog: a page test that saw the
+   * row change could not tell replacing it in place from refetching the
+   * queue, and those differ in whether the operator keeps their place in it.
+   */
+  it('puts a stored receipt back over the row it replaces, without refetching', async () => {
+    listProviderReceipts.mockResolvedValueOnce(page(['a', 'b'], 'cur-2'));
+
+    const { result } = renderQueue();
+    await waitFor(() => expect(result.current.receipts).toHaveLength(2));
+
+    act(() =>
+      result.current.replaceReceipt({
+        ...receipt('b'),
+        status: 'ALLOCATED',
+        allocatedAmount: 10,
+        version: 2,
+      })
+    );
+
+    expect(result.current.receipts.map((row) => row.id)).toEqual(['a', 'b']);
+    expect(result.current.receipts[1]).toMatchObject({ status: 'ALLOCATED', version: 2 });
+    expect(result.current.receipts[0].status).toBe('UNALLOCATED');
+    // The cursor and the pages already read are untouched.
+    expect(listProviderReceipts).toHaveBeenCalledTimes(1);
+    expect(result.current.hasMore).toBe(true);
+  });
+
+  it('ignores a receipt no loaded page is showing', async () => {
+    listProviderReceipts.mockResolvedValueOnce(page(['a']));
+
+    const { result } = renderQueue();
+    await waitFor(() => expect(result.current.receipts).toHaveLength(1));
+
+    act(() => result.current.replaceReceipt({ ...receipt('z'), status: 'ALLOCATED' }));
+
+    expect(result.current.receipts.map((row) => row.id)).toEqual(['a']);
+  });
 });

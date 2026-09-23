@@ -6,7 +6,7 @@ slug: /apps/backend/api/icu-care-plan
 
 Manages ICU (intensive care unit) stays for a hospitalised patient: admission, the ongoing care plan (ventilator/oxygen support, lines and drains, nursing goals and frequency, alert thresholds), and discharge/transfer/death. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/icu-care-plans
 

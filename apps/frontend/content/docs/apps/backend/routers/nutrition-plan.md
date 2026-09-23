@@ -6,7 +6,7 @@ slug: /apps/backend/api/nutrition-plan
 
 Manages prescribed nutrition/diet plans — diet name, calorie and macronutrient (protein/fat/fibre) targets, feeding frequency and portion size, water intake, restrictions, indication, and review date — for a patient. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are scoped to an organisation. Unlike the other clinical assessment routers in this batch, there is no delete route — a plan is retired via its `status` field instead.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/nutrition-plans
 

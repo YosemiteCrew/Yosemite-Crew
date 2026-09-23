@@ -6,7 +6,7 @@ slug: /apps/backend/api/referral-letter
 
 Manages a patient's referral letter to an outside specialist in the PIMS (Practice Information Management System, the clinic-facing web app) — the specialist's details, the reason for referral, history and exam findings, current medications, and notes. A letter moves through `DRAFT`, `SIGNED`, `SENT`, `ACKNOWLEDGED`, or `CANCELLED` only via the dedicated sign/send/cancel action endpoints below, not through the update endpoint. All routes require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/referral-letters
 

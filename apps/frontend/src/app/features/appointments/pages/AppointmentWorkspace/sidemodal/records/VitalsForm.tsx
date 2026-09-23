@@ -14,7 +14,11 @@ import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorks
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type { Vitals } from '@/app/features/appointments/types/workspace';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
-import { saveVitalRecord } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  artifactVersionFromMeta,
+  getClinicalArtifactMutationErrorMessage,
+  saveVitalRecord,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import { listVitalsTemplates } from '@/app/features/appointments/services/workspaceTemplateService';
 import { getCategoryTemplate } from '@/app/lib/forms';
 import {
@@ -567,10 +571,17 @@ const VitalsForm = ({
         { organisationId, appointmentId, encounterId, authorId },
         nextVitals
       );
-      addVitals(appointmentId, nextVitals, (savedVital as { id?: string } | undefined)?.id);
+      addVitals(
+        appointmentId,
+        nextVitals,
+        (savedVital as { id?: string } | undefined)?.id,
+        artifactVersionFromMeta(savedVital)
+      );
     } catch (error) {
       console.error('Failed to save vitals', error);
-      setSaveError('Unable to save vitals. Please try again.');
+      setSaveError(
+        getClinicalArtifactMutationErrorMessage(error, 'Unable to save vitals. Please try again.')
+      );
       return;
     } finally {
       setIsSaving(false);

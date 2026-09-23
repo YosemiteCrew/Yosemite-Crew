@@ -6,7 +6,7 @@ slug: /apps/backend/api/prescription
 
 Drives a PIMS (Practice Information Management System, the clinic-facing web app) prescription through its dispense lifecycle — finalizing it, reserving stock, approving/dispensing, marking it not dispensed, returning stock, or voiding a dispense — and generates its printable label. Each dispense-affecting action reads and writes both the prescription record and inventory stock, so those routes are gated by two separate `requirePermission` calls (all-of) rather than one call with an array (any-of). This is the PIMS-facing prescription router; the mobile-facing one lives at `mobile-prescription.router.ts` and is documented separately.
 
-**Endpoints**
+## Endpoints
 
 ### GET /organisations/:organisationId/prescription-dispense-requests
 

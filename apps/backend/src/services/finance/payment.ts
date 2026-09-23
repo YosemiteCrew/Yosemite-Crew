@@ -295,9 +295,10 @@ export const getInvoiceFinancialSummary = async (
   invoiceId: string,
   totalAmount: number,
   depositCollectedAmount = 0,
+  client: Pick<PaymentTxClient, "payment" | "creditNote"> = prisma,
 ): Promise<InvoiceFinancialSummary> => {
   const [payments, creditNotes] = await Promise.all([
-    prisma.payment.findMany({
+    client.payment.findMany({
       where: {
         invoiceId,
         status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
@@ -310,7 +311,7 @@ export const getInvoiceFinancialSummary = async (
         },
       },
     }),
-    prisma.creditNote.findMany({
+    client.creditNote.findMany({
       where: { invoiceId, status: "ISSUED" },
       select: { amount: true },
     }),
@@ -326,11 +327,13 @@ const getOutstandingBalance = async (
   invoiceId: string,
   totalAmount: number,
   depositCollectedAmount = 0,
+  client: Pick<PaymentTxClient, "payment" | "creditNote"> = prisma,
 ) => {
   const summary = await getInvoiceFinancialSummary(
     invoiceId,
     totalAmount,
     depositCollectedAmount,
+    client,
   );
   return {
     paid: summary.paid,
@@ -1197,6 +1200,256 @@ const loadCheckoutEligibleInvoice = async (
   return invoice;
 };
 
+// The payments read and the reconstruct write happen together under the
+// invoice-scoped key recordInvoicePayment takes. When the invoice has no
+// Payment row yet this reconstructs one for the full total, and
+// getInvoiceFinancialSummary counts it the moment it lands - which made it the
+// last way an invoice's paid total could move without passing through that
+// lock: a capture could read the balance, the reconstructed row could land
+// after that read, and the invoice would be credited twice for one settlement.
+// A different key would serialize nothing.
+const loadRefundablePaymentUnderLock = async (invoiceId: string) =>
+  prisma.$transaction(async (tx) => {
+    const lockKey = `invoice-payment:${invoiceId}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const lockedInvoice = await tx.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        payments: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    if (!lockedInvoice) {
+      throw new FinancePaymentError("Invoice not found", 404);
+    }
+
+    const latestPaymentAttempt = await tx.paymentAttempt.findFirst({
+      where: {
+        invoiceId,
+        provider: "STRIPE",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        providerPaymentIntentId: true,
+      },
+    });
+
+    if (
+      !lockedInvoice.payments.length &&
+      !latestPaymentAttempt?.providerPaymentIntentId
+    ) {
+      throw new FinancePaymentError("Invoice has no refundable payment", 409);
+    }
+
+    const existingPayment = lockedInvoice.payments[0];
+    const intentId =
+      existingPayment?.providerPaymentId ??
+      latestPaymentAttempt?.providerPaymentIntentId ??
+      null;
+
+    if (existingPayment) {
+      return {
+        invoice: lockedInvoice,
+        payment: existingPayment,
+        paymentIntentId: intentId,
+      };
+    }
+
+    if (!intentId) {
+      throw new FinancePaymentError(
+        "Invoice has no refundable payment intent",
+        409,
+      );
+    }
+
+    // Still absent under the lock, so nothing landed while we waited.
+    const reconstructed = await tx.payment.create({
+      data: {
+        invoiceId,
+        provider: "STRIPE",
+        settlementChannel: "STRIPE",
+        providerPaymentId: intentId,
+        amount: lockedInvoice.totalAmount,
+        currency: lockedInvoice.currency,
+        status: "SUCCEEDED",
+        paidAt: lockedInvoice.paidAt ?? new Date(),
+        rawProviderPayload: {
+          source: "finance.refundInvoicePayment",
+          invoiceId,
+        },
+      },
+    });
+
+    return {
+      invoice: lockedInvoice,
+      payment: reconstructed,
+      paymentIntentId: intentId,
+    };
+  });
+
+type RefundablePayment = Awaited<
+  ReturnType<typeof loadRefundablePaymentUnderLock>
+>["payment"];
+
+// The provider round-trip sits between the two transactions, not inside
+// either: a network call in an interactive transaction spends Prisma's 5s
+// budget while holding a pool connection.
+const executeProviderRefund = async (params: {
+  invoiceId: string;
+  payment: RefundablePayment;
+  paymentIntentId: string | null;
+}) => {
+  const { invoiceId, payment, paymentIntentId } = params;
+
+  let providerRefundId: string | null = null;
+  let refundStatus = "succeeded";
+  let amountRefunded = payment.amount;
+
+  if (payment.provider === "STRIPE") {
+    if (!paymentIntentId) {
+      throw new FinancePaymentError(
+        "Invoice has no Stripe payment intent to refund",
+        409,
+      );
+    }
+
+    const connectedAccountId = await resolveStripeConnectedAccountId({
+      invoiceId,
+      paymentIntentId,
+    });
+    const requestOptions = toStripeAccountOptions(connectedAccountId);
+
+    const stripe = getStripeClient();
+    const paymentIntent = await stripe.paymentIntents.retrieve(
+      paymentIntentId,
+      {
+        expand: ["latest_charge"],
+      },
+      requestOptions,
+    );
+
+    const charge = paymentIntent?.latest_charge;
+    const chargeId = typeof charge === "string" ? charge : (charge?.id ?? null);
+    if (!chargeId) {
+      throw new FinancePaymentError("No charge found for refund", 409);
+    }
+
+    const refund = await stripe.refunds.create(
+      { charge: chargeId },
+      requestOptions,
+    );
+
+    providerRefundId = refund.id;
+    refundStatus = refund.status;
+    amountRefunded = roundMoney(
+      fromStripeMinorUnits(refund.amount, refund.currency),
+    );
+  }
+
+  return { providerRefundId, refundStatus, amountRefunded };
+};
+
+// The Refund row, the Payment status and the invoice status move together
+// behind the same key the read above took, which is the key the capture path
+// takes. recordInvoicePayment rejects a capture whose invoice reads REFUNDED,
+// and it reads that status under the lock - so leaving the write of it out
+// here gave that guard a window to read stale. Between `refund.create` landing
+// and the status write, the invoice's paid total has already dropped but it
+// still reads PAID, and a capture arriving in that gap is applied to an
+// invoice this method is on its way to marking refunded.
+//
+// `invoice.metadata` is re-read in here too. The snapshot from the read
+// transaction is older than the provider round-trip, and spreading it into a
+// whole-column write discards anything written to `metadata` in between.
+const writeRefundUnderLock = async (params: {
+  invoiceId: string;
+  payment: RefundablePayment;
+  providerRefundId: string | null;
+  refundStatus: string;
+  amountRefunded: number;
+  reason?: string;
+}) => {
+  const {
+    invoiceId,
+    payment,
+    providerRefundId,
+    refundStatus,
+    amountRefunded,
+    reason,
+  } = params;
+
+  return prisma.$transaction(async (tx) => {
+    const lockKey = `invoice-payment:${invoiceId}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const lockedInvoice = await tx.invoice.findUnique({
+      where: { id: invoiceId },
+    });
+
+    if (!lockedInvoice) {
+      throw new FinancePaymentError("Invoice not found", 404);
+    }
+
+    const createdRefund = await tx.refund.create({
+      data: {
+        paymentId: payment.id,
+        provider: payment.provider,
+        providerRefundId,
+        amount: amountRefunded,
+        currency: payment.currency,
+        status: mapRefundStatus(refundStatus),
+        reason: reason ?? undefined,
+        rawProviderPayload: {
+          source: "finance.refundInvoicePayment",
+          invoiceId,
+          paymentId: payment.id,
+          providerRefundId,
+          refundStatus,
+        },
+      },
+    });
+
+    const refundedPayment = await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: "REFUNDED",
+        rawProviderPayload: {
+          source: "finance.refundInvoicePayment",
+          invoiceId,
+          refundId: createdRefund.id,
+          providerRefundId,
+        },
+      },
+    });
+
+    const refundedInvoice = await tx.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: "REFUNDED",
+        metadata: {
+          ...((lockedInvoice.metadata as Record<string, unknown> | null) ??
+            EMPTY_METADATA),
+          cancellationReason: reason ?? undefined,
+          refundId: providerRefundId ?? createdRefund.id,
+          amount: amountRefunded,
+          refundDate: new Date().toISOString(),
+        },
+      },
+      include: { payments: true },
+    });
+
+    return {
+      refund: createdRefund,
+      updatedPayment: refundedPayment,
+      updatedInvoice: refundedInvoice,
+    };
+  });
+};
+
 export const FinancePaymentService = {
   async createPaymentAttempt(invoiceId: string, input: PaymentAttemptInput) {
     const invoice = await prisma.invoice.findUnique({
@@ -1514,149 +1767,25 @@ export const FinancePaymentService = {
     invoiceId: string,
     reason?: string,
   ): Promise<RefundInvoiceResult> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: {
-        payments: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
-    });
+    const { invoice, payment, paymentIntentId } =
+      await loadRefundablePaymentUnderLock(invoiceId);
 
-    if (!invoice) {
-      throw new FinancePaymentError("Invoice not found", 404);
-    }
+    const { providerRefundId, refundStatus, amountRefunded } =
+      await executeProviderRefund({ invoiceId, payment, paymentIntentId });
 
-    const latestPaymentAttempt = await prisma.paymentAttempt.findFirst({
-      where: {
+    const { refund, updatedPayment, updatedInvoice } =
+      await writeRefundUnderLock({
         invoiceId,
-        provider: "STRIPE",
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        providerPaymentIntentId: true,
-      },
-    });
-
-    if (
-      !invoice.payments.length &&
-      !latestPaymentAttempt?.providerPaymentIntentId
-    ) {
-      throw new FinancePaymentError("Invoice has no refundable payment", 409);
-    }
-
-    const existingPayment = invoice.payments[0];
-    const paymentIntentId =
-      existingPayment?.providerPaymentId ??
-      latestPaymentAttempt?.providerPaymentIntentId ??
-      null;
-
-    let payment = existingPayment ?? null;
-    if (!payment) {
-      if (!paymentIntentId) {
-        throw new FinancePaymentError(
-          "Invoice has no refundable payment intent",
-          409,
-        );
-      }
-
-      payment = await prisma.payment.create({
-        data: {
-          invoiceId,
-          provider: "STRIPE",
-          settlementChannel: "STRIPE",
-          providerPaymentId: paymentIntentId,
-          amount: invoice.totalAmount,
-          currency: invoice.currency,
-          status: "SUCCEEDED",
-          paidAt: invoice.paidAt ?? new Date(),
-          rawProviderPayload: {
-            source: "finance.refundInvoicePayment",
-            invoiceId,
-          },
-        },
-      });
-    }
-
-    let providerRefundId: string | null = null;
-    let refundStatus = "succeeded";
-    let amountRefunded = payment.amount;
-
-    if (payment.provider === "STRIPE") {
-      if (!paymentIntentId) {
-        throw new FinancePaymentError(
-          "Invoice has no Stripe payment intent to refund",
-          409,
-        );
-      }
-
-      const connectedAccountId = await resolveStripeConnectedAccountId({
-        invoiceId,
-        paymentIntentId,
-      });
-      const requestOptions = toStripeAccountOptions(connectedAccountId);
-
-      const stripe = getStripeClient();
-      const paymentIntent = await stripe.paymentIntents.retrieve(
-        paymentIntentId,
-        {
-          expand: ["latest_charge"],
-        },
-        requestOptions,
-      );
-
-      const charge = paymentIntent?.latest_charge;
-      const chargeId =
-        typeof charge === "string" ? charge : (charge?.id ?? null);
-      if (!chargeId) {
-        throw new FinancePaymentError("No charge found for refund", 409);
-      }
-
-      const refund = await stripe.refunds.create(
-        { charge: chargeId },
-        requestOptions,
-      );
-
-      providerRefundId = refund.id;
-      refundStatus = refund.status;
-      amountRefunded = roundMoney(
-        fromStripeMinorUnits(refund.amount, refund.currency),
-      );
-    }
-
-    const refund = await prisma.refund.create({
-      data: {
-        paymentId: payment.id,
-        provider: payment.provider,
+        payment,
         providerRefundId,
-        amount: amountRefunded,
-        currency: payment.currency,
-        status: mapRefundStatus(refundStatus),
-        reason: reason ?? undefined,
-        rawProviderPayload: {
-          source: "finance.refundInvoicePayment",
-          invoiceId,
-          paymentId: payment.id,
-          providerRefundId,
-          refundStatus,
-        },
-      },
-    });
+        refundStatus,
+        amountRefunded,
+        reason,
+      });
 
-    const updatedPayment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "REFUNDED",
-        rawProviderPayload: {
-          source: "finance.refundInvoicePayment",
-          invoiceId,
-          refundId: refund.id,
-          providerRefundId,
-        },
-      },
-    });
-
+    // Outside the transaction: recordEvent closes over the module-level client,
+    // so calling it in there would run on a second connection against rows the
+    // transaction still holds.
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,
       eventType: "INVOICE_REFUNDED",
@@ -1671,22 +1800,6 @@ export const FinancePaymentService = {
         reason: reason ?? null,
       },
       occurredAt: new Date(),
-    });
-
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: {
-        status: "REFUNDED",
-        metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ??
-            EMPTY_METADATA),
-          cancellationReason: reason ?? undefined,
-          refundId: providerRefundId ?? refund.id,
-          amount: amountRefunded,
-          refundDate: new Date().toISOString(),
-        },
-      },
-      include: { payments: true },
     });
 
     return {
@@ -1917,52 +2030,6 @@ export const FinancePaymentService = {
   },
 
   async recordInvoicePayment(invoiceId: string, input: InvoicePaymentInput) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: { payments: { where: { status: "SUCCEEDED" } } },
-    });
-
-    if (!invoice) {
-      throw new FinancePaymentError("Invoice not found", 404);
-    }
-
-    if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
-      throw new FinancePaymentError("Invoice cannot accept payment", 409);
-    }
-
-    const isDepositPayment =
-      input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
-      input.settlementChannel === "DEPOSIT" ||
-      invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
-
-    if (isDepositPayment && invoice.visitBillingStage === "READY_FOR_BILLING") {
-      throw new FinancePaymentError(
-        "Deposit payments are not allowed after the invoice is ready for billing",
-        409,
-      );
-    }
-
-    const { paid, balance } = await getOutstandingBalance(
-      invoiceId,
-      invoice.totalAmount,
-      invoice.depositCollectedAmount ?? 0,
-    );
-
-    if (balance <= 0) {
-      return {
-        invoice,
-        paymentAttempt: null,
-        payment: null,
-        balanceAfterPayment: 0,
-        paidToDate: paid,
-        appliedAmount: 0,
-        // Nothing was applied, so this is not a fresh success either. A caller
-        // that notifies the pet parent must not fire for a redelivery that
-        // arrives after the balance is already closed.
-        replayed: true,
-      };
-    }
-
     const requestedAmount = roundMoney(input.amount);
     if (requestedAmount <= 0) {
       throw new FinancePaymentError(
@@ -1971,12 +2038,10 @@ export const FinancePaymentService = {
       );
     }
 
-    const appliedAmount = roundMoney(Math.min(requestedAmount, balance));
     const receivedAt = input.receivedAt ?? new Date();
-    const isPartial = appliedAmount < balance || paid > 0;
 
-    // The attempt write, the Payment insert and the invoice update move
-    // together or not at all.
+    // The balance read, attempt write, Payment insert and invoice update move
+    // together or not at all, behind one invoice-scoped lock.
     //
     // They used to be three sequential awaits, which is what made every replay
     // guard here unsound: a P2002 on Payment.paymentAttemptId proved the payment
@@ -1984,7 +2049,9 @@ export const FinancePaymentService = {
     // and the invoice update left a covered invoice that was never marked PAID,
     // and a deposit whose collected amount never moved. No amount of reasoning
     // on the recovery path can distinguish that from a clean replay, because the
-    // database does not record which of the three steps ran.
+    // database does not record which of the three steps ran. Keeping the
+    // balance read outside that atomic block left a second race: two distinct
+    // captures could both read the same balance and each apply all of it.
     //
     // FinanceEventService.recordEvent stays outside deliberately: it closes over
     // the module-level client, so calling it in here would run on a second
@@ -1992,6 +2059,57 @@ export const FinancePaymentService = {
     let settled;
     try {
       settled = await prisma.$transaction(async (tx) => {
+        const lockKey = `invoice-payment:${invoiceId}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+        const invoice = await tx.invoice.findUnique({
+          where: { id: invoiceId },
+          include: { payments: { where: { status: "SUCCEEDED" } } },
+        });
+        if (!invoice) {
+          throw new FinancePaymentError("Invoice not found", 404);
+        }
+        if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
+          throw new FinancePaymentError("Invoice cannot accept payment", 409);
+        }
+
+        const isDepositPayment =
+          input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
+          input.settlementChannel === "DEPOSIT" ||
+          invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
+        if (
+          isDepositPayment &&
+          invoice.visitBillingStage === "READY_FOR_BILLING"
+        ) {
+          throw new FinancePaymentError(
+            "Deposit payments are not allowed after the invoice is ready for billing",
+            409,
+          );
+        }
+
+        const { paid, balance } = await getOutstandingBalance(
+          invoiceId,
+          invoice.totalAmount,
+          invoice.depositCollectedAmount ?? 0,
+          tx,
+        );
+        if (balance <= 0) {
+          return {
+            invoice,
+            paymentAttempt: null,
+            payment: null,
+            balanceAfterPayment: 0,
+            paidToDate: paid,
+            appliedAmount: 0,
+            // Nothing was applied, so this is not a fresh success either. A
+            // caller that notifies the pet parent must not fire for a
+            // redelivery that arrives after the balance is already closed.
+            replayed: true as const,
+          };
+        }
+
+        const appliedAmount = roundMoney(Math.min(requestedAmount, balance));
+        const isPartial = appliedAmount < balance || paid > 0;
         const paymentAttempt = input.paymentAttemptId
           ? await tx.paymentAttempt.update({
               where: { id: input.paymentAttemptId },
@@ -2056,7 +2174,15 @@ export const FinancePaymentService = {
           client: tx,
         });
 
-        return { paymentAttempt, payment, updatedInvoice };
+        return {
+          invoice,
+          paymentAttempt,
+          payment,
+          updatedInvoice,
+          appliedAmount,
+          isPartial,
+          replayed: false as const,
+        };
       });
     } catch (error) {
       if (!isUniqueConstraintViolation(error) || !input.paymentAttemptId) {
@@ -2099,7 +2225,16 @@ export const FinancePaymentService = {
       };
     }
 
-    const { paymentAttempt, payment, updatedInvoice } = settled;
+    if (settled.replayed) return settled;
+
+    const {
+      invoice,
+      paymentAttempt,
+      payment,
+      updatedInvoice,
+      appliedAmount,
+      isPartial,
+    } = settled;
 
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,
@@ -2359,61 +2494,88 @@ export const FinancePaymentService = {
       return { action: "NO_INVOICE" as const };
     }
 
-    if (invoice.status === "REFUNDED") {
-      return { action: "ALREADY_REFUNDED" as const, invoice };
-    }
+    // Stripe redelivers on any non-2xx and nothing upstream deduplicates by
+    // event id, so two deliveries of one refund can be in here at the same
+    // time. The REFUNDED check was the only thing stopping them both writing,
+    // and it read outside any lock, before three unlocked writes. Both would
+    // pass it and both would insert a Refund - and Refund has no unique
+    // constraint on providerRefundId - so the same money is subtracted twice by
+    // getNetPaymentAmount and the invoice reads under-paid. A full refund hides
+    // that behind its max(0, ...) clamp; a partial one bills the client for the
+    // difference.
+    //
+    // So the check and the writes take the invoice-scoped key the capture path
+    // takes, and the status is re-read under it: a second delivery then reads
+    // REFUNDED and stops. The lookup above stays outside because it only
+    // resolves which invoice this is; nothing is decided on it.
+    return prisma.$transaction(async (tx) => {
+      const lockKey = `invoice-payment:${invoice.id}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
-    const payment = await prisma.payment.findFirst({
-      where: {
-        invoiceId: invoice.id,
-        ...(input.paymentIntentId
-          ? { providerPaymentId: input.paymentIntentId }
-          : {}),
-      },
-      orderBy: { createdAt: "desc" },
-    });
+      const lockedInvoice = await tx.invoice.findUnique({
+        where: { id: invoice.id },
+      });
 
-    if (payment) {
-      await prisma.refund.create({
+      if (!lockedInvoice) {
+        return { action: "NO_INVOICE" as const };
+      }
+
+      if (lockedInvoice.status === "REFUNDED") {
+        return { action: "ALREADY_REFUNDED" as const, invoice: lockedInvoice };
+      }
+
+      const payment = await tx.payment.findFirst({
+        where: {
+          invoiceId: lockedInvoice.id,
+          ...(input.paymentIntentId
+            ? { providerPaymentId: input.paymentIntentId }
+            : {}),
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (payment) {
+        await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            provider: payment.provider,
+            providerRefundId: input.chargeId ?? null,
+            amount: input.amount,
+            currency: input.currency,
+            status: "SUCCEEDED",
+            reason: input.reason ?? undefined,
+            rawProviderPayload: {
+              source: "finance.markInvoiceRefundedFromWebhook",
+              invoiceId: lockedInvoice.id,
+              paymentIntentId: input.paymentIntentId ?? null,
+              chargeId: input.chargeId ?? null,
+            },
+          },
+        });
+
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { status: "REFUNDED" },
+        });
+      }
+
+      const updated = await tx.invoice.update({
+        where: { id: lockedInvoice.id },
         data: {
-          paymentId: payment.id,
-          provider: payment.provider,
-          providerRefundId: input.chargeId ?? null,
-          amount: input.amount,
-          currency: input.currency,
-          status: "SUCCEEDED",
-          reason: input.reason ?? undefined,
-          rawProviderPayload: {
-            source: "finance.markInvoiceRefundedFromWebhook",
-            invoiceId: invoice.id,
-            paymentIntentId: input.paymentIntentId ?? null,
-            chargeId: input.chargeId ?? null,
+          status: "REFUNDED",
+          metadata: {
+            ...((lockedInvoice.metadata as Record<string, unknown> | null) ??
+              EMPTY_METADATA),
+            refundId: input.chargeId ?? undefined,
+            amount: input.amount,
+            refundDate: new Date().toISOString(),
+            cancellationReason: input.reason ?? undefined,
           },
         },
       });
 
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "REFUNDED" },
-      });
-    }
-
-    const updated = await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: "REFUNDED",
-        metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ??
-            EMPTY_METADATA),
-          refundId: input.chargeId ?? undefined,
-          amount: input.amount,
-          refundDate: new Date().toISOString(),
-          cancellationReason: input.reason ?? undefined,
-        },
-      },
+      return { action: "REFUNDED" as const, invoice: updated };
     });
-
-    return { action: "REFUNDED" as const, invoice: updated };
   },
 
   async handleInvoicePaymentFailed(input: {

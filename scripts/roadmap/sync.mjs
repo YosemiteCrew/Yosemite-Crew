@@ -33,13 +33,16 @@ import { realpathSync } from 'node:fs';
 import {
   CATEGORIES,
   STATUSES,
-  classifyCategory,
-  classifyPriority,
   classifyStatus,
   targetDateFor,
   PRIORITIES,
   STATUS_RANK,
 } from './classify.mjs';
+import {
+  classifyWithJudgment,
+  createJudgmentCacheStore,
+  createJudgmentClient,
+} from './judgment.mjs';
 
 const OWNER = env.ROADMAP_OWNER || 'YosemiteCrew';
 const REPO = env.ROADMAP_REPO || 'Yosemite-Crew';
@@ -58,11 +61,17 @@ const ARCHIVE_AFTER_DAYS = Number(arg('archive-after-days', 30));
 
 const token = env.ROADMAP_TOKEN || env.GITHUB_TOKEN;
 
+// The typed-judgment credential is deliberately OPTIONAL and deliberately not
+// checked in the workflow the way ROADMAP_TOKEN is. A sync with no judgment
+// client makes exactly the board writes it made before this existed, so a
+// missing key is a quieter board rather than a broken one.
+const JUDGMENT_TOKEN = env.ROADMAP_JUDGMENT_TOKEN || null;
+
 const log = (msg) => {
   if (!AS_JSON) stdout.write(`${msg}\n`);
 };
 
-async function gql(query, variables = {}) {
+export async function gql(query, variables = {}) {
   const res = await fetch(API, {
     method: 'POST',
     headers: {
@@ -90,7 +99,7 @@ async function gql(query, variables = {}) {
 }
 
 // Page through any connection without hand-rolling a cursor loop per query.
-async function paginate(query, variables, pick) {
+export async function paginate(query, variables, pick) {
   const out = [];
   let cursor = null;
   for (;;) {
@@ -149,7 +158,7 @@ query($owner:String!, $repo:String!, $cursor:String) {
     issues(first:50, after:$cursor, states:[OPEN], orderBy:{field:CREATED_AT, direction:ASC}) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        id number title body state createdAt
+        id number title body state createdAt updatedAt
         labels(first:20) { nodes { name } }
         assignees(first:10) { nodes { login } }
         closedByPullRequestsReferences(first:10, includeClosedPrs:false) {
@@ -387,34 +396,81 @@ async function addMissingIssues({
 // Empty cells only, with one exception: an OPEN issue sitting in Completed is
 // corrected. That specific lie is the reason this script exists, so it outranks
 // the general rule that a human's edit is left alone.
-async function reconcileIssue({ issue, item, setSelect, setDate, actions, today, linkedPrs }) {
+export async function reconcileIssue({
+  issue,
+  item,
+  setSelect,
+  setDate,
+  actions,
+  today,
+  linkedPrs,
+  judge,
+  // Defaulted from argv rather than read from it, so the side-by-side report is
+  // reachable from a test without simulating a command line.
+  dryRun = DRY_RUN,
+}) {
   const ref = `#${issue.number}`;
   const labels = (issue.labels?.nodes || []).map((l) => l.name);
 
-  if (!fieldValue(item, 'Category')) {
-    const { category, reason } = classifyCategory({
+  // Read the board FIRST. A cell a human already filled is never overwritten,
+  // so classifying for one would send the issue to a third party to produce an
+  // answer that is discarded on arrival - and with both cells filled there is
+  // nothing to decide at all and no request is made.
+  const wantCategory = !fieldValue(item, 'Category');
+  // Held in a variable because the target date below depends on it, and a value
+  // a human already set must drive that target rather than the derived one.
+  let priority = fieldValue(item, 'Priority');
+  const wantPriority = !priority;
+
+  // One call, one request: the ladder decides first and a typed judgment is
+  // asked only about whatever it left null AND the board still wants. With both
+  // cells already filled the want flags make that no questions and no request;
+  // there is deliberately no second short-circuit here, because a branch whose
+  // removal changes nothing observable is not a guard, it is decoration.
+  const decided = await classifyWithJudgment(
+    {
+      number: issue.number,
+      updatedAt: issue.updatedAt,
       title: issue.title,
       body: issue.body,
       labels,
-    });
-    if (category) await setSelect(item, 'Category', category, ref);
-    else actions.uncategorised.push(`${ref} ${safeTitle(issue.title, 70)} (${reason})`);
+    },
+    judge,
+    { wantCategory, wantPriority }
+  );
+
+  // A dry run reports the ladder's answer and the judgment's answer side by
+  // side, for every row where they could differ. That comparison is the whole
+  // reason to run one before enabling the judgment on a public board. The issue
+  // NUMBER only: the title is author-controlled prose, and this line is read
+  // next to the tracker, where the title already is.
+  if (dryRun && decided.judgment) {
+    actions.judgments.push(
+      `${ref} | ladder ${decided.ladder.category ?? '-'}/${
+        decided.ladder.priority ?? '-'
+      } | judgment ${decided.judgment.category ?? '-'}/${decided.judgment.priority ?? '-'}${
+        decided.judgment.error ? ` | ${decided.judgment.error}` : ''
+      }`
+    );
   }
 
-  // Held in a variable because the target date below depends on it, and a value a
-  // human already set must drive that target rather than the derived one.
-  let priority = fieldValue(item, 'Priority');
-  if (!priority) {
-    priority = classifyPriority({ labels, title: issue.title });
+  if (wantCategory) {
+    if (decided.category) await setSelect(item, 'Category', decided.category, ref);
+    else
+      actions.uncategorised.push(
+        `${ref} ${safeTitle(issue.title, 70)} (${decided.categoryReason})`
+      );
+  }
+
+  if (wantPriority) {
+    priority = decided.priority;
     if (priority) {
       await setSelect(item, 'Priority', priority, ref);
     } else {
       // Untriaged. Leave BOTH cells empty and say so: writing a guess here is
       // what published two `security` issues as Normal with a 91-day target,
       // because the fill-once rule then made that guess permanent.
-      actions.untriaged.push(
-        `${ref} ${safeTitle(issue.title, 70)} (no priority-bearing label yet)`
-      );
+      actions.untriaged.push(`${ref} ${safeTitle(issue.title, 70)} (${decided.priorityReason})`);
     }
   }
 
@@ -511,6 +567,10 @@ function report({ summary, actions }) {
     log(`\n  NEEDS A HUMAN - no priority-bearing label yet:`);
     for (const u of actions.untriaged) log(`    ? ${u}`);
   }
+  if (actions.judgments.length) {
+    log(`\n  LADDER vs JUDGMENT (dry run, nothing written from this):`);
+    for (const j of actions.judgments) log(`    ~ ${j}`);
+  }
   if (actions.skipped.length) {
     log(`\n  SKIPPED:`);
     for (const s of actions.skipped) log(`    ! ${s}`);
@@ -552,9 +612,20 @@ async function main() {
     updated: [],
     uncategorised: [],
     untriaged: [],
+    judgments: [],
     skipped: [],
   };
   const { setSelect, setDate } = makeWriters({ project, fields, optionId, actions });
+  const store = createJudgmentCacheStore({ log });
+  const judge = createJudgmentClient({
+    // A resolver, not a value: the token is read per request and is never held
+    // on the config object where it could reach a log line by being in scope.
+    credential: JUDGMENT_TOKEN ? () => JUDGMENT_TOKEN : null,
+    store,
+    ...(env.ROADMAP_JUDGMENT_MIN_CONFIDENCE
+      ? { minConfidence: Number(env.ROADMAP_JUDGMENT_MIN_CONFIDENCE) }
+      : {}),
+  });
   // One clock reading for the whole run, so every target set today agrees.
   const today = new Date().toISOString().slice(0, 10);
 
@@ -569,8 +640,13 @@ async function main() {
       actions,
       today,
       linkedPrs: linkedPrMap.get(issue.number) || [],
+      judge,
     });
   }
+
+  // Persist the judgment cache even when a later step throws: a cache written
+  // only on success re-judges the whole board after any failure.
+  if (typeof store.save === 'function') store.save();
 
   await retireCompleted({
     project,
@@ -595,6 +671,7 @@ async function main() {
       fieldUpdates: actions.updated.length,
       uncategorised: actions.uncategorised.length,
       untriaged: actions.untriaged.length,
+      judgment: judge ? judge.stats() : null,
       skipped: actions.skipped.length,
     },
     actions,

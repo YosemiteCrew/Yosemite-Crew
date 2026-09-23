@@ -6,7 +6,7 @@ slug: /apps/backend/api/patient-flag
 
 Manages clinical or administrative flags on a patient record for the PIMS (Practice Information Management System, the clinic-facing web app) — for example aggression, escape risk, an allergy warning, or a VIP or billing note — each with a severity and a resolve action. All routes require organisation RBAC (role-based access control) permissions on `companions`.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/patient-flags
 

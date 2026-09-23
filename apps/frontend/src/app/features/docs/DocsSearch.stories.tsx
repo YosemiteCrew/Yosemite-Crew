@@ -8,7 +8,7 @@ import './docs.css';
 const INDEX_URL = '/docs/search-index.json';
 
 /**
- * A small stand-in for the real 52-page, 108 KB corpus - just enough to show
+ * A small stand-in for the real corpus - just enough to show
  * the two rules the component's own header comment claims: a title hit
  * outranks a body hit, and every term in the query has to match or the
  * document drops out entirely (so a second word can remove a result the
@@ -111,7 +111,7 @@ const meta = {
         component:
           'Client-side search for the documentation site. The index is a prerendered JSON route, ' +
           'fetched once on first focus rather than on mount, so a reader who never searches never ' +
-          'pays for it - it is 108 KB for the whole 52-page corpus.\n\n' +
+          'pays for it, and its size is held under a budget by the index test.\n\n' +
           "Matching is deliberately simple: every term in the query must appear in a document's " +
           'title or body text, or that document is dropped entirely, so a second word can remove a ' +
           'result the first word matched on its own. A title hit outranks a body hit (10 points ' +

@@ -6,7 +6,7 @@ slug: /apps/backend/api/poc-lab
 
 Manages point-of-care (POC) lab results — bloodwork and other tests run in-clinic on an analyzer rather than sent to an outside laboratory (for example CBC, blood chemistry, urinalysis, fecal float, cytology, coagulation, electrolytes, thyroid panel, cortisol, glucose curve, or blood gas). Each result carries one or more named readings with an optional reference range and abnormal flag. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/poc-lab
 

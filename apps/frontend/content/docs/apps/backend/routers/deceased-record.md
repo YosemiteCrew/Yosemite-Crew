@@ -6,7 +6,7 @@ slug: /apps/backend/api/deceased-record
 
 Records and retrieves a patient's deceased record in the PIMS (Practice Information Management System) — date and cause of death, body condition and disposition, necropsy status, and owner-notification timestamp. `causeOfDeathType` and `bodyDisposition` are closed enums (see the controller for the full value sets). Validation errors on create and update return a `{ error }` envelope (via Zod's `flattenError`), not the `{ message }` shape used elsewhere in the backend.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/deceased-records
 

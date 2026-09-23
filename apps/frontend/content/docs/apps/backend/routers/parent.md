@@ -6,7 +6,7 @@ slug: /apps/backend/api/parent
 
 Manages parent (pet owner) records and profile-picture uploads, and lists a parent's companions (their pets). The mobile-app routes are authenticated with the pet parent's SuperTokens session (`requireMobileAuth`); the `/pms` routes are called by the PIMS (Practice Information Management System, the clinic-facing web app). See the [Parent Companion API](./parent-companion.md) for links between co-parents.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

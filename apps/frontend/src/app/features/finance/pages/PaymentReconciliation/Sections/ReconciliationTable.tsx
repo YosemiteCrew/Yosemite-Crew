@@ -10,6 +10,8 @@ import { Secondary } from '@/app/ui/primitives/Buttons';
 import { formatMoneyPrecise } from '@/app/lib/money';
 import type { ProviderReceipt } from '@/app/features/finance/types/providerReceipt';
 import {
+  allocatableResidual,
+  canAllocate,
   formatCapturedAt,
   netCaptured,
   providerLabel,
@@ -26,6 +28,13 @@ type ReconciliationTableProps = {
   /** Changes the empty state: "nothing captured yet" is not "nothing matches". */
   isFiltered: boolean;
   onLoadMore: () => void;
+  /**
+   * Undefined for a reader without `billing:edit:any`, and then no action
+   * column is rendered at all rather than a disabled one. Reading the queue is
+   * what every billing role needs; moving money is not, and a control that
+   * only ever refuses is worse than its absence.
+   */
+  onAllocate?: (receipt: ProviderReceipt) => void;
 };
 
 const linkClass = 'text-body-4 text-blue-text underline underline-offset-2 hover:opacity-80';
@@ -52,6 +61,17 @@ const AmountCell = (receipt: ProviderReceipt) => (
           receipt.refundedAmount,
           receipt.currency
         )} refunded`}
+      </span>
+    )}
+    {/*
+      What is left to apply, shown only while there is something to do about
+      it. On a settled row it repeats the amount above; on the rows this queue
+      exists for it is the figure the allocate action is decided from, and
+      until now the column could not state it at all.
+    */}
+    {receipt.allocatedAmount > 0 && allocatableResidual(receipt) > 0 && (
+      <span className="text-caption-2 text-text-secondary whitespace-nowrap">
+        {`${formatMoneyPrecise(allocatableResidual(receipt), receipt.currency)} unapplied`}
       </span>
     )}
   </span>
@@ -119,13 +139,39 @@ const ReasonCell = (receipt: ProviderReceipt) => (
   <span className="text-body-4 text-text-secondary">{receipt.reason ?? '—'}</span>
 );
 
-const COLUMNS = [
+const BASE_COLUMNS = [
   { label: 'Captured', key: 'capturedAt', render: CapturedCell },
   { label: 'Amount', key: 'amount', render: AmountCell },
   { label: 'State', key: 'status', render: StateCell },
   { label: 'Payment', key: 'paymentRef', render: PaymentCell },
   { label: 'Source', key: 'source', render: SourceCell },
   { label: 'Why', key: 'reason', render: ReasonCell },
+];
+
+/**
+ * The action, on the rows that can take it.
+ *
+ * `canAllocate` mirrors three of the route's own refusals, so a capture nobody
+ * owns, one refunded in full and one already fully applied get no button
+ * rather than one that opens a dialog only to say no.
+ */
+const buildColumns = (onAllocate: (receipt: ProviderReceipt) => void) => [
+  ...BASE_COLUMNS,
+  {
+    label: 'Action',
+    key: 'allocate',
+    render: (receipt: ProviderReceipt) =>
+      canAllocate(receipt) ? (
+        <Secondary
+          text="Apply"
+          size="compact"
+          onClick={() => onAllocate(receipt)}
+          ariaLabel={`Apply the payment captured on ${formatCapturedAt(receipt.capturedAt)}`}
+        />
+      ) : (
+        <span className="text-body-4 text-text-secondary">{'\u2014'}</span>
+      ),
+  },
 ];
 
 const LoadingRows = () => (
@@ -148,11 +194,13 @@ const emptyCopy = (isFiltered: boolean) =>
       };
 
 /**
- * The queue itself (#3170 delivery 3).
+ * The queue itself (#3170 delivery 3), and the action it leads to.
  *
- * Read-only on purpose. Applying a capture to an invoice moves money and is a
- * separate, permissioned action; shipping a button for it before that route is
- * live would be an action that looks available and is not.
+ * The action column arrived once the allocate route did. Until then the screen
+ * was deliberately read-only - a button for a route that was still open would
+ * have been an action that looks available and is not - and until it arrived
+ * the endpoint had no caller, so an operator could see an unapplied capture
+ * and still needed an API client to do anything about it.
  */
 const ReconciliationTable = ({
   receipts,
@@ -161,6 +209,7 @@ const ReconciliationTable = ({
   hasMore,
   isFiltered,
   onLoadMore,
+  onAllocate,
 }: Readonly<ReconciliationTableProps>) => {
   const empty = emptyCopy(isFiltered);
   const isPhone = useIsPhone();
@@ -182,11 +231,11 @@ const ReconciliationTable = ({
    * side of 768px is a defect this repo has shipped before.
    */
   const body = isPhone ? (
-    <PhoneReceiptList receipts={receipts} />
+    <PhoneReceiptList receipts={receipts} onAllocate={onAllocate} />
   ) : (
     <GenericTable
       data={receipts}
-      columns={COLUMNS}
+      columns={onAllocate ? buildColumns(onAllocate) : BASE_COLUMNS}
       itemNoun="captured payments"
       caption="Captured payments and how far each one has been reconciled"
       emptyTitle={empty.emptyTitle}

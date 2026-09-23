@@ -107,6 +107,9 @@ jest.mock('@/app/features/forms/services/formSigningService', () => ({
   downloadSubmissionPdf: jest.fn(),
 }));
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the shared artifact-version parser stays under test; only the
+  // network calls below are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   saveVitalRecord: jest.fn(),
   createPmsObservationSubmission: jest.fn(),
 }));

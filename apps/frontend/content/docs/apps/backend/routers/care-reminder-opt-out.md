@@ -6,7 +6,7 @@ slug: /apps/backend/api/care-reminder-opt-out
 
 Public, unauthenticated unsubscribe flow for care-reminder emails. The recipient follows a link from an email client carrying an encrypted, single-use token that is the only credential and authorises exactly one action for one address at one practice. `GET` only validates the token and renders a confirmation page; `POST` performs the actual opt-out. This split is deliberate: mail providers and link-scanning security products fetch every URL in a delivered message before a human sees it, so a mutating `GET` would let mere delivery unsubscribe someone (the same reasoning behind RFC 8058 one-click unsubscribe being specified as `POST`).
 
-**Endpoints**
+## Endpoints
 
 ### GET /unsubscribe
 

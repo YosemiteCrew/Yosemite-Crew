@@ -23,9 +23,23 @@ jest.mock("../../src/middlewares/auth", () => ({
   requireWebAuth,
 }));
 
+const PrescriptionFillAuthorisationController = {
+  authorise: jest.fn(),
+  revoke: jest.fn(),
+  eligibility: jest.fn(),
+  reserve: jest.fn(),
+  fulfil: jest.fn(),
+  cancel: jest.fn(),
+};
+
 jest.mock("../../src/controllers/web/prescription.controller", () => ({
   PrescriptionController,
 }));
+
+jest.mock(
+  "../../src/controllers/web/prescription-fill-authorisation.controller",
+  () => ({ PrescriptionFillAuthorisationController }),
+);
 
 let activePermissions: Permission[] = [];
 
@@ -67,7 +81,13 @@ const runRoute = async (path: string, method: string) => {
   if (!route) throw new Error(`route not found: ${method} ${path}`);
 
   const req = {
-    params: { organisationId: "org-1", prescriptionId: "rx-1" },
+    params: {
+      organisationId: "org-1",
+      prescriptionId: "rx-1",
+      itemId: "item-1",
+      authorizationId: "auth-1",
+      reservationId: "res-1",
+    },
     headers: {},
     query: {},
     body: {},
@@ -107,6 +127,26 @@ const DISPENSE_REQUEST_READS = [
   "/organisations/:organisationId/prescription-dispense-requests",
   "/organisations/:organisationId/prescription-dispense-requests/:dispenseRequestId",
 ];
+
+/*
+ * Authorised repeats (#3162). Three groups with deliberately different gates,
+ * so each one is asserted against the permission set the OTHER groups accept -
+ * a shared "OWNER reaches it" case would hold for all three and distinguish
+ * nothing.
+ */
+const AUTHORITY_WRITES = [
+  "/organisations/:organisationId/items/:itemId/fill-authorisations",
+  String.raw`/organisations/:organisationId/fill-authorisations/:authorizationId/\$revoke`,
+];
+
+const FILL_ACTIONS = [
+  "/organisations/:organisationId/items/:itemId/fill-reservations",
+  String.raw`/organisations/:organisationId/fill-reservations/:reservationId/\$fulfil`,
+  String.raw`/organisations/:organisationId/fill-reservations/:reservationId/\$cancel`,
+];
+
+const ELIGIBILITY_READ =
+  "/organisations/:organisationId/items/:itemId/fill-eligibility";
 
 describe("prescription.router authorization", () => {
   beforeEach(() => {
@@ -190,6 +230,166 @@ describe("prescription.router authorization", () => {
       activePermissions = ["prescription:view:any", "inventory:view:any"];
 
       const { res, reachedHandler } = await runRoute(path, "get");
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(reachedHandler).toBe(true);
+    });
+  });
+
+  describe.each(AUTHORITY_WRITES)("POST %s", (path) => {
+    it("rejects an inventory-only caller", async () => {
+      activePermissions = ["inventory:edit:any", "inventory:view:any"];
+
+      const { res } = await runRoute(path, "post");
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(
+        PrescriptionFillAuthorisationController.authorise,
+      ).not.toHaveBeenCalled();
+      expect(
+        PrescriptionFillAuthorisationController.revoke,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("rejects a RECEPTIONIST", async () => {
+      activePermissions = ROLE_PERMISSIONS.RECEPTIONIST;
+
+      const { res } = await runRoute(path, "post");
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    // The distinguishing case: unlike the dispense actions above, issuing an
+    // authority needs no inventory permission at all.
+    it("allows a caller holding prescription:edit:any and nothing else", async () => {
+      activePermissions = ["prescription:edit:any"];
+
+      const { res, reachedHandler } = await runRoute(path, "post");
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(reachedHandler).toBe(true);
+    });
+
+    /*
+     * `prescription:edit:own` is admitted at the router on purpose. The
+     * refusal for an own-only caller on someone else's prescription is the
+     * service's, and is asserted in
+     * test/services/prescription-fill-authorisation.service.test.ts.
+     */
+    it.each(["TECHNICIAN", "ASSISTANT"] as const)(
+      "admits a %s, who holds prescription:edit:own",
+      async (role) => {
+        activePermissions = ROLE_PERMISSIONS[role];
+
+        const { res, reachedHandler } = await runRoute(path, "post");
+
+        expect(res.status).not.toHaveBeenCalledWith(403);
+        expect(reachedHandler).toBe(true);
+      },
+    );
+  });
+
+  describe.each(FILL_ACTIONS)("POST %s", (path) => {
+    it("rejects a caller holding prescription:edit:any without inventory:edit:any", async () => {
+      activePermissions = ["prescription:edit:any"];
+
+      const { res } = await runRoute(path, "post");
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(
+        PrescriptionFillAuthorisationController.reserve,
+      ).not.toHaveBeenCalled();
+      expect(
+        PrescriptionFillAuthorisationController.fulfil,
+      ).not.toHaveBeenCalled();
+      expect(
+        PrescriptionFillAuthorisationController.cancel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("rejects an inventory-only caller", async () => {
+      activePermissions = ["inventory:edit:any", "inventory:view:any"];
+
+      const { res } = await runRoute(path, "post");
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it.each(["TECHNICIAN", "ASSISTANT"] as const)(
+      "rejects a %s, who holds prescription:edit:own but not :any",
+      async (role) => {
+        activePermissions = ROLE_PERMISSIONS[role];
+
+        const { res } = await runRoute(path, "post");
+
+        expect(res.status).toHaveBeenCalledWith(403);
+      },
+    );
+
+    it("allows an OWNER, who holds both permissions", async () => {
+      activePermissions = ROLE_PERMISSIONS.OWNER;
+
+      const { res, reachedHandler } = await runRoute(path, "post");
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(reachedHandler).toBe(true);
+    });
+  });
+
+  /*
+   * `requireWebAuth` is stubbed to a pass-through here so the permission
+   * semantics can be driven, which means no assertion above can tell a route
+   * that authenticates from one that does not - deleting it from a route left
+   * every other case in this file green. These name the middleware directly.
+   */
+  describe("authentication", () => {
+    it.each([...AUTHORITY_WRITES, ...FILL_ACTIONS])(
+      "runs requireWebAuth before POST %s",
+      async (path) => {
+        activePermissions = ROLE_PERMISSIONS.OWNER;
+
+        await runRoute(path, "post");
+
+        expect(requireWebAuth).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("runs requireWebAuth before the eligibility read", async () => {
+      activePermissions = ROLE_PERMISSIONS.OWNER;
+
+      await runRoute(ELIGIBILITY_READ, "get");
+
+      expect(requireWebAuth).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe(`GET ${ELIGIBILITY_READ}`, () => {
+    it("rejects an inventory-only caller", async () => {
+      activePermissions = ["inventory:view:any", "inventory:edit:any"];
+
+      const { res } = await runRoute(ELIGIBILITY_READ, "get");
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(
+        PrescriptionFillAuthorisationController.eligibility,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("rejects a caller holding only prescription:view:own", async () => {
+      activePermissions = ["prescription:view:own"];
+
+      const { res } = await runRoute(ELIGIBILITY_READ, "get");
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    // The distinguishing case: the dispense-request reads above also demand
+    // inventory:view:any, and requiring it here would hide remaining repeats
+    // from the prescriber.
+    it("allows a caller holding prescription:view:any and nothing else", async () => {
+      activePermissions = ["prescription:view:any"];
+
+      const { res, reachedHandler } = await runRoute(ELIGIBILITY_READ, "get");
 
       expect(res.status).not.toHaveBeenCalledWith(403);
       expect(reachedHandler).toBe(true);

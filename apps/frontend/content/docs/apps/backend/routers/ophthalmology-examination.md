@@ -6,7 +6,7 @@ slug: /apps/backend/api/ophthalmology-examination
 
 Manages ophthalmology examination records — vision status, menace response, pupillary light reflex (direct and consensual), Schirmer tear test (STT) and intraocular pressure (IOP) readings, fluorescein staining, and structured per-eye findings (discharge, corneal/lens/vitreous clarity, retina, conjunctiva) — for a patient, recorded separately for the left and right eye. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are scoped to an organisation.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/ophthalmology-examinations
 

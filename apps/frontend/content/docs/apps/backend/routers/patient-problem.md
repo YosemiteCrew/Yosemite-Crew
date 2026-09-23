@@ -6,7 +6,7 @@ slug: /apps/backend/api/patient-problem
 
 Manages a patient's problem list for the PIMS (Practice Information Management System, the clinic-facing web app): active, inactive, or resolved clinical problems with an optional code, severity, and onset date, plus a dedicated resolve action. All routes require organisation RBAC (role-based access control) permissions on `appointments`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/patient-problems
 

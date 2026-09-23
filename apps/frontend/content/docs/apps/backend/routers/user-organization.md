@@ -6,7 +6,7 @@ slug: /apps/backend/api/user-organization
 
 Manages the mappings between users and the organisations they belong to: listing a user's memberships, listing the members of an organisation, and updating or removing a mapping. See the [User API](./user.md) and [Organization API](./organization.md) for the records these mappings connect.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

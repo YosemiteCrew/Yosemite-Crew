@@ -46,8 +46,16 @@ const ORG_HEADER = 'x-org-id';
 const REQUIRES_ORG = Symbol.for('yosemite.requiresOrgPermissions');
 const RATCHETED_KEYS = ['missingFromSpec', 'staleInSpec', 'placeholderSchemas'];
 
-/** Express path params (`:id`) to OpenAPI templates (`{id}`). */
-const toOpenApiPath = (p) => p.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
+/**
+ * Express path params (`:id`) to OpenAPI templates (`{id}`).
+ *
+ * The backslash in a route written `String.raw`.../\$dispense`` is Express's
+ * own escape and never reaches the wire - the frontend calls
+ * `/v1/prescriptions/organisations/{id}/{rx}/$reserve`. Left in, the key here
+ * would be a path no client can use, so documenting one of these routes would
+ * mean publishing a URL that does not exist.
+ */
+const toOpenApiPath = (p) => p.replace(/\\(?=[$])/g, '').replace(/:([A-Za-z0-9_]+)/g, '{$1}');
 
 const joinPath = (base, route) => {
   const joined = `${base}${route}`.replace(/\/{2,}/g, '/');

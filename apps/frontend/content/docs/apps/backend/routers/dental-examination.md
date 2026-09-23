@@ -6,7 +6,7 @@ slug: /apps/backend/api/dental-examination
 
 Records a patient's dental examination in the PIMS (Practice Information Management System) — an overall periodontal grade, per-tooth findings (condition, mobility, calculus, periodontal depth), calculus/plaque/gingival scores, and any procedures performed.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/dental-examinations
 

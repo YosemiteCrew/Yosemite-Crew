@@ -1854,14 +1854,30 @@ const resolvePrescriptionLines = async (
   return resolved;
 };
 
-const runPrescriptionInventoryAction = async (params: {
+type PrescriptionInventoryActionParams = {
   organisationId: string;
   prescriptionId: string;
   medications: unknown;
   metadata?: Prisma.InputJsonValue;
   action: InventoryConsumptionAction;
   movementReason?: string;
-}) => {
+};
+
+/**
+ * The body of a prescription stock action, without the transaction around it.
+ *
+ * Callers that already hold a transaction pass it in so the stock movement
+ * commits or rolls back with whatever else that transaction is doing (#3495).
+ * A prescription cancellation releasing stock in its own transaction and then
+ * losing the artifact version claim in the next one leaves the stock back on
+ * the shelf while the prescription is still SIGNED and its dispense request
+ * still DISPENSED - the "zero stock mutation for a losing intent" the #3144
+ * oracle asks for, violated.
+ */
+const runPrescriptionInventoryActionInTx = async (
+  tx: Prisma.TransactionClient,
+  params: PrescriptionInventoryActionParams,
+) => {
   const organisationId = asNonEmptyString(params.organisationId);
   const prescriptionId = asNonEmptyString(params.prescriptionId);
   if (!organisationId || !prescriptionId) {
@@ -1871,19 +1887,39 @@ const runPrescriptionInventoryAction = async (params: {
     );
   }
 
-  return prisma.$transaction(async (tx) => {
-    const stockSource = resolveDispenseStockSourceFromMetadata(params.metadata);
-    return consumePrescriptionMedications(tx, {
-      organisationId,
-      prescriptionId,
-      medications: params.medications,
-      metadata: params.metadata,
-      action: params.action,
-      movementReason: params.movementReason,
-      stockSource,
-    });
+  const stockSource = resolveDispenseStockSourceFromMetadata(params.metadata);
+  return consumePrescriptionMedications(tx, {
+    organisationId,
+    prescriptionId,
+    medications: params.medications,
+    metadata: params.metadata,
+    action: params.action,
+    movementReason: params.movementReason,
+    stockSource,
   });
 };
+
+const runPrescriptionInventoryAction = async (
+  params: PrescriptionInventoryActionParams,
+) =>
+  prisma.$transaction((tx) => runPrescriptionInventoryActionInTx(tx, params));
+
+const buildVoidDispenseActionParams = (params: {
+  organisationId: string;
+  prescriptionId: string;
+  medications: unknown;
+  metadata?: Prisma.InputJsonValue;
+}): PrescriptionInventoryActionParams => ({
+  organisationId: params.organisationId,
+  prescriptionId: params.prescriptionId,
+  medications: params.medications,
+  metadata: {
+    voided: true,
+    originalMetadata: params.metadata ?? null,
+  },
+  action: "RELEASE",
+  movementReason: "PRESCRIPTION_VOID_DISPENSE",
+});
 
 const consumePrescriptionMedications = async (
   tx: Prisma.TransactionClient,
@@ -1922,6 +1958,35 @@ const consumePrescriptionMedications = async (
   );
 };
 
+/**
+ * Serialise every writer of a prescription's dispense request against every
+ * other one, for the caller's transaction (#3503).
+ *
+ * The request's status is what decides whether cancelling the prescription
+ * releases drawn stock or only retires a pending request, so a reader that
+ * branches on it has to hold this lock while it reads AND while it acts.
+ * Without it, approve can read PENDING, draw the stock and commit between the
+ * cancel path's read and its write, leaving the artifact VOID with the drawn
+ * stock never released.
+ */
+const lockPrescriptionDispenseRequestInTx = async (
+  tx: Prisma.TransactionClient,
+  organisationId: string,
+  prescriptionId: string,
+): Promise<void> => {
+  const lockKey = `prescription-dispense-request:${organisationId}:${prescriptionId}`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+};
+
+type PrescriptionDispenseRequestCreateParams = {
+  organisationId: string;
+  prescriptionId: string;
+  medications: unknown;
+  metadata?: Prisma.InputJsonValue;
+  requestedBy?: string | null;
+  context?: PrescriptionDispenseRequestContext;
+};
+
 const upsertPendingDispenseRequest = async (
   tx: Prisma.TransactionClient,
   params: {
@@ -1932,8 +1997,11 @@ const upsertPendingDispenseRequest = async (
     requestedBy?: string | null;
   },
 ) => {
-  const lockKey = `prescription-dispense-request:${params.organisationId}:${params.prescriptionId}`;
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+  await lockPrescriptionDispenseRequestInTx(
+    tx,
+    params.organisationId,
+    params.prescriptionId,
+  );
 
   const existing = await tx.prescriptionDispenseRequest.findFirst({
     where: {
@@ -1968,6 +2036,48 @@ const upsertPendingDispenseRequest = async (
       status: "PENDING",
     },
   });
+};
+
+/**
+ * Retire the one PENDING dispense request for this prescription, if there is
+ * one, inside the caller's transaction. Returns its id, or null when nothing
+ * was pending.
+ *
+ * Idempotent by construction: the second call finds no PENDING row and writes
+ * nothing, which is what makes a retried cancellation safe.
+ */
+const markPendingDispenseRequestNotDispensedInTx = async (
+  tx: Prisma.TransactionClient,
+  params: {
+    organisationId: string;
+    prescriptionId: string;
+    metadata?: Prisma.InputJsonValue;
+    reviewedBy?: string | null;
+  },
+): Promise<string | null> => {
+  const request = await tx.prescriptionDispenseRequest.findFirst({
+    where: {
+      organisationId: params.organisationId,
+      prescriptionId: params.prescriptionId,
+      status: "PENDING",
+    },
+    orderBy: { requestedAt: "desc" },
+  });
+
+  if (!request) {
+    return null;
+  }
+
+  await tx.prescriptionDispenseRequest.update({
+    where: { id: request.id },
+    data: {
+      status: "NOT_DISPENSED",
+      metadata: params.metadata,
+      reviewedBy: params.reviewedBy ?? undefined,
+      reviewedAt: new Date(),
+    },
+  });
+  return request.id;
 };
 
 const buildPrescriptionDispenseRequestInclude = () =>
@@ -2179,14 +2289,28 @@ export const InventoryConsumptionService = {
     return hydrateDispenseRequest(prisma, request);
   },
 
-  async createPrescriptionDispenseRequest(params: {
-    organisationId: string;
-    prescriptionId: string;
-    medications: unknown;
-    metadata?: Prisma.InputJsonValue;
-    requestedBy?: string | null;
-    context?: PrescriptionDispenseRequestContext;
-  }) {
+  async createPrescriptionDispenseRequest(
+    params: PrescriptionDispenseRequestCreateParams,
+  ) {
+    return prisma.$transaction((tx) =>
+      InventoryConsumptionService.createPrescriptionDispenseRequestInTx(
+        tx,
+        params,
+      ),
+    );
+  },
+
+  /**
+   * `createPrescriptionDispenseRequest` for a caller that already holds a
+   * transaction (#3512). A prescription that becomes SIGNED or COMPLETED has
+   * to commit together with its PENDING request: created after the commit, a
+   * failure left a final prescription the pharmacy queue never saw, and a
+   * retry could not recover it because the artifact no longer accepts edits.
+   */
+  async createPrescriptionDispenseRequestInTx(
+    tx: Prisma.TransactionClient,
+    params: PrescriptionDispenseRequestCreateParams,
+  ) {
     const organisationId = asNonEmptyString(params.organisationId);
     const prescriptionId = asNonEmptyString(params.prescriptionId);
     if (!organisationId || !prescriptionId) {
@@ -2196,16 +2320,15 @@ export const InventoryConsumptionService = {
       );
     }
 
-    const [petContext, medications] = await Promise.all([
-      loadPetSnapshot(prisma, {
-        organisationId,
-        context: params.context,
-      }),
-      enrichDispenseRequestMedications(prisma, {
-        organisationId,
-        medications: params.medications,
-      }),
-    ]);
+    // Sequential: one transaction client runs one query at a time.
+    const petContext = await loadPetSnapshot(tx, {
+      organisationId,
+      context: params.context,
+    });
+    const medications = await enrichDispenseRequestMedications(tx, {
+      organisationId,
+      medications: params.medications,
+    });
 
     const appointmentKind = petContext.appointmentKind ?? "OUTPATIENT";
     const dispenseStockSource = resolveDispenseStockSource(appointmentKind);
@@ -2221,15 +2344,13 @@ export const InventoryConsumptionService = {
       ? (metadataBase as Prisma.InputJsonValue)
       : params.metadata;
 
-    return prisma.$transaction((tx) =>
-      upsertPendingDispenseRequest(tx, {
-        organisationId,
-        prescriptionId,
-        medications,
-        metadata,
-        requestedBy: params.requestedBy,
-      }),
-    );
+    return upsertPendingDispenseRequest(tx, {
+      organisationId,
+      prescriptionId,
+      medications,
+      metadata,
+      requestedBy: params.requestedBy,
+    });
   },
 
   async approvePrescriptionDispenseRequest(params: {
@@ -2249,6 +2370,14 @@ export const InventoryConsumptionService = {
     }
 
     return prisma.$transaction(async (tx) => {
+      // #3503: taken before the read, and before the per-item stock locks, so
+      // this path and the cancel path serialise in one consistent order.
+      await lockPrescriptionDispenseRequestInTx(
+        tx,
+        organisationId,
+        prescriptionId,
+      );
+
       const request = await tx.prescriptionDispenseRequest.findFirst({
         where: {
           organisationId,
@@ -2308,31 +2437,14 @@ export const InventoryConsumptionService = {
       );
     }
 
-    const updatedId = await prisma.$transaction(async (tx) => {
-      const request = await tx.prescriptionDispenseRequest.findFirst({
-        where: {
-          organisationId,
-          prescriptionId,
-          status: "PENDING",
-        },
-        orderBy: { requestedAt: "desc" },
-      });
-
-      if (!request) {
-        return null;
-      }
-
-      await tx.prescriptionDispenseRequest.update({
-        where: { id: request.id },
-        data: {
-          status: "NOT_DISPENSED",
-          metadata: params.metadata,
-          reviewedBy: params.reviewedBy ?? undefined,
-          reviewedAt: new Date(),
-        },
-      });
-      return request.id;
-    });
+    const updatedId = await prisma.$transaction((tx) =>
+      markPendingDispenseRequestNotDispensedInTx(tx, {
+        organisationId,
+        prescriptionId,
+        metadata: params.metadata,
+        reviewedBy: params.reviewedBy,
+      }),
+    );
 
     if (!updatedId) {
       return null;
@@ -2349,6 +2461,83 @@ export const InventoryConsumptionService = {
     );
 
     return hydrateDispenseRequest(prisma, refreshedRequest);
+  },
+
+  /**
+   * The dispense request that decides how a prescription's stock is reversed,
+   * read inside the caller's transaction and under the dispense-request
+   * advisory lock (#3503).
+   *
+   * `cancelPrescription` used to branch on a copy of this row read before its
+   * transaction opened. An approve landing in between flipped PENDING to
+   * DISPENSED and drew the stock, so the cancel took the PENDING branch, found
+   * nothing pending to retire, and committed a VOID artifact whose drawn stock
+   * was never released. Reading here, under the lock the approve path also
+   * takes, makes the two orderings the only two outcomes: either this sees
+   * DISPENSED and releases, or approve runs afterwards and finds nothing
+   * PENDING to approve.
+   */
+  async loadDispenseRequestForRetirementInTx(
+    tx: Prisma.TransactionClient,
+    params: { organisationId: string; prescriptionId: string },
+  ) {
+    const organisationId = asNonEmptyString(params.organisationId);
+    const prescriptionId = asNonEmptyString(params.prescriptionId);
+    if (!organisationId || !prescriptionId) {
+      throw new InventoryConsumptionServiceError(
+        "organisationId and prescriptionId are required",
+        400,
+      );
+    }
+
+    await lockPrescriptionDispenseRequestInTx(
+      tx,
+      organisationId,
+      prescriptionId,
+    );
+
+    return tx.prescriptionDispenseRequest.findFirst({
+      where: {
+        organisationId,
+        prescriptionId,
+        status: { in: ["PENDING", "DISPENSED"] },
+      },
+      orderBy: { requestedAt: "desc" },
+    });
+  },
+
+  /**
+   * `markPrescriptionDispenseRequestNotDispensed` for a caller that already
+   * holds a transaction. Returns the retired request id, or null.
+   *
+   * The public method hydrates the updated row for its HTTP callers; this one
+   * does not, because the only caller inside a transaction discards it and the
+   * extra reads would sit inside someone else's transaction for nothing.
+   */
+  async markPrescriptionDispenseRequestNotDispensedInTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      organisationId: string;
+      prescriptionId: string;
+      metadata?: Prisma.InputJsonValue;
+      reviewedBy?: string | null;
+    },
+  ): Promise<string | null> {
+    const organisationId = asNonEmptyString(params.organisationId);
+    const prescriptionId = asNonEmptyString(params.prescriptionId);
+    if (!organisationId || !prescriptionId) {
+      throw new InventoryConsumptionServiceError(
+        "organisationId and prescriptionId are required",
+        400,
+      );
+    }
+
+    return markPendingDispenseRequestNotDispensedInTx(tx, {
+      organisationId,
+      prescriptionId,
+      metadata: params.metadata,
+      reviewedBy: params.reviewedBy,
+    });
   },
 
   async consume(request: InventoryConsumptionRequest) {
@@ -2487,17 +2676,31 @@ export const InventoryConsumptionService = {
     medications: unknown;
     metadata?: Prisma.InputJsonValue;
   }) {
-    return runPrescriptionInventoryAction({
-      organisationId: params.organisationId,
-      prescriptionId: params.prescriptionId,
-      medications: params.medications,
-      metadata: {
-        voided: true,
-        originalMetadata: params.metadata ?? null,
-      },
-      action: "RELEASE",
-      movementReason: "PRESCRIPTION_VOID_DISPENSE",
-    });
+    return runPrescriptionInventoryAction(
+      buildVoidDispenseActionParams(params),
+    );
+  },
+
+  /**
+   * `voidDispensePrescription` for a caller that already holds a transaction.
+   *
+   * Same stock movement, same idempotency key, same advisory lock - the lock is
+   * `pg_advisory_xact_lock`, so it is held for the caller's transaction instead
+   * of a private one and released at the same commit.
+   */
+  async voidDispensePrescriptionInTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      organisationId: string;
+      prescriptionId: string;
+      medications: unknown;
+      metadata?: Prisma.InputJsonValue;
+    },
+  ) {
+    return runPrescriptionInventoryActionInTx(
+      tx,
+      buildVoidDispenseActionParams(params),
+    );
   },
 
   async consumePackageProduct(params: {

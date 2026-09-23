@@ -21,6 +21,8 @@ import {
   HeroGlow,
   InkAnnotate,
   useGithubStats,
+  useCloudUsers,
+  timeAgo,
   useGithubContributors,
   type GithubContributor,
   ABOUT_ORIGIN_PHOTO,
@@ -599,30 +601,42 @@ function StatColumn({ stat }: Readonly<{ stat: LiveStat }>) {
 
 function BuildingInPublic() {
   const stats = useGithubStats();
+  const cloudUsers = useCloudUsers();
+  const latestSignup = timeAgo(cloudUsers.latestSignupAt ?? undefined);
   const columns: LiveStat[] = [
+    // Cloud users leads, as it does on the home page: the other four measure
+    // interest in the repository, and this one measures people using the
+    // product. A page arguing that we do not keep our numbers private read
+    // oddly while that was the one number it left out.
+    {
+      value: cloudUsers.totalUsers ?? '·',
+      label: 'Cloud users',
+      source: latestSignup ? `live · last signup ${latestSignup}` : 'live via Yosemite Crew',
+      delay: 0,
+    },
     {
       value: stats.repositoryClones ?? '·',
       label: 'Repository clones',
       source: 'live via GitHub',
-      delay: 0,
+      delay: 80,
     },
     {
       value: stats.contributors ?? '·',
       label: 'Contributors',
       source: 'live via GitHub',
-      delay: 80,
+      delay: 160,
     },
     {
       value: stats.discord ?? '·',
       label: 'Discord members',
       source: 'live via Discord',
-      delay: 160,
+      delay: 240,
     },
     {
       value: stats.starsFull ?? '·',
       label: 'Repo stars',
       source: 'live via GitHub',
-      delay: 240,
+      delay: 320,
     },
   ];
 
@@ -659,7 +673,7 @@ function BuildingInPublic() {
           data-grid-2-m="true"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(5, 1fr)',
             gap: 'clamp(24px, 3vw, 48px)',
             marginTop: 'clamp(40px, 5vw, 64px)',
           }}
