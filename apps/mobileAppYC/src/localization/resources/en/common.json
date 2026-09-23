@@ -129,6 +129,16 @@
     "appearance_caption": "Dark uses the warm espresso theme.",
     "language": "Language",
     "no_languages_available": "No languages available",
+    "app_lock": "App lock",
+    "app_lock_caption": "Require Face ID, Touch ID, fingerprint or your screen lock.",
+    "app_lock_timeout": "Lock after",
+    "app_lock_immediately": "Immediately",
+    "app_lock_minutes": "{{count}} minute(s)",
+    "app_lock_unavailable": {
+      "noPasscode": "Set a device passcode or biometric check to use app lock.",
+      "androidVersion": "App lock is unavailable on this Android version.",
+      "noStrongBiometrics": "Enroll a strong biometric check to use app lock."
+    },
     "footnote": "Changes apply immediately and are saved on this device."
   },
   "common": {
@@ -852,6 +862,18 @@
     "prompt": {
       "title": "Unlock Yosemite Crew",
       "cancel": "Cancel"
+    },
+    "lockedLabel": "Yosemite Crew is locked",
+    "lockedTitle": "Unlock Yosemite Crew",
+    "lockedCaption": "Use your device security check to continue.",
+    "unlock": "Unlock",
+    "waiting": "Waiting…",
+    "signOut": "Sign out",
+    "failure": {
+      "cancelled": "Unlock cancelled.",
+      "lockout": "Too many attempts. Try again later.",
+      "invalidated": "Device security changed. Sign in again.",
+      "failed": "That check did not unlock the app."
     }
   }
 }
