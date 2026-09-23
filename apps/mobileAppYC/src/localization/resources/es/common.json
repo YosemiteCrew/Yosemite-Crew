@@ -408,6 +408,23 @@
       "OTHER": "Otro"
     }
   },
+  "prescriptions": {
+    "title": "Recetas",
+    "intro": "Recetas registradas por tus clínicas veterinarias.",
+    "empty": "No hay recetas registradas.",
+    "recorded": "Registrada {{date}}",
+    "requestRefill": "Solicitar renovación",
+    "requestRefillFor": "Solicitar renovación de {{medication}}",
+    "requesting": "Solicitando…",
+    "requestingFor": "Solicitando renovación de {{medication}}",
+    "refillRequestedTitle": "Renovación solicitada",
+    "refillRequestedBody": "Tu clínica veterinaria revisará la solicitud.",
+    "refillFailedTitle": "No se solicitó la renovación",
+    "refillFailedBody": "No se pudo enviar la solicitud. Inténtalo de nuevo.",
+    "signInAgain": "Vuelve a iniciar sesión para ver las recetas.",
+    "loadFailed": "No se pudieron cargar las recetas. Inténtalo de nuevo.",
+    "retry": "Intentar de nuevo"
+  },
   "appointments": {
     "chatLockedTitle": "El chat aun no esta abierto",
     "chatLockedBody": "El chat se abre un dia antes de tu cita.\n\nCita: {{appointmentTime}}\nSe abre en: {{hours}} h {{minutes}} min",

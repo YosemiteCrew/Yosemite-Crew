@@ -408,6 +408,23 @@
       "OTHER": "Other"
     }
   },
+  "prescriptions": {
+    "title": "Prescriptions",
+    "intro": "Prescriptions recorded by your veterinary practices.",
+    "empty": "No prescriptions recorded.",
+    "recorded": "Recorded {{date}}",
+    "requestRefill": "Request refill",
+    "requestRefillFor": "Request refill for {{medication}}",
+    "requesting": "Requesting…",
+    "requestingFor": "Requesting refill for {{medication}}",
+    "refillRequestedTitle": "Refill requested",
+    "refillRequestedBody": "Your veterinary practice will review the request.",
+    "refillFailedTitle": "Refill not requested",
+    "refillFailedBody": "The refill request could not be sent. Please try again.",
+    "signInAgain": "Please sign in again to view prescriptions.",
+    "loadFailed": "Prescriptions could not be loaded. Please try again.",
+    "retry": "Try again"
+  },
   "appointments": {
     "chatLockedTitle": "Chat not open yet",
     "chatLockedBody": "Chat opens a day before your appointment.\n\nAppointment: {{appointmentTime}}\nOpens in: {{hours}}h {{minutes}}m",
