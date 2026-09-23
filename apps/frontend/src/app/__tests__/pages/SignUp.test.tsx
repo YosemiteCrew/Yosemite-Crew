@@ -423,16 +423,54 @@ describe('SignUp page', () => {
     );
   });
 
-  test('blocks production signup when the Turnstile site key is missing', () => {
+  /*
+   * Turnstile is keyed on the site key alone, never on NODE_ENV, and this is the
+   * case that makes a deploy survivable. The sign-up form and `packages/auth`
+   * are a lockstep: when the check is required the form posts a third form
+   * field, and supertokens-node refuses a request carrying more formFields than
+   * the recipe declares. Keying either half on "this is a production build"
+   * armed one side the moment Amplify shipped, minutes before the API it has to
+   * agree with, and refused 100% of business sign-ups for that window rather
+   * than degrading. With no key configured, neither half arms and sign-up works.
+   *
+   * The control itself is unchanged and still pinned: configure a key and the
+   * token is demanded (see 'requires a completed bot check before signup'), and
+   * a key whose script will not load still blocks (see 'shows an unavailable
+   * message when the Turnstile script fails to load').
+   */
+  test('allows signup when no Turnstile site key is configured, whatever NODE_ENV says', async () => {
+    authStoreMock.signUp.mockResolvedValue({ userId: 'user-1', email: 'janedoe@gmail.com' });
     const originalNodeEnv = process.env.NODE_ENV;
     (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
 
-    render(<SignUp />);
+    try {
+      render(<SignUp />);
+      fillValidForm();
+      setFieldValue('Work email', 'Jane.Doe+signup@gmail.com');
 
-    (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
-    expect(
-      screen.getByText('Bot verification is unavailable. Please try again later.')
-    ).toBeVisible();
+      fireEvent.click(getSubmitBtn());
+
+      // No bot error of either wording, and the account is actually created.
+      expect(
+        screen.queryByText('Bot verification is unavailable. Please try again later.')
+      ).toBeNull();
+      expect(
+        screen.queryByText('Complete bot verification before creating an account.')
+      ).toBeNull();
+      // Exactly four arguments: no organisation, and crucially NO bot token.
+      // That absence is the whole point - it is what the old API accepts and
+      // what keeps the two halves compatible while they deploy minutes apart.
+      await waitFor(() =>
+        expect(authStoreMock.signUp).toHaveBeenCalledWith(
+          'Jane.Doe+signup@gmail.com',
+          'Secret!23',
+          'Jane',
+          'Doe'
+        )
+      );
+    } finally {
+      (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
+    }
   });
 
   test('has no axe accessibility violations', async () => {

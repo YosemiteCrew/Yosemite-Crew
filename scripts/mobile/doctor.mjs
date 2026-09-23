@@ -405,6 +405,75 @@ const appConfigProblems = () => {
   return problems;
 };
 
+// `--require-production-api` is the other half of the same problem, and the more
+// dangerous one. `variables.local.ts` also carries USE_DEV_API, and CI restores
+// that file wholesale from the MOBILE_VARIABLES_LOCAL_TS secret. Nothing in the
+// build reads it back, so a secret left at `true` produces a green, signed,
+// uploaded TestFlight and Play build that talks to devapi.yosemitecrew.com.
+// Every gate passes; the first person to notice is a user whose data is not
+// there. The submission guide lists exactly this as a common pitfall, which is
+// the giveaway that it has happened before and that prose did not prevent it.
+//
+// Kept separate from --require-app-config because a workflow_dispatch build
+// exercises the signing chain and uploads nothing, so it has no business
+// failing on which API it points at. The release workflow runs this one only
+// for a tag push, on the same `github.event_name == 'push'` condition that
+// gates the uploads themselves.
+const RELEASE_FLAGS = [
+  // [declaration, required value, why it matters in a store build]
+  ['USE_DEV_API', 'false', 'a store build must talk to the production API'],
+];
+
+const productionApiProblems = () => {
+  const rel = 'src/config/variables.local.ts';
+  const file = join(root, rel);
+
+  if (!existsSync(file)) {
+    return [`${rel} missing; the MOBILE_VARIABLES_LOCAL_TS secret did not restore`];
+  }
+
+  // Block comments go first so that only line comments are left to exclude, and
+  // they are replaced rather than deleted so nothing joins across the gap. A
+  // `/*` inside a string would swallow the real declaration, which then reads as
+  // absent - a failure, not a pass, so the cheap strip errs in the safe
+  // direction.
+  const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const problems = [];
+
+  for (const [name, required, why] of RELEASE_FLAGS) {
+    // The live declaration, not a mention of it. Anchored to the start of its
+    // own line with only whitespace and an optional `export` in front, so a
+    // commented-out `// const NAME = false;` cannot vouch for the declaration
+    // one line below it.
+    const declaration = new RegExp(
+      `^[ \\t]*(?:export[ \\t]+)?const[ \\t]+${name}[ \\t]*=[ \\t]*(true|false)[ \\t]*;`,
+      'gm'
+    );
+    const values = [...code.matchAll(declaration)].map((m) => m[1]);
+    // "I could not find it" and "I found two of them" must both read as
+    // problems; only "it is correct" may read as a pass.
+    if (values.length === 0) {
+      problems.push(`${name} not declared in ${rel}; cannot prove ${why}`);
+    } else if (values.length > 1) {
+      problems.push(`${name} declared ${values.length} times in ${rel}; cannot prove ${why}`);
+    } else if (values[0] !== required) {
+      problems.push(`${name} is ${values[0]} in ${rel}, must be ${required}: ${why}`);
+    }
+  }
+  return problems;
+};
+
+if (process.argv.includes('--require-production-api')) {
+  const problems = productionApiProblems();
+  for (const problem of problems) {
+    console.log(`WRONG    ${problem}`);
+  }
+  if (problems.length === 0) {
+    console.log('OK       src/config/variables.local.ts routes this build at the production API');
+  }
+  process.exit(problems.length === 0 ? 0 : 1);
+}
+
 if (process.argv.includes('--require-app-config')) {
   const problems = appConfigProblems();
   for (const problem of problems) {
