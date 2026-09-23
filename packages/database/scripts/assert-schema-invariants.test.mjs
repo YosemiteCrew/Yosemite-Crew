@@ -10,16 +10,19 @@ const assertSafeMutationTarget = (
   allowRemote = process.env.ALLOW_DESTRUCTIVE_SCHEMA_INVARIANT_TESTS === '1'
 ) => {
   assert.ok(databaseUrl, 'DATABASE_URL is required for destructive schema invariant tests');
-  const { hostname } = new URL(databaseUrl);
+  const url = new URL(databaseUrl);
+  const target = url.searchParams.get('host') ?? url.hostname;
   assert.ok(
-    allowRemote || ['', 'localhost', '127.0.0.1', '[::1]'].includes(hostname),
+    allowRemote ||
+      target.startsWith('/') ||
+      ['', 'localhost', '127.0.0.1', '::1', '[::1]'].includes(target),
     'destructive schema invariant tests require a local database; set ALLOW_DESTRUCTIVE_SCHEMA_INVARIANT_TESTS=1 to opt in'
   );
 };
 
 assertSafeMutationTarget();
 if (process.env.SCHEMA_INVARIANT_IMPORT_PROBE === '1') {
-  process.exit(0);
+  process.exit(93);
 }
 
 const run = (command, args, options = {}) =>
@@ -66,6 +69,11 @@ test('refuses a remote mutation target without explicit opt-in', () => {
     assertSafeMutationTarget('postgresql://db.example.test/yosemite', true)
   );
   assert.doesNotThrow(() => assertSafeMutationTarget('postgresql:///yosemite', false));
+  assert.throws(
+    () =>
+      assertSafeMutationTarget('postgresql://localhost:5432/yosemite?host=db.example.test', false),
+    /require a local database/
+  );
 });
 
 test('refuses at import when DATABASE_URL is remote', () => {
