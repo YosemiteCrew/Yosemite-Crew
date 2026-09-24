@@ -172,7 +172,7 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
   // state persists when the app is torn down programmatically, not a test we
   // have decided to stop caring about. Marked so the other 43 can gate the
   // suite instead of one environment-specific failure holding them hostage.
-  test.fixme('persists window state across relaunches', async () => {
+  test('persists window state across relaunches', async () => {
     const profileDir = userDataDir as string;
 
     // setBounds is applied by the window server asynchronously, so emitting
@@ -199,8 +199,18 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
       // that emit set in motion during shutdown.
       await new Promise((resolve) => setTimeout(resolve, 1200));
     });
+    const display = await app?.evaluate(({ screen }) => {
+      const d = screen.getPrimaryDisplay();
+      return { size: d.size, workArea: d.workArea, scale: d.scaleFactor };
+    });
     await app?.close();
     app = undefined;
+    const statePath = path.join(profileDir, 'window-state.json');
+    console.log('DIAG2252 display', JSON.stringify(display));
+    console.log(
+      'DIAG2252 state',
+      fs.existsSync(statePath) ? fs.readFileSync(statePath, 'utf8') : 'MISSING'
+    );
 
     const relaunched = await launchPackagedApp(pimsServer.origin, docServer.origin, profileDir);
     app = relaunched.app;
@@ -209,6 +219,7 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     const bounds = await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0]?.getBounds()
     );
+    console.log('DIAG2252 relaunched', JSON.stringify(bounds));
     expect(bounds?.width).toBe(1180);
     expect(bounds?.height).toBe(820);
   });
