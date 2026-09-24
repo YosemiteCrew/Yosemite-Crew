@@ -244,7 +244,13 @@ const SignUpBotCheck = ({ siteKey, error, resetCounter, onTokenChange }: SignUpB
     }
   }, [resetCounter]);
 
-  if (!siteKey) return <FieldError message={TURNSTILE_UNAVAILABLE_ERROR} />;
+  if (!siteKey) {
+    // This branch is reached when turnstileRequired=true but siteKey is falsy.
+    // This should not happen in normal operation since turnstileRequired=Boolean(siteKey).
+    // If it does, it indicates a configuration issue where the frontend thinks
+    // Turnstile is required but has no site key to render the widget.
+    return <FieldError message={TURNSTILE_UNAVAILABLE_ERROR} />;
+  }
 
   return (
     <>
@@ -542,6 +548,34 @@ const SignUp = ({
   // either on NODE_ENV means a production build demands a token the deployed
   // API does not yet accept, which refuses every sign-up rather than degrading.
   const turnstileRequired = Boolean(turnstileSiteKey);
+
+  // Development-mode diagnostic: warn if Turnstile site key is not configured.
+  // In deployed environments (dev/prod), if the backend has TURNSTILE_SECRET_KEY
+  // set but the frontend lacks NEXT_PUBLIC_TURNSTILE_SITE_KEY, signups will fail
+  // because the backend requires a token the frontend cannot provide.
+  // See: https://github.com/YosemiteCrew/Yosemite-Crew/issues/3077
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const hostname = globalThis.window?.location?.hostname;
+      const isDeployedLike =
+        hostname && !hostname.includes('localhost') && !hostname.includes('127.0.0.1');
+      if (!turnstileSiteKey && isDeployedLike) {
+        console.warn(
+          '[Turnstile] NEXT_PUBLIC_TURNSTILE_SITE_KEY is not configured. ' +
+            'Bot verification is disabled on the frontend. ' +
+            'If the backend requires Turnstile (TURNSTILE_SECRET_KEY is set), signups will fail. ' +
+            'Set NEXT_PUBLIC_TURNSTILE_SITE_KEY in the deployment environment to enable bot verification.'
+        );
+      }
+      if (turnstileSiteKey && turnstileSiteKey.length < 10) {
+        console.warn(
+          '[Turnstile] NEXT_PUBLIC_TURNSTILE_SITE_KEY appears to be invalid (too short). ' +
+            'A valid Cloudflare Turnstile site key is typically 40+ characters. ' +
+            'Verify the key is correct and the domain is authorized in the Turnstile dashboard.'
+        );
+      }
+    }
+  }, [turnstileSiteKey]);
 
   const { clearSignUpDraft } = useSignUpDraft({
     firstName,
