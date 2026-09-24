@@ -565,7 +565,7 @@ const SignUp = ({
         topRight={<SignUpTopRight signinHref={signinHref} />}
       >
         <SignUpHeader />
-        <AuthForm onSubmit={handleSignUp} method="post">
+        <AuthForm onSubmit={handleSignUp}>
           {!isDeveloper ? <SignUpRoleField role={role} onRoleChange={setRole} /> : null}
           <SignUpFields
             firstName={firstName}

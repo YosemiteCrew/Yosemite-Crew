@@ -55,6 +55,13 @@ describe('ForgotPassword page (reset link flow)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
   };
 
+  test('submits the reset-link form with POST so a native submission keeps field values out of the URL', () => {
+    const { container } = render(<ForgotPassword />);
+    const form = container.querySelector('form');
+    expect(form).toHaveAttribute('method', 'post');
+    expect(form?.querySelector('input[name="email"]')).not.toBeNull();
+  });
+
   test('renders the email form', () => {
     render(<ForgotPassword />);
 
