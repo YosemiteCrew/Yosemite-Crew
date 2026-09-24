@@ -344,6 +344,219 @@ describe("ContactController", () => {
       expect(res.status).toHaveBeenCalledWith(422);
       expect(res.json).toHaveBeenCalledWith({ message: "invalid" });
     });
+
+    describe("bot check", () => {
+      const SITEVERIFY_URL =
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+      const REQUIRED_ERROR = {
+        message: "Complete bot verification before sending your message.",
+      };
+      const REJECTED_ERROR = {
+        message:
+          "We could not verify this message. Please refresh and try again.",
+      };
+      const originalFetch = globalThis.fetch;
+      const originalSecret = process.env.TURNSTILE_SECRET_KEY;
+      const originalDomain = process.env.AUTH_WEBSITE_DOMAIN;
+      let fetchMock: jest.Mock;
+
+      const restoreEnv = (name: string, value: string | undefined) => {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      };
+
+      const answerWith = (result: Record<string, unknown>) => {
+        fetchMock.mockResolvedValue({ ok: true, json: async () => result });
+      };
+
+      const webRequest = (extra: Record<string, unknown> = {}) =>
+        ({
+          ip: "198.51.100.7",
+          body: {
+            type: "GENERAL_ENQUIRY",
+            source: "PMS_WEB",
+            message: "Help",
+            fullName: "Web User",
+            email: "web@user.com",
+            website: "",
+            ...extra,
+          },
+        }) as any;
+
+      beforeEach(() => {
+        fetchMock = jest.fn();
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        process.env.TURNSTILE_SECRET_KEY = "synthetic secret value";
+        process.env.AUTH_WEBSITE_DOMAIN = "https://site.example.test";
+        mockedContactService.createWebRequest.mockResolvedValue({
+          id: "contact-web-verified",
+        });
+      });
+
+      afterEach(() => {
+        globalThis.fetch = originalFetch;
+        restoreEnv("TURNSTILE_SECRET_KEY", originalSecret);
+        restoreEnv("AUTH_WEBSITE_DOMAIN", originalDomain);
+        mockedContactService.createWebRequest.mockReset();
+      });
+
+      it("is not required when no secret is configured", async () => {
+        process.env.TURNSTILE_SECRET_KEY = "   ";
+        const res = createResponse();
+
+        await ContactController.createWeb(webRequest(), res as any);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockedContactService.createWebRequest).toHaveBeenCalledTimes(1);
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith({ id: "contact-web-verified" });
+      });
+
+      it("refuses a submission with no token, without calling Cloudflare", async () => {
+        const res = createResponse();
+
+        await ContactController.createWeb(webRequest(), res as any);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockedContactService.createWebRequest).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(REQUIRED_ERROR);
+      });
+
+      it("refuses an oversized token, without calling Cloudflare", async () => {
+        const res = createResponse();
+
+        await ContactController.createWeb(
+          webRequest({ turnstileToken: "x".repeat(2049) }),
+          res as any,
+        );
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockedContactService.createWebRequest).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(REQUIRED_ERROR);
+      });
+
+      it("accepts a verified token and never passes it on", async () => {
+        answerWith({
+          success: true,
+          action: "contact_form",
+          hostname: "site.example.test",
+        });
+        const res = createResponse();
+
+        await ContactController.createWeb(
+          webRequest({ turnstileToken: "synthetic widget token" }),
+          res as any,
+        );
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(url).toBe(SITEVERIFY_URL);
+        const body = init.body as URLSearchParams;
+        expect(body.get("secret")).toBe("synthetic secret value");
+        expect(body.get("response")).toBe("synthetic widget token");
+        expect(body.get("remoteip")).toBe("198.51.100.7");
+
+        const stored = mockedContactService.createWebRequest.mock.calls[0][0];
+        expect(stored).not.toHaveProperty("turnstileToken");
+        expect(JSON.stringify(stored)).not.toContain("synthetic widget token");
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith({ id: "contact-web-verified" });
+      });
+
+      it.each([
+        [
+          "a different action",
+          {
+            success: true,
+            action: "business_signup",
+            hostname: "site.example.test",
+          },
+        ],
+        [
+          "a different hostname",
+          {
+            success: true,
+            action: "contact_form",
+            hostname: "other.example.test",
+          },
+        ],
+        [
+          "an unsuccessful answer",
+          {
+            success: false,
+            action: "contact_form",
+            hostname: "site.example.test",
+          },
+        ],
+      ])("refuses a token with %s", async (_label, result) => {
+        answerWith(result);
+        const res = createResponse();
+
+        await ContactController.createWeb(
+          webRequest({ turnstileToken: "synthetic widget token" }),
+          res as any,
+        );
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(mockedContactService.createWebRequest).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(REJECTED_ERROR);
+      });
+
+      it("fails closed when Cloudflare cannot be reached", async () => {
+        fetchMock.mockRejectedValue(new Error("synthetic network failure"));
+        const res = createResponse();
+
+        await ContactController.createWeb(
+          webRequest({ turnstileToken: "synthetic widget token" }),
+          res as any,
+        );
+
+        expect(mockedContactService.createWebRequest).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(REJECTED_ERROR);
+        expect(console.error).toHaveBeenCalledWith(
+          "[auth] Turnstile verification failed",
+          expect.any(Error),
+        );
+      });
+
+      it.each([
+        ["unset", undefined],
+        ["not a URL", "not a url"],
+      ])(
+        "fails closed without a 500 when the site domain is %s",
+        async (_label, domain) => {
+          restoreEnv("AUTH_WEBSITE_DOMAIN", domain);
+          const res = createResponse();
+
+          await ContactController.createWeb(
+            webRequest({ turnstileToken: "synthetic widget token" }),
+            res as any,
+          );
+
+          expect(fetchMock).not.toHaveBeenCalled();
+          expect(mockedContactService.createWebRequest).not.toHaveBeenCalled();
+          expect(res.status).toHaveBeenCalledWith(400);
+          expect(res.json).toHaveBeenCalledWith(REJECTED_ERROR);
+        },
+      );
+
+      it("still lets the honeypot answer first, without calling Cloudflare", async () => {
+        const res = createResponse();
+
+        await ContactController.createWeb(
+          webRequest({ website: "http://spam.example" }),
+          res as any,
+        );
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockedContactService.createWebRequest).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(201);
+      });
+    });
   });
 
   describe("getById", () => {

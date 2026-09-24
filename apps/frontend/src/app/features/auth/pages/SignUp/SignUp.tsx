@@ -1,8 +1,6 @@
 'use client';
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
-import Script from 'next/script';
-import { useTheme } from '@/app/ui/theme';
 import { Icon } from '@/app/ui/icons/Icon';
 import {
   IoCalendarOutline,
@@ -25,6 +23,7 @@ import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
 import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
 import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import { BotCheck, TURNSTILE_UNAVAILABLE_ERROR } from '@/app/ui/widgets/BotCheck/BotCheck';
 import {
   AuthForm,
   AuthHeading,
@@ -40,31 +39,8 @@ const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
 
 const ROLE_DROPDOWN_OPTIONS = [CLINIC_ROLE, DEVELOPER_ROLE];
-const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 const TURNSTILE_ACTION = 'business_signup';
 const TURNSTILE_FIELD_ERROR = 'Complete bot verification before creating an account.';
-const TURNSTILE_UNAVAILABLE_ERROR = 'Bot verification is unavailable. Please try again later.';
-
-type TurnstileApi = {
-  render: (
-    container: HTMLElement,
-    options: {
-      sitekey: string;
-      action: string;
-      size: 'flexible';
-      theme: 'light' | 'dark';
-      callback: (token: string) => void;
-      'expired-callback': () => void;
-      'error-callback': () => boolean;
-      'unsupported-callback': () => void;
-    }
-  ) => string;
-  reset: (widgetId: string) => void;
-  remove: (widgetId: string) => void;
-};
-
-const getTurnstile = () =>
-  (globalThis.window as (Window & { turnstile?: TurnstileApi }) | undefined)?.turnstile;
 
 const CLINIC_POINTS = [
   {
@@ -198,66 +174,6 @@ type SignUpProps = {
   allowNext?: boolean;
   isDeveloper?: boolean;
   turnstileSiteKey?: string;
-};
-
-type SignUpBotCheckProps = {
-  siteKey?: string;
-  error?: string;
-  resetCounter: number;
-  onTokenChange: (token: string, error?: string) => void;
-};
-
-const SignUpBotCheck = ({ siteKey, error, resetCounter, onTokenChange }: SignUpBotCheckProps) => {
-  const { theme } = useTheme();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const widgetIdRef = useRef<string | undefined>(undefined);
-
-  const renderWidget = useCallback(() => {
-    const turnstile = getTurnstile();
-    if (!siteKey || !turnstile || !containerRef.current || widgetIdRef.current) return;
-    widgetIdRef.current = turnstile.render(containerRef.current, {
-      sitekey: siteKey,
-      action: TURNSTILE_ACTION,
-      size: 'flexible',
-      theme,
-      callback: onTokenChange,
-      'expired-callback': () => onTokenChange(''),
-      'error-callback': () => {
-        onTokenChange('', TURNSTILE_UNAVAILABLE_ERROR);
-        return true;
-      },
-      'unsupported-callback': () => onTokenChange('', TURNSTILE_UNAVAILABLE_ERROR),
-    });
-  }, [onTokenChange, siteKey, theme]);
-
-  useEffect(() => {
-    renderWidget();
-    return () => {
-      if (widgetIdRef.current) getTurnstile()?.remove(widgetIdRef.current);
-      widgetIdRef.current = undefined;
-    };
-  }, [renderWidget]);
-
-  useEffect(() => {
-    if (resetCounter > 0 && widgetIdRef.current) {
-      getTurnstile()?.reset(widgetIdRef.current);
-    }
-  }, [resetCounter]);
-
-  if (!siteKey) return <FieldError message={TURNSTILE_UNAVAILABLE_ERROR} />;
-
-  return (
-    <>
-      <Script
-        src={TURNSTILE_SCRIPT}
-        strategy="afterInteractive"
-        onReady={renderWidget}
-        onError={() => onTokenChange('', TURNSTILE_UNAVAILABLE_ERROR)}
-      />
-      <div ref={containerRef} style={{ minHeight: 65 }} />
-      <FieldError message={error} />
-    </>
-  );
 };
 
 const SignUpBrand = ({ effectiveDeveloper }: { effectiveDeveloper: boolean }) => (
@@ -672,8 +588,9 @@ const SignUp = ({
             onAgreeChange={handleFieldChange(setAgree, 'agree')}
           />
           {turnstileRequired ? (
-            <SignUpBotCheck
+            <BotCheck
               siteKey={turnstileSiteKey}
+              action={TURNSTILE_ACTION}
               error={inputErrors.bot}
               resetCounter={turnstileResetCounter}
               onTokenChange={handleTurnstileTokenChange}

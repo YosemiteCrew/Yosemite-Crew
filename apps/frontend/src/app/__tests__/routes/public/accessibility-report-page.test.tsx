@@ -42,7 +42,17 @@ jest.mock('@/app/features/marketing/site/useGithubStats', () => ({
   useGithubStats: () => ({ stars: '2,431' }),
 }));
 
+jest.mock('next/script', () => ({
+  __esModule: true,
+  default: jest.requireActual('@/app/__tests__/support/turnstileTestStub').NextScriptMock,
+}));
+
 import AccessibilityReportPage from '@/app/(routes)/(public)/accessibility/report/page';
+import AccessibilityReportClient from '@/app/(routes)/(public)/accessibility/report/AccessibilityReportClient';
+import {
+  installTurnstileStub,
+  removeTurnstileStub,
+} from '@/app/__tests__/support/turnstileTestStub';
 
 describe('AccessibilityReportPage', () => {
   beforeEach(() => {
@@ -365,5 +375,106 @@ describe('AccessibilityReportPage', () => {
   it('cancel link points to accessibility statement', () => {
     render(<AccessibilityReportPage />);
     expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', '/accessibility');
+  });
+});
+
+describe('AccessibilityReportClient bot check', () => {
+  const BOT_ERROR = 'Complete bot verification before sending your message.';
+  let turnstile: ReturnType<typeof installTurnstileStub>;
+
+  const fillReport = () => {
+    fireEvent.change(screen.getByLabelText(/Your name/i), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText(/Email address/i), {
+      target: { value: 'ada@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/Describe the barrier/i), {
+      target: { value: 'Focus is lost after closing the dialog.' },
+    });
+  };
+  const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    isAxiosErrorMock.mockReturnValue(false);
+    // Never settles unless a test says otherwise, so a post let through by a
+    // broken guard fails its assertion instead of updating state after the test.
+    postDataMock.mockImplementation(() => new Promise(() => {}));
+    turnstile = installTurnstileStub();
+  });
+
+  afterEach(() => {
+    removeTurnstileStub();
+  });
+
+  it('posts without a token and renders no widget when no site key is configured', async () => {
+    postDataMock.mockResolvedValue({});
+    render(<AccessibilityReportClient turnstileSiteKey="" />);
+    expect(screen.queryByRole('button', { name: 'Load bot check' })).not.toBeInTheDocument();
+    fillReport();
+
+    submit();
+
+    await waitFor(() => expect(postDataMock).toHaveBeenCalledTimes(1));
+    expect(postDataMock.mock.calls[0][1]).not.toHaveProperty('turnstileToken');
+    expect(turnstile.reset).not.toHaveBeenCalled();
+  });
+
+  it('blocks the report until the widget issues a token, then sends it and resets', async () => {
+    render(<AccessibilityReportClient turnstileSiteKey="site-key" />);
+    fillReport();
+
+    submit();
+    expect(postDataMock).not.toHaveBeenCalled();
+    expect(screen.getByText(BOT_ERROR)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+    expect(turnstile.render).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ sitekey: 'site-key', action: 'contact_form' })
+    );
+    turnstile.solve('synthetic-widget-token');
+    expect(screen.queryByText(BOT_ERROR)).not.toBeInTheDocument();
+
+    postDataMock.mockResolvedValue({});
+    submit();
+
+    await waitFor(() => expect(postDataMock).toHaveBeenCalledTimes(1));
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/contact-us/contact-web',
+      expect.objectContaining({ turnstileToken: 'synthetic-widget-token' })
+    );
+    expect(turnstile.reset).toHaveBeenCalledWith('widget-1');
+    expect(
+      await screen.findByRole('heading', { name: /Thank you for your report/i })
+    ).toBeInTheDocument();
+  });
+
+  it('spends the token on a failed report, so a retry needs a fresh one', async () => {
+    postDataMock.mockRejectedValueOnce(new Error('Network error'));
+    render(<AccessibilityReportClient turnstileSiteKey="site-key" />);
+    fillReport();
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+    turnstile.solve('single-use-token');
+
+    submit();
+    await waitFor(() => expect(postDataMock).toHaveBeenCalledTimes(1));
+    expect(turnstile.reset).toHaveBeenCalledWith('widget-1');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Submit report' })).toBeEnabled()
+    );
+
+    submit();
+    expect(postDataMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(BOT_ERROR)).toBeInTheDocument();
+  });
+
+  it('shows the missing-token error even when other fields are also invalid', async () => {
+    render(<AccessibilityReportClient turnstileSiteKey="site-key" />);
+
+    submit();
+
+    expect(postDataMock).not.toHaveBeenCalled();
+    expect(screen.getByText(BOT_ERROR)).toBeInTheDocument();
+    expect(screen.getAllByText('Your name is required.').length).toBeGreaterThan(0);
   });
 });
