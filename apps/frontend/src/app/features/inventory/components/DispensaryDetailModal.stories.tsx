@@ -320,7 +320,7 @@ export const PendingWithoutDispensePermission: Story = {
     await expect(panel.queryByRole('button', { name: 'Not dispensed' })).not.toBeInTheDocument();
     await expect(
       panel.getByText(
-        'Only staff with prescription and inventory edit access can dispense this request.'
+        'Only staff who can edit all prescriptions and inventory can dispense this request.'
       )
     ).toBeInTheDocument();
     // The request stays fully readable - the arithmetic is still there.

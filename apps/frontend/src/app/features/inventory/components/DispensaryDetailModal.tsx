@@ -349,7 +349,7 @@ const DispensaryFooter = ({
     return (
       <ModalFooter align="start">
         <p className="text-caption-1 text-text-secondary">
-          Only staff with prescription and inventory edit access can dispense this request.
+          Only staff who can edit all prescriptions and inventory can dispense this request.
         </p>
       </ModalFooter>
     );

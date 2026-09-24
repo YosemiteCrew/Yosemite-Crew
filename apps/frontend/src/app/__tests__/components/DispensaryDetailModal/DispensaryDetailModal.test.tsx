@@ -192,7 +192,7 @@ describe('DispensaryDetailModal', () => {
   describe('Pending state without dispense permission', () => {
     const pendingRecord = { ...baseRecord, status: 'PENDING' as const };
     const reason =
-      'Only staff with prescription and inventory edit access can dispense this request.';
+      'Only staff who can edit all prescriptions and inventory can dispense this request.';
 
     it('hides Dispense all and Not dispensed and says why', () => {
       render(
