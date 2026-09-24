@@ -320,11 +320,12 @@ describe('ConsentListPanel', () => {
     render(<ConsentListPanel companionId="comp-1" />);
 
     expect(await screen.findByText('Surgical consent - Buddy')).toBeInTheDocument();
+    expect(screen.getByText('Consent documents')).toBeInTheDocument();
     expect(screen.getByText(/Signed Feb 1, 2026/)).toBeInTheDocument();
     expect(loadSignedDocumentsMock).toHaveBeenCalledWith('comp-1');
 
     await userEvent.click(
-      screen.getByRole('button', { name: 'View signed document: Surgical consent - Buddy' })
+      screen.getByRole('button', { name: 'View consent document: Surgical consent - Buddy' })
     );
     expect(openSpy).toHaveBeenCalledWith(
       'https://files.example.com/consent-doc-1.pdf',
@@ -335,28 +336,45 @@ describe('ConsentListPanel', () => {
   });
 
   // #3600: a submitted consent template is listed before anyone signs it, so a
-  // CONSENT document with no signing date must not be labelled as signed.
+  // CONSENT document with no signing date must not be labelled as signed - not
+  // in its row, the sub-list heading, or the View button's accessible name. The
+  // row is titled with the consent template's name (and keyed by it when the
+  // document carries no id).
+  const unsignedDoc = (pdfUrl: string | null): CompanionRecord => ({
+    title: 'Anaesthesia consent',
+    category: 'HEALTH',
+    subcategory: 'SURGERY_OR_PROCEDURE',
+    attachments: [],
+    signedAt: null,
+    pdfUrl,
+    sourceKind: 'TEMPLATE_INSTANCE',
+  });
+
   it('lists a submitted consent document that is not signed yet', async () => {
-    const submittedDoc: CompanionRecord = {
-      id: 'doc-2',
-      title: 'Consent form',
-      category: 'HEALTH',
-      subcategory: 'SURGERY_OR_PROCEDURE',
-      attachments: [],
-      signedAt: null,
-      pdfUrl: null,
-      sourceKind: 'TEMPLATE_INSTANCE',
-    };
-    loadSignedDocumentsMock.mockResolvedValue([submittedDoc]);
+    loadSignedDocumentsMock.mockResolvedValue([unsignedDoc(null)]);
 
     render(<ConsentListPanel companionId="comp-1" />);
 
-    expect(await screen.findByText('Consent form')).toBeInTheDocument();
+    expect(await screen.findByText('Anaesthesia consent')).toBeInTheDocument();
+    expect(screen.getByText('Consent documents')).toBeInTheDocument();
+    expect(screen.queryByText('Signed documents')).not.toBeInTheDocument();
     expect(screen.getByText('Not signed yet')).toBeInTheDocument();
     expect(screen.queryByText('Signed')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^View/ })).not.toBeInTheDocument();
+  });
+
+  it('names the View button without calling an unsigned document signed', async () => {
+    loadSignedDocumentsMock.mockResolvedValue([
+      unsignedDoc('https://files.example.com/consent-doc-2.pdf'),
+    ]);
+
+    render(<ConsentListPanel companionId="comp-1" />);
+
     expect(
-      screen.queryByRole('button', { name: 'View signed document: Consent form' })
-    ).not.toBeInTheDocument();
+      await screen.findByRole('button', { name: 'View consent document: Anaesthesia consent' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('Not signed yet')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /signed/i })).not.toBeInTheDocument();
   });
 
   it('does not load signed documents when the member cannot view consents', () => {

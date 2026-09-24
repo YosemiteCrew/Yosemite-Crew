@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, within } from 'storybook/test';
 import ConsentList from './ConsentList';
 import type { PatientConsent } from '@/app/features/companionHistory/services/patientConsentService';
+import type { CompanionRecord } from '@/app/features/documents/types/companionDocuments';
 
 const consent = (over: Partial<PatientConsent>): PatientConsent => ({
   id: over.id ?? 'c-1',
@@ -60,6 +62,31 @@ const SAMPLE: PatientConsent[] = [
   }),
 ];
 
+// Consent PDFs from the e-signing portal, titled with their template's name: a
+// submitted consent is listed before anyone signs it.
+const CONSENT_DOCUMENTS: CompanionRecord[] = [
+  {
+    id: 'doc-signed',
+    title: 'Surgical consent',
+    category: 'HEALTH',
+    subcategory: 'SURGERY_OR_PROCEDURE',
+    attachments: [],
+    signedAt: '2026-01-08T10:00:00.000Z',
+    pdfUrl: 'https://files.example.com/surgical-consent.pdf',
+    sourceKind: 'TEMPLATE_INSTANCE',
+  },
+  {
+    id: 'doc-unsigned',
+    title: 'Anaesthesia consent',
+    category: 'HEALTH',
+    subcategory: 'SURGERY_OR_PROCEDURE',
+    attachments: [],
+    signedAt: null,
+    pdfUrl: null,
+    sourceKind: 'TEMPLATE_INSTANCE',
+  },
+];
+
 const meta = {
   title: 'CompanionHistory/ConsentList',
   component: ConsentList,
@@ -92,4 +119,24 @@ export const Loading: Story = {
 
 export const WithError: Story = {
   args: { error: 'Could not load the consent list. Please try again.' },
+};
+
+export const WithConsentDocuments: Story = {
+  args: { signedDocuments: CONSENT_DOCUMENTS },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText('Consent documents')).toBeVisible();
+    await expect(canvas.queryByText('Signed documents')).not.toBeInTheDocument();
+
+    const signedRow = canvas.getByText('Surgical consent').closest('li') as HTMLElement;
+    await expect(within(signedRow).getByText(/^Signed /)).toBeVisible();
+    await expect(
+      within(signedRow).getByRole('button', { name: 'View consent document: Surgical consent' })
+    ).toBeVisible();
+
+    const unsignedRow = canvas.getByText('Anaesthesia consent').closest('li') as HTMLElement;
+    await expect(within(unsignedRow).getByText('Not signed yet')).toBeVisible();
+    await expect(within(unsignedRow).queryByRole('button')).not.toBeInTheDocument();
+  },
 };

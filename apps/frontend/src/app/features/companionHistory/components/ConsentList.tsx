@@ -397,7 +397,7 @@ const ConsentListBody = ({
  * submitted consent is listed before it is signed, so no signing date means
  * it is not signed yet.
  */
-const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
+const ConsentDocumentRow = ({ document }: { document: CompanionRecord }) => {
   const signedDate = formatDisplayDate(document.signedAt ?? undefined, '');
   return (
     <li className={rowClass}>
@@ -412,7 +412,7 @@ const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
           size="compact"
           text="View"
           onClick={() => globalThis.open(document.pdfUrl ?? '', '_blank', 'noopener')}
-          ariaLabel={`View signed document: ${document.title}`}
+          ariaLabel={`View consent document: ${document.title}`}
         />
       ) : null}
     </li>
@@ -420,18 +420,18 @@ const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
 };
 
 /**
- * The signed PDFs the e-signing portal produced, as their own sub-list -
- * distinct from the manually-recorded consents above, since nothing links a
- * given `PatientConsent` row to a given signed document.
+ * The consent PDFs the e-signing portal produced, signed or still waiting, as
+ * their own sub-list - distinct from the manually-recorded consents above,
+ * since nothing links a given `PatientConsent` row to a given document.
  */
-const SignedConsentDocuments = ({ documents }: { documents: CompanionRecord[] }) => {
+const ConsentDocuments = ({ documents }: { documents: CompanionRecord[] }) => {
   if (documents.length === 0) return null;
   return (
     <div className="border-t border-[var(--divider)]">
-      <div className={clsx(fieldLabelClass, 'px-4 pt-3')}>Signed documents</div>
+      <div className={clsx(fieldLabelClass, 'px-4 pt-3')}>Consent documents</div>
       <ul className="divide-y divide-[var(--divider)]">
         {documents.map((document) => (
-          <SignedDocumentRow key={document.id ?? document.title} document={document} />
+          <ConsentDocumentRow key={document.id ?? document.title} document={document} />
         ))}
       </ul>
     </div>
@@ -492,7 +492,7 @@ const ConsentList = ({
         revokingId={revokingId}
       />
 
-      <SignedConsentDocuments documents={signedDocuments} />
+      <ConsentDocuments documents={signedDocuments} />
     </section>
   );
 };
