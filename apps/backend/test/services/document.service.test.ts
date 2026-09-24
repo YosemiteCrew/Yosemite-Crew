@@ -126,7 +126,7 @@ describe("DocumentService", () => {
       id: "pp-1",
     } as any);
     mockedPrisma.parentPatient.findMany.mockResolvedValue([
-      { patientId: uuidPatientId },
+      { patientId: uuidPatientId, role: "PRIMARY", permissions: {} },
     ] as any);
     mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
       id: "po-1",
@@ -739,6 +739,156 @@ describe("DocumentService", () => {
 
       expect(result).toEqual([]);
       expect(mockedPrisma.renderedDocument.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  // The route is keyed by an appointment, so the
+  // requireCompanionPermission("documents") middleware the patient-keyed mobile
+  // document routes use cannot run on it; the service applies the same rule.
+  describe("listForAppointmentParent parent access", () => {
+    const otherParentId = "44444444-5555-4666-8777-888888888888";
+    const otherPatientId = "66666666-7777-4888-8999-aaaaaaaaaaaa";
+
+    type LinkRow = {
+      parentId: string;
+      patientId: string;
+      role: string;
+      status: string;
+      permissions: unknown;
+    };
+
+    const link = (overrides: Partial<LinkRow> = {}): LinkRow => ({
+      parentId: uuidParentId,
+      patientId: uuidPatientId,
+      role: "PRIMARY",
+      status: "ACTIVE",
+      permissions: {},
+      ...overrides,
+    });
+
+    // Stands in for the parentPatient table and applies the `where` the way
+    // Prisma does (an omitted field matches everything), so a loosened filter
+    // lets the wrong row through instead of passing unnoticed.
+    const useLinks = (rows: LinkRow[]) => {
+      const matches = (value: string, filter: unknown) => {
+        if (filter === undefined) return true;
+        if (typeof filter === "string") return value === filter;
+        return (filter as { in: string[] }).in.includes(value);
+      };
+      mockedPrisma.parentPatient.findMany.mockImplementation((async ({
+        where,
+      }: any) =>
+        rows.filter(
+          (row) =>
+            matches(row.parentId, where.parentId) &&
+            matches(row.status, where.status) &&
+            matches(row.role, where.role),
+        )) as any);
+    };
+
+    const listAsParent = () =>
+      DocumentService.listForAppointmentParent({
+        appointmentId: uuidAppointmentId,
+        parentId: uuidParentId,
+      });
+
+    const expectRefused = async () => {
+      await expect(listAsParent()).resolves.toEqual([]);
+      expect(mockedPrisma.document.findMany).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.findMany).not.toHaveBeenCalled();
+    };
+
+    it("returns the appointment's documents to the primary parent in the same shape", async () => {
+      useLinks([link()]);
+      mockedPrisma.document.findMany.mockResolvedValueOnce([
+        { ...baseRow, appointmentId: uuidAppointmentId },
+      ] as any);
+
+      await expect(listAsParent()).resolves.toEqual([
+        {
+          id: uuidDocumentId,
+          patientId: uuidPatientId,
+          appointmentId: uuidAppointmentId,
+          category: "HEALTH",
+          subcategory: null,
+          visitType: null,
+          title: "Vaccination card",
+          issuingBusinessName: null,
+          issueDate: null,
+          attachments: [{ key: "k-1", mimeType: "image/png", size: 123 }],
+          pmsVisible: true,
+          syncedFromPms: false,
+          uploadedByParentId: uuidParentId,
+          uploadedByPmsUserId: null,
+          sourceKind: "DOCUMENT",
+          sourceId: uuidDocumentId,
+          templateId: null,
+          templateVersion: null,
+          signingStatus: "SIGNED",
+          signedAt: null,
+          pdfUrl: null,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        },
+      ]);
+      expect(mockedPrisma.document.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            appointmentId: uuidAppointmentId,
+            patientId: { in: [uuidPatientId] },
+          },
+        }),
+      );
+    });
+
+    it("lets a primary parent through whatever their own permission set says", async () => {
+      useLinks([link({ permissions: { documents: false } })]);
+
+      await expect(listAsParent()).resolves.toHaveLength(1);
+    });
+
+    it.each(["PENDING", "REVOKED"])(
+      "refuses a parent whose link is %s",
+      async (status) => {
+        useLinks([link({ status })]);
+
+        await expectRefused();
+      },
+    );
+
+    it("refuses a co-parent without the documents permission", async () => {
+      useLinks([
+        link({
+          role: "CO_PARENT",
+          permissions: { documents: false, appointments: true },
+        }),
+      ]);
+
+      await expectRefused();
+    });
+
+    it("returns the documents to a co-parent with the documents permission", async () => {
+      useLinks([
+        link({
+          role: "CO_PARENT",
+          permissions: { documents: true, appointments: false },
+        }),
+      ]);
+
+      await expect(listAsParent()).resolves.toHaveLength(1);
+    });
+
+    it("refuses an appointment for another family's companion", async () => {
+      useLinks([
+        link(),
+        link({ parentId: otherParentId, patientId: otherPatientId }),
+      ]);
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        organisationId: uuidOrganisationId,
+        patient: { id: otherPatientId },
+      } as any);
+
+      await expectRefused();
     });
   });
 

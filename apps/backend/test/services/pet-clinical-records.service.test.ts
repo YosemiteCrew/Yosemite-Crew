@@ -147,7 +147,10 @@ beforeEach(() => {
   sendToUserMock.mockResolvedValue([]);
   sendEmailMock.mockResolvedValue(undefined);
   documensoMock.resolveOrganisationApiKey.mockResolvedValue("api-key");
-  documensoMock.createDocument.mockResolvedValue({ id: 42 });
+  documensoMock.createDocument.mockResolvedValue({
+    id: 42,
+    envelopeId: "envelope_42",
+  });
   documensoMock.distributeDocument.mockResolvedValue({});
   buildPdfMock.mockResolvedValue(Buffer.from("%PDF-1.4"));
 });
@@ -650,7 +653,7 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
       }),
     );
     expect(documensoMock.distributeDocument).toHaveBeenCalledWith(
-      expect.objectContaining({ documentId: 42 }),
+      expect.objectContaining({ envelopeId: "envelope_42" }),
     );
     expect(result).toMatchObject({
       status: "IN_PROGRESS",

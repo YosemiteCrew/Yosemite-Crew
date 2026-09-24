@@ -21,7 +21,7 @@ import { useInventoryModule } from '@/app/hooks/useInventory';
 import { listDispenseRequests } from '@/app/features/inventory/services/dispensaryService';
 import { dispensePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
-import { PERMISSIONS } from '@/app/lib/permissions';
+import { PERMISSIONS, ROLE_PERMISSIONS, type RoleCode } from '@/app/lib/permissions';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
@@ -259,8 +259,12 @@ jest.mock('@/app/ui/tables/DispensaryTable', () => ({
 
 jest.mock('@/app/features/inventory/components/DispensaryDetailModal', () => ({
   __esModule: true,
-  default: ({ record, showModal }: any) =>
-    showModal && record ? <div data-testid="dispensary-modal">{record.patient.name}</div> : null,
+  default: ({ record, showModal, canDispense }: any) =>
+    showModal && record ? (
+      <div data-testid="dispensary-modal" data-can-dispense={String(canDispense)}>
+        {record.patient.name}
+      </div>
+    ) : null,
 }));
 
 jest.mock('@/app/features/inventory/services/dispensaryService', () => ({
@@ -2293,6 +2297,48 @@ describe('Inventory Page', () => {
     await waitFor(() => {
       expect(screen.getByText('Unable to dispense prescription.')).toBeInTheDocument();
     });
+  });
+
+  // The dispense endpoints require prescription:edit:any AND inventory:edit:any,
+  // so only roles holding both may be offered the modal's queue actions (#3601).
+  // Every permission is set from the role table so the mock's `?? true` default
+  // cannot grant one the role lacks.
+  it.each<[RoleCode, boolean]>([
+    ['OWNER', true],
+    ['ADMIN', true],
+    ['SUPERVISOR', true],
+    ['VETERINARIAN', false],
+    ['TECHNICIAN', false],
+    ['ASSISTANT', false],
+    ['RECEPTIONIST', false],
+  ])('%s gets canDispense=%s on the dispensary modal', async (role, expected) => {
+    mockPermissions = Object.fromEntries(
+      Object.values(PERMISSIONS).map((permission) => [
+        permission,
+        ROLE_PERMISSIONS[role].includes(permission),
+      ])
+    );
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    await openDispensaryView();
+
+    fireEvent.click(screen.getByTestId('view-dr-1'));
+
+    expect(screen.getByTestId('dispensary-modal')).toHaveAttribute(
+      'data-can-dispense',
+      String(expected)
+    );
+    // The row action shares the same gate.
+    expect(Boolean(screen.queryByTestId('dispense-dr-1'))).toBe(expected);
+  });
+
+  it('withholds canDispense when prescription edit is held but inventory edit is revoked', async () => {
+    mockPermissions[PERMISSIONS.INVENTORY_EDIT_ANY] = false;
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    await openDispensaryView();
+
+    fireEvent.click(screen.getByTestId('view-dr-1'));
+
+    expect(screen.getByTestId('dispensary-modal')).toHaveAttribute('data-can-dispense', 'false');
   });
 
   it('does not render dispense actions when prescription edit permission is missing', async () => {

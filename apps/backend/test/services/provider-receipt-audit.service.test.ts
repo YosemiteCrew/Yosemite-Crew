@@ -206,6 +206,17 @@ describe("ProviderReceiptAuditService.auditHistoricalMismatches - classification
     });
   });
 
+  it("matches a capture whose currency differs only in case", async () => {
+    given(
+      [payment({ amount: 42.5, currency: "GBP" })],
+      [receipt({ amount: 42.5, currency: "gbp" })],
+    );
+
+    const result = await audit();
+
+    expect(result.mismatches).toEqual([]);
+  });
+
   it("reports the currency before the amount when both differ", async () => {
     given(
       [payment({ amount: 42.5, currency: "gbp" })],

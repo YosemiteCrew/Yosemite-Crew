@@ -311,7 +311,7 @@ const resolveAnswersPreview = (answers?: Record<string, unknown>) => {
   return entries.slice(0, 3).join(" • ");
 };
 
-const ensureCompanionVisible = async (
+export const ensureCompanionVisible = async (
   organisationId: string,
   patientId: string,
 ) => {

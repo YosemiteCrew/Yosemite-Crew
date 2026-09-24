@@ -68,6 +68,12 @@ jobs:
   preflight:
     name: Preflight
     runs-on: ubuntu-latest
+    # Covers the up-to-25-minute Supply Chain wait below.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Needed to query the Supply Chain workflow's runs for this commit.
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -115,6 +121,16 @@ jobs:
           VERSION=$(grep -oE 'versionName "[^"]+"' apps/mobileAppYC/android/app/build.gradle | grep -oE '[0-9.]+')
           echo "Releasing mobile version ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
+      # supply-chain.yml runs on the same tag push. Hold the signed builds, and
+      # so the store uploads, until its run for this exact commit passes, as
+      # desktop-release.yml does before it publishes.
+      - name: Wait for the Supply Chain verdict on this commit
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: bash scripts/ci/wait-for-supply-chain.sh
+
   android:
     name: Android (Play internal)
     if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'android'
@@ -158,6 +174,16 @@ jobs:
       # sign-in cannot work, so this must fail the release rather than warn.
       - name: Verify the app config restored
         run: node scripts/mobile/doctor.mjs --require-app-config
+
+      # Which API the build points at, checked only for a tag push. A
+      # workflow_dispatch exercises the signing chain and uploads nothing, so it
+      # has no business failing on routing; the condition is the same one that
+      # gates the uploads below. Without this a MOBILE_VARIABLES_LOCAL_TS secret
+      # left at USE_DEV_API = true ships a signed store build pointed at
+      # devapi.yosemitecrew.com with every gate green.
+      - name: Verify the build targets the production API (tag pushes only)
+        if: github.event_name == 'push'
+        run: node scripts/mobile/doctor.mjs --require-production-api
 
       - name: Restore keystore
         env:
@@ -309,6 +335,16 @@ jobs:
       # config, and nothing in the build itself would say so.
       - name: Verify the app config restored
         run: node scripts/mobile/doctor.mjs --require-app-config
+
+      # Which API the build points at, checked only for a tag push. A
+      # workflow_dispatch exercises the signing chain and uploads nothing, so it
+      # has no business failing on routing; the condition is the same one that
+      # gates the uploads below. Without this a MOBILE_VARIABLES_LOCAL_TS secret
+      # left at USE_DEV_API = true ships a signed store build pointed at
+      # devapi.yosemitecrew.com with every gate green.
+      - name: Verify the build targets the production API (tag pushes only)
+        if: github.event_name == 'push'
+        run: node scripts/mobile/doctor.mjs --require-production-api
 
       # A dedicated keychain, deleted in cleanup, so the signing identity never
       # persists on the runner beyond this job.

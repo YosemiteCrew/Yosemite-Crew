@@ -48,15 +48,6 @@ const doseUnitForForm = (form?: string): string | undefined => {
 };
 
 /**
- * Map an inventory item to a prescription row. Shared by the Treatment step (when
- * adding an in-house medication) and the Invoice step (when a billed drug needs a
- * linked prescription) so both surfaces produce identical, interlinked rows.
- *
- * Prescribing fields (dosage/route/frequency) are pre-filled from the inventory
- * item's classification where available; when they are absent the row is left
- * incomplete on purpose so the workspace's finalize gate flags it.
- */
-/**
  * Backfill a hydrated prescription line (from the GET / encounter) with inventory-owned display
  * fields that the saved record may be missing — brand, generic, strength unit, form, route,
  * controlled flag, schedule, price and live stock. The saved/clinician-entered values always win;
@@ -203,6 +194,15 @@ export const getPrescriptionSaveErrors = (item: PrescriptionItem): string[] => {
   return errors;
 };
 
+/**
+ * Map an inventory item to a prescription row. Shared by the Treatment step (when
+ * adding an in-house medication) and the Invoice step (when a billed drug needs a
+ * linked prescription) so both surfaces produce identical, interlinked rows.
+ *
+ * Prescribing fields (dosage/route/frequency) are pre-filled from the inventory
+ * item's classification where available; when they are absent the row is left
+ * incomplete on purpose so the workspace's finalize gate flags it.
+ */
 export const inventoryToPrescriptionItem = (item: InventoryItem): Omit<PrescriptionItem, 'id'> => {
   const classification = item.classification ?? {};
   const basicInfo = item.basicInfo ?? { name: '' };

@@ -51,11 +51,11 @@ exports[`PocLabListPanel loads the patient list and expands a result detail 1`] 
       >
         <button
           aria-expanded="true"
-          class="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--blue)]"
+          class="grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 px-4 py-3 text-left transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--blue)] md:gap-x-1.5 md:gap-y-0 md:grid-cols-[minmax(0,1fr)_auto_auto]"
           type="button"
         >
           <span
-            class="min-w-0"
+            class="col-start-1 row-start-1 min-w-0 md:mr-1.5"
           >
             <span
               class="text-[13px] font-bold text-[var(--ink)] block"
@@ -63,13 +63,13 @@ exports[`PocLabListPanel loads the patient list and expands a result detail 1`] 
               Complete blood count
             </span>
             <span
-              class="text-[11.5px] text-[var(--ink-faint)] mt-0.5 block"
+              class="text-[11.5px] text-[var(--ink-faint)] mt-1.5 block max-md:text-[12px] max-md:leading-4 md:mt-0.5"
             >
-              Jun 30, 2026 · Whole blood · ProCyte One
+              30 Jun 2026, 10:00 · Whole blood · ProCyte One
             </span>
           </span>
           <span
-            class="flex shrink-0 items-center gap-1.5"
+            class="col-start-1 row-start-2 flex flex-wrap items-center gap-1.5 md:col-start-2 md:row-start-1 md:flex-nowrap"
           >
             <span
               class="yc-status-pill inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] "
@@ -85,25 +85,26 @@ exports[`PocLabListPanel loads the patient list and expands a result detail 1`] 
             >
               Follow-up
             </span>
-            <svg
-              aria-hidden="true"
-              fill="currentColor"
-              height="16"
-              stroke="currentColor"
-              stroke-width="0"
-              viewBox="0 0 512 512"
-              width="16"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="m112 328 144-144 144 144"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="48"
-              />
-            </svg>
           </span>
+          <svg
+            aria-hidden="true"
+            class="col-start-2 row-start-1 mt-0.5 text-[var(--ink-muted)] md:mt-[3px] md:col-start-3"
+            fill="currentColor"
+            height="16"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 512 512"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m112 328 144-144 144 144"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="48"
+            />
+          </svg>
         </button>
         <div
           class="border-t border-[var(--divider)] bg-[var(--inset)] px-4 py-3"

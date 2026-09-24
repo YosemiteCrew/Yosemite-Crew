@@ -202,7 +202,7 @@ const ServiceDetail = ({
   total,
 }: {
   service: ServiceRevamp;
-  currency: string;
+  currency: string | undefined;
   total: number;
 }) => (
   <div className="grid grid-cols-2 gap-x-6 gap-y-3 px-5! pb-3! @3xl:grid-cols-4 @3xl:px-[22px]!">
@@ -254,7 +254,7 @@ const ServiceRow = ({
   onArchive,
 }: {
   service: ServiceRevamp;
-  currency: string;
+  currency: string | undefined;
   practitioners: ServicePractitioner[];
   onEdit: () => void;
   onArchive: () => void;

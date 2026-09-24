@@ -4,7 +4,7 @@ import {
   useReducer,
   useRef,
   type Dispatch,
-  type MutableRefObject,
+  type RefObject,
 } from 'react';
 import {useTranslation} from 'react-i18next';
 import {snapToRiskCell} from '@yosemite-crew/types';
@@ -37,7 +37,7 @@ const INITIAL_STATE: SearchState = {
 };
 
 type UpdateSearch = Dispatch<Partial<SearchState>>;
-type RequestId = MutableRefObject<number>;
+type RequestId = RefObject<number>;
 
 const mergeState = (
   state: SearchState,

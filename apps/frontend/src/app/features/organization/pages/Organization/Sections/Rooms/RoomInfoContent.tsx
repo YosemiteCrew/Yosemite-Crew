@@ -203,16 +203,19 @@ const RoomInfoContent = ({
       </div>
     </Modal>
 
-    <CenterModal showModal={visibility.showDiscardConfirm} setShowModal={setShowDiscardConfirm}>
-      <ModalHeader title="Discard changes?" onClose={() => setShowDiscardConfirm(false)} />
-      <p className="text-body-4 text-text-primary">
-        You have unsaved changes. Are you sure you want to discard them?
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        <Secondary href="#" text="Keep editing" onClick={() => setShowDiscardConfirm(false)} />
-        <Primary href="#" text="Discard" onClick={onDiscardChanges} />
-      </div>
-    </CenterModal>
+    {/* Mounted only while open: a closed CenterModal keeps its content laid out. */}
+    {visibility.showDiscardConfirm && (
+      <CenterModal showModal setShowModal={setShowDiscardConfirm}>
+        <ModalHeader title="Discard changes?" onClose={() => setShowDiscardConfirm(false)} />
+        <p className="text-body-4 text-text-primary">
+          You have unsaved changes. Are you sure you want to discard them?
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <Secondary href="#" text="Keep editing" onClick={() => setShowDiscardConfirm(false)} />
+          <Primary href="#" text="Discard" onClick={onDiscardChanges} />
+        </div>
+      </CenterModal>
+    )}
 
     <CenterModal showModal={visibility.showDeleteModal} setShowModal={setShowDeleteModal}>
       <ModalHeader title="Delete room?" onClose={() => setShowDeleteModal(false)} />

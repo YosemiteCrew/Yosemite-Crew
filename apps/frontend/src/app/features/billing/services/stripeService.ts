@@ -48,6 +48,7 @@ type FinanceUsageSnapshot = {
 
 type FinanceCurrentSubscription = {
   organisationId?: string;
+  currency?: string | null;
   providerLink?: FinanceProviderLink | null;
   providerLinks?: FinanceProviderLink[];
   entitlement?: FinanceEntitlement | null;
@@ -112,6 +113,9 @@ const normalizeSubscription = (
     canAcceptPayments: Boolean(
       providerLink?.externalCustomerId || providerLink?.externalSubscriptionId
     ),
+    // The server's resolved billing currency. Dropping it here left
+    // `useCurrencyForPrimaryOrg` with nothing to read (#2597).
+    currency: current.currency ?? undefined,
     joinedAt:
       parseDate(entitlement?.grantedAt) ??
       parseDate(providerLink?.updatedAt) ??

@@ -29,9 +29,9 @@ digests do not travel with the artifact. Bumping a tool version means
 refreshing the table, reviewed like any code change.
 
 CI (`.github/workflows/supply-chain.yml`) runs the same
-`scripts/security/supply-chain.sh` on every PR and push to `dev`/`main`, and
-attaches both SBOMs to every published release. Tool versions (syft, grype,
-grant) are pinned once, at the top of that script.
+`scripts/security/supply-chain.sh` on every PR, every push to `dev`/`main` and
+every tag, and attaches both SBOMs to every published release. Tool versions
+(syft, grype, grant) are pinned once, at the top of that script.
 
 ## What gates, what reports
 
@@ -88,20 +88,24 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
   automatically whenever `pnpm-lock.yaml`, the root `package.json`, or a
   mobile native lockfile (`android/app/gradle.lockfile`, `ios/Podfile.lock`)
   is newer than the cached copy, so a stale SBOM is never scanned silently.
-- The SBOM also catalogs the Android native lockfile (`android/
-app/gradle.lockfile` Maven deps) - only build output and vendored pods are
-  excluded. The iOS `Podfile.lock` is NOT yet committed, so CocoaPods
-  dependencies are absent from the SBOM until #2129 lands (the staleness
-  check already watches its path).
+- The SBOM also catalogs the mobile native lockfiles: Android
+  `android/app/gradle.lockfile` (Maven) and iOS `ios/Podfile.lock`
+  (CocoaPods). Only build output and vendored pods are excluded.
 - Releases published by workflows authenticating with `GITHUB_TOKEN`
   (desktop-release, release-notes) do not emit a `release` event this
-  workflow can observe. The user's tag push covers gating and SBOM artifacts
-  for those refs; to attach the assets to such a release, run the workflow
-  via `workflow_dispatch` from the tag ref with the `release_tag` input set
-  to that tag. The SBOM is built from the dispatched ref, so the publish job
-  fails closed unless the dispatch ref IS `refs/tags/<release_tag>` - a
-  dispatch from any other ref would otherwise clobber the release's SBOMs
-  with artifacts built from different code.
+  workflow can observe. The tag push runs the gates for those refs, and each
+  of those workflows, once its release is published, dispatches this one
+  from the tag with `release_tag` set, which builds the SBOMs and attaches
+  them to the release. The same dispatch, run by hand from the tag ref,
+  backfills an older release:
+  `gh workflow run supply-chain.yml --ref <tag> -f release_tag=<tag>`. The
+  SBOM is built from the dispatched ref, so the publish job fails closed
+  unless the dispatch ref IS `refs/tags/<release_tag>` - a dispatch from any
+  other ref would otherwise clobber the release's SBOMs with artifacts built
+  from different code.
+- desktop-release (before making a release public) and mobile-release
+  (before its signed builds) wait for the Supply Chain run on the tagged
+  commit to pass, through `scripts/ci/wait-for-supply-chain.sh`.
 - The dependency install runs on Linux in CI, so packages restricted to other
   platforms via the `os` field contribute lockfile entries (completeness) but
   no installed license metadata - a known, documented margin.

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import InsuranceClaimFormFields, { type CompanionChoice } from './InsuranceClaimFormFields';
 import type { ClaimDraft } from './useInsuranceClaimDraft';
 
@@ -38,7 +38,9 @@ const insuranceClaimFormFieldsMeta = {
       description: {
         component:
           "The insurance claim create form's fields: a companion picker, the insurer's name " +
-          'and policy number, the submitted amount labelled with the org currency symbol, and ' +
+          "and policy number, the submitted amount labelled with the organisation's billing " +
+          'currency symbol (a bare label while that currency is not known, or once an invoice ' +
+          "is cited, because the claim then takes the invoice's currency), and " +
           'two optional free-text links - invoice ID and encounter ID - plus optional notes. ' +
           'The invoice and encounter fields are free text rather than pickers because a claim ' +
           'can be filed before either record exists.\n\n' +
@@ -87,5 +89,47 @@ export const IndianRupeeCurrency: InsuranceClaimFormFieldsStory = {
   args: {
     draft: { ...emptyDraft, patientId: 'companion-otis', submittedAmount: '18500' },
     currency: 'INR',
+  },
+};
+
+export const EuroClinic: InsuranceClaimFormFieldsStory = {
+  name: "The clinic's billing currency (EUR)",
+  args: {
+    draft: { ...emptyDraft, patientId: 'companion-willow', submittedAmount: '240' },
+    currency: 'EUR',
+  },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByLabelText('Submitted amount (€)')).toHaveValue(240);
+  },
+};
+
+export const CurrencyNotYetKnown: InsuranceClaimFormFieldsStory = {
+  name: 'Currency not known yet',
+  args: {
+    draft: { ...emptyDraft, patientId: 'companion-willow', submittedAmount: '240' },
+    currency: undefined,
+  },
+  play: async ({ canvasElement }) => {
+    // No symbol rather than a guessed "$": the claim is saved in the
+    // organisation's currency by the server (#3607).
+    await expect(within(canvasElement).getByLabelText('Submitted amount')).toHaveValue(240);
+  },
+};
+
+export const AgainstAnInvoice: InsuranceClaimFormFieldsStory = {
+  name: 'Claim against an invoice',
+  args: {
+    draft: {
+      ...emptyDraft,
+      patientId: 'companion-willow',
+      submittedAmount: '240',
+      invoiceId: 'inv-2291',
+    },
+    currency: 'EUR',
+  },
+  play: async ({ canvasElement }) => {
+    // The claim is saved in the invoice's currency, which the form cannot
+    // see, so no symbol rather than the clinic's (#3607).
+    await expect(within(canvasElement).getByLabelText('Submitted amount')).toHaveValue(240);
   },
 };

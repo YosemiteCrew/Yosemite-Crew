@@ -1,5 +1,6 @@
 {
   "name": "@yosemite-crew/agent-runtime",
+  "private": true,
   "version": "0.1.0",
   "description": "Provider-neutral execution boundary for optional Yosemite Crew agent workflows",
   "type": "module",

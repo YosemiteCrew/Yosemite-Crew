@@ -28,6 +28,8 @@ import {
   InkAnnotate,
   GITHUB_REPO_URL,
   useGithubStats,
+  useCloudUsers,
+  timeAgo,
   useLatestRelease,
   useRepoInsights,
   type RepoLanguage,
@@ -107,7 +109,14 @@ const EYEBROW_STYLE: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.14em',
   textTransform: 'uppercase',
-  color: 'var(--ink-faint)',
+  color: 'var(--ink-muted)',
+};
+
+/* The same eyebrow on the always-dark --spot sections, where --ink-muted is
+   2.2:1. --spot-ink-faint is fixed for both themes at 6.82:1 on --spot. */
+const SPOT_EYEBROW_STYLE: CSSProperties = {
+  ...EYEBROW_STYLE,
+  color: 'var(--spot-ink-faint)',
 };
 
 const CARD_HEADING_STYLE: CSSProperties = {
@@ -128,7 +137,7 @@ const LIVE_TAG_STYLE: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-  color: 'var(--success)',
+  color: 'var(--success-text)',
 };
 
 function LiveTag() {
@@ -145,7 +154,7 @@ function LiveTag() {
 function Heartbeat({ weeks }: Readonly<{ weeks: number[] | null }>) {
   if (!weeks || weeks.length === 0) {
     return (
-      <div style={{ margin: 'auto', fontSize: 12.5, color: '#6b6155' }}>
+      <div style={{ margin: 'auto', fontSize: 12.5, color: 'var(--spot-ink-faint)' }}>
         Reading the repository...
       </div>
     );
@@ -189,7 +198,14 @@ function MiniStat({ value, label }: Readonly<{ value: string; label: string }>) 
       >
         {value}
       </div>
-      <div style={{ fontSize: 12, letterSpacing: '-0.01em', color: '#8a8074', marginTop: 3 }}>
+      <div
+        style={{
+          fontSize: 12,
+          letterSpacing: '-0.01em',
+          color: 'var(--spot-ink-faint)',
+          marginTop: 3,
+        }}
+      >
         {label}
       </div>
     </div>
@@ -267,7 +283,7 @@ function ConsoleHeader() {
           color: '#d6d1cd',
         }}
       >
-        <IoLogoGithub style={{ fontSize: 15, color: '#8a8074' }} aria-hidden="true" />
+        <IoLogoGithub style={{ fontSize: 15, color: 'var(--spot-ink-faint)' }} aria-hidden="true" />
         YosemiteCrew / Yosemite-Crew
       </span>
       <span style={CONSOLE_LIVE_STYLE}>
@@ -295,12 +311,14 @@ function ConsoleHeartbeatPanel({ weeks }: Readonly<{ weeks: number[] | null }>) 
             fontWeight: 700,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            color: '#8a8074',
+            color: 'var(--spot-ink-faint)',
           }}
         >
           Commit activity
         </span>
-        <span style={{ fontSize: 12, letterSpacing: '-0.01em', color: '#6b6155' }}>52 weeks</span>
+        <span style={{ fontSize: 12, letterSpacing: '-0.01em', color: 'var(--spot-ink-faint)' }}>
+          52 weeks
+        </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 66 }}>
         <Heartbeat weeks={weeks} />
@@ -343,7 +361,7 @@ function ConsoleLastCommit({ lastCommit }: Readonly<{ lastCommit: RepoCommit | u
         style={{
           fontSize: 12.5,
           letterSpacing: '-0.01em',
-          color: '#a89e90',
+          color: 'var(--spot-ink-faint)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -365,7 +383,7 @@ function ConsoleFloatBadge() {
       </span>
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>No cache</div>
-        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Pulled on every visit</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>Pulled on every visit</div>
       </div>
     </div>
   );
@@ -524,7 +542,7 @@ function Hero() {
   );
 }
 
-/* ---------- live four-stat band ---------- */
+/* ---------- live five-stat band ---------- */
 
 interface BandStat {
   key: string;
@@ -576,7 +594,7 @@ function StatCell({ stat }: Readonly<{ stat: BandStat }>) {
           fontSize: 13.5,
           lineHeight: 1.5,
           letterSpacing: '-0.01em',
-          color: 'var(--ink-faint)',
+          color: 'var(--ink-muted)',
         }}
       >
         {stat.desc}
@@ -588,14 +606,33 @@ function StatCell({ stat }: Readonly<{ stat: BandStat }>) {
 function StatBand() {
   // Live (uncached) read: the band eyebrow reads "The numbers, right now".
   const stats = useGithubStats({ live: true });
+  /* `useCloudUsers` has no live mode, so unlike the four beside it this one can
+     be up to its 5 minute session TTL behind. The signup time is printed with
+     it rather than left implicit, so the band never asserts a freshness it does
+     not have under an eyebrow that reads "The numbers, right now". */
+  const cloudUsers = useCloudUsers();
+  const latestSignup = timeAgo(cloudUsers.latestSignupAt ?? undefined);
   const cells: BandStat[] = [
+    // The accent moves here from repository clones so the band still carries
+    // exactly one. Every other number in it counts interest in the repository;
+    // this is the only one that counts people using the product.
+    {
+      key: 'cloudUsers',
+      value: cloudUsers.totalUsers,
+      label: 'Cloud users',
+      desc: latestSignup
+        ? `Accounts on Yosemite Crew Cloud, verified or not. Last signup ${latestSignup}.`
+        : 'Accounts on Yosemite Crew Cloud, verified or not.',
+      accent: true,
+      delay: 0,
+    },
     {
       key: 'repositoryClones',
       value: stats.repositoryClones,
       label: 'Repository clones',
       desc: 'Clone events from GitHub traffic. Not installs, not people.',
-      accent: true,
-      delay: 0,
+      accent: false,
+      delay: 90,
     },
     {
       key: 'contributors',
@@ -603,7 +640,7 @@ function StatBand() {
       label: 'Contributors',
       desc: 'Accounts credited with commits, bots excluded.',
       accent: false,
-      delay: 90,
+      delay: 180,
     },
     {
       key: 'discord',
@@ -611,7 +648,7 @@ function StatBand() {
       label: 'Discord members',
       desc: 'Builders and pet pros in the community.',
       accent: false,
-      delay: 180,
+      delay: 270,
     },
     {
       key: 'stars',
@@ -619,7 +656,7 @@ function StatBand() {
       label: 'GitHub stars',
       desc: 'Developers who bookmarked the project.',
       accent: false,
-      delay: 270,
+      delay: 360,
     },
   ];
   return (
@@ -653,7 +690,7 @@ function StatBand() {
           data-grid-2-m="true"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(5, 1fr)',
             gap: 'clamp(24px, 3vw, 44px)',
           }}
         >
@@ -697,7 +734,7 @@ function Manifesto() {
             zIndex: 2,
           }}
         >
-          <Reveal style={EYEBROW_STYLE}>Why we publish</Reveal>
+          <Reveal style={SPOT_EYEBROW_STYLE}>Why we publish</Reveal>
           <Reveal as="span" delay={100} style={MANIFESTO_LINE_STYLE}>
             What you measure is what you actually care about. So we measure in public, the good
             months and the messy ones, because hiding a number only delays the fix and quietly picks
@@ -777,11 +814,11 @@ function LanguagesCard({ languages }: Readonly<{ languages: RepoLanguage[] | nul
               }}
             >
               <span style={{ width: 9, height: 9, borderRadius: 9999, background: lang.color }} />
-              {lang.name} <span style={{ color: 'var(--ink-faint)' }}>{lang.pct.toFixed(1)}%</span>
+              {lang.name} <span style={{ color: 'var(--ink-muted)' }}>{lang.pct.toFixed(1)}%</span>
             </span>
           ))
         ) : (
-          <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>Reading languages...</span>
+          <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>Reading languages...</span>
         )}
       </div>
     </Reveal>
@@ -812,7 +849,7 @@ const RELEASE_LABEL_STYLE: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-  color: '#8a8074',
+  color: 'var(--spot-ink-faint)',
 };
 
 function LatestReleaseCard() {
@@ -843,7 +880,10 @@ function LatestReleaseCard() {
             <IoPricetagOutline style={{ fontSize: 15, color: 'var(--cyan)' }} aria-hidden="true" />
             Latest release
           </span>
-          <IoArrowForwardOutline style={{ fontSize: 16, color: '#8a8074' }} aria-hidden="true" />
+          <IoArrowForwardOutline
+            style={{ fontSize: 16, color: 'var(--spot-ink-faint)' }}
+            aria-hidden="true"
+          />
         </div>
         <div style={{ position: 'relative' }}>
           <div
@@ -857,7 +897,14 @@ function LatestReleaseCard() {
           >
             {release.tag ?? 'Loading...'}
           </div>
-          <div style={{ marginTop: 8, fontSize: 13.5, letterSpacing: '-0.01em', color: '#a89e90' }}>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 13.5,
+              letterSpacing: '-0.01em',
+              color: 'var(--spot-ink-faint)',
+            }}
+          >
             {release.date
               ? `Published ${release.date} on GitHub Releases.`
               : 'Tagged and published on GitHub Releases.'}
@@ -926,7 +973,7 @@ function CommitRow({ commit, isLast }: Readonly<{ commit: RepoCommit; isLast: bo
             display: 'block',
             fontSize: 12.5,
             letterSpacing: '-0.01em',
-            color: 'var(--ink-faint)',
+            color: 'var(--ink-muted)',
             marginTop: 2,
           }}
         >
@@ -937,7 +984,7 @@ function CommitRow({ commit, isLast }: Readonly<{ commit: RepoCommit; isLast: bo
         style={{
           fontFamily: 'ui-monospace, Menlo, monospace',
           fontSize: 12,
-          color: 'var(--ink-faint)',
+          color: 'var(--ink-muted)',
           background: 'var(--inset)',
           padding: '4px 9px',
           borderRadius: 7,
@@ -992,7 +1039,7 @@ function CommitsCard({ commits }: Readonly<{ commits: RepoCommit[] | null }>) {
             />
           ))
         ) : (
-          <div style={{ fontSize: 13, color: 'var(--ink-faint)', padding: '8px 0' }}>
+          <div style={{ fontSize: 13, color: 'var(--ink-muted)', padding: '8px 0' }}>
             Reading recent commits...
           </div>
         )}
@@ -1063,7 +1110,7 @@ function RepoFactsCard({ facts }: Readonly<{ facts: RepoFacts | null }>) {
                   color: 'var(--ink-muted)',
                 }}
               >
-                <span style={{ color: 'var(--ink-faint)', display: 'inline-flex' }}>
+                <span style={{ color: 'var(--ink-muted)', display: 'inline-flex' }}>
                   {row.icon}
                 </span>
                 {row.label}
@@ -1081,7 +1128,7 @@ function RepoFactsCard({ facts }: Readonly<{ facts: RepoFacts | null }>) {
             </div>
           ))
         ) : (
-          <div style={{ fontSize: 13, color: 'var(--ink-faint)', padding: '6px 0' }}>
+          <div style={{ fontSize: 13, color: 'var(--ink-muted)', padding: '6px 0' }}>
             Reading repository...
           </div>
         )}
@@ -1128,7 +1175,7 @@ function ContributorsCard({ contributors }: Readonly<{ contributors: RepoContrib
             </a>
           ))
         ) : (
-          <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>Loading contributors...</span>
+          <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>Loading contributors...</span>
         )}
       </div>
       <p
@@ -1377,7 +1424,7 @@ const FINAL_CTA_LEAD_STYLE: CSSProperties = {
   fontSize: 18,
   lineHeight: 1.65,
   letterSpacing: '-0.02em',
-  color: 'var(--ink-faint2)',
+  color: 'var(--spot-ink-faint)',
   textWrap: 'pretty',
 };
 

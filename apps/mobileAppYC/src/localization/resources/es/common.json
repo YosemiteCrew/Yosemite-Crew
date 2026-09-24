@@ -129,6 +129,16 @@
     "appearance_caption": "El modo oscuro usa el tema espresso cálido.",
     "language": "Idioma",
     "no_languages_available": "No hay idiomas disponibles",
+    "app_lock": "Bloqueo de la aplicación",
+    "app_lock_caption": "Requiere Face ID, Touch ID, huella o el bloqueo de pantalla.",
+    "app_lock_timeout": "Bloquear después de",
+    "app_lock_immediately": "Inmediatamente",
+    "app_lock_minutes": "{{count}} minuto(s)",
+    "app_lock_unavailable": {
+      "noPasscode": "Configura un código o una comprobación biométrica para usar el bloqueo.",
+      "androidVersion": "El bloqueo no está disponible en esta versión de Android.",
+      "noStrongBiometrics": "Registra una comprobación biométrica segura para usar el bloqueo."
+    },
     "footnote": "Los cambios se aplican de inmediato y se guardan en este dispositivo."
   },
   "common": {
@@ -366,6 +376,54 @@
   "companion": {
     "breedLoadFailed": "No se pudieron cargar las razas. Comprueba tu conexion e intentalo de nuevo.",
     "breedNoneAvailable": "No hay razas disponibles"
+  },
+  "medicalRecords": {
+    "title": "Registros de salud",
+    "intro": "Alergias y problemas de salud actuales registrados por tus clínicas veterinarias.",
+    "allergies": "Alergias",
+    "problems": "Problemas de salud",
+    "noAllergies": "No hay alergias actuales registradas.",
+    "noProblems": "No hay problemas de salud actuales registrados.",
+    "suspected": "Sospechada",
+    "active": "Activo",
+    "dormant": "Inactivo",
+    "since": "Desde {{date}}",
+    "flagsNotice": "Las clínicas veterinarias gestionan por separado las alertas de manejo y seguridad.",
+    "signInAgain": "Vuelve a iniciar sesión para ver los registros de salud.",
+    "loadFailed": "No se pudieron cargar los registros de salud. Inténtalo de nuevo.",
+    "retry": "Intentar de nuevo",
+    "problemLabels": {
+      "MILD": "Leve",
+      "MODERATE": "Moderado",
+      "SEVERE": "Grave"
+    },
+    "labels": {
+      "MILD": "Leve",
+      "MODERATE": "Moderada",
+      "SEVERE": "Grave",
+      "LIFE_THREATENING": "Potencialmente mortal",
+      "DRUG": "Medicamento",
+      "FOOD": "Alimento",
+      "ENVIRONMENTAL": "Ambiental",
+      "OTHER": "Otro"
+    }
+  },
+  "prescriptions": {
+    "title": "Recetas",
+    "intro": "Recetas registradas por tus clínicas veterinarias.",
+    "empty": "No hay recetas registradas.",
+    "recorded": "Registrada {{date}}",
+    "requestRefill": "Solicitar renovación",
+    "requestRefillFor": "Solicitar renovación de {{medication}}",
+    "requesting": "Solicitando…",
+    "requestingFor": "Solicitando renovación de {{medication}}",
+    "refillRequestedTitle": "Renovación solicitada",
+    "refillRequestedBody": "Tu clínica veterinaria revisará la solicitud.",
+    "refillFailedTitle": "No se solicitó la renovación",
+    "refillFailedBody": "No se pudo enviar la solicitud. Inténtalo de nuevo.",
+    "signInAgain": "Vuelve a iniciar sesión para ver las recetas.",
+    "loadFailed": "No se pudieron cargar las recetas. Inténtalo de nuevo.",
+    "retry": "Intentar de nuevo"
   },
   "appointments": {
     "chatLockedTitle": "El chat aun no esta abierto",
@@ -852,6 +910,18 @@
     "prompt": {
       "title": "Desbloquear Yosemite Crew",
       "cancel": "Cancelar"
+    },
+    "lockedLabel": "Yosemite Crew está bloqueado",
+    "lockedTitle": "Desbloquear Yosemite Crew",
+    "lockedCaption": "Usa la comprobación de seguridad del dispositivo para continuar.",
+    "unlock": "Desbloquear",
+    "waiting": "Esperando…",
+    "signOut": "Cerrar sesión",
+    "failure": {
+      "cancelled": "Desbloqueo cancelado.",
+      "lockout": "Demasiados intentos. Inténtalo más tarde.",
+      "invalidated": "La seguridad del dispositivo cambió. Vuelve a iniciar sesión.",
+      "failed": "La comprobación no desbloqueó la aplicación."
     }
   }
 }

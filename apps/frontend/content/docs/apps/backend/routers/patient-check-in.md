@@ -6,7 +6,7 @@ slug: /apps/backend/api/patient-check-in
 
 Manages a patient's front-desk check-in at a PMS organisation: recording arrival and triage priority, assigning a room, and marking the check-in seen, completed, cancelled, or a no-show. All routes require organisation RBAC (role-based access control) permissions on `appointments`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/check-in
 

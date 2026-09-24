@@ -510,7 +510,10 @@ export const WorkspaceDocumentPacketService = {
         ? `${documensoPublicBaseUrl}/sign/${doc.recipients[0].token}`
         : null;
 
-    await DocumensoService.distributeDocument({ documentId: doc.id, apiKey });
+    await DocumensoService.distributeDocument({
+      envelopeId: doc.envelopeId,
+      apiKey,
+    });
 
     const signing: WorkspaceDocumentPacketSigning = {
       required: true,

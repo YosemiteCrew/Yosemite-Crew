@@ -58,5 +58,5 @@ The SonarCloud frontend project is the source of truth for open issues and secur
 # .claude/skills/mobile-patterns/SKILL.md
 Never mix Redux and local `useState` for the same piece of data. Local state is for ephemeral UI state (modal open, input focus). Shared/persisted state goes in Redux.
 
-# .claude/skills/agent-loop/SKILL.md
-- Check open PRs targeting `dev` for overlap with the files you plan to touch (for
+# .claude/skills/code-review/SKILL.md
+Use this skill when reviewing code, checking a PR, or performing an adversarial review of changes. Runs through quality, security, accessibility, and convention checks specific to this codebase.

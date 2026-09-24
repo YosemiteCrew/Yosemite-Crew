@@ -144,7 +144,7 @@ const meta = {
         component:
           'The dashboard leaderboard of billed revenue by service: a truncated label, a `--blue` ' +
           'bar scaled against the top earner, and the figure through `formatMoney` in the ' +
-          "organisation's billing currency (USD when no subscription is loaded). The bars fade " +
+          "organisation's billing currency (a bare amount while none is loaded). The bars fade " +
           "as they descend the ranking - 100%, 82%, 64%, then 50% - which is the design's rank " +
           'flourish and the reason the top row is the only one at full strength. The header ' +
           'carries a live duration picker; each pick refetches through `useDashboardAnalytics`, ' +
@@ -169,7 +169,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Populated: Story = {
   name: 'Last week, five services',
-  beforeEach: withAnalytics(USD_ORG_ID),
+  beforeEach: withAnalytics(USD_ORG_ID, 'USD'),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText('Revenue leaders')).toBeInTheDocument();
@@ -210,7 +210,7 @@ export const Populated: Story = {
 
 export const SwitchDuration: Story = {
   name: 'Switching the period',
-  beforeEach: withAnalytics(USD_ORG_ID),
+  beforeEach: withAnalytics(USD_ORG_ID, 'USD'),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText('$4,120')).toBeInTheDocument();

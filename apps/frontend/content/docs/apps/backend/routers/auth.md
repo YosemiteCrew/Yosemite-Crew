@@ -6,7 +6,7 @@ slug: /apps/backend/api/auth
 
 Provider-neutral session and MFA (multi-factor authentication) endpoints shared by both products. `/me` and `/logout` return and end a normalized session regardless of which underlying provider issued it; the `/mfa/*` routes manage TOTP (time-based one-time password) enrollment for the signed-in user. The whole router answers `503` with `{ message: "Authentication service is not enabled" }` if no auth provider is configured for this environment. The TOTP debug-device route is only ever registered when the process is running as an explicitly-flagged local development environment — it is structurally absent, not just permission-gated, everywhere else.
 
-**Endpoints**
+## Endpoints
 
 ### GET /me
 

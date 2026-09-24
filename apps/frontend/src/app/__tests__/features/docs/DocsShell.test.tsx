@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import DocsShell from '@/app/features/docs/DocsShell';
 import SkipLink from '@/app/ui/layout/SkipLink';
 import { loadCorpus } from '@/app/features/docs/corpus';
@@ -101,9 +103,27 @@ describe('DocsShell', () => {
 
   it('renders the table of contents, nesting depth-3 entries', async () => {
     const { container } = await shell('x');
-    expect(screen.getByRole('link', { name: 'Install' })).toHaveAttribute('href', '#install');
-    expect(container.querySelectorAll('.DocsTocItem')).toHaveLength(1);
-    expect(container.querySelectorAll('.DocsTocItemNested')).toHaveLength(1);
+    const installLinks = screen.getAllByRole('link', { name: 'Install' });
+    expect(installLinks).toHaveLength(2);
+    expect(installLinks.every((link) => link.getAttribute('href') === '#install')).toBe(true);
+    expect(container.querySelectorAll('.DocsTocItem')).toHaveLength(2);
+    expect(container.querySelectorAll('.DocsTocItemNested')).toHaveLength(2);
+  });
+
+  it('provides a native compact table of contents with the same heading anchors', async () => {
+    const { container } = await shell('x');
+    const compactToc = container.querySelector('details.DocsTocCompact');
+    const summary = compactToc?.querySelector('summary');
+
+    expect(compactToc).not.toBeNull();
+    expect(summary).toHaveTextContent('On this page');
+    expect(compactToc).not.toHaveAttribute('open');
+
+    summary?.click();
+
+    expect(compactToc).toHaveAttribute('open');
+    expect(compactToc?.querySelector('a[href="#install"]')).toHaveTextContent('Install');
+    expect(compactToc?.querySelector('a[href="#flags"]')).toHaveTextContent('Flags');
   });
 
   /*
@@ -113,6 +133,7 @@ describe('DocsShell', () => {
   it('omits the table of contents entirely when there are no headings', async () => {
     const { container } = await shell('x', { toc: [] });
     expect(container.querySelector('.DocsToc')).toBeNull();
+    expect(container.querySelector('.DocsTocCompact')).toBeNull();
     expect(screen.queryByText('On this page')).not.toBeInTheDocument();
   });
 
@@ -127,6 +148,13 @@ describe('DocsShell', () => {
     const wrapper = container.querySelector('[data-yc-app]');
     expect(wrapper).not.toBeNull();
     expect(wrapper).toHaveStyle({ display: 'contents' });
+  });
+
+  it('keeps a non-colour cue on prose links while leaving heading anchors unstyled', () => {
+    const css = readFileSync(join(process.cwd(), 'src/app/features/docs/docs.css'), 'utf8');
+
+    expect(css).toMatch(/\.DocsBody a\s*{[^}]*text-decoration:\s*underline;/);
+    expect(css).toMatch(/\.DocsBody \.DocsHeadingAnchor\s*{[^}]*text-decoration:\s*none;/);
   });
 });
 

@@ -14,7 +14,11 @@ import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorks
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type { Vitals } from '@/app/features/appointments/types/workspace';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
-import { saveVitalRecord } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  artifactVersionFromMeta,
+  getClinicalArtifactMutationErrorMessage,
+  saveVitalRecord,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import { listVitalsTemplates } from '@/app/features/appointments/services/workspaceTemplateService';
 import { getCategoryTemplate } from '@/app/lib/forms';
 import {
@@ -440,6 +444,31 @@ const VitalRow = ({
   );
 };
 
+const VitalsHistory = ({
+  vitals,
+  resolveRecorderName,
+  onNew,
+}: {
+  vitals: Vitals[];
+  resolveRecorderName: (entry: Vitals) => string;
+  onNew: () => void;
+}) => (
+  <div className="flex flex-col gap-3">
+    {vitals.length === 0 ? (
+      <p className="py-6 text-center text-body-4 text-text-secondary">No vitals recorded yet.</p>
+    ) : (
+      <ul className="rounded-2xl border border-card-border px-4">
+        {vitals.map((entry) => (
+          <VitalRow key={entry.id} entry={entry} resolveRecorderName={resolveRecorderName} />
+        ))}
+      </ul>
+    )}
+    <div className="flex justify-center">
+      <Primary text="New Vital" icon={<span aria-hidden="true">+</span>} onClick={onNew} />
+    </div>
+  </div>
+);
+
 /** Vitals tab: a "New vitals" form plus the recorded-vitals list. */
 const VitalsForm = ({
   appointmentId,
@@ -567,10 +596,17 @@ const VitalsForm = ({
         { organisationId, appointmentId, encounterId, authorId },
         nextVitals
       );
-      addVitals(appointmentId, nextVitals, (savedVital as { id?: string } | undefined)?.id);
+      addVitals(
+        appointmentId,
+        nextVitals,
+        (savedVital as { id?: string } | undefined)?.id,
+        artifactVersionFromMeta(savedVital)
+      );
     } catch (error) {
       console.error('Failed to save vitals', error);
-      setSaveError('Unable to save vitals. Please try again.');
+      setSaveError(
+        getClinicalArtifactMutationErrorMessage(error, 'Unable to save vitals. Please try again.')
+      );
       return;
     } finally {
       setIsSaving(false);
@@ -584,26 +620,11 @@ const VitalsForm = ({
 
   if (!creating) {
     return (
-      <div className="flex flex-col gap-3">
-        {vitals.length === 0 ? (
-          <p className="py-6 text-center text-body-4 text-text-secondary">
-            No vitals recorded yet.
-          </p>
-        ) : (
-          <ul className="rounded-2xl border border-card-border px-4">
-            {vitals.map((entry) => (
-              <VitalRow key={entry.id} entry={entry} resolveRecorderName={resolveRecorderName} />
-            ))}
-          </ul>
-        )}
-        <div className="flex justify-center">
-          <Primary
-            text="New Vital"
-            icon={<span aria-hidden="true">+</span>}
-            onClick={() => dispatchFormState({ type: 'SET_CREATING', value: true })}
-          />
-        </div>
-      </div>
+      <VitalsHistory
+        vitals={vitals}
+        resolveRecorderName={resolveRecorderName}
+        onNew={() => dispatchFormState({ type: 'SET_CREATING', value: true })}
+      />
     );
   }
 

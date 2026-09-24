@@ -712,9 +712,30 @@ describe('invoiceService', () => {
   it('throws when line-item payload is invalid', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     await expect(addLineItemsToAppointments([], '', '')).rejects.toThrow(
-      'Line items or Appointment ID or Currency missing'
+      'Line items or Appointment ID missing'
     );
     errorSpy.mockRestore();
+  });
+
+  // #3607: the organisation's currency is unknown until billing loads, and the
+  // old USD guess is gone. The lines join an invoice that already has its
+  // currency, so an unknown one must not block billing them.
+  it('adds line items without a currency when the organisation currency is not known', async () => {
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-1',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+      },
+    ]);
+
+    await addLineItemsToAppointments([{ id: 'li-1' } as any], 'appt-1', undefined);
+
+    const [, body] = (postData as jest.Mock).mock.calls.find(
+      ([url]) => url === '/v1/finance/invoices/inv-1/lines'
+    );
+    expect(body).not.toHaveProperty('currency');
   });
 
   it('returns early for add line items when org is missing', async () => {

@@ -1,4 +1,9 @@
-import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosResponse,
+  AxiosRequestConfig,
+  CreateAxiosDefaults,
+} from 'axios';
 import Session from 'supertokens-web-js/recipe/session';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -21,15 +26,24 @@ const DEFAULT_API_TIMEOUT_MS = 60_000;
 // cookies cross-origin; the supertokens-web-js SDK (initialized via
 // authClient) guards the fetch transport. Safe reads retain transparent
 // refresh/retry, while writes return unsaved for explicit resubmission.
-const api: AxiosInstance = axios.create({
+//
+// `'User-Agent': false`: axios's fetch adapter adds `User-Agent: axios/<version>`
+// to every request unless one is already set, even in a browser. Chromium drops
+// it, but Firefox and Safari send it, which makes every call preflight for
+// `user-agent`, a header the API's CORS answer does not allow, so every API call
+// failed in those browsers. `false` is kept by the adapter and never serialised.
+export const API_CLIENT_DEFAULTS = {
   adapter: 'fetch',
   baseURL: BASE_URL,
   timeout: DEFAULT_API_TIMEOUT_MS,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
+    'User-Agent': false,
   },
-});
+} satisfies CreateAxiosDefaults;
+
+const api: AxiosInstance = axios.create(API_CLIENT_DEFAULTS);
 
 type GetDataParams = Record<string, unknown>;
 type GetDataOptions = {
@@ -406,10 +420,12 @@ export const putData = async <T, D = unknown>(
 // DELETE Request
 export const deleteData = async <T>(
   endpoint: string,
-  params: Record<string, unknown> = {}
+  params: Record<string, unknown> = {},
+  config?: ApiRequestConfig
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.delete<T>(endpoint, {
+      ...config,
       params,
     });
   } catch (error: unknown) {

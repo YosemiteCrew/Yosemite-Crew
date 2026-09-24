@@ -435,6 +435,53 @@ describe("CompanionService", () => {
     expect(result.response.id).toBe("patient-1");
   });
 
+  it("rejects a practice update with no organisation context", async () => {
+    await expect(
+      CompanionService.updateForOrg("patient-1", "  ", companionPayload),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        message: "Organisation is required.",
+        statusCode: 400,
+      }),
+    );
+    expect(mockedPrisma.patient.update).not.toHaveBeenCalled();
+  });
+
+  it("never writes a companion that is not linked to the practice", async () => {
+    mockedPrisma.patient.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      CompanionService.updateForOrg("patient-1", "org-1", companionPayload),
+    ).resolves.toBeNull();
+    expect(mockedPrisma.patient.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "patient-1",
+        organisations: {
+          some: { organisationId: "org-1", status: "ACTIVE" },
+        },
+      },
+      select: { id: true },
+    });
+    expect(mockedPrisma.patient.update).not.toHaveBeenCalled();
+  });
+
+  it("updates a companion that is linked to the practice", async () => {
+    mockedPrisma.patient.findFirst.mockResolvedValueOnce({ id: "patient-1" });
+    mockedPrisma.codeEntry.findFirst.mockResolvedValueOnce({ id: "species-1" });
+    mockedPrisma.patient.update.mockResolvedValueOnce(createdPatient);
+
+    const result = await CompanionService.updateForOrg(
+      "patient-1",
+      "org-1",
+      companionPayload,
+    );
+
+    expect(mockedPrisma.patient.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "patient-1" } }),
+    );
+    expect(result?.response.id).toBe("patient-1");
+  });
+
   it("soft-deletes a companion when the primary parent removes it", async () => {
     (ParentService.findByLinkedUserId as jest.Mock).mockReset();
     (ParentCompanionService.getLinksForCompanion as jest.Mock).mockReset();

@@ -17,6 +17,8 @@ import {
   reviewMigration,
   migrationName,
   MIN_DECLARATION_LENGTH,
+  RETROACTIVE_CUTOFF,
+  RETROACTIVE_DECLARATIONS,
 } from './classify-migration.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -551,4 +553,64 @@ test('the role rule matches the USER spelling too', () => {
   assert.deepEqual(kinds('ALTER USER app_role CONNECTION LIMIT 00;'), [
     'removes a role or its ability to connect',
   ]);
+});
+
+// An applied migration cannot be edited to add a declaration, so one that merged
+// before the rule that flags it is declared in RETROACTIVE_DECLARATIONS instead.
+// The list is closed by date: these pin that it cannot become a way around the
+// inline declaration for anything new.
+const RENAME = 'ALTER TABLE "Invoice" RENAME COLUMN "old" TO "new";';
+const LONG_ENOUGH = 'no deployed reader names the old column, checked on main.';
+
+test('an applied migration from before its rule can be declared in the retroactive list', () => {
+  const name = '20260801000000_rename_invoice_note';
+  const review = reviewMigration({ name, sql: RENAME, retroactive: { [name]: LONG_ENOUGH } });
+  assert.equal(review.verdict, 'ok');
+  assert.equal(review.declaration, LONG_ENOUGH);
+});
+
+test('a migration stamped on or after the cutoff must declare inline, whatever the list says', () => {
+  const name = `${RETROACTIVE_CUTOFF}_rename_invoice_note`;
+  const review = reviewMigration({ name, sql: RENAME, retroactive: { [name]: LONG_ENOUGH } });
+  assert.equal(review.verdict, 'undeclared');
+});
+
+test('a pre-cutoff migration the list does not name is still undeclared', () => {
+  const review = reviewMigration({
+    name: '20260801000000_rename_invoice_note',
+    sql: RENAME,
+    retroactive: { '20260801000000_some_other_migration': LONG_ENOUGH },
+  });
+  assert.equal(review.verdict, 'undeclared');
+});
+
+test('a retroactive declaration meets the same length floor as an inline one', () => {
+  const name = '20260801000000_rename_invoice_note';
+  const review = reviewMigration({ name, sql: RENAME, retroactive: { [name]: 'fine' } });
+  assert.equal(review.verdict, 'declaration-too-short');
+});
+
+test('a name without a migration timestamp never matches the list', () => {
+  const review = reviewMigration({
+    name: 'rename',
+    sql: RENAME,
+    retroactive: { rename: LONG_ENOUGH },
+  });
+  assert.equal(review.verdict, 'undeclared');
+});
+
+test('every retroactive entry is a real, pre-cutoff migration that still needs it', () => {
+  const entries = Object.entries(RETROACTIVE_DECLARATIONS);
+  assert.ok(entries.length > 0);
+  for (const [name, text] of entries) {
+    assert.ok(name < RETROACTIVE_CUTOFF, `${name} is not before the cutoff; declare it inline`);
+    const sql = readFileSync(
+      join(repoRoot, 'packages/database/prisma/migrations', name, 'migration.sql'),
+      'utf8'
+    );
+    assert.ok(classifyMigrationSql(sql).length > 0, `${name} has no hazard; drop its entry`);
+    assert.equal(readDeclaration(sql), null, `${name} declares inline; drop its entry`);
+    assert.ok(text.length >= MIN_DECLARATION_LENGTH, `${name}: declaration too short`);
+    assert.equal(reviewMigration({ name, sql }).verdict, 'ok');
+  }
 });

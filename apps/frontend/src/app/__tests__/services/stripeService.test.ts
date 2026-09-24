@@ -37,6 +37,7 @@ describe('stripeService', () => {
           data: {
             data: {
               organisationId: 'org-123',
+              currency: 'gbp',
               providerLink: {
                 externalCustomerId: 'cus_123',
                 externalSubscriptionId: 'sub_123',
@@ -77,6 +78,9 @@ describe('stripeService', () => {
         '/v1/finance/usage-snapshots?organisationId=org-123&featureKey=appointments'
       );
       expect(result.orgBilling.plan).toBe('business');
+      // #2597: the server's resolved billing currency used to be dropped here,
+      // leaving the currency hook nothing to read but its USD guess.
+      expect(result.orgBilling.currency).toBe('gbp');
       expect(result.orgBilling.stripeCustomerId).toBe('cus_123');
       expect(result.orgUsage.appointmentsUsed).toBe(4);
       expect(useSubscriptionStore.getState().getSubscriptionByOrgId('org-123')?.plan).toBe(
@@ -107,6 +111,7 @@ describe('stripeService', () => {
       const result = await checkStatus('org-123');
 
       expect(result.orgBilling.plan).toBe('free');
+      expect(result.orgBilling.currency).toBeUndefined();
       expect(result.orgUsage).toEqual(
         expect.objectContaining({
           orgId: 'org-123',

@@ -47,27 +47,47 @@ export const validateClaimDraft = (draft: ClaimDraft): Validation => {
   return { ok: true };
 };
 
-/** Build the create payload, trimming strings and omitting the empty optionals. */
+/**
+ * The currency the draft's amount is in, as far as the form knows. A claim
+ * against an invoice is saved in that invoice's currency, which the form cannot
+ * see, so it is unknown then, as the organisation's is before it loads (#3607).
+ */
+export const draftClaimCurrency = (
+  draft: ClaimDraft,
+  currency: string | undefined
+): string | undefined => (draft.invoiceId.trim() ? undefined : currency);
+
+/**
+ * Build the create payload, trimming strings and omitting the empty optionals.
+ * The currency is omitted too while it is not known, so the server stores the
+ * invoice's or the organisation's own rather than a client guess (#3607).
+ */
 export const buildClaimInput = (
   draft: ClaimDraft,
-  currency: string
-): CreateInsuranceClaimInput => ({
-  patientId: draft.patientId,
-  insurerName: draft.insurerName.trim(),
-  policyNumber: draft.policyNumber.trim(),
-  submittedAmount: Number(draft.submittedAmount.trim()),
-  currency,
-  ...(draft.invoiceId.trim() ? { invoiceId: draft.invoiceId.trim() } : {}),
-  ...(draft.encounterId.trim() ? { encounterId: draft.encounterId.trim() } : {}),
-  ...(draft.notes.trim() ? { notes: draft.notes.trim() } : {}),
-});
+  currency: string | undefined
+): CreateInsuranceClaimInput => {
+  const claimCurrency = draftClaimCurrency(draft, currency);
+  return {
+    patientId: draft.patientId,
+    insurerName: draft.insurerName.trim(),
+    policyNumber: draft.policyNumber.trim(),
+    submittedAmount: Number(draft.submittedAmount.trim()),
+    ...(claimCurrency ? { currency: claimCurrency } : {}),
+    ...(draft.invoiceId.trim() ? { invoiceId: draft.invoiceId.trim() } : {}),
+    ...(draft.encounterId.trim() ? { encounterId: draft.encounterId.trim() } : {}),
+    ...(draft.notes.trim() ? { notes: draft.notes.trim() } : {}),
+  };
+};
 
 export type UseInsuranceClaimDraft = {
   draft: ClaimDraft;
   setField: (patch: Partial<ClaimDraft>) => void;
   formError: string | null;
   /** Validate, then either surface the message or hand the built payload up. */
-  submit: (currency: string, onSubmit: (input: CreateInsuranceClaimInput) => void) => void;
+  submit: (
+    currency: string | undefined,
+    onSubmit: (input: CreateInsuranceClaimInput) => void
+  ) => void;
 };
 
 export const useInsuranceClaimDraft = (): UseInsuranceClaimDraft => {
@@ -77,7 +97,10 @@ export const useInsuranceClaimDraft = (): UseInsuranceClaimDraft => {
   const setField = (patch: Partial<ClaimDraft>) =>
     setDraft((current) => ({ ...current, ...patch }));
 
-  const submit = (currency: string, onSubmit: (input: CreateInsuranceClaimInput) => void) => {
+  const submit = (
+    currency: string | undefined,
+    onSubmit: (input: CreateInsuranceClaimInput) => void
+  ) => {
     const result = validateClaimDraft(draft);
     if (!result.ok) {
       setFormError(result.message);

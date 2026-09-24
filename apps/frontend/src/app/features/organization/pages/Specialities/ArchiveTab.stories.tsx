@@ -3,6 +3,8 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import type { PackageRevamp, ServiceRevamp } from '@/app/features/organization/types/revamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
 import ArchiveTab from './ArchiveTab';
 
 const ORG_ID = 'org-avenger-park';
@@ -67,13 +69,33 @@ const ARCHIVED_PACKAGES: PackageRevamp[] = [
  * leaves the seed untouched: everything below is rendered from these fixtures,
  * not from a response.
  */
+/**
+ * A USD-billed primary organisation, restored on unmount. The currency hook no
+ * longer guesses USD for an organisation with no billing data (#3607), so the
+ * amounts asserted in dollars below need the currency seeded.
+ */
+const seedUsdOrganisation = () => {
+  const orgSnapshot = useOrgStore.getState();
+  const subscriptionSnapshot = useSubscriptionStore.getState();
+  useOrgStore.setState({ primaryOrgId: ORG_ID, status: 'loaded' });
+  useSubscriptionStore.setState({
+    subscriptionByOrgId: { [ORG_ID]: { orgId: ORG_ID, currency: 'USD' } },
+  });
+  return () => {
+    useSubscriptionStore.setState(subscriptionSnapshot);
+    useOrgStore.setState(orgSnapshot);
+  };
+};
+
 const seed = (services: ServiceRevamp[], packages: PackageRevamp[]) => () => {
   useRevampCatalogStore.setState({
     services,
     packages,
     loadedSpecialityIds: [`${SPECIALITY_ID}:all`],
   });
+  const restoreOrganisation = seedUsdOrganisation();
   return () => {
+    restoreOrganisation();
     useRevampCatalogStore.setState({ services: [], packages: [], loadedSpecialityIds: [] });
   };
 };

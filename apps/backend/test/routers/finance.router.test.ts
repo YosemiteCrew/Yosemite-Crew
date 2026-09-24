@@ -63,6 +63,9 @@ const FinanceController = {
   listProviderReceipts: jest.fn(),
   auditProviderReceipts: jest.fn(),
   allocateProviderReceipt: jest.fn(),
+  getClientAccountCredit: jest.fn(),
+  getClientAccountAllocationProposal: jest.fn(),
+  applyClientAccountAllocation: jest.fn(),
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
@@ -193,6 +196,87 @@ describe("finance.router", () => {
     expect(handlers).toContain(withOrgPermissionsMiddleware);
     expect(handlers).toContain(permissionGuard("billing:view:any"));
     expect(handlers).not.toContain(permissionGuard("billing:edit:any"));
+  });
+
+  it("puts a client's account credit behind the billing READ permission", () => {
+    // Reporting what a client has already paid is a read. Spending it is the
+    // allocation route, which carries the edit permission instead.
+    const route = findRoute(
+      "/organisation/:organisationId/clients/:parentId/account-credit",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.getClientAccountCredit);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:view:any"));
+    expect(handlers).not.toContain(permissionGuard("billing:edit:any"));
+  });
+
+  it("puts the allocation proposal behind the billing EDIT permission", () => {
+    // It writes nothing, but it is the preview of a decision only a staff
+    // member allowed to apply money has any use for.
+    const route = findRoute(
+      "/organisation/:organisationId/clients/:parentId/account-credit/allocation-proposal",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(
+      FinanceController.getClientAccountAllocationProposal,
+    );
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:edit:any"));
+    expect(handlers).not.toContain(permissionGuard("billing:view:any"));
+  });
+
+  it("confirms a plan behind the billing EDIT permission", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/clients/:parentId/account-credit/allocations",
+      "post",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.applyClientAccountAllocation);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:edit:any"));
+    expect(handlers).not.toContain(permissionGuard("billing:view:any"));
+  });
+
+  it("mounts exactly one write route on a client's account credit", () => {
+    /*
+     * This prefix was read-only until the confirming call landed, and the test
+     * that said so is now this one. The list is pinned rather than counted so
+     * that a second write appearing under the prefix is a failure here rather
+     * than a route nobody reviewed: applying a client's credit is the only
+     * thing this feature writes.
+     */
+    const routes = (
+      (financeRouter as unknown as { stack: Layer[] }).stack ?? []
+    )
+      .filter((entry) => entry.route?.path?.includes("account-credit"))
+      .map((entry) => ({
+        path: entry.route?.path,
+        methods: Object.keys(entry.route?.methods ?? {}),
+      }));
+
+    expect(routes).toEqual([
+      {
+        path: "/organisation/:organisationId/clients/:parentId/account-credit",
+        methods: ["get"],
+      },
+      {
+        path: "/organisation/:organisationId/clients/:parentId/account-credit/allocation-proposal",
+        methods: ["get"],
+      },
+      {
+        path: "/organisation/:organisationId/clients/:parentId/account-credit/allocations",
+        methods: ["post"],
+      },
+    ]);
   });
 
   it("mounts no write route for historical audit findings", () => {

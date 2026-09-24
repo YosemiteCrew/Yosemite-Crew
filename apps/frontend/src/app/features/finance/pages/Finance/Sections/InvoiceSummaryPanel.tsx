@@ -5,7 +5,7 @@ import { getInvoiceOutstanding } from '@/app/lib/financeMetrics';
 
 type InvoiceSummaryPanelProps = {
   invoice: Invoice;
-  currency: string;
+  currency: string | undefined;
 };
 
 const InvoiceSummaryPanel = ({ invoice, currency }: InvoiceSummaryPanelProps) => {

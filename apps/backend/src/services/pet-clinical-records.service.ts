@@ -836,7 +836,7 @@ export const PetClinicalRecordService = {
       },
     });
     await DocumensoService.distributeDocument({
-      documentId: Number(document.id),
+      envelopeId: document.envelopeId,
       apiKey,
     });
     return { artifactId, status: "IN_PROGRESS", documensoDocumentId };

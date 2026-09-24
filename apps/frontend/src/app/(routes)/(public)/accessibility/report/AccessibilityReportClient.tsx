@@ -9,6 +9,8 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import { BotCheck } from '@/app/ui/widgets/BotCheck/BotCheck';
+import { useBotCheck } from '@/app/ui/widgets/BotCheck/useBotCheck';
 
 type FieldErrors = {
   name?: string;
@@ -35,6 +37,9 @@ const SEVERITY_OPTIONS = [
 /* Long enough for any real address; here so a pasted URL cannot eat the whole
    message budget and leave the description field with nothing to spend. */
 const PAGE_URL_MAX_LENGTH = 2048;
+
+const TURNSTILE_ACTION = 'contact_form';
+const TURNSTILE_FIELD_ERROR = 'Complete bot verification before sending your message.';
 
 const EMPTY_FORM: FormState = {
   name: '',
@@ -88,11 +93,19 @@ function validate(form: FormState): FieldErrors {
   return errs;
 }
 
-export default function AccessibilityReportClient() {
+type AccessibilityReportClientProps = {
+  /* Injectable for tests and stories; the page reads the build-time key. */
+  turnstileSiteKey?: string;
+};
+
+export default function AccessibilityReportClient({
+  turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+}: Readonly<AccessibilityReportClientProps>) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const botCheck = useBotCheck(turnstileSiteKey, TURNSTILE_FIELD_ERROR);
 
   const errorSummaryId = useId();
 
@@ -114,12 +127,14 @@ export default function AccessibilityReportClient() {
   ) => {
     e.preventDefault();
     const errs = validate(form);
-    if (Object.keys(errs).length > 0) {
+    const botReady = botCheck.ensureToken();
+    if (Object.keys(errs).length > 0 || !botReady) {
       setErrors(errs);
       return;
     }
     setErrors({});
     setSubmitting(true);
+    const turnstileToken = botCheck.takeToken();
     try {
       const message = buildReportMessage(form);
 
@@ -129,6 +144,7 @@ export default function AccessibilityReportClient() {
         fullName: form.name.trim(),
         email: form.email.trim(),
         message,
+        ...(turnstileToken ? { turnstileToken } : {}),
       });
       setSubmitted(true);
     } catch (err) {
@@ -281,6 +297,10 @@ export default function AccessibilityReportClient() {
               className="min-h-30 resize-y"
             />
           </div>
+
+          {botCheck.required ? (
+            <BotCheck action={TURNSTILE_ACTION} {...botCheck.widgetProps} />
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-4 pt-2">
             <Primary

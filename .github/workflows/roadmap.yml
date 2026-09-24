@@ -68,9 +68,26 @@ jobs:
             exit 1
           fi
 
+      # Answers for issues whose `updated_at` has not moved are reused rather than
+      # re-judged. The workflow fires on every issue event, so without this a
+      # label sweep across the backlog would re-ask the same questions dozens of
+      # times in a few seconds. A cache miss costs tokens, never correctness.
+      - name: Restore the judgment cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: roadmap-judgment-cache.json
+          key: roadmap-judgment-${{ github.run_id }}
+          restore-keys: roadmap-judgment-
+
       - name: Sync the board
         env:
           ROADMAP_TOKEN: ${{ secrets.ROADMAP_TOKEN }}
+          # Deliberately NOT checked the way ROADMAP_TOKEN is above. An absent
+          # judgment credential is a supported configuration: the deterministic
+          # ladder decides everything it can, rows it cannot judge stay in the
+          # "needs a human" list exactly as before, and the job still succeeds.
+          ROADMAP_JUDGMENT_TOKEN: ${{ secrets.ROADMAP_JUDGMENT_TOKEN }}
+          ROADMAP_JUDGMENT_CACHE: roadmap-judgment-cache.json
           ROADMAP_OWNER: ${{ github.repository_owner }}
           ROADMAP_REPO: ${{ github.event.repository.name }}
           # Passed through the environment rather than interpolated into the
@@ -105,6 +122,19 @@ jobs:
               `| Untriaged (no priority label) | ${s.untriaged ?? 0} |`,
               `| Skipped | ${s.skipped} |`,
             ];
+            // Reported every run so the judgment cannot quietly stop working:
+            // a client that errors on every call still leaves a green sync and
+            // a board that looks exactly like one with no client at all.
+            const j = s.judgment;
+            if (j) {
+              lines.push(
+                `| Judgments asked | ${j.calls} |`,
+                `| Judgment cache hits | ${j.cacheHits} |`,
+                `| Judgment failures | ${j.errors} |`,
+                `| Judgment tokens (in/out) | ${j.inputTokens} / ${j.outputTokens} |`,
+                `| Judgment latency p50/p95 ms | ${j.latencyMs.p50 ?? "-"} / ${j.latencyMs.p95 ?? "-"} |`,
+              );
+            }
             if (r.actions.uncategorised.length) {
               lines.push("", "### Needs a human - no category could be derived", "");
               for (const u of r.actions.uncategorised) lines.push(`- ${u}`);

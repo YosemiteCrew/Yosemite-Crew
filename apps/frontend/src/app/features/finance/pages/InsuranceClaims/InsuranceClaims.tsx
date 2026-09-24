@@ -29,7 +29,7 @@ export type InsuranceClaimsProps = {
   onStatusChange: (status: string) => void;
   companionName: (patientId: string) => string;
   companions: CompanionChoice[];
-  currency: string;
+  currency: string | undefined;
   activeClaimId: string | null;
   onSelect: (claim: InsuranceClaim) => void;
   pendingAction: ClaimAction | null;
@@ -108,9 +108,10 @@ const InsuranceClaimsResults = (props: InsuranceClaimsResultsProps) => {
  * loading/error/empty states, the list, the detail and the create dialog.
  */
 const InsuranceClaims = (props: InsuranceClaimsProps) => {
+  const { claims, activeClaimId } = props;
   const activeClaim = useMemo(
-    () => props.claims.find((claim) => claim.id === props.activeClaimId) ?? null,
-    [props.claims, props.activeClaimId]
+    () => claims.find((claim) => claim.id === activeClaimId) ?? null,
+    [claims, activeClaimId]
   );
 
   return (

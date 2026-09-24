@@ -126,6 +126,9 @@ const clinicalServiceMock = {
   savePrescriptionArtifact: jest.fn(),
 };
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the pure conflict-message helper and the shared
+  // conflict copy stay under test; only the network calls are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   deletePrescriptionArtifact: (...args: unknown[]) =>
     clinicalServiceMock.deletePrescriptionArtifact(...args),
   savePrescriptionArtifact: (...args: unknown[]) =>
@@ -298,7 +301,9 @@ const buildEncounter = (overrides: BuildEncounterOverrides = {}): AppointmentEnc
     invoiceLineItems: [],
     pastInvoices: [],
     depositCents: 0,
-    currency: '',
+    // A US clinic's encounter, as the store holds it once finance hydrates it.
+    // The catalog and unknown-currency cases pass '' explicitly.
+    currency: 'USD',
     withdrawDeposit: false,
     taxPercent: 0,
     overallDiscountPercent: 0,
@@ -311,6 +316,14 @@ const buildEncounter = (overrides: BuildEncounterOverrides = {}): AppointmentEnc
     leadName: 'Dr Vet',
     ...overrides,
   }) as unknown as AppointmentEncounter;
+
+const linkedPrescription = (id: string, artifactVersion?: number) =>
+  ({
+    id,
+    artifactVersion,
+    medicineName: 'Amoxicillin',
+    fulfillment: 'IN_HOUSE',
+  }) as AppointmentEncounter['prescription'][number];
 
 const defaultProps = {
   appointmentId: 'appt-1',
@@ -497,6 +510,11 @@ describe('<InvoiceStep /> component', () => {
     await waitFor(() => expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalled());
     expect(invoiceServiceMock.finalizeFinanceInvoice).toHaveBeenCalledWith('inv-new');
     expect(invoiceServiceMock.recordManualInvoicePayment).toHaveBeenCalled();
+    // No currency: the server records a manual payment in its invoice's. The
+    // step used to send its own, a hardcoded USD when it knew none (#3607).
+    expect(invoiceServiceMock.recordManualInvoicePayment.mock.calls[0][1]).not.toHaveProperty(
+      'currency'
+    );
     expect(workspaceStoreMock.recordInvoicePayment).toHaveBeenCalledWith(
       'appt-1',
       expect.objectContaining({ method: 'CASH' })
@@ -614,6 +632,9 @@ describe('<InvoiceStep /> component', () => {
     expect(invoiceServiceMock.recordManualInvoicePayment).toHaveBeenCalledWith(
       'inv-new',
       expect.objectContaining({ settlementChannel: 'DEPOSIT' })
+    );
+    expect(invoiceServiceMock.recordManualInvoicePayment.mock.calls[0][1]).not.toHaveProperty(
+      'currency'
     );
     expect(workspaceStoreMock.recordDepositCollection).toHaveBeenCalledWith(
       'appt-1',
@@ -1056,11 +1077,17 @@ describe('<InvoiceStep /> component', () => {
     expect(screen.getByRole('button', { name: /^Collect £/ })).toBeInTheDocument();
   });
 
-  it('uses the default USD currency when no organisation is provided', async () => {
-    renderInvoiceStep({ currency: '' }, { organisationId: undefined });
+  // #3607: with neither the encounter nor the catalog naming a currency the
+  // step used to print a hardcoded USD. It now prints the bare amount.
+  it('prints a bare amount when no currency is known', async () => {
+    renderInvoiceStep(
+      { currency: '', invoiceLineItems: [invoiceLine('Consultation')] },
+      { organisationId: undefined }
+    );
     await screen.findByTestId('total-bill-container');
 
-    expect(screen.getByRole('button', { name: /^Collect \$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Collect \d/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Collect \$/ })).not.toBeInTheDocument();
   });
 
   it('appends bill lines to an existing open server invoice instead of creating one', async () => {
@@ -1297,7 +1324,10 @@ describe('<InvoiceStep /> component', () => {
 
   it('removes a bill line and deletes its linked persisted prescription', async () => {
     const line = { ...invoiceLine('Amoxicillin'), sourcePrescriptionId: 'rx-persisted' };
-    renderInvoiceStep({ invoiceLineItems: [line] });
+    renderInvoiceStep({
+      invoiceLineItems: [line],
+      prescription: [linkedPrescription('rx-persisted', 3)],
+    });
     await screen.findByTestId('total-bill-container');
 
     await act(async () => {
@@ -1308,14 +1338,18 @@ describe('<InvoiceStep /> component', () => {
     await waitFor(() =>
       expect(clinicalServiceMock.deletePrescriptionArtifact).toHaveBeenCalledWith(
         'org-1',
-        'rx-persisted'
+        'rx-persisted',
+        3
       )
     );
   });
 
   it('drops a locally-sourced prescription without calling the backend', async () => {
     const line = { ...invoiceLine('LocalDrug'), sourcePrescriptionId: 'local-rx-1' };
-    renderInvoiceStep({ invoiceLineItems: [line] });
+    renderInvoiceStep({
+      invoiceLineItems: [line],
+      prescription: [linkedPrescription('local-rx-1')],
+    });
     await screen.findByTestId('total-bill-container');
 
     await act(async () => {
@@ -1331,7 +1365,10 @@ describe('<InvoiceStep /> component', () => {
       response: { status: 409 },
     });
     const line = { ...invoiceLine('Amoxicillin'), sourcePrescriptionId: 'rx-409' };
-    renderInvoiceStep({ invoiceLineItems: [line] });
+    renderInvoiceStep({
+      invoiceLineItems: [line],
+      prescription: [linkedPrescription('rx-409', 4)],
+    });
     await screen.findByTestId('total-bill-container');
 
     await act(async () => {
@@ -1341,15 +1378,20 @@ describe('<InvoiceStep /> component', () => {
     await waitFor(() =>
       expect(mockNotify).toHaveBeenCalledWith(
         'error',
-        expect.objectContaining({ text: expect.stringContaining('finalized or dispensed') })
+        expect.objectContaining({ text: expect.stringContaining('Your draft is still here') })
       )
     );
+    expect(workspaceStoreMock.removeInvoiceLineItem).not.toHaveBeenCalled();
+    expect(workspaceStoreMock.removePrescription).not.toHaveBeenCalled();
   });
 
   it('warns on a generic failure to remove a linked prescription', async () => {
     clinicalServiceMock.deletePrescriptionArtifact.mockRejectedValueOnce(new Error('network'));
     const line = { ...invoiceLine('Amoxicillin'), sourcePrescriptionId: 'rx-500' };
-    renderInvoiceStep({ invoiceLineItems: [line] });
+    renderInvoiceStep({
+      invoiceLineItems: [line],
+      prescription: [linkedPrescription('rx-500', 5)],
+    });
     await screen.findByTestId('total-bill-container');
 
     await act(async () => {
@@ -1361,6 +1403,27 @@ describe('<InvoiceStep /> component', () => {
         'error',
         expect.objectContaining({ text: expect.stringContaining('wasn') })
       )
+    );
+    expect(workspaceStoreMock.removeInvoiceLineItem).not.toHaveBeenCalled();
+    expect(workspaceStoreMock.removePrescription).not.toHaveBeenCalled();
+  });
+
+  it('preserves a persisted prescription and bill line when its version is unavailable', async () => {
+    const line = { ...invoiceLine('Amoxicillin'), sourcePrescriptionId: 'rx-unversioned' };
+    renderInvoiceStep({
+      invoiceLineItems: [line],
+      prescription: [linkedPrescription('rx-unversioned')],
+    });
+    await screen.findByTestId('total-bill-container');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Amoxicillin' }));
+
+    expect(clinicalServiceMock.deletePrescriptionArtifact).not.toHaveBeenCalled();
+    expect(workspaceStoreMock.removeInvoiceLineItem).not.toHaveBeenCalled();
+    expect(workspaceStoreMock.removePrescription).not.toHaveBeenCalled();
+    expect(mockNotify).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ text: expect.stringContaining('Reload the appointment') })
     );
   });
 

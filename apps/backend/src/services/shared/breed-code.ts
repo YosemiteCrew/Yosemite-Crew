@@ -1,22 +1,4 @@
 /**
- * Canonical form for a breed code.
- *
- * The vocabulary holds the same breed under two separator conventions. On
- * production today `CodeEntry` has 1,749 breed codes that collapse to 1,713
- * distinct ones: 36 breeds exist as BOTH `SHIH_TZU` and `SHIH-TZU`,
- * `LHASA_APSO` and `LHASA-APSO`, and so on. Patient rows are split the same way
- * - of the seven coded companions in production, four are hyphenated and three
- * are not.
- *
- * The backend's own generator (`idexx-reference.service.ts`) emits underscores,
- * so underscore is the canonical form here.
- *
- * This matters more than a tidiness fix. A recommendation rule keyed on one
- * spelling would silently return nothing for every patient coded the other way,
- * and a recommendation that is silently absent looks exactly like a breed with
- * no guidance for it. Comparing canonical forms is what stops that.
- */
-/**
  * Collapse runs of separators, without a regular expression.
  *
  * `/_{2,}/g` would read more compactly, but the security scan flags a quantified
@@ -35,6 +17,24 @@ const collapseSeparators = (value: string): string => {
   return out;
 };
 
+/**
+ * Canonical form for a breed code.
+ *
+ * The vocabulary holds the same breed under two separator conventions. On
+ * production today `CodeEntry` has 1,749 breed codes that collapse to 1,713
+ * distinct ones: 36 breeds exist as BOTH `SHIH_TZU` and `SHIH-TZU`,
+ * `LHASA_APSO` and `LHASA-APSO`, and so on. Patient rows are split the same way
+ * - of the seven coded companions in production, four are hyphenated and three
+ * are not.
+ *
+ * The backend's own generator (`idexx-reference.service.ts`) emits underscores,
+ * so underscore is the canonical form here.
+ *
+ * This matters more than a tidiness fix. A recommendation rule keyed on one
+ * spelling would silently return nothing for every patient coded the other way,
+ * and a recommendation that is silently absent looks exactly like a breed with
+ * no guidance for it. Comparing canonical forms is what stops that.
+ */
 export const canonicalBreedCode = (
   code: string | null | undefined,
 ): string | null => {

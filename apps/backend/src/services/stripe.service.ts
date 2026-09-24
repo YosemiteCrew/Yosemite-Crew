@@ -1,4 +1,5 @@
 // src/services/stripe.service.ts
+import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
 
 type WebhookSignature = string | string[] | undefined;
@@ -6,6 +7,7 @@ import logger from "../utils/logger";
 
 import { InvoiceService } from "./invoice.service";
 import {
+  FinancePaymentError,
   FinancePaymentService,
   assertInvoiceInScope,
   resolveStripeConnectedAccountId,
@@ -17,7 +19,7 @@ import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 
 import { prisma } from "src/config/prisma";
-import { getOrgBillingCurrency } from "src/utils/billing";
+import { getOrgBillingCurrency, orgBillingCurrency } from "src/utils/billing";
 import {
   fromStripeMinorUnits,
   toStripeMinorUnits,
@@ -308,6 +310,11 @@ const mintBookingInvoice = async (params: {
         providerPaymentIntentId: pi.id,
         items: [
           {
+            // This writer builds its line inline rather than through
+            // InvoiceService, so it assigns the id itself. A booking invoice
+            // is a persisted line like any other and has to be addressable by
+            // the edit, settlement and credit paths.
+            id: randomUUID(),
             name: service.name,
             description: service.description ?? undefined,
             quantity: 1,
@@ -430,7 +437,7 @@ export const StripeService = {
   async getAccountStatus(organisationId: string) {
     const org = await prisma.organization.findUnique({
       where: { id: organisationId },
-      select: { id: true },
+      select: { id: true, address: { select: { country: true } } },
     });
     if (!org) {
       throw new Error("Organistaion not found");
@@ -446,7 +453,15 @@ export const StripeService = {
     ]);
 
     return {
-      orgBilling: orgBilling,
+      // The raw column is a schema default until the Connect account can take
+      // charges, so the client gets the resolved currency, as it does from the
+      // organisation mapping (#3607).
+      orgBilling: orgBilling
+        ? {
+            ...orgBilling,
+            currency: orgBillingCurrency(orgBilling, org.address?.country),
+          }
+        : null,
       orgUsage: orgUsage,
     };
   },
@@ -696,8 +711,10 @@ export const StripeService = {
       },
     });
 
+    // 404, like an intent on someone else's invoice, so both callers answer
+    // a stale or mistyped id as not found rather than 500 (mobile) or 400 (web).
     if (!attempt?.invoice) {
-      throw new Error("Payment intent not found");
+      throw new FinancePaymentError("Payment intent not found", 404);
     }
 
     assertInvoiceInScope(attempt.invoice, scope);
@@ -862,6 +879,9 @@ export const StripeService = {
   // WEBHOOK: CONNECT
   // ----------------------------
   async _handleAccountUpdated(account: Stripe.Account) {
+    // Stripe may replay this event, including concurrently. These fields are
+    // absolute values from the account snapshot, so applying them repeatedly
+    // converges on the same state; do not add a generic event-id dedup table.
     const canAccept =
       account.charges_enabled === true && account.payouts_enabled === true;
 

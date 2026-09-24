@@ -253,15 +253,6 @@ const parentPassport = (
   PetPassportService.getPassportForParent(params.patientId, req.userId ?? null);
 
 /**
- * Resolves the share token a staff-built pass may embed.
- *
- * Staff never mint: the token is an owner credential that resolves the public
- * passport with `"owner"` scope, so a practice session minting one would both
- * create a durable public share the owner never authorised and hand that staff
- * member the cross-practice records the consent filter withholds from their own
- * passport view. The owner creates the link from the mobile app first.
- */
-/**
  * The credential a staff wallet pass carries.
  *
  * Deliberately NOT the owner's public token. That one resolves with "owner"

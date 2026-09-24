@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
@@ -31,12 +31,13 @@ const DraftImportForm = ({
   onSubmit: (input: DraftImportFormInput) => void;
 }) => {
   const [suppliedText, setSuppliedText] = useState('');
-  const [sourceFormId, setSourceFormId] = useState<string | undefined>(undefined);
+  // Read only on submit, and the dropdown shows its own selection, so nothing renders from it.
+  const sourceFormId = useRef<string | undefined>(undefined);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!suppliedText.trim() || submitting) return;
-    onSubmit({ suppliedText, sourceFormId });
+    onSubmit({ suppliedText, sourceFormId: sourceFormId.current });
   };
 
   return (
@@ -47,7 +48,9 @@ const DraftImportForm = ({
       <LabelDropdown
         placeholder="Existing form"
         options={sourceOptions}
-        onSelect={(option) => setSourceFormId(option.value || undefined)}
+        onSelect={(option) => {
+          sourceFormId.current = option.value || undefined;
+        }}
         noOptionsMessage="No published forms to compare against"
         searchable
       />

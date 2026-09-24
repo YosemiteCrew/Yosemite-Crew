@@ -4,4 +4,5 @@ export { default as DeveloperApiKeys } from '@/app/features/developers/pages/Dev
 export { default as DeveloperFormDraftImport } from '@/app/features/developers/pages/DeveloperFormDraftImport/DeveloperFormDraftImport';
 export { default as DeveloperSettings } from '@/app/features/developers/pages/DeveloperSettings/DeveloperSettings';
 export { default as DeveloperPlugins } from '@/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins';
+export { default as DeveloperPlayground } from '@/app/features/developers/pages/DeveloperPlayground/DeveloperPlayground';
 export { default as DeveloperWebsiteBuilder } from '@/app/features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder';

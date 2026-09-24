@@ -1,11 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { basename, dirname, resolve } from 'node:path';
-import { existsSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import {
+  baseFromMergeCommit,
+  changedFiles,
+  parentsOf,
   classify,
   groupTestsByWorkspace,
+  authTestsOf,
   scriptTestsOf,
   selectDiscoverable,
   workspaceOf,
@@ -117,11 +132,45 @@ test('routes a changed test to the workspace that can run it', () => {
     workspaceOf('packages/agent-runtime/test/contract.test.ts'),
     '@yosemite-crew/agent-runtime'
   );
-  assert.equal(workspaceOf('packages/mcp-server/test/client.test.ts'), '@yosemite-crew/mcp-server');
+  assert.equal(workspaceOf('packages/mcp-server/test/client.test.ts'), '@yosemitecrew/mcp-server');
   // auth runs node --test over compiled output, so its paths must not be
   // handed to jest.
   assert.equal(workspaceOf('packages/auth/src/auth-service.test.ts'), undefined);
   assert.equal(workspaceOf('packages/types/src/x.test.ts'), undefined);
+});
+
+// A value in these maps is a `pnpm --filter` argument, and `pnpm --filter`
+// exits 0 when it matches no project - so a name that has drifted from the real
+// manifest does not fail this gate, it silently stops running anything. #3508
+// renamed the mcp-server package and left the map on the old scope; every check
+// stayed green. Asserting a mapping against a literal cannot catch that,
+// because the one edit that breaks the mapping updates the literal too. The
+// only assertion that can is one that reads the manifests.
+test('every workspace this gate can name resolves to a real package', () => {
+  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const reached = [];
+  for (const root of ['apps', 'packages']) {
+    for (const entry of readdirSync(resolve(repoRoot, root), { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const ws = workspaceOf(`${root}/${entry.name}/x.test.ts`);
+      if (ws === undefined) continue; // deliberately unmapped: auth, types, lib, fhir
+      const manifest = resolve(repoRoot, root, entry.name, 'package.json');
+      assert.ok(existsSync(manifest), `${root}/${entry.name} is mapped but has no package.json`);
+      assert.equal(
+        JSON.parse(readFileSync(manifest, 'utf8')).name,
+        ws,
+        `${root}/${entry.name} maps to "${ws}", which is not the name in its package.json - ` +
+          '`pnpm --filter` would match nothing and this gate would pass without running'
+      );
+      reached.push(ws);
+    }
+  }
+  // Without this the loop is vacuous when nothing maps, which is the failure it
+  // exists to catch: six workspaces are mapped and each must have been read.
+  assert.ok(
+    reached.length >= 6,
+    `expected to check at least 6 workspaces, checked ${reached.length}`
+  );
 });
 
 test('groups tests per workspace and drops what this gate cannot run', () => {
@@ -184,6 +233,21 @@ test('the root runner claims only what node --test can load', () => {
       'scripts/ci/__tests__/helper.ts',
     ]),
     []
+  );
+});
+
+test('routes only compiled auth tests to the auth node:test runner', () => {
+  assert.deepEqual(
+    authTestsOf([
+      'packages/auth/src/auth-service.test.ts',
+      'packages/auth/src/providers/legacy-cognito/legacy-token-verifier.test.ts',
+      'packages/auth/src/support.ts',
+      'packages/types/src/types.test.ts',
+    ]),
+    [
+      'packages/auth/src/auth-service.test.ts',
+      'packages/auth/src/providers/legacy-cognito/legacy-token-verifier.test.ts',
+    ]
   );
 });
 
@@ -534,5 +598,96 @@ test('changed test paths cannot escape through a symbolic link', () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(outside, { force: true });
+  }
+});
+
+test('the base comes from the merge commit, not from the event payload', () => {
+  // #3530: the event's base sha is the base branch tip when the event fired,
+  // and the merge ref is recomputed as the base branch moves. The merge
+  // commit's own first parent is the only base that cannot drift away from the
+  // commit being diffed.
+  assert.equal(baseFromMergeCommit(['a9920024', 'a5f7ba79'], 'a5f7ba79'), 'a9920024');
+});
+
+test('a checkout that is not the merge commit yields no base at all', () => {
+  // Both of these have a plausible `parents[0]` - the branch's own previous
+  // commit - which would narrow the range to one commit with no error at all.
+  assert.equal(baseFromMergeCommit(['a5f7ba79'], 'a5f7ba79'), null, 'a head-sha checkout');
+  assert.equal(
+    baseFromMergeCommit(['0cb8629c', 'a9920024'], 'a5f7ba79'),
+    null,
+    'a branch that merged its base in by hand'
+  );
+});
+
+test('the range excludes what the base branch merged after this branch forked', () => {
+  // Reproduces #3530 against a real repository: a base branch that moves on
+  // after the branch forks, and the merge commit GitHub recomputes from the two.
+  const repo = mkdtempSync(resolve(tmpdir(), 'gate-base-skew-'));
+  const hooks = resolve(repo, 'no-hooks');
+  const git = (...args) =>
+    execFileSync(
+      'git',
+      [
+        '-C',
+        repo,
+        '-c',
+        `core.hooksPath=${hooks}`,
+        '-c',
+        'user.email=t@example.com',
+        '-c',
+        'user.name=T',
+        ...args,
+      ],
+      { encoding: 'utf8' }
+    ).trim();
+  const commit = (file, body) => {
+    writeFileSync(resolve(repo, file), body);
+    git('add', file);
+    git('commit', '-q', '-m', file);
+    return git('rev-parse', 'HEAD');
+  };
+
+  try {
+    mkdirSync(hooks);
+    git('init', '-q', '-b', 'base');
+    // The base branch tip when the pull request event fired, which is what the
+    // job used to be handed as its base.
+    const baseShaAtEventTime = commit('base.ts', 'export const a = 1;\n');
+
+    git('checkout', '-q', '-b', 'feature');
+    commit('feature.ts', 'export const b = 2;\n');
+    const head = commit('feature.test.ts', 'test("b", () => {});\n');
+
+    // Another pull request lands on the base branch while this one is open.
+    git('checkout', '-q', 'base');
+    const movedBase = commit('foreign.test.ts', 'test("foreign", () => {});\n');
+
+    // The --base fallback, used by workflow_dispatch and local runs, where HEAD
+    // is the branch itself. Three-dot is what keeps a base branch that has moved
+    // on out of the range there; a two-dot range would report `foreign.test.ts`
+    // as a file this branch deleted.
+    git('checkout', '-q', head);
+    assert.deepEqual(changedFiles(movedBase, git), ['feature.test.ts', 'feature.ts']);
+    git('checkout', '-q', 'base');
+
+    // refs/pull/<n>/merge, recomputed against the base branch as it is NOW.
+    git('merge', '-q', '--no-ff', '--no-verify', 'feature');
+    const parents = parentsOf('HEAD', git);
+
+    const base = baseFromMergeCommit(parents, head);
+    assert.equal(base, parents[0]);
+    assert.deepEqual(changedFiles(base, git), ['feature.test.ts', 'feature.ts']);
+
+    // The control. The same range taken from the event's base sha hands the
+    // gate a test this branch never wrote, whose failure it would report as
+    // this branch proving itself. Without this the assertion above could be
+    // passing on a fixture incapable of reproducing the bug.
+    assert.ok(
+      changedFiles(baseShaAtEventTime, git).includes('foreign.test.ts'),
+      'the fixture must be able to reproduce the misattribution'
+    );
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
   }
 });

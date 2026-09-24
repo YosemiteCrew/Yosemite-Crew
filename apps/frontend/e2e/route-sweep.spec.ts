@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -86,15 +86,127 @@ const MAX_THROTTLE_WAIT_MS = 16 * 60 * 1000;
  * - a raw enum in the history list, a database id shown as "Patient ID", and an
  * error message stacked on an empty state - so it is worth resolving an id for
  * rather than dropping.
+ *
+ * Resolved the way a vet reaches it: the first row's "Open overview" action on
+ * /companions. That action navigates with router.push from a menu button, so the
+ * list holds no link to read the address from. The sweep used to look for one,
+ * which could never succeed, so the overview had never been swept.
  */
-export const firstCompanionHistoryHref = (page: Page) =>
-  page.evaluate(() => {
-    for (const a of document.querySelectorAll('a[href*="/companions/history"]')) {
-      const href = a.getAttribute('href') ?? '';
-      if (/companionId=/.test(href)) return href;
-    }
-    return null;
+export const resolveCompanionOverview = async (
+  page: Page,
+  timeout = 30_000,
+  confirmEmptyMs = 5_000
+): Promise<{ href: string } | { unreachable: string }> => {
+  const at = () => new URL(page.url()).pathname;
+  /*
+   * A guard can move the page off the list, before the lookup or while it
+   * waits. Whatever the page then shows is not the list, so the reason given is
+   * the redirect, not what the lookup failed to find there.
+   */
+  const unreachable = (reason: string) => ({
+    unreachable: at() === '/companions' ? reason : `/companions redirected to ${at()}`,
   });
+  // Already elsewhere: nothing on this page is the list, so do not wait for it.
+  if (at() !== '/companions') return unreachable('');
+
+  const rowMenu = page.getByRole('button', { name: /row actions$/i }).first();
+  // Every layout (table, grid, phone) carries its own copy of the empty state;
+  // only the one on screen counts.
+  const emptyList = page.getByText(/^No \w+ yet\.?$/).filter({ visible: true });
+  const settled = await rowMenu
+    .or(emptyList)
+    .first()
+    .waitFor({ state: 'visible', timeout })
+    .then(() => true)
+    .catch(() => false);
+  if (!settled) return unreachable('/companions rendered neither a companion nor its empty state');
+
+  // The list has no loading state: it shows its empty state until the
+  // companions arrive. So an empty list counts only once it has stayed empty.
+  const listed = await rowMenu
+    .waitFor({ state: 'visible', timeout: confirmEmptyMs })
+    .then(() => true)
+    .catch(() => false);
+  if (!listed) {
+    return unreachable('no companion is listed on /companions, so there is no overview to open');
+  }
+
+  const offered = await rowMenu
+    .click({ timeout })
+    .then(() => page.getByRole('menuitem', { name: 'Open overview' }).click({ timeout }))
+    .then(() => true)
+    .catch(() => false);
+  if (!offered) {
+    return unreachable('the first companion\'s row menu offered no "Open overview"');
+  }
+  const opened = await page
+    .waitForURL(
+      (url) => url.pathname === '/companions/history' && url.searchParams.has('companionId'),
+      { timeout }
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (!opened) {
+    return { unreachable: '"Open overview" on the first companion did not open the overview' };
+  }
+  const { pathname, search } = new URL(page.url());
+  return { href: `${pathname}${search}` };
+};
+
+/**
+ * A live view of the page's requests in flight, so the sweep leaves a page only
+ * once it is quiet.
+ *
+ * waitForLoadState('networkidle') cannot answer that. It resolves on a lifecycle
+ * event the document fired once, so after a client-side navigation, or once the
+ * load has settled and something starts later, it returns at once with requests
+ * still pending. The next page.goto then aborts them, and Firefox (not Chromium)
+ * rejects each aborted fetch with a NetworkError that the app's own handlers log.
+ * The sweep reported those as console errors on whichever route came next, such
+ * as the patient overview's billing load on /dashboard.
+ */
+export const trackInFlightRequests = (page: Page) => {
+  const inFlight = new Set<Request>();
+  let lastChange = Date.now();
+  page.on('request', (request) => {
+    // A new document abandons the old one's requests, and Chromium emits no end
+    // event for them, so they would read as in flight for the rest of the run.
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) inFlight.clear();
+    inFlight.add(request);
+    lastChange = Date.now();
+  });
+  const ended = (request: Request) => {
+    inFlight.delete(request);
+    lastChange = Date.now();
+  };
+  page.on('requestfinished', ended);
+  page.on('requestfailed', ended);
+
+  /**
+   * Waits until nothing has been in flight for `quietMs` (the same bar as
+   * Playwright's networkidle) or `timeoutMs` passes, and returns the URLs still
+   * pending: empty means the page is quiet and leaving it aborts nothing.
+   */
+  const settle = async ({ quietMs = 500, timeoutMs = 30_000 } = {}): Promise<string[]> => {
+    const deadline = Date.now() + timeoutMs;
+    while (inFlight.size > 0 || Date.now() - lastChange < quietMs) {
+      if (Date.now() >= deadline) return [...inFlight].map((r) => r.url());
+      await new Promise((resolve) => {
+        setTimeout(resolve, 50);
+      });
+    }
+    return [];
+  };
+  return { settle };
+};
+
+/**
+ * How long a page must have had nothing in flight before the sweep leaves it.
+ * Longer than networkidle's 500ms because the API client retries a transient
+ * failure after a 600ms backoff plus up to 600ms of jitter, with nothing in
+ * flight meanwhile; leaving inside that gap aborts the retry.
+ */
+const LEAVE_QUIET_MS = 1_500;
 
 const readBaseline = (): Record<string, string[]> => {
   try {
@@ -120,8 +232,7 @@ export const visibleTexts = (page: Page) =>
         // does not inherit, so a `hidden xl:hidden` responsive branch reports as
         // visible and its contents fail the sweep at a viewport that never
         // renders them.
-        const rendered =
-          parent.offsetParent !== null || parent.getClientRects().length > 0;
+        const rendered = parent.offsetParent !== null || parent.getClientRects().length > 0;
         const style = globalThis.getComputedStyle(parent);
         if (rendered && style.visibility !== 'hidden') out.push(text);
       }
@@ -152,7 +263,10 @@ export const contradictoryPanels = (page: Page) =>
     const out: { name: string; hasError: boolean; hasEmptyState: boolean }[] = [];
     for (const section of document.querySelectorAll('section, [role="region"], article')) {
       const text = (section as HTMLElement).innerText ?? '';
-      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+      const lines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
       const hasError = lines.some((l) => ERROR.test(l));
       const hasEmptyState = lines.some((l) => EMPTY.test(l));
       if (hasError && hasEmptyState) {
@@ -219,7 +333,9 @@ export const forwardLookingRows = (page: Page) =>
   });
 
 export const documentOverflows = (page: Page) =>
-  page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+  page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+  );
 
 test.describe.configure({ mode: 'serial' });
 
@@ -238,6 +354,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
    */
   /** Latest rate-limit budget the API reported, updated on every response. */
   const budget: { remaining?: number; resetAtMs?: number } = {};
+  const network = trackInFlightRequests(page);
   page.on('response', (r) => {
     const remaining = Number(r.headers()['ratelimit-remaining']);
     const resetSeconds = Number(r.headers()['ratelimit-reset']);
@@ -260,9 +377,20 @@ test('every operational route holds its page invariants', async ({ page }) => {
     };
     page.on('console', onConsole);
     page.on('response', onResponse);
-    return () => {
+    return async () => {
+      // Leave only once the page is quiet, and before this route's listeners
+      // come off: a late request that fails is then reported against this
+      // route, instead of being aborted by the next navigation and reported
+      // against that one.
+      const pending = await network.settle({ quietMs: LEAVE_QUIET_MS });
       page.off('console', onConsole);
       page.off('response', onResponse);
+      if (pending.length) {
+        noise.push(
+          `${route}  [never-settled]  ${pending.length} request(s) still in flight 30s after ` +
+            `the page was read: ${pending[0].slice(0, 120)}`
+        );
+      }
       return noise;
     };
   };
@@ -286,11 +414,15 @@ test('every operational route holds its page invariants', async ({ page }) => {
   let derived: string[] = [];
   await page.goto('/companions', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-  const historyHref = await firstCompanionHistoryHref(page);
-  if (historyHref) derived = [historyHref];
+  const overview = await resolveCompanionOverview(page);
+  // Opening the overview is a client-side navigation, so its loads are still in
+  // flight here, and the first route's page.goto would abort every one of them.
+  // The overview itself is swept later, from a fresh load.
+  await network.settle({ quietMs: LEAVE_QUIET_MS });
+  if ('href' in overview) derived = [overview.href];
   else {
     found['/companions/history'] = [
-      '/companions/history  [not-reachable]  no companion link found on /companions, so the patient overview was not swept',
+      `/companions/history  [not-reachable]  ${overview.unreachable}; the patient overview was not swept`,
     ];
   }
 
@@ -327,10 +459,8 @@ test('every operational route holds its page invariants', async ({ page }) => {
       .then(() => true)
       .catch(() => false);
     if (!settled) {
-      found[route] = [
-        `${route}  [never-settled]  still loading after 30s; the page was not swept`,
-      ];
-      stopWatching();
+      found[route] = [`${route}  [never-settled]  still loading after 30s; the page was not swept`];
+      await stopWatching();
       continue;
     }
 
@@ -342,7 +472,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
     const status = response?.status();
     if (status !== undefined && status >= 400) {
       found[route] = [`${route}  [not-reachable]  the page itself returned ${status}`];
-      stopWatching();
+      await stopWatching();
       continue;
     }
 
@@ -355,7 +485,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
     const expected = new URL(route, 'https://example.invalid').pathname;
     if (landed !== expected) {
       found[route] = [`${route}  [not-reachable]  redirected to ${landed}`];
-      stopWatching();
+      await stopWatching();
       continue;
     }
 
@@ -403,7 +533,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
       ...formatViolations(route, violations).split('\n').filter(Boolean),
       // Deduplicated: one failing endpoint retried by a hook produces the same
       // line twenty times, which buries every other finding.
-      ...new Set(stopWatching()),
+      ...new Set(await stopWatching()),
     ];
     if (lines.length) found[route] = lines;
   }

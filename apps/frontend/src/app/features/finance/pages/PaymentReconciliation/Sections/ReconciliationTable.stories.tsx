@@ -19,6 +19,7 @@ const receipt = (over: Partial<ProviderReceipt>): ProviderReceipt => ({
   status: 'UNALLOCATED',
   reason: 'The appointment already has a settled invoice',
   refundedAmount: 0,
+  allocatedAmount: 0,
   version: 1,
   createdAt: '2026-09-12T14:03:05.000Z',
   ...over,
@@ -48,6 +49,9 @@ const RECEIPTS: ProviderReceipt[] = [
     id: 'rec-allocated',
     paymentRef: 'pi_3QhZ4mAllocated',
     amount: 65,
+    // Spent in full, which is what ALLOCATED means: leaving it at zero would
+    // describe a settled capture that still has its whole amount to apply.
+    allocatedAmount: 65,
     status: 'ALLOCATED',
     reason: null,
   }),
@@ -154,5 +158,39 @@ export const LoadingMorePages: Story = {
     await expect(
       canvas.getByRole('button', { name: 'Load more captured payments' })
     ).toBeDisabled();
+  },
+};
+
+/**
+ * The action column, and the three rows it deliberately leaves alone.
+ *
+ * `canAllocate` mirrors three of the allocate route's own refusals, so an
+ * unattributed capture, one refunded in full and one already fully applied
+ * each get an em dash rather than a button that opens a dialog only to say no.
+ */
+export const WithTheAllocateAction: Story = {
+  name: 'Apply, on the rows that can take it',
+  args: { onAllocate: fn() },
+  play: async ({ args, canvasElement }) => {
+    const table = within(await within(canvasElement).findByRole('table'));
+
+    const buttons = table.getAllByRole('button', { name: /^Apply the payment captured/ });
+    await expect(buttons).toHaveLength(2);
+
+    await userEvent.click(buttons[0]);
+    await expect(args.onAllocate).toHaveBeenCalled();
+  },
+};
+
+/** What is left to apply, on a capture an earlier allocation has part-spent. */
+export const PartlyApplied: Story = {
+  name: 'A capture with a residual',
+  args: {
+    onAllocate: fn(),
+    receipts: [receipt({ id: 'rec-part', amount: 132.5, allocatedAmount: 100 })],
+  },
+  play: async ({ canvasElement }) => {
+    const table = within(await within(canvasElement).findByRole('table'));
+    await expect(table.getByText('£32.50 unapplied')).toBeVisible();
   },
 };

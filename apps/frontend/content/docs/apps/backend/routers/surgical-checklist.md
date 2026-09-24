@@ -6,7 +6,7 @@ slug: /apps/backend/api/surgical-checklist
 
 Manages surgical safety checklists for a patient encounter (the Sign-In / Time-Out / Sign-Out phases used around a procedure): creating a checklist with its items, checking and unchecking individual items, and updating or deleting the checklist. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/surgical-checklists
 

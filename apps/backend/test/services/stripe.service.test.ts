@@ -302,22 +302,67 @@ describe("StripeService", () => {
       process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
     });
 
-    it("should return billing and usage rows", async () => {
+    const statusFor = async (
+      billing: Record<string, unknown> | null,
+      country: string | null,
+    ) => {
       (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "org_1",
+        address: country === null ? null : { country },
       });
       (
         prisma.organizationBilling.findUnique as jest.Mock
-      ).mockResolvedValueOnce({ orgId: "org_1" });
+      ).mockResolvedValueOnce(billing);
       (
         prisma.organizationUsageCounter.findUnique as jest.Mock
       ).mockResolvedValueOnce({ orgId: "org_1" });
+      return StripeService.getAccountStatus("org_1");
+    };
 
-      const result = await StripeService.getAccountStatus("org_1");
+    it("should return billing and usage rows", async () => {
+      const result = await statusFor(
+        { orgId: "org_1", currency: "usd", connectChargesEnabled: false },
+        null,
+      );
+
       expect(result).toEqual({
-        orgBilling: { orgId: "org_1" },
+        orgBilling: {
+          orgId: "org_1",
+          currency: "usd",
+          connectChargesEnabled: false,
+        },
         orgUsage: { orgId: "org_1" },
       });
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith({
+        where: { id: "org_1" },
+        select: { id: true, address: { select: { country: true } } },
+      });
+    });
+
+    it("returns no billing row when the organisation has none", async () => {
+      const result = await statusFor(null, "United Kingdom");
+
+      expect(result.orgBilling).toBeNull();
+    });
+
+    // #3607: the column holds its "usd" default until the Connect account can
+    // take charges, so the raw row told a UK clinic it billed in dollars.
+    it("hands back the resolved currency until Connect can take charges", async () => {
+      const result = await statusFor(
+        { orgId: "org_1", currency: "usd", connectChargesEnabled: false },
+        "United Kingdom",
+      );
+
+      expect(result.orgBilling?.currency).toBe("gbp");
+    });
+
+    it("hands back the Connect currency once the account can take charges", async () => {
+      const result = await statusFor(
+        { orgId: "org_1", currency: "eur", connectChargesEnabled: true },
+        "United Kingdom",
+      );
+
+      expect(result.orgBilling?.currency).toBe("eur");
     });
   });
 
@@ -426,7 +471,10 @@ describe("StripeService", () => {
       });
       (
         prisma.organizationBilling.findUnique as jest.Mock
-      ).mockResolvedValueOnce({ currency: "jpy" });
+      ).mockResolvedValueOnce({
+        currency: "jpy",
+        connectChargesEnabled: true,
+      });
       mStripe.paymentIntents.create.mockResolvedValueOnce({
         id: "pi_jpy",
         client_secret: "cs_jpy",
@@ -743,7 +791,11 @@ describe("StripeService", () => {
         StripeService.retrievePaymentIntent("pi_unknown", {
           organisationId: "org_1",
         }),
-      ).rejects.toThrow("Payment intent not found");
+      ).rejects.toMatchObject({
+        name: "FinancePaymentError",
+        message: "Payment intent not found",
+        statusCode: 404,
+      });
       expect(mStripe.paymentIntents.retrieve).not.toHaveBeenCalled();
     });
 
@@ -1254,6 +1306,13 @@ describe("StripeService", () => {
       const createCall = (prisma.invoice.create as jest.Mock).mock.calls[0][0];
       expect(createCall.data.status).toBe("PAID");
       expect(createCall.data.paidAt).toBeInstanceOf(Date);
+      // #3154 - this writer builds its line inline rather than through
+      // InvoiceService, so it has to assign the id itself. A booking line is a
+      // persisted line like any other and the edit, settlement and credit paths
+      // all address a line by id.
+      const [bookingLine] = createCall.data.items as Array<{ id?: unknown }>;
+      expect(typeof bookingLine.id).toBe("string");
+      expect((bookingLine.id as string).length).toBeGreaterThan(0);
     });
 
     it("settles open invoice for appointment booking payment", async () => {
@@ -2256,6 +2315,41 @@ describe("StripeService", () => {
   });
 
   describe("_handleAccountUpdated fallbacks", () => {
+    it("replays account snapshots idempotently with absolute values", async () => {
+      const account = {
+        id: "acct_replay",
+        charges_enabled: true,
+        payouts_enabled: false,
+        default_currency: "eur",
+        requirements: {
+          currently_due: ["bank_account"],
+          eventually_due: [],
+          past_due: [],
+          pending_verification: [],
+          errors: [],
+        },
+      } as any;
+
+      await StripeService._handleAccountUpdated(account);
+      await StripeService._handleAccountUpdated(account);
+
+      const firstWrite = (prisma.organizationBilling.updateMany as jest.Mock)
+        .mock.calls[0][0];
+      const secondWrite = (prisma.organizationBilling.updateMany as jest.Mock)
+        .mock.calls[1][0];
+
+      expect(prisma.organizationBilling.updateMany).toHaveBeenCalledTimes(2);
+      expect(secondWrite).toEqual(firstWrite);
+      expect(firstWrite.data).toEqual(
+        expect.objectContaining({
+          canAcceptPayments: false,
+          connectChargesEnabled: true,
+          connectPayoutsEnabled: false,
+          currency: "eur",
+        }),
+      );
+    });
+
     it("defaults enablement fields when the account omits them", async () => {
       (
         prisma.organizationBilling.updateMany as jest.Mock

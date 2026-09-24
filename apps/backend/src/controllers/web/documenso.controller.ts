@@ -188,14 +188,12 @@ async function persistDocumensoApiKey(
   return { stored: true, notFound: false };
 }
 
-type WebhookSignatureState = "verified" | "unverified" | "invalid";
+type WebhookSignatureState = "verified" | "unconfigured" | "invalid";
 
 /**
- * Three-way result rather than a boolean, because "we could not check" and "we
- * checked and it passed" are not the same trust level. Deployments without
- * DOCUMENSO_WEBHOOK_SECRET stay accepted for form/packet signing (long-standing
- * behaviour), but "unverified" is not good enough to record a veterinarian's
- * clinical attestation - see handlePassportRecordEvent.
+ * Without DOCUMENSO_WEBHOOK_SECRET the document id would be the only credential,
+ * and it is an external identifier, so an unconfigured deployment refuses every
+ * callback rather than acting on one it cannot authenticate.
  */
 const documensoWebhookSignatureState = (
   rawBody: Buffer,
@@ -203,7 +201,7 @@ const documensoWebhookSignatureState = (
 ): WebhookSignatureState => {
   const secret = process.env.DOCUMENSO_WEBHOOK_SECRET;
   if (!secret) {
-    return "unverified";
+    return "unconfigured";
   }
 
   if (!signature) {
@@ -241,20 +239,8 @@ const resolveDocumensoRedirectMapping = async (
 async function handlePassportRecordEvent(
   eventType: string,
   documentId: string,
-  signatureState: WebhookSignatureState,
 ): Promise<boolean> {
   if (eventType !== "DOCUMENT_COMPLETED") return false;
-  // A clinical attestation is the legal record that a vet signed this document,
-  // so it may only be created from a cryptographically verified callback. With
-  // no webhook secret configured the document id is the only credential, and it
-  // is an external identifier - anyone holding it could forge a signature.
-  // Practices in that state keep the manual `attest` endpoint as the path.
-  if (signatureState !== "verified") {
-    logger.warn(
-      "[DocumensoWebhook] Ignoring passport completion: webhook signature not verified. Set DOCUMENSO_WEBHOOK_SECRET to enable e-signed attestation.",
-    );
-    return false;
-  }
   const attestation = await prisma.clinicalArtifactAttestation.findFirst({
     where: {
       documensoDocumentId: documentId,
@@ -354,6 +340,10 @@ export const DocumensoWebhookController = {
       const signature = req.headers["x-documenso-signature"] as
         string | undefined;
       const signatureState = documensoWebhookSignatureState(rawBody, signature);
+      if (signatureState === "unconfigured") {
+        logger.error("[DocumensoWebhook] Webhook secret missing");
+        return res.status(503).end();
+      }
       if (signatureState === "invalid") {
         return res.status(401).end();
       }
@@ -365,13 +355,7 @@ export const DocumensoWebhookController = {
         return res.status(400).json({ message: "Invalid payload" });
       }
 
-      if (
-        await handlePassportRecordEvent(
-          event.eventType,
-          event.documentId,
-          signatureState,
-        )
-      ) {
+      if (await handlePassportRecordEvent(event.eventType, event.documentId)) {
         return res.status(200).json({ received: true });
       }
 

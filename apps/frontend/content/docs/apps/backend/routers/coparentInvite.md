@@ -6,7 +6,7 @@ slug: /apps/backend/api/coparentInvite
 
 Handles co-parent invitations, letting a pet parent invite another person to share access to a companion (pet). Called by the mobile app; the `/validate` route is public (no auth) so an invite token can be checked before the invitee signs in.
 
-**Endpoints**
+## Endpoints
 
 ### POST /sent
 

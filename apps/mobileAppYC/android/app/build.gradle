@@ -143,8 +143,8 @@ android {
         applicationId "com.mobileappyc"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20
-        versionName "1.6.2"
+        versionCode 21
+        versionName "1.7.0"
         manifestPlaceholders = [
             MAPS_API_KEY: localProperties['MAPS_API_KEY'] ?: System.getenv('MAPS_API_KEY') ?: ''
         ]

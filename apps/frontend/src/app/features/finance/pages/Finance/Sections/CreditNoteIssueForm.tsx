@@ -8,7 +8,7 @@ type CreditNoteDraft = { amount: number; reason?: string };
 
 type CreditNoteIssueFormProps = {
   remaining: number;
-  currency: string;
+  currency: string | undefined;
   busy: boolean;
   /**
    * Increments each time the server accepts a credit note. The draft is only

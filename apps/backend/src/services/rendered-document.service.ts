@@ -337,7 +337,7 @@ const parseRenderedDocumentSigning = (
     ? (value as RenderedDocumentSigning)
     : null;
 
-const hasActiveOrCompletedSigning = (document: {
+export const hasActiveOrCompletedSigning = (document: {
   status: string;
   signing: unknown;
 }): boolean => {
@@ -725,7 +725,7 @@ export const signPersistedRenderedDocument = async (
       : null;
 
   await DocumensoService.distributeDocument({
-    documentId: doc.id,
+    envelopeId: doc.envelopeId,
     apiKey,
   });
 

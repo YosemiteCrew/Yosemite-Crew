@@ -446,12 +446,46 @@ export const readDeclaration = (sql) => {
 };
 
 /**
+ * Declarations for migrations that are already APPLIED and so cannot carry one
+ * inline: Prisma checksums an applied migration, and the immutability step in
+ * _migration.yaml refuses the edit. A migration belongs here only when the rule
+ * that flags it was added after it merged. This gate classifies what a pull
+ * request ADDS, so such a migration passes on `dev` and surfaces on the first
+ * dev-to-main promotion that carries it, where nothing can be changed any more.
+ *
+ * Closed by date. RETROACTIVE_CUTOFF is the day after the youngest rule shipped
+ * (the access rules, #2724, on 2026-09-05). A migration stamped on or after it
+ * was classified by every rule when it merged, so it must declare inline, next
+ * to its SQL, and an entry for it here is ignored. The same length floor applies.
+ */
+export const RETROACTIVE_CUTOFF = '20260906000000';
+export const RETROACTIVE_DECLARATIONS = Object.freeze({
+  '20260830190000_developer_resources_user_scoped':
+    'the deployed main code reads organisationId on all three tables, but production held 0 ' +
+    'rows in each on 2026-09-23, counted before the September promotion. For the ' +
+    'migrate-to-cutover window a request presenting a developer key errors instead of ' +
+    "answering 401, and the portal's empty key, usage and billing lists error. No key exists " +
+    'to break and no row moves.',
+  '20260905130000_lab_result_quarantine':
+    'LabResultQuarantine is created by this same migration, so no deployed query names it, and ' +
+    'row-level security on a table the running code has never read cannot hide a row it ' +
+    'reads. Checked against main on 2026-09-23: nothing outside the migrations names the table.',
+});
+
+/** The retroactive declaration for a migration, or null if it may not have one. */
+export const retroactiveDeclaration = (name, declarations = RETROACTIVE_DECLARATIONS) => {
+  const stamp = /^\d{14}_/.test(name) ? name.slice(0, 14) : null;
+  if (stamp === null || stamp >= RETROACTIVE_CUTOFF) return null;
+  return Object.hasOwn(declarations, name) ? declarations[name] : null;
+};
+
+/**
  * @returns {{name: string, hazards: Array, declaration: string|null,
  *            verdict: 'ok'|'undeclared'|'declaration-too-short'}}
  */
-export const reviewMigration = ({ name, sql }) => {
+export const reviewMigration = ({ name, sql, retroactive = RETROACTIVE_DECLARATIONS }) => {
   const hazards = classifyMigrationSql(sql);
-  const declaration = readDeclaration(sql);
+  const declaration = readDeclaration(sql) ?? retroactiveDeclaration(name, retroactive);
 
   if (hazards.length === 0) return { name, hazards, declaration, verdict: 'ok' };
   if (declaration === null) return { name, hazards, declaration, verdict: 'undeclared' };
@@ -485,10 +519,8 @@ const main = (paths) => {
       continue;
     }
 
-    const review = reviewMigration({
-      name: migrationName(relative(repoRoot, resolved)),
-      sql: readFileSync(resolved, 'utf8'),
-    });
+    const sql = readFileSync(resolved, 'utf8');
+    const review = reviewMigration({ name: migrationName(relative(repoRoot, resolved)), sql });
 
     if (review.hazards.length === 0) {
       console.log(`ok  ${review.name}: additive only.`);
@@ -501,6 +533,11 @@ const main = (paths) => {
       console.log(`ok  ${review.name}: ${review.hazards.length} hazard(s), declared.`);
       console.log(listed);
       console.log(`      declared: ${review.declaration}`);
+      if (readDeclaration(sql) === null) {
+        console.log(
+          `      (recorded in RETROACTIVE_DECLARATIONS: applied before the rule existed)`
+        );
+      }
       continue;
     }
 

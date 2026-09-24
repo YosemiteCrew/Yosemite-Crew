@@ -29,7 +29,7 @@
 
 ## Product Walkthrough
 
-https://github.com/user-attachments/assets/50209ebc-f966-4916-abb4-d697b5fbf778
+https://github.com/user-attachments/assets/3f26baf9-5012-4026-90f9-bf64fc40284d
 
 ## Code Quality (SonarCloud)
 
@@ -226,15 +226,15 @@ This is a TypeScript monorepo managed with pnpm workspaces and Turborepo.
 
 ### Shared Packages
 
-| Package                                                        | Responsibility                                                                                                 |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [`@yosemite-crew/database`](./packages/database/README.md)     | Prisma schema, migrations, and database access helpers. The persistence schema's source of truth.              |
-| [`@yosemite-crew/auth`](./packages/auth)                       | Provider-neutral authentication boundary, backed by SuperTokens, with session and MFA integration.             |
-| [`@yosemite-crew/types`](./packages/types)                     | Shared domain models, forms, and API data-transfer types for web, mobile, and backend.                         |
-| [`@yosemite-crew/fhir`](./packages/fhir)                       | Helpers for working with FHIR R4 resource representations.                                                     |
-| [`@yosemite-crew/fhirtypes`](./packages/fhirtypes)             | TypeScript definitions for FHIR resources and common clinical data structures.                                 |
-| [`@yosemite-crew/lib`](./packages/lib)                         | Cross-workspace utilities, shared error handling, and clinical PDF generation.                                 |
-| [`@yosemite-crew/mcp-server`](./packages/mcp-server/README.md) | Optional MCP interface to selected read-only developer API operations, authenticated with a developer API key. |
+| Package                                                       | Responsibility                                                                                                 |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [`@yosemite-crew/database`](./packages/database/README.md)    | Prisma schema, migrations, and database access helpers. The persistence schema's source of truth.              |
+| [`@yosemite-crew/auth`](./packages/auth)                      | Provider-neutral authentication boundary, backed by SuperTokens, with session and MFA integration.             |
+| [`@yosemite-crew/types`](./packages/types)                    | Shared domain models, forms, and API data-transfer types for web, mobile, and backend.                         |
+| [`@yosemite-crew/fhir`](./packages/fhir)                      | Helpers for working with FHIR R4 resource representations.                                                     |
+| [`@yosemite-crew/fhirtypes`](./packages/fhirtypes)            | TypeScript definitions for FHIR resources and common clinical data structures.                                 |
+| [`@yosemite-crew/lib`](./packages/lib)                        | Cross-workspace utilities, shared error handling, and clinical PDF generation.                                 |
+| [`@yosemitecrew/mcp-server`](./packages/mcp-server/README.md) | Optional MCP interface to selected read-only developer API operations, authenticated with a developer API key. |
 
 Skills live in [`.agents/skills`](./.agents/skills/) and [`.claude/skills`](./.claude/skills/). Contributor instructions are in [AGENTS.md](./AGENTS.md).
 

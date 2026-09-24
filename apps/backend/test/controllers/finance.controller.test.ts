@@ -16,6 +16,7 @@ import {
 import { StripeService } from "../../src/services/stripe.service";
 import { ProviderReceiptService } from "../../src/services/finance/provider-receipt";
 import { ProviderReceiptAuditService } from "../../src/services/finance/provider-receipt-audit";
+import { ClientAccountService } from "../../src/services/finance/client-account";
 import { encodeKeysetCursor } from "../../src/services/shared/pagination";
 import { Request, Response } from "express";
 
@@ -151,6 +152,15 @@ jest.mock("../../src/services/finance/provider-receipt-audit", () => ({
   __esModule: true,
   ProviderReceiptAuditService: {
     auditHistoricalMismatches: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/finance/client-account", () => ({
+  __esModule: true,
+  ClientAccountService: {
+    getAccountCredit: jest.fn(),
+    proposeAllocation: jest.fn(),
+    applyAllocation: jest.fn(),
   },
 }));
 jest.mock("src/utils/logger", () => ({
@@ -2040,6 +2050,532 @@ describe("FinanceController.allocateProviderReceipt", () => {
     const res = buildRes();
 
     await FinanceController.allocateProviderReceipt(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
+  });
+});
+
+describe("FinanceController.getClientAccountCredit", () => {
+  const PARENT = "22222222-2222-4222-8222-222222222222";
+
+  const buildRes = () =>
+    ({
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    }) as unknown as Response;
+
+  const buildReq = (overrides: Record<string, unknown> = {}) =>
+    ({
+      params: { organisationId: "org_1", parentId: PARENT },
+      query: {},
+      organisationId: "org_1",
+      ...overrides,
+    }) as unknown as Request;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    (ClientAccountService.getAccountCredit as jest.Mock).mockResolvedValue([]);
+  });
+
+  it("scopes the credit to the authorized organisation, not the path", async () => {
+    // A Parent is global. Without the organisation coming from the session,
+    // anyone holding the permission in their own practice could read what a
+    // shared client has paid another practice.
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(
+      buildReq({
+        params: { organisationId: "org_victim", parentId: PARENT },
+        organisationId: "org_attacker",
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(ClientAccountService.getAccountCredit).not.toHaveBeenCalled();
+  });
+
+  it("rejects a client id that is not a uuid without reaching the service", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(
+      buildReq({ params: { organisationId: "org_1", parentId: "not-a-uuid" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.getAccountCredit).not.toHaveBeenCalled();
+  });
+
+  it("returns the per-currency credit the service reports", async () => {
+    const credit = [
+      {
+        currency: "gbp",
+        availableCredit: 75,
+        lines: [
+          {
+            receiptId: "receipt-1",
+            provider: "STRIPE",
+            paymentRef: "pi_1",
+            invoiceId: "invoice-1",
+            capturedAt: new Date("2026-09-01T10:00:00.000Z"),
+            availableCredit: 75,
+          },
+        ],
+      },
+    ];
+    (ClientAccountService.getAccountCredit as jest.Mock).mockResolvedValue(
+      credit,
+    );
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(buildReq(), res);
+
+    expect(ClientAccountService.getAccountCredit).toHaveBeenCalledWith({
+      organisationId: "org_1",
+      parentId: PARENT,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ data: credit, error: null });
+  });
+
+  it("answers an empty list the same for no credit and for an unknown client", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ data: [], error: null });
+  });
+
+  it("reports a failed read as a server error rather than as an empty account", async () => {
+    // Answering [] on a thrown query would tell an operator the client has no
+    // credit, which is the one wrong answer that looks like a real one.
+    (ClientAccountService.getAccountCredit as jest.Mock).mockRejectedValue(
+      new Error("database down"),
+    );
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
+  });
+});
+
+describe("FinanceController.getClientAccountAllocationProposal", () => {
+  const PARENT = "22222222-2222-4222-8222-222222222222";
+
+  const buildRes = () =>
+    ({
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    }) as unknown as Response;
+
+  const buildReq = (overrides: Record<string, unknown> = {}) =>
+    ({
+      params: { organisationId: "org_1", parentId: PARENT },
+      query: {},
+      organisationId: "org_1",
+      ...overrides,
+    }) as unknown as Request;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    (ClientAccountService.proposeAllocation as jest.Mock).mockResolvedValue([]);
+  });
+
+  it("scopes the proposal to the authorized organisation, not the path", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(
+      buildReq({
+        params: { organisationId: "org_victim", parentId: PARENT },
+        organisationId: "org_attacker",
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(ClientAccountService.proposeAllocation).not.toHaveBeenCalled();
+  });
+
+  it("rejects a client id that is not a uuid without reaching the service", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(
+      buildReq({ params: { organisationId: "org_1", parentId: "not-a-uuid" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.proposeAllocation).not.toHaveBeenCalled();
+  });
+
+  it("returns the plan with the versions it was taken from", async () => {
+    const proposal = [
+      {
+        currency: "gbp",
+        availableCredit: 150,
+        proposedAmount: 150,
+        residualCredit: 0,
+        outstandingBefore: 180,
+        outstandingAfter: 30,
+        lines: [
+          { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 100 },
+          { receiptId: "receipt-1", invoiceId: "invoice-2", amount: 50 },
+        ],
+        credits: [
+          {
+            receiptId: "receipt-1",
+            version: 3,
+            capturedAt: new Date("2026-09-01T10:00:00.000Z"),
+            availableCredit: 150,
+          },
+        ],
+      },
+    ];
+    (ClientAccountService.proposeAllocation as jest.Mock).mockResolvedValue(
+      proposal,
+    );
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(buildReq(), res);
+
+    expect(ClientAccountService.proposeAllocation).toHaveBeenCalledWith({
+      organisationId: "org_1",
+      parentId: PARENT,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ data: proposal, error: null });
+  });
+
+  it("answers an empty list the same for nothing to propose and an unknown client", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ data: [], error: null });
+  });
+
+  it("reports a failed read as a server error rather than as nothing to apply", async () => {
+    // Answering [] on a thrown query would tell an operator this client has no
+    // credit to apply, which is the one wrong answer that looks like a real one.
+    (ClientAccountService.proposeAllocation as jest.Mock).mockRejectedValue(
+      new Error("database down"),
+    );
+    const res = buildRes();
+
+    await FinanceController.getClientAccountAllocationProposal(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
+  });
+});
+describe("FinanceController.applyClientAccountAllocation", () => {
+  const PARENT = "22222222-2222-4222-8222-222222222222";
+  const RECEIPT_A = "33333333-3333-4333-8333-333333333333";
+  const RECEIPT_B = "44444444-4444-4444-8444-444444444444";
+  const INVOICE_A = "55555555-5555-4555-8555-555555555555";
+
+  const buildRes = () =>
+    ({
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    }) as unknown as Response;
+
+  const body = (overrides: Record<string, unknown> = {}) => ({
+    idempotencyKey: "key-1",
+    receipts: [
+      {
+        receiptId: RECEIPT_A,
+        expectedVersion: 3,
+        allocations: [{ invoiceId: INVOICE_A, amount: 25 }],
+      },
+    ],
+    ...overrides,
+  });
+
+  const buildReq = (overrides: Record<string, unknown> = {}) =>
+    ({
+      params: { organisationId: "org_1", parentId: PARENT },
+      organisationId: "org_1",
+      userId: "user_1",
+      body: body(),
+      ...overrides,
+    }) as unknown as Request;
+
+  const applied = {
+    outcome: "APPLIED" as const,
+    appliedAmount: 25,
+    steps: [{ receiptId: RECEIPT_A, result: { outcome: "APPLIED" } }],
+    notAttempted: [],
+  };
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    (ClientAccountService.applyAllocation as jest.Mock).mockResolvedValue(
+      applied,
+    );
+  });
+
+  it("scopes the plan to the authorized organisation, not the path", async () => {
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({
+        params: { organisationId: "org_victim", parentId: PARENT },
+        organisationId: "org_attacker",
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
+  });
+
+  it("takes the actor from the session and refuses without one", async () => {
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({ userId: undefined }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
+  });
+
+  it("passes the session actor through rather than anything in the body", async () => {
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({ body: body({ actorId: "somebody_else" }) }),
+      buildRes(),
+    );
+
+    expect(ClientAccountService.applyAllocation).toHaveBeenCalledWith({
+      organisationId: "org_1",
+      parentId: PARENT,
+      actorId: "user_1",
+      idempotencyKey: "key-1",
+      receipts: body().receipts,
+    });
+  });
+
+  it("rejects a client id that is not a uuid without reaching the service", async () => {
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({ params: { organisationId: "org_1", parentId: "not-a-uuid" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
+  });
+
+  it("rejects a plan with no idempotency key", async () => {
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({ body: body({ idempotencyKey: "  " }) }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
+  });
+
+  it("rejects a capture with no expectedVersion", async () => {
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({
+        body: body({
+          receipts: [
+            {
+              receiptId: RECEIPT_A,
+              allocations: [{ invoiceId: INVOICE_A, amount: 25 }],
+            },
+          ],
+        }),
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-positive line", async () => {
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({
+        body: body({
+          receipts: [
+            {
+              receiptId: RECEIPT_A,
+              expectedVersion: 3,
+              allocations: [{ invoiceId: INVOICE_A, amount: 0 }],
+            },
+          ],
+        }),
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
+  });
+
+  it("maps a capture named twice to 409 DUPLICATE_RECEIPT", async () => {
+    // The guard lives in the service beside the sum it protects; the route
+    // only translates it, like the other two zero-write refusals.
+    (ClientAccountService.applyAllocation as jest.Mock).mockResolvedValue({
+      outcome: "DUPLICATE_RECEIPT",
+      receiptId: RECEIPT_A,
+    });
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Each capture may appear at most once in a plan.",
+      error: { code: "DUPLICATE_RECEIPT", receiptId: RECEIPT_A },
+    });
+  });
+
+  it("refuses one capture naming the same invoice twice", async () => {
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({
+        body: body({
+          receipts: [
+            {
+              receiptId: RECEIPT_A,
+              expectedVersion: 3,
+              allocations: [
+                { invoiceId: INVOICE_A, amount: 25 },
+                { invoiceId: INVOICE_A, amount: 10 },
+              ],
+            },
+          ],
+        }),
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
+  });
+
+  it("allows two captures to pay the same invoice", async () => {
+    // The normal output of the planner: one debt larger than one capture.
+    await FinanceController.applyClientAccountAllocation(
+      buildReq({
+        body: body({
+          receipts: [
+            {
+              receiptId: RECEIPT_A,
+              expectedVersion: 3,
+              allocations: [{ invoiceId: INVOICE_A, amount: 25 }],
+            },
+            {
+              receiptId: RECEIPT_B,
+              expectedVersion: 1,
+              allocations: [{ invoiceId: INVOICE_A, amount: 10 }],
+            },
+          ],
+        }),
+      }),
+      buildRes(),
+    );
+
+    expect(ClientAccountService.applyAllocation).toHaveBeenCalled();
+  });
+
+  it("answers a zero-write refusal 409 with the object it names", async () => {
+    (ClientAccountService.applyAllocation as jest.Mock).mockResolvedValue({
+      outcome: "RECEIPT_NOT_THIS_CLIENT",
+      receiptId: RECEIPT_B,
+    });
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: { code: "RECEIPT_NOT_THIS_CLIENT", receiptId: RECEIPT_B },
+      }),
+    );
+  });
+
+  it("answers a plan that stopped part way 200, because money moved", async () => {
+    // A 409 here would tell a client to retry a request that already applied
+    // a capture. The body says how far it got instead.
+    (ClientAccountService.applyAllocation as jest.Mock).mockResolvedValue({
+      outcome: "STOPPED",
+      appliedAmount: 25,
+      steps: [
+        { receiptId: RECEIPT_A, result: { outcome: "APPLIED" } },
+        {
+          receiptId: RECEIPT_B,
+          result: { outcome: "VERSION_CONFLICT", version: 7 },
+        },
+      ],
+      notAttempted: ["receipt-3"],
+    });
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      data: {
+        outcome: "STOPPED",
+        appliedAmount: 25,
+        steps: [
+          { receiptId: RECEIPT_A, result: { outcome: "APPLIED" } },
+          {
+            receiptId: RECEIPT_B,
+            result: { outcome: "VERSION_CONFLICT", version: 7 },
+          },
+        ],
+        notAttempted: ["receipt-3"],
+      },
+      error: null,
+    });
+  });
+
+  it("returns what was applied on a plan that ran through", async () => {
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      data: {
+        outcome: "APPLIED",
+        appliedAmount: 25,
+        steps: applied.steps,
+        notAttempted: [],
+      },
+      error: null,
+    });
+  });
+
+  it("reports a failed write as a server error rather than as nothing applied", async () => {
+    (ClientAccountService.applyAllocation as jest.Mock).mockRejectedValue(
+      new Error("database down"),
+    );
+    const res = buildRes();
+
+    await FinanceController.applyClientAccountAllocation(buildReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });

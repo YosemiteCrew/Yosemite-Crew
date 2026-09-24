@@ -44,15 +44,15 @@ jobs:
           PREV=$(git describe --tags --abbrev=0 --match "${PREFIX}-v*" "${TAG}^" 2>/dev/null || true)
           echo "prev=$PREV" >> "$GITHUB_OUTPUT"
 
-          # Every tag line documented in RELEASING.md carries a pre-release
-          # suffix today. Publishing one as a full release would make it
-          # eligible for /releases/latest, which the marketing release pill
-          # reads, so a beta would surface publicly as the current release.
+          # Whether the TAG carries a SemVer pre-release suffix. This decides
+          # only who may hold the repo-wide Latest badge (see the publish step),
+          # never GitHub's "Pre-release" label: every release is published as a
+          # full release.
           case "$TAG" in
-            *-beta*|*-alpha*|*-rc*) PRERELEASE=true ;;
-            *) PRERELEASE=false ;;
+            *-beta*|*-alpha*|*-rc*) SUFFIXED=true ;;
+            *) SUFFIXED=false ;;
           esac
-          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "suffixed=$SUFFIXED" >> "$GITHUB_OUTPUT"
 
           # A range between two component tags still contains every other
           # workspace's commits, so notes are filtered to the paths that
@@ -114,18 +114,73 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-          PRERELEASE: ${{ steps.prev.outputs.prerelease }}
+          SUFFIXED: ${{ steps.prev.outputs.suffixed }}
         run: |
-          # --prerelease is set on both paths so editing an existing release
-          # cannot silently promote a beta to a full release.
-          if [ "$PRERELEASE" = "true" ]; then
-            FLAG="--prerelease=true"
-          else
-            FLAG="--prerelease=false"
+          # No release is ever labelled "Pre-release". --prerelease=false is
+          # passed on the edit path too, because a release created by hand in
+          # the GitHub UI arrives with "Set as a pre-release" pre-ticked for a
+          # -beta tag.
+          #
+          # A suffixed tag must still never take Latest: the marketing release
+          # pill and electron-updater's stable desktop channel both resolve
+          # /releases/latest. An unsuffixed tag keeps GitHub's default (a new
+          # release takes Latest, an edit leaves it where it is).
+          set -- --notes-file notes.md --prerelease=false
+          if [ "$SUFFIXED" = "true" ]; then
+            set -- "$@" --latest=false
           fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --notes-file notes.md "$FLAG"
+            gh release edit "$TAG" "$@"
           else
-            gh release create "$TAG" --title "$TAG" --notes-file notes.md "$FLAG"
+            gh release create "$TAG" --title "$TAG" "$@"
           fi
+
+          # Assert on what GitHub recorded, not on what was sent, so a label, a
+          # draft or a Latest badge that did not take turns this run red instead
+          # of shipping quietly. A draft fails too: the edit does not publish it,
+          # and publishing it later without --latest=false hands a beta Latest.
+          # Reads are retried, whether they fail or come back stale. Only a 404
+          # means "no Latest"; any other error is a read that did not happen.
+          for _ in 1 2 3; do
+            STATE=$(gh release view "$TAG" --json isPrerelease,isDraft \
+              --jq '"\(.isPrerelease) \(.isDraft)"' 2>/dev/null) || STATE=unread
+            LATEST=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name' 2>/dev/null) \
+              || case "$LATEST" in *'"status":"404"'*) LATEST="" ;; *) LATEST=unread ;; esac
+            if [ "$STATE" = "false false" ] && [ "$LATEST" != "unread" ] \
+              && { [ "$SUFFIXED" != "true" ] || [ "$LATEST" != "$TAG" ]; }; then
+              echo "$TAG is a published full release (Latest: ${LATEST:-none})."
+              exit 0
+            fi
+            sleep 5
+          done
+          [ "$STATE" != "unread" ] || echo "::error::Could not read $TAG back from GitHub."
+          case "$STATE" in "true "*) echo "::error::$TAG is still labelled Pre-release on GitHub." ;; esac
+          case "$STATE" in *" true")
+            echo "::error::$TAG is still a draft. Publish it with: gh release edit $TAG --draft=false --latest=false"
+            echo "(drop --latest=false only for an unsuffixed tag that should become Latest)" ;;
+          esac
+          [ "$LATEST" != "unread" ] || echo "::error::Could not read the repository's Latest release from GitHub."
+          if [ "$SUFFIXED" = "true" ] && [ "$LATEST" = "$TAG" ]; then
+            echo "::error::$TAG carries a pre-release suffix but holds the repo-wide Latest badge."
+            echo "Mark the intended release as Latest (Releases > Edit > Set as the latest release)."
+          fi
+          exit 1
+
+  # A release published with GITHUB_TOKEN emits no `release` event, so
+  # supply-chain.yml never sees this one. workflow_dispatch is an event
+  # GITHUB_TOKEN can start, so dispatch it from this tag: it builds the SBOMs
+  # from the released code and attaches them to the release.
+  attach-sboms:
+    needs: generate-notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write # start supply-chain.yml
+    steps:
+      - name: Attach SBOMs to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh workflow run supply-chain.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG" -f release_tag="$TAG"

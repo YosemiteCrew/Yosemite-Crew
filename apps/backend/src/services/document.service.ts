@@ -1,5 +1,6 @@
 import type { TemplateKind } from "@yosemite-crew/database";
 import { prisma } from "src/config/prisma";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 import {
   deleteFromS3,
   generatePresignedDownloadUrl,
@@ -169,18 +170,26 @@ const assertPmsCanAccessCompanion = async (
   }
 };
 
-const getParentAccessibleCompanionIds = async (
+// The companions whose documents this parent may read: the rule
+// `requireCompanionPermission("documents")` enforces on the patient-keyed
+// mobile document routes (an ACTIVE link, and the documents permission for a
+// co-parent), applied here because this route is keyed by an appointment.
+const getParentDocumentCompanionIds = async (
   parentId: string,
 ): Promise<string[]> => {
   const links = await prisma.parentPatient.findMany({
     where: {
       parentId: normalizeStringId(parentId, "parentId"),
-      status: { in: ["ACTIVE", "PENDING"] },
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
     },
-    select: { patientId: true },
+    select: { patientId: true, role: true, permissions: true },
   });
 
   return links
+    .filter((link) =>
+      hasCompanionFeature(link.role, link.permissions, "documents"),
+    )
     .map((link) => normalizeStringId(link.patientId, "patientId"))
     .filter(Boolean);
 };
@@ -1003,7 +1012,7 @@ export const DocumentService = {
       params.appointmentId,
       "appointmentId",
     );
-    const companionIds = await getParentAccessibleCompanionIds(params.parentId);
+    const companionIds = await getParentDocumentCompanionIds(params.parentId);
     const appointmentLookup =
       await loadAppointmentForDocumentLookup(appointmentId);
 

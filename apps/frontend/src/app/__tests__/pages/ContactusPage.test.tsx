@@ -7,6 +7,10 @@ import '@testing-library/jest-dom';
 import { CONTACT_MESSAGE_MAX_LENGTH } from '@yosemite-crew/types';
 import ContactusPage from '@/app/features/marketing/pages/ContactusPage/ContactusPage';
 import { postData } from '@/app/services/axios';
+import {
+  installTurnstileStub,
+  removeTurnstileStub,
+} from '@/app/__tests__/support/turnstileTestStub';
 
 jest.mock('@/app/features/marketing/site', () => ({
   useMagnet: () => ({ current: null }),
@@ -17,6 +21,10 @@ jest.mock('@/app/features/marketing/site', () => ({
 
 jest.mock('@/app/services/axios', () => ({
   postData: jest.fn(),
+}));
+jest.mock('next/script', () => ({
+  __esModule: true,
+  default: jest.requireActual('@/app/__tests__/support/turnstileTestStub').NextScriptMock,
 }));
 const mockedPostData = postData as jest.Mock;
 
@@ -541,6 +549,109 @@ describe('ContactusPage', () => {
       expect(screen.queryByText('submitting...')).not.toBeInTheDocument();
       expect(screen.getByText('Send message')).toBeInTheDocument();
     });
+  });
+});
+
+describe('ContactusPage bot check', () => {
+  const BOT_ERROR = 'Complete bot verification before sending your message.';
+  let turnstile: ReturnType<typeof installTurnstileStub>;
+
+  const fillGeneralEnquiry = () => {
+    fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'John Doe' } });
+    fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+      target: { value: 'john.doe@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+      target: { value: 'Checked by the widget.' },
+    });
+  };
+  const sendButton = () => screen.getAllByRole('button', { name: 'Send message' })[0];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Never settles unless a test says otherwise, so a post let through by a
+    // broken guard fails its assertion instead of updating state after the test.
+    mockedPostData.mockImplementation(() => new Promise(() => {}));
+    turnstile = installTurnstileStub();
+  });
+
+  afterEach(() => {
+    removeTurnstileStub();
+  });
+
+  it('renders no widget when no site key is configured', () => {
+    render(<ContactusPage turnstileSiteKey="" />);
+    expect(screen.queryByRole('button', { name: 'Load bot check' })).not.toBeInTheDocument();
+  });
+
+  it('blocks sending until the widget issues a token, then sends it once and resets', async () => {
+    render(<ContactusPage turnstileSiteKey="site-key" />);
+    fillGeneralEnquiry();
+
+    fireEvent.click(sendButton());
+    expect(mockedPostData).not.toHaveBeenCalled();
+    expect(screen.getByText(BOT_ERROR)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+    expect(turnstile.render).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ sitekey: 'site-key', action: 'contact_form' })
+    );
+    turnstile.solve('synthetic-widget-token');
+    expect(screen.queryByText(BOT_ERROR)).not.toBeInTheDocument();
+
+    mockedPostData.mockResolvedValue({ data: { id: 'contact-id' } });
+    fireEvent.click(sendButton());
+
+    await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+    expect(mockedPostData).toHaveBeenCalledWith('/v1/contact-us/contact-web', {
+      type: 'GENERAL_ENQUIRY',
+      message: 'Checked by the widget.',
+      fullName: 'John Doe',
+      email: 'john.doe@example.com',
+      source: 'PMS_WEB',
+      website: '',
+      turnstileToken: 'synthetic-widget-token',
+    });
+    expect(turnstile.reset).toHaveBeenCalledWith('widget-1');
+    expect(await screen.findByText('Message sent')).toBeInTheDocument();
+  });
+
+  it('spends the token on a failed send, so a retry needs a fresh one', async () => {
+    mockedPostData.mockRejectedValueOnce(new Error('API Error'));
+    render(<ContactusPage turnstileSiteKey="site-key" />);
+    fillGeneralEnquiry();
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+    turnstile.solve('single-use-token');
+
+    fireEvent.click(sendButton());
+    await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(turnstile.reset).toHaveBeenCalledWith('widget-1'));
+
+    await waitFor(() => expect(sendButton()).toBeEnabled());
+    fireEvent.click(sendButton());
+    expect(mockedPostData).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(BOT_ERROR)).toBeInTheDocument();
+  });
+
+  it('does not send an expired token', async () => {
+    render(<ContactusPage turnstileSiteKey="site-key" />);
+    fillGeneralEnquiry();
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+    turnstile.solve('synthetic-widget-token');
+    turnstile.expire();
+
+    expect(screen.getByText(BOT_ERROR)).toBeInTheDocument();
+    fireEvent.click(sendButton());
+    expect(mockedPostData).not.toHaveBeenCalled();
+  });
+
+  it('shows the widget above the submit button for every request type', () => {
+    render(<ContactusPage turnstileSiteKey="site-key" />);
+    for (const type of ['Complaint', 'Data Service Access Request', 'Feature Request']) {
+      fireEvent.click(screen.getByRole('radio', { name: type }));
+      expect(screen.getByRole('button', { name: 'Load bot check' })).toBeInTheDocument();
+    }
   });
 });
 

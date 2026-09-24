@@ -35,6 +35,20 @@ interface DocsShellProps {
   editUrl: string;
 }
 
+interface DocsTocListProps {
+  toc: TocEntry[];
+}
+
+const DocsTocList = ({ toc }: Readonly<DocsTocListProps>) => (
+  <ul className="DocsTocList">
+    {toc.map((item) => (
+      <li key={item.id} className={item.depth === 3 ? 'DocsTocItemNested' : 'DocsTocItem'}>
+        <a href={`#${item.id}`}>{item.text}</a>
+      </li>
+    ))}
+  </ul>
+);
+
 /**
  * Chrome for the public documentation.
  *
@@ -90,6 +104,13 @@ export default function DocsShell({
 
             <h1 className="DocsTitle">{title}</h1>
 
+            {toc.length > 0 && (
+              <details className="DocsTocCompact">
+                <summary className="DocsTocCompactSummary">On this page</summary>
+                <DocsTocList toc={toc} />
+              </details>
+            )}
+
             <article className="DocsBody">{toJsxRuntime(tree, { Fragment, jsx, jsxs })}</article>
 
             {/*
@@ -123,16 +144,7 @@ export default function DocsShell({
           {toc.length > 0 && (
             <aside className="DocsToc" aria-label="On this page">
               <p className="DocsTocHeading">On this page</p>
-              <ul className="DocsTocList">
-                {toc.map((item) => (
-                  <li
-                    key={item.id}
-                    className={item.depth === 3 ? 'DocsTocItemNested' : 'DocsTocItem'}
-                  >
-                    <a href={`#${item.id}`}>{item.text}</a>
-                  </li>
-                ))}
-              </ul>
+              <DocsTocList toc={toc} />
             </aside>
           )}
         </div>

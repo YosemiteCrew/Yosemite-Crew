@@ -391,6 +391,9 @@ describe('Finance > Estimates page', () => {
     await waitFor(() =>
       expect(mockEstimateService.createEstimate).toHaveBeenCalledWith('org-1', {
         patientId: 'c2',
+        // The currency the dialog previewed in, so the server can refuse a
+        // stale one rather than save in a currency the user never saw (#3607).
+        currency: 'USD',
         notes: undefined,
         validUntil: undefined,
         items: [{ description: 'Dental clean', quantity: 1, unitPrice: 50, taxRate: 0 }],
@@ -707,6 +710,20 @@ describe('Finance > Estimates on a phone', () => {
     // Total was the column that began off-screen in the table; on the card it
     // is rendered inline.
     expect(screen.getByText('$110.00')).toBeInTheDocument();
+  });
+
+  it('keeps card selection wired to the extracted results view', async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([
+      buildEstimate({ id: 'e1', patientId: 'c1', total: 110 }),
+    ]);
+
+    render(<ProtectedEstimates />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open the estimate for Bruno' })
+    );
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Bruno' })).toBeInTheDocument();
   });
 
   it('still renders the table when the viewport is not a phone', async () => {

@@ -47,6 +47,56 @@ jest.mock("supertokens-node/recipe/thirdparty", () => {
   };
 });
 
+const mockGetRolesForUser = jest.fn();
+
+jest.mock("supertokens-node/recipe/userroles", () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(() => ({ name: "userroles" })),
+    getRolesForUser: mockGetRolesForUser,
+  },
+}));
+
+const mockListUsersByAccountInfo = jest.fn();
+
+jest.mock("supertokens-node", () => {
+  const actual = jest.requireActual("supertokens-node");
+
+  return {
+    ...actual,
+    __esModule: true,
+    listUsersByAccountInfo: mockListUsersByAccountInfo,
+    default: { ...actual, listUsersByAccountInfo: mockListUsersByAccountInfo },
+  };
+});
+
+const mockTotpInit = jest.fn((config: unknown) => ({ name: "totp", config }));
+
+jest.mock("supertokens-node/recipe/totp", () => {
+  const actual = jest.requireActual("supertokens-node/recipe/totp");
+
+  return {
+    ...actual,
+    __esModule: true,
+    default: { ...actual.default, init: mockTotpInit },
+  };
+});
+
+const mockAccountLinkingInit = jest.fn((config: unknown) => ({
+  name: "accountlinking",
+  config,
+}));
+
+jest.mock("supertokens-node/recipe/accountlinking", () => {
+  const actual = jest.requireActual("supertokens-node/recipe/accountlinking");
+
+  return {
+    ...actual,
+    __esModule: true,
+    default: { ...actual.default, init: mockAccountLinkingInit },
+  };
+});
+
 const ORIGINAL_ENV = {
   AUTH_API_DOMAIN: process.env.AUTH_API_DOMAIN,
   AUTH_WEBSITE_DOMAIN: process.env.AUTH_WEBSITE_DOMAIN,
@@ -80,6 +130,26 @@ const restoreEnv = () => {
   }
 };
 
+// What SuperTokens really hands `override.apis`: a supertokens-js-override proxy
+// (getProxyObject) whose methods dispatch through `this._call`. A plain object of
+// jest.fn cannot see a method called without its receiver, which is how every
+// email/password route answered 500 on dev while this suite stayed green.
+const recipeProxy = <T extends Record<string, unknown>>(impl: T): T => {
+  const proxy: Record<string, unknown> = {
+    _call: (name: string, args: unknown[]) =>
+      (impl[name] as (...a: unknown[]) => unknown)(...args),
+  };
+  for (const name of Object.keys(impl)) {
+    proxy[name] = function (
+      this: { _call: (n: string, a: unknown[]) => unknown },
+      ...args: unknown[]
+    ) {
+      return this._call(name, args);
+    };
+  }
+  return proxy as T;
+};
+
 describe("@yosemite-crew/auth supertokens config", () => {
   beforeEach(() => {
     jest.resetModules();
@@ -87,6 +157,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
     mockGetUserMetadata.mockReset();
     mockPasswordlessInit.mockClear();
     mockThirdPartyInit.mockClear();
+    mockTotpInit.mockClear();
+    mockAccountLinkingInit.mockClear();
+    mockGetRolesForUser.mockReset();
+    mockGetRolesForUser.mockResolvedValue({ status: "OK", roles: [] });
+    mockListUsersByAccountInfo.mockReset();
+    mockListUsersByAccountInfo.mockResolvedValue([]);
     delete process.env.AUTH_APPLE_CLIENT_ID;
     delete process.env.AUTH_APPLE_SERVICE_ID;
     delete process.env.AUTH_APPLE_KEY_ID;
@@ -170,9 +246,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       successfulVerification();
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toEqual({
         status: "OK",
@@ -230,9 +308,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       })) as unknown as typeof fetch;
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toEqual({
         status: "SIGN_UP_NOT_ALLOWED",
@@ -246,9 +326,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       successfulVerification();
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
       const input = signUpInput();
       input.formFields = input.formFields.filter(
         (field) => field.id !== "turnstileToken",
@@ -265,9 +347,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       successfulVerification();
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
       const input = signUpInput();
       input.formFields.find((field) => field.id === "turnstileToken")!.value =
         "x".repeat(2049);
@@ -288,9 +372,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
         .mockImplementation(() => {});
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toMatchObject({
         status: "SIGN_UP_NOT_ALLOWED",
@@ -314,9 +400,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       })) as unknown as typeof fetch;
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toMatchObject({
         status: "SIGN_UP_NOT_ALLOWED",
@@ -328,9 +416,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       successfulVerification();
       const config = configureProtectedSignup();
       const originalSignInPOST = jest.fn(async () => ({ status: "OK" }));
-      const signInPOST = config.override.apis({
-        signInPOST: originalSignInPOST,
-      }).signInPOST;
+      const signInPOST = config.override.apis(
+        recipeProxy({
+          signInPOST: originalSignInPOST,
+        }),
+      ).signInPOST;
       const aliasField = [
         { id: "email", value: "First.Last+wave@GoogleMail.com" },
       ];
@@ -354,10 +444,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         status: "OK",
         exists: false,
       }));
-      const signInPOST = config.override.apis({
-        signInPOST: originalSignInPOST,
-        emailExistsGET: originalEmailExistsGET,
-      }).signInPOST;
+      const signInPOST = config.override.apis(
+        recipeProxy({
+          signInPOST: originalSignInPOST,
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).signInPOST;
 
       await expect(signInPOST(signUpInput())).resolves.toEqual({
         status: "OK",
@@ -383,10 +475,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         status: "OK",
         exists: true,
       }));
-      const signInPOST = config.override.apis({
-        signInPOST: originalSignInPOST,
-        emailExistsGET: originalEmailExistsGET,
-      }).signInPOST;
+      const signInPOST = config.override.apis(
+        recipeProxy({
+          signInPOST: originalSignInPOST,
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).signInPOST;
 
       await expect(signInPOST(signUpInput())).resolves.toEqual({
         status: "WRONG_CREDENTIALS_ERROR",
@@ -408,10 +502,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         status: "OK",
         exists: false,
       }));
-      const resetPOST = config.override.apis({
-        generatePasswordResetTokenPOST: originalResetPOST,
-        emailExistsGET: originalEmailExistsGET,
-      }).generatePasswordResetTokenPOST;
+      const resetPOST = config.override.apis(
+        recipeProxy({
+          generatePasswordResetTokenPOST: originalResetPOST,
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).generatePasswordResetTokenPOST;
 
       await resetPOST(signUpInput());
 
@@ -432,10 +528,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         status: "OK",
         exists: true,
       }));
-      const resetPOST = config.override.apis({
-        generatePasswordResetTokenPOST: originalResetPOST,
-        emailExistsGET: originalEmailExistsGET,
-      }).generatePasswordResetTokenPOST;
+      const resetPOST = config.override.apis(
+        recipeProxy({
+          generatePasswordResetTokenPOST: originalResetPOST,
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).generatePasswordResetTokenPOST;
       const input = signUpInput();
 
       await resetPOST(input);
@@ -451,9 +549,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
         .fn()
         .mockResolvedValueOnce({ status: "OK", exists: false })
         .mockResolvedValueOnce({ status: "OK", exists: true });
-      const emailExistsGET = config.override.apis({
-        emailExistsGET: originalEmailExistsGET,
-      }).emailExistsGET;
+      const emailExistsGET = config.override.apis(
+        recipeProxy({
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).emailExistsGET;
 
       await expect(
         emailExistsGET({ email: "First.Last+wave@GoogleMail.com" }),
@@ -476,9 +576,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       getSuperTokensConfig();
       const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toEqual({
         status: "OK",
@@ -487,7 +589,22 @@ describe("@yosemite-crew/auth supertokens config", () => {
       expect(originalSignUpPOST).toHaveBeenCalledTimes(1);
     });
 
-    it("blocks only signup when the Turnstile secret is missing in production", async () => {
+    /*
+     * The regression guard for the promotion outage. Turnstile is keyed on the
+     * secret alone, never on NODE_ENV, because this half and the sign-up form
+     * are a lockstep: when the check is required the form posts a third form
+     * field, and supertokens-node refuses a request carrying more formFields
+     * than the recipe declares. Keying on "this is a production build" armed
+     * this side the moment the API deployed, which is minutes apart from the
+     * frontend it has to agree with, and refused every sign-up for that window
+     * rather than degrading.
+     *
+     * Nothing about the control itself changes: with a secret set, an
+     * unverifiable token is still refused - see "fails closed when Turnstile is
+     * unavailable", "fails closed when Turnstile returns a non-successful
+     * response" and "refuses an oversized bot token before calling Turnstile".
+     */
+    it("allows signup with no Turnstile secret even in production", async () => {
       process.env.SMTP_HOST = "smtp.example.test";
       process.env.SMTP_PORT = "465";
       process.env.SMTP_USER = "smtp-user";
@@ -504,23 +621,27 @@ describe("@yosemite-crew/auth supertokens config", () => {
         const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
         const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
         const originalSignInPOST = jest.fn(async () => ({ status: "OK" }));
-        const apis = config.override.apis({
-          signUpPOST: originalSignUpPOST,
-          signInPOST: originalSignInPOST,
-        });
+        const apis = config.override.apis(
+          recipeProxy({
+            signUpPOST: originalSignUpPOST,
+            signInPOST: originalSignInPOST,
+          }),
+        );
 
+        // Allowed, and the original handler actually runs: an unconfigured
+        // Turnstile must not stand between a customer and an account.
         await expect(apis.signUpPOST(signUpInput())).resolves.toEqual({
-          status: "SIGN_UP_NOT_ALLOWED",
-          reason:
-            "We could not verify this signup. Please refresh and try again.",
+          status: "OK",
         });
         await expect(
           apis.signInPOST({
             formFields: [{ id: "email", value: "member@example.test" }],
           }),
         ).resolves.toEqual({ status: "OK" });
+        // No verification call is made, because there is nothing configured to
+        // verify against - not because the request was rejected first.
         expect(globalThis.fetch).not.toHaveBeenCalled();
-        expect(originalSignUpPOST).not.toHaveBeenCalled();
+        expect(originalSignUpPOST).toHaveBeenCalledTimes(1);
         expect(originalSignInPOST).toHaveBeenCalledTimes(1);
       } finally {
         (process.env as Record<string, string | undefined>).NODE_ENV =
@@ -880,6 +1001,228 @@ describe("@yosemite-crew/auth supertokens config", () => {
       );
       consoleError.mockRestore();
     });
+  });
+
+  describe("admin console accounts", () => {
+    const ADMIN_ID = "console-admin";
+    const ADMIN_EMAIL = "owner@example.test";
+
+    const buildConfig = () => {
+      process.env.SMTP_HOST = "smtp.example.test";
+      process.env.SMTP_PORT = "465";
+      process.env.SMTP_SECURE = "true";
+      process.env.SMTP_USER = "smtp-user";
+      process.env.SMTP_PASSWORD = "smtp-password";
+      process.env.SMTP_FROM_NAME = "Yosemite Crew";
+      process.env.SMTP_FROM_EMAIL = "auth@example.test";
+      mockGetRolesForUser.mockImplementation(
+        async (_tenantId: string, userId: string) => ({
+          status: "OK",
+          roles: userId === ADMIN_ID ? ["superadmin"] : ["member"],
+        }),
+      );
+
+      const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+      getSuperTokensConfig();
+    };
+
+    const resetInput = (email: string) => ({
+      formFields: [{ id: "email", value: email }],
+      tenantId: "public",
+      options: {},
+      userContext: {},
+    });
+
+    const overriddenReset = (originalReset: jest.Mock, emailExists = true) => {
+      const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+      return config.override.apis(
+        recipeProxy({
+          generatePasswordResetTokenPOST: originalReset,
+          emailExistsGET: jest.fn(async () => ({
+            status: "OK",
+            exists: emailExists,
+          })),
+        }),
+      ).generatePasswordResetTokenPOST;
+    };
+
+    it("sends no reset email to an admin console account and answers like an unknown address", async () => {
+      buildConfig();
+      // The recipe answers OK for an address without an account.
+      const originalReset = jest.fn(async () => ({ status: "OK" }));
+      mockListUsersByAccountInfo.mockImplementation(
+        async (_tenantId: string, { email }: { email: string }) =>
+          email === ADMIN_EMAIL ? [{ id: "pet-parent" }, { id: ADMIN_ID }] : [],
+      );
+      const reset = overriddenReset(originalReset);
+
+      const unknownAnswer = await reset(resetInput("nobody@example.test"));
+      const adminAnswer = await reset(resetInput(ADMIN_EMAIL));
+
+      expect(adminAnswer).toEqual(unknownAnswer);
+      expect(originalReset).toHaveBeenCalledTimes(1);
+      expect(originalReset).toHaveBeenCalledWith(
+        resetInput("nobody@example.test"),
+      );
+      expect(mockListUsersByAccountInfo).toHaveBeenCalledWith(
+        "public",
+        { email: ADMIN_EMAIL },
+        false,
+        {},
+      );
+      expect(mockGetRolesForUser).toHaveBeenCalledWith("public", ADMIN_ID, {});
+    });
+
+    it("checks the address the reset would actually use", async () => {
+      buildConfig();
+      const originalReset = jest.fn(async () => ({ status: "OK" }));
+      mockListUsersByAccountInfo.mockImplementation(
+        async (_tenantId: string, { email }: { email: string }) =>
+          email === "firstlast@gmail.com" ? [{ id: ADMIN_ID }] : [],
+      );
+      const reset = overriddenReset(originalReset, false);
+
+      await expect(
+        reset(resetInput("First.Last+wave@GoogleMail.com")),
+      ).resolves.toEqual({ status: "OK" });
+      expect(originalReset).not.toHaveBeenCalled();
+    });
+
+    it("still sends a reset email to every other account", async () => {
+      buildConfig();
+      const originalReset = jest.fn(async () => ({ status: "OK" }));
+      mockListUsersByAccountInfo.mockResolvedValue([
+        { id: "clinic-member" },
+        { id: "pet-parent" },
+      ]);
+      const reset = overriddenReset(originalReset);
+      const input = resetInput("member@example.test");
+
+      await expect(reset(input)).resolves.toEqual({ status: "OK" });
+      expect(originalReset).toHaveBeenCalledWith(input);
+      expect(mockGetRolesForUser).toHaveBeenCalledTimes(2);
+    });
+
+    const linkingDecision = (primaryUserId: string | undefined) => {
+      const config = mockAccountLinkingInit.mock.calls[0]?.[0] as any;
+      return config.shouldDoAutomaticAccountLinking(
+        { recipeId: "passwordless", email: ADMIN_EMAIL },
+        primaryUserId === undefined ? undefined : { id: primaryUserId },
+        undefined,
+        "public",
+        {},
+      );
+    };
+
+    it("does not link a new sign-in method onto an admin console account", async () => {
+      buildConfig();
+
+      await expect(linkingDecision(ADMIN_ID)).resolves.toEqual({
+        shouldAutomaticallyLink: false,
+      });
+      expect(mockGetRolesForUser).toHaveBeenCalledWith("public", ADMIN_ID, {});
+    });
+
+    it("still links a verified sign-in method onto every other account", async () => {
+      buildConfig();
+
+      await expect(linkingDecision("clinic-member")).resolves.toEqual({
+        shouldAutomaticallyLink: true,
+        shouldRequireVerification: true,
+      });
+    });
+
+    it("still lets a new account become the primary account", async () => {
+      buildConfig();
+
+      await expect(linkingDecision(undefined)).resolves.toEqual({
+        shouldAutomaticallyLink: true,
+        shouldRequireVerification: true,
+      });
+      expect(mockGetRolesForUser).not.toHaveBeenCalled();
+    });
+
+    // Runs the validators against the session's factor claim, as the SDK does.
+    const sessionFor = (
+      userId: string,
+      completedFactors: Record<string, number>,
+    ) => ({
+      getUserId: () => userId,
+      assertClaims: jest.fn(async (validators: any[]) => {
+        for (const validator of validators) {
+          const result = await validator.validate(
+            { "st-mfa": { c: completedFactors, v: true } },
+            {},
+          );
+          if (!result.isValid) {
+            throw new Error("INVALID_CLAIMS");
+          }
+        }
+      }),
+    });
+
+    const overriddenDeviceApis = () => {
+      const config = mockTotpInit.mock.calls[0]?.[0] as any;
+      const originals: Record<string, jest.Mock> = {
+        createDevicePOST: jest.fn(async () => ({ status: "OK" })),
+        verifyDevicePOST: jest.fn(async () => ({ status: "OK" })),
+        removeDevicePOST: jest.fn(async () => ({ status: "OK" })),
+      };
+      return { originals, apis: config.override.apis(recipeProxy(originals)) };
+    };
+
+    const DEVICE_APIS = [
+      "createDevicePOST",
+      "verifyDevicePOST",
+      "removeDevicePOST",
+    ];
+
+    it.each(DEVICE_APIS)(
+      "refuses %s for an admin console account until the session has used its authenticator app",
+      async (name) => {
+        buildConfig();
+        const { originals, apis } = overriddenDeviceApis();
+        const session = sessionFor(ADMIN_ID, { "otp-email": 1 });
+
+        await expect(apis[name]({ session, userContext: {} })).rejects.toThrow(
+          "INVALID_CLAIMS",
+        );
+        expect(originals[name]).not.toHaveBeenCalled();
+        expect(mockGetRolesForUser).toHaveBeenCalledWith(
+          "public",
+          ADMIN_ID,
+          {},
+        );
+      },
+    );
+
+    it.each(DEVICE_APIS)(
+      "allows %s for an admin console account once the session has used its authenticator app",
+      async (name) => {
+        buildConfig();
+        const { originals, apis } = overriddenDeviceApis();
+        const session = sessionFor(ADMIN_ID, { "otp-email": 1, totp: 2 });
+
+        await expect(apis[name]({ session, userContext: {} })).resolves.toEqual(
+          { status: "OK" },
+        );
+        expect(originals[name]).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(DEVICE_APIS)(
+      "leaves %s unchanged for every other account",
+      async (name) => {
+        buildConfig();
+        const { originals, apis } = overriddenDeviceApis();
+        const session = sessionFor("clinic-member", {});
+        const input = { session, userContext: {} };
+
+        await expect(apis[name](input)).resolves.toEqual({ status: "OK" });
+        expect(originals[name]).toHaveBeenCalledWith(input);
+        expect(session.assertClaims).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("apple id_token audience selection", () => {

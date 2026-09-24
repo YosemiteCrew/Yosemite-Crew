@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import { Request, Response } from "express";
 import { z } from "zod";
 import {
+  isValidTurnstileToken,
+  verifyTurnstileToken,
+} from "@yosemite-crew/auth";
+import {
   ContactService,
   ContactServiceError,
   type CreateContactRequestInput,
@@ -60,6 +64,48 @@ type CreateContactRequestBody = CreateContactRequestInput;
  */
 type CreateWebContactRequestBody = CreateWebContactRequestInput & {
   website?: unknown;
+  turnstileToken?: unknown;
+};
+
+const CONTACT_TURNSTILE_ACTION = "contact_form";
+const CONTACT_TURNSTILE_REQUIRED_ERROR =
+  "Complete bot verification before sending your message.";
+const CONTACT_TURNSTILE_REJECTED_ERROR =
+  "We could not verify this message. Please refresh and try again.";
+
+const readTurnstileHostname = (): string | undefined => {
+  try {
+    return new URL(process.env.AUTH_WEBSITE_DOMAIN ?? "").hostname || undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/*
+ * The bot check is armed by the same secret that arms it on business sign-up,
+ * and only then: with no secret configured the form works exactly as before.
+ * Returns the message to answer 400 with, or undefined when the check passes
+ * or is not armed.
+ */
+const checkContactBotToken = async (
+  token: unknown,
+  remoteIp: string | undefined,
+): Promise<string | undefined> => {
+  const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
+  if (!secret) return undefined;
+  if (!isValidTurnstileToken(token)) return CONTACT_TURNSTILE_REQUIRED_ERROR;
+
+  const hostname = readTurnstileHostname();
+  const verified =
+    hostname !== undefined &&
+    (await verifyTurnstileToken({
+      token,
+      secret,
+      hostname,
+      action: CONTACT_TURNSTILE_ACTION,
+      remoteIp,
+    }));
+  return verified ? undefined : CONTACT_TURNSTILE_REJECTED_ERROR;
 };
 
 type ListContactQuery = {
@@ -150,6 +196,7 @@ export const ContactController = {
         dsarDetails,
         attachments,
         website,
+        turnstileToken,
       } = req.body;
 
       /*
@@ -169,6 +216,13 @@ export const ContactController = {
           type,
         });
         return res.status(201).json({ id: randomUUID() });
+      }
+
+      // The token is checked here and goes no further: it is not stored,
+      // forwarded or logged.
+      const botCheckError = await checkContactBotToken(turnstileToken, req.ip);
+      if (botCheckError) {
+        return res.status(400).json({ message: botCheckError });
       }
 
       const payload = {

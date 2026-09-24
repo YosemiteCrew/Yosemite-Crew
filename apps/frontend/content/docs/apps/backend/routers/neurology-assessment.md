@@ -6,7 +6,7 @@ slug: /apps/backend/api/neurology-assessment
 
 Manages neurology assessment records — consciousness level, gait score, cranial nerve findings, spinal reflex grades, deep pain and proprioception status, seizure history, and related diagnoses — for a patient. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are scoped to an organisation.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/neurology-assessments
 

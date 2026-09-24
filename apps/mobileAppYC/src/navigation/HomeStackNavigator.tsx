@@ -8,6 +8,8 @@ import {AddCompanionScreen} from '@/features/companion/screens/AddCompanionScree
 import {HomeStackParamList} from './types';
 import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOverviewScreen';
 import {PassportScreen} from '@/features/passport/screens/PassportScreen/PassportScreen';
+import {MedicalRecordsScreen} from '@/features/companion/screens/MedicalRecordsScreen';
+import {PrescriptionsScreen} from '@/features/companion/screens/PrescriptionsScreen';
 import {CompanionOverviewScreen} from '@/features/companion/screens/CompanionOverviewScreen';
 import {EditParentScreen} from '@/features/account/screens/EditParentScreen';
 import {ExpenseStackNavigator} from './ExpenseStackNavigator';
@@ -99,6 +101,16 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="Passport"
         component={PassportScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="MedicalRecords"
+        component={MedicalRecordsScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="Prescriptions"
+        component={PrescriptionsScreen}
         options={{headerShown: false}}
       />
 

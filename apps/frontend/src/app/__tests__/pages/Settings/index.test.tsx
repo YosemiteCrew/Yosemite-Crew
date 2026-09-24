@@ -3,6 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Settings from '@/app/features/settings/pages/Settings';
 
+/*
+ * One test renders the REAL Personal card inside the page, because the card's
+ * title and the band's heading only collide when both are on screen: the card
+ * used to be titled "Personal" too, and the authenticated route sweep flagged
+ * /settings for two identical headings while every unit test stayed green.
+ */
+let renderRealPersonal = false;
+
 jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<unknown>, options?: { loading?: () => unknown }) => {
@@ -13,8 +21,9 @@ jest.mock('next/dynamic', () => ({
     const source = loader.toString();
     const LoadableComponent = (props: Record<string, unknown>) => {
       if (source.includes('Sections/Personal')) {
+        const load = renderRealPersonal ? jest.requireActual : jest.requireMock;
         const MockPersonal = (
-          jest.requireMock('@/app/features/settings/pages/Settings/Sections/Personal') as {
+          load('@/app/features/settings/pages/Settings/Sections/Personal') as {
             default: React.FC<Record<string, unknown>>;
           }
         ).default;
@@ -128,6 +137,23 @@ jest.mock('@/app/features/settings/pages/Settings/Sections/Personal', () => ({
   ),
 }));
 
+// What the real Personal card reads. The page itself reads none of these.
+jest.mock('@/app/stores/authStore', () => ({
+  useAuthStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      attributes: { given_name: 'Sarah', family_name: 'Weber', email: 'sarah@vet.test' },
+    }),
+}));
+jest.mock('@/app/hooks/useOrgSelectors', () => ({
+  usePrimaryOrgWithMembership: () => ({ membership: { roleDisplay: 'Owner' } }),
+}));
+jest.mock('@/app/hooks/useProfiles', () => ({
+  usePrimaryOrgProfile: () => ({ professionalDetails: {}, personalDetails: {} }),
+}));
+jest.mock('@/app/hooks/useAvailabiities', () => ({
+  usePrimaryAvailability: () => ({ availabilities: null }),
+}));
+
 jest.mock('@/app/features/settings/pages/Settings/Sections/ProfileEditModal', () => ({
   __esModule: true,
   default: ({ showModal }: any) => <div>{`Profile Modal ${showModal ? 'open' : 'closed'}`}</div>,
@@ -169,6 +195,19 @@ const bandContaining = (text: string): HTMLElement | null =>
 describe('Settings page', () => {
   beforeEach(() => {
     mockHasPermission.mockReturnValue(true);
+    renderRealPersonal = false;
+  });
+
+  it('gives the page one "Personal" heading, the band, with the real identity card inside it', () => {
+    renderRealPersonal = true;
+    render(<Settings />);
+
+    expect(screen.getByRole('heading', { level: 3, name: 'Profile' })).toBeInTheDocument();
+    expect(bandContaining('Sarah Weber')).toHaveAttribute(
+      'aria-labelledby',
+      'settings-band-Personal'
+    );
+    expect(screen.getAllByRole('heading', { name: /^personal$/i })).toHaveLength(1);
   });
 
   it('puts every per-user control in the Personal band', () => {

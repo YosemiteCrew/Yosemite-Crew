@@ -4,18 +4,16 @@ Auto-loaded by OpenAI Codex, Claude Code, and compatible AI agents. This is the 
 
 ## Files Hierarchy
 
-| File                         | Scope                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| `AGENTS.md` (this file)      | Monorepo-wide rules                                                          |
-| `apps/frontend/AGENTS.md`    | Frontend: design system, Sonar, testing                                      |
-| `apps/backend/AGENTS.md`     | Backend: Express, validation, services                                       |
-| `apps/desktop/AGENTS.md`     | Desktop: Electron shell, CSP, Sonar                                          |
-| `apps/mobileAppYC/AGENTS.md` | Mobile: React Native, Redux, navigation                                      |
-| `packages/AGENTS.md`         | Shared packages (auth, database, fhir, fhirtypes, lib, mcp-server, types)    |
+| File                         | Scope                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `AGENTS.md` (this file)      | Monorepo-wide rules                                                       |
+| `apps/frontend/AGENTS.md`    | Frontend: design system, Sonar, testing                                   |
+| `apps/backend/AGENTS.md`     | Backend: Express, validation, services                                    |
+| `apps/desktop/AGENTS.md`     | Desktop: Electron shell, CSP, Sonar                                       |
+| `apps/mobileAppYC/AGENTS.md` | Mobile: React Native, Redux, navigation                                   |
+| `packages/AGENTS.md`         | Shared packages (auth, database, fhir, fhirtypes, lib, mcp-server, types) |
 
 The same rules are also structured as skills: `.agents/skills/` (Codex and compatible agents), mirrored at `.claude/skills/` (Claude Code).
-
-**Start any multi-step task with the agent-loop skill** (`.agents/skills/agent-loop/SKILL.md`). It defines the work loop for this repo — orient, plan, act, verify, integrate — plus coordination across concurrent worktrees and recurring/scheduled runs.
 
 ---
 
@@ -101,16 +99,6 @@ Coverage bar for any new file: **Statements ≥ 90%, Branches ≥ 90%, Functions
 - Never expose backend enums or acronyms in user-facing text (e.g. `PAYMENT_AT_CLINIC`, `VET`). Map to plain language before rendering.
 - Do not use `Actor` as a UI label — prefer `Lead`, `Support`, or `Updated by`.
 - For frontend Sonar compliance: `apps/frontend/AGENTS.md` and `.agents/skills/frontend-sonar/SKILL.md` are the source of truth.
-
----
-
-## Issue + PR Drafting (Only On Explicit Request)
-
-- Base SHA: `git merge-base HEAD upstream/dev`.
-- Draft from actual file diffs, not commit titles.
-- Group changed files by domain; include Merck explicitly if `apps/mobileAppYC/src/features/merck/` or backend Merck paths changed.
-- Templates: `.github/ISSUE_TEMPLATE/feature_request.md` and `.github/PULL_REQUEST_TEMPLATE.md`.
-- Output to `.tmp/agent-output/latest-issue-pr.md` (gitignored, ephemeral).
 
 ---
 

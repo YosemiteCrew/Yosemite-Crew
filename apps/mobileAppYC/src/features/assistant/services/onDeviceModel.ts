@@ -165,13 +165,136 @@ export const classify = async (
 };
 
 /**
+ * Words that change what an answer claims rather than how it sounds: a negation
+ * flips it, a status word or a day word moves it. A rewrite must carry exactly as
+ * many of each as the resolver's sentence did. Lower case, in both languages the
+ * app ships (en, es).
+ *
+ * ponytail: a closed list, so a synonym it does not name can still slip through;
+ * numbers and the resolver's own values are checked exactly. If that ceiling
+ * matters, have the model return slots for the app to render instead of prose.
+ */
+const CLAIM_WORDS = new Set([
+  'not',
+  'no',
+  'never',
+  'none',
+  'nothing',
+  'nobody',
+  'neither',
+  'nor',
+  'without',
+  'overdue',
+  'due',
+  'late',
+  'behind',
+  'missed',
+  'missing',
+  'outstanding',
+  'pending',
+  'expired',
+  'expires',
+  'cancelled',
+  'canceled',
+  'today',
+  'tonight',
+  'tomorrow',
+  'yesterday',
+  'nunca',
+  'nada',
+  'nadie',
+  'ningún',
+  'ninguna',
+  'ninguno',
+  'ni',
+  'sin',
+  'vencido',
+  'vencida',
+  'vencidos',
+  'vencidas',
+  'atrasado',
+  'atrasada',
+  'atrasados',
+  'atrasadas',
+  'pendiente',
+  'pendientes',
+  'cancelado',
+  'cancelada',
+  'hoy',
+  'mañana',
+  'ayer',
+  'anoche',
+]);
+
+const isWordChar = (ch: string | undefined): boolean =>
+  ch !== undefined && /[a-z0-9áéíóúüñ]/i.test(ch);
+
+const words = (text: string): string[] =>
+  text
+    .toLowerCase()
+    .replaceAll('\u2019', "'")
+    .split(/[^a-z0-9'áéíóúüñ]+/)
+    .filter(Boolean)
+    .map(word => (word.endsWith("n't") ? 'not' : word));
+
+const claimWords = (text: string): string =>
+  words(text)
+    .filter(word => CLAIM_WORDS.has(word))
+    .sort((a, b) => a.localeCompare(b))
+    .join(' ');
+
+const numbers = (text: string): string =>
+  (text.match(/\d+/g) ?? []).sort((a, b) => a.localeCompare(b)).join(' ');
+
+/** Whether `value` appears in `text` as a whole word or phrase, ignoring case. */
+const containsWhole = (text: string, value: string): boolean => {
+  const haystack = text.toLowerCase();
+  const needle = value.toLowerCase();
+  let at = haystack.indexOf(needle);
+  while (at !== -1) {
+    if (
+      !isWordChar(haystack[at - 1]) &&
+      !isWordChar(haystack[at + needle.length])
+    ) {
+      return true;
+    }
+    at = haystack.indexOf(needle, at + 1);
+  }
+  return false;
+};
+
+/**
+ * Whether a model rewrite says the same thing as the resolver's sentence: the
+ * same numbers, the same negation, status and day words, and every value the
+ * resolver put into the sentence (a pet's name, a date, a clinic) still in it.
+ * The prompt asks for all of that, and asking is not a check - a model can turn
+ * "due on 4 March" into "due on 14 March" or "up to date" into "not up to date"
+ * well inside the length limit.
+ */
+export const keepsTheFacts = (
+  sentence: string,
+  rewrite: string,
+  facts: ReadonlyArray<string | number> = [],
+): boolean =>
+  numbers(rewrite) === numbers(sentence) &&
+  claimWords(rewrite) === claimWords(sentence) &&
+  facts
+    .map(fact => String(fact).trim())
+    .filter(fact => fact !== '' && containsWhole(sentence, fact))
+    .every(fact => containsWhole(rewrite, fact));
+
+/**
  * Rewrites a factual sentence in a warmer voice.
  *
- * Returns the original sentence whenever the model is unavailable or its
- * answer looks like anything other than a short rewrite, because a longer
- * reply is a sign the model started adding claims of its own.
+ * Returns the original sentence whenever the model is unavailable, its answer
+ * looks like anything other than a short rewrite (a longer reply is a sign the
+ * model started adding claims of its own), or the rewrite changes a fact -
+ * see keepsTheFacts. `facts` are the values the resolver rendered into it.
  */
-export const rephrase = async (sentence: string): Promise<string> => {
+export const rephrase = async (
+  sentence: string,
+  facts: ReadonlyArray<string | number> = [],
+): Promise<string> => {
   const module = getOnDeviceModelModule();
   if (!module) {
     return sentence;
@@ -194,7 +317,7 @@ export const rephrase = async (sentence: string): Promise<string> => {
     if (candidate.length === 0 || candidate.length > sentence.length * 2 + 40) {
       return sentence;
     }
-    return candidate;
+    return keepsTheFacts(sentence, candidate, facts) ? candidate : sentence;
   } catch {
     return sentence;
   }

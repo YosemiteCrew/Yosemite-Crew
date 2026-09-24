@@ -6,10 +6,13 @@ import { formatMoney } from '@/app/lib/money';
 
 type PackageBreakdownTooltipProps = {
   item: InvoiceLineItem;
-  currency: string;
+  /** The encounter's currency, or undefined while it is not known. */
+  currency: string | undefined;
 };
 
-const formatCents = (cents: number, currency = 'USD'): string => formatMoney(cents / 100, currency);
+// No USD fallback: an unknown currency prints a bare amount (#3607).
+const formatCents = (cents: number, currency: string | undefined): string =>
+  formatMoney(cents / 100, currency);
 
 const formatPercent = (value: number): number => Number(value.toFixed(2));
 

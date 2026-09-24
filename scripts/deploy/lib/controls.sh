@@ -172,3 +172,46 @@ deploy_blocking_control_failures() {
     });
   ' <<< "$json"
 }
+
+# deploy_health_reports_revision <health-json> <sha>
+#
+# Whether /health lets the cutover go ahead on the served revision (#2740).
+#
+#   `revision` equals <sha>     ship.
+#   JSON with no `revision` key ship. The bundle predates #2740: a ROLLBACK, or
+#                               production deploying a main that has not had
+#                               this promoted yet. Blocking would refuse the
+#                               deploy most needed to work - the same reasoning
+#                               as an absent control above.
+#   `revision` is anything else STOP. The bundle knows how to report a revision
+#   (null, another sha, a       and reports the wrong one, so it did not come
+#   prefix)                     from the tree that was checked out, or the
+#                               variable never reached it. Cutting over would
+#                               publish a revision that is not the code running.
+#   not JSON, or empty          STOP. /health answered 200 with a body no
+#                               version of this API sends.
+#
+# Parsed rather than pattern-matched so a revision nested in some other field
+# cannot pass.
+deploy_health_reports_revision() {
+  local json="${1-}"
+  local sha="${2-}"
+  [ -n "$json" ] && [ -n "$sha" ] || return 1
+
+  DEPLOY_EXPECTED_REVISION="$sha" node -e '
+    let raw = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => { raw += chunk; });
+    process.stdin.on("end", () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        process.exit(1);
+      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) process.exit(1);
+      if (!Object.hasOwn(parsed, "revision")) process.exit(0);
+      process.exit(parsed.revision === process.env.DEPLOY_EXPECTED_REVISION ? 0 : 1);
+    });
+  ' <<< "$json"
+}

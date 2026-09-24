@@ -6,7 +6,7 @@ slug: /apps/backend/api/document
 
 Manages companion (pet) documents: upload URLs, create, list, update, view/download, search, and delete. Routes under `/mobile` are called by the mobile app (pet parents); routes under `/pms` are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### POST /mobile/upload-url
 

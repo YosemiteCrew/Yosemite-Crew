@@ -24,9 +24,13 @@ import { postData } from '@/app/services/axios';
 import { makeOptions } from '@/app/lib/options';
 import { Textarea } from '@/app/ui/Input';
 import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import { BotCheck } from '@/app/ui/widgets/BotCheck/BotCheck';
+import { useBotCheck } from '@/app/ui/widgets/BotCheck/useBotCheck';
 
 const NEWSREADER = 'var(--font-newsreader)';
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
+const TURNSTILE_ACTION = 'contact_form';
+const TURNSTILE_FIELD_ERROR = 'Complete bot verification before sending your message.';
 
 const CONTACT_TYPE_MAP: Record<TicketCategory, string> = {
   'General Enquiry': 'GENERAL_ENQUIRY',
@@ -70,6 +74,8 @@ type ContactPayload = {
      discards anything non-empty; the SuperAdmin panel has expected this field
      all along and the site simply never rendered one. */
   website: string;
+  /* Sent only when the bot check is configured. Single-use. */
+  turnstileToken?: string;
   phone?: string;
   dsarDetails?: {
     requesterType: DsraRequesterType;
@@ -588,7 +594,7 @@ const buildDsarDetails = (
   };
 };
 
-const buildPayload = (values: ContactFormValues): ContactPayload => {
+const buildPayload = (values: ContactFormValues, turnstileToken: string): ContactPayload => {
   const payload: ContactPayload = {
     type: CONTACT_TYPE_MAP[values.selectedQueryType],
     message: values.message.trim(),
@@ -598,6 +604,7 @@ const buildPayload = (values: ContactFormValues): ContactPayload => {
     website: values.website,
   };
 
+  if (turnstileToken) payload.turnstileToken = turnstileToken;
   if (values.phone.trim()) payload.phone = values.phone.trim();
   if (values.selectedQueryType === 'Data Service Access Request') {
     payload.dsarDetails = buildDsarDetails(
@@ -956,26 +963,37 @@ interface SubmitButtonProps {
   onSubmit: () => void;
   disabled: boolean;
   label: string;
+  /* Rendered directly above the button, whichever request type is showing it. */
+  botCheck?: React.ReactNode;
 }
 
-function SubmitButton({ submitRef, onSubmit, disabled, label }: Readonly<SubmitButtonProps>) {
+function SubmitButton({
+  submitRef,
+  onSubmit,
+  disabled,
+  label,
+  botCheck,
+}: Readonly<SubmitButtonProps>) {
   return (
-    <button
-      ref={submitRef}
-      type="button"
-      onClick={onSubmit}
-      disabled={disabled}
-      className="yc-btn-primary"
-      style={{
-        ...SUBMIT_BUTTON_STYLE,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-        pointerEvents: disabled ? 'none' : 'auto',
-      }}
-    >
-      {label}
-      <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: 17 }} />
-    </button>
+    <>
+      {botCheck}
+      <button
+        ref={submitRef}
+        type="button"
+        onClick={onSubmit}
+        disabled={disabled}
+        className="yc-btn-primary"
+        style={{
+          ...SUBMIT_BUTTON_STYLE,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
+          pointerEvents: disabled ? 'none' : 'auto',
+        }}
+      >
+        {label}
+        <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: 17 }} />
+      </button>
+    </>
   );
 }
 
@@ -1350,7 +1368,14 @@ function ContactForm({ values, setters, errors, confirm, submit }: Readonly<Cont
   );
 }
 
-const ContactusPage = () => {
+type ContactusPageProps = {
+  /* Injectable for tests and stories; the page reads the build-time key. */
+  turnstileSiteKey?: string;
+};
+
+const ContactusPage = ({
+  turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+}: Readonly<ContactusPageProps>) => {
   const submitRef = useMagnet<HTMLButtonElement>();
 
   const [email, setEmail] = useState('');
@@ -1381,6 +1406,7 @@ const ContactusPage = () => {
      submit time would miss a bot that sets the property rather than the
      attribute. */
   const [website, setWebsite] = useState<string>('');
+  const botCheck = useBotCheck(turnstileSiteKey, TURNSTILE_FIELD_ERROR);
 
   const formValues: ContactFormValues = {
     selectedQueryType,
@@ -1436,11 +1462,13 @@ const ContactusPage = () => {
   const handleContectSubmit = async () => {
     const newErrors = validateContactForm(fullName, email, message);
     setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
+    const botReady = botCheck.ensureToken();
+    if (Object.keys(newErrors).length > 0 || !botReady) return;
 
     setSubmitting(true);
+    const turnstileToken = botCheck.takeToken();
     try {
-      const payload = buildPayload(formValues);
+      const payload = buildPayload(formValues, turnstileToken);
       await postData('/v1/contact-us/contact-web', payload);
       resetForm();
       // Surface an explicit confirmation: without it the form just clears on success, which reads
@@ -1461,6 +1489,9 @@ const ContactusPage = () => {
     onSubmit: handleContectSubmit,
     disabled: computeSubmitDisabled(submitting, formValues),
     label: submitting ? 'submitting...' : 'Send message',
+    botCheck: botCheck.required ? (
+      <BotCheck action={TURNSTILE_ACTION} {...botCheck.widgetProps} />
+    ) : undefined,
   };
 
   return (

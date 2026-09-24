@@ -61,6 +61,7 @@ import ConsentListPanel from '@/app/features/companionHistory/components/Consent
 import DocumentsListPanel from '@/app/features/companionHistory/components/DocumentsListPanel';
 import FlagListPanel from '@/app/features/companionHistory/components/FlagListPanel';
 import PocLabListPanel from '@/app/features/companionHistory/components/PocLabListPanel';
+import VitalsHistoryPanel from '@/app/features/companionHistory/components/VitalsHistoryPanel';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import ShareCompanionCardModal from '@/app/features/companionCard/components/ShareCompanionCardModal';
 import { buildStaffCard } from '@/app/features/companionCard/lib/buildStaffCard';
@@ -724,6 +725,11 @@ const CompanionHistoryDesktopBody = ({
     {hasCompanionId ? (
       <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}>
         <PocLabListPanel companionId={companionId} />
+      </PermissionGate>
+    ) : null}
+    {hasCompanionId ? (
+      <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY, PERMISSIONS.FORMS_VIEW_ANY]}>
+        <VitalsHistoryPanel companionId={companionId} />
       </PermissionGate>
     ) : null}
 

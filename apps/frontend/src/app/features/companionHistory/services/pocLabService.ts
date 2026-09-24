@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getData } from '@/app/services/axios';
+import { getData, postData } from '@/app/services/axios';
 import { logger } from '@/app/lib/logger';
 import { useOrgStore } from '@/app/stores/orgStore';
 
@@ -19,13 +19,15 @@ export type PocTestType =
   | 'BLOOD_GAS'
   | 'OTHER';
 
+export type LabResultFlag = 'H' | 'L' | 'HH' | 'LL' | 'N';
+
 export type LabResultParameter = {
   name: string;
   value: number | string;
   unit?: string;
   referenceRangeLow?: number;
   referenceRangeHigh?: number;
-  flag?: 'H' | 'L' | 'HH' | 'LL' | 'N';
+  flag?: LabResultFlag;
 };
 
 export type PointOfCareLabResult = {
@@ -65,6 +67,15 @@ export type FetchPocLabResultsParams = {
   testType?: PocTestType;
 };
 
+/** Logs the server's message (never the response body, which can carry patient data). */
+const logRequestError = (action: string, error: unknown): void => {
+  if (axios.isAxiosError(error)) {
+    logger.error(action, error.response?.data?.message ?? error.message);
+  } else {
+    logger.error(action, error);
+  }
+};
+
 export const fetchPocLabResults = async ({
   patientId,
   testType,
@@ -84,14 +95,40 @@ export const fetchPocLabResults = async ({
     }
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      logger.error(
-        'Failed to load point-of-care lab results:',
-        error.response?.data?.message ?? error.message
-      );
-    } else {
-      logger.error('Failed to load point-of-care lab results:', error);
-    }
+    logRequestError('Failed to load point-of-care lab results:', error);
+    throw error;
+  }
+};
+
+/** The POST body. Optional keys are left out rather than sent empty. */
+export type CreatePocLabResultInput = {
+  patientId: string;
+  conductedAt: string;
+  testType: PocTestType;
+  sampleType?: string;
+  analyzerName?: string;
+  results: LabResultParameter[];
+  overallInterpretation?: string;
+  abnormalFlags?: string[];
+  criticalFlags?: string[];
+  followUpRecommended?: boolean;
+  notes?: string;
+};
+
+/** Records one in-house result. The controller answers with the stored record. */
+export const createPocLabResult = async (
+  input: CreatePocLabResultInput
+): Promise<PointOfCareLabResult> => {
+  if (!input.patientId) throw new Error('Patient ID missing');
+  const organisationId = requireOrgId();
+  try {
+    const response = await postData<PointOfCareLabResult, CreatePocLabResultInput>(
+      `/v1/pms/organisation/${organisationId}/poc-lab`,
+      input
+    );
+    return response.data;
+  } catch (error) {
+    logRequestError('Failed to record point-of-care lab result:', error);
     throw error;
   }
 };

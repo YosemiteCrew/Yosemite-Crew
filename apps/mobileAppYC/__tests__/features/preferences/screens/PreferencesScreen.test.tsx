@@ -24,6 +24,11 @@ const mockSetTheme = jest.fn();
 const mockSetWeightUnit = jest.fn();
 const mockSetDistanceUnit = jest.fn();
 const mockSetCurrency = jest.fn();
+const mockDispatch = jest.fn();
+const mockAppState = {
+  auth: {user: {id: 'user-1', parentId: 'parent-1'}},
+  appLock: {enabled: false, timeoutMs: 60000, ownerId: null},
+};
 
 // i18n — the screen reads `i18n.language` and calls `i18n.changeLanguage`,
 // and translates its copy via `t()`.
@@ -48,6 +53,12 @@ const PREFERENCES_TRANSLATIONS: Record<string, string> = {
   'preferences.no_languages_available': 'No languages available',
   'preferences.footnote':
     'Changes apply immediately and are saved on this device.',
+  'preferences.app_lock': 'App lock',
+  'preferences.app_lock_caption': 'Require device security.',
+  'preferences.app_lock_timeout': 'Lock after',
+  'preferences.app_lock_immediately': 'Immediately',
+  'preferences.app_lock_minutes': 'minute(s)',
+  'preferences.app_lock_unavailable.noPasscode': 'Unavailable',
 };
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -60,6 +71,20 @@ jest.mock('react-i18next', () => ({
 jest.mock('@/hooks', () => ({useTheme: jest.fn()}));
 jest.mock('@/features/preferences/PreferencesContext', () => ({
   usePreferences: jest.fn(),
+}));
+jest.mock('@/app/hooks', () => ({
+  useAppDispatch: () => mockDispatch,
+  useAppSelector: (selector: (state: typeof mockAppState) => unknown) =>
+    selector(mockAppState),
+}));
+jest.mock('@/features/appLock/services/appLockAvailability', () => ({
+  getAppLockAvailability: jest.fn(() =>
+    Promise.resolve({result: {available: true}, method: 'fingerprint'}),
+  ),
+}));
+jest.mock('@/features/appLock/services/appLockKeychain', () => ({
+  enable: jest.fn(() => Promise.resolve({ok: true})),
+  disable: jest.fn(() => Promise.resolve({ok: true})),
 }));
 
 // Header — expose the title + a pressable back affordance wired to onBack.
@@ -139,7 +164,16 @@ jest.mock(
         ReactInside.useImperativeHandle(ref, () =>
           mockLanguageSheetRef.attach ? mockLanguageSheetRef.current : null,
         );
-        return <MockView testID="mock-language-sheet" {...props} />;
+        return (
+          <MockView
+            testID={
+              props.title === 'Language'
+                ? 'mock-language-sheet'
+                : 'mock-timeout-sheet'
+            }
+            {...props}
+          />
+        );
       },
     );
     return {GenericSelectBottomSheet};
@@ -251,6 +285,18 @@ describe('PreferencesScreen', () => {
 
     // Both TouchableInputs render the chevron affordance
     expect(getAllByTestId('icon-chevron-down')).toHaveLength(2);
+  });
+
+  it('enables app lock only after the device capability probe succeeds', async () => {
+    const {getByTestId} = renderScreen();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    fireEvent.press(getByTestId('app-lock-toggle'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockDispatch).toHaveBeenCalled();
   });
 
   it('applies the warm screen background to the layout container', () => {

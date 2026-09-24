@@ -9,6 +9,7 @@ import {
   checkAvailability,
   classify,
   rephrase,
+  keepsTheFacts,
 } from '@/features/assistant/services/onDeviceModel';
 import {ASSISTANT_ACTION_IDS} from '@/features/assistant/actions/catalogue';
 import {
@@ -385,10 +386,10 @@ describe('rephrase', () => {
 
   it('trims the whitespace the model wraps around its rewrite', async () => {
     useModule({
-      generate: jest.fn().mockResolvedValue('\n  Booster: 4 March.  '),
+      generate: jest.fn().mockResolvedValue('\n  Booster due: 4 March.  '),
     });
 
-    await expect(rephrase(sentence)).resolves.toBe('Booster: 4 March.');
+    await expect(rephrase(sentence)).resolves.toBe('Booster due: 4 March.');
   });
 
   it('sends the sentence and a 96 token budget to the model', async () => {
@@ -422,7 +423,9 @@ describe('rephrase', () => {
   });
 
   it('accepts a rewrite that lands exactly on the length ceiling', async () => {
-    const atCeiling = 'y'.repeat(sentence.length * 2 + 40);
+    const keepsFacts = 'Rex is due on 4 March. ';
+    const atCeiling =
+      keepsFacts + 'y'.repeat(sentence.length * 2 + 40 - keepsFacts.length);
     useModule({generate: jest.fn().mockResolvedValue(atCeiling)});
 
     await expect(rephrase(sentence)).resolves.toBe(atCeiling);
@@ -458,5 +461,115 @@ describe('rephrase', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+// The prompt asks the model to keep every date, number and name, and asking is
+// not a check. Each case below is a rewrite that fits the length limit and still
+// tells the pet owner something the resolver never said.
+describe('rephrase keeps the facts', () => {
+  const useRewrite = (text: string) =>
+    useModule({generate: jest.fn().mockResolvedValue(text)});
+
+  it('keeps the sentence when the rewrite moves the date', async () => {
+    const sentence = 'Rex is due a Rabies vaccination on 4 March.';
+    useRewrite('Rex is due a Rabies vaccination on 14 March.');
+
+    await expect(
+      rephrase(sentence, ['Rex', 'Rabies', '4 March']),
+    ).resolves.toBe(sentence);
+  });
+
+  it('keeps the sentence when the rewrite drops the number', async () => {
+    const sentence = 'There are 3 tasks due, starting with Brush teeth.';
+    useRewrite('A few tasks are due, starting with Brush teeth.');
+
+    await expect(rephrase(sentence)).resolves.toBe(sentence);
+  });
+
+  it('keeps the sentence when the rewrite adds a negation', async () => {
+    const sentence = 'Rex is up to date on vaccinations.';
+    useRewrite('Rex is not up to date on vaccinations.');
+    await expect(rephrase(sentence, ['Rex'])).resolves.toBe(sentence);
+
+    useRewrite('Rex isn\u2019t up to date on vaccinations.');
+    await expect(rephrase(sentence, ['Rex'])).resolves.toBe(sentence);
+  });
+
+  it('keeps the sentence when the rewrite adds a status or day word', async () => {
+    const sentence = 'Rex has an appointment on 4 March at 10:30.';
+    useRewrite('Rex has an appointment tomorrow, 4 March at 10:30.');
+    await expect(rephrase(sentence, ['Rex', '4 March', '10:30'])).resolves.toBe(
+      sentence,
+    );
+
+    const upToDate = 'Rex is up to date on vaccinations.';
+    useRewrite('Rex has vaccinations overdue.');
+    await expect(rephrase(upToDate, ['Rex'])).resolves.toBe(upToDate);
+  });
+
+  it('keeps the sentence when the rewrite swaps a value the resolver rendered', async () => {
+    const sentence = 'Rex is due a Rabies vaccination on 4 March.';
+    useRewrite('Max is due a Rabies vaccination on 4 March.');
+
+    await expect(
+      rephrase(sentence, ['Rex', 'Rabies', '4 March']),
+    ).resolves.toBe(sentence);
+  });
+
+  it('checks Spanish negation and day words too', async () => {
+    const sentence = 'Rex tiene una cita el 4 de marzo a las 10:30.';
+    useRewrite('Rex no tiene una cita el 4 de marzo a las 10:30.');
+    await expect(rephrase(sentence, ['Rex'])).resolves.toBe(sentence);
+
+    useRewrite('Rex tiene una cita mañana, 4 de marzo, a las 10:30.');
+    await expect(rephrase(sentence, ['Rex'])).resolves.toBe(sentence);
+  });
+
+  it('accepts a warmer rewrite that keeps every fact', async () => {
+    const sentence = 'Rex is due a Rabies vaccination on 4 March.';
+    const warmer = "Good news: Rex's Rabies vaccination is due on 4 March.";
+    useRewrite(warmer);
+
+    await expect(
+      rephrase(sentence, ['Rex', 'Rabies', '4 March']),
+    ).resolves.toBe(warmer);
+  });
+});
+
+describe('keepsTheFacts', () => {
+  it('only requires the values the sentence actually shows', () => {
+    // An expense sentence may format the currency away; a value that is not in
+    // the sentence cannot be demanded of the rewrite.
+    expect(
+      keepsTheFacts(
+        'You spent 40 across 1 expense.',
+        'Your 1 expense came to 40.',
+        [40, 'EUR', 1],
+      ),
+    ).toBe(true);
+  });
+
+  it('ignores empty values', () => {
+    expect(
+      keepsTheFacts('There are no tasks.', 'You have no tasks.', ['', '  ']),
+    ).toBe(true);
+  });
+
+  it('matches a value as a whole word, not inside another word', () => {
+    expect(
+      keepsTheFacts('Rex is due on 4 March.', 'Rexford is due on 4 March.', [
+        'Rex',
+      ]),
+    ).toBe(false);
+    expect(
+      keepsTheFacts('Rex is due on 4 March.', "Rex's due date is 4 March.", [
+        'Rex',
+      ]),
+    ).toBe(true);
+  });
+
+  it('treats a removed negation as a change, not only an added one', () => {
+    expect(keepsTheFacts('Rex is not due.', 'Rex is due.')).toBe(false);
   });
 });

@@ -6,7 +6,7 @@ slug: /apps/backend/api/inventory-count
 
 Records physical stock counts against the system count for an inventory item (a cycle count), lists and reconciles them. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/inventory-counts
 

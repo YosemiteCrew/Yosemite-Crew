@@ -13,9 +13,13 @@ jest.mock("../../src/services/inventory-consumption.service", () => ({
   InventoryConsumptionService: {
     approvePrescriptionDispenseRequest: jest.fn(),
     createPrescriptionDispenseRequest: jest.fn(),
+    createPrescriptionDispenseRequestInTx: jest.fn(),
     markPrescriptionDispenseRequestNotDispensed: jest.fn(),
+    markPrescriptionDispenseRequestNotDispensedInTx: jest.fn(),
+    loadDispenseRequestForRetirementInTx: jest.fn(),
     releasePrescription: jest.fn(),
     voidDispensePrescription: jest.fn(),
+    voidDispensePrescriptionInTx: jest.fn(),
   },
 }));
 
@@ -598,8 +602,9 @@ describe("ClinicalArtifactService", () => {
     const { InventoryConsumptionService } =
       await import("../../src/services/inventory-consumption.service");
     expect(
-      InventoryConsumptionService.createPrescriptionDispenseRequest,
+      InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
     ).toHaveBeenCalledWith(
+      mockedPrisma,
       expect.objectContaining({
         organisationId,
         prescriptionId: "prescription-1",
@@ -1420,8 +1425,9 @@ describe("ClinicalArtifactService", () => {
     const { InventoryConsumptionService } =
       await import("../../src/services/inventory-consumption.service");
     expect(
-      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
     ).toHaveBeenCalledWith(
+      mockedPrisma,
       expect.objectContaining({
         organisationId,
         prescriptionId: "prescription-1",
@@ -1513,15 +1519,16 @@ describe("ClinicalArtifactService", () => {
     const { InventoryConsumptionService } =
       await import("../../src/services/inventory-consumption.service");
     expect(
-      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
     ).toHaveBeenCalledWith(
+      mockedPrisma,
       expect.objectContaining({
         organisationId,
         prescriptionId: "prescription-2",
       }),
     );
     expect(
-      InventoryConsumptionService.createPrescriptionDispenseRequest,
+      InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
     ).not.toHaveBeenCalled();
     expect(
       InventoryConsumptionService.releasePrescription,
@@ -2552,6 +2559,109 @@ describe("ClinicalArtifactService", () => {
     ).rejects.toMatchObject({ statusCode: 409 });
   });
 
+  it("releases the lines held as item rows when the medications column is null", async () => {
+    // #3511. `createPrescription` and `updatePrescription` persist a
+    // prescription's medications as PrescriptionItem rows and never write
+    // `Prescription.medications`, so the column is null for every
+    // clinician-created prescription. Handed that null, the release resolves no
+    // lines and returns having moved nothing - no error and no event - leaving
+    // the drawn stock against a VOID prescription. The reversal has to be given
+    // the same item-derived list `buildPrescriptionRecord` exposes.
+    const prescription = {
+      id: "prescription-1",
+      artifactId,
+      supersedesId: null,
+      medications: null,
+      instructions: null,
+      notes: null,
+      metadata: { dispenseStockSource: "NORMAL" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      items: [
+        {
+          id: "item-row-1",
+          prescriptionId: "prescription-1",
+          sourceLineKey: "line-1",
+          medication: "Amoxicillin",
+          strength: null,
+          dosage: null,
+          route: null,
+          frequency: null,
+          duration: null,
+          quantity: "2",
+          instructions: null,
+          refill: null,
+          inventoryItemId: "item-1",
+          inventoryItemSku: null,
+          batchId: null,
+          batchNumber: null,
+          lotNumber: null,
+          expiryDate: null,
+          metadata: null,
+          sortOrder: 0,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ],
+      artifact: {
+        version: 1,
+        id: artifactId,
+        organisationId,
+        appointmentId: "appt-1",
+        caseId: null,
+        encounterId: "enc-1",
+        kind: "PRESCRIPTION",
+        status: "COMPLETED",
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: "author-1",
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    };
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+      prescription as never,
+    );
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+    (
+      InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+    ).mockResolvedValueOnce({
+      id: "dispense-1",
+      status: "DISPENSED",
+    });
+    mockedPrisma.workspaceTreatmentItem.deleteMany.mockResolvedValueOnce({
+      count: 0,
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      ...prescription.artifact,
+      status: "VOID",
+    });
+
+    await ClinicalArtifactService.cancelPrescription(
+      artifactId,
+      organisationId,
+      { actorId: "actor-1", canEditAny: true },
+    );
+
+    const [, releaseArgs] = jest.mocked(
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
+    ).mock.calls[0] as [unknown, { medications: unknown }];
+    // A null here is the defect: zero resolved lines, nothing released.
+    expect(releaseArgs.medications).not.toBeNull();
+    expect(releaseArgs.medications).toEqual([
+      expect.objectContaining({
+        sourceLineKey: "line-1",
+        medication: "Amoxicillin",
+        quantity: 2,
+        inventoryItemId: "item-1",
+      }),
+    ]);
+  });
+
   it("cancels an unbilled dispensed prescription and reverses inventory", async () => {
     const prescription = {
       id: "prescription-1",
@@ -2598,7 +2708,11 @@ describe("ClinicalArtifactService", () => {
     // unbilled row - was the bug: the delete below removes EVERY row for the
     // prescription, and package expansion routinely creates several.
     mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
-    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+    // #3503: the reversal branches on the row read inside the transaction, so
+    // that is where this test supplies it.
+    (
+      InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+    ).mockResolvedValueOnce({
       id: "dispense-1",
       status: "DISPENSED",
     });
@@ -2613,14 +2727,19 @@ describe("ClinicalArtifactService", () => {
       { actorId: "actor-1", canEditAny: true },
     );
 
+    // #3495: on the caller's transaction client, so a lost version claim rolls
+    // the stock release back with the retirement instead of orphaning it.
     expect(
-      InventoryConsumptionService.voidDispensePrescription,
-    ).toHaveBeenCalledWith({
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
+    ).toHaveBeenCalledWith(expect.anything(), {
       organisationId,
       prescriptionId: "prescription-1",
       medications: prescription.medications,
       metadata: prescription.metadata,
     });
+    expect(
+      InventoryConsumptionService.voidDispensePrescription,
+    ).not.toHaveBeenCalled();
     expect(mockedPrisma.workspaceTreatmentItem.deleteMany).toHaveBeenCalledWith(
       {
         where: {
@@ -2668,7 +2787,10 @@ describe("ClinicalArtifactService", () => {
       },
     } as never);
     mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce(null);
-    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+    // #3503: see above - read inside the transaction, not before it.
+    (
+      InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+    ).mockResolvedValueOnce({
       id: "dispense-1",
       status: "PENDING",
     });
@@ -2689,14 +2811,17 @@ describe("ClinicalArtifactService", () => {
     );
 
     expect(
-      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
-    ).toHaveBeenCalledWith({
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
+    ).toHaveBeenCalledWith(expect.anything(), {
       organisationId,
       prescriptionId: "prescription-1",
       metadata: null,
     });
     expect(
-      InventoryConsumptionService.voidDispensePrescription,
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+    ).not.toHaveBeenCalled();
+    expect(
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
     ).not.toHaveBeenCalled();
   });
 
@@ -2748,6 +2873,9 @@ describe("ClinicalArtifactService", () => {
     });
     expect(
       InventoryConsumptionService.voidDispensePrescription,
+    ).not.toHaveBeenCalled();
+    expect(
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
     ).not.toHaveBeenCalled();
     expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
   });
@@ -3294,6 +3422,68 @@ describe("ClinicalArtifactService", () => {
         expect(records[0].artifact.kind).toBe("VITAL_RECORD");
       },
     );
+  });
+
+  describe("listVitalRecordsForVisits", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    it("queries every given visit, leaves voided records out and caps the rows", async () => {
+      mockedPrisma.vitalRecord.findMany.mockResolvedValueOnce([
+        vitalRow({ metadata: { recordedByDisplay: "Nurse Joy" } }),
+      ]);
+
+      const records = await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: ["appt-1"], encounterIds: ["enc-1", "enc-2"] },
+        11,
+      );
+
+      expect(mockedPrisma.vitalRecord.findMany).toHaveBeenCalledWith({
+        where: {
+          artifact: {
+            organisationId,
+            kind: "VITAL_RECORD",
+            status: { not: "VOID" },
+            OR: [
+              { appointmentId: { in: ["appt-1"] } },
+              { encounterId: { in: ["enc-1", "enc-2"] } },
+            ],
+          },
+        },
+        include: { artifact: true },
+        orderBy: { measuredAt: "desc" },
+        take: 11,
+      });
+      expect(records[0].vitalRecord.recordedByDisplay).toBe("Nurse Joy");
+    });
+
+    it("filters on appointments alone when the patient has no encounters", async () => {
+      mockedPrisma.vitalRecord.findMany.mockResolvedValueOnce([]);
+
+      await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: ["appt-1"], encounterIds: [] },
+        5,
+      );
+
+      const call = mockedPrisma.vitalRecord.findMany.mock.calls[0][0] as {
+        where: { artifact: { OR: unknown[] } };
+      };
+      expect(call.where.artifact.OR).toEqual([
+        { appointmentId: { in: ["appt-1"] } },
+      ]);
+    });
+
+    it("returns nothing without querying when the patient has no visits", async () => {
+      const records = await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: [], encounterIds: [] },
+        5,
+      );
+
+      expect(records).toEqual([]);
+      expect(mockedPrisma.vitalRecord.findMany).not.toHaveBeenCalled();
+    });
   });
 
   describe("vital record recorder resolution", () => {
@@ -4339,8 +4529,8 @@ describe("ClinicalArtifactService", () => {
 
       expect(result.artifact.status).toBe("COMPLETED");
       expect(
-        InventoryConsumptionService.createPrescriptionDispenseRequest,
-      ).toHaveBeenCalledWith({
+        InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
+      ).toHaveBeenCalledWith(mockedPrisma, {
         organisationId,
         prescriptionId: "prescription-1",
         medications: expect.arrayContaining([
@@ -4353,6 +4543,73 @@ describe("ClinicalArtifactService", () => {
       expect(
         InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
       ).not.toHaveBeenCalled();
+    });
+
+    it("raises a finalized prescription's dispense request inside its transaction", async () => {
+      // #3512: raised after the commit, a failure here left a COMPLETED
+      // prescription with no PENDING request, and a retry could not recreate
+      // it because the artifact no longer accepts edits.
+      let insideTransaction = false;
+      mockedPrisma.$transaction.mockImplementationOnce(
+        async (callback: unknown) => {
+          insideTransaction = true;
+          try {
+            return await (callback as (tx: unknown) => Promise<unknown>)(
+              prisma,
+            );
+          } finally {
+            insideTransaction = false;
+          }
+        },
+      );
+      let raisedInsideTransaction: boolean | undefined;
+      jest
+        .mocked(
+          InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
+        )
+        .mockImplementationOnce(async () => {
+          raisedInsideTransaction = insideTransaction;
+          throw new Error("dispense request write failed");
+        });
+      mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+        prescriptionRow({
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            status: "DRAFT",
+            authorId: "author-1",
+          }),
+        }),
+      );
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+        }),
+      );
+      mockedPrisma.prescription.update.mockResolvedValueOnce(
+        prescriptionRow({ id: "prescription-1", artifactId }),
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      await expect(
+        ClinicalArtifactService.finalizePrescription(
+          "prescription-1",
+          organisationId,
+          { actorId: "author-1", canEditAny: false },
+        ),
+      ).rejects.toThrow("dispense request write failed");
+      expect(raisedInsideTransaction).toBe(true);
+      expect(
+        InventoryConsumptionService.createPrescriptionDispenseRequest,
+      ).not.toHaveBeenCalled();
+      // The failure rolls the finalization back, so the PDF of a prescription
+      // that never committed is not rendered either.
+      expect(renderRenderedDocumentPdfWithMetadata).not.toHaveBeenCalled();
     });
 
     it("retires the superseded prescription before dispensing a finalized revision", async () => {
@@ -4379,10 +4636,16 @@ describe("ClinicalArtifactService", () => {
         .mockResolvedValueOnce(revision)
         .mockResolvedValueOnce(original);
       mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
-      mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
-        id: "dispense-original",
-        status: "PENDING",
-      });
+      // Read inside the transaction under the dispense-request lock (#3503),
+      // not from a copy taken before it opened.
+      jest
+        .mocked(
+          InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+        )
+        .mockResolvedValueOnce({
+          id: "dispense-original",
+          status: "PENDING",
+        } as never);
       mockedPrisma.clinicalArtifact.update
         .mockResolvedValueOnce(
           artifactRow({
@@ -4427,32 +4690,243 @@ describe("ClinicalArtifactService", () => {
         },
         data: { status: "VOID", summary: null, version: { increment: 1 } },
       });
+      // In the revision transaction now, not after it (#3495), so the original's
+      // stock cannot survive a rollback of the retirement that released it.
       expect(
-        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
-      ).toHaveBeenCalledWith({
+        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
+      ).toHaveBeenCalledWith(mockedPrisma, {
         organisationId,
         prescriptionId: "prescription-original",
         metadata: null,
       });
       expect(
+        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+      ).not.toHaveBeenCalled();
+      // After the VOID claim it belongs to, and before the new request raised
+      // for the revision, which joins the same transaction (#3512).
+      expect(
         mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
       ).toBeLessThan(
         jest.mocked(
-          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
         ).mock.invocationCallOrder[0],
       );
       expect(
         jest.mocked(
-          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
         ).mock.invocationCallOrder[0],
       ).toBeLessThan(
         jest.mocked(
-          InventoryConsumptionService.createPrescriptionDispenseRequest,
+          InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
         ).mock.invocationCallOrder[0],
       );
       expect(
-        InventoryConsumptionService.createPrescriptionDispenseRequest,
+        InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
       ).toHaveBeenCalledTimes(1);
+    });
+
+    it("releases a dispensed superseded prescription inside the revision transaction", async () => {
+      // The DISPENSED branch of the reversal, which is the one that moves real
+      // stock. It has to run on the revision transaction's client: released in
+      // a transaction of its own, as it used to be, the stock survived a
+      // rollback of the retirement that authorised it (#3495).
+      const revision = prescriptionRow({
+        id: "prescription-revision",
+        supersedesId: "prescription-original",
+        artifact: artifactRow({
+          kind: "PRESCRIPTION",
+          status: "DRAFT",
+          authorId: "author-1",
+        }),
+      });
+      const original = prescriptionRow({
+        id: "prescription-original",
+        artifactId: "artifact-original",
+        artifact: artifactRow({
+          id: "artifact-original",
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+        }),
+      });
+      mockedPrisma.prescription.findFirst
+        .mockResolvedValueOnce(revision)
+        .mockResolvedValueOnce(original);
+      mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+      jest
+        .mocked(
+          InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+        )
+        .mockResolvedValueOnce({
+          id: "dispense-original",
+          status: "DISPENSED",
+        } as never);
+      mockedPrisma.clinicalArtifact.update
+        .mockResolvedValueOnce(
+          artifactRow({
+            kind: "PRESCRIPTION",
+            status: "COMPLETED",
+            authorId: "author-1",
+          }),
+        )
+        .mockResolvedValueOnce(
+          artifactRow({
+            id: "artifact-original",
+            kind: "PRESCRIPTION",
+            status: "VOID",
+            authorId: "author-1",
+          }),
+        );
+      mockedPrisma.prescription.update.mockResolvedValueOnce(
+        prescriptionRow({
+          id: "prescription-revision",
+          supersedesId: "prescription-original",
+          artifactId,
+        }),
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx-revision-dispensed",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      await ClinicalArtifactService.finalizePrescription(
+        "prescription-revision",
+        organisationId,
+        { actorId: "author-1", canEditAny: false },
+      );
+
+      expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(
+        InventoryConsumptionService.voidDispensePrescriptionInTx,
+      ).toHaveBeenCalledWith(mockedPrisma, {
+        organisationId,
+        prescriptionId: "prescription-original",
+        medications: null,
+        metadata: null,
+      });
+      // The self-committing variant is what survived a rollback. It must not be
+      // reachable from this path any more.
+      expect(
+        InventoryConsumptionService.voidDispensePrescription,
+      ).not.toHaveBeenCalled();
+      // After the VOID claim it reverses and before the new request raised for
+      // the revision, both in the same transaction (#3512).
+      expect(
+        mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
+      ).toBeLessThan(
+        jest.mocked(InventoryConsumptionService.voidDispensePrescriptionInTx)
+          .mock.invocationCallOrder[0],
+      );
+      expect(
+        jest.mocked(InventoryConsumptionService.voidDispensePrescriptionInTx)
+          .mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        jest.mocked(
+          InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
+        ).mock.invocationCallOrder[0],
+      );
+    });
+
+    it("reads the superseded dispense request inside the revision transaction", async () => {
+      // #3503's race, reached through revision instead of cancellation. #3507
+      // moved this path's reversal into the transaction; the row it branches
+      // on has to move in with it, or an approve committing between the read
+      // and the reversal draws stock the reversal never releases.
+      const revision = prescriptionRow({
+        id: "prescription-revision",
+        supersedesId: "prescription-original",
+        artifact: artifactRow({
+          kind: "PRESCRIPTION",
+          status: "DRAFT",
+          authorId: "author-1",
+        }),
+      });
+      const original = prescriptionRow({
+        id: "prescription-original",
+        artifactId: "artifact-original",
+        artifact: artifactRow({
+          id: "artifact-original",
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+        }),
+      });
+      mockedPrisma.prescription.findFirst
+        .mockResolvedValueOnce(revision)
+        .mockResolvedValueOnce(original);
+      mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+      jest
+        .mocked(
+          InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+        )
+        .mockResolvedValueOnce({
+          id: "dispense-original",
+          status: "DISPENSED",
+        } as never);
+      mockedPrisma.clinicalArtifact.update
+        .mockResolvedValueOnce(
+          artifactRow({
+            kind: "PRESCRIPTION",
+            status: "COMPLETED",
+            authorId: "author-1",
+          }),
+        )
+        .mockResolvedValueOnce(
+          artifactRow({
+            id: "artifact-original",
+            kind: "PRESCRIPTION",
+            status: "VOID",
+            authorId: "author-1",
+          }),
+        );
+      mockedPrisma.prescription.update.mockResolvedValueOnce(
+        prescriptionRow({
+          id: "prescription-revision",
+          supersedesId: "prescription-original",
+          artifactId,
+        }),
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx-revision-read",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      await ClinicalArtifactService.finalizePrescription(
+        "prescription-revision",
+        organisationId,
+        { actorId: "author-1", canEditAny: false },
+      );
+
+      // On the transaction's client, so the advisory lock it takes is still
+      // held for the reversal that follows rather than released before it.
+      expect(
+        InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+      ).toHaveBeenCalledWith(mockedPrisma, {
+        organisationId,
+        prescriptionId: "prescription-original",
+      });
+      // Nothing reads the branch-deciding row outside the transaction now.
+      expect(
+        mockedPrisma.prescriptionDispenseRequest.findFirst,
+      ).not.toHaveBeenCalled();
+      // After the VOID claim it reverses, and before the reversal branches.
+      expect(
+        mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
+      ).toBeLessThan(
+        jest.mocked(
+          InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+        ).mock.invocationCallOrder[0],
+      );
+      expect(
+        jest.mocked(
+          InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+        ).mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        jest.mocked(InventoryConsumptionService.voidDispensePrescriptionInTx)
+          .mock.invocationCallOrder[0],
+      );
     });
 
     it("leaves the original untouched when revision persistence fails", async () => {
@@ -4504,7 +4978,7 @@ describe("ClinicalArtifactService", () => {
         mockedPrisma.workspaceTreatmentItem.deleteMany,
       ).not.toHaveBeenCalled();
       expect(
-        InventoryConsumptionService.createPrescriptionDispenseRequest,
+        InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
       ).not.toHaveBeenCalled();
     });
 
@@ -4561,7 +5035,7 @@ describe("ClinicalArtifactService", () => {
         mockedPrisma.workspaceTreatmentItem.deleteMany,
       ).not.toHaveBeenCalled();
       expect(
-        InventoryConsumptionService.createPrescriptionDispenseRequest,
+        InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
       ).toHaveBeenCalledTimes(1);
     });
 
@@ -4601,7 +5075,7 @@ describe("ClinicalArtifactService", () => {
       ).rejects.toMatchObject({ statusCode: 409 });
       expect(mockedPrisma.prescription.update).not.toHaveBeenCalled();
       expect(
-        InventoryConsumptionService.createPrescriptionDispenseRequest,
+        InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
       ).not.toHaveBeenCalled();
     });
 
@@ -4669,7 +5143,7 @@ describe("ClinicalArtifactService", () => {
         { medication: "Amoxicillin" },
       ]);
       expect(
-        InventoryConsumptionService.createPrescriptionDispenseRequest,
+        InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
       ).not.toHaveBeenCalled();
       expect(
         InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
@@ -4880,7 +5354,7 @@ describe("ClinicalArtifactService", () => {
       );
       expect(amended.prescription.id).toBe("prescription-amend");
       expect(
-        InventoryConsumptionService.createPrescriptionDispenseRequest,
+        InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
       ).not.toHaveBeenCalled();
     });
 
@@ -5052,6 +5526,343 @@ describe("ClinicalArtifactService", () => {
         { medication: "PlainString", sortOrder: 4 },
         { medication: "", sortOrder: 5 },
       ]);
+    });
+  });
+
+  describe("document out for signature or signed (#3627)", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    const renderedDocumentRow = (overrides: Record<string, unknown> = {}) => ({
+      id: "doc-1",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/original.pdf",
+      pdf: { version: 1, title: "SOAP note" },
+      signing: null,
+      signedBy: null,
+      signedAt: null,
+      createdAt: D1,
+      updatedAt: D1,
+      ...overrides,
+    });
+
+    const OUT_FOR_SIGNATURE = {
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "IN_PROGRESS",
+        documentId: "42",
+      },
+    };
+
+    const SIGNED = {
+      status: "SIGNED",
+      signedBy: "vet-1",
+      signedAt: D2,
+      pdfUrl: "https://documenso.example/signed.pdf",
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "SIGNED",
+        documentId: "42",
+      },
+    };
+
+    const LOCKED_MESSAGE =
+      "This record's document is out for signature or signed, so the record cannot be edited in place. Amend it to create a new version.";
+
+    const expectNothingWritten = () => {
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+      expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
+      expect(mockedUploadBufferAsFile).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    };
+
+    type LockedSave = [
+      label: string,
+      kind: "SOAP_NOTE" | "PRESCRIPTION" | "DISCHARGE_SUMMARY" | "VITAL_RECORD",
+      recordUpdate: () => jest.Mock,
+      save: (artifactStatus: string) => Promise<unknown>,
+    ];
+
+    // One row per writer that re-renders the document after an in-place save,
+    // so dropping the check from any one of them fails its own row.
+    const lockedSaves: LockedSave[] = [
+      [
+        "SOAP note",
+        "SOAP_NOTE",
+        () => mockedPrisma.soapNote.update,
+        (artifactStatus) => {
+          mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(
+            soapRow({ artifact: artifactRow({ status: artifactStatus }) }),
+          );
+          return ClinicalArtifactService.updateSoapNote(
+            soapNoteId,
+            { status: "IN_PROGRESS", plan: { instructions: "Edited" } },
+            organisationId,
+          );
+        },
+      ],
+      [
+        "prescription",
+        "PRESCRIPTION",
+        () => mockedPrisma.prescription.update,
+        (artifactStatus) => {
+          mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+            prescriptionRow({
+              artifact: artifactRow({
+                kind: "PRESCRIPTION",
+                status: artifactStatus,
+              }),
+            }),
+          );
+          return ClinicalArtifactService.updatePrescription(
+            "prescription-1",
+            { status: "IN_PROGRESS", notes: { text: "Edited" } },
+            organisationId,
+            { actorId: "vet-1", canEditAny: true },
+          );
+        },
+      ],
+      [
+        "discharge summary",
+        "DISCHARGE_SUMMARY",
+        () => mockedPrisma.dischargeSummary.update,
+        (artifactStatus) => {
+          mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce(
+            dischargeRow({
+              artifact: artifactRow({
+                kind: "DISCHARGE_SUMMARY",
+                status: artifactStatus,
+              }),
+            }),
+          );
+          return ClinicalArtifactService.updateDischargeSummary(
+            "discharge-1",
+            { status: "IN_PROGRESS", instructions: { text: "Edited" } },
+            organisationId,
+          );
+        },
+      ],
+      [
+        "vital record",
+        "VITAL_RECORD",
+        () => mockedPrisma.vitalRecord.update,
+        (artifactStatus) => {
+          mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+            vitalRow({
+              artifact: artifactRow({
+                kind: "VITAL_RECORD",
+                status: artifactStatus,
+              }),
+            }),
+          );
+          return ClinicalArtifactService.updateVitalRecord(
+            "vital-1",
+            { status: "IN_PROGRESS", notes: { text: "Edited" } },
+            organisationId,
+          );
+        },
+      ],
+    ];
+
+    it("still re-renders a draft document when its record is saved", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(soapRow());
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValue(
+        renderedDocumentRow(),
+      );
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ status: "IN_PROGRESS" }),
+      );
+      const { artifact: _artifact, ...updatedNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.update.mockResolvedValueOnce(updatedNote);
+
+      await ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { status: "IN_PROGRESS", plan: { instructions: "Edited" } },
+        organisationId,
+      );
+
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
+        where: { clinicalArtifactId: artifactId },
+      });
+      expect(mockedRenderedDocumentRenderer).toHaveBeenCalledTimes(1);
+      expect(mockedUploadBufferAsFile).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith({
+        where: { id: "doc-1" },
+        data: {
+          pdfUrl: "https://cdn.example/rendered.pdf",
+          pdf: expect.objectContaining({
+            signaturePlacement: expect.objectContaining({ pageNumber: 1 }),
+          }),
+        },
+      });
+    });
+
+    it("keeps the PDF when signing starts after the save's own check", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(soapRow());
+      mockedPrisma.renderedDocument.findUnique
+        .mockResolvedValueOnce(renderedDocumentRow())
+        .mockResolvedValueOnce(renderedDocumentRow(OUT_FOR_SIGNATURE));
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ status: "IN_PROGRESS" }),
+      );
+      const { artifact: _artifact, ...updatedNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.update.mockResolvedValueOnce(updatedNote);
+
+      await ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { status: "IN_PROGRESS", plan: { instructions: "Edited" } },
+        organisationId,
+      );
+
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledTimes(2);
+      expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
+      expect(mockedUploadBufferAsFile).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    });
+
+    it.each(lockedSaves)(
+      "refuses to save a %s whose document is out for signature and writes nothing",
+      async (_label, kind, recordUpdate, save) => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          renderedDocumentRow({ kind, ...OUT_FOR_SIGNATURE }),
+        );
+
+        await expect(save("DRAFT")).rejects.toMatchObject({
+          statusCode: 409,
+          message: LOCKED_MESSAGE,
+        });
+
+        expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
+          where: { clinicalArtifactId: artifactId },
+        });
+        expect(recordUpdate()).not.toHaveBeenCalled();
+        expectNothingWritten();
+      },
+    );
+
+    it.each(lockedSaves)(
+      "refuses to reopen a signed %s in place and leaves its signed PDF alone",
+      async (_label, kind, recordUpdate, save) => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          renderedDocumentRow({ kind, ...SIGNED }),
+        );
+
+        await expect(save("SIGNED")).rejects.toMatchObject({
+          statusCode: 409,
+          message: LOCKED_MESSAGE,
+        });
+
+        expect(recordUpdate()).not.toHaveBeenCalled();
+        expectNothingWritten();
+      },
+    );
+
+    it("voids a record whose document is signed without re-rendering that document", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(
+        soapRow({ artifact: artifactRow({ status: "SIGNED" }) }),
+      );
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+        renderedDocumentRow(SIGNED),
+      );
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ status: "VOID" }),
+      );
+      const { artifact: _artifact, ...updatedNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.update.mockResolvedValueOnce(updatedNote);
+
+      const result = await ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { status: "VOID" },
+        organisationId,
+      );
+
+      expect(result.artifact.status).toBe("VOID");
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "VOID" }),
+        }),
+      );
+      expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
+      expect(mockedUploadBufferAsFile).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    });
+
+    it("amends a signed record into a new record whose own document is rendered", async () => {
+      const amendedArtifactId = "artifact-2";
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(
+        soapRow({ artifact: artifactRow({ status: "SIGNED" }) }),
+      );
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({ id: amendedArtifactId, status: "DRAFT" }),
+      );
+      const { artifact: _artifact, ...amendedNote } = soapRow({
+        id: "soap-2",
+        artifactId: amendedArtifactId,
+      }) as Record<string, unknown>;
+      mockedPrisma.soapNote.create.mockResolvedValueOnce(amendedNote);
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+        renderedDocumentRow({
+          id: "doc-2",
+          sourceId: amendedArtifactId,
+          clinicalArtifactId: amendedArtifactId,
+          pdfUrl: null,
+        }),
+      );
+
+      const result = await ClinicalArtifactService.amendSoapNote(
+        soapNoteId,
+        organisationId,
+        "vet-2",
+      );
+
+      expect(result.artifact.id).toBe(amendedArtifactId);
+      // Only the new record's document is read and written; the signed
+      // original is never looked up, let alone re-rendered.
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
+        where: { clinicalArtifactId: amendedArtifactId },
+      });
+      expect(mockedPrisma.renderedDocument.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            clinicalArtifactId: amendedArtifactId,
+            status: "DRAFT",
+          }),
+        }),
+      );
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "doc-2" },
+          data: expect.objectContaining({
+            pdfUrl: "https://cdn.example/rendered.pdf",
+          }),
+        }),
+      );
     });
   });
 });

@@ -174,7 +174,12 @@ export const DEV_PHONE_TABS: PhoneTabConfig[] = [
     icon: IoEllipsisHorizontalCircleOutline,
     activeIcon: IoEllipsisHorizontalCircle,
     isMore: true,
-    activePrefixes: ['/developers/billing', '/developers/website-builder', '/developers/settings'],
+    activePrefixes: [
+      '/developers/billing',
+      '/developers/website-builder',
+      '/developers/playground',
+      '/developers/settings',
+    ],
   },
 ];
 
@@ -190,6 +195,12 @@ export const DEV_PHONE_MORE_LINKS: MoreLinkConfig[] = [
     label: 'Website builder',
     href: '/developers/website-builder',
     icon: IoBusinessOutline,
+  },
+  {
+    key: 'dev-playground',
+    label: 'API playground',
+    href: '/developers/playground',
+    icon: IoCodeSlashOutline,
   },
   {
     key: 'dev-settings',

@@ -3,6 +3,8 @@ import { EstimateService } from "../../src/services/estimate.service";
 jest.mock("src/config/prisma", () => ({
   prisma: {
     patientOrganisation: { findFirst: jest.fn() },
+    organizationBilling: { findUnique: jest.fn() },
+    organizationAddress: { findUnique: jest.fn() },
     estimate: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -83,6 +85,16 @@ beforeEach(() => {
   (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
     id: "patient-org-1",
   });
+  // An Indian clinic whose Connect account cannot take charges yet, with its
+  // country stored as the web app writes it (the name). INR can pass neither
+  // for the old hardcoded "GBP" default nor for the "usd" fallback.
+  (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+    currency: "usd",
+    connectChargesEnabled: false,
+  });
+  (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+    country: "India",
+  });
 });
 
 describe("EstimateService.create", () => {
@@ -112,6 +124,48 @@ describe("EstimateService.create", () => {
     );
     expect(result.status).toBe("DRAFT");
     expect(result.items).toHaveLength(1);
+  });
+
+  const createInput = {
+    organisationId: "org-1",
+    patientId: "pat-1",
+    items: [{ description: "Spay procedure", quantity: 1, unitPrice: 250 }],
+  };
+
+  // #3607: the editor sends no currency, and every estimate was stored in a
+  // hardcoded GBP whatever the clinic bills in.
+  it("stores the organisation's billing currency when none is sent", async () => {
+    mockCreate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.create(createInput);
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "INR" }),
+      }),
+    );
+  });
+
+  it("accepts the organisation's own currency when it is sent", async () => {
+    mockCreate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.create({ ...createInput, currency: "inr" });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "INR" }),
+      }),
+    );
+  });
+
+  it("refuses a currency other than the organisation's, writing nothing", async () => {
+    await expect(
+      EstimateService.create({ ...createInput, currency: "GBP" }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Currency must be the organisation's billing currency, INR.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -182,6 +236,34 @@ describe("EstimateService.update", () => {
     await expect(
       EstimateService.update("est-x", "org-1", { notes: "x" }),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("leaves a stored currency alone when the edit sends none", async () => {
+    mockFindFirst.mockResolvedValue(baseEstimate);
+    mockUpdate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.update("est-1", "org-1", { notes: "x" });
+
+    expect(mockUpdate.mock.calls[0][0].data).not.toHaveProperty("currency");
+    expect(prisma.organizationBilling.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("writes a sent currency only when it is the organisation's own", async () => {
+    mockFindFirst.mockResolvedValue(baseEstimate);
+    mockUpdate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.update("est-1", "org-1", { currency: "inr" });
+
+    expect(mockUpdate.mock.calls[0][0].data.currency).toBe("INR");
+  });
+
+  it("refuses to re-label an estimate in another currency", async () => {
+    mockFindFirst.mockResolvedValue(baseEstimate);
+
+    await expect(
+      EstimateService.update("est-1", "org-1", { currency: "EUR" }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -339,12 +421,25 @@ describe("EstimateService.convert", () => {
     expect(data.subtotal).toBe(approved.subtotal);
     expect(data.taxTotal).toBe(approved.taxAmount);
     expect(data.totalAmount).toBe(approved.total);
-    expect(data.currency).toBe(approved.currency);
   });
 
-  it("does not copy the estimate item id onto the invoice line", async () => {
+  // Invoices and payments carry Stripe's lower-case codes. Copying the
+  // estimate's "GBP" made the converted invoice differ from every other one,
+  // and from its own Stripe receipts (#3607).
+  it("raises the invoice in the estimate's currency, in the invoice layer's case", async () => {
+    mockFindFirst.mockResolvedValue(approved);
+    await EstimateService.convert("est-1", "org-1", "user-1");
+
+    expect(approved.currency).toBe("GBP");
+    expect(mockInvoiceCreate.mock.calls[0][0].data.currency).toBe("gbp");
+  });
+
+  it("gives the invoice line a server id that is not the estimate item id", async () => {
     // An invoice line id is matched against WorkspaceTreatmentItem.invoiceRowId
     // when settling treatment items, so a copied id could settle an unrelated row.
+    // The line still needs an id of its own - without one a converted invoice has
+    // no way to name a row for an edit or a removal (#3154) - so the property
+    // under test is that it is a fresh id, not that there is no id.
     mockFindFirst.mockResolvedValue(approved);
     await EstimateService.convert("est-1", "org-1", "user-1");
 
@@ -352,8 +447,27 @@ describe("EstimateService.convert", () => {
       string,
       unknown
     >[];
-    expect(items[0]).not.toHaveProperty("id");
+    expect(typeof items[0].id).toBe("string");
+    expect(items[0].id).not.toBe(baseItem.id);
     expect(items[0].total).toBe(baseItem.lineTotal);
+  });
+
+  it("gives two identical estimate lines distinct invoice line ids", async () => {
+    // Two of the same item at the same price is an ordinary estimate. If both
+    // converted lines shared an id - or had none - the invoice could not tell
+    // them apart, and removing one would take the other with it.
+    mockFindFirst.mockResolvedValue({
+      ...approved,
+      items: [baseItem, { ...baseItem, id: "item-2" }],
+    });
+    await EstimateService.convert("est-1", "org-1", "user-1");
+
+    const items = mockInvoiceCreate.mock.calls[0][0].data.items as Record<
+      string,
+      unknown
+    >[];
+    expect(items).toHaveLength(2);
+    expect(items[0].id).not.toBe(items[1].id);
   });
 
   it("never sets appointmentId, which is unique and owned by the appointment", async () => {

@@ -28,6 +28,14 @@ type LegacyIssuer = {
 let issuers: LegacyIssuer[] | null = null;
 const clients = new Map<string, JwksClient>();
 
+// Test seam: swaps the JWKS transport for jwks-rsa's own `fetcher` option so
+// the suite can serve a key document without network I/O. It stays unset in
+// production, where jwks-rsa fetches the issuer's endpoint itself; everything
+// downstream of it - key parsing, the RS256 restriction, jwt.verify - is the
+// real path either way.
+type JwksFetcher = (jwksUri: string) => Promise<{ keys: unknown[] }>;
+let jwksFetcher: JwksFetcher | undefined;
+
 function buildIssuers(env: NodeJS.ProcessEnv): LegacyIssuer[] {
   const list: LegacyIssuer[] = [];
   const region = env.COGNITO_REGION;
@@ -69,6 +77,7 @@ function getClient(jwksUri: string): JwksClient {
   if (!client) {
     client = jwksClient({
       jwksUri,
+      ...(jwksFetcher ? { fetcher: jwksFetcher } : undefined),
       cache: true,
       cacheMaxEntries: 20,
       cacheMaxAge: 10 * 60 * 1000,
@@ -166,5 +175,12 @@ export async function verifyLegacyBearerToken(
 // Test seam: clears memoized issuer/client state so env changes take effect.
 export function resetLegacyVerifierForTests(): void {
   issuers = null;
+  clients.clear();
+  jwksFetcher = undefined;
+}
+
+// Test seam: see JwksFetcher above.
+export function setLegacyJwksFetcherForTests(fetcher: JwksFetcher): void {
+  jwksFetcher = fetcher;
   clients.clear();
 }

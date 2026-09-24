@@ -6,7 +6,7 @@ slug: /apps/backend/api/knowledge
 
 Searches the Merck Veterinary Manual for clinical topics. The PMS route searches on behalf of a clinic (provider-facing content by default); the mobile route searches on behalf of a pet parent and always uses the consumer (`PAT`) audience. Both routes share a rate limiter (120 requests per 15 minutes, keyed to the session-verified caller) in front of the shared Merck credentials.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/merck/manuals/search
 

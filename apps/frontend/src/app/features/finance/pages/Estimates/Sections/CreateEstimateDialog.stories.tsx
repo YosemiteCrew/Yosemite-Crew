@@ -26,8 +26,11 @@ const meta = {
           'a non-empty description, a quantity above zero, a non-negative price, tax within 0-100 - ' +
           'so the user is told what is wrong before a request goes out, instead of reading a ' +
           'flattened zod error afterwards.\n\n' +
-          'Currency is passed in from the organisation subscription rather than left to the API, ' +
-          "whose own default is GBP regardless of the clinic's currency.",
+          "Currency is the organisation's billing currency as the server resolves it " +
+          '(`useCurrencyForPrimaryOrg`). The dialog previews in it and sends it, and the server ' +
+          'refuses any other, so the figure previewed is saved in the currency previewed. While ' +
+          'it is not known the totals show a bare amount and no currency is sent, and the server ' +
+          'stores its own (#3607).',
       },
     },
   },
@@ -94,6 +97,30 @@ export const Saving: Story = {
     await expect(
       within(document.body).getByRole('button', { name: 'Create this estimate' })
     ).toBeDisabled();
+  },
+};
+
+export const EuroClinic: Story = {
+  name: "Previews in the clinic's billing currency",
+  args: { currency: 'EUR' },
+  play: async () => {
+    const canvas = within(document.body);
+    await userEvent.type(canvas.getByLabelText('Line 1 description'), 'Bloods');
+    await userEvent.type(canvas.getByLabelText('Line 1 unit price'), '40');
+    await expect(canvas.getAllByText('€40.00').length).toBeGreaterThan(0);
+  },
+};
+
+export const CurrencyNotYetKnown: Story = {
+  name: 'Currency not known yet',
+  args: { currency: undefined },
+  play: async () => {
+    const canvas = within(document.body);
+    await userEvent.type(canvas.getByLabelText('Line 1 description'), 'Bloods');
+    await userEvent.type(canvas.getByLabelText('Line 1 unit price'), '40');
+    // A bare amount, not a guessed "$40.00".
+    await expect(canvas.getAllByText('40.00').length).toBeGreaterThan(0);
+    await expect(canvas.queryByText('$40.00')).not.toBeInTheDocument();
   },
 };
 

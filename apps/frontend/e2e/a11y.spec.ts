@@ -4,9 +4,9 @@ import AxeBuilder from '@axe-core/playwright';
 /**
  * 90s, not the 30s default.
  *
- * An axe pass is CPU-heavy, and this file now runs fifteen of them against a
+ * An axe pass is CPU-heavy, and this file now runs twenty-nine of them against a
  * single Next dev server. CI serialises them (`workers: 1`), but a local run is
- * fullyParallel, and adding the eight public-page tests was enough to push the
+ * fullyParallel, and adding the fourteen public-page tests was enough to push the
  * sign-in and sign-up runs past 30s on a warm laptop - they pass in 6s and 4s
  * serialised. Raising the ceiling keeps the local run honest instead of
  * intermittently red for a reason that has nothing to do with accessibility.
@@ -15,10 +15,20 @@ test.describe.configure({ timeout: 90_000 });
 
 const WCAG_AA = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 
+const openDocs = async (page: Page) => {
+  await page.goto('/docs');
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await expect(page.locator('.DocsTopBar')).toBeVisible();
+  await page.waitForFunction(() => {
+    const input = document.querySelector('.DocsSearchInput');
+    return input !== null && Object.keys(input).some((key) => key.startsWith('__reactProps$'));
+  });
+};
+
 /**
  * WCAG 2.1 AA, minus colour-contrast. Sign-in and sign-up retain this narrower
- * pass while their existing palette is handled separately; the marketing home
- * home, pricing and contact surfaces use the full rule set below.
+ * pass while their existing palette is handled separately; the marketing home,
+ * pricing, contact, developer and legal surfaces use the full rule set below.
  */
 const runAxe = (page: Page) =>
   new AxeBuilder({ page }).withTags(WCAG_AA).disableRules(['color-contrast']).analyze();
@@ -102,6 +112,24 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
     expect(results.violations).toEqual([]);
   });
 
+  test('developer page has no axe violations', async ({ page }) => {
+    await page.goto('/developers');
+    await page.waitForLoadState('networkidle').catch(() => {});
+
+    const results = await runAxeWithContrast(page);
+    expect(results.violations).toEqual([]);
+  });
+
+  for (const path of ['/accessibility', '/trust-center']) {
+    test(`${path} has no axe violations`, async ({ page }) => {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
+    });
+  }
+
   test.describe('marketing pages in dark mode', () => {
     test.use({ colorScheme: 'dark' });
 
@@ -128,6 +156,24 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
     });
+
+    test('developer page has no dark-theme axe violations', async ({ page }) => {
+      await page.goto('/developers');
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
+    });
+
+    for (const path of ['/accessibility', '/trust-center']) {
+      test(`${path} has no dark-theme axe violations`, async ({ page }) => {
+        await page.goto(path);
+        await page.waitForLoadState('networkidle').catch(() => {});
+
+        const results = await runAxeWithContrast(page);
+        expect(results.violations).toEqual([]);
+      });
+    }
   });
 
   test('skip link is reachable via keyboard on every page', async ({ page }) => {
@@ -149,6 +195,86 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
     await expect(skipLink).not.toBeFocused();
   });
 });
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const viewport of [
+    { name: 'phone', width: 320, height: 800 },
+    { name: 'desktop', width: 1280, height: 900 },
+  ]) {
+    test.describe(`Documentation accessibility, ${theme}, ${viewport.name}`, () => {
+      test.use({ colorScheme: theme, viewport });
+
+      test('distinguishes prose links without styling heading anchors', async ({ page }) => {
+        await openDocs(page);
+
+        const proseLink = page.locator('.DocsBody a:not(.DocsHeadingAnchor)').first();
+        const headingAnchor = page.locator('.DocsBody .DocsHeadingAnchor').first();
+        await expect(proseLink).toBeVisible();
+        await expect(headingAnchor).toBeVisible();
+        await expect(proseLink).toHaveCSS('text-decoration-line', 'underline');
+        await expect(headingAnchor).toHaveCSS('text-decoration-line', 'none');
+
+        for (const selector of [
+          '.DocsTopBrand',
+          '.DocsTopTitle',
+          '.DocsNavLink',
+          '.DocsToc a',
+          '.DocsEditLink',
+        ]) {
+          await expect(page.locator(selector).first()).toHaveCSS('text-decoration-line', 'none');
+        }
+
+        const searchInput = page.locator('.DocsSearchInput');
+        const searchIndex = page.waitForResponse(
+          (response) => response.url().endsWith('/docs/search-index.json') && response.ok()
+        );
+        await searchInput.focus();
+        await searchIndex;
+        await searchInput.fill('installation');
+        const searchResult = page.locator('.DocsSearchResult').first();
+        await expect(searchResult).toBeVisible();
+        await expect(searchResult).toHaveCSS('text-decoration-line', 'none');
+
+        const results = await runAxeWithContrast(page);
+        expect(results.violations).toEqual([]);
+        expect(results.passes.some((rule) => rule.id === 'link-in-text-block')).toBe(true);
+      });
+    });
+  }
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const viewport of [
+    { name: 'phone', width: 320, height: 800 },
+    { name: 'desktop', width: 1280, height: 900 },
+  ]) {
+    test.describe(`Marketing link decoration, ${theme}, ${viewport.name}`, () => {
+      test.use({ colorScheme: theme, viewport });
+      test.beforeEach(async ({ page }) => {
+        await blockCrossOriginRequests(page);
+      });
+
+      test('keeps navigation, calls to action, and card links unadorned', async ({ page }) => {
+        await page.goto('/pet-businesses');
+
+        await expect(page.locator('.yc-nav-links a').first()).toHaveCSS(
+          'text-decoration-line',
+          'none'
+        );
+        await expect(page.locator('.yc-nav-cta a[href="/signup"]').first()).toHaveCSS(
+          'text-decoration-line',
+          'none'
+        );
+        await expect(page.locator('.yc-link').first()).toHaveCSS('text-decoration-line', 'none');
+
+        await page.goto('/insights');
+        const releaseCard = page.locator('a[href*="/releases"]').first();
+        await expect(releaseCard).toBeVisible();
+        await expect(releaseCard).toHaveCSS('text-decoration-line', 'none');
+      });
+    });
+  }
+}
 
 /**
  * The three public pages a link gets sent to.
@@ -335,6 +461,60 @@ for (const theme of ['light', 'dark'] as const) {
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
     });
+  });
+}
+
+/**
+ * The four public pages whose contrast defects this suite could not see.
+ *
+ * Two of them (/insights, /pet-businesses) carry embedded product mockups that
+ * paint text with FILL tokens - `--blue`, `--success`, `--ink-faint`,
+ * `--ink-faint2` - which owe 3:1 as a fill and were never meant to carry copy.
+ * Between them they shipped 73 nodes below AA across the two themes.
+ *
+ * The scroll pass is load-bearing, not hygiene. Most of the copy on these pages
+ * is inside `Reveal`, which stays `opacity: 0` until it intersects - and axe
+ * skips what it cannot see. Measured both ways on the unfixed pages, in light:
+ * /insights 7 nodes unscrolled against 18 scrolled, /pet-businesses 15 against
+ * 40, /pet-parents 4 against 5, /dmca 1 either way. Drop the scroll call and
+ * the below-the-fold eyebrows and the calculator unit labels leave the result.
+ */
+const revealEverything = async (page: Page) => {
+  await page.evaluate(async () => {
+    const step = window.innerHeight;
+    for (let y = 0; y < document.body.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    window.scrollTo(0, 0);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  });
+};
+
+for (const theme of ['light', 'dark'] as const) {
+  test.describe(`Mockup-heavy public pages — accessibility, ${theme} (incl. contrast)`, () => {
+    // The file-wide 90s does not cover these: a full-height scroll pass plus an
+    // axe run over the longest pages on the site measured 18-38s each locally,
+    // and /pet-businesses alone paints 40 mockup nodes.
+    test.describe.configure({ timeout: 180_000 });
+    test.use({ colorScheme: theme });
+
+    test.beforeEach(async ({ page }) => {
+      await blockCrossOriginRequests(page);
+    });
+
+    for (const path of ['/insights', '/pet-businesses', '/pet-parents', '/dmca']) {
+      test(`${path} has no axe violations in ${theme}`, async ({ page }) => {
+        await page.goto(path);
+        await page.waitForLoadState('networkidle').catch(() => {});
+        // The content floor: the page rendered rather than an error boundary.
+        await expect(page.locator('main')).toBeVisible();
+        await revealEverything(page);
+
+        const results = await runAxeWithContrast(page);
+        expect(results.violations).toEqual([]);
+      });
+    }
   });
 }
 

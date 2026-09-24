@@ -86,29 +86,128 @@ const StateBadge = ({ state }: { state: string }) => (
   />
 );
 
-const CopyRow = ({ label, value }: { label: string; value: string }) => {
+/*
+ * Actor URIs end in the organisation's database id - 24 hex characters for an
+ * older organisation, a UUID for a newer one. Printed whole, that is an opaque
+ * database id on a vet's screen, so on screen it is cut to its last six
+ * characters: the host stays readable and two clinics stay distinguishable.
+ * Wherever a full URI is needed it is taken from the data, never from the text.
+ */
+const DATABASE_ID =
+  /\b(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi;
+const abbreviateIds = (uri: string): string => uri.replace(DATABASE_ID, (id) => `…${id.slice(-6)}`);
+
+const COPY_VALUE_BOX =
+  'flex-1 text-body-4 text-text-primary bg-card-hover px-3 py-1.5 rounded-lg overflow-x-auto';
+const COPY_BUTTON_CLS = `${TEXT_MUTED} hover:text-text-primary transition-colors shrink-0`;
+
+/*
+ * A shortened URI selected and copied by hand is not a valid URI, and pasted
+ * into Follow or Send referral it fails with nothing pointing back here. So the
+ * shortened text cannot be selected: Copy, and the field it falls back to, are
+ * the ways to get the value.
+ */
+const unselectableIfShortened = (shown: string, value: string) =>
+  shown === value ? '' : ' select-none';
+
+/**
+ * Copies `value` and says whether it worked. `copyFailed` is set when the
+ * clipboard refuses; the printed text may be shortened, so the caller then shows
+ * `CopyByHand`, the only way left to get the whole value.
+ */
+const useCopy = (label: string, value: string) => {
   const { notify } = useNotify();
+  const [copyFailed, setCopyFailed] = useState(false);
   const copy = () => {
-    navigator.clipboard.writeText(value).then(() => {
-      notify('success', { title: 'Copied', text: `${label} copied to clipboard.` });
-    });
+    // Inside the chain, so a missing clipboard (an insecure context such as a
+    // plain-http self-host, or an embed without clipboard-write) lands in the
+    // same failure branch as a refused write instead of throwing.
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(value))
+      .then(
+        () => {
+          setCopyFailed(false);
+          notify('success', { title: 'Copied', text: `${label} copied to clipboard.` });
+        },
+        () => {
+          setCopyFailed(true);
+          notify('error', {
+            title: 'Copy failed',
+            text: `Could not copy the ${label}. Select it below and copy it by hand.`,
+          });
+        }
+      );
   };
+  return { copy, copyFailed };
+};
+
+const CopyByHand = ({ name, value }: { name: string; value: string }) => (
+  <input
+    type="text"
+    readOnly
+    value={value}
+    aria-label={`${name}, to copy by hand`}
+    onFocus={(event) => event.currentTarget.select()}
+    className="text-body-4 border border-card-border rounded-lg px-3 py-1.5 bg-transparent text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+  />
+);
+
+/** `display` is what is printed (defaults to `value`); Copy always copies `value`. */
+const CopyRow = ({
+  label,
+  value,
+  display = value,
+}: {
+  label: string;
+  value: string;
+  display?: string;
+}) => {
+  const { copy, copyFailed } = useCopy(label, value);
   return (
     <div className="flex flex-col gap-1">
       <div className={TEXT_MUTED}>{label}</div>
       <div className="flex items-center gap-2">
-        <code className="flex-1 text-body-4 text-text-primary bg-card-hover px-3 py-1.5 rounded-lg overflow-x-auto">
-          {value}
+        <code className={`${COPY_VALUE_BOX}${unselectableIfShortened(display, value)}`}>
+          {display}
         </code>
         <button
           type="button"
           onClick={copy}
-          className={`${TEXT_MUTED} hover:text-text-primary transition-colors shrink-0`}
+          className={COPY_BUTTON_CLS}
           aria-label={`Copy ${label}`}
         >
           Copy
         </button>
       </div>
+      {copyFailed && <CopyByHand name={label} value={value} />}
+    </div>
+  );
+};
+
+/**
+ * Another clinic's actor URI: printed shortened, with a Copy for the whole URI.
+ * These rows are where a vet finds the value that Follow and Send referral ask
+ * for, so the full URI has to stay one click away.
+ */
+const RemoteActorUri = ({ uri, textClassName }: { uri: string; textClassName: string }) => {
+  const shown = abbreviateIds(uri);
+  const { copy, copyFailed } = useCopy('Actor URI', uri);
+  return (
+    <div className="flex flex-col gap-1 min-w-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className={`${textClassName} truncate${unselectableIfShortened(shown, uri)}`}>
+          {shown}
+        </span>
+        <button
+          type="button"
+          onClick={copy}
+          className={COPY_BUTTON_CLS}
+          aria-label={`Copy ${shown}`}
+        >
+          Copy
+        </button>
+      </div>
+      {copyFailed && <CopyByHand name={shown} value={uri} />}
     </div>
   );
 };
@@ -119,9 +218,10 @@ const ActorInfoCard = ({ actor }: { actor: APActorSettings }) => (
       This instance&apos;s ActivityPub actor. Share your actor URI with other clinics to enable
       federation.
     </div>
-    <CopyRow label="Actor URI" value={actor.uri} />
+    {/* No Inbox row: remote servers read the inbox from the actor document, so
+        it had no human use and only put a second database id on screen. */}
+    <CopyRow label="Actor URI" value={actor.uri} display={abbreviateIds(actor.uri)} />
     <CopyRow label="Handle" value={`@${actor.preferredUsername}`} />
-    <CopyRow label="Inbox" value={actor.inboxUri} />
   </SectionCard>
 );
 
@@ -307,7 +407,10 @@ const FollowersCard = () => {
           {followers.map((f) => (
             <div key={f.id} className={ROW_CLS}>
               <div className={ROW_META_CLS}>
-                <div className="text-body-4 text-text-primary truncate">{f.remoteActorUri}</div>
+                <RemoteActorUri
+                  uri={f.remoteActorUri}
+                  textClassName="text-body-4 text-text-primary"
+                />
                 <StateBadge state={f.state} />
               </div>
               {f.state === 'PENDING' && (
@@ -409,7 +512,10 @@ const FollowingCard = () => {
           {following.map((f) => (
             <div key={f.id} className={ROW_CLS}>
               <div className={ROW_META_CLS}>
-                <div className="text-body-4 text-text-primary truncate">{f.remoteActorUri}</div>
+                <RemoteActorUri
+                  uri={f.remoteActorUri}
+                  textClassName="text-body-4 text-text-primary"
+                />
                 <StateBadge state={f.state} />
               </div>
               <button
@@ -442,9 +548,11 @@ const ReferralRow = ({
       <span className={`text-body-4 font-medium ${URGENCY_COLORS[referral.urgency]}`}>
         {URGENCY_LABELS[referral.urgency]}
       </span>
-      <span className={TEXT_MUTED}>
-        {direction === 'in' ? `from ${referral.fromActorUri}` : `to ${referral.toActorUri}`}
-      </span>
+      <span className={TEXT_MUTED}>{direction === 'in' ? 'from' : 'to'}</span>
+      <RemoteActorUri
+        uri={direction === 'in' ? referral.fromActorUri : referral.toActorUri}
+        textClassName={TEXT_MUTED}
+      />
     </div>
     <div className="text-body-4 text-text-primary">
       {referral.patientSummary.species}

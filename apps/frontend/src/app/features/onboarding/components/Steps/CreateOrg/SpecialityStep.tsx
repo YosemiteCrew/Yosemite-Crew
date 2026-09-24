@@ -8,6 +8,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { labelWithCurrency } from '@/app/lib/money';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import {
@@ -652,7 +653,7 @@ const useSpecialityStepContent = ({
                 intype="number"
                 inname="service-price"
                 value={String(serviceEditor?.service.cost ?? 0)}
-                inlabel={`Price (${currency})`}
+                inlabel={labelWithCurrency('Price', currency)}
                 onChange={handleServiceCostChange}
               />
             </div>

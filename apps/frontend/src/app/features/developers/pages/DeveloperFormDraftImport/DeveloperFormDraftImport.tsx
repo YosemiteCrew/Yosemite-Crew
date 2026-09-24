@@ -52,9 +52,9 @@ const DeveloperFormDraftImport = () => {
   // 404 there would otherwise read as an inexplicable error on submit.
   const sourceOptions = useMemo(
     () =>
-      forms
-        .filter((form) => Boolean(form._id) && form.status === 'Published')
-        .map((form) => ({ value: form._id as string, label: form.name })),
+      forms.flatMap((form) =>
+        form._id && form.status === 'Published' ? [{ value: form._id, label: form.name }] : []
+      ),
     [forms]
   );
 
