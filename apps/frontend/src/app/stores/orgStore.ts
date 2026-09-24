@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { Organisation, UserOrganization } from '@yosemite-crew/types';
 import { getPersistStorage, getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
+import { LAST_ACTIVE_ORG_ID_KEY } from '@/app/stores/orgStorageKeys';
 
 type OrgStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
@@ -16,8 +17,7 @@ type OrgStatus = 'idle' | 'loading' | 'loaded' | 'error';
 // so it survives that wipe and lets setOrgs restore the real last-active
 // org - but only when the id is still present in the freshly-fetched org
 // list, so a different user on a shared browser can never be routed into
-// an org they don't actually belong to.
-const LAST_ACTIVE_ORG_ID_KEY = 'yc_last_active_org_id';
+// an org they don't actually belong to. The key lives in orgStorageKeys.ts.
 
 // The backend's org list responses (e.g. mapOrganizationFromPrisma) include raw
 // integration credentials that no frontend code ever reads. This store's

@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { LAST_ACTIVE_ORG_ID_KEY } from '../../src/app/stores/orgStorageKeys';
 
 /**
  * Shared plumbing for the specs that sign in with a real credential.
@@ -123,7 +124,7 @@ const relayApiForLoopbackApp = async (page: Page) => {
 };
 
 /** The key orgStore.setOrgs reads for the primary org when no choice is persisted. */
-export const LAST_ACTIVE_ORG_ID_KEY = 'yc_last_active_org_id';
+export { LAST_ACTIVE_ORG_ID_KEY };
 
 /**
  * Makes the app open `orgId` as the primary org for the account that signs in next.
@@ -153,7 +154,9 @@ export const pinPrimaryOrg = async (
   };
   const args: [string, string] = [LAST_ACTIVE_ORG_ID_KEY, orgId];
   await page.addInitScript(pin, args);
-  await page.evaluate(pin, args);
+  // A document replaced mid-call has no context left to pin; the init script above
+  // pins its replacement, so that one failure mode is safe to ignore.
+  await page.evaluate(pin, args).catch(() => {});
 };
 
 /** Fills and submits whichever sign-in form is currently on screen. */
