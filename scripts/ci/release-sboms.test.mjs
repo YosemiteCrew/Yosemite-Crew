@@ -99,6 +99,14 @@ test('the wait refuses a commit whose latest push run failed', () => {
   assert.match(r.out, /concluded 'failure' .*\/runs\/2/);
 });
 
+test('the wait refuses a finished run that did not succeed, whatever the reason', () => {
+  for (const conclusion of ['cancelled', 'timed_out', 'skipped']) {
+    const r = wait('done', { done: [run('completed', conclusion, '2026-09-23T20:45:00Z', 1)] });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, new RegExp(`concluded '${conclusion}'`));
+  }
+});
+
 test('the wait gives up, red, when no run finishes in time', () => {
   const r = wait('busy', { busy: [run('queued', null, '2026-09-23T20:45:00Z', 1)] });
   assert.equal(r.code, 1, r.out);
@@ -119,6 +127,8 @@ test('desktop publishes, and mobile builds, only after the wait', () => {
     (s) => s.run === 'bash scripts/ci/wait-for-supply-chain.sh'
   );
   assert.ok(waitAt >= 0 && waitAt < names.indexOf('Publish the release'));
+  const checkoutAt = desktop.steps.findIndex((s) => String(s.uses).startsWith('actions/checkout@'));
+  assert.ok(checkoutAt >= 0 && checkoutAt < waitAt, 'the publish job checks out the wait script');
   assert.match(desktop.steps[waitAt].env.SHA, /^\$\{\{ github\.sha \}\}$/);
   assert.equal(desktop.permissions.actions, 'read');
 
