@@ -6,7 +6,10 @@ import {
 } from "src/services/documenso.service";
 import { AuditTrailService } from "src/services/audit-trail.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
-import { completePersistedRenderedDocumentSigning } from "src/services/rendered-document.service";
+import {
+  completePersistedRenderedDocumentSigning,
+  withdrawPersistedRenderedDocumentSigning,
+} from "src/services/rendered-document.service";
 import { notifyOwnerOfPassportUpdate } from "src/services/pet-clinical-records.service";
 import { OrganizationService } from "src/services/organization.service";
 import { WorkspaceDocumentPacketService } from "src/services/workspace-document-packet.service";
@@ -134,14 +137,7 @@ async function findWebhookPacket(documentId: string) {
   });
 }
 
-async function handlePacketEvent(
-  eventType: string,
-  packet: { id: string } | null,
-) {
-  if (!packet) {
-    return;
-  }
-
+async function handlePacketEvent(eventType: string, packet: { id: string }) {
   if (eventType === "DOCUMENT_COMPLETED") {
     await WorkspaceDocumentPacketService.completeSigning(packet.id);
   } else if (eventType === "DOCUMENT_DELETED") {
@@ -149,8 +145,30 @@ async function handlePacketEvent(
   }
 }
 
+// The only events a rendered document acts on. Every other event skips the
+// lookup below, an unindexed JSON-path scan.
+const RENDERED_DOCUMENT_EVENTS = new Set([
+  "DOCUMENT_COMPLETED",
+  "DOCUMENT_DELETED",
+]);
+
+// Every rendered-document signing (standalone, or on behalf of a form
+// submission) stores the Documenso document id on the rendered document.
+async function findWebhookRenderedDocument(documentId: string) {
+  return prisma.renderedDocument.findFirst({
+    where: {
+      signing: {
+        path: ["documentId"],
+        equals: documentId,
+      },
+    },
+    select: { id: true },
+  });
+}
+
 async function handleRenderedDocumentEvent(
   eventType: string,
+  documentId: string,
   renderedDocument: { id: string } | null,
 ) {
   if (!renderedDocument) {
@@ -160,7 +178,7 @@ async function handleRenderedDocumentEvent(
   if (eventType === "DOCUMENT_COMPLETED") {
     await handleRenderedDocumentCompletedPrisma(renderedDocument.id);
   } else if (eventType === "DOCUMENT_DELETED") {
-    await handleRenderedDocumentDeletedPrisma(renderedDocument.id);
+    await handleRenderedDocumentDeletedPrisma(renderedDocument.id, documentId);
   }
 }
 
@@ -366,20 +384,27 @@ export const DocumensoWebhookController = {
         // document packet (not a FormSubmission), so route packet completions
         // to packet finalization when no submission matches.
         const packet = await findWebhookPacket(event.documentId);
-        await handlePacketEvent(event.eventType, packet);
-        return res.status(200).json({ received: true });
+        if (packet) {
+          await handlePacketEvent(event.eventType, packet);
+          return res.status(200).json({ received: true });
+        }
+        // A rendered document signed on its own (POST
+        // /fhir/v1/rendered-document/organisation/:org/:id/sign) has neither a
+        // submission nor a packet, so it falls through to the lookup below.
       }
 
-      const renderedDocument = await prisma.renderedDocument.findFirst({
-        where: {
-          signing: {
-            path: ["documentId"],
-            equals: event.documentId,
-          },
-        },
-      });
-
-      await handleRenderedDocumentEvent(event.eventType, renderedDocument);
+      // Completion is idempotent: a redelivered DOCUMENT_COMPLETED finds the
+      // document already SIGNED and returns without writing or auditing again.
+      if (RENDERED_DOCUMENT_EVENTS.has(event.eventType)) {
+        const renderedDocument = await findWebhookRenderedDocument(
+          event.documentId,
+        );
+        await handleRenderedDocumentEvent(
+          event.eventType,
+          event.documentId,
+          renderedDocument,
+        );
+      }
       // case "DOCUMENT_EXPIRED":
       //   await handleDocumentExpired(submission);
       //   break;
@@ -659,7 +684,11 @@ async function handleRenderedDocumentCompletedPrisma(
   await completePersistedRenderedDocumentSigning(renderedDocumentId);
 }
 
-async function handleRenderedDocumentDeletedPrisma(renderedDocumentId: string) {
+/** Withdraws the signing request this event is about, if it is still open. */
+async function handleRenderedDocumentDeletedPrisma(
+  renderedDocumentId: string,
+  documentId: string,
+) {
   const renderedDocument = await prisma.renderedDocument.findUnique({
     where: { id: renderedDocumentId },
     select: { signing: true },
@@ -669,14 +698,12 @@ async function handleRenderedDocumentDeletedPrisma(renderedDocumentId: string) {
     status?: string;
   } | null;
 
-  if (!signing || signing.status === "SIGNED") {
+  if (signing?.status !== "IN_PROGRESS") {
     return;
   }
 
-  signing.status = "NOT_STARTED";
-
-  await prisma.renderedDocument.update({
-    where: { id: renderedDocumentId },
-    data: { signing: signing },
-  });
+  await withdrawPersistedRenderedDocumentSigning(
+    renderedDocumentId,
+    documentId,
+  );
 }

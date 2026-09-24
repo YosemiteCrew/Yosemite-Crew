@@ -4,6 +4,7 @@ import { prisma } from "src/config/prisma";
 import {
   getPersistedRenderedDocument,
   getPersistedRenderedDocumentPdf,
+  getRenderedDocumentSourceAuthorId,
   RenderedDocumentServiceError,
   rerenderPersistedClinicalRenderedDocumentPdf,
   type RenderedDocumentSigning,
@@ -36,6 +37,37 @@ const isPermittedKind = (req: Request, kind: string): boolean =>
 
 const forbidden = (res: Response) =>
   res.status(403).json({ message: "Forbidden – insufficient permissions" });
+
+/**
+ * The write routes admit any holder of one of the edit permissions, but signing
+ * or re-rendering a document acts on the record it was produced from, so each
+ * kind takes the permission that record's own routes take. A prescription needs
+ * `prescription:edit:any`, or `prescription:edit:own` on one the caller
+ * authored (as on the prescription routes). Every other kind is edited under
+ * `forms:edit:any` (as on the form, consent, SOAP note, discharge summary and
+ * vital record routes).
+ */
+const mayEditKind = async (
+  req: Request,
+  document: Awaited<ReturnType<typeof getPersistedRenderedDocument>>,
+): Promise<boolean> => {
+  const { userPermissions = [], userId } = req as OrgRequest;
+
+  if (document.kind !== "PRESCRIPTION") {
+    return userPermissions.includes("forms:edit:any");
+  }
+  if (userPermissions.includes("prescription:edit:any")) {
+    return true;
+  }
+
+  // The verified session only: an authorization outcome never rests on a
+  // client-supplied id.
+  const actorId = userId?.trim();
+  if (!actorId || !userPermissions.includes("prescription:edit:own")) {
+    return false;
+  }
+  return (await getRenderedDocumentSourceAuthorId(document)) === actorId;
+};
 
 const resolveSignerProfile = async (userId: string) => {
   const user = (await prisma.user.findUnique({
@@ -103,6 +135,15 @@ export const RenderedDocumentFhirController = {
 
   async rerenderRenderedDocumentPdf(req: Request, res: Response) {
     try {
+      const document = await getPersistedRenderedDocument(
+        req.params.renderedDocumentId,
+        req.params.organisationId,
+      );
+
+      if (!(await mayEditKind(req, document))) {
+        return forbidden(res);
+      }
+
       const { pdf, filename, contentType } =
         await rerenderPersistedClinicalRenderedDocumentPdf(
           req.params.renderedDocumentId,
@@ -124,6 +165,15 @@ export const RenderedDocumentFhirController = {
 
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated." });
+      }
+
+      const existing = await getPersistedRenderedDocument(
+        req.params.renderedDocumentId,
+        req.params.organisationId,
+      );
+
+      if (!(await mayEditKind(req, existing))) {
+        return forbidden(res);
       }
 
       const signer = await resolveSignerProfile(userId);
