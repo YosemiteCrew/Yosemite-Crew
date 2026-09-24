@@ -96,8 +96,6 @@ const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   DEPOSIT: 'Paid from Deposit',
 };
 
-const DEFAULT_CURRENCY = 'USD';
-
 type PersistInvoiceFn = (options?: { finalize?: boolean }) => Promise<{ id?: string } | undefined>;
 
 type RecordInvoicePaymentFn = (
@@ -120,8 +118,8 @@ type RecordDepositCollectionFn = (
 type HandleCollectContext = {
   appointmentId: string;
   encounter: AppointmentEncounter;
-  currency: string;
-  financeCurrency: string;
+  /** The encounter's currency for display, or undefined while it is not known. */
+  currency: string | undefined;
   hasItems: boolean;
   persistCurrentInvoice: PersistInvoiceFn;
   reloadBilling: () => Promise<unknown>;
@@ -179,7 +177,6 @@ const runOnlineCollection = async ({
 const runManualCollection = async ({
   appointmentId,
   encounter,
-  financeCurrency,
   method,
   dueCents,
   persistCurrentInvoice,
@@ -187,12 +184,7 @@ const runManualCollection = async ({
   recordInvoicePayment,
 }: Pick<
   HandleCollectContext,
-  | 'appointmentId'
-  | 'encounter'
-  | 'financeCurrency'
-  | 'persistCurrentInvoice'
-  | 'reloadBilling'
-  | 'recordInvoicePayment'
+  'appointmentId' | 'encounter' | 'persistCurrentInvoice' | 'reloadBilling' | 'recordInvoicePayment'
 > & {
   method: PaymentMethod;
   /** What the Collect button showed - the total less any deposit being applied. */
@@ -207,7 +199,8 @@ const runManualCollection = async ({
       // deposit is being applied the two differ, and recording the total meant
       // staff collected one figure while the payment record claimed another.
       amount: centsToMajor(dueCents),
-      currency: financeCurrency,
+      // No currency: the server records a manual payment in its invoice's
+      // currency, and the one shown here can be a placeholder (#3607).
       receivedAt: new Date().toISOString(),
     });
   }
@@ -280,7 +273,7 @@ const openDocumentUrl = (url: string): void => {
   globalThis.window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-const formatCents = (cents: number, currency: string = DEFAULT_CURRENCY): string =>
+const formatCents = (cents: number, currency: string | undefined): string =>
   formatMoney(cents / 100, currency);
 
 const createInvoiceCell = (
@@ -295,7 +288,11 @@ const createInvoiceCell = (
   return cell;
 };
 
-const buildPrintableInvoice = (document: Document, invoice: PastInvoice, currency: string) => {
+const buildPrintableInvoice = (
+  document: Document,
+  invoice: PastInvoice,
+  currency: string | undefined
+) => {
   document.title = `Invoice ${invoice.id}`;
 
   const style = document.createElement('style');
@@ -343,7 +340,7 @@ const buildPrintableInvoice = (document: Document, invoice: PastInvoice, currenc
 // Render an invoice as a standalone printable document and open the browser print
 // dialog (print-to-PDF). There is no backend invoice-PDF endpoint, so this is the
 // portable way to produce a downloadable PDF from the invoice the user sees.
-const printInvoice = (invoice: PastInvoice, currency: string): boolean => {
+const printInvoice = (invoice: PastInvoice, currency: string | undefined): boolean => {
   if (globalThis.window === undefined) return false;
   const printWindow = globalThis.window.open('', '_blank', 'width=800,height=900');
   // Popup blocked (or otherwise unavailable) — report failure so the caller can
@@ -501,7 +498,7 @@ export const InvoiceBreakdown = ({
   currency,
 }: {
   invoice: PastInvoice;
-  currency: string;
+  currency: string | undefined;
 }) => (
   <SectionContainer title="Breakdown" nested className="bg-neutral-0">
     <div className="flex flex-col gap-2">
@@ -622,7 +619,7 @@ export const InvoiceRow = ({
   index: number;
   expanded: boolean;
   readOnly: boolean;
-  currency: string;
+  currency: string | undefined;
   onToggle: (id: string) => void;
   onDownload: (invoice: PastInvoice) => void;
   onShare: (invoice: PastInvoice) => void;
@@ -709,7 +706,7 @@ export const InvoicesSection = ({
 }: {
   invoices: PastInvoice[];
   readOnly: boolean;
-  currency: string;
+  currency: string | undefined;
   onDownload: (invoice: PastInvoice) => void;
   onShare: (invoice: PastInvoice) => void;
 }) => {
@@ -770,7 +767,7 @@ export const PaymentActions = ({
   paymentDisabled: boolean;
   paymentDisabledReason?: string;
   dueCents: number;
-  currency: string;
+  currency: string | undefined;
   onCollect: (method: PaymentMethod) => void;
   onSendToClient: () => void;
   /** Real payment-link state for this appointment's invoice; null hides the line. */
@@ -1012,12 +1009,12 @@ const useInvoiceStepContent = ({
   const paymentDisabledReason = isReadyForBilling
     ? undefined
     : 'Mark this visit ready for billing before sending to client, collecting cash, or paying online.';
-  // Currency is encounter-scoped (hydrated from finance, defaults to USD). The
-  // finance API works in lower-case ISO codes; display uses the upper-case code.
-  // Currency precedence: the finance-hydrated encounter currency (server truth),
-  // else the organisation's catalog currency (its configured/ country-derived
-  // pricing currency), and only then a last-resort default — so a fresh, not-yet-
-  // invoiced appointment shows the org's currency instead of a hardcoded USD.
+  // Currency is encounter-scoped (hydrated from finance). Display uses the
+  // upper-case code. Currency precedence: the finance-hydrated encounter
+  // currency (server truth), else the organisation's catalog currency (its
+  // configured/ country-derived pricing currency), else unknown - amounts then
+  // print bare rather than in a guessed USD. Payments send no currency at all:
+  // the server records them in their invoice's (#3607).
   // Scope the currency to this appointment's organisation: in a multi-org
   // session the catalog store can hold another org's services/packages, so an
   // unfiltered lookup could surface the wrong currency on a fresh invoice.
@@ -1028,8 +1025,7 @@ const useInvoiceStepContent = ({
       catalogPackages.find((pkg) => pkg.organisationId === organisationId && pkg.currency)
         ?.currency)
     : undefined;
-  const currency = encounter.currency || catalogCurrency?.toUpperCase() || DEFAULT_CURRENCY;
-  const financeCurrency = currency.toLowerCase();
+  const currency = encounter.currency || catalogCurrency?.toUpperCase();
 
   const incompleteMedicationNames = useMemo(
     () => computeIncompleteMedicationNames(encounter),
@@ -1206,7 +1202,6 @@ const useInvoiceStepContent = ({
         await runManualCollection({
           appointmentId,
           encounter,
-          financeCurrency,
           method,
           dueCents,
           persistCurrentInvoice,
@@ -1257,7 +1252,6 @@ const useInvoiceStepContent = ({
           provider: 'MANUAL',
           settlementChannel: 'DEPOSIT',
           amount: input.amount,
-          currency: financeCurrency,
           reference: input.reference || undefined,
           receivedAt: new Date().toISOString(),
           notes: input.notes || undefined,

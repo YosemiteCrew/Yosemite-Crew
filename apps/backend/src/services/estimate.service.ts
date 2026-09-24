@@ -379,7 +379,10 @@ export const EstimateService = {
           taxTotal: existing.taxAmount,
           taxPercent: figures.taxPercent,
           totalAmount: existing.total,
-          currency: existing.currency,
+          // Invoices and payments carry Stripe's lower-case codes; estimates
+          // carry upper-case ones. Copying the case across made a converted
+          // invoice differ from every other, and from its Stripe receipts.
+          currency: existing.currency.toLowerCase(),
           metadata: figures.metadata,
         },
         select: { id: true },

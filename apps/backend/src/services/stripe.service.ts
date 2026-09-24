@@ -19,7 +19,7 @@ import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 
 import { prisma } from "src/config/prisma";
-import { getOrgBillingCurrency } from "src/utils/billing";
+import { getOrgBillingCurrency, orgBillingCurrency } from "src/utils/billing";
 import {
   fromStripeMinorUnits,
   toStripeMinorUnits,
@@ -437,7 +437,7 @@ export const StripeService = {
   async getAccountStatus(organisationId: string) {
     const org = await prisma.organization.findUnique({
       where: { id: organisationId },
-      select: { id: true },
+      select: { id: true, address: { select: { country: true } } },
     });
     if (!org) {
       throw new Error("Organistaion not found");
@@ -453,7 +453,15 @@ export const StripeService = {
     ]);
 
     return {
-      orgBilling: orgBilling,
+      // The raw column is a schema default until the Connect account can take
+      // charges, so the client gets the resolved currency, as it does from the
+      // organisation mapping (#3607).
+      orgBilling: orgBilling
+        ? {
+            ...orgBilling,
+            currency: orgBillingCurrency(orgBilling, org.address?.country),
+          }
+        : null,
       orgUsage: orgUsage,
     };
   },

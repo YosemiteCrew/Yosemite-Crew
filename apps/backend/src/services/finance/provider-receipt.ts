@@ -10,6 +10,7 @@ import {
   getInvoiceFinancialSummaries,
 } from "src/services/finance/payment";
 import { roundMoney } from "src/services/finance/pricing";
+import { sameCurrency } from "src/services/finance/currency";
 import {
   clampPageSize,
   encodeKeysetCursor,
@@ -738,7 +739,9 @@ const rejectAllocationLine = (
   balances: ReadonlyMap<string, { balance: number }>,
 ): AllocationRejection | null => {
   if (!invoice) return "INVOICE_NOT_FOUND";
-  if (invoice.currency !== receipt.currency) return "CURRENCY_MISMATCH";
+  if (!sameCurrency(invoice.currency, receipt.currency)) {
+    return "CURRENCY_MISMATCH";
+  }
   if (CLOSED_INVOICE_STATUSES.has(invoice.status)) return "INVOICE_CLOSED";
 
   const balance = balances.get(invoice.id)?.balance ?? 0;
@@ -895,7 +898,7 @@ const validateAllocation = async (
   const summaries = await getInvoiceFinancialSummaries(
     invoices.filter(
       (invoice) =>
-        invoice.currency === receipt.currency &&
+        sameCurrency(invoice.currency, receipt.currency) &&
         !CLOSED_INVOICE_STATUSES.has(invoice.status),
     ),
   );

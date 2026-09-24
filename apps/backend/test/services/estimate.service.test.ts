@@ -421,7 +421,17 @@ describe("EstimateService.convert", () => {
     expect(data.subtotal).toBe(approved.subtotal);
     expect(data.taxTotal).toBe(approved.taxAmount);
     expect(data.totalAmount).toBe(approved.total);
-    expect(data.currency).toBe(approved.currency);
+  });
+
+  // Invoices and payments carry Stripe's lower-case codes. Copying the
+  // estimate's "GBP" made the converted invoice differ from every other one,
+  // and from its own Stripe receipts (#3607).
+  it("raises the invoice in the estimate's currency, in the invoice layer's case", async () => {
+    mockFindFirst.mockResolvedValue(approved);
+    await EstimateService.convert("est-1", "org-1", "user-1");
+
+    expect(approved.currency).toBe("GBP");
+    expect(mockInvoiceCreate.mock.calls[0][0].data.currency).toBe("gbp");
   });
 
   it("gives the invoice line a server id that is not the estimate item id", async () => {

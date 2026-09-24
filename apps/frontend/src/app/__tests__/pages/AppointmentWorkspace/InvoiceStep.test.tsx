@@ -301,7 +301,9 @@ const buildEncounter = (overrides: BuildEncounterOverrides = {}): AppointmentEnc
     invoiceLineItems: [],
     pastInvoices: [],
     depositCents: 0,
-    currency: '',
+    // A US clinic's encounter, as the store holds it once finance hydrates it.
+    // The catalog and unknown-currency cases pass '' explicitly.
+    currency: 'USD',
     withdrawDeposit: false,
     taxPercent: 0,
     overallDiscountPercent: 0,
@@ -508,6 +510,11 @@ describe('<InvoiceStep /> component', () => {
     await waitFor(() => expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalled());
     expect(invoiceServiceMock.finalizeFinanceInvoice).toHaveBeenCalledWith('inv-new');
     expect(invoiceServiceMock.recordManualInvoicePayment).toHaveBeenCalled();
+    // No currency: the server records a manual payment in its invoice's. The
+    // step used to send its own, a hardcoded USD when it knew none (#3607).
+    expect(invoiceServiceMock.recordManualInvoicePayment.mock.calls[0][1]).not.toHaveProperty(
+      'currency'
+    );
     expect(workspaceStoreMock.recordInvoicePayment).toHaveBeenCalledWith(
       'appt-1',
       expect.objectContaining({ method: 'CASH' })
@@ -625,6 +632,9 @@ describe('<InvoiceStep /> component', () => {
     expect(invoiceServiceMock.recordManualInvoicePayment).toHaveBeenCalledWith(
       'inv-new',
       expect.objectContaining({ settlementChannel: 'DEPOSIT' })
+    );
+    expect(invoiceServiceMock.recordManualInvoicePayment.mock.calls[0][1]).not.toHaveProperty(
+      'currency'
     );
     expect(workspaceStoreMock.recordDepositCollection).toHaveBeenCalledWith(
       'appt-1',
@@ -1067,11 +1077,17 @@ describe('<InvoiceStep /> component', () => {
     expect(screen.getByRole('button', { name: /^Collect £/ })).toBeInTheDocument();
   });
 
-  it('uses the default USD currency when no organisation is provided', async () => {
-    renderInvoiceStep({ currency: '' }, { organisationId: undefined });
+  // #3607: with neither the encounter nor the catalog naming a currency the
+  // step used to print a hardcoded USD. It now prints the bare amount.
+  it('prints a bare amount when no currency is known', async () => {
+    renderInvoiceStep(
+      { currency: '', invoiceLineItems: [invoiceLine('Consultation')] },
+      { organisationId: undefined }
+    );
     await screen.findByTestId('total-bill-container');
 
-    expect(screen.getByRole('button', { name: /^Collect \$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Collect \d/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Collect \$/ })).not.toBeInTheDocument();
   });
 
   it('appends bill lines to an existing open server invoice instead of creating one', async () => {

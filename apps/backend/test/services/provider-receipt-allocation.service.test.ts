@@ -381,6 +381,29 @@ describe("ProviderReceiptService.allocate - eligibility of each line", () => {
     });
   });
 
+  // An invoice converted from an estimate before #3607 carries "GBP" while the
+  // capture says "gbp": one currency, two spellings. An exact comparison
+  // refused it as a mismatch and left it out of the balance read.
+  it("treats a differently cased code on the invoice as the same currency", async () => {
+    setUpReceipt();
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      eligibleInvoice({ currency: "GBP" }),
+    ]);
+    mockedSummaries.mockResolvedValue(
+      financialSummaries([INVOICE_ID, { paid: 60, credited: 0, balance: 40 }]),
+    );
+
+    // Past the currency gate to the balance one: 100 asked of 40 owed.
+    expect(await ProviderReceiptService.allocate(request())).toEqual({
+      outcome: "INVOICE_NOT_ELIGIBLE",
+      invoiceId: INVOICE_ID,
+      reason: "EXCEEDS_INVOICE_BALANCE",
+    });
+    expect(mockedSummaries).toHaveBeenCalledWith([
+      expect.objectContaining({ id: INVOICE_ID, currency: "GBP" }),
+    ]);
+  });
+
   it("refuses a cancelled invoice even though it still shows a total", async () => {
     setUpReceipt();
     mockedPrisma.invoice.findMany.mockResolvedValue([

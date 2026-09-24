@@ -56,7 +56,8 @@ type ManualPaymentInput = {
   provider?: 'MANUAL';
   settlementChannel: 'CASH' | 'CARD_PRESENT' | 'BANK_TRANSFER' | 'DEPOSIT';
   amount: number;
-  currency: string;
+  /** Optional: the server records a manual payment in its invoice's currency. */
+  currency?: string;
   reference?: string;
   receivedAt?: string;
   notes?: string;

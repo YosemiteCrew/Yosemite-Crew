@@ -82,6 +82,15 @@ export class UnsupportedLedgerCurrencyError extends Error {
   }
 }
 
+/**
+ * Whether two ISO 4217 codes name the same currency. Invoices and payments
+ * carry Stripe's lower-case codes while estimates and claims carry upper-case
+ * ones, and rows written before #3607 mix both, so an exact comparison calls
+ * one currency two.
+ */
+export const sameCurrency = (a: string, b: string): boolean =>
+  a.trim().toUpperCase() === b.trim().toUpperCase();
+
 /** Whether the ledger can post `currency` at a precision it can defend. */
 export const isLedgerCurrencySupported = (
   currency: string | null | undefined,
