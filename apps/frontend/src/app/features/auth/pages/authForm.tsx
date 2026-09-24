@@ -140,16 +140,16 @@ export const AuthSubtitle = ({ children }: Readonly<{ children: ReactNode }>) =>
   <p style={subtitleStyle}>{children}</p>
 );
 
+// Always POST: if the form is submitted natively (before hydration, or with
+// scripts disabled) the field values travel in the request body, not the URL.
 export const AuthForm = ({
   onSubmit,
-  method,
   children,
 }: Readonly<{
   onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
-  method?: string;
   children: ReactNode;
 }>) => (
-  <form onSubmit={onSubmit} method={method} noValidate style={authFormStyle}>
+  <form onSubmit={onSubmit} method="post" noValidate style={authFormStyle}>
     {children}
   </form>
 );

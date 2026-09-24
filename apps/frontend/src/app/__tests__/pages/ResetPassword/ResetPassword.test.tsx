@@ -69,6 +69,13 @@ describe('ResetPassword landing page', () => {
     });
   };
 
+  it('submits the new-password form with POST so a native submission keeps field values out of the URL', () => {
+    const { container } = render(<ResetPassword />);
+    const form = container.querySelector('form');
+    expect(form).toHaveAttribute('method', 'post');
+    expect(form?.querySelector('input[type="password"]')).not.toBeNull();
+  });
+
   it('renders the new password form', () => {
     render(<ResetPassword />);
 

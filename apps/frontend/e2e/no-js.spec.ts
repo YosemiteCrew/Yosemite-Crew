@@ -149,3 +149,47 @@ test.describe('the consent card still works with JavaScript', () => {
     await expect(card).toBeHidden();
   });
 });
+
+/*
+ * The auth forms submit with POST.
+ *
+ * Before hydration, pressing the submit button is an ordinary form submission,
+ * and a form with no `method` sends its fields as a query string. `AuthForm`
+ * pins `method="post"`, so the values travel in the request body and the page
+ * renders again at a clean URL.
+ *
+ * The application bundles are blocked rather than scripting turned off: the
+ * inline scripts that reveal streamed Suspense content still run, so the form
+ * is on screen exactly as it is in the moment before React hydrates it.
+ */
+const AUTH_FORMS = [
+  { path: '/signin', fields: ['Work email', 'Password'], submit: 'Sign in' },
+  { path: '/developers/signin', fields: ['Work email', 'Password'], submit: 'Sign in' },
+  { path: '/signup', fields: ['Enter email', 'Set up password'], submit: 'Create account' },
+  { path: '/forgot-password', fields: ['Work email'], submit: 'Send reset link' },
+] as const;
+
+test.describe('the auth forms submit with POST before hydration', () => {
+  for (const { path, fields, submit } of AUTH_FORMS) {
+    test(`${path} keeps field values out of the URL`, async ({ page }) => {
+      await page.route('**/_next/static/chunks/**', (route) => route.abort());
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+
+      for (const label of fields) {
+        await page.getByLabel(label, { exact: true }).first().fill('e2e-value@example.com');
+      }
+
+      const [response] = await Promise.all([
+        page.waitForResponse((res) => res.request().isNavigationRequest()),
+        page.getByRole('button', { name: submit }).click(),
+      ]);
+
+      expect(response.request().method()).toBe('POST');
+      expect(response.status()).toBe(200);
+      const url = new URL(page.url());
+      expect(url.pathname).toBe(path);
+      expect(url.search).toBe('');
+      await expect(page.locator('form[method="post"]')).toBeVisible();
+    });
+  }
+});

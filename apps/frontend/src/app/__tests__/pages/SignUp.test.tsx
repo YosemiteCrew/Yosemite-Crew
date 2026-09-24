@@ -129,6 +129,13 @@ describe('SignUp page', () => {
     checkTermsBox();
   };
 
+  test('submits the sign-up form with POST so a native submission keeps field values out of the URL', () => {
+    const { container } = render(<SignUp />);
+    const form = container.querySelector('form');
+    expect(form).toHaveAttribute('method', 'post');
+    expect(form?.querySelector('input[type="password"]')).not.toBeNull();
+  });
+
   test('validates inputs before submitting', () => {
     render(<SignUp />);
     fireEvent.click(getSubmitBtn());

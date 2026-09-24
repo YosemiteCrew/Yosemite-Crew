@@ -154,6 +154,13 @@ describe('SignIn Page', () => {
 
   // --- 1. Rendering ---
 
+  it('submits the sign-in form with POST so a native submission keeps field values out of the URL', () => {
+    const { container } = render(<SignIn />);
+    const form = container.querySelector('form');
+    expect(form).toHaveAttribute('method', 'post');
+    expect(form?.querySelector('input[type="password"]')).not.toBeNull();
+  });
+
   it('renders the sign-in form correctly (default mode)', () => {
     render(<SignIn />);
 
