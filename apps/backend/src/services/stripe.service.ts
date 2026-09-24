@@ -871,6 +871,9 @@ export const StripeService = {
   // WEBHOOK: CONNECT
   // ----------------------------
   async _handleAccountUpdated(account: Stripe.Account) {
+    // Stripe may replay this event, including concurrently. These fields are
+    // absolute values from the account snapshot, so applying them repeatedly
+    // converges on the same state; do not add a generic event-id dedup table.
     const canAccept =
       account.charges_enabled === true && account.payouts_enabled === true;
 

@@ -1,7 +1,8 @@
 import { Documenso } from "@documenso/sdk-typescript";
+import { SDK_METADATA } from "@documenso/sdk-typescript/lib/config.js";
 import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
-import type { DocumentGetStatus } from "@documenso/sdk-typescript/models/operations/index.js";
 import axios from "axios";
+import { z } from "zod";
 import type { ClinicalPdfSignaturePlacement } from "@yosemite-crew/lib";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
@@ -61,12 +62,18 @@ const getExternalAuthSecret = () => {
   return EXTERNAL_AUTH_SECRET;
 };
 
-const getDocumensoClient = (apiKeyOverride?: string) => {
+const resolveApiKey = (apiKeyOverride?: string) => {
   const apiKey = apiKeyOverride ?? API_KEY;
 
   if (!apiKey) {
     throw new Error("DOCUMENSO_API_KEY is not set");
   }
+
+  return apiKey;
+};
+
+const getDocumensoClient = (apiKeyOverride?: string) => {
+  const apiKey = resolveApiKey(apiKeyOverride);
 
   const cached = documensoClients.get(apiKey);
 
@@ -105,8 +112,8 @@ export type DocumensoExternalRole = "ADMIN" | "MANAGER" | "MEMBER";
  * `config` - it exists to keep log lines small, not to redact.
  *
  * So the first time a Documenso call fails is the first time the credential is
- * written out. The four SDK calls in this file already log `.message` and
- * `.statusCode`; this is the same treatment for the two axios ones.
+ * written out. The SDK calls in this file log `.message` and `.statusCode`;
+ * this is the same treatment for the axios ones.
  */
 const describeError = (error: unknown) => {
   // Read the status structurally rather than through `axios.isAxiosError`: the
@@ -122,6 +129,59 @@ const describeError = (error: unknown) => {
     message: error instanceof Error ? error.message : String(error),
     status: response?.status,
   };
+};
+
+/**
+ * Not `error.body`: when the SDK cannot parse a 2xx response, that body is the
+ * raw response, and an envelope or distribute response lists every
+ * recipient's signing token. An APIError's message already carries its error
+ * body, which holds no token.
+ */
+const logDocumensoFailure = (error: unknown) => {
+  if (error instanceof errors.DocumensoError) {
+    logger.error("API error:", error.message);
+    logger.error("Status code:", error.statusCode);
+  } else {
+    logger.error("An unexpected error occurred:", describeError(error));
+  }
+};
+
+/*
+ * The envelope reads below go around the SDK. SDK 0.9.1's response schemas
+ * require fields that the Documenso 2.4.0 production runs does not have
+ * (recipients[].expiresAt, documentMeta.envelopeExpirationPeriod,
+ * envelopeItems[].documentDataId), so the SDK rejects every envelope 2.4.0
+ * returns. The create goes around it too, because its documents.create is
+ * deprecated. These schemas hold only what this service reads.
+ */
+const DocumentCreatedSchema = z.object({
+  envelopeId: z.string(),
+  id: z.number(),
+});
+
+const EnvelopeRecipientsSchema = z.object({
+  recipients: z.array(z.looseObject({ token: z.string() })),
+});
+
+const DocumentStatusSchema = z.enum([
+  "DRAFT",
+  "PENDING",
+  "COMPLETED",
+  "REJECTED",
+  "CANCELLED",
+]);
+
+const EnvelopeStatusesSchema = z.object({
+  data: z.array(z.object({ status: DocumentStatusSchema })),
+});
+
+// Joined as the SDK joins it: the path goes under the base URL's own path.
+const apiUrl = (path: string) => {
+  const base = new URL(getBaseUrl());
+  if (!base.pathname.endsWith("/")) {
+    base.pathname += "/";
+  }
+  return new URL(path, base).toString();
 };
 
 export class DocumensoService {
@@ -141,7 +201,8 @@ export class DocumensoService {
     title?: string;
   }) {
     try {
-      const documenso = getDocumensoClient(apiKey);
+      const Authorization = resolveApiKey(apiKey);
+      const url = apiUrl("document/create");
       const placement = signaturePlacement ?? DEFAULT_SIGNATURE_PLACEMENT;
       logger.info("Creating document with signature placement", {
         placement,
@@ -166,48 +227,59 @@ export class DocumensoService {
           },
         ],
       };
-      const created = await documenso.documents.create({
-        payload,
-        file: {
-          fileName: "document.pdf",
-          content: new Uint8Array(pdf),
+      // The request the SDK's deprecated documents.create sent, part for part:
+      // the same route, which makes an internalVersion 1 envelope. The SDK's
+      // envelopes.create makes an internalVersion 2 one, which Documenso signs
+      // through a different page and seals differently.
+      const form = new FormData();
+      // Copied, as the SDK did: a Buffer can be a view into a larger pool.
+      const file = new Blob([new Uint8Array(pdf)], { type: "application/pdf" });
+      form.append("file", file, "document.pdf");
+      form.append("payload", JSON.stringify(payload));
+      const { data: createResponse } = await axios.post<unknown>(url, form, {
+        headers: {
+          Accept: "application/json",
+          Authorization,
+          // Documenso writes the user agent into the document's audit log.
+          "User-Agent": SDK_METADATA.userAgent,
         },
       });
+      const created = DocumentCreatedSchema.parse(createResponse);
+      const { data: envelope } = await axios.get<unknown>(
+        apiUrl(`envelope/${encodeURIComponent(created.envelopeId)}`),
+        { headers: { Authorization } },
+      );
+      const { recipients } = EnvelopeRecipientsSchema.parse(envelope);
 
-      return await documenso.documents.get({ documentId: created.id });
+      // Callers persist the numeric document id (webhooks carry it) and hand
+      // the envelope id straight back to distributeDocument.
+      return {
+        id: created.id,
+        envelopeId: created.envelopeId,
+        recipients,
+      };
     } catch (error) {
-      if (error instanceof errors.DocumensoError) {
-        logger.error("API error:", error.message);
-        logger.error("Status code:", error.statusCode);
-        logger.error("Body:", error.body);
-      } else {
-        logger.error("An unexpected error occurred:", error);
-      }
+      logDocumensoFailure(error);
     }
   }
 
   static async distributeDocument({
-    documentId,
+    envelopeId,
     apiKey,
   }: {
-    documentId: number;
+    envelopeId: string;
     apiKey?: string;
   }) {
     try {
       const documenso = getDocumensoClient(apiKey);
-      const distributeResponse = await documenso.documents.distribute({
-        documentId: documentId,
+      const distributeResponse = await documenso.envelopes.distribute({
+        envelopeId,
       });
-      console.log("Distribute Response:", distributeResponse);
+      // Not the response itself: it carries each recipient's signing token.
+      logger.info("Documenso envelope distributed", { envelopeId });
       return distributeResponse;
     } catch (error) {
-      if (error instanceof errors.DocumensoError) {
-        logger.error("API error:", error.message);
-        logger.error("Status code:", error.statusCode);
-        logger.error("Body:", error.body);
-      } else {
-        logger.error("An unexpected error occurred:", error);
-      }
+      logDocumensoFailure(error);
     }
   }
 
@@ -226,20 +298,25 @@ export class DocumensoService {
   }: {
     documentId: number;
     apiKey?: string;
-  }): Promise<DocumentGetStatus> {
+  }): Promise<z.infer<typeof DocumentStatusSchema>> {
     try {
-      const documenso = getDocumensoClient(apiKey);
-      const document = await documenso.documents.get({ documentId });
-      return document.status;
-    } catch (error) {
-      if (error instanceof errors.DocumensoError) {
-        logger.error("API error:", error.message);
-        logger.error("Status code:", error.statusCode);
-        logger.error("Body:", error.body);
-      } else {
-        logger.error("An unexpected error occurred:", error);
+      const Authorization = resolveApiKey(apiKey);
+      // The only lookup the envelope API offers by the numeric id we persist.
+      const { data: response } = await axios.post<unknown>(
+        apiUrl("envelope/get-many"),
+        { ids: { type: "documentId", ids: [documentId] } },
+        { headers: { Authorization } },
+      );
+      const [envelope] = EnvelopeStatusesSchema.parse(response).data;
+      if (!envelope) {
+        throw new Error(`Documenso document ${documentId} not found`);
       }
-      throw error;
+      return envelope.status;
+    } catch (error) {
+      logDocumensoFailure(error);
+      // Not the axios error itself: its request config holds the API key, and
+      // callers log what they catch.
+      throw new Error(describeError(error).message);
     }
   }
 

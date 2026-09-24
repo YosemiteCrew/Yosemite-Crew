@@ -295,9 +295,7 @@ cmd_sbom() {
   # means the store is where the real package.json files live. The native
   # lockfiles (android gradle.lockfile, ios Podfile.lock) stay IN scope - they
   # carry the mobile app's Maven and CocoaPods dependencies - while build
-  # output and vendored pods are excluded. NOTE: the iOS Podfile.lock is not
-  # yet committed (#2129), so pods are absent from the SBOM until it lands;
-  # the staleness check already watches its path for that day.
+  # output and vendored pods are excluded.
   local excludes=(
     --exclude './**/.next/**'
     --exclude './**/dist/**'

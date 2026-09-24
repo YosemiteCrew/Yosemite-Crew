@@ -79,17 +79,6 @@ export default [
     },
   },
   {
-    /* The one remaining deprecation is documenso.documents.createV0, which
-       already carries a NOSONAR and an explanation there - SonarCloud honours
-       that comment and eslint does not. Migrating it is #2643, and it cannot be
-       verified without a live Documenso instance, so it is scoped off here
-       rather than suppressed inline. Delete this block when #2643 lands. */
-    files: ["src/services/documenso.service.ts"],
-    rules: {
-      "sonarjs/deprecation": "off",
-    },
-  },
-  {
     // Auth boundary guard (#1672): product code must use the provider-neutral
     // boundary from @yosemite-crew/auth. Provider SDKs may only be imported
     // inside packages/auth providers/ (and the migration tool under scripts/,

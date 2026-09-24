@@ -66,6 +66,8 @@ jobs:
       # it has one by booting the bundle before this check ever runs.
       - name: Run deploy startup-control gate tests
         run: ./scripts/deploy/tests/controls.test.sh
+      - name: Run deploy backup tests
+        run: ./scripts/deploy/tests/backups.test.sh
 
   deploy:
     # Only ever on an explicit dispatch. The pull_request trigger above exists for
@@ -224,15 +226,19 @@ jobs:
           # not just the entry script: api-deploy.sh sources lib/git-sync.sh
           # relative to its own location, so copying the one file would leave it
           # looking for a helper that is not there and exit before preflight.
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "ubuntu@$HOST" \
-            "rm -rf /tmp/yc-deploy && mkdir -p /tmp/yc-deploy"
+          #
+          # It goes to ~/.yc-deploy/scripts on the host, emptied and set up again by
+          # deploy_prepare_stage in lib/backups.sh. scp resolves the relative path
+          # from the home directory.
+          { cat scripts/deploy/lib/backups.sh; echo "deploy_prepare_stage \"\$HOME/.yc-deploy\""; } \
+            | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "ubuntu@$HOST" 'bash -s'
 
           scp -r -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            scripts/deploy/. "ubuntu@$HOST:/tmp/yc-deploy/"
+            scripts/deploy/. "ubuntu@$HOST:.yc-deploy/scripts/"
 
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             -o ServerAliveInterval=30 "ubuntu@$HOST" \
-            "chmod +x /tmp/yc-deploy/api-deploy.sh && REQUIRE_PROMOTED_FROM='$PROMOTION_BRANCH' /tmp/yc-deploy/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
+            "chmod +x \$HOME/.yc-deploy/scripts/api-deploy.sh && REQUIRE_PROMOTED_FROM='$PROMOTION_BRANCH' \$HOME/.yc-deploy/scripts/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
 
           # The exact commit the box now serves, for the outside check below.
           # Read only after the script succeeded, so it is the cutover commit.

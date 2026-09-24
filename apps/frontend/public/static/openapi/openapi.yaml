@@ -26392,6 +26392,582 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageError'
+  /v1/inventory/supplier-bills:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Create a supplier bill draft
+      operationId: post_v1_inventory_supplier_bills
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendorId
+                - currency
+                - externalReference
+                - lines
+              properties:
+                vendorId:
+                  type: string
+                currency:
+                  type: string
+                  description: Three-letter currency code.
+                externalReference:
+                  type: string
+                  description: The supplier's own bill number. Unique per organisation and supplier.
+                idempotencyKey:
+                  type: string
+                lines:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/SupplierBillLineInput'
+      responses:
+        '201':
+          description: The draft bill. A draft records no liability until it is posted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bill:
+                    $ref: '#/components/schemas/SupplierBill'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '409':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+  '/v1/inventory/organisation/{organisationId}/supplier-bills':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: List supplier bills
+      operationId: get_v1_inventory_organisation_organisationId_supplier_bills
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: 'Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.'
+          schema:
+            type: string
+        - name: vendorId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, POSTED, VOID]
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: One page of bills, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bills:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SupplierBill'
+                  nextCursor:
+                    type: string
+                    description: Absent on the last page.
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+  '/v1/inventory/supplier-bills/{id}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Get a supplier bill
+      operationId: get_v1_inventory_supplier_bills_id
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The bill with its lines and allocations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bill:
+                    $ref: '#/components/schemas/SupplierBill'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+  '/v1/inventory/supplier-bills/{id}/post':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Post a draft supplier bill as a liability
+      description: Retrying with the same idempotency key after the bill has posted returns the posted bill.
+      operationId: post_v1_inventory_supplier_bills_id_post
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - expectedVersion
+                - idempotencyKey
+              properties:
+                expectedVersion:
+                  type: integer
+                  minimum: 0
+                idempotencyKey:
+                  type: string
+      responses:
+        '200':
+          description: The bill with its lines and allocations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bill:
+                    $ref: '#/components/schemas/SupplierBill'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '409':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+  '/v1/inventory/supplier-bills/{id}/void':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Void a posted supplier bill
+      description: Refused once any credit or payment has been allocated to the bill.
+      operationId: post_v1_inventory_supplier_bills_id_void
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+                - expectedVersion
+              properties:
+                reason:
+                  type: string
+                expectedVersion:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: The bill with its lines and allocations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bill:
+                    $ref: '#/components/schemas/SupplierBill'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '409':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+  /v1/inventory/supplier-credits:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Record a supplier credit
+      operationId: post_v1_inventory_supplier_credits
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendorId
+                - currency
+                - externalReference
+                - amount
+              properties:
+                vendorId:
+                  type: string
+                currency:
+                  type: string
+                externalReference:
+                  type: string
+                amount:
+                  type: number
+                  exclusiveMinimum: 0
+                billId:
+                  type: string
+                  description: A posted bill this credit reduces. Cannot exceed what is outstanding on it.
+                receiptId:
+                  type: string
+                reason:
+                  type: string
+                documentId:
+                  type: string
+                idempotencyKey:
+                  type: string
+      responses:
+        '201':
+          description: The credit.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credit:
+                    $ref: '#/components/schemas/SupplierCredit'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '409':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+  /v1/inventory/supplier-payments:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Record a supplier payment made elsewhere
+      description: Records a payment and allocates it to posted bills. Any unallocated part stays on the account as supplier credit. Replaying the same idempotency key returns the original payment.
+      operationId: post_v1_inventory_supplier_payments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendorId
+                - currency
+                - amount
+                - paidAt
+                - method
+                - reference
+                - allocations
+                - idempotencyKey
+              properties:
+                vendorId:
+                  type: string
+                currency:
+                  type: string
+                amount:
+                  type: number
+                  exclusiveMinimum: 0
+                paidAt:
+                  type: string
+                  format: date-time
+                method:
+                  type: string
+                  enum: [CASH, BANK_TRANSFER, CARD, CHEQUE, OTHER]
+                reference:
+                  type: string
+                idempotencyKey:
+                  type: string
+                allocations:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - billId
+                      - amount
+                    properties:
+                      billId:
+                        type: string
+                      amount:
+                        type: number
+                        exclusiveMinimum: 0
+      responses:
+        '201':
+          description: The payment with its allocations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment:
+                    $ref: '#/components/schemas/SupplierPayment'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '409':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+  '/v1/inventory/organisation/{organisationId}/vendors/{vendorId}/accounts/{currency}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Get a supplier account balance
+      operationId: get_v1_inventory_organisation_organisationId_vendors_vendorId_accounts_currency
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: 'Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.'
+          schema:
+            type: string
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: currency
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The account.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    $ref: '#/components/schemas/SupplierAccount'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+  '/v1/inventory/organisation/{organisationId}/vendors/{vendorId}/accounts/{currency}/statement':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Get a supplier account statement
+      operationId: get_v1_inventory_organisation_organisationId_vendors_vendorId_accounts_currency_statement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: 'Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.'
+          schema:
+            type: string
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: currency
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: The account and its ledger entries, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statement:
+                    type: object
+                    properties:
+                      account:
+                        $ref: '#/components/schemas/SupplierAccount'
+                      entries:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SupplierEntry'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBillError'
 components:
   securitySchemes:
     BearerAuth:
@@ -26403,6 +26979,235 @@ components:
       scheme: bearer
       bearerFormat: 'yc_<live|test>_<secret> - a developer API key, not a session JWT'
   schemas:
+    SupplierBillError:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+          description: Present on validation errors.
+          properties:
+            formErrors:
+              type: array
+              items:
+                type: string
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+    SupplierBillLineInput:
+      type: object
+      required:
+        - lineType
+        - description
+        - quantityBilled
+        - unitCost
+      properties:
+        lineType:
+          type: string
+          enum: [STOCK, NON_STOCK_EXPENSE]
+          description: A stock line cannot post for more than its received quantity; bill any difference as a separate non-stock expense line.
+        description:
+          type: string
+        quantityOrdered:
+          type: number
+        quantityReceived:
+          type: number
+        quantityBilled:
+          type: number
+        unitCost:
+          type: number
+        taxPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        purchaseOrderId:
+          type: string
+        purchaseOrderLineId:
+          type: string
+        receiptId:
+          type: string
+        receiptLineId:
+          type: string
+        inventoryItemId:
+          type: string
+    SupplierBillLine:
+      allOf:
+        - $ref: '#/components/schemas/SupplierBillLineInput'
+        - type: object
+          properties:
+            id:
+              type: string
+            billId:
+              type: string
+            lineTotal:
+              type: number
+              description: Quantity billed times unit cost, before tax.
+            taxAmount:
+              type: number
+    SupplierAllocation:
+      type: object
+      properties:
+        id:
+          type: string
+        billId:
+          type: string
+        creditId:
+          type: string
+          nullable: true
+        paymentId:
+          type: string
+          nullable: true
+        amount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+    SupplierBill:
+      type: object
+      properties:
+        id:
+          type: string
+        organisationId:
+          type: string
+        vendorId:
+          type: string
+        supplierAccountId:
+          type: string
+        externalReference:
+          type: string
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, POSTED, VOID]
+        version:
+          type: integer
+          description: Send as expectedVersion when posting or voiding.
+        totalAmount:
+          type: number
+          description: Gross amount owed, including tax.
+        taxTotal:
+          type: number
+        postedAt:
+          type: string
+          format: date-time
+          nullable: true
+        voidedAt:
+          type: string
+          format: date-time
+          nullable: true
+        voidReason:
+          type: string
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierBillLine'
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierAllocation'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SupplierCredit:
+      type: object
+      properties:
+        id:
+          type: string
+        vendorId:
+          type: string
+        externalReference:
+          type: string
+        currency:
+          type: string
+        amount:
+          type: number
+        billId:
+          type: string
+          nullable: true
+        receiptId:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    SupplierPayment:
+      type: object
+      properties:
+        id:
+          type: string
+        vendorId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+        method:
+          type: string
+          enum: [CASH, BANK_TRANSFER, CARD, CHEQUE, OTHER]
+        reference:
+          type: string
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierAllocation'
+    SupplierAccount:
+      type: object
+      properties:
+        id:
+          type: string
+        vendorId:
+          type: string
+        currency:
+          type: string
+        balance:
+          type: number
+          description: Amount owed to the supplier. Negative when payments or credits exceed posted bills.
+        updatedAt:
+          type: string
+          format: date-time
+    SupplierEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [BILL, CREDIT, PAYMENT, REVERSAL]
+        amount:
+          type: number
+          description: Positive increases what is owed, negative reduces it.
+        currency:
+          type: string
+        billId:
+          type: string
+          nullable: true
+        creditId:
+          type: string
+          nullable: true
+        paymentId:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
     PrescriptionFillError:
       type: object
       properties:

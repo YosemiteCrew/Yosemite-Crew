@@ -166,3 +166,21 @@ jobs:
             echo "Mark the intended release as Latest (Releases > Edit > Set as the latest release)."
           fi
           exit 1
+
+  # A release published with GITHUB_TOKEN emits no `release` event, so
+  # supply-chain.yml never sees this one. workflow_dispatch is an event
+  # GITHUB_TOKEN can start, so dispatch it from this tag: it builds the SBOMs
+  # from the released code and attaches them to the release.
+  attach-sboms:
+    needs: generate-notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write # start supply-chain.yml
+    steps:
+      - name: Attach SBOMs to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh workflow run supply-chain.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG" -f release_tag="$TAG"

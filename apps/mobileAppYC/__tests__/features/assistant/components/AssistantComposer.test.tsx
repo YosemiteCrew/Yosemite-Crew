@@ -149,7 +149,9 @@ describe('AssistantComposer', () => {
 
       expect(inputOf(utils).props.multiline).toBe(true);
       expect(inputOf(utils).props.returnKeyType).toBe('send');
-      expect(inputOf(utils).props.blurOnSubmit).toBe(true);
+      // Return sends and drops the keyboard instead of inserting a newline.
+      expect(inputOf(utils).props.submitBehavior).toBe('blurAndSubmit');
+      expect(inputOf(utils).props.blurOnSubmit).toBeUndefined();
     });
   });
 

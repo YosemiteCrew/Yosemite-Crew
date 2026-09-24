@@ -14,11 +14,13 @@ import { Suspense, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ChatScope } from '@/app/features/chat/components/ChatContainer';
+import ChatUnavailableState from '@/app/features/chat/components/ChatUnavailableState';
+import { isStreamChatConfigured } from '@/app/lib/featureFlags';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import './page.css';
 
-// no-story: thin Next.js route wrapper (guards + deep-link state only); real content is ChatContainer, already storied
+// no-story: thin Next.js route wrapper (guards + deep-link state only); real content is ChatContainer or ChatUnavailableState, both storied
 const ChatContainer = dynamic(
   () =>
     import('@/app/features/chat/components/ChatContainer').then((m) => ({
@@ -45,6 +47,18 @@ function ChatPageContent() {
       clearAppointmentDeepLink();
     }
   };
+
+  // Without a Stream key the workspace cannot run, so it is never loaded:
+  // mounting it only to fail made every visit log a configuration error.
+  if (!isStreamChatConfigured()) {
+    return (
+      <ProtectedRoute>
+        <OrgGuard>
+          <ChatUnavailableState />
+        </OrgGuard>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>

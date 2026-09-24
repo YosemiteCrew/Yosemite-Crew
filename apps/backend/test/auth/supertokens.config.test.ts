@@ -47,6 +47,41 @@ jest.mock("supertokens-node/recipe/thirdparty", () => {
   };
 });
 
+const mockGetRolesForUser = jest.fn();
+
+jest.mock("supertokens-node/recipe/userroles", () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(() => ({ name: "userroles" })),
+    getRolesForUser: mockGetRolesForUser,
+  },
+}));
+
+const mockListUsersByAccountInfo = jest.fn();
+
+jest.mock("supertokens-node", () => {
+  const actual = jest.requireActual("supertokens-node");
+
+  return {
+    ...actual,
+    __esModule: true,
+    listUsersByAccountInfo: mockListUsersByAccountInfo,
+    default: { ...actual, listUsersByAccountInfo: mockListUsersByAccountInfo },
+  };
+});
+
+const mockTotpInit = jest.fn((config: unknown) => ({ name: "totp", config }));
+
+jest.mock("supertokens-node/recipe/totp", () => {
+  const actual = jest.requireActual("supertokens-node/recipe/totp");
+
+  return {
+    ...actual,
+    __esModule: true,
+    default: { ...actual.default, init: mockTotpInit },
+  };
+});
+
 const ORIGINAL_ENV = {
   AUTH_API_DOMAIN: process.env.AUTH_API_DOMAIN,
   AUTH_WEBSITE_DOMAIN: process.env.AUTH_WEBSITE_DOMAIN,
@@ -107,6 +142,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
     mockGetUserMetadata.mockReset();
     mockPasswordlessInit.mockClear();
     mockThirdPartyInit.mockClear();
+    mockTotpInit.mockClear();
+    mockGetRolesForUser.mockReset();
+    mockGetRolesForUser.mockResolvedValue({ status: "OK", roles: [] });
+    mockListUsersByAccountInfo.mockReset();
+    mockListUsersByAccountInfo.mockResolvedValue([]);
     delete process.env.AUTH_APPLE_CLIENT_ID;
     delete process.env.AUTH_APPLE_SERVICE_ID;
     delete process.env.AUTH_APPLE_KEY_ID;
@@ -945,6 +985,189 @@ describe("@yosemite-crew/auth supertokens config", () => {
       );
       consoleError.mockRestore();
     });
+  });
+
+  describe("admin console accounts", () => {
+    const ADMIN_ID = "console-admin";
+    const ADMIN_EMAIL = "owner@example.test";
+
+    const buildConfig = () => {
+      process.env.SMTP_HOST = "smtp.example.test";
+      process.env.SMTP_PORT = "465";
+      process.env.SMTP_SECURE = "true";
+      process.env.SMTP_USER = "smtp-user";
+      process.env.SMTP_PASSWORD = "smtp-password";
+      process.env.SMTP_FROM_NAME = "Yosemite Crew";
+      process.env.SMTP_FROM_EMAIL = "auth@example.test";
+      mockGetRolesForUser.mockImplementation(
+        async (_tenantId: string, userId: string) => ({
+          status: "OK",
+          roles: userId === ADMIN_ID ? ["superadmin"] : ["member"],
+        }),
+      );
+
+      const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+      getSuperTokensConfig();
+    };
+
+    const resetInput = (email: string) => ({
+      formFields: [{ id: "email", value: email }],
+      tenantId: "public",
+      options: {},
+      userContext: {},
+    });
+
+    const overriddenReset = (originalReset: jest.Mock, emailExists = true) => {
+      const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+      return config.override.apis(
+        recipeProxy({
+          generatePasswordResetTokenPOST: originalReset,
+          emailExistsGET: jest.fn(async () => ({
+            status: "OK",
+            exists: emailExists,
+          })),
+        }),
+      ).generatePasswordResetTokenPOST;
+    };
+
+    it("sends no reset email to an admin console account and answers like an unknown address", async () => {
+      buildConfig();
+      // The recipe answers OK for an address without an account.
+      const originalReset = jest.fn(async () => ({ status: "OK" }));
+      mockListUsersByAccountInfo.mockImplementation(
+        async (_tenantId: string, { email }: { email: string }) =>
+          email === ADMIN_EMAIL ? [{ id: "pet-parent" }, { id: ADMIN_ID }] : [],
+      );
+      const reset = overriddenReset(originalReset);
+
+      const unknownAnswer = await reset(resetInput("nobody@example.test"));
+      const adminAnswer = await reset(resetInput(ADMIN_EMAIL));
+
+      expect(adminAnswer).toEqual(unknownAnswer);
+      expect(originalReset).toHaveBeenCalledTimes(1);
+      expect(originalReset).toHaveBeenCalledWith(
+        resetInput("nobody@example.test"),
+      );
+      expect(mockListUsersByAccountInfo).toHaveBeenCalledWith(
+        "public",
+        { email: ADMIN_EMAIL },
+        false,
+        {},
+      );
+      expect(mockGetRolesForUser).toHaveBeenCalledWith("public", ADMIN_ID, {});
+    });
+
+    it("checks the address the reset would actually use", async () => {
+      buildConfig();
+      const originalReset = jest.fn(async () => ({ status: "OK" }));
+      mockListUsersByAccountInfo.mockImplementation(
+        async (_tenantId: string, { email }: { email: string }) =>
+          email === "firstlast@gmail.com" ? [{ id: ADMIN_ID }] : [],
+      );
+      const reset = overriddenReset(originalReset, false);
+
+      await expect(
+        reset(resetInput("First.Last+wave@GoogleMail.com")),
+      ).resolves.toEqual({ status: "OK" });
+      expect(originalReset).not.toHaveBeenCalled();
+    });
+
+    it("still sends a reset email to every other account", async () => {
+      buildConfig();
+      const originalReset = jest.fn(async () => ({ status: "OK" }));
+      mockListUsersByAccountInfo.mockResolvedValue([
+        { id: "clinic-member" },
+        { id: "pet-parent" },
+      ]);
+      const reset = overriddenReset(originalReset);
+      const input = resetInput("member@example.test");
+
+      await expect(reset(input)).resolves.toEqual({ status: "OK" });
+      expect(originalReset).toHaveBeenCalledWith(input);
+      expect(mockGetRolesForUser).toHaveBeenCalledTimes(2);
+    });
+
+    // Runs the validators against the session's factor claim, as the SDK does.
+    const sessionFor = (
+      userId: string,
+      completedFactors: Record<string, number>,
+    ) => ({
+      getUserId: () => userId,
+      assertClaims: jest.fn(async (validators: any[]) => {
+        for (const validator of validators) {
+          const result = await validator.validate(
+            { "st-mfa": { c: completedFactors, v: true } },
+            {},
+          );
+          if (!result.isValid) {
+            throw new Error("INVALID_CLAIMS");
+          }
+        }
+      }),
+    });
+
+    const overriddenDeviceApis = () => {
+      const config = mockTotpInit.mock.calls[0]?.[0] as any;
+      const originals: Record<string, jest.Mock> = {
+        createDevicePOST: jest.fn(async () => ({ status: "OK" })),
+        verifyDevicePOST: jest.fn(async () => ({ status: "OK" })),
+        removeDevicePOST: jest.fn(async () => ({ status: "OK" })),
+      };
+      return { originals, apis: config.override.apis(recipeProxy(originals)) };
+    };
+
+    const DEVICE_APIS = [
+      "createDevicePOST",
+      "verifyDevicePOST",
+      "removeDevicePOST",
+    ];
+
+    it.each(DEVICE_APIS)(
+      "refuses %s for an admin console account until the session has used its authenticator app",
+      async (name) => {
+        buildConfig();
+        const { originals, apis } = overriddenDeviceApis();
+        const session = sessionFor(ADMIN_ID, { "otp-email": 1 });
+
+        await expect(apis[name]({ session, userContext: {} })).rejects.toThrow(
+          "INVALID_CLAIMS",
+        );
+        expect(originals[name]).not.toHaveBeenCalled();
+        expect(mockGetRolesForUser).toHaveBeenCalledWith(
+          "public",
+          ADMIN_ID,
+          {},
+        );
+      },
+    );
+
+    it.each(DEVICE_APIS)(
+      "allows %s for an admin console account once the session has used its authenticator app",
+      async (name) => {
+        buildConfig();
+        const { originals, apis } = overriddenDeviceApis();
+        const session = sessionFor(ADMIN_ID, { "otp-email": 1, totp: 2 });
+
+        await expect(apis[name]({ session, userContext: {} })).resolves.toEqual(
+          { status: "OK" },
+        );
+        expect(originals[name]).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(DEVICE_APIS)(
+      "leaves %s unchanged for every other account",
+      async (name) => {
+        buildConfig();
+        const { originals, apis } = overriddenDeviceApis();
+        const session = sessionFor("clinic-member", {});
+        const input = { session, userContext: {} };
+
+        await expect(apis[name](input)).resolves.toEqual({ status: "OK" });
+        expect(originals[name]).toHaveBeenCalledWith(input);
+        expect(session.assertClaims).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("apple id_token audience selection", () => {

@@ -376,16 +376,19 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
         </div>
       </Modal>
 
-      <CenterModal showModal={showDiscardConfirm} setShowModal={setShowDiscardConfirm}>
-        <ModalHeader title="Discard changes?" onClose={() => setShowDiscardConfirm(false)} />
-        <p className="text-body-4 text-text-primary">
-          You have unsaved changes. Are you sure you want to discard them?
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <Secondary href="#" text="Keep editing" onClick={() => setShowDiscardConfirm(false)} />
-          <Primary href="#" text="Discard" onClick={resetAndClose} />
-        </div>
-      </CenterModal>
+      {/* Mounted only while open: a closed CenterModal keeps its content laid out. */}
+      {showDiscardConfirm && (
+        <CenterModal showModal setShowModal={setShowDiscardConfirm}>
+          <ModalHeader title="Discard changes?" onClose={() => setShowDiscardConfirm(false)} />
+          <p className="text-body-4 text-text-primary">
+            You have unsaved changes. Are you sure you want to discard them?
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Secondary href="#" text="Keep editing" onClick={() => setShowDiscardConfirm(false)} />
+            <Primary href="#" text="Discard" onClick={resetAndClose} />
+          </div>
+        </CenterModal>
+      )}
     </>
   );
 };

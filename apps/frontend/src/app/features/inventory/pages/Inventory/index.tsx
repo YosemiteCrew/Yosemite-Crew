@@ -1423,6 +1423,7 @@ const useInventoryContent = () => {
           setShowModal={setDispensaryModalOpen}
           organisationId={primaryOrgId ?? ''}
           onActionComplete={fetchDispensaryRecords}
+          canDispense={canEditPrescription}
         />
 
         <AddInventory

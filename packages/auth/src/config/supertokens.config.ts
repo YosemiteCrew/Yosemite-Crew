@@ -1,7 +1,8 @@
-import type { TypeInput } from 'supertokens-node/types';
+import type { TypeInput, UserContext } from 'supertokens-node/types';
 import type { ProviderInput } from 'supertokens-node/recipe/thirdparty/types';
+import SuperTokens from 'supertokens-node';
 import EmailPassword from 'supertokens-node/recipe/emailpassword';
-import Session from 'supertokens-node/recipe/session';
+import Session, { type SessionContainer } from 'supertokens-node/recipe/session';
 import EmailVerification from 'supertokens-node/recipe/emailverification';
 import { getAuthAppInfo } from './appInfo.js';
 import { getSmtpSettings } from './smtp.config.js';
@@ -17,6 +18,7 @@ import UserRoles from 'supertokens-node/recipe/userroles';
 import { SMTPService as PasswordlessSMTPService } from 'supertokens-node/recipe/passwordless/emaildelivery';
 import { getAuthHooks } from '../hooks.js';
 import type { AuthProfile, LoginMethod } from '../types.js';
+import { isValidTurnstileToken, verifyTurnstileToken } from '../turnstile.js';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -29,15 +31,10 @@ function requireEnv(name: string): string {
 }
 
 const SUPERTOKENS_API_KEY_FIELD = 'apiKey' as const;
-const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_ACTION = 'business_signup';
 const TURNSTILE_TOKEN_FIELD = 'turnstileToken';
 const TURNSTILE_FIELD_ERROR = 'Complete bot verification before creating an account.';
 const TURNSTILE_SIGNUP_ERROR = 'We could not verify this signup. Please refresh and try again.';
-
-function isValidTurnstileToken(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 2048;
-}
 
 // Keys this package stores on SuperTokens' userContext to carry login-flow
 // facts from the recipe overrides into session creation and MFA policy.
@@ -105,37 +102,6 @@ function readEmailField(input: {
 }): string | undefined {
   const value = input.formFields.find((field) => field.id === 'email')?.value;
   return typeof value === 'string' ? value : undefined;
-}
-
-async function verifyTurnstile(input: {
-  token: string;
-  secret: string;
-  hostname: string;
-  remoteIp?: string;
-}): Promise<boolean> {
-  try {
-    const body = new URLSearchParams({ secret: input.secret, response: input.token });
-    if (input.remoteIp) body.set('remoteip', input.remoteIp);
-    const response = await fetch(TURNSTILE_SITEVERIFY_URL, {
-      method: 'POST',
-      body,
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) return false;
-    const result = (await response.json()) as {
-      success?: boolean;
-      action?: string;
-      hostname?: string;
-    };
-    return (
-      result.success === true &&
-      result.action === TURNSTILE_ACTION &&
-      result.hostname === input.hostname
-    );
-  } catch (error) {
-    console.error('[auth] Turnstile verification failed', error);
-    return false;
-  }
 }
 
 function defaultProfileForMethod(method: LoginMethod): AuthProfile {
@@ -228,6 +194,44 @@ async function isSignInDenied(input: {
     console.error('[auth] isSignInBlocked hook failed', err);
     return false;
   }
+}
+
+// The admin console signs in against the same accounts. Its users change their
+// password and authenticator app from the console, not through this API.
+const ADMIN_CONSOLE_ROLE = 'superadmin';
+const ADMIN_CONSOLE_TENANT_ID = 'public';
+
+async function isAdminConsoleUser(userId: string, userContext: UserContext): Promise<boolean> {
+  const { roles } = await UserRoles.getRolesForUser(ADMIN_CONSOLE_TENANT_ID, userId, userContext);
+  return roles.some((role) => role.trim().toLowerCase() === ADMIN_CONSOLE_ROLE);
+}
+
+async function isAdminConsoleEmail(
+  tenantId: string,
+  email: string,
+  userContext: UserContext
+): Promise<boolean> {
+  const users = await SuperTokens.listUsersByAccountInfo(tenantId, { email }, false, userContext);
+  const matches = await Promise.all(users.map((user) => isAdminConsoleUser(user.id, userContext)));
+  return matches.includes(true);
+}
+
+// Device changes for an admin console user need a session that has already
+// passed the authenticator check. Everyone else is unaffected.
+function afterAdminConsoleTotp<
+  I extends { session: SessionContainer; userContext: UserContext },
+  R,
+>(api: ((input: I) => Promise<R>) | undefined): ((input: I) => Promise<R>) | undefined {
+  if (api === undefined) return undefined;
+  return async (input) => {
+    if (await isAdminConsoleUser(input.session.getUserId(input.userContext), input.userContext)) {
+      await input.session.assertClaims(
+        [MultiFactorAuth.MultiFactorAuthClaim.validators.hasCompletedRequirementList(['totp'])],
+        input.userContext
+      );
+    }
+    return api(input);
+  };
 }
 
 function isMfaRequirementEnabled(): boolean {
@@ -446,8 +450,18 @@ export function getSuperTokensConfig(): TypeInput {
             // every email/password route answers 500.
             const signUpPOST = original.signUpPOST?.bind(original);
             const signInPOST = original.signInPOST?.bind(original);
-            const generatePasswordResetTokenPOST =
-              original.generatePasswordResetTokenPOST?.bind(original);
+            const resetTokenPOST = original.generatePasswordResetTokenPOST?.bind(original);
+            // Admin console users get the same answer as an unknown address, and no email.
+            const generatePasswordResetTokenPOST: typeof resetTokenPOST =
+              resetTokenPOST === undefined
+                ? undefined
+                : async (input) => {
+                    const email = readEmailField(input);
+                    return email !== undefined &&
+                      (await isAdminConsoleEmail(input.tenantId, email, input.userContext))
+                      ? { status: 'OK' }
+                      : resetTokenPOST(input);
+                  };
             const emailExistsGET = original.emailExistsGET?.bind(original);
 
             return {
@@ -465,10 +479,11 @@ export function getSuperTokensConfig(): TypeInput {
                         if (
                           !turnstileSecret ||
                           !isValidTurnstileToken(token) ||
-                          !(await verifyTurnstile({
+                          !(await verifyTurnstileToken({
                             token,
                             secret: turnstileSecret,
                             hostname: turnstileHostname,
+                            action: TURNSTILE_ACTION,
                             remoteIp,
                           }))
                         ) {
@@ -579,7 +594,16 @@ export function getSuperTokensConfig(): TypeInput {
           service: new EmailVerificationSMTPService({ smtpSettings }),
         },
       }),
-      TOTP.init(),
+      TOTP.init({
+        override: {
+          apis: (original) => ({
+            ...original,
+            createDevicePOST: afterAdminConsoleTotp(original.createDevicePOST?.bind(original)),
+            verifyDevicePOST: afterAdminConsoleTotp(original.verifyDevicePOST?.bind(original)),
+            removeDevicePOST: afterAdminConsoleTotp(original.removeDevicePOST?.bind(original)),
+          }),
+        },
+      }),
       MultiFactorAuth.init({
         firstFactors,
         override: {

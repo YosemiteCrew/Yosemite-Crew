@@ -195,20 +195,19 @@ jest.mock(
   () => () => <div data-testid="estimate-panel" />
 );
 
-jest.mock(
-  '@/app/ui/overlays/Modal/CenterModal',
-  () => (props: any) =>
-    props.showModal ? (
-      <div data-testid="center-modal">
-        <button
-          type="button"
-          data-testid="center-modal-fn-close"
-          onClick={() => props.setShowModal?.((p: boolean) => !p)}
-        />
-        {props.children}
-      </div>
-    ) : null
-);
+// Faithful to the real CenterModal: a closed one still renders its children
+// (hidden only by opacity), so closed-means-absent has to hold at the call site.
+// The old mock returned null when closed and hid exactly that divergence.
+jest.mock('@/app/ui/overlays/Modal/CenterModal', () => (props: any) => (
+  <div data-testid="center-modal" data-open={String(props.showModal)}>
+    <button
+      type="button"
+      data-testid="center-modal-fn-close"
+      onClick={() => props.setShowModal?.((p: boolean) => !p)}
+    />
+    {props.children}
+  </div>
+));
 
 // Phone detection: defaults to desktop (false); the phone-sheet suite overrides it.
 jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
@@ -414,6 +413,7 @@ describe('AddAppointmentCentralModal', () => {
 
     it('renders discard confirmation modal when close is triggered with unsaved changes', async () => {
       render(<AddAppointmentCentralModal {...defaultProps} />);
+      expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
 
       await act(async () => {
         fireEvent.click(screen.getByTestId('close-modal'));
@@ -1484,6 +1484,19 @@ describe('TimeSlotDropdown (direct)', () => {
 });
 
 describe('DiscardConfirmationModal (direct)', () => {
+  // The appointment modal nests the companion editor, whose own confirm carries
+  // the same heading: a closed confirm left in the DOM made every page hosting
+  // the modal show "Discard changes?" twice to the route sweep.
+  it('mounts nothing while closed and the heading once open', () => {
+    const props = { setShowModal: jest.fn(), onDiscard: jest.fn() };
+    const { rerender } = render(<DiscardConfirmationModal showModal={false} {...props} />);
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+
+    rerender(<DiscardConfirmationModal showModal {...props} />);
+    expect(screen.getAllByText('Discard changes?')).toHaveLength(1);
+  });
+
   it('renders and wires keep-editing, discard and pointer ripple', () => {
     const setShowModal = jest.fn();
     const onDiscard = jest.fn();

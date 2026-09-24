@@ -46,6 +46,7 @@ import taskFhirRouter from "./task.fhir.router";
 import taskScheduleFhirRouter from "./task-schedule.fhir.router";
 import workspaceRouter from "./workspace.router";
 import inventoryRoter from "./inventory.router";
+import supplierBillsRouter from "./supplier-bills.router";
 import searchRouter from "./search.router";
 import observationToolRouter from "./observationTool.routes";
 import dashboardRouter from "./dashboard.router";
@@ -203,6 +204,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/adverse-event`, adverseEventRouter);
   app.use(`/v1/task`, taskRouter);
   app.use(`/v1/inventory`, inventoryRoter);
+  app.use(`/v1/inventory`, supplierBillsRouter);
   app.use(`/v1/observation-tools`, observationToolRouter);
   app.use(`/v1/dashboard`, dashboardRouter);
   app.use(`/v1/mobile-config`, mobileConfigRouter);

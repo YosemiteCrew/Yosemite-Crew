@@ -3,7 +3,9 @@ import {
   APP_ROUTE_PATTERN,
   DEVELOPER_LOGIN_PATH,
   LOGIN_PATH,
+  expectNotADeveloper,
   getRequiredEnv,
+  signedInRoles,
   skipUnlessAuthSurfaceDeployed,
   submitSignIn,
   waitForRouteAwayFrom,
@@ -13,13 +15,14 @@ import {
  * Regression cover for the developer portal locking out valid sessions.
  *
  * Both tests here rest on one fact: the YC_E2E_* account is an ordinary app
- * account, not a developer one. `auth-flow.spec.ts` is what establishes that -
- * it asserts sign-in lands on APP_ROUTE_PATTERN, which excludes
- * `/developers/*`. So this is exactly the account that used to be bounced.
+ * account, not a developer one - exactly the account that used to be bounced.
  *
- * If that account is ever converted to a developer account, these tests stop
- * testing anything and start passing for the wrong reason. The first assertion
- * in each guards against that by failing if the portal lets it in.
+ * Landing on APP_ROUTE_PATTERN does not establish that: an account that is both
+ * a practice member and a developer lands there too when it uses the ordinary
+ * form. So each test reads the roles `/v1/auth/me` reports and fails first, with
+ * a message that names the fixture, when the account holds the developer role.
+ * Without that check the drift showed up only as a 30-second timeout waiting for
+ * the "not a developer" notice the portal rightly never showed.
  */
 
 // Same reasoning as auth-flow.spec.ts: a real credential is typed here, and
@@ -40,8 +43,10 @@ test('a non-developer keeps their session after visiting a developer route', asy
   // user would already have when they wander into the portal.
   await page.goto(LOGIN_PATH, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('load', { timeout: 30_000 });
+  const roles = signedInRoles(page);
   await submitSignIn(page, email, password);
   await waitForRouteAwayFrom(page, LOGIN_PATH);
+  expectNotADeveloper(await roles);
 
   const signedInPath = new URL(page.url()).pathname;
   expect(signedInPath).toMatch(APP_ROUTE_PATTERN);
@@ -74,7 +79,11 @@ test('developer sign-in with a non-developer account does not loop', async ({ pa
   await page.goto(DEVELOPER_LOGIN_PATH, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('load', { timeout: 30_000 });
 
+  const roles = signedInRoles(page);
   await submitSignIn(page, email, password);
+  // Before the landing check: a developer account correctly lands on
+  // /developers/home from this form, which would otherwise read as the loop.
+  expectNotADeveloper(await roles);
 
   /* The failure this replaces: sign-in succeeded, the redirect sent the user to
      /developers/home because the developer FORM was used, the guard rejected

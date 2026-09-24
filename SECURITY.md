@@ -4,28 +4,43 @@ This policy explains how to report a security vulnerability in Yosemite Crew and
 
 ## Reporting a Vulnerability
 
-Reporting any potential vulnerabilities is strongly encouraged.
+Please report a suspected vulnerability privately. Do not open a public issue, discussion or pull request for it.
 
-If you suspect a vulnerability, please take the following steps:
+- **Email:** [security@yosemitecrew.com](mailto:security@yosemitecrew.com) is our security contact.
+- **GitHub:** you can also use private vulnerability reporting on this repository. Open the **Security** tab and choose **Report a vulnerability**, or go straight to the [private report form](https://github.com/YosemiteCrew/Yosemite-Crew/security/advisories/new).
 
-- Contact the team at `security at yosemitecrew.com`.
-- Include a comprehensive description of the potential vulnerability and steps to reproduce the issue, if possible. The more information you can provide, the quicker Yosemite Crew can address the problem.
+Include what you can: the affected app and version, a description of the issue, and steps to reproduce it. A partial report is welcome.
 
-You can expect a response to your initial report within one business day.
-While the core team works on addressing the issue, please maintain confidentiality about the vulnerability to ensure the security of all users.
-Please refrain from exploiting the vulnerability or revealing the problem to others.
+## What to Expect
 
-While Yosemite Crew doesn't have a formal bug bounty program right now due to the project's nascent stage, rest assured that:
+- **Acknowledgement within 2 business days** of your report.
+- We triage the report, tell you whether we accept it, and keep you updated until it is resolved.
+- **Coordinated disclosure:** please keep the issue confidential and give us up to **90 days** from acknowledgement to release a fix before any public disclosure. We are usually faster, and we will agree the disclosure date with you.
+- We credit you in the advisory and the release notes, unless you prefer not to be named.
 
-- You will get a response within one business day.
-- Your report and all accompanying data will receive the highest level of confidentiality.
-- Your contribution is greatly appreciated, and Yosemite Crew would acknowledge your role in the vulnerability fix, if you opt for identification.
-- Yosemite Crew will grant you permission to publicly discuss your findings once users have had a reasonable time to apply the patch after it becomes available.
-- Yosemite Crew guarantees not to pursue any legal action as long as the vulnerability is not exploited.
+## Supported Versions
+
+Security fixes are made for the latest release only, and they are free of charge. Earlier releases do not receive fixes, so please update.
+
+| Product                     | Receives security fixes          |
+| --------------------------- | -------------------------------- |
+| Hosted web app and API      | Yes, always the current version  |
+| Self-hosted web app and API | Latest release                   |
+| Desktop app                 | Latest release                   |
+| Mobile app                  | Latest version in the app stores |
+| Published packages          | Latest published version         |
+| Any earlier release         | No                               |
+
+## How Fixes Are Announced
+
+Once a fix is available, we publish a security advisory on this repository and list the fix in the release notes. The advisory names the affected versions, the impact and severity, and how to update.
+
+## Safe Harbour
+
+We will not take legal action against good-faith research that follows this policy: avoid privacy violations, data destruction and service disruption, access no more data than you need to show the issue, and give us time to fix it before any disclosure.
+
+There is no bug bounty program at this time.
 
 ## Security Features
 
-Efforts are continually made to enhance the security of the product.
-If you have any recommendations or feature request that could enhance the product's security, please share them via the discussion forum.
-
-⚠️ Note this does not apply to security vulnerabilities. If you're in doubt, then always follow the security vulnerability process
+Suggestions that would improve the product's security are welcome in the discussion forum. This does not apply to vulnerabilities: report those privately as described above.

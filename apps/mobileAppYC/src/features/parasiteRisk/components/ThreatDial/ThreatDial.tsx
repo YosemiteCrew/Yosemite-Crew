@@ -25,6 +25,8 @@ const SWEEP_RATIO = 260 / 360;
 const ARC_LENGTH = CIRCUMFERENCE * SWEEP_RATIO;
 /** Rotate so the gap sits symmetrically at the bottom. */
 const START_ANGLE = 90 + (360 - 260) / 2;
+/** SVG rotate(angle cx cy): turn the gauge about its own centre. */
+const GAUGE_ROTATION = `rotate(${START_ANGLE} ${SIZE / 2} ${SIZE / 2})`;
 
 interface ThreatDialProps {
   tier: RiskTier;
@@ -93,7 +95,7 @@ export const ThreatDial: React.FC<ThreatDialProps> = ({
         index,
       })}>
       <Svg width={SIZE} height={SIZE}>
-        <G rotation={START_ANGLE} originX={SIZE / 2} originY={SIZE / 2}>
+        <G transform={GAUGE_ROTATION}>
           <Circle
             cx={SIZE / 2}
             cy={SIZE / 2}

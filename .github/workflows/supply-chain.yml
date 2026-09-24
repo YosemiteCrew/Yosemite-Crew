@@ -17,8 +17,9 @@ on:
       - main
     # Releases published by workflows using GITHUB_TOKEN (desktop-release,
     # release-notes) do NOT emit a release event this workflow can see, so the
-    # user's tag push is the trigger that covers those paths: it produces the
-    # SBOM artifacts and runs the gates for the released ref.
+    # user's tag push is the trigger that runs the gates for the released ref.
+    # Those workflows attach the SBOMs by dispatching this one with
+    # release_tag once the release exists.
     tags:
       - '**'
   release:
@@ -36,7 +37,10 @@ on:
         default: ''
 
 concurrency:
-  group: supply-chain-${{ github.event.pull_request.number || github.ref }}
+  # Keyed by event too: the dispatch that attaches a release's SBOMs runs on
+  # the same tag ref as the tag push, and must not cancel that run, which is
+  # the verdict the release workflows wait for.
+  group: supply-chain-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
@@ -143,9 +147,10 @@ jobs:
     name: Attach SBOMs to the release
     # The release event carries the target tag itself. Releases published by
     # workflows using GITHUB_TOKEN (desktop-release, release-notes) emit no
-    # release event, so those are covered by a workflow_dispatch run with
-    # release_tag set - dispatched FROM THE TAG REF, so the sbom job above
-    # builds from the released code and the assets match the release.
+    # release event, so each of them dispatches this workflow with
+    # release_tag set once its release is published - FROM THE TAG REF, so the
+    # sbom job above builds from the released code and the assets match the
+    # release. The same dispatch, run by hand, backfills an older release.
     if: >-
       github.event_name == 'release' ||
       (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
