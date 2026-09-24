@@ -15,16 +15,16 @@ export type TriagePriority = 'IMMEDIATE' | 'URGENT' | 'LESS_URGENT' | 'STANDARD'
  */
 export type CheckInStatus = 'WAITING' | 'IN_CONSULTATION' | 'COMPLETED' | 'NO_SHOW' | 'CANCELLED';
 
+/** A check-in still on the board: waiting to be seen, or in consultation. */
+export const isActiveCheckInStatus = (status: CheckInStatus): boolean =>
+  status === 'WAITING' || status === 'IN_CONSULTATION';
+
 /**
  * One check-in exactly as the controller returns it (the raw Prisma row). The
  * clinical handler replies with the row itself — no `{ data, meta }` envelope —
  * so `DateTime` columns arrive as ISO strings and nullable columns arrive as
  * `null`, not `undefined`.
  */
-/** A check-in still on the board: waiting to be seen, or in consultation. */
-export const isActiveCheckInStatus = (status: CheckInStatus): boolean =>
-  status === 'WAITING' || status === 'IN_CONSULTATION';
-
 export interface PatientCheckIn {
   id: string;
   organisationId: string;

@@ -69,12 +69,6 @@ type HarnessProps = {
 };
 
 /**
- * `FloatingToolbar` takes a live `Editor` and calls `isActive` / `chain()` while
- * it renders, so it cannot be storied from args alone. This harness rebuilds the
- * exact field `RichTextEditor` puts it in - same extensions, same wrapper
- * classes - and seeds the selection, which is the only input the bar has.
- */
-/**
  * The editor the harness last mounted, so a play function can assert the
  * selection tiptap actually holds.
  *
@@ -86,6 +80,12 @@ type HarnessProps = {
  */
 let liveEditor: Editor | null = null;
 
+/**
+ * `FloatingToolbar` takes a live `Editor` and calls `isActive` / `chain()` while
+ * it renders, so it cannot be storied from args alone. This harness rebuilds the
+ * exact field `RichTextEditor` puts it in - same extensions, same wrapper
+ * classes - and seeds the selection, which is the only input the bar has.
+ */
 const ToolbarHarness = ({ html, seed }: HarnessProps) => {
   /* The SOAP page holds the note's HTML in state and feeds it back as `value`,
      so a document change re-renders the field - and that re-render is the only

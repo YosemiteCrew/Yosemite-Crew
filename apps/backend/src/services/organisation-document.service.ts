@@ -329,11 +329,8 @@ export const OrganizationDocumentService = {
   },
 
   /**
-   * For mobile app: only PUBLIC documents for an org,
-   * usually legal docs to show during onboarding / booking.
-   */
-  /**
-   * The documents a practice publishes to pet owners.
+   * The documents a practice publishes to pet owners - for the mobile app,
+   * usually the legal documents shown during onboarding or booking.
    *
    * `visibility` is pinned to PUBLIC and is NOT a caller-supplied filter. It used
    * to be one, and it was optional: a mobile caller who omitted it - or asked for

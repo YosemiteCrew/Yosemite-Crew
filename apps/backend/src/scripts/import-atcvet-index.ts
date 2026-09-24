@@ -58,12 +58,6 @@ const LEVEL_BY_LENGTH: Record<number, number> = {
 };
 const PARENT_LENGTH: Record<number, number> = { 4: 2, 5: 4, 6: 5, 8: 6 };
 
-/**
- * Guards on retirement. The published index has held ~8,300 codes for years and a
- * yearly release adds and withdraws a handful, so an extract far below this size,
- * or far smaller than what is already loaded, is a truncated file rather than a
- * genuine contraction of the classification.
- */
 /** Level-2 groups whose published ATCvet name is "ANTIBACTERIALS FOR ...". */
 const ANTIBACTERIAL_GROUPS = ["QJ01", "QJ51"];
 
@@ -74,6 +68,12 @@ const ANTIBACTERIAL_GROUPS = ["QJ01", "QJ51"];
 export const isAntibacterial = (code: string): boolean =>
   ANTIBACTERIAL_GROUPS.some((group) => code.startsWith(group));
 
+/**
+ * Guards on retirement. The published index has held ~8,300 codes for years and a
+ * yearly release adds and withdraws a handful, so an extract far below this size,
+ * or far smaller than what is already loaded, is a truncated file rather than a
+ * genuine contraction of the classification.
+ */
 const MINIMUM_RELEASE_SIZE = 5000;
 const MAXIMUM_RELEASE_SHRINKAGE = 0.1;
 

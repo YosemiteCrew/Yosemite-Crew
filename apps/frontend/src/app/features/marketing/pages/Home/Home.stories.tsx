@@ -19,7 +19,6 @@ import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/use
 
 /** The one session-cache key `useReleaseLanes` owns. */
 const LANES_CACHE_KEY = 'yc_marketing_release_lanes_v1';
-/** The pair `useGithubStats` renders from, and the timestamp that decides its 5 minute TTL. */
 
 /** U+00B7 middle dot: what a lane with no release and a stat with no number both show. */
 const PLACEHOLDER = '·';

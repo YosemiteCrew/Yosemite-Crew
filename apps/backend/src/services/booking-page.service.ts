@@ -163,13 +163,6 @@ export const isValidBookingSlug = (slug: string): boolean =>
   !isReservedBookingSlug(slug);
 
 /**
- * Reduce a practice name to a candidate slug.
- *
- * Diacritics are decomposed and stripped rather than dropped wholesale, so
- * "Tierärzte Grünwald" becomes `tierarzte-grunwald` and not `tier-rzte-gr-nwald`
- * - this product operates in the EU and most practice names carry them.
- */
-/**
  * Trim leading and trailing hyphens.
  *
  * Deliberately not `/^-+|-+$/g`. That pattern backtracks polynomially on a
@@ -184,6 +177,13 @@ const trimHyphens = (value: string): string => {
   return value.slice(start, end);
 };
 
+/**
+ * Reduce a practice name to a candidate slug.
+ *
+ * Diacritics are decomposed and stripped rather than dropped wholesale, so
+ * "Tierärzte Grünwald" becomes `tierarzte-grunwald` and not `tier-rzte-gr-nwald`
+ * - this product operates in the EU and most practice names carry them.
+ */
 export const slugifyOrganisationName = (name: string): string =>
   trimHyphens(
     trimHyphens(
