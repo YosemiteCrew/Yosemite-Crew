@@ -46,6 +46,8 @@ export type HomeStackParamList = {
   Notifications: undefined;
   ProfileOverview: {companionId: string};
   Passport: {companionId: string};
+  MedicalRecords: {companionId: string};
+  Prescriptions: {companionId: string};
   EditCompanionOverview: {companionId: string};
   EditParentOverview: {companionId: string};
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;

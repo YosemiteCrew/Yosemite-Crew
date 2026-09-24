@@ -213,21 +213,6 @@ const mapDetail = (
 };
 
 /**
- * The distinct active memberships of one organisation.
- *
- * Everything member-shaped on this surface goes through here, so the roster and
- * the number printed beside it are the same list measured two ways rather than
- * two queries that have to be kept in agreement.
- *
- * Both stored columns are raw FHIR references, which forces the de-duplication.
- * `@@unique([practitionerReference, organizationReference, roleCode])` is over
- * the strings as written, so `<id>` and `Organization/<id>` are different keys:
- * the same person, organisation and role can exist as two rows and satisfy the
- * constraint. Matching one spelling saw one of them and under-counted; matching
- * all four sees both and would over-count. `Members 2` for one person is as
- * wrong as `Members 0` for forty-seven, and neither errors.
- */
-/**
  * Which membership rows belong to one organisation, and what makes two of them
  * the same membership.
  *
@@ -261,6 +246,21 @@ const membershipIdentity = (membership: {
   return userId ? `${userId}\u0000${membership.roleCode}` : null;
 };
 
+/**
+ * The distinct active memberships of one organisation.
+ *
+ * Everything member-shaped on this surface goes through here, so the roster and
+ * the number printed beside it are the same list measured two ways rather than
+ * two queries that have to be kept in agreement.
+ *
+ * Both stored columns are raw FHIR references, which forces the de-duplication.
+ * `@@unique([practitionerReference, organizationReference, roleCode])` is over
+ * the strings as written, so `<id>` and `Organization/<id>` are different keys:
+ * the same person, organisation and role can exist as two rows and satisfy the
+ * constraint. Matching one spelling saw one of them and under-counted; matching
+ * all four sees both and would over-count. `Members 2` for one person is as
+ * wrong as `Members 0` for forty-seven, and neither errors.
+ */
 const loadMembers = async (
   id: string,
   fhirId?: string | null,

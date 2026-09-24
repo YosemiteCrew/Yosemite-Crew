@@ -21,8 +21,7 @@
  * fixes that without a nonce, and therefore without forcing the public layout to
  * call `headers()` - which would make every marketing page render dynamically
  * and defeat static generation.
- */
-/**
+ *
  * The `catch` is deliberately empty, and must stay that way.
  *
  * The two things that can throw here are `localStorage.getItem` (private

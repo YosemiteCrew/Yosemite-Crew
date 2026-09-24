@@ -377,6 +377,54 @@
     "breedLoadFailed": "No se pudieron cargar las razas. Comprueba tu conexion e intentalo de nuevo.",
     "breedNoneAvailable": "No hay razas disponibles"
   },
+  "medicalRecords": {
+    "title": "Registros de salud",
+    "intro": "Alergias y problemas de salud actuales registrados por tus clínicas veterinarias.",
+    "allergies": "Alergias",
+    "problems": "Problemas de salud",
+    "noAllergies": "No hay alergias actuales registradas.",
+    "noProblems": "No hay problemas de salud actuales registrados.",
+    "suspected": "Sospechada",
+    "active": "Activo",
+    "dormant": "Inactivo",
+    "since": "Desde {{date}}",
+    "flagsNotice": "Las clínicas veterinarias gestionan por separado las alertas de manejo y seguridad.",
+    "signInAgain": "Vuelve a iniciar sesión para ver los registros de salud.",
+    "loadFailed": "No se pudieron cargar los registros de salud. Inténtalo de nuevo.",
+    "retry": "Intentar de nuevo",
+    "problemLabels": {
+      "MILD": "Leve",
+      "MODERATE": "Moderado",
+      "SEVERE": "Grave"
+    },
+    "labels": {
+      "MILD": "Leve",
+      "MODERATE": "Moderada",
+      "SEVERE": "Grave",
+      "LIFE_THREATENING": "Potencialmente mortal",
+      "DRUG": "Medicamento",
+      "FOOD": "Alimento",
+      "ENVIRONMENTAL": "Ambiental",
+      "OTHER": "Otro"
+    }
+  },
+  "prescriptions": {
+    "title": "Recetas",
+    "intro": "Recetas registradas por tus clínicas veterinarias.",
+    "empty": "No hay recetas registradas.",
+    "recorded": "Registrada {{date}}",
+    "requestRefill": "Solicitar renovación",
+    "requestRefillFor": "Solicitar renovación de {{medication}}",
+    "requesting": "Solicitando…",
+    "requestingFor": "Solicitando renovación de {{medication}}",
+    "refillRequestedTitle": "Renovación solicitada",
+    "refillRequestedBody": "Tu clínica veterinaria revisará la solicitud.",
+    "refillFailedTitle": "No se solicitó la renovación",
+    "refillFailedBody": "No se pudo enviar la solicitud. Inténtalo de nuevo.",
+    "signInAgain": "Vuelve a iniciar sesión para ver las recetas.",
+    "loadFailed": "No se pudieron cargar las recetas. Inténtalo de nuevo.",
+    "retry": "Intentar de nuevo"
+  },
   "appointments": {
     "chatLockedTitle": "El chat aun no esta abierto",
     "chatLockedBody": "El chat se abre un dia antes de tu cita.\n\nCita: {{appointmentTime}}\nSe abre en: {{hours}} h {{minutes}} min",

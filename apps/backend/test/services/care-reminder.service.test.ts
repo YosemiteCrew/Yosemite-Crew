@@ -7,6 +7,7 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 import { NotificationService } from "src/services/notification.service";
 import { sendEmail } from "src/utils/email";
 import { buildCareReminderMessage } from "src/services/shared/care-reminder-message";
+import { Prisma } from "@prisma/client";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -22,6 +23,7 @@ jest.mock("src/config/prisma", () => ({
     parentPatient: { findFirst: jest.fn() },
     parent: { findUnique: jest.fn() },
     careReminderOptOut: { findMany: jest.fn(), upsert: jest.fn() },
+    notification: { findFirst: jest.fn() },
   },
 }));
 
@@ -53,6 +55,7 @@ const pm = prisma as unknown as {
   parentPatient: { findFirst: jest.Mock };
   parent: { findUnique: jest.Mock };
   careReminderOptOut: { findMany: jest.Mock; upsert: jest.Mock };
+  notification: { findFirst: jest.Mock };
 };
 
 const DUE = new Date("2026-07-15T10:00:00Z");
@@ -89,7 +92,10 @@ beforeEach(() => {
   );
   jest.clearAllMocks();
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
-  (NotificationService.sendToUser as jest.Mock).mockResolvedValue(undefined);
+  // The real sendToUser resolves one result per registered device.
+  (NotificationService.sendToUser as jest.Mock).mockResolvedValue([
+    { token: "device-1", success: true },
+  ]);
   (sendEmail as jest.Mock).mockResolvedValue(undefined);
   // No opt-out by default, and the unsubscribe link needs both of these to build.
   pm.careReminderOptOut.findMany.mockResolvedValue([]);
@@ -109,6 +115,8 @@ beforeEach(() => {
     linkedUserId: "user-1",
     email: "owner@example.com",
   });
+  // No earlier attempt reached the owner's devices.
+  pm.notification.findFirst.mockResolvedValue(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -263,6 +271,7 @@ describe("CareReminderService.send", () => {
     expect(NotificationService.sendToUser).toHaveBeenCalledWith(
       "user-1",
       expect.any(Object),
+      { recordId: "reminder-1" },
     );
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "owner@example.com" }),
@@ -381,6 +390,163 @@ describe("CareReminderService.send", () => {
       () => undefined,
     );
     expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it("records which channels delivered in the audit row", async () => {
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          delivery: { push: "delivered", email: "delivered" },
+        }),
+      }),
+    );
+  });
+
+  it("still marks SENT when one channel fails and the other delivers", async () => {
+    (sendEmail as jest.Mock).mockRejectedValue(new Error("SES down"));
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result.status).toBe("SENT");
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          delivery: { push: "delivered", email: "failed" },
+        }),
+      }),
+    );
+  });
+
+  it("stays PENDING and answers 502 when every channel tried fails", async () => {
+    // A vaccination reminder shown as sent is one nobody follows up, and only
+    // a PENDING reminder can be sent again.
+    (NotificationService.sendToUser as jest.Mock).mockRejectedValue(
+      new Error("FCM down"),
+    );
+    (sendEmail as jest.Mock).mockRejectedValue(new Error("SES down"));
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(pm.careReminder.update).not.toHaveBeenCalled();
+    expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+  });
+
+  it("counts a push that failed on every device as failed, not delivered", async () => {
+    // sendToUser reports device failures in its results instead of throwing.
+    (NotificationService.sendToUser as jest.Mock).mockResolvedValue([
+      { token: "device-1", success: false, error: "unregistered" },
+    ]);
+    pm.parent.findUnique.mockResolvedValue({
+      linkedUserId: "user-1",
+      email: null,
+    });
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(pm.careReminder.update).not.toHaveBeenCalled();
+  });
+
+  it("does not treat an owner with no registered device as a failure", async () => {
+    (NotificationService.sendToUser as jest.Mock).mockResolvedValue([]);
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result.status).toBe("SENT");
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          delivery: { push: "unreachable", email: "delivered" },
+        }),
+      }),
+    );
+  });
+
+  it("marks SENT, sending each channel once, when the push fails on every device but the email delivers", async () => {
+    (NotificationService.sendToUser as jest.Mock).mockResolvedValue([
+      { token: "device-1", success: false, error: "unavailable" },
+    ]);
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result.status).toBe("SENT");
+    expect(NotificationService.sendToUser).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          delivery: { push: "failed", email: "delivered" },
+        }),
+      }),
+    );
+  });
+
+  it("stays PENDING and answers 502 when the push throws and there is no email", async () => {
+    (NotificationService.sendToUser as jest.Mock).mockRejectedValue(
+      new Error("device lookup failed"),
+    );
+    pm.parent.findUnique.mockResolvedValue({
+      linkedUserId: "user-1",
+      email: null,
+    });
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(pm.careReminder.update).not.toHaveBeenCalled();
+  });
+
+  it("keeps a retry PENDING when an earlier attempt reached a device that is gone now", async () => {
+    // FCM rejected the owner's only token, sendToDevice deleted it, and the
+    // attempt answered 502. The retry finds no device, but the in-app row the
+    // first attempt wrote says it did reach one, so this is the same failure,
+    // not an owner with no device, and it must not end SENT.
+    (NotificationService.sendToUser as jest.Mock).mockResolvedValue([]);
+    pm.notification.findFirst.mockResolvedValue({ id: "reminder-1" });
+    pm.parent.findUnique.mockResolvedValue({
+      linkedUserId: "user-1",
+      email: null,
+    });
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(pm.notification.findFirst).toHaveBeenCalledWith({
+      where: { id: "reminder-1", userId: "user-1" },
+      select: { id: true },
+    });
+    expect(pm.careReminder.update).not.toHaveBeenCalled();
+  });
+
+  it("writes SENT only while the reminder is still PENDING in this practice", async () => {
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(pm.careReminder.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "reminder-1", organisationId: "org-1", status: "PENDING" },
+      }),
+    );
+  });
+
+  it("does not overwrite a cancel that lands mid-send: 409, delivery still audited", async () => {
+    pm.careReminder.update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("No record was found", {
+        code: "P2025",
+        clientVersion: "6.19.3",
+      }),
+    );
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    // The channels did go out, so the durable record still says what reached
+    // the owner even though the status stays as the cancel left it.
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "CARE_REMINDER_SENT",
+        metadata: expect.objectContaining({
+          delivery: { push: "delivered", email: "delivered" },
+        }),
+      }),
+    );
+  });
+
+  it("lets any other failure of the SENT write surface", async () => {
+    pm.careReminder.update.mockRejectedValue(new Error("db down"));
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toThrow("db down");
+    expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
   });
 
   it("still transitions to SENT when no parent found", async () => {

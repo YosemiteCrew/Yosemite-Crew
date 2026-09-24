@@ -74,7 +74,7 @@ router.put(
   requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),
-  CompanionController.updateCompanion,
+  CompanionController.updateCompanionPMS,
 );
 
 // List parent companions not linked to organisation

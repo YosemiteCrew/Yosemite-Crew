@@ -12,6 +12,7 @@ const CompanionController = {
   getCompanionById: jest.fn(),
   getCompanionByIdPMS: jest.fn(),
   updateCompanion: jest.fn(),
+  updateCompanionPMS: jest.fn(),
   deleteCompanion: jest.fn(),
   getProfileUploadUrl: jest.fn(),
   searchCompanionByName: jest.fn(),
@@ -58,6 +59,17 @@ const findRoute = (path: string, method: "get" | "post" | "put" | "delete") =>
   )?.route;
 
 describe("companion.router", () => {
+  it("sends the PMS update to the practice-scoped handler", () => {
+    const route = findRoute("/org/:id", "put");
+
+    expect(route?.stack.map((layer) => layer.handle)).toEqual([
+      requireWebAuth,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      CompanionController.updateCompanionPMS,
+    ]);
+  });
+
   it("protects the PMS org route with auth", () => {
     const route = findRoute("/org/:id", "get");
 

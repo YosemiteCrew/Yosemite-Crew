@@ -53,6 +53,7 @@ jest.mock('@/hooks', () => ({
 // cannot masquerade as a translated one.
 const SECTION_TRANSLATIONS: Record<string, string> = {
   'passport.title': 'Pasaporte de mascota',
+  'prescriptions.title': 'Recetas',
 };
 
 jest.mock('react-i18next', () => ({
@@ -377,6 +378,37 @@ describe('ProfileOverviewScreen', () => {
     });
   });
 
+  it('navigates to medical records when the feature is allowed', () => {
+    const {getByText} = setup();
+    fireEvent.press(getByText('medicalRecords.title'));
+    expect(mockNavigate).toHaveBeenCalledWith('MedicalRecords', {
+      companionId: 'comp-123',
+    });
+  });
+
+  it('blocks medical records when the permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {medicalRecords: false}},
+        },
+      },
+    };
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByText} = setup(restrictedState);
+    fireEvent.press(getByText('medicalRecords.title'));
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'MedicalRecords',
+      expect.anything(),
+    );
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining("don't have access"),
+    );
+  });
+
   it('navigates to CoParents screen', () => {
     const {getByText} = setup();
     fireEvent.press(getByText('Co-parents'));
@@ -697,6 +729,48 @@ describe('ProfileOverviewScreen', () => {
       expect.any(Array),
     );
     expect(updateCompanionProfile).not.toHaveBeenCalled();
+  });
+
+  it('navigates to Prescriptions when a co-parent has medical records access', () => {
+    const {getByText} = setup({
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {medicalRecords: true}},
+        },
+      },
+    });
+
+    fireEvent.press(getByText('Recetas'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('Prescriptions', {
+      companionId: 'comp-123',
+    });
+  });
+
+  it('blocks Prescriptions when the medicalRecords permission is denied', () => {
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByText} = setup({
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {medicalRecords: false}},
+        },
+      },
+    });
+
+    fireEvent.press(getByText('Recetas'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'Prescriptions',
+      expect.anything(),
+    );
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining("don't have access to prescriptions"),
+    );
   });
 
   it('blocks Documents when the documents permission is denied', () => {

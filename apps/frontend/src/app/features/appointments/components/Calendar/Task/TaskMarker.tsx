@@ -8,7 +8,6 @@ import {
 
 type TaskMarkerLayout = { top: number; laneIndex: number; laneCount: number };
 
-/** One task block in the hour column, with its hover-revealed view shortcut. */
 /**
  * Geometry and classes for one task chip. Pure, and driven only by the two mode
  * flags, so it lives outside TaskMarker rather than adding four more branches
@@ -44,6 +43,8 @@ const getTaskMarkerLayout = ({
 };
 
 /**
+ * One task block in the hour column, with its hover-revealed view shortcut.
+ *
  * Exported for its story. The task chip is the calendar's most-repeated object
  * and had drifted a long way from the appointment block it sits beside, so it is
  * worth being able to see it on its own in both themes.

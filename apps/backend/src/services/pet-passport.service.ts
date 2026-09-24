@@ -391,7 +391,6 @@ const assemblePassport = async (
   };
 };
 
-/** 256 bits of entropy - a public QR credential must not be guessable. */
 /**
  * Proves the caller parents the pet and returns the organisation to assemble
  * against. The mobile app has no org context, so the org is derived from the
@@ -482,6 +481,7 @@ const resolveChipSiblingIds = async (
   return [...new Set([patientId, ...shared.map((row) => row.patientId)])];
 };
 
+/** 256 bits of entropy - a public QR credential must not be guessable. */
 const generatePublicToken = (): string => randomBytes(32).toString("base64url");
 
 export const PetPassportService = {

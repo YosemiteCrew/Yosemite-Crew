@@ -91,12 +91,6 @@ interface ClockTime {
   minute: number;
 }
 
-/**
- * Reads an explicit clock time: "8pm", "8:30 pm", "20:30", "at 7".
- *
- * A bare number is only treated as a time when preceded by "at", so "give 2
- * tablets" does not become 2 o'clock.
- */
 /** "8pm", "8:30 pm" - an hour of 1-12 qualified by am/pm. */
 const parseMeridiemTime = (normalized: string): ClockTime | null => {
   const match = /(\d{1,2})(?:\s*[:.]\s*(\d{2}))?\s*(am|pm)\b/.exec(normalized);
@@ -363,6 +357,9 @@ const parseBareHourAfterAt = (normalized: string): ClockTime | null => {
 /**
  * Reads an explicit clock time: "8pm", "8:30 pm", "20:30", "at 7".
  *
+ * A bare number is only treated as a time when preceded by "at", so "give 2
+ * tablets" does not become 2 o'clock.
+ *
  * The readings are tried most specific first, so "13:30 pm" - whose hour is
  * out of range for a meridiem - still resolves through the 24-hour rule.
  */
@@ -405,12 +402,6 @@ const hourWithDayPartMeridiem = (
     : hour;
 };
 
-/**
- * Resolves a date phrase against `now`.
- *
- * Returns null when the text carries no date information at all, so callers
- * can tell "no date mentioned" apart from "date mentioned but unparseable".
- */
 /** Units accepted by an "in N ..." phrase, with the days each one contributes. */
 const RELATIVE_UNITS: ReadonlyArray<{pattern: RegExp; days: number}> = [
   {pattern: /\bin\s+(\d{1,3})\s+(?:day|days|dias|dia)\b/, days: 1},

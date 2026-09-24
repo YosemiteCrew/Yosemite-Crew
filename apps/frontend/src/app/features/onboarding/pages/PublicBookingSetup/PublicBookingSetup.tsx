@@ -204,18 +204,6 @@ const BookingServicesStep = ({
 );
 
 /**
- * The practice's booking address.
- *
- * Three states, and the difference between them is the whole point of this
- * component. A live page gets its real address and a copy button. A saved but
- * unpublished page gets the reserved name and says so in plain words, with no
- * copy button - copying is an invitation to paste the address onto a website or
- * a Google listing, and there is nothing at the other end yet. A page that has
- * never been saved gets no address at all, because none has been allocated.
- *
- * `publicUrl` is only ever a value the API sent. Nothing here builds one.
- */
-/**
  * What to say about an address we cannot show a link for.
  *
  * Three states, not two. Whether the page is REACHABLE is
@@ -233,6 +221,18 @@ const describeAddress = (slug: string | null, publicBookingEnabled: boolean): st
   return 'Your booking page is closed, so there is no link to share. We have reserved this address for you and will use it when you open the page.';
 };
 
+/**
+ * The practice's booking address.
+ *
+ * Three states, and the difference between them is the whole point of this
+ * component. A live page gets its real address and a copy button. A saved but
+ * unpublished page gets the reserved name and says so in plain words, with no
+ * copy button - copying is an invitation to paste the address onto a website or
+ * a Google listing, and there is nothing at the other end yet. A page that has
+ * never been saved gets no address at all, because none has been allocated.
+ *
+ * `publicUrl` is only ever a value the API sent. Nothing here builds one.
+ */
 const BookingAddress = ({
   slug,
   publicUrl,

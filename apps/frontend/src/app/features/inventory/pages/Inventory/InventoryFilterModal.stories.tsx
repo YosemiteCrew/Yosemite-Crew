@@ -48,14 +48,6 @@ type HarnessProps = {
 };
 
 /**
- * The page owns every piece of this panel's state - open flag, filters, which
- * sections are expanded, which categories are expanded - and passes eleven
- * callbacks down. The harness is that owner, reproducing the page's real
- * `toggleArrayValue` / `toggleSetItem` semantics and its `selectedFilterChips`
- * derivation so the chip row, the section counts and the checkboxes stay in
- * agreement the way they do in the app.
- */
-/**
  * Chip derivation, lifted out of the harness. It is a pure function of the filter state
  * plus the two removal callbacks, so it can be read - and reasoned about - without the
  * surrounding useState soup. Review flagged the harness for doing state management,
@@ -122,6 +114,14 @@ const deriveChips = (
   return chips;
 };
 
+/**
+ * The page owns every piece of this panel's state - open flag, filters, which
+ * sections are expanded, which categories are expanded - and passes eleven
+ * callbacks down. The harness is that owner, reproducing the page's real
+ * `toggleArrayValue` / `toggleSetItem` semantics and its `selectedFilterChips`
+ * derivation so the chip row, the section counts and the checkboxes stay in
+ * agreement the way they do in the app.
+ */
 const InventoryFilterHarness = ({
   filterOpen: initialOpen,
   openSections,
