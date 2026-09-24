@@ -187,6 +187,48 @@ jest.mock("src/config/prisma", () => {
         store.templateInstances.set(where.id, next);
         return pick(next, select);
       },
+      // The only shape the submit claim uses. Nothing awaits between the read
+      // and the write, so it is as atomic here as a row-locked UPDATE is in
+      // Postgres.
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: { id: string; status: { in: string[] } };
+        data: Row;
+      }) => {
+        const instance = store.templateInstances.get(where.id);
+        if (!instance || !where.status.in.includes(instance.status as string)) {
+          return { count: 0 };
+        }
+        store.templateInstances.set(where.id, {
+          ...instance,
+          ...defined(data),
+        });
+        return { count: 1 };
+      },
+      findUniqueOrThrow: async ({ where }: { where: { id: string } }) => {
+        const instance = store.templateInstances.get(where.id);
+        if (!instance) throw new Error("No TemplateInstance found");
+        return { ...instance };
+      },
+      // The form routes' "one instance per template per appointment" lookup.
+      findMany: async ({
+        where,
+        select,
+      }: {
+        where: Row & { status?: { not: string } };
+        select?: Record<string, boolean>;
+      }) =>
+        [...store.templateInstances.values()]
+          .filter(
+            (instance) =>
+              instance.organisationId === where.organisationId &&
+              instance.templateId === where.templateId &&
+              instance.appointmentId === where.appointmentId &&
+              instance.status !== where.status?.not,
+          )
+          .map((instance) => pick(instance, select)),
     },
     renderedDocument: {
       // RenderedDocument.templateInstanceId is @unique, so a second document
@@ -238,14 +280,22 @@ jest.mock("src/config/prisma", () => {
               matchesKind(doc, where.kind) &&
               where.OR.some((clause) => matchesLink(doc, clause)),
           )
-          .map((doc) => ({
-            ...doc,
-            templateInstance: pick(linkedInstance(doc) ?? {}, {
-              appointmentId: true,
-              encounterId: true,
-            }),
-            clinicalArtifact: null,
-          })),
+          .map((doc) => {
+            const instance = linkedInstance(doc) ?? {};
+            const template = store.templates.get(instance.templateId as string);
+            return {
+              ...doc,
+              templateInstance: {
+                ...pick(instance, {
+                  appointmentId: true,
+                  encounterId: true,
+                  status: true,
+                }),
+                template: template ? { rules: template.rules } : null,
+              },
+              clinicalArtifact: null,
+            };
+          }),
     },
     documentSignature: {
       create: async ({ data }: { data: Row }) => {
@@ -268,15 +318,23 @@ jest.mock("src/config/prisma", () => {
             link.parentId === where.parentId &&
             link.patientId === where.patientId,
         ) ?? null,
+      findMany: async ({ where }: { where: Row }) =>
+        store.parentLinks.filter((link) => link.parentId === where.parentId),
     },
+    // No uploaded documents: only rendered ones are under test.
+    document: { findMany: async () => [] },
     formAssignment: {
-      findFirst: async ({ where }: { where: Row }) =>
-        store.formAssignments.find(
+      findMany: async ({ where }: { where: Row }) =>
+        store.formAssignments.filter(
           (assignment) =>
             assignment.organisationId === where.organisationId &&
-            assignment.templateId === where.templateId &&
-            assignment.appointmentId === where.appointmentId,
-        ) ?? null,
+            (where.templateId === undefined ||
+              assignment.templateId === where.templateId) &&
+            assignment.appointmentId === where.appointmentId &&
+            !(
+              where.status as { notIn?: unknown[] } | undefined
+            )?.notIn?.includes(assignment.status),
+        ),
     },
     appointment: {
       findMany: async ({
@@ -371,7 +429,14 @@ type StorageKind =
 const seedTemplate = (
   id: string,
   kind: StorageKind,
-  options: { name?: string; category?: string } = {},
+  options: {
+    name?: string;
+    category?: string;
+    // The builder's usage choice, which it writes to rules.visibility.
+    visibility?: string;
+    // Whether the practice sent it to the client for the appointment.
+    assigned?: boolean;
+  } = {},
 ) => {
   store.templates.set(id, {
     id,
@@ -384,7 +449,10 @@ const seedTemplate = (
     // What the form builder writes (buildTemplatePayload): the author's
     // category, which for consent was "Consent form" long before CONSENT
     // became a storage kind.
-    rules: options.category ? { category: options.category } : null,
+    rules:
+      options.category || options.visibility
+        ? { category: options.category, visibility: options.visibility }
+        : null,
     latestVersion: 2,
     publishedVersion: 2,
   });
@@ -394,11 +462,13 @@ const seedTemplate = (
     version: 2,
     schemaSnapshot: { sections: [] },
   });
+  if (options.assigned === false) return;
   store.formAssignments.push({
     id: `assignment-${id}`,
     organisationId: ORG,
     templateId: id,
     appointmentId: APPOINTMENT,
+    status: "SENT",
   });
 };
 
@@ -688,5 +758,181 @@ describe("consent template documents (#3600)", () => {
     await expect(listConsentDocuments()).resolves.toEqual([
       expect.objectContaining({ id: document.id, signingStatus: "SIGNED" }),
     ]);
+  });
+
+  // Two submits of one instance that both read it as DRAFT: the second used to
+  // fail on the unique RenderedDocument.templateInstanceId and surface a 500.
+  it("renders one document when the same instance is submitted twice at once", async () => {
+    seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+    seedTemplateInstance("inst-consent", "tpl-consent");
+
+    const results = await Promise.all([
+      TemplateService.submitInstance("inst-consent", ORG, "vet-1"),
+      TemplateService.submitInstance("inst-consent", ORG, "vet-1"),
+    ]);
+
+    expect(results.map(({ id, status }) => [id, status])).toEqual([
+      ["inst-consent", "COMPLETED"],
+      ["inst-consent", "COMPLETED"],
+    ]);
+    expect(store.renderedDocuments.size).toBe(1);
+    await expect(listConsentDocuments()).resolves.toHaveLength(1);
+  });
+
+  it("refuses to submit a void instance and renders nothing for it", async () => {
+    seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+    seedTemplateInstance("inst-void", "tpl-consent");
+    store.templateInstances.get("inst-void")!.status = "VOID";
+
+    await expect(
+      TemplateService.submitInstance("inst-void", ORG, "vet-1"),
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    expect(store.renderedDocuments.size).toBe(0);
+    expect(store.templateInstances.get("inst-void")?.status).toBe("VOID");
+  });
+
+  // Each POST to a form submit route used to create a new instance, and with it
+  // a new document, however often the same form was submitted.
+  describe.each([
+    ["mobile (pet parent)", submitFromMobile],
+    ["PMS form submit", submitFromPms],
+  ])("resubmitting on the %s route", (_route, submit) => {
+    it("is refused and renders no second document", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const first = await submit("tpl-consent");
+
+      await expect(submit("tpl-consent")).rejects.toMatchObject({
+        statusCode: 409,
+      });
+
+      expect([...store.templateInstances.keys()]).toEqual([first._id]);
+      expect(store.renderedDocuments.size).toBe(1);
+    });
+
+    it("is refused once the submitted consent is signed", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      await submit("tpl-consent");
+      const [document] = await listConsentDocuments();
+      await signAndComplete(document.id as string);
+
+      await expect(submit("tpl-consent")).rejects.toMatchObject({
+        statusCode: 409,
+      });
+
+      expect(store.renderedDocuments.size).toBe(1);
+    });
+
+    it("submits the instance already open for the appointment", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      // What a package expansion leaves for the appointment.
+      seedTemplateInstance("inst-open", "tpl-consent");
+
+      const submission = await submit("tpl-consent");
+
+      expect(submission._id).toBe("inst-open");
+      expect([...store.templateInstances.keys()]).toEqual(["inst-open"]);
+      expect(store.templateInstances.get("inst-open")).toMatchObject({
+        status: "COMPLETED",
+        data: { agree: "yes" },
+      });
+      expect(store.renderedDocuments.size).toBe(1);
+    });
+
+    it("leaves a void instance alone and submits a new one", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      seedTemplateInstance("inst-void", "tpl-consent");
+      store.templateInstances.get("inst-void")!.status = "VOID";
+
+      const submission = await submit("tpl-consent");
+
+      expect(submission._id).not.toBe("inst-void");
+      expect(store.templateInstances.get("inst-void")?.status).toBe("VOID");
+      expect(store.templateInstances.get(submission._id)?.status).toBe(
+        "COMPLETED",
+      );
+      expect(store.renderedDocuments.size).toBe(1);
+    });
+  });
+
+  // POST /v1/document/mobile/appointments/:appointmentId, as the pet parent.
+  describe("the pet parent's appointment documents", () => {
+    const listForParent = () =>
+      DocumentService.listForAppointmentParent({
+        appointmentId: APPOINTMENT,
+        parentId: PARENT,
+      });
+
+    it("include the consent the practice sent them, whatever its visibility", async () => {
+      // The form builder defaults a template's usage to Internal.
+      seedTemplate("tpl-consent", "CONSENT", {
+        name: "Anaesthesia consent",
+        visibility: "Internal",
+      });
+      await submitFromMobile("tpl-consent");
+
+      await expect(listForParent()).resolves.toEqual([
+        expect.objectContaining({
+          category: "CONSENT",
+          title: "Anaesthesia consent",
+          signingStatus: "NOT_STARTED",
+        }),
+      ]);
+    });
+
+    it("leave out a form the practice marked Internal and never sent them", async () => {
+      seedTemplate("tpl-internal", "FORM", {
+        category: "Custom",
+        visibility: "Internal",
+        assigned: false,
+      });
+      seedTemplate("tpl-external", "FORM", {
+        category: "Custom",
+        visibility: "Internal & External",
+        assigned: false,
+      });
+      await submitFromPms("tpl-internal");
+      await submitFromPms("tpl-external");
+
+      const documents = await listForParent();
+
+      expect(documents.map(({ templateId }) => templateId)).toEqual([
+        "tpl-external",
+      ]);
+    });
+
+    it.each([
+      "SOAP_NOTE",
+      "PRESCRIPTION",
+      "DISCHARGE_SUMMARY",
+      "VITAL_RECORD",
+    ] as const)("leave out a %s document until it is signed", async (kind) => {
+      seedTemplate("tpl-clinical", kind, {
+        visibility: "External",
+        assigned: false,
+      });
+      await submitFromPms("tpl-clinical");
+
+      await expect(listForParent()).resolves.toEqual([]);
+
+      const [document] = [...store.renderedDocuments.values()];
+      await signAndComplete(document.id as string);
+
+      await expect(listForParent()).resolves.toEqual([
+        expect.objectContaining({ id: document.id, signingStatus: "SIGNED" }),
+      ]);
+    });
+
+    it("leave out a signed clinical document from a template marked Internal", async () => {
+      seedTemplate("tpl-clinical", "SOAP_NOTE", {
+        visibility: "Internal",
+        assigned: false,
+      });
+      await submitFromPms("tpl-clinical");
+      const [document] = [...store.renderedDocuments.values()];
+      await signAndComplete(document.id as string);
+
+      await expect(listForParent()).resolves.toEqual([]);
+    });
   });
 });

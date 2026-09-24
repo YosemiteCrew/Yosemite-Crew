@@ -30,6 +30,7 @@ jest.mock("../../src/services/template.service", () => ({
   TemplateService: {
     getById: jest.fn(),
     createInstance: jest.fn(),
+    updateInstance: jest.fn(),
     submitInstance: jest.fn(),
   },
 }));
@@ -92,7 +93,7 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
     },
     formAssignment: {
-      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     parentPatient: {
       findFirst: jest.fn(),
@@ -178,7 +179,9 @@ describe("FormService", () => {
 
     (TemplateService.getById as jest.Mock).mockReset();
     (TemplateService.createInstance as jest.Mock).mockReset();
+    (TemplateService.updateInstance as jest.Mock).mockReset();
     (TemplateService.submitInstance as jest.Mock).mockReset();
+    (prisma.formAssignment.findMany as jest.Mock).mockReset();
 
     (templateMapper.templateToQuestionnaire as jest.Mock).mockReset();
     (
@@ -831,7 +834,7 @@ describe("FormService", () => {
           role: "PRIMARY",
           permissions: {},
         });
-        (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue(null);
+        (prisma.formAssignment.findMany as jest.Mock).mockResolvedValue([]);
 
         await expect(submit()).rejects.toMatchObject({ statusCode: 403 });
         expect(TemplateService.createInstance).not.toHaveBeenCalled();
@@ -839,13 +842,13 @@ describe("FormService", () => {
 
       it("requires the parent to be the named signer when there is no appointment", async () => {
         arrangeTemplate();
-        (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue(null);
+        (prisma.formAssignment.findMany as jest.Mock).mockResolvedValue([]);
 
         await expect(
           submit({ appointmentId: undefined }),
         ).rejects.toMatchObject({ statusCode: 403 });
 
-        expect(prisma.formAssignment.findFirst).toHaveBeenCalledWith(
+        expect(prisma.formAssignment.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({ signerUserId: "parent-1" }),
           }),
@@ -862,9 +865,9 @@ describe("FormService", () => {
           role: "PRIMARY",
           permissions: {},
         });
-        (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue({
-          id: "assignment-1",
-        });
+        (prisma.formAssignment.findMany as jest.Mock).mockResolvedValue([
+          { status: "SENT" },
+        ]);
 
         await submit();
 
@@ -879,6 +882,165 @@ describe("FormService", () => {
           "org-template",
           "parent-1",
         );
+      });
+
+      // An assignment is submitted once: SUBMITTED and SIGNED used to accept
+      // another submit, and each one rendered another document.
+      it.each([[["SUBMITTED"]], [["SIGNED"]], [["SUBMITTED", "SIGNED"]]])(
+        "refuses a parent whose assignments are all %j",
+        async (statuses) => {
+          arrangeTemplate();
+          (prisma.formAssignment.findMany as jest.Mock).mockResolvedValue(
+            statuses.map((status) => ({ status })),
+          );
+
+          await expect(
+            submit({ appointmentId: undefined }),
+          ).rejects.toMatchObject({
+            statusCode: 409,
+            message: "Form already submitted",
+          });
+          expect(TemplateService.createInstance).not.toHaveBeenCalled();
+          expect(TemplateService.submitInstance).not.toHaveBeenCalled();
+        },
+      );
+
+      it("lets a parent submit while one of their assignments is still open", async () => {
+        arrangeTemplate();
+        (prisma.formAssignment.findMany as jest.Mock).mockResolvedValue([
+          { status: "SUBMITTED" },
+          { status: "VIEWED" },
+        ]);
+
+        await submit({ appointmentId: undefined });
+
+        expect(prisma.formAssignment.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              status: { notIn: ["CANCELLED", "EXPIRED"] },
+            }),
+            select: { status: true },
+          }),
+        );
+        expect(TemplateService.submitInstance).toHaveBeenCalledWith(
+          "instance-1",
+          "org-template",
+          "parent-1",
+        );
+      });
+    });
+
+    // One instance per template per appointment on both form submit routes.
+    describe("template-backed submissions for an appointment that already has an instance", () => {
+      const templateId = "ced99b20-fde8-4122-bab9-a947ad562a36";
+
+      const arrange = (existing: Array<{ id: string; status: string }>) => {
+        (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue(null);
+        (prisma.templateVersion.findFirst as jest.Mock).mockResolvedValue({
+          schemaSnapshot: { sections: [] },
+        });
+        (prisma.form.findUnique as jest.Mock).mockResolvedValue(null);
+        (TemplateService.getById as jest.Mock).mockResolvedValue({
+          id: templateId,
+          organisationId: "org-1",
+          kind: "CONSENT",
+          name: "Consent",
+          status: "PUBLISHED",
+          versions: [{ version: 1, schemaSnapshot: { sections: [] } }],
+        });
+        (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue(
+          existing,
+        );
+        (TemplateService.updateInstance as jest.Mock).mockResolvedValue({
+          id: "instance-open",
+          templateVersion: 1,
+        });
+        (TemplateService.createInstance as jest.Mock).mockResolvedValue({
+          id: "instance-new",
+          templateVersion: 1,
+        });
+        (TemplateService.submitInstance as jest.Mock).mockImplementation(
+          async (id: string) => ({ id, templateVersion: 1 }),
+        );
+      };
+
+      const submitFromPms = (appointmentId: string | null = "appt-1") =>
+        FormService.submitFHIR(
+          {
+            formId: templateId,
+            formVersion: 1,
+            appointmentId: appointmentId ?? undefined,
+            answers: { agree: "yes" },
+            submittedAt: new Date("2026-09-24T00:00:00.000Z"),
+          } as any,
+          undefined,
+          "vet-1",
+          { organisationId: "org-1" },
+        );
+
+      it.each(["COMPLETED", "SIGNED"])(
+        "refuses a resubmission once the appointment's instance is %s",
+        async (status) => {
+          arrange([
+            { id: "instance-open", status: "DRAFT" },
+            { id: "instance-done", status },
+          ]);
+
+          await expect(submitFromPms()).rejects.toMatchObject({
+            statusCode: 409,
+            message: "Form already submitted",
+          });
+
+          expect(prisma.templateInstance.findMany).toHaveBeenCalledWith({
+            where: {
+              organisationId: "org-1",
+              templateId,
+              appointmentId: "appt-1",
+              status: { not: "VOID" },
+            },
+            select: { id: true, status: true },
+            orderBy: { createdAt: "asc" },
+          });
+          expect(TemplateService.updateInstance).not.toHaveBeenCalled();
+          expect(TemplateService.createInstance).not.toHaveBeenCalled();
+          expect(TemplateService.submitInstance).not.toHaveBeenCalled();
+        },
+      );
+
+      it("submits the instance already open for the appointment with the answers", async () => {
+        arrange([{ id: "instance-open", status: "IN_PROGRESS" }]);
+
+        const result = await submitFromPms();
+
+        expect(TemplateService.updateInstance).toHaveBeenCalledWith(
+          "instance-open",
+          { data: { agree: "yes" } },
+          "org-1",
+        );
+        expect(TemplateService.createInstance).not.toHaveBeenCalled();
+        expect(TemplateService.submitInstance).toHaveBeenCalledWith(
+          "instance-open",
+          "org-1",
+          "vet-1",
+        );
+        expect(result._id).toBe("instance-open");
+      });
+
+      it("creates a new instance when the submission names no appointment", async () => {
+        arrange([{ id: "instance-open", status: "DRAFT" }]);
+
+        const result = await submitFromPms(null);
+
+        expect(prisma.templateInstance.findMany).not.toHaveBeenCalled();
+        expect(TemplateService.updateInstance).not.toHaveBeenCalled();
+        expect(TemplateService.createInstance).toHaveBeenCalledWith({
+          templateId,
+          organisationId: "org-1",
+          appointmentId: undefined,
+          authorId: "vet-1",
+          data: { agree: "yes" },
+        });
+        expect(result._id).toBe("instance-new");
       });
     });
 

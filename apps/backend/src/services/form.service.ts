@@ -484,6 +484,9 @@ const getTemplateOrUndefined = async (
   }
 };
 
+const isSubmittedAssignmentStatus = (status: string) =>
+  status === "SUBMITTED" || status === "SIGNED";
+
 /**
  * The mobile submit route carries no organisation context, so the template id is
  * a bare identifier chosen by the caller. Submitting it creates (and completes)
@@ -515,7 +518,7 @@ const assertTemplateSubmittableByParent = async (params: {
   // With an appointment the parent link is already proven above, so the
   // assignment only has to exist for it. Without one there is no such anchor and
   // the assignment itself must name the parent as the signer.
-  const assignment = await prisma.formAssignment.findFirst({
+  const assignments = await prisma.formAssignment.findMany({
     where: {
       organisationId: params.organisationId,
       templateId: params.templateId,
@@ -524,12 +527,69 @@ const assertTemplateSubmittableByParent = async (params: {
         ? { appointmentId: params.appointmentId }
         : { signerUserId: params.parentId }),
     },
-    select: { id: true },
+    select: { status: true },
   });
 
-  if (!assignment) {
+  if (assignments.length === 0) {
     throw new FormServiceError("Forbidden", 403);
   }
+
+  // An assignment is submitted once. Once every one the parent holds is
+  // SUBMITTED or SIGNED there is nothing left to submit.
+  if (assignments.every(({ status }) => isSubmittedAssignmentStatus(status))) {
+    throw new FormServiceError("Form already submitted", 409);
+  }
+};
+
+/**
+ * A form is submitted once per appointment. An instance already open for it (a
+ * package expansion, or a submit that failed part-way, leaves one DRAFT) takes
+ * the answers, and one already submitted refuses the resubmission, so a
+ * repeated POST never renders a second document for the same form. Without an
+ * appointment there is nothing to anchor on, so a new instance is created.
+ */
+const resolveInstanceForSubmission = async (params: {
+  organisationId: string;
+  templateId: string;
+  appointmentId?: string;
+  authorId?: string;
+  answers: FormSubmission["answers"];
+}) => {
+  const existing = params.appointmentId
+    ? await prisma.templateInstance.findMany({
+        where: {
+          organisationId: params.organisationId,
+          templateId: params.templateId,
+          appointmentId: params.appointmentId,
+          status: { not: "VOID" },
+        },
+        select: { id: true, status: true },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+
+  if (
+    existing.some(({ status }) => status === "COMPLETED" || status === "SIGNED")
+  ) {
+    throw new FormServiceError("Form already submitted", 409);
+  }
+
+  const [open] = existing;
+  if (open) {
+    return TemplateService.updateInstance(
+      open.id,
+      { data: params.answers },
+      params.organisationId,
+    );
+  }
+
+  return TemplateService.createInstance({
+    templateId: params.templateId,
+    organisationId: params.organisationId,
+    appointmentId: params.appointmentId,
+    authorId: params.authorId,
+    data: params.answers,
+  });
 };
 
 /**
@@ -1035,12 +1095,12 @@ const submitViaTemplateInstance = async (
   }
 
   const submittedBy = submission.submittedBy ?? submission.parentId;
-  const instance = await TemplateService.createInstance({
+  const instance = await resolveInstanceForSubmission({
     templateId: formIdString,
     organisationId: template.organisationId,
     appointmentId: submission.appointmentId ?? undefined,
     authorId: submittedBy ?? undefined,
-    data: submission.answers,
+    answers: submission.answers,
   });
 
   // Submitting through TemplateService renders the document a consent (or any

@@ -1437,16 +1437,24 @@ describe("TemplateService.submitInstance", () => {
   const runTransaction = (
     instance: unknown,
     updateResult: unknown = { id: "inst-1", status: "COMPLETED" },
+    claimed = 1,
   ) => {
     const findUnique = jest.fn().mockResolvedValue(instance);
     const update = jest.fn().mockResolvedValue(updateResult);
+    const updateMany = jest.fn().mockResolvedValue({ count: claimed });
+    const findUniqueOrThrow = jest.fn().mockResolvedValue(updateResult);
     (prisma.$transaction as jest.Mock).mockImplementation(
       async (callback: any) =>
         callback({
-          templateInstance: { findUnique, update },
+          templateInstance: {
+            findUnique,
+            update,
+            updateMany,
+            findUniqueOrThrow,
+          },
         }),
     );
-    return { findUnique, update };
+    return { findUnique, update, updateMany, findUniqueOrThrow };
   };
 
   it("rejects submitting an instance that does not exist", async () => {
@@ -1485,7 +1493,7 @@ describe("TemplateService.submitInstance", () => {
           ownership: "ORG_TEMPLATE",
         },
       };
-      const { update } = runTransaction(instance);
+      const { update, updateMany } = runTransaction(instance);
 
       const result = await TemplateService.submitInstance(
         "inst-1",
@@ -1496,9 +1504,98 @@ describe("TemplateService.submitInstance", () => {
       expect(result).toBe(instance);
       expect(launchMock).not.toHaveBeenCalled();
       expect(renderMock).not.toHaveBeenCalled();
+      expect(updateMany).not.toHaveBeenCalled();
       expect(update).not.toHaveBeenCalled();
     },
   );
+
+  // VOID is entered in error: submitting it used to render a document and move
+  // it to COMPLETED.
+  it("refuses a VOID instance without rendering or completing it", async () => {
+    const { update, updateMany } = runTransaction({
+      id: "inst-1",
+      organisationId: "org-1",
+      status: "VOID",
+      template: { id: "tpl-1", kind: "CONSENT", ownership: "ORG_TEMPLATE" },
+    });
+
+    await expect(
+      TemplateService.submitInstance("inst-1", "org-1", "vet-1"),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Template instance is void",
+    });
+
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(renderMock).not.toHaveBeenCalled();
+    expect(launchMock).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it.each(["DRAFT", "IN_PROGRESS"])(
+    "claims a %s instance before rendering its document",
+    async (status) => {
+      const { updateMany } = runTransaction({
+        id: "inst-1",
+        organisationId: "org-1",
+        status,
+        templateId: "tpl-1",
+        templateVersion: 1,
+        generatedPdf: null,
+        template: {
+          id: "tpl-1",
+          kind: "CONSENT",
+          ownership: "ORG_TEMPLATE",
+          name: "Anaesthesia consent",
+          rules: null,
+        },
+      });
+      renderMock.mockResolvedValue({ id: "rd-1", kind: "CONSENT" });
+
+      await TemplateService.submitInstance("inst-1", "org-1", "vet-1");
+
+      expect(updateMany).toHaveBeenCalledWith({
+        where: { id: "inst-1", status: { in: ["DRAFT", "IN_PROGRESS"] } },
+        data: { status: "COMPLETED" },
+      });
+      expect(updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+        renderMock.mock.invocationCallOrder[0],
+      );
+    },
+  );
+
+  // A concurrent submit of the same instance claimed it between this one's read
+  // and its claim: it returns what that submit completed and renders nothing.
+  it("returns the instance a concurrent submit completed", async () => {
+    const completed = { id: "inst-1", status: "COMPLETED" };
+    const { update, findUniqueOrThrow } = runTransaction(
+      {
+        id: "inst-1",
+        organisationId: "org-1",
+        status: "DRAFT",
+        authorId: "author-1",
+        template: {
+          id: "tpl-1",
+          kind: "TASK_TEMPLATE",
+          ownership: "ORG_TEMPLATE",
+        },
+      },
+      completed,
+      0,
+    );
+
+    const result = await TemplateService.submitInstance(
+      "inst-1",
+      "org-1",
+      "vet-1",
+    );
+
+    expect(result).toBe(completed);
+    expect(findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: "inst-1" } });
+    expect(launchMock).not.toHaveBeenCalled();
+    expect(renderMock).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
 
   it("throws when no submitter identity can be derived for a task workflow", async () => {
     runTransaction({

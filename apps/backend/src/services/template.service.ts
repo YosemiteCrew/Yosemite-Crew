@@ -1652,6 +1652,26 @@ export const TemplateService = {
         return instance;
       }
 
+      // VOID is entered in error: nothing is rendered for it and it never
+      // becomes COMPLETED.
+      if (instance.status === "VOID") {
+        throw new TemplateServiceError("Template instance is void", 409);
+      }
+
+      // Claim the instance before any side effect. The UPDATE takes the row
+      // lock, so a concurrent submit of the same instance waits here, then
+      // matches nothing once this one commits and returns the instance it
+      // completed, instead of failing on the unique RenderedDocument link.
+      const claim = await tx.templateInstance.updateMany({
+        where: { id: instance.id, status: { in: ["DRAFT", "IN_PROGRESS"] } },
+        data: { status: "COMPLETED" },
+      });
+      if (claim.count === 0) {
+        return tx.templateInstance.findUniqueOrThrow({
+          where: { id: instance.id },
+        });
+      }
+
       // Only task templates and care pathways generate a task workflow. The
       // workflow service throws for any other kind, so launching it for every
       // submit failed each form, consent and clinical template before its
