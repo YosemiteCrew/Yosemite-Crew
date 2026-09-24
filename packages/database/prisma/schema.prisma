@@ -7354,7 +7354,11 @@ model SupplierBill {
   voidedBy            String?
   voidReason          String?
   idempotencyKey      String?
+  /// Key of the post request that moved this bill to POSTED, so a retried post
+  /// returns the posted bill instead of a conflict.
+  postIdempotencyKey  String?
   expectedVersion     Int                  @default(0)
+  /// Gross amount owed to the supplier: line totals plus tax.
   totalAmount         Float                @default(0)
   taxTotal            Float                @default(0)
   lines               SupplierBillLine[]

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS "SupplierBill" (
     "voidedBy" TEXT,
     "voidReason" TEXT,
     "idempotencyKey" TEXT,
+    "postIdempotencyKey" TEXT,
     "expectedVersion" INTEGER NOT NULL DEFAULT 0,
     "totalAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "taxTotal" DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -246,3 +247,18 @@ ALTER TABLE "SupplierEntry"
 ALTER TABLE "SupplierEntry"
   ADD CONSTRAINT "SupplierEntry_supplierAccountId_fkey"
   FOREIGN KEY ("supplierAccountId") REFERENCES "SupplierAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- deployed-code-survives: every table below is created earlier in this same
+--   migration, so no deployed query names any of them and the enable takes rows
+--   away from no existing reader. Their only readers and writers are the
+--   supplier bill service and controller shipping in this same PR, which
+--   connect as the owning role and bypass row-level security, matching every
+--   other ENABLE ROW LEVEL SECURITY in this migration set.
+-- Deny direct Supabase PostgREST access; the API connects as the owning role.
+ALTER TABLE "SupplierAccount" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupplierBill" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupplierBillLine" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupplierCredit" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupplierPayment" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupplierAllocation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupplierEntry" ENABLE ROW LEVEL SECURITY;

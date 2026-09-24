@@ -1,18 +1,9 @@
 import {
   Prisma,
-  SupplierBill as PrismaSupplierBill,
-  SupplierBillLine as PrismaSupplierBillLine,
   SupplierBillStatus as PrismaSupplierBillStatus,
-  SupplierCredit as PrismaSupplierCredit,
-  SupplierPayment as PrismaSupplierPayment,
-  SupplierAllocation as PrismaSupplierAllocation,
-  SupplierAccount as PrismaSupplierAccount,
-  SupplierEntry as PrismaSupplierEntry,
-  SupplierEntryType as PrismaSupplierEntryType,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
-import { randomUUID } from "node:crypto";
 import { roundMoney } from "src/services/finance/pricing";
 
 type PrismaTransactionClient = Prisma.TransactionClient;
@@ -28,7 +19,6 @@ export class SupplierBillServiceError extends Error {
 }
 
 type DraftSupplierBillLineInput = {
-  id?: string;
   lineType: "STOCK" | "NON_STOCK_EXPENSE";
   description: string;
   quantityOrdered?: number;
@@ -93,34 +83,39 @@ type CreateSupplierPaymentInput = {
   idempotencyKey: string;
 };
 
-type SupplierAllocationInput = {
-  creditId?: string;
-  paymentId?: string;
-  billId: string;
-  amount: number;
-  idempotencyKey: string;
+type AllocatableBill = {
+  id: string;
+  version: number;
+  totalAmount: number;
+  externalReference: string;
 };
 
-const assignLineId = (existing?: string) => {
-  const trimmed = existing?.trim();
-  return trimmed || randomUUID();
-};
+const isUniqueConstraintViolation = (error: unknown): boolean =>
+  (error as { code?: string } | null)?.code === "P2002";
 
+const conflict = (message: string) =>
+  new SupplierBillServiceError(message, 409);
+
+/**
+ * Line snapshots are written once, at draft time, and never recomputed: a
+ * posted bill must keep the amounts it was posted with even if tax or cost
+ * rules change later. `lineTotal` is net of tax; the bill's `totalAmount` is
+ * the gross payable (net plus tax), because that is what the supplier is owed.
+ */
 const buildBillLineSnapshots = (lines: DraftSupplierBillLineInput[]) =>
   lines.map((line) => {
-    const lineTotal = line.quantityBilled * line.unitCost;
-    const taxAmount = roundMoney(lineTotal * ((line.taxPercent ?? 0) / 100));
+    const lineTotal = roundMoney(line.quantityBilled * line.unitCost);
+    const taxPercent = line.taxPercent ?? 0;
     return {
-      id: assignLineId(line.id),
       lineType: line.lineType,
       description: line.description,
       quantityOrdered: line.quantityOrdered ?? null,
       quantityReceived: line.quantityReceived ?? null,
       quantityBilled: line.quantityBilled,
       unitCost: line.unitCost,
-      lineTotal: roundMoney(lineTotal),
-      taxPercent: line.taxPercent ?? 0,
-      taxAmount,
+      lineTotal,
+      taxPercent,
+      taxAmount: roundMoney(lineTotal * (taxPercent / 100)),
       purchaseOrderId: line.purchaseOrderId ?? null,
       purchaseOrderLineId: line.purchaseOrderLineId ?? null,
       receiptId: line.receiptId ?? null,
@@ -129,58 +124,252 @@ const buildBillLineSnapshots = (lines: DraftSupplierBillLineInput[]) =>
     };
   });
 
-const computeBillTotals = (
+export const computeBillTotals = (
   lines: ReturnType<typeof buildBillLineSnapshots>,
 ) => {
-  const totalAmount = roundMoney(
-    lines.reduce((sum, line) => sum + line.lineTotal, 0),
-  );
+  const netTotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   const taxTotal = roundMoney(
     lines.reduce((sum, line) => sum + line.taxAmount, 0),
   );
-  return { totalAmount, taxTotal };
+  return { totalAmount: roundMoney(netTotal + taxTotal), taxTotal };
 };
 
-const findSupplierAccountOrCreate = async (
+/**
+ * A stock line may only be billed up to what was received. Anything billed
+ * beyond that has to be a separate NON_STOCK_EXPENSE line, so an unexplained
+ * quantity difference can never post silently.
+ */
+export const findUnreceivedStockLine = <
+  T extends {
+    lineType: string;
+    quantityBilled: number;
+    quantityReceived: number | null;
+  },
+>(
+  lines: T[],
+): T | undefined =>
+  lines.find(
+    (line) =>
+      line.lineType === "STOCK" &&
+      line.quantityBilled > (line.quantityReceived ?? 0),
+  );
+
+const assertVendorInOrganisation = async (
+  organisationId: string,
+  vendorId: string,
+) => {
+  const vendor = await prisma.inventoryVendor.findFirst({
+    where: { id: vendorId, organisationId },
+    select: { id: true },
+  });
+  if (!vendor) {
+    throw new SupplierBillServiceError("Supplier not found", 404);
+  }
+};
+
+const upsertSupplierAccount = (
   organisationId: string,
   vendorId: string,
   currency: string,
-) => {
-  let account = await prisma.supplierAccount.findUnique({
+) =>
+  prisma.supplierAccount.upsert({
     where: {
       organisationId_vendorId_currency: { organisationId, vendorId, currency },
     },
+    create: { organisationId, vendorId, currency },
+    update: {},
   });
 
-  if (!account) {
-    account = await prisma.supplierAccount.create({
-      data: { organisationId, vendorId, currency },
-    });
+const loadBill = async (billId: string, organisationId: string) => {
+  const bill = await prisma.supplierBill.findUnique({
+    where: { id: billId },
+    include: {
+      lines: { orderBy: { createdAt: "asc" } },
+      credits: { orderBy: { createdAt: "desc" } },
+      allocations: { orderBy: { createdAt: "asc" } },
+      supplierAccount: true,
+    },
+  });
+
+  if (bill?.organisationId !== organisationId) {
+    throw new SupplierBillServiceError("Supplier bill not found", 404);
   }
 
-  return account;
+  return bill;
 };
 
-const recordSupplierEntry = async (
-  entry: Omit<PrismaSupplierEntry, "id" | "createdAt"> & {
-    type: PrismaSupplierEntryType;
-  },
+/**
+ * What is still owed on a bill: its gross total less every credit and payment
+ * already allocated to it. Read inside the transaction that writes the next
+ * allocation, so the figure and the write agree.
+ */
+const outstandingOn = async (
+  tx: PrismaTransactionClient,
+  bill: Pick<AllocatableBill, "id" | "totalAmount">,
 ) => {
-  await prisma.supplierEntry.create({ data: entry });
+  const allocated = await tx.supplierAllocation.aggregate({
+    where: { billId: bill.id },
+    _sum: { amount: true },
+  });
+  return roundMoney(bill.totalAmount - (allocated._sum.amount ?? 0));
 };
 
-const assertVersionMatch = <T extends { version: number }>(
-  record: T,
-  expectedVersion: number,
-  entityName: string,
+/**
+ * Claims a bill for one allocation. Two payments allocating to the same bill
+ * at once would each read the same outstanding amount; bumping the version
+ * with a compare-and-set means the second one fails with 409 and retries
+ * against the updated figure instead of overpaying the bill.
+ */
+const claimBillForAllocation = async (
+  tx: PrismaTransactionClient,
+  bill: AllocatableBill,
+  amount: number,
 ) => {
-  if (record.version !== expectedVersion) {
-    throw new SupplierBillServiceError(
-      `${entityName} has been modified by another process (expected version ${expectedVersion}, found ${record.version})`,
-      409,
+  const claimed = await tx.supplierBill.updateMany({
+    where: { id: bill.id, version: bill.version, status: "POSTED" },
+    data: { version: { increment: 1 } },
+  });
+  if (claimed.count !== 1) {
+    throw conflict(
+      `Bill ${bill.externalReference} changed while allocating, reload and retry`,
+    );
+  }
+  if (amount > (await outstandingOn(tx, bill))) {
+    throw conflict(
+      `Allocation exceeds the amount outstanding on bill ${bill.externalReference}`,
     );
   }
 };
+
+const validatePaymentInput = (input: CreateSupplierPaymentInput) => {
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new SupplierBillServiceError("Payment amount must be positive", 400);
+  }
+  if (!input.allocations.length) {
+    throw new SupplierBillServiceError(
+      "At least one allocation is required",
+      400,
+    );
+  }
+  const billIds = new Set(input.allocations.map((a) => a.billId));
+  if (billIds.size !== input.allocations.length) {
+    throw new SupplierBillServiceError(
+      "Each bill may appear only once in a payment",
+      400,
+    );
+  }
+  const totalAllocated = roundMoney(
+    input.allocations.reduce((sum, a) => sum + a.amount, 0),
+  );
+  if (totalAllocated > roundMoney(input.amount)) {
+    throw new SupplierBillServiceError(
+      "Total allocated amount exceeds payment amount",
+      400,
+    );
+  }
+};
+
+const findPaymentByKey = (input: {
+  organisationId: string;
+  vendorId: string;
+  idempotencyKey: string;
+}) =>
+  prisma.supplierPayment.findUnique({
+    where: { organisationId_vendorId_idempotencyKey: input },
+    include: { allocations: true },
+  });
+
+const loadPostedBillsForAllocation = async (
+  input: CreateSupplierPaymentInput,
+) => {
+  const bills = await prisma.supplierBill.findMany({
+    where: {
+      id: { in: input.allocations.map((a) => a.billId) },
+      organisationId: input.organisationId,
+      vendorId: input.vendorId,
+      currency: input.currency,
+    },
+  });
+
+  if (bills.length !== input.allocations.length) {
+    throw new SupplierBillServiceError(
+      "One or more referenced bills not found",
+      404,
+    );
+  }
+
+  const notPosted = bills.find((bill) => bill.status !== "POSTED");
+  if (notPosted) {
+    throw conflict(`Bill ${notPosted.externalReference} is not posted`);
+  }
+
+  return new Map(bills.map((bill) => [bill.id, bill]));
+};
+
+const writePayment = (
+  input: CreateSupplierPaymentInput,
+  supplierAccountId: string,
+  billsById: Map<string, AllocatableBill>,
+) =>
+  prisma.$transaction(async (tx: PrismaTransactionClient) => {
+    const amount = roundMoney(input.amount);
+    const payment = await tx.supplierPayment.create({
+      data: {
+        organisationId: input.organisationId,
+        vendorId: input.vendorId,
+        supplierAccountId,
+        amount,
+        currency: input.currency,
+        paidAt: input.paidAt,
+        method: input.method,
+        reference: input.reference,
+        idempotencyKey: input.idempotencyKey,
+      },
+    });
+
+    for (const alloc of input.allocations) {
+      const allocationAmount = roundMoney(alloc.amount);
+      await claimBillForAllocation(
+        tx,
+        billsById.get(alloc.billId)!,
+        allocationAmount,
+      );
+      await tx.supplierAllocation.create({
+        data: {
+          organisationId: input.organisationId,
+          supplierAccountId,
+          paymentId: payment.id,
+          billId: alloc.billId,
+          amount: allocationAmount,
+          idempotencyKey: `${input.idempotencyKey}:${alloc.billId}`,
+        },
+      });
+    }
+
+    // One ledger entry for the money that left, whatever it was allocated to.
+    // Any part not allocated to a bill stays on the account as supplier credit.
+    await tx.supplierAccount.update({
+      where: { id: supplierAccountId },
+      data: { balance: { decrement: amount }, version: { increment: 1 } },
+    });
+    await tx.supplierEntry.create({
+      data: {
+        organisationId: input.organisationId,
+        vendorId: input.vendorId,
+        supplierAccountId,
+        type: "PAYMENT",
+        paymentId: payment.id,
+        amount: -amount,
+        currency: input.currency,
+        description: `Payment recorded: ${input.reference}`,
+      },
+    });
+
+    return tx.supplierPayment.findUniqueOrThrow({
+      where: { id: payment.id },
+      include: { allocations: true },
+    });
+  });
 
 export const SupplierBillService = {
   async createDraft(input: CreateSupplierBillInput) {
@@ -215,14 +404,7 @@ export const SupplierBillService = {
       }
     }
 
-    const supplierAccount = await findSupplierAccountOrCreate(
-      organisationId,
-      vendorId,
-      currency,
-    );
-
-    const lineSnapshots = buildBillLineSnapshots(lines);
-    const { totalAmount, taxTotal } = computeBillTotals(lineSnapshots);
+    await assertVendorInOrganisation(organisationId, vendorId);
 
     const existing = await prisma.supplierBill.findUnique({
       where: {
@@ -236,14 +418,23 @@ export const SupplierBillService = {
 
     if (existing) {
       if (idempotencyKey && existing.idempotencyKey === idempotencyKey) {
-        return this.getById(existing.id, organisationId);
+        return loadBill(existing.id, organisationId);
       }
-      throw new SupplierBillServiceError(
+      throw conflict(
         "Supplier bill with this external reference already exists",
-        409,
       );
     }
 
+    const supplierAccount = await upsertSupplierAccount(
+      organisationId,
+      vendorId,
+      currency,
+    );
+    const lineSnapshots = buildBillLineSnapshots(lines);
+    const { totalAmount, taxTotal } = computeBillTotals(lineSnapshots);
+
+    // A draft is not a liability yet, so it writes no ledger entry and does
+    // not move the account balance. Only posting does.
     const bill = await prisma.supplierBill.create({
       data: {
         organisationId,
@@ -257,45 +448,17 @@ export const SupplierBillService = {
         lines: { create: lineSnapshots },
         idempotencyKey,
       },
-      include: { lines: true },
-    });
-
-    await recordSupplierEntry({
-      organisationId,
-      vendorId,
-      supplierAccountId: supplierAccount.id,
-      type: "BILL" as PrismaSupplierEntryType,
-      billId: bill.id,
-      amount: totalAmount,
-      currency,
-      description: `Draft bill created: ${externalReference}`,
-      version: 0,
     });
 
     logger.info("Supplier bill draft created", {
       billId: bill.id,
       organisationId,
-      vendorId,
     });
-    return this.getById(bill.id, organisationId);
+    return loadBill(bill.id, organisationId);
   },
 
-  async getById(billId: string, organisationId: string) {
-    const bill = await prisma.supplierBill.findUnique({
-      where: { id: billId },
-      include: {
-        lines: { orderBy: { createdAt: "asc" } },
-        credits: { orderBy: { createdAt: "desc" } },
-        allocations: { orderBy: { createdAt: "asc" } },
-        supplierAccount: true,
-      },
-    });
-
-    if (!bill || bill.organisationId !== organisationId) {
-      throw new SupplierBillServiceError("Supplier bill not found", 404);
-    }
-
-    return bill;
+  getById(billId: string, organisationId: string) {
+    return loadBill(billId, organisationId);
   },
 
   async list(params: {
@@ -310,12 +473,12 @@ export const SupplierBillService = {
     const where: Prisma.SupplierBillWhereInput = { organisationId };
     if (vendorId) where.vendorId = vendorId;
     if (status) where.status = status;
-    if (cursor) where.id = { lt: cursor };
 
     const bills = await prisma.supplierBill.findMany({
       where,
       take: limit + 1,
-      orderBy: { createdAt: "desc" },
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: {
         lines: { orderBy: { createdAt: "asc" } },
         supplierAccount: true,
@@ -324,8 +487,8 @@ export const SupplierBillService = {
 
     let nextCursor: string | undefined;
     if (bills.length > limit) {
-      const next = bills.pop();
-      nextCursor = next!.id;
+      bills.pop();
+      nextCursor = bills.at(-1)?.id;
     }
 
     return { bills, nextCursor };
@@ -335,115 +498,107 @@ export const SupplierBillService = {
     const { billId, organisationId, actorId, expectedVersion, idempotencyKey } =
       input;
 
-    const bill = await prisma.supplierBill.findUnique({
-      where: { id: billId },
-      include: { lines: true, supplierAccount: true },
-    });
+    const bill = await loadBill(billId, organisationId);
 
-    if (!bill || bill.organisationId !== organisationId) {
-      throw new SupplierBillServiceError("Supplier bill not found", 404);
+    // A retry of a post that already committed returns the posted bill rather
+    // than a conflict, so a client that timed out can read back the result.
+    if (
+      bill.status === "POSTED" &&
+      bill.postIdempotencyKey === idempotencyKey
+    ) {
+      return bill;
     }
 
     if (bill.status !== "DRAFT") {
-      throw new SupplierBillServiceError("Only draft bills can be posted", 409);
+      throw conflict("Only draft bills can be posted");
     }
 
-    assertVersionMatch(bill, expectedVersion, "Supplier bill");
-
-    if (bill.idempotencyKey && bill.idempotencyKey !== idempotencyKey) {
-      throw new SupplierBillServiceError("Idempotency key mismatch", 409);
+    const unreceived = findUnreceivedStockLine(bill.lines);
+    if (unreceived) {
+      throw conflict(
+        `Line "${unreceived.description}": cannot bill more than the received quantity; bill the difference as a separate non-stock expense line`,
+      );
     }
 
-    for (const line of bill.lines) {
-      if (
-        line.lineType === "STOCK" &&
-        (line.quantityOrdered ?? 0) > 0 &&
-        line.quantityBilled > (line.quantityReceived ?? 0)
-      ) {
-        throw new SupplierBillServiceError(
-          `Line "${line.description}": cannot bill more than received quantity without documented non-stock expense line`,
-          409,
+    await prisma.$transaction(async (tx: PrismaTransactionClient) => {
+      const claimed = await tx.supplierBill.updateMany({
+        where: { id: billId, version: expectedVersion, status: "DRAFT" },
+        data: {
+          status: "POSTED",
+          version: { increment: 1 },
+          postedAt: new Date(),
+          postedBy: actorId,
+          postIdempotencyKey: idempotencyKey,
+        },
+      });
+      if (claimed.count !== 1) {
+        throw conflict(
+          "Supplier bill has been modified by another request, reload and retry",
         );
       }
-    }
 
-    const now = new Date();
-    const updated = await prisma.$transaction(
-      async (tx: PrismaTransactionClient) => {
-        const updatedBill = await tx.supplierBill.update({
-          where: { id: billId },
-          data: {
-            status: "POSTED",
-            version: bill.version + 1,
-            postedAt: now,
-            postedBy: actorId,
-            idempotencyKey,
-          },
-        });
+      await tx.supplierAccount.update({
+        where: { id: bill.supplierAccountId },
+        data: {
+          balance: { increment: bill.totalAmount },
+          version: { increment: 1 },
+        },
+      });
 
-        await tx.supplierAccount.update({
-          where: { id: bill.supplierAccountId },
-          data: {
-            balance: { increment: bill.totalAmount },
-            version: { increment: 1 },
-          },
-        });
+      await tx.supplierEntry.create({
+        data: {
+          organisationId,
+          vendorId: bill.vendorId,
+          supplierAccountId: bill.supplierAccountId,
+          type: "BILL",
+          billId: bill.id,
+          amount: bill.totalAmount,
+          currency: bill.currency,
+          description: `Bill posted: ${bill.externalReference}`,
+        },
+      });
+    });
 
-        await tx.supplierEntry.create({
-          data: {
-            organisationId,
-            vendorId: bill.vendorId,
-            supplierAccountId: bill.supplierAccountId,
-            type: "BILL",
-            billId: bill.id,
-            amount: bill.totalAmount,
-            currency: bill.currency,
-            description: `Bill posted: ${bill.externalReference}`,
-            version: 0,
-          },
-        });
-
-        return updatedBill;
-      },
-    );
-
-    logger.info("Supplier bill posted", { billId, organisationId, actorId });
-    return this.getById(billId, organisationId);
+    logger.info("Supplier bill posted", { billId, organisationId });
+    return loadBill(billId, organisationId);
   },
 
   async voidBill(input: VoidSupplierBillInput) {
     const { billId, organisationId, actorId, reason, expectedVersion } = input;
 
-    const bill = await prisma.supplierBill.findUnique({
-      where: { id: billId },
-      include: { supplierAccount: true },
-    });
-
-    if (!bill || bill.organisationId !== organisationId) {
-      throw new SupplierBillServiceError("Supplier bill not found", 404);
-    }
+    const bill = await loadBill(billId, organisationId);
 
     if (bill.status !== "POSTED") {
-      throw new SupplierBillServiceError(
-        "Only posted bills can be voided",
-        409,
-      );
+      throw conflict("Only posted bills can be voided");
     }
 
-    assertVersionMatch(bill, expectedVersion, "Supplier bill");
-
-    const now = new Date();
     await prisma.$transaction(async (tx: PrismaTransactionClient) => {
-      await tx.supplierBill.update({
-        where: { id: billId },
+      const claimed = await tx.supplierBill.updateMany({
+        where: { id: billId, version: expectedVersion, status: "POSTED" },
         data: {
           status: "VOID",
-          version: bill.version + 1,
-          voidedAt: now,
+          version: { increment: 1 },
+          voidedAt: new Date(),
           voidedBy: actorId,
           voidReason: reason,
         },
       });
+      if (claimed.count !== 1) {
+        throw conflict(
+          "Supplier bill has been modified by another request, reload and retry",
+        );
+      }
+
+      // Checked after the claim so no allocation can land in between: every
+      // allocation path bumps the bill version first.
+      const allocations = await tx.supplierAllocation.count({
+        where: { billId },
+      });
+      if (allocations > 0) {
+        throw conflict(
+          "A bill with credits or payments allocated to it cannot be voided",
+        );
+      }
 
       await tx.supplierAccount.update({
         where: { id: bill.supplierAccountId },
@@ -463,18 +618,12 @@ export const SupplierBillService = {
           amount: -bill.totalAmount,
           currency: bill.currency,
           description: `Bill voided: ${reason}`,
-          version: 0,
         },
       });
     });
 
-    logger.info("Supplier bill voided", {
-      billId,
-      organisationId,
-      actorId,
-      reason,
-    });
-    return this.getById(billId, organisationId);
+    logger.info("Supplier bill voided", { billId, organisationId });
+    return loadBill(billId, organisationId);
   },
 
   async createCredit(input: CreateSupplierCreditInput) {
@@ -483,7 +632,6 @@ export const SupplierBillService = {
       vendorId,
       currency,
       externalReference,
-      amount,
       billId,
       receiptId,
       reason,
@@ -491,9 +639,10 @@ export const SupplierBillService = {
       idempotencyKey,
     } = input;
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!Number.isFinite(input.amount) || input.amount <= 0) {
       throw new SupplierBillServiceError("Credit amount must be positive", 400);
     }
+    const amount = roundMoney(input.amount);
 
     if (billId && receiptId) {
       throw new SupplierBillServiceError(
@@ -502,11 +651,7 @@ export const SupplierBillService = {
       );
     }
 
-    const supplierAccount = await findSupplierAccountOrCreate(
-      organisationId,
-      vendorId,
-      currency,
-    );
+    await assertVendorInOrganisation(organisationId, vendorId);
 
     const existing = await prisma.supplierCredit.findUnique({
       where: {
@@ -522,31 +667,34 @@ export const SupplierBillService = {
       if (idempotencyKey && existing.idempotencyKey === idempotencyKey) {
         return existing;
       }
-      throw new SupplierBillServiceError(
+      throw conflict(
         "Supplier credit with this external reference already exists",
-        409,
       );
     }
 
-    let linkedBill: PrismaSupplierBill | null = null;
+    let linkedBill: AllocatableBill | null = null;
     if (billId) {
-      linkedBill = await prisma.supplierBill.findUnique({
+      const bill = await prisma.supplierBill.findUnique({
         where: { id: billId },
       });
       if (
-        !linkedBill ||
-        linkedBill.organisationId !== organisationId ||
-        linkedBill.vendorId !== vendorId
+        bill?.organisationId !== organisationId ||
+        bill.vendorId !== vendorId ||
+        bill.currency !== currency
       ) {
         throw new SupplierBillServiceError("Referenced bill not found", 404);
       }
-      if (linkedBill.status !== "POSTED") {
-        throw new SupplierBillServiceError(
-          "Credit can only reference a posted bill",
-          409,
-        );
+      if (bill.status !== "POSTED") {
+        throw conflict("Credit can only reference a posted bill");
       }
+      linkedBill = bill;
     }
+
+    const supplierAccount = await upsertSupplierAccount(
+      organisationId,
+      vendorId,
+      currency,
+    );
 
     const credit = await prisma.$transaction(
       async (tx: PrismaTransactionClient) => {
@@ -557,7 +705,7 @@ export const SupplierBillService = {
             supplierAccountId: supplierAccount.id,
             externalReference,
             currency,
-            amount: roundMoney(amount),
+            amount,
             billId: billId ?? null,
             receiptId: receiptId ?? null,
             reason,
@@ -566,10 +714,26 @@ export const SupplierBillService = {
           },
         });
 
+        // A credit against a bill reduces what is owed on that bill, so it is
+        // recorded as an allocation and counts toward the bill's outstanding.
+        if (linkedBill) {
+          await claimBillForAllocation(tx, linkedBill, amount);
+          await tx.supplierAllocation.create({
+            data: {
+              organisationId,
+              supplierAccountId: supplierAccount.id,
+              creditId: createdCredit.id,
+              billId: linkedBill.id,
+              amount,
+              idempotencyKey: `${createdCredit.id}:${linkedBill.id}`,
+            },
+          });
+        }
+
         await tx.supplierAccount.update({
           where: { id: supplierAccount.id },
           data: {
-            balance: { decrement: roundMoney(amount) },
+            balance: { decrement: amount },
             version: { increment: 1 },
           },
         });
@@ -582,10 +746,9 @@ export const SupplierBillService = {
             type: "CREDIT",
             creditId: createdCredit.id,
             billId: billId ?? null,
-            amount: -roundMoney(amount),
+            amount: -amount,
             currency,
-            description: `Credit created: ${reason ?? externalReference}`,
-            version: 0,
+            description: `Credit recorded: ${externalReference}`,
           },
         });
 
@@ -596,168 +759,47 @@ export const SupplierBillService = {
     logger.info("Supplier credit created", {
       creditId: credit.id,
       organisationId,
-      vendorId,
-      amount,
     });
     return credit;
   },
 
   async createPayment(input: CreateSupplierPaymentInput) {
-    const {
-      organisationId,
-      vendorId,
-      currency,
-      amount,
-      paidAt,
-      method,
-      reference,
-      allocations,
-      idempotencyKey,
-    } = input;
+    validatePaymentInput(input);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new SupplierBillServiceError(
-        "Payment amount must be positive",
-        400,
-      );
+    const key = {
+      organisationId: input.organisationId,
+      vendorId: input.vendorId,
+      idempotencyKey: input.idempotencyKey,
+    };
+    const replay = await findPaymentByKey(key);
+    if (replay) {
+      return replay;
     }
 
-    if (!allocations.length) {
-      throw new SupplierBillServiceError(
-        "At least one allocation is required",
-        400,
-      );
-    }
-
-    const totalAllocated = roundMoney(
-      allocations.reduce((sum, a) => sum + a.amount, 0),
-    );
-    if (totalAllocated > roundMoney(amount)) {
-      throw new SupplierBillServiceError(
-        "Total allocated amount exceeds payment amount",
-        400,
-      );
-    }
-
-    const supplierAccount = await findSupplierAccountOrCreate(
-      organisationId,
-      vendorId,
-      currency,
+    await assertVendorInOrganisation(input.organisationId, input.vendorId);
+    const billsById = await loadPostedBillsForAllocation(input);
+    const supplierAccount = await upsertSupplierAccount(
+      input.organisationId,
+      input.vendorId,
+      input.currency,
     );
 
-    const existing = await prisma.supplierPayment.findUnique({
-      where: {
-        organisationId_vendorId_idempotencyKey: {
-          organisationId,
-          vendorId,
-          idempotencyKey,
-        },
-      },
-    });
-
-    if (existing) {
-      return existing;
+    let payment;
+    try {
+      payment = await writePayment(input, supplierAccount.id, billsById);
+    } catch (error) {
+      // Two submissions of the same payment raced past the replay check; the
+      // one that committed is the answer to both.
+      const winner = isUniqueConstraintViolation(error)
+        ? await findPaymentByKey(key)
+        : null;
+      if (!winner) throw error;
+      return winner;
     }
-
-    const bills = await prisma.supplierBill.findMany({
-      where: {
-        id: { in: allocations.map((a) => a.billId) },
-        organisationId,
-        vendorId,
-      },
-    });
-
-    if (bills.length !== allocations.length) {
-      throw new SupplierBillServiceError(
-        "One or more referenced bills not found",
-        404,
-      );
-    }
-
-    for (const bill of bills) {
-      if (bill.status !== "POSTED") {
-        throw new SupplierBillServiceError(
-          `Bill ${bill.externalReference} is not posted`,
-          409,
-        );
-      }
-    }
-
-    const payment = await prisma.$transaction(
-      async (tx: PrismaTransactionClient) => {
-        const createdPayment = await tx.supplierPayment.create({
-          data: {
-            organisationId,
-            vendorId,
-            supplierAccountId: supplierAccount.id,
-            amount: roundMoney(amount),
-            currency,
-            paidAt,
-            method,
-            reference,
-            idempotencyKey,
-          },
-        });
-
-        for (const alloc of allocations) {
-          await tx.supplierAllocation.create({
-            data: {
-              organisationId,
-              supplierAccountId: supplierAccount.id,
-              paymentId: createdPayment.id,
-              billId: alloc.billId,
-              amount: roundMoney(alloc.amount),
-              idempotencyKey: `${idempotencyKey}-${alloc.billId}`,
-            },
-          });
-
-          await tx.supplierEntry.create({
-            data: {
-              organisationId,
-              vendorId,
-              supplierAccountId: supplierAccount.id,
-              type: "PAYMENT",
-              paymentId: createdPayment.id,
-              billId: alloc.billId,
-              amount: -roundMoney(alloc.amount),
-              currency,
-              description: `Payment allocated to ${alloc.billId}`,
-              version: 0,
-            },
-          });
-        }
-
-        await tx.supplierAccount.update({
-          where: { id: supplierAccount.id },
-          data: {
-            balance: { decrement: roundMoney(amount) },
-            version: { increment: 1 },
-          },
-        });
-
-        await tx.supplierEntry.create({
-          data: {
-            organisationId,
-            vendorId,
-            supplierAccountId: supplierAccount.id,
-            type: "PAYMENT",
-            paymentId: createdPayment.id,
-            amount: -roundMoney(amount),
-            currency,
-            description: `Payment recorded: ${reference}`,
-            version: 0,
-          },
-        });
-
-        return createdPayment;
-      },
-    );
 
     logger.info("Supplier payment created", {
       paymentId: payment.id,
-      organisationId,
-      vendorId,
-      amount,
+      organisationId: input.organisationId,
     });
     return payment;
   },
@@ -793,7 +835,7 @@ export const SupplierBillService = {
   }) {
     const { organisationId, vendorId, currency, fromDate, toDate } = params;
 
-    const account = await this.getSupplierAccount(
+    const account = await SupplierBillService.getSupplierAccount(
       organisationId,
       vendorId,
       currency,
@@ -810,8 +852,7 @@ export const SupplierBillService = {
 
     const entries = await prisma.supplierEntry.findMany({
       where,
-      orderBy: { createdAt: "asc" },
-      include: { bill: true, credit: true, payment: true, allocation: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
 
     return { account, entries };
