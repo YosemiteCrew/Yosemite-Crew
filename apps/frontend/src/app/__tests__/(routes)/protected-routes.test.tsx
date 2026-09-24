@@ -22,8 +22,7 @@ jest.mock('next/dynamic', () => ({
             data-appointment-id={String(props.appointmentId ?? '')}
             onClick={() => {
               const onChannelSelect = props.onChannelSelect as
-                | ((channel: Record<string, unknown>) => void)
-                | undefined;
+                ((channel: Record<string, unknown>) => void) | undefined;
               onChannelSelect?.({ id: 'channel-1' });
             }}
           >
@@ -126,23 +125,43 @@ describe('protected route wrappers', () => {
     expect(typeof InventoryRoute).toBe('function');
   });
 
-  test('chat route renders ChatContainer', () => {
-    render(<ChatRoute />);
-    expect(screen.getByTestId('route-chat')).toBeInTheDocument();
-    expect(typeof ChatModule.default).toBe('function');
-  });
+  describe('chat route', () => {
+    const originalKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+    beforeEach(() => {
+      process.env.NEXT_PUBLIC_STREAM_API_KEY = 'stream-key';
+    });
+    afterAll(() => {
+      process.env.NEXT_PUBLIC_STREAM_API_KEY = originalKey;
+    });
 
-  test('chat route consumes appointment deep link once channel activates', async () => {
-    searchParamGetMock.mockImplementation((key: string) =>
-      key === 'appointmentId' ? 'appt-1' : null
-    );
+    test('renders ChatContainer', () => {
+      render(<ChatRoute />);
+      expect(screen.getByTestId('route-chat')).toBeInTheDocument();
+      expect(screen.queryByText("Chat isn't set up for this workspace")).not.toBeInTheDocument();
+      expect(typeof ChatModule.default).toBe('function');
+    });
 
-    render(<ChatRoute />);
+    test('without a Stream key shows the unavailable state and never mounts the workspace', () => {
+      // A self-hosted install without Stream, and the E2E build: mounting the
+      // workspace only to fail logged a configuration error on every visit.
+      delete process.env.NEXT_PUBLIC_STREAM_API_KEY;
+      render(<ChatRoute />);
+      expect(screen.getByText("Chat isn't set up for this workspace")).toBeInTheDocument();
+      expect(screen.queryByTestId('route-chat')).not.toBeInTheDocument();
+    });
 
-    const chat = await screen.findByTestId('route-chat');
-    await waitFor(() => expect(chat).toHaveAttribute('data-appointment-id', 'appt-1'));
-    fireEvent.click(chat);
-    expect(routerReplaceMock).toHaveBeenCalledWith('/chat', { scroll: false });
+    test('consumes appointment deep link once channel activates', async () => {
+      searchParamGetMock.mockImplementation((key: string) =>
+        key === 'appointmentId' ? 'appt-1' : null
+      );
+
+      render(<ChatRoute />);
+
+      const chat = await screen.findByTestId('route-chat');
+      await waitFor(() => expect(chat).toHaveAttribute('data-appointment-id', 'appt-1'));
+      fireEvent.click(chat);
+      expect(routerReplaceMock).toHaveBeenCalledWith('/chat', { scroll: false });
+    });
   });
 
   test('signin route renders SignIn within Suspense', () => {

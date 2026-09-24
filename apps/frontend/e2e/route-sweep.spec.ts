@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -153,6 +153,61 @@ export const resolveCompanionOverview = async (
   return { href: `${pathname}${search}` };
 };
 
+/**
+ * A live view of the page's requests in flight, so the sweep leaves a page only
+ * once it is quiet.
+ *
+ * waitForLoadState('networkidle') cannot answer that. It resolves on a lifecycle
+ * event the document fired once, so after a client-side navigation, or once the
+ * load has settled and something starts later, it returns at once with requests
+ * still pending. The next page.goto then aborts them, and Firefox (not Chromium)
+ * rejects each aborted fetch with a NetworkError that the app's own handlers log.
+ * The sweep reported those as console errors on whichever route came next, such
+ * as the patient overview's billing load on /dashboard.
+ */
+export const trackInFlightRequests = (page: Page) => {
+  const inFlight = new Set<Request>();
+  let lastChange = Date.now();
+  page.on('request', (request) => {
+    // A new document abandons the old one's requests, and Chromium emits no end
+    // event for them, so they would read as in flight for the rest of the run.
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) inFlight.clear();
+    inFlight.add(request);
+    lastChange = Date.now();
+  });
+  const ended = (request: Request) => {
+    inFlight.delete(request);
+    lastChange = Date.now();
+  };
+  page.on('requestfinished', ended);
+  page.on('requestfailed', ended);
+
+  /**
+   * Waits until nothing has been in flight for `quietMs` (the same bar as
+   * Playwright's networkidle) or `timeoutMs` passes, and returns the URLs still
+   * pending: empty means the page is quiet and leaving it aborts nothing.
+   */
+  const settle = async ({ quietMs = 500, timeoutMs = 30_000 } = {}): Promise<string[]> => {
+    const deadline = Date.now() + timeoutMs;
+    while (inFlight.size > 0 || Date.now() - lastChange < quietMs) {
+      if (Date.now() >= deadline) return [...inFlight].map((r) => r.url());
+      await new Promise((resolve) => {
+        setTimeout(resolve, 50);
+      });
+    }
+    return [];
+  };
+  return { settle };
+};
+
+/**
+ * How long a page must have had nothing in flight before the sweep leaves it.
+ * Longer than networkidle's 500ms because the API client retries a transient
+ * failure after a 600ms backoff plus up to 600ms of jitter, with nothing in
+ * flight meanwhile; leaving inside that gap aborts the retry.
+ */
+const LEAVE_QUIET_MS = 1_500;
+
 const readBaseline = (): Record<string, string[]> => {
   try {
     return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as Record<string, string[]>;
@@ -299,6 +354,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
    */
   /** Latest rate-limit budget the API reported, updated on every response. */
   const budget: { remaining?: number; resetAtMs?: number } = {};
+  const network = trackInFlightRequests(page);
   page.on('response', (r) => {
     const remaining = Number(r.headers()['ratelimit-remaining']);
     const resetSeconds = Number(r.headers()['ratelimit-reset']);
@@ -321,9 +377,20 @@ test('every operational route holds its page invariants', async ({ page }) => {
     };
     page.on('console', onConsole);
     page.on('response', onResponse);
-    return () => {
+    return async () => {
+      // Leave only once the page is quiet, and before this route's listeners
+      // come off: a late request that fails is then reported against this
+      // route, instead of being aborted by the next navigation and reported
+      // against that one.
+      const pending = await network.settle({ quietMs: LEAVE_QUIET_MS });
       page.off('console', onConsole);
       page.off('response', onResponse);
+      if (pending.length) {
+        noise.push(
+          `${route}  [never-settled]  ${pending.length} request(s) still in flight 30s after ` +
+            `the page was read: ${pending[0].slice(0, 120)}`
+        );
+      }
       return noise;
     };
   };
@@ -348,6 +415,10 @@ test('every operational route holds its page invariants', async ({ page }) => {
   await page.goto('/companions', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
   const overview = await resolveCompanionOverview(page);
+  // Opening the overview is a client-side navigation, so its loads are still in
+  // flight here, and the first route's page.goto would abort every one of them.
+  // The overview itself is swept later, from a fresh load.
+  await network.settle({ quietMs: LEAVE_QUIET_MS });
   if ('href' in overview) derived = [overview.href];
   else {
     found['/companions/history'] = [
@@ -389,7 +460,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
       .catch(() => false);
     if (!settled) {
       found[route] = [`${route}  [never-settled]  still loading after 30s; the page was not swept`];
-      stopWatching();
+      await stopWatching();
       continue;
     }
 
@@ -401,7 +472,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
     const status = response?.status();
     if (status !== undefined && status >= 400) {
       found[route] = [`${route}  [not-reachable]  the page itself returned ${status}`];
-      stopWatching();
+      await stopWatching();
       continue;
     }
 
@@ -414,7 +485,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
     const expected = new URL(route, 'https://example.invalid').pathname;
     if (landed !== expected) {
       found[route] = [`${route}  [not-reachable]  redirected to ${landed}`];
-      stopWatching();
+      await stopWatching();
       continue;
     }
 
@@ -462,7 +533,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
       ...formatViolations(route, violations).split('\n').filter(Boolean),
       // Deduplicated: one failing endpoint retried by a hook produces the same
       // line twenty times, which buries every other finding.
-      ...new Set(stopWatching()),
+      ...new Set(await stopWatching()),
     ];
     if (lines.length) found[route] = lines;
   }

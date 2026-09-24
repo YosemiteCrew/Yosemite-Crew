@@ -23,9 +23,12 @@ jest.mock('@/app/ui/overlays/Modal', () => ({
     ) : null,
 }));
 
+// Faithful to the real CenterModal: a closed one still renders its children
+// (hidden only by opacity), so closed-means-absent has to hold at the call site.
+// The old mock returned null when closed and hid exactly that divergence.
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
   __esModule: true,
-  default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
+  default: ({ showModal, children }: any) => <div data-open={String(showModal)}>{children}</div>,
 }));
 
 jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
@@ -373,8 +376,9 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Dirty room' },
     });
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('close-New room'));
-    expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+    expect(screen.getAllByText('Discard changes?')).toHaveLength(1);
 
     fireEvent.click(screen.getByText('Keep editing'));
     expect(setShowModal).not.toHaveBeenCalledWith(false);

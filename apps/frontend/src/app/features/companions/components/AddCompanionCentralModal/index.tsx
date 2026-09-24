@@ -895,9 +895,11 @@ const useAddCompanionCentralModalContent = ({
     />
   );
 
-  const discardConfirm = (
+  // Mounted only while open: a closed CenterModal keeps its content laid out,
+  // so a page hosting two editors carried two hidden "Discard changes?" headings.
+  const discardConfirm = showDiscardConfirm ? (
     <CenterModal
-      showModal={showDiscardConfirm}
+      showModal
       setShowModal={setShowDiscardConfirm}
       containerClassName="shadow-[0_0_40px_0_rgba(0,0,0,0.20)]!"
     >
@@ -934,7 +936,7 @@ const useAddCompanionCentralModalContent = ({
         </div>
       </div>
     </CenterModal>
-  );
+  ) : null;
 
   // ── Phone add-companion: a bottom sheet with the wizard + a sticky step footer.
   if (isCreate && isPhone) {
