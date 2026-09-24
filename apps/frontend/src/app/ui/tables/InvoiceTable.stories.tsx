@@ -71,7 +71,7 @@ const INVOICES: Invoice[] = [
  * Both stores are plain Zustand stores with no provider and no fetch on read, so
  * seeding them outside React is the whole of the setup. The table resolves the
  * parent and patient names itself from `invoice.appointmentId`, and the money
- * formatter reads the org currency, which falls back to USD with no subscription.
+ * formatter labels each row in that invoice's own currency.
  */
 const seedStores = () => {
   useOrgStore.setState({ primaryOrgId: ORG_ID, status: 'loaded' });

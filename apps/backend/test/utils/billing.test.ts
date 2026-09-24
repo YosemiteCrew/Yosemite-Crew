@@ -1,6 +1,8 @@
 import {
   currencyForCountry,
   getOrgBillingCurrency,
+  orgBillingCurrency,
+  resolveOrgDocumentCurrency,
 } from "../../src/utils/billing";
 import { prisma } from "src/config/prisma";
 
@@ -54,13 +56,33 @@ describe("getOrgBillingCurrency", () => {
     expect(prisma.organizationBilling.findUnique).not.toHaveBeenCalled();
   });
 
-  it("prefers the OrganizationBilling currency over the country fallback", async () => {
+  it("prefers the Connect-written OrganizationBilling currency over the country", async () => {
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
       currency: "gbp",
+      connectAccountId: "acct_1",
     });
 
     await expect(getOrgBillingCurrency("org_1")).resolves.toBe("gbp");
+    expect(prisma.organizationBilling.findUnique).toHaveBeenCalledWith({
+      where: { orgId: "org_1" },
+      select: { currency: true, connectAccountId: true },
+    });
     expect(prisma.organizationAddress.findUnique).not.toHaveBeenCalled();
+  });
+
+  // Every organisation gets a billing row at creation, so its currency column
+  // holds the schema default "usd" until Stripe Connect writes a real one.
+  // Reading that default labelled a UK clinic without Connect as USD (#3607).
+  it("ignores the schema-default billing currency until a Connect account exists", async () => {
+    (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+      currency: "usd",
+      connectAccountId: null,
+    });
+    (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+      country: "GB",
+    });
+
+    await expect(getOrgBillingCurrency("org_1")).resolves.toBe("gbp");
   });
 
   it("falls back to the org country currency when no billing row exists", async () => {
@@ -98,5 +120,60 @@ describe("getOrgBillingCurrency", () => {
     );
 
     await expect(getOrgBillingCurrency("org_1")).resolves.toBe("usd");
+  });
+});
+
+describe("orgBillingCurrency", () => {
+  it("uses the billing row's currency once a Connect account exists", () => {
+    expect(
+      orgBillingCurrency({ currency: "eur", connectAccountId: "acct_1" }, "GB"),
+    ).toBe("eur");
+  });
+
+  it("uses the country's currency before Connect, whatever the column says", () => {
+    expect(
+      orgBillingCurrency({ currency: "usd", connectAccountId: null }, "IN"),
+    ).toBe("inr");
+    expect(orgBillingCurrency(null, "AU")).toBe("aud");
+  });
+
+  it("defaults to usd when neither source can answer", () => {
+    expect(orgBillingCurrency(undefined, null)).toBe("usd");
+  });
+});
+
+describe("resolveOrgDocumentCurrency", () => {
+  const reject = (message: string): never => {
+    throw new Error(message);
+  };
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue(
+      null,
+    );
+    (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+      country: "DE",
+    });
+  });
+
+  it("answers the organisation's billing currency in upper case when none is sent", async () => {
+    await expect(
+      resolveOrgDocumentCurrency("org_1", undefined, reject),
+    ).resolves.toBe("EUR");
+  });
+
+  it("accepts the organisation's own currency whatever its case or padding", async () => {
+    await expect(
+      resolveOrgDocumentCurrency("org_1", " eur ", reject),
+    ).resolves.toBe("EUR");
+  });
+
+  it("refuses any other currency and names the one it expects", async () => {
+    await expect(
+      resolveOrgDocumentCurrency("org_1", "USD", reject),
+    ).rejects.toThrow(
+      "Currency must be the organisation's billing currency, EUR.",
+    );
   });
 });

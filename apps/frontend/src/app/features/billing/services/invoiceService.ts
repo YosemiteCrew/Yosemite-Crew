@@ -575,10 +575,15 @@ const filterNewInvoiceLineItems = (invoice: Invoice, lineItems: InvoiceItem[]): 
   });
 };
 
+/**
+ * @param currency The organisation's billing currency, or undefined while it is
+ * not known. Not required: the lines join an invoice that already carries its
+ * currency, so an unknown one must not block billing the lines (#3607).
+ */
 export const addLineItemsToAppointments = async (
   lineItems: InvoiceItem[],
   appointmentId: string,
-  currency: string
+  currency: string | undefined
 ): Promise<void> => {
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
@@ -586,8 +591,8 @@ export const addLineItemsToAppointments = async (
     return;
   }
   try {
-    if (!appointmentId || lineItems.length <= 0 || !currency) {
-      throw new Error('Line items or Appointment ID or Currency missing');
+    if (!appointmentId || lineItems.length <= 0) {
+      throw new Error('Line items or Appointment ID missing');
     }
     const invoice = await ensureAppointmentInvoice(appointmentId);
     const newLineItems = filterNewInvoiceLineItems(invoice, lineItems);
@@ -600,7 +605,7 @@ export const addLineItemsToAppointments = async (
         unitPrice: item.unitPrice,
         total: item.total,
       })),
-      currency: currency.toLowerCase(),
+      ...(currency ? { currency: currency.toLowerCase() } : {}),
     };
     await postData<FinanceResponse>(`${FINANCE_BASE_PATH}/invoices/${invoice.id}/lines`, body);
   } catch (err) {

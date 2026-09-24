@@ -9,7 +9,7 @@ type PackageBreakdownSearchProps = {
   onQueryChange: (value: string) => void;
   filteredSearch: CatalogEntry[];
   searchLoading: boolean;
-  orgCurrency: string;
+  orgCurrency: string | undefined;
   onSelectItem: (item: CatalogEntry) => void;
 };
 

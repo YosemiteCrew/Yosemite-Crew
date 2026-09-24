@@ -2,6 +2,7 @@ import {
   currencySymbol,
   formatMoney,
   formatMoneyPrecise,
+  labelWithCurrency,
   recordCurrency,
   sharedCurrency,
 } from '@/app/lib/money';
@@ -174,5 +175,42 @@ describe('sharedCurrency', () => {
 
   it('trims before comparing, so a padded code is not a false conflict', () => {
     expect(sharedCurrency([{ currency: ' GBP ' }, { currency: 'GBP' }], 'USD')).toBe('GBP');
+  });
+});
+
+// #3607: the organisation's currency is undefined until billing has loaded,
+// and there is no USD guess any more. An amount with no symbol is honest; one
+// labelled in a currency nobody resolved is the defect this replaced.
+describe('an unknown currency', () => {
+  it('formatMoney prints the bare rounded amount', () => {
+    expect(formatMoney(1234.5, undefined)).toBe('1,235');
+  });
+
+  it('formatMoneyPrecise prints the bare amount at two decimals', () => {
+    expect(formatMoneyPrecise(1234.5, undefined)).toBe('1,234.50');
+  });
+
+  it('currencySymbol has no symbol to give', () => {
+    expect(currencySymbol(undefined)).toBe('');
+  });
+
+  it("recordCurrency still prefers the record's own currency", () => {
+    expect(recordCurrency({ currency: 'GBP' }, undefined)).toBe('GBP');
+    expect(recordCurrency({ currency: null }, undefined)).toBeUndefined();
+  });
+
+  it('sharedCurrency still finds the one currency the records agree on', () => {
+    expect(sharedCurrency([{ currency: 'EUR' }], undefined)).toBe('EUR');
+    expect(sharedCurrency([], undefined)).toBeUndefined();
+  });
+});
+
+describe('labelWithCurrency', () => {
+  it('names the currency when it is known', () => {
+    expect(labelWithCurrency('Price', 'GBP')).toBe('Price (GBP)');
+  });
+
+  it('is the bare label when it is not, never "Price (undefined)"', () => {
+    expect(labelWithCurrency('Price', undefined)).toBe('Price');
   });
 });

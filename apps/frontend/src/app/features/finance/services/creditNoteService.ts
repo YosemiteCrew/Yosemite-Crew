@@ -131,7 +131,8 @@ export const acceptsCreditNotes = (status: string | undefined): boolean =>
  * lines under the "Credited £1,234.56" row of the same card, and pinned two
  * decimals onto every currency - JPY 1200 as "¥1200.00", KWD 1.234 as "1.23".
  */
-export const formatCap = (amount: number, currency: string) => formatMoneyPrecise(amount, currency);
+export const formatCap = (amount: number, currency: string | undefined) =>
+  formatMoneyPrecise(amount, currency);
 
 /** An ISSUED note is the only kind that still reduces the invoice. */
 export const isIssued = (note: CreditNote) => note.status === 'ISSUED';

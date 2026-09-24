@@ -205,11 +205,29 @@ describe('useBilling hooks', () => {
     expect(renderHook(() => useIsStripeActive()).result.current).toBe(false);
   });
 
-  it('useCurrencyForPrimaryOrg falls back to USD when no subscription', () => {
+  // #3607: the USD fallback was a guess that got saved onto insurance claims.
+  // With no billing data the currency is unknown, and callers must say so.
+  it('useCurrencyForPrimaryOrg answers undefined, not a guessed USD, when no subscription', () => {
     useSubscriptionStoreMock.mockImplementation((selector: any) =>
       selector({ subscriptionByOrgId: {} })
     );
-    expect(renderHook(() => useCurrencyForPrimaryOrg()).result.current).toBe('USD');
+    expect(renderHook(() => useCurrencyForPrimaryOrg()).result.current).toBeUndefined();
+  });
+
+  it('useCurrencyForPrimaryOrg answers undefined for a subscription with no currency', () => {
+    useSubscriptionStoreMock.mockImplementation((selector: any) =>
+      selector({ subscriptionByOrgId: { 'org-1': { orgId: 'org-1', currency: '  ' } } })
+    );
+    expect(renderHook(() => useCurrencyForPrimaryOrg()).result.current).toBeUndefined();
+  });
+
+  // The server sends Stripe's lower-case code; estimates and claims store ISO
+  // upper case, and the server compares case-insensitively.
+  it('useCurrencyForPrimaryOrg upper-cases the server billing currency', () => {
+    useSubscriptionStoreMock.mockImplementation((selector: any) =>
+      selector({ subscriptionByOrgId: { 'org-1': { orgId: 'org-1', currency: 'gbp' } } })
+    );
+    expect(renderHook(() => useCurrencyForPrimaryOrg()).result.current).toBe('GBP');
   });
 
   it('useCounterForPrimaryOrg returns null when no primaryOrgId', () => {

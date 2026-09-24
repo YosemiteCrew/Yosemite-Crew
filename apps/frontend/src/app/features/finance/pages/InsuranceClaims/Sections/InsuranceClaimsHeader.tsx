@@ -15,7 +15,7 @@ import type { CompanionChoice } from '@/app/features/finance/pages/InsuranceClai
 
 type InsuranceClaimsHeaderProps = {
   claims: InsuranceClaim[];
-  currency: string;
+  currency: string | undefined;
   activeStatus: string;
   onStatusChange: (status: string) => void;
   companions: CompanionChoice[];

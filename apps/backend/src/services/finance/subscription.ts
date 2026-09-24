@@ -2,6 +2,7 @@ import { Prisma, BillingInterval, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import Stripe from "stripe";
 import { FinanceEventService } from "./events";
+import { getOrgBillingCurrency } from "src/utils/billing";
 
 const toSubscriptionStatus = (
   value?: string | null,
@@ -226,6 +227,8 @@ type SubscriptionOverview = {
 
 type CurrentSubscription = {
   organisationId: string;
+  /** The organisation's billing currency, resolved as the server stores it. */
+  currency: string;
   providerLink: SubscriptionOverview["providerLinks"][number] | null;
   entitlement: SubscriptionOverview["entitlements"][number] | null;
   usageCounter: SubscriptionOverview["usageCounter"];
@@ -422,10 +425,14 @@ export const FinanceSubscriptionService = {
   },
 
   async getCurrentSubscription(orgId: string): Promise<CurrentSubscription> {
-    const overview = await this.getSubscriptionOverview(orgId);
+    const [overview, currency] = await Promise.all([
+      this.getSubscriptionOverview(orgId),
+      getOrgBillingCurrency(orgId),
+    ]);
 
     return {
       organisationId: overview.organisationId,
+      currency,
       providerLink: overview.providerLinks[0] ?? null,
       entitlement:
         overview.entitlements.find((entry) => entry.status === "ACTIVE") ??

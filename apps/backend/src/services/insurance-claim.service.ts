@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
+import { resolveOrgDocumentCurrency } from "src/utils/billing";
 import type { Prisma } from "@prisma/client";
 
 export class InsuranceClaimError extends Error {
@@ -200,6 +201,13 @@ export const InsuranceClaimService = {
     await assertPatientOrgMembership(patientId, organisationId, () => {
       throw new InsuranceClaimError("Companion not found.", 404);
     });
+    const claimCurrency = await resolveOrgDocumentCurrency(
+      organisationId,
+      currency,
+      (message) => {
+        throw new InsuranceClaimError(message, 400);
+      },
+    );
 
     const claim = await prisma.insuranceClaim.create({
       data: {
@@ -210,7 +218,7 @@ export const InsuranceClaimService = {
         insurerName,
         policyNumber,
         submittedAmount,
-        currency: currency ?? "GBP",
+        currency: claimCurrency,
         notes: notes ?? null,
         status: "DRAFT",
       },

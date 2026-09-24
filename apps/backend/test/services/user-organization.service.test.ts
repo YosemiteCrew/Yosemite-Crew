@@ -1555,6 +1555,52 @@ describe("UserOrganizationService", () => {
       expect(prisma.organizationBilling.findFirst).toHaveBeenCalledTimes(3);
     });
 
+    // #3607: the raw column holds the schema default "usd" until Stripe
+    // Connect writes it, so a UK clinic's staff were handed dollars.
+    it("hands the client the resolved billing currency, not the raw column", async () => {
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
+        mappingWithRevocations("before-connect", []),
+        mappingWithRevocations("after-connect", []),
+      ]);
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue(
+        sparseOrganization({
+          address: {
+            addressLine: null,
+            country: "GB",
+            city: null,
+            state: null,
+            postalCode: null,
+            latitude: null,
+            longitude: null,
+            location: null,
+          },
+        }),
+      );
+      (prisma.organizationBilling.findFirst as jest.Mock)
+        .mockResolvedValueOnce({
+          id: "bill-1",
+          orgId,
+          currency: "usd",
+          connectAccountId: null,
+        })
+        .mockResolvedValueOnce({
+          id: "bill-2",
+          orgId,
+          currency: "eur",
+          connectAccountId: "acct_1",
+        });
+      (
+        prisma.organizationUsageCounter.findFirst as jest.Mock
+      ).mockResolvedValue(null);
+
+      const results = await UserOrganizationService.listByUserId(userId);
+
+      expect(results.map((entry) => entry.orgBilling?.currency)).toEqual([
+        "gbp",
+        "eur",
+      ]);
+    });
+
     it("falls back to the raw organisation identifier when the organisation row is missing", async () => {
       (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
         mappingWithRevocations("view-any", []),

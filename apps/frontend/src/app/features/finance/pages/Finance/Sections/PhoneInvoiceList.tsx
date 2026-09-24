@@ -30,7 +30,7 @@ type PhoneInvoiceListProps = {
   activeStatus: string;
   setActiveStatus: (value: string) => void;
   metrics: FinanceMetrics;
-  currency: string;
+  currency: string | undefined;
   /**
    * The currency for the KPI totals.
    *
@@ -38,7 +38,7 @@ type PhoneInvoiceListProps = {
    * while `filteredList` is the visible subset - deriving it here would label a
    * total with the currency of a different set of invoices to the one it sums.
    */
-  metricsCurrency: string;
+  metricsCurrency: string | undefined;
   onViewInvoice: (invoice: Invoice) => void;
 };
 
@@ -51,7 +51,7 @@ const buildOwnerAndCompanion = (parentName: string, companionName: string): stri
   return '';
 };
 
-const buildFootnote = (invoice: Invoice, currency: string): string => {
+const buildFootnote = (invoice: Invoice, currency: string | undefined): string => {
   const deposit = invoice.depositCollectedAmount ?? 0;
   if (deposit > 0)
     return `Deposit ${formatMoneyPrecise(deposit, recordCurrency(invoice, currency))} applied`;
@@ -66,7 +66,7 @@ type PhoneInvoiceCardProps = {
   invoice: Invoice;
   appointment?: Appointment;
   ownerAndCompanion: string;
-  currency: string;
+  currency: string | undefined;
   onView: (invoice: Invoice) => void;
 };
 

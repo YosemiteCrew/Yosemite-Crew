@@ -23,10 +23,11 @@ const buildService = (overrides: Partial<ServiceEdit> = {}): ServiceEdit => ({
 
 /**
  * `formatMoney` is fed by `useCurrencyForPrimaryOrg`, which reads the billing
- * subscription for the primary org and falls back to USD. Seeding both stores
- * keeps the card offline and lets the non-USD story prove the amount is not a
- * hardcoded dollar sign. The snapshot is put back on unmount so a story that
- * seeds EUR cannot leave the next one formatting in EUR.
+ * subscription for the primary org and has no fallback: with none seeded the
+ * currency is unknown (#3607). Seeding both stores keeps the card offline, a
+ * USD organisation is the default, and the non-USD story proves the amount is
+ * not a hardcoded dollar sign. The snapshot is put back on unmount so a story
+ * that seeds EUR cannot leave the next one formatting in EUR.
  */
 const withCurrency = (currency: string | null) => () => {
   const orgSnapshot = useOrgStore.getState();
@@ -85,7 +86,7 @@ const meta = {
       </div>
     ),
   ],
-  beforeEach: withCurrency(null),
+  beforeEach: withCurrency('USD'),
 } satisfies Meta<typeof ServiceCard>;
 
 export default meta;
@@ -221,6 +222,17 @@ export const NonUsdOrg: Story = {
        dollar sign - the failure mode is silent, because "$120" looks like a
        perfectly good price to everyone except the clinic being billed. */
     await expect(canvas.getByText('€120')).toBeInTheDocument();
+    await expect(canvas.queryByText('$120')).not.toBeInTheDocument();
+  },
+};
+
+export const CurrencyNotYetKnown: Story = {
+  name: 'Organisation currency not known yet',
+  beforeEach: withCurrency(null),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // No billing data: a bare amount rather than the USD the hook used to guess.
+    await expect(canvas.getByText('120')).toBeInTheDocument();
     await expect(canvas.queryByText('$120')).not.toBeInTheDocument();
   },
 };

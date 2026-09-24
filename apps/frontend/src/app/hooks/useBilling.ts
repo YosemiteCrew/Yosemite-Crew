@@ -1,14 +1,14 @@
-import { useEffect, useMemo } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useCounterStore } from "@/app/stores/counterStore";
+import { useEffect, useMemo } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useCounterStore } from '@/app/stores/counterStore';
 import {
   BillingCounter,
   BillingSubscription,
   CanResult,
   FreeMetric,
-} from "@/app/features/billing/types/billing";
-import { useSubscriptionStore } from "@/app/stores/subscriptionStore";
-import { checkStatus } from "@/app/features/billing/services/stripeService";
+} from '@/app/features/billing/types/billing';
+import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
+import { checkStatus } from '@/app/features/billing/services/stripeService';
 
 export const useLoadSubscriptionCounterForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -31,9 +31,7 @@ export const useCounterForPrimaryOrg = (): BillingCounter | null => {
 
 export const useSubscriptionForPrimaryOrg = (): BillingSubscription | null => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const subscriptionByOrgId = useSubscriptionStore(
-    (s) => s.subscriptionByOrgId,
-  );
+  const subscriptionByOrgId = useSubscriptionStore((s) => s.subscriptionByOrgId);
 
   return useMemo(() => {
     if (!primaryOrgId) return null;
@@ -41,12 +39,8 @@ export const useSubscriptionForPrimaryOrg = (): BillingSubscription | null => {
   }, [primaryOrgId, subscriptionByOrgId]);
 };
 
-export const useSubscriptionByOrgId = (
-  orgId: string | null,
-): BillingSubscription | null => {
-  const subscriptionByOrgId = useSubscriptionStore(
-    (s) => s.subscriptionByOrgId,
-  );
+export const useSubscriptionByOrgId = (orgId: string | null): BillingSubscription | null => {
+  const subscriptionByOrgId = useSubscriptionStore((s) => s.subscriptionByOrgId);
 
   return useMemo(() => {
     if (!orgId) return null;
@@ -66,29 +60,18 @@ export const useBillingForPrimaryOrg = (): {
 
 const getMetricValues = (
   counter: BillingCounter,
-  metric: FreeMetric,
+  metric: FreeMetric
 ): { freeLimit: number | null; used: number | null } => {
-  if (metric === "appointments") {
+  if (metric === 'appointments') {
     return {
       freeLimit:
-        typeof counter.freeAppointmentsLimit === "number"
-          ? counter.freeAppointmentsLimit
-          : null,
-      used:
-        typeof counter.appointmentsUsed === "number"
-          ? counter.appointmentsUsed
-          : null,
+        typeof counter.freeAppointmentsLimit === 'number' ? counter.freeAppointmentsLimit : null,
+      used: typeof counter.appointmentsUsed === 'number' ? counter.appointmentsUsed : null,
     };
   }
   return {
-    freeLimit:
-      typeof counter.freeUsersLimit === "number"
-        ? counter.freeUsersLimit
-        : null,
-    used:
-      typeof counter.usersBillableCount === "number"
-        ? counter.usersBillableCount
-        : null,
+    freeLimit: typeof counter.freeUsersLimit === 'number' ? counter.freeUsersLimit : null,
+    used: typeof counter.usersBillableCount === 'number' ? counter.usersBillableCount : null,
   };
 };
 
@@ -102,16 +85,16 @@ export const useCanMoreForPrimaryOrg = (metric: FreeMetric): CanResult => {
         remainingFree: null,
         freeLimit: null,
         used: null,
-        reason: "no_subscription",
+        reason: 'no_subscription',
       };
     }
-    if (subscription.plan !== "free") {
+    if (subscription.plan !== 'free') {
       return {
         canMore: true,
         remainingFree: null,
         freeLimit: null,
         used: null,
-        reason: "not_free_plan",
+        reason: 'not_free_plan',
       };
     }
     if (!counter) {
@@ -120,7 +103,7 @@ export const useCanMoreForPrimaryOrg = (metric: FreeMetric): CanResult => {
         remainingFree: null,
         freeLimit: null,
         used: null,
-        reason: "no_counter",
+        reason: 'no_counter',
       };
     }
     const { freeLimit, used } = getMetricValues(counter, metric);
@@ -130,7 +113,7 @@ export const useCanMoreForPrimaryOrg = (metric: FreeMetric): CanResult => {
         remainingFree: null,
         freeLimit: null,
         used,
-        reason: "unknown_limit",
+        reason: 'unknown_limit',
       };
     }
     if (used === null) {
@@ -139,7 +122,7 @@ export const useCanMoreForPrimaryOrg = (metric: FreeMetric): CanResult => {
         remainingFree: null,
         freeLimit,
         used: null,
-        reason: "unknown_usage",
+        reason: 'unknown_usage',
       };
     }
     const remaining = Math.max(0, freeLimit - used);
@@ -149,7 +132,7 @@ export const useCanMoreForPrimaryOrg = (metric: FreeMetric): CanResult => {
       remainingFree: remaining,
       freeLimit,
       used,
-      reason: canMore ? "ok" : "limit_reached",
+      reason: canMore ? 'ok' : 'limit_reached',
     };
   }, [counter, subscription, metric]);
 };
@@ -165,10 +148,18 @@ export const useIsStripeActive = () => {
   }, [subscription]);
 };
 
-export const useCurrencyForPrimaryOrg = (): string => {
+/**
+ * The organisation's billing currency as an upper-case ISO 4217 code, or
+ * `undefined` while it is not known.
+ *
+ * The server resolves it (`getOrgBillingCurrency`) and sends it on both
+ * billing reads, so this is the currency an estimate or claim is stored in.
+ * There is no fallback: a guessed "USD" was labelling and saving every
+ * non-USD clinic's money as dollars (#2597, #3607). A caller that sends money
+ * omits the currency when this is `undefined` and lets the server decide.
+ */
+export const useCurrencyForPrimaryOrg = (): string | undefined => {
   const subscription = useSubscriptionForPrimaryOrg();
 
-  return useMemo(() => {
-    return subscription?.currency ?? "USD";
-  }, [subscription]);
+  return useMemo(() => subscription?.currency?.trim().toUpperCase() || undefined, [subscription]);
 };

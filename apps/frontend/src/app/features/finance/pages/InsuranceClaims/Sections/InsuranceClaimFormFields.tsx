@@ -14,7 +14,8 @@ export type CompanionChoice = { id: string; name: string };
 type InsuranceClaimFormFieldsProps = {
   draft: ClaimDraft;
   setField: (patch: Partial<ClaimDraft>) => void;
-  currency: string;
+  /** The organisation's billing currency, or undefined while it is not known. */
+  currency: string | undefined;
   companions: CompanionChoice[];
 };
 
@@ -73,7 +74,7 @@ const InsuranceClaimFormFields = ({
 
     <div className="flex flex-col gap-1">
       <label htmlFor="claim-amount" className="text-caption-2 font-bold text-text-tertiary">
-        {`Submitted amount (${currencySymbol(currency)})`}
+        {currency ? `Submitted amount (${currencySymbol(currency)})` : 'Submitted amount'}
       </label>
       <span className={`${fieldClass} max-w-52`}>
         <input

@@ -373,6 +373,24 @@ describe('InsuranceClaims create form', () => {
     expect(typeof input.submittedAmount).toBe('number');
   });
 
+  // #3607: the form sent useCurrencyForPrimaryOrg()'s USD guess, so every
+  // claim was saved in dollars. An unknown currency is now left to the server.
+  it('sends no currency and labels no symbol while the organisation currency is not known', async () => {
+    const onCreate = jest.fn();
+    setup({ createOpen: true, claims: [], onCreate, currency: undefined });
+
+    await userEvent.click(screen.getByRole('button', { name: /Companion/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Marnie Whitlock'));
+    await userEvent.type(screen.getByLabelText('Insurer'), 'Petsure');
+    await userEvent.type(screen.getByLabelText('Policy number'), 'PS-1');
+    await userEvent.type(screen.getByLabelText('Submitted amount'), '250');
+    await userEvent.click(screen.getByRole('button', { name: 'Create this insurance claim' }));
+
+    const [input] = onCreate.mock.calls[0] as [Record<string, unknown>];
+    expect(input).not.toHaveProperty('currency');
+    expect(input).toMatchObject({ submittedAmount: 250 });
+  });
+
   it('rejects a zero submitted amount', async () => {
     const onCreate = jest.fn();
     setup({ createOpen: true, claims: [], onCreate });

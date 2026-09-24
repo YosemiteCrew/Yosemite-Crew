@@ -18,7 +18,7 @@ type InvoicePhoneRecordProps = {
   titleId: string;
   invoice: Invoice;
   appointment?: Appointment;
-  currency: string;
+  currency: string | undefined;
   statusLabel: string;
   statusStyle?: React.CSSProperties;
   statusTone?: StatusTone;

@@ -26,7 +26,7 @@ export type EstimateDraft = {
   totals: EstimateTotals;
   formError: string | null;
   /** Validate and, if the draft is sound, hand the payload to `onSubmit`. */
-  submit: (onSubmit: (input: CreateEstimateInput) => void) => void;
+  submit: (currency: string | undefined, onSubmit: (input: CreateEstimateInput) => void) => void;
 };
 
 /**
@@ -74,18 +74,12 @@ export const useEstimateDraft = (): EstimateDraft => {
     );
 
   /**
-   * The currency is deliberately NOT sent.
-   *
-   * `useCurrencyForPrimaryOrg` reads `subscription.currency`, and the
-   * production path builds subscriptions through `normalizeSubscription`, which
-   * never populates it - so it always answers USD. Persisting that would stamp
-   * USD on every estimate for a non-USD clinic, override the API's own default,
-   * and then be copied onto the converted invoice. Omitting it lets the server
-   * decide, which is the only side that knows. The dialog still previews in the
-   * currency the rest of Finance displays; the saved estimate carries the
-   * server's, and the detail view renders that.
+   * `currency` is the organisation's billing currency the dialog previewed in,
+   * sent so the server can refuse it if it is stale rather than save the
+   * estimate in a currency the user never saw. While it is not known it is
+   * omitted, and the server stores the organisation's currency itself (#3607).
    */
-  const submit = (onSubmit: (input: CreateEstimateInput) => void) => {
+  const submit = (currency: string | undefined, onSubmit: (input: CreateEstimateInput) => void) => {
     const validation = validateDraft(patientId, lines, validUntil);
     if (!validation.ok) {
       setFormError(validation.message);
@@ -94,6 +88,7 @@ export const useEstimateDraft = (): EstimateDraft => {
     setFormError(null);
     onSubmit({
       patientId,
+      ...(currency ? { currency } : {}),
       notes: notes.trim() || undefined,
       // The API takes an ISO datetime; a date input yields yyyy-mm-dd only.
       validUntil: validUntil ? new Date(`${validUntil}T00:00:00.000Z`).toISOString() : undefined,

@@ -5,6 +5,13 @@ import { Invoice } from '@yosemite-crew/types';
 
 // --- Mocks ---
 
+// A USD-billed organisation, stated rather than relied on: with no billing data
+// the currency hook has nothing to offer and no longer guesses USD (#3607).
+jest.mock('@/app/hooks/useBilling', () => ({
+  ...jest.requireActual('@/app/hooks/useBilling'),
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
 jest.mock('@/app/ui/tables/tableUtils', () => ({
   getInvoiceStatusTone: jest.fn(() => 'success'),
   getInvoiceItemNames: jest.fn(() => 'Grooming'),

@@ -45,13 +45,28 @@ export const currencyForCountry = (
   return COUNTRY_TO_CURRENCY[country.trim().toUpperCase()];
 };
 
-const resolveOrgCountryCurrency = async (id: string): Promise<string> => {
-  const address = await prisma.organizationAddress.findUnique({
-    where: { organizationId: id },
-    select: { country: true },
-  });
-  return currencyForCountry(address?.country) ?? DEFAULT_CURRENCY;
+type BillingCurrencySource = {
+  currency: string;
+  connectAccountId: string | null;
 };
+
+/**
+ * The organisation's billing currency from rows already in hand.
+ *
+ * `OrganizationBilling.currency` is written only by the Stripe Connect
+ * `account.updated` webhook. Until an organisation has a Connect account the
+ * column holds its schema default, "usd", which states nothing about the
+ * clinic; reading it then labelled every clinic without Connect as billing in
+ * dollars (#3607). So the column counts only once a Connect account exists,
+ * and the organisation's country decides before that.
+ */
+export const orgBillingCurrency = (
+  billing: BillingCurrencySource | null | undefined,
+  country: string | null | undefined,
+): string =>
+  billing?.connectAccountId
+    ? billing.currency
+    : (currencyForCountry(country) ?? DEFAULT_CURRENCY);
 
 export const getOrgBillingCurrency = async (orgId: OrgId) => {
   if (!orgId) return DEFAULT_CURRENCY;
@@ -60,9 +75,40 @@ export const getOrgBillingCurrency = async (orgId: OrgId) => {
 
   const billing = await prisma.organizationBilling.findUnique({
     where: { orgId: id },
-    select: { currency: true },
+    select: { currency: true, connectAccountId: true },
   });
-  // OrganizationBilling.currency (set from Stripe Connect) is the first
-  // preference; fall back to the org's country, then "usd" as a last resort.
-  return billing?.currency ?? (await resolveOrgCountryCurrency(id));
+  // The address is only read when the billing row cannot answer.
+  const address = billing?.connectAccountId
+    ? null
+    : await prisma.organizationAddress.findUnique({
+        where: { organizationId: id },
+        select: { country: true },
+      });
+  return orgBillingCurrency(billing, address?.country);
+};
+
+/**
+ * The currency an estimate or insurance claim is written in: the
+ * organisation's billing currency, as an upper-case ISO 4217 code.
+ *
+ * A caller may send a currency, but only the organisation's own. An estimate
+ * converts into an invoice and a claim reclaims one, and invoices are always
+ * raised in the billing currency, so a different code can only be a stale or
+ * guessed client value - the one that stamped USD on every claim (#3607).
+ */
+export const resolveOrgDocumentCurrency = async (
+  orgId: string,
+  requested: string | undefined,
+  reject: (message: string) => never,
+): Promise<string> => {
+  const billingCurrency = (await getOrgBillingCurrency(orgId)).toUpperCase();
+  if (
+    requested !== undefined &&
+    requested.trim().toUpperCase() !== billingCurrency
+  ) {
+    reject(
+      `Currency must be the organisation's billing currency, ${billingCurrency}.`,
+    );
+  }
+  return billingCurrency;
 };

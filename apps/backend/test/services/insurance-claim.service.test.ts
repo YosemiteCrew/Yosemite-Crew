@@ -8,6 +8,8 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 jest.mock("src/config/prisma", () => ({
   prisma: {
     patientOrganisation: { findFirst: jest.fn() },
+    organizationBilling: { findUnique: jest.fn() },
+    organizationAddress: { findUnique: jest.fn() },
     insuranceClaim: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -70,6 +72,15 @@ beforeEach(() => {
       Promise.resolve(makeClaim({ ...args.data })),
   );
   pm.insuranceClaim.findMany.mockResolvedValue([makeClaim()]);
+  // A UK clinic without Stripe Connect: its billing row still carries the
+  // schema-default "usd", so only the country can say it bills in GBP.
+  (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+    currency: "usd",
+    connectAccountId: null,
+  });
+  (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+    country: "GB",
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -118,19 +129,67 @@ describe("InsuranceClaimService.create", () => {
     expect(result.status).toBe("DRAFT");
   });
 
-  it("defaults currency to GBP when not supplied", async () => {
-    await InsuranceClaimService.create({
-      organisationId: "org-1",
-      patientId: "pat-1",
-      insurerName: "PetPlan",
-      policyNumber: "PP-12345",
-      submittedAmount: 200,
+  const claimInput = {
+    organisationId: "org-1",
+    patientId: "pat-1",
+    insurerName: "PetPlan",
+    policyNumber: "PP-12345",
+    submittedAmount: 200,
+  };
+
+  // #3607: the claim form sent a guessed USD and the service stored whatever
+  // arrived, or a hardcoded GBP when nothing did.
+  it("stores the organisation's billing currency when none is sent", async () => {
+    (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+      country: "DE",
     });
+
+    await InsuranceClaimService.create(claimInput);
+
+    expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "EUR" }),
+      }),
+    );
+  });
+
+  it("stores the Connect account's currency once the clinic has one", async () => {
+    (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+      currency: "usd",
+      connectAccountId: "acct_1",
+    });
+
+    await InsuranceClaimService.create(claimInput);
+
+    expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "USD" }),
+      }),
+    );
+  });
+
+  it("accepts the organisation's own currency when it is sent", async () => {
+    await InsuranceClaimService.create({ ...claimInput, currency: "gbp" });
+
     expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ currency: "GBP" }),
       }),
     );
+  });
+
+  it("refuses a currency other than the organisation's, writing nothing", async () => {
+    const attempt = InsuranceClaimService.create({
+      ...claimInput,
+      currency: "USD",
+    });
+
+    await expect(attempt).rejects.toBeInstanceOf(InsuranceClaimError);
+    await expect(attempt).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Currency must be the organisation's billing currency, GBP.",
+    });
+    expect(pm.insuranceClaim.create).not.toHaveBeenCalled();
   });
 });
 

@@ -301,6 +301,7 @@ describe('CreateEstimateDialog', () => {
 
     expect(onSubmit).toHaveBeenCalledWith({
       patientId: 'c2',
+      currency: 'USD',
       notes: 'Pre-op quote',
       validUntil: '2026-12-31T00:00:00.000Z',
       items: [
@@ -330,6 +331,32 @@ describe('CreateEstimateDialog', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ notes: undefined, validUntil: undefined })
     );
+  });
+
+  // #3607: the editor sent nothing and the server stored a hardcoded GBP, so
+  // the dialog previewed in one currency and saved in another.
+  it("previews in the organisation's billing currency and sends that currency", async () => {
+    const { onSubmit } = setup({ currency: 'EUR' });
+
+    await selectCompanion('Bruno');
+    await fillLine(1, { description: 'Bloods', quantity: '2', unitPrice: '40', taxRate: '0' });
+
+    expect(summaryValue('Total')).toBe('€80.00');
+    await userEvent.click(createButton());
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ currency: 'EUR' }));
+  });
+
+  it('sends no currency while the organisation currency is not known', async () => {
+    const { onSubmit } = setup({ currency: undefined });
+
+    await selectCompanion('Bruno');
+    await fillLine(1, { description: 'Bloods', quantity: '2', unitPrice: '40', taxRate: '0' });
+
+    // No symbol rather than a guessed one; the server stores its own currency.
+    expect(summaryValue('Total')).toBe('80.00');
+    await userEvent.click(createButton());
+    const [input] = onSubmit.mock.calls[0] as [CreateEstimateInput];
+    expect(input).not.toHaveProperty('currency');
   });
 
   it('disables both buttons and reports progress while saving', () => {

@@ -47,16 +47,20 @@ export const validateClaimDraft = (draft: ClaimDraft): Validation => {
   return { ok: true };
 };
 
-/** Build the create payload, trimming strings and omitting the empty optionals. */
+/**
+ * Build the create payload, trimming strings and omitting the empty optionals.
+ * The currency is omitted too while the organisation's is not known, so the
+ * server stores its own rather than a client guess (#3607).
+ */
 export const buildClaimInput = (
   draft: ClaimDraft,
-  currency: string
+  currency: string | undefined
 ): CreateInsuranceClaimInput => ({
   patientId: draft.patientId,
   insurerName: draft.insurerName.trim(),
   policyNumber: draft.policyNumber.trim(),
   submittedAmount: Number(draft.submittedAmount.trim()),
-  currency,
+  ...(currency ? { currency } : {}),
   ...(draft.invoiceId.trim() ? { invoiceId: draft.invoiceId.trim() } : {}),
   ...(draft.encounterId.trim() ? { encounterId: draft.encounterId.trim() } : {}),
   ...(draft.notes.trim() ? { notes: draft.notes.trim() } : {}),
@@ -67,7 +71,10 @@ export type UseInsuranceClaimDraft = {
   setField: (patch: Partial<ClaimDraft>) => void;
   formError: string | null;
   /** Validate, then either surface the message or hand the built payload up. */
-  submit: (currency: string, onSubmit: (input: CreateInsuranceClaimInput) => void) => void;
+  submit: (
+    currency: string | undefined,
+    onSubmit: (input: CreateInsuranceClaimInput) => void
+  ) => void;
 };
 
 export const useInsuranceClaimDraft = (): UseInsuranceClaimDraft => {
@@ -77,7 +84,10 @@ export const useInsuranceClaimDraft = (): UseInsuranceClaimDraft => {
   const setField = (patch: Partial<ClaimDraft>) =>
     setDraft((current) => ({ ...current, ...patch }));
 
-  const submit = (currency: string, onSubmit: (input: CreateInsuranceClaimInput) => void) => {
+  const submit = (
+    currency: string | undefined,
+    onSubmit: (input: CreateInsuranceClaimInput) => void
+  ) => {
     const result = validateClaimDraft(draft);
     if (!result.ok) {
       setFormError(result.message);

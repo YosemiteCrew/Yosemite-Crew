@@ -10,7 +10,7 @@ type PackageBreakdownSectionProps = {
   additionalDiscount: string;
   errors: FormErrors;
   filteredSearch: CatalogEntry[];
-  orgCurrency: string;
+  orgCurrency: string | undefined;
   searchLoading: boolean;
   searchQuery: string;
   onAdditionalDiscountChange: (value: string) => void;

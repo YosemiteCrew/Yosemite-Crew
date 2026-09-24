@@ -3,6 +3,8 @@ import { EstimateService } from "../../src/services/estimate.service";
 jest.mock("src/config/prisma", () => ({
   prisma: {
     patientOrganisation: { findFirst: jest.fn() },
+    organizationBilling: { findUnique: jest.fn() },
+    organizationAddress: { findUnique: jest.fn() },
     estimate: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -83,6 +85,15 @@ beforeEach(() => {
   (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
     id: "patient-org-1",
   });
+  // A US clinic without Stripe Connect, so the stored currency cannot pass
+  // for the old hardcoded "GBP" default.
+  (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+    currency: "usd",
+    connectAccountId: null,
+  });
+  (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+    country: "US",
+  });
 });
 
 describe("EstimateService.create", () => {
@@ -112,6 +123,48 @@ describe("EstimateService.create", () => {
     );
     expect(result.status).toBe("DRAFT");
     expect(result.items).toHaveLength(1);
+  });
+
+  const createInput = {
+    organisationId: "org-1",
+    patientId: "pat-1",
+    items: [{ description: "Spay procedure", quantity: 1, unitPrice: 250 }],
+  };
+
+  // #3607: the editor sends no currency, and every estimate was stored in a
+  // hardcoded GBP whatever the clinic bills in.
+  it("stores the organisation's billing currency when none is sent", async () => {
+    mockCreate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.create(createInput);
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "USD" }),
+      }),
+    );
+  });
+
+  it("accepts the organisation's own currency when it is sent", async () => {
+    mockCreate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.create({ ...createInput, currency: "usd" });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "USD" }),
+      }),
+    );
+  });
+
+  it("refuses a currency other than the organisation's, writing nothing", async () => {
+    await expect(
+      EstimateService.create({ ...createInput, currency: "GBP" }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Currency must be the organisation's billing currency, USD.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -182,6 +235,34 @@ describe("EstimateService.update", () => {
     await expect(
       EstimateService.update("est-x", "org-1", { notes: "x" }),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("leaves a stored currency alone when the edit sends none", async () => {
+    mockFindFirst.mockResolvedValue(baseEstimate);
+    mockUpdate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.update("est-1", "org-1", { notes: "x" });
+
+    expect(mockUpdate.mock.calls[0][0].data).not.toHaveProperty("currency");
+    expect(prisma.organizationBilling.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("writes a sent currency only when it is the organisation's own", async () => {
+    mockFindFirst.mockResolvedValue(baseEstimate);
+    mockUpdate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.update("est-1", "org-1", { currency: "usd" });
+
+    expect(mockUpdate.mock.calls[0][0].data.currency).toBe("USD");
+  });
+
+  it("refuses to re-label an estimate in another currency", async () => {
+    mockFindFirst.mockResolvedValue(baseEstimate);
+
+    await expect(
+      EstimateService.update("est-1", "org-1", { currency: "EUR" }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
 
