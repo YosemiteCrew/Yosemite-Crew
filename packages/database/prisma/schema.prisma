@@ -7288,3 +7288,228 @@ model ProviderReceiptAllocation {
   @@index([invoiceId])
   @@index([paymentId])
 }
+
+/// Supplier Bills: purchasing workflow for supplier liabilities (issue #3177).
+/// Separate from client invoices - this is accounts payable, not accounts receivable.
+
+enum SupplierBillStatus {
+  DRAFT
+  POSTED
+  VOID
+}
+
+enum SupplierBillLineType {
+  STOCK
+  NON_STOCK_EXPENSE
+}
+
+enum SupplierEntryType {
+  BILL
+  CREDIT
+  PAYMENT
+  REVERSAL
+}
+
+enum SupplierPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHEQUE
+  OTHER
+}
+
+model SupplierAccount {
+  id             String   @id @default(uuid())
+  organisationId String
+  vendorId       String
+  currency       String
+  balance        Float    @default(0)
+  version        Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bills       SupplierBill[]
+  credits     SupplierCredit[]
+  payments    SupplierPayment[]
+  entries     SupplierEntry[]
+  allocations SupplierAllocation[]
+
+  @@unique([organisationId, vendorId, currency])
+  @@index([organisationId])
+  @@index([vendorId])
+}
+
+model SupplierBill {
+  id                  String               @id @default(uuid())
+  organisationId      String
+  vendorId            String
+  supplierAccountId   String
+  externalReference   String
+  currency            String
+  status              SupplierBillStatus   @default(DRAFT)
+  version             Int                  @default(0)
+  postedAt            DateTime?
+  postedBy            String?
+  voidedAt            DateTime?
+  voidedBy            String?
+  voidReason          String?
+  idempotencyKey      String?
+  expectedVersion     Int                  @default(0)
+  totalAmount         Float                @default(0)
+  taxTotal            Float                @default(0)
+  lines               SupplierBillLine[]
+  credits             SupplierCredit[]
+  allocations         SupplierAllocation[]
+  entries             SupplierEntry[]
+  documentId          String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+
+  @@unique([organisationId, vendorId, externalReference])
+  @@index([organisationId, status])
+  @@index([supplierAccountId])
+  @@index([externalReference])
+}
+
+model SupplierBillLine {
+  id                  String               @id @default(uuid())
+  billId              String
+  lineType            SupplierBillLineType @default(STOCK)
+  description         String
+  quantityOrdered     Float?
+  quantityReceived    Float?
+  quantityBilled      Float
+  unitCost            Float
+  lineTotal           Float
+  taxPercent          Float                @default(0)
+  taxAmount           Float                @default(0)
+  purchaseOrderId     String?
+  purchaseOrderLineId String?
+  receiptId           String?
+  receiptLineId       String?
+  inventoryItemId     String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  bill SupplierBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+  @@index([purchaseOrderId])
+  @@index([receiptId])
+}
+
+model SupplierCredit {
+  id                  String   @id @default(uuid())
+  organisationId      String
+  vendorId            String
+  supplierAccountId   String
+  billId              String?
+  receiptId           String?
+  externalReference   String
+  currency            String
+  amount              Float
+  reason              String?
+  documentId          String?
+  version             Int      @default(0)
+  idempotencyKey      String?
+  expectedVersion     Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  bill         SupplierBill?         @relation(fields: [billId], references: [id], onDelete: SetNull)
+  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  allocations  SupplierAllocation[]
+  entries      SupplierEntry[]
+
+  @@unique([organisationId, vendorId, externalReference])
+  @@index([organisationId])
+  @@index([supplierAccountId])
+  @@index([billId])
+  @@index([receiptId])
+}
+
+model SupplierPayment {
+  id                  String                @id @default(uuid())
+  organisationId      String
+  vendorId            String
+  supplierAccountId   String
+  amount              Float
+  currency            String
+  paidAt              DateTime
+  method              SupplierPaymentMethod
+  reference           String
+  version             Int                   @default(0)
+  idempotencyKey      String
+  expectedVersion     Int                   @default(0)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  allocations     SupplierAllocation[]
+  entries         SupplierEntry[]
+
+  @@index([organisationId])
+  @@index([supplierAccountId])
+  @@index([paidAt])
+  @@unique([organisationId, vendorId, idempotencyKey])
+}
+
+model SupplierAllocation {
+  id                  String   @id @default(uuid())
+  organisationId      String
+  supplierAccountId   String
+  creditId            String?
+  paymentId           String?
+  billId              String
+  amount              Float
+  idempotencyKey      String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  credit         SupplierCredit?   @relation(fields: [creditId], references: [id], onDelete: SetNull)
+  payment        SupplierPayment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  bill           SupplierBill      @relation(fields: [billId], references: [id], onDelete: Restrict)
+  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  entries        SupplierEntry[]
+
+  @@index([organisationId])
+  @@index([supplierAccountId])
+  @@index([billId])
+  @@index([creditId])
+  @@index([paymentId])
+  @@unique([creditId, billId])
+  @@unique([paymentId, billId])
+}
+
+model SupplierEntry {
+  id                  String             @id @default(uuid())
+  organisationId      String
+  vendorId            String
+  supplierAccountId   String
+  type                SupplierEntryType
+  billId              String?
+  creditId            String?
+  paymentId           String?
+  allocationId        String?
+  amount              Float
+  currency            String
+  description         String?
+  version             Int                @default(0)
+  createdAt           DateTime           @default(now())
+
+  bill           SupplierBill?      @relation(fields: [billId], references: [id], onDelete: SetNull)
+  credit         SupplierCredit?    @relation(fields: [creditId], references: [id], onDelete: SetNull)
+  payment        SupplierPayment?   @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  allocation     SupplierAllocation? @relation(fields: [allocationId], references: [id], onDelete: SetNull)
+  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+
+  @@index([organisationId, vendorId])
+  @@index([supplierAccountId])
+  @@index([type])
+  @@index([billId])
+  @@index([creditId])
+  @@index([paymentId])
+  @@index([createdAt])
+}
