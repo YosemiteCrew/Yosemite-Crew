@@ -15,6 +15,7 @@ import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
 import {
   createRenderedDocumentRecord,
+  hasActiveOrCompletedSigning,
   type PersistRenderedDocumentInput,
 } from "src/services/rendered-document.service";
 import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
@@ -909,14 +910,56 @@ const buildClinicalArtifactRenderedDocumentInput = (artifact: {
   clinicalArtifactId: artifact.id,
 });
 
-const persistClinicalArtifactRenderedDocumentPdf = async (
-  artifactId: string,
-) => {
-  const renderedDocument = await prisma.renderedDocument.findUnique({
+const findClinicalArtifactRenderedDocument = (artifactId: string) =>
+  prisma.renderedDocument.findUnique({
     where: { clinicalArtifactId: ensureId(artifactId, "artifactId") },
   });
 
-  if (!renderedDocument) {
+/**
+ * Refuse an in-place save while the record's document is out for signature or
+ * signed (#3627).
+ *
+ * Its PDF is then fixed: the signer is attesting, or has attested, to those
+ * exact bytes. Saving the record anyway and leaving the PDF alone would keep
+ * edits the clinician expects in the document out of it, and signing
+ * completion would then mark SIGNED a record whose content the signature never
+ * covered. So the save is refused; `$amend` makes a new record with its own
+ * document. VOID stays allowed: it retires the record rather than changing
+ * what the document says, and the persist step leaves the PDF as it is.
+ */
+const assertRenderedDocumentEditableInPlace = async (
+  artifactId: string,
+  nextStatus: ClinicalArtifactStatus | undefined,
+): Promise<void> => {
+  if (nextStatus === "VOID") {
+    return;
+  }
+
+  const renderedDocument =
+    await findClinicalArtifactRenderedDocument(artifactId);
+
+  if (renderedDocument && hasActiveOrCompletedSigning(renderedDocument)) {
+    throw new ClinicalArtifactServiceError(
+      "This record's document is out for signature or signed, so the record cannot be edited in place. Amend it to create a new version.",
+      409,
+    );
+  }
+};
+
+/**
+ * Re-render a record's document and store it over the previous PDF. Only a
+ * document that is still a draft is written: one out for signature or signed
+ * keeps its PDF whichever path reaches here (including a signing request that
+ * started after the save's own check), the same rule
+ * `rerenderPersistedClinicalRenderedDocumentPdf` applies.
+ */
+const persistClinicalArtifactRenderedDocumentPdf = async (
+  artifactId: string,
+) => {
+  const renderedDocument =
+    await findClinicalArtifactRenderedDocument(artifactId);
+
+  if (!renderedDocument || hasActiveOrCompletedSigning(renderedDocument)) {
     return;
   }
 
@@ -1928,6 +1971,7 @@ export const ClinicalArtifactService = {
     assertSoapNoteArtifact(note.artifact, organisationId);
 
     assertArtifactEditable(note.artifact, input.status);
+    await assertRenderedDocumentEditableInPlace(note.artifact.id, input.status);
 
     const updated = await prisma.$transaction(async (tx) => {
       const artifact = await updateArtifactStatusAndSummaryInTx(
@@ -2118,6 +2162,10 @@ export const ClinicalArtifactService = {
         409,
       );
     }
+    await assertRenderedDocumentEditableInPlace(
+      record.artifact.id,
+      input.status,
+    );
 
     let supersededPrescription: PrescriptionWithArtifact | undefined;
     if (
@@ -2452,6 +2500,10 @@ export const ClinicalArtifactService = {
     );
 
     assertArtifactEditable(record.artifact, input.status);
+    await assertRenderedDocumentEditableInPlace(
+      record.artifact.id,
+      input.status,
+    );
 
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
@@ -2633,6 +2685,10 @@ export const ClinicalArtifactService = {
     );
 
     assertArtifactEditable(record.artifact, input.status);
+    await assertRenderedDocumentEditableInPlace(
+      record.artifact.id,
+      input.status,
+    );
 
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;

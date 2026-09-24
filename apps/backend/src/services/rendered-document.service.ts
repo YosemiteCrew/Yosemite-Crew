@@ -337,7 +337,7 @@ const parseRenderedDocumentSigning = (
     ? (value as RenderedDocumentSigning)
     : null;
 
-const hasActiveOrCompletedSigning = (document: {
+export const hasActiveOrCompletedSigning = (document: {
   status: string;
   signing: unknown;
 }): boolean => {
