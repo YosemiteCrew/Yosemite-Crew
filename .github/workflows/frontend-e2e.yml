@@ -222,6 +222,7 @@ jobs:
           e2e/pageInvariants.spec.ts e2e/routeSweepExtractors.spec.ts
           e2e/docs-mobile.spec.ts e2e/marketing-hero-mobile.spec.ts
           e2e/no-js.spec.ts e2e/session-write-replay.spec.ts
+          e2e/authSupport.spec.ts
 
       - name: Upload Playwright HTML report
         if: always()
@@ -268,6 +269,11 @@ jobs:
       PLAYWRIGHT_NO_COPY_PROMPT: '1'
       YC_E2E_EMAIL: ${{ secrets.YC_E2E_EMAIL }}
       YC_E2E_PASSWORD: ${{ secrets.YC_E2E_PASSWORD }}
+      # The org the specs open as the account's primary one (support/auth.ts,
+      # pinPrimaryOrg). An id, not a secret, so it is an e2e environment
+      # variable. Unset, the app picks the account's first membership, which the
+      # API returns in no defined order.
+      YC_E2E_ORG_ID: ${{ vars.YC_E2E_ORG_ID }}
 
     steps:
       - name: Checkout
