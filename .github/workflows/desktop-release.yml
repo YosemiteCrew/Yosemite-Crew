@@ -22,9 +22,9 @@ name: Desktop Release
 #         without requiring the Actions artifact UI.
 #
 # Windows is signed via Azure Artifact Signing (formerly Trusted Signing).
-#   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
-#   (the `yc-signing-ci` app registration, holding the
-#    "Trusted Signing Certificate Profile Signer" role on the yc-signing account)
+#   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET,
+#   AZURE_TRUSTED_SIGNING_ACCOUNT, AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE
+#   (the signing hook refuses to sign in CI if any of them is missing)
 #
 # macOS is signed with a Developer ID Application cert and notarized via notarytool.
 #   CSC_LINK (base64 of the Developer ID .p12), CSC_KEY_PASSWORD,
@@ -172,6 +172,8 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Nothing downstream of the build re-reads the signature, so without this a

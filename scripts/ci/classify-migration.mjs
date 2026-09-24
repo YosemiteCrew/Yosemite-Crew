@@ -267,7 +267,7 @@ const addColumnClauses = (upper) => upper.split('ADD COLUMN').slice(1);
  *                                    nothing in this repository pinning it -
  *                                    the same footing as the premise under the
  *                                    ENABLE rule, not the same as the four
- *                                    above. Raised by ankit-yc on #2731.
+ *                                    above. Raised in review on #2731.
  *
  * These read the same normalised statement text as the rules above, so they
  * inherit that machinery exactly: a hazard word in a comment is not a hazard,
@@ -337,7 +337,7 @@ const ACCESS_RULES = [
     // synonyms - ALTER USER and DROP USER are the same statements - so matching
     // one spelling is matching half the language. `0+` for the same reason a
     // word boundary alone is not enough: CONNECTION LIMIT 00 is still zero.
-    // Both raised by ankit-yc on #2731.
+    // Both raised in review on #2731.
     test: (u) =>
       /\bDROP (ROLE|USER)\b/.test(u) ||
       (/\bALTER (ROLE|USER)\b/.test(u) &&

@@ -222,7 +222,7 @@ The app authenticates with **SuperTokens** sessions against the Yosemite Crew ba
 - `USE_DEV_API = true` → sessions against `devapi.yosemitecrew.com` (recommended for development)
 - `USE_DEV_API = false` → sessions against `api.yosemitecrew.com` (production)
 
-Sign in with email OTP against the dev API, or use the review-login bypass (`test@yosemitecrew.com`) when `enableReviewLogin` is active on the dev API. The dev API is a shared environment - do not store sensitive data in it.
+Sign in with email OTP against the dev API. The dev API is a shared environment - do not store sensitive data in it.
 
 ---
 
@@ -355,12 +355,12 @@ Then add this stub file to the Xcode project the same way. Push notifications wi
 
    Open the file and replace:
 
-   | Placeholder                        | Where to find it                                                |
-   | ---------------------------------- | --------------------------------------------------------------- |
-   | `YOUR_IOS_GOOGLE_MAPS_API_KEY`     | Google Cloud Console → Credentials, with Maps SDK for iOS enabled |
-   | `YOUR_FACEBOOK_APP_ID`             | Facebook Developer Console → your app → App ID                  |
-   | `YOUR_FACEBOOK_CLIENT_TOKEN`       | Facebook Developer Console → Settings → Advanced → Client Token |
-   | `YOUR_REVERSED_CLIENT_ID`          | `ios/GoogleService-Info.plist` → `REVERSED_CLIENT_ID` value     |
+   | Placeholder                    | Where to find it                                                  |
+   | ------------------------------ | ----------------------------------------------------------------- |
+   | `YOUR_IOS_GOOGLE_MAPS_API_KEY` | Google Cloud Console → Credentials, with Maps SDK for iOS enabled |
+   | `YOUR_FACEBOOK_APP_ID`         | Facebook Developer Console → your app → App ID                    |
+   | `YOUR_FACEBOOK_CLIENT_TOKEN`   | Facebook Developer Console → Settings → Advanced → Client Token   |
+   | `YOUR_REVERSED_CLIENT_ID`      | `ios/GoogleService-Info.plist` → `REVERSED_CLIENT_ID` value       |
 
    The reversed client id must match the `GoogleService-Info.plist` in this checkout. It is the URL scheme Google returns to after sign-in, so a mismatch builds cleanly and then fails at the redirect with nothing to point at.
 

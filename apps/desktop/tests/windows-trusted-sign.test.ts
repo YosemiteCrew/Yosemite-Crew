@@ -50,6 +50,8 @@ const createValidEnv = (): NodeJS.ProcessEnv => ({
   AZURE_TENANT_ID: 'tenant-id',
   AZURE_CLIENT_ID: 'client-id',
   AZURE_CLIENT_SECRET: 'client-secret',
+  AZURE_TRUSTED_SIGNING_ACCOUNT: 'signing-account',
+  AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE: 'signing-profile',
 });
 
 const createSuccessfulSpawn = () => {
@@ -79,14 +81,26 @@ describe('windows trusted signing hook', () => {
       'AZURE_TENANT_ID',
       'AZURE_CLIENT_ID',
       'AZURE_CLIENT_SECRET',
+      'AZURE_TRUSTED_SIGNING_ACCOUNT',
+      'AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE',
     ]);
   });
 
-  test('uses Yosemite Crew trusted signing defaults unless env overrides them', () => {
-    expect(windowsSign.getTrustedSigningConfig()).toMatchObject({
+  test('requires the signing account and certificate profile from the environment', () => {
+    expect(
+      windowsSign.getMissingAzureEnv({
+        AZURE_TENANT_ID: 'tenant-id',
+        AZURE_CLIENT_ID: 'client-id',
+        AZURE_CLIENT_SECRET: 'client-secret',
+      })
+    ).toEqual(['AZURE_TRUSTED_SIGNING_ACCOUNT', 'AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE']);
+  });
+
+  test('has no built-in signing account or profile and reads both from the environment', () => {
+    expect(windowsSign.getTrustedSigningConfig({})).toMatchObject({
       endpoint: 'https://swn.codesigning.azure.net/',
-      codeSigningAccountName: 'yc-signing',
-      certificateProfileName: 'yc-public-trust',
+      codeSigningAccountName: undefined,
+      certificateProfileName: undefined,
     });
 
     expect(
@@ -105,11 +119,13 @@ describe('windows trusted signing hook', () => {
   test('quotes PowerShell values and invokes Trusted Signing through splatting', () => {
     const script = windowsSign.buildInvokeTrustedSigningScript(
       "C:/dist/Yosemite Crew's PIMS.exe",
-      windowsSign.getTrustedSigningConfig()
+      windowsSign.getTrustedSigningConfig(createValidEnv())
     );
 
     expect(script).toContain("Files = 'C:/dist/Yosemite Crew''s PIMS.exe'");
     expect(script).toContain('Invoke-TrustedSigning @params');
+    expect(script).toContain("CodeSigningAccountName = 'signing-account'");
+    expect(script).toContain("CertificateProfileName = 'signing-profile'");
     expect(script).not.toContain('`');
   });
 
@@ -125,7 +141,7 @@ describe('windows trusted signing hook', () => {
 
     expect(spawn).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(
-      '[windows-sign] Skipping unsigned local build; missing AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET.'
+      '[windows-sign] Skipping unsigned local build; missing AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TRUSTED_SIGNING_ACCOUNT, AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE.'
     );
   });
 
@@ -136,8 +152,28 @@ describe('windows trusted signing hook', () => {
         platform: 'win32',
       })
     ).rejects.toThrow(
-      'Missing Azure Trusted Signing environment variables: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET'
+      'Missing Azure Trusted Signing environment variables: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TRUSTED_SIGNING_ACCOUNT, AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE'
     );
+  });
+
+  test('fails closed in CI when only the signing account and profile are absent', async () => {
+    const { spawn } = createSuccessfulSpawn();
+
+    await expect(
+      windowsSign({ path: 'C:/dist/app.exe' }, undefined, {
+        env: {
+          CI: 'true',
+          AZURE_TENANT_ID: 'tenant-id',
+          AZURE_CLIENT_ID: 'client-id',
+          AZURE_CLIENT_SECRET: 'client-secret',
+        },
+        platform: 'win32',
+        spawn,
+      })
+    ).rejects.toThrow(
+      'Missing Azure Trusted Signing environment variables: AZURE_TRUSTED_SIGNING_ACCOUNT, AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE'
+    );
+    expect(spawn).not.toHaveBeenCalled();
   });
 
   test('does not allow the skip flag when signing is required', async () => {

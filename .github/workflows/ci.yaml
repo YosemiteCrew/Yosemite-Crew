@@ -13,8 +13,7 @@ name: CI
 # yet a required status check", and the same commit that corrected the identical
 # claim on the `ci-required` job below left this one standing - so the file said
 # pending at the top and done in the middle, and the top is what a reader meets
-# first. The job comment owns that fact and dates it; the remaining migration
-# steps are in docs/ci/required-checks-migration.md.
+# first. The job comment owns that fact and dates it.
 
 on:
   pull_request: {}
@@ -194,8 +193,7 @@ jobs:
     # `dev` a missing `CI Required` blocks the merge and means this job has not
     # reported yet, not that nothing enforces it. The wording here said "not yet
     # required on either ruleset" for some time after the switchover, which
-    # points a reader at the opposite action. Runbook:
-    # docs/ci/required-checks-migration.md.
+    # points a reader at the opposite action.
     if: always()
     needs: [core, test, migration, sonar, frontend-quality, mobile-version, story-coverage]
     runs-on: ubuntu-latest

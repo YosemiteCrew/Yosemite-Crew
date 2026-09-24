@@ -56,6 +56,5 @@ Before merging, changes should satisfy:
 
 ## AI/Agent Contributions
 
-- Follow repository `AGENTS.md`.
 - State assumptions and unresolved risks.
 - Do not claim checks were run unless they were run.

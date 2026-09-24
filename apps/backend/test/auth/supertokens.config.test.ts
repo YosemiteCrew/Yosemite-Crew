@@ -642,7 +642,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
     process.env.SMTP_PASSWORD = "smtp-password";
     process.env.SMTP_FROM_NAME = "Yosemite Crew";
     process.env.SMTP_FROM_EMAIL = "[email protected]";
-    process.env.DEMO_LOGIN_EMAIL = "test@yosemitecrew.com";
+    process.env.DEMO_LOGIN_EMAIL = "review-login@example.com";
     process.env.DEMO_LOGIN_PASSWORD = "review-password";
 
     const { getSuperTokensConfig } = require("@yosemite-crew/auth");
@@ -658,12 +658,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
       createCode: originalCreateCode,
     });
 
-    await overriddenFunctions.createCode({ email: "test@yosemitecrew.com" });
+    await overriddenFunctions.createCode({ email: "review-login@example.com" });
     await overriddenFunctions.createCode({ email: "someone@example.com" });
 
     expect(originalCreateCode).toHaveBeenCalledWith(
       expect.objectContaining({
-        email: "test@yosemitecrew.com",
+        email: "review-login@example.com",
         userInputCode: "review-password",
       }),
     );
@@ -684,7 +684,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
       });
 
     await overriddenEmailDelivery.sendEmail({
-      email: "test@yosemitecrew.com",
+      email: "review-login@example.com",
     });
     await overriddenEmailDelivery.sendEmail({
       email: "someone@example.com",

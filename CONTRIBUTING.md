@@ -9,7 +9,6 @@ Read and follow [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 ## Engineering Standards
 
 - Repository standards: [docs/engineering-standards.md](./docs/engineering-standards.md)
-- AI/automation contribution policy: [AGENTS.md](./AGENTS.md)
 - Architecture decisions (ADRs): [docs/adr/](./docs/adr/README.md) - Architecture Decision Records capture why a significant choice was made; read this before proposing a change to a datastore, payment flow, auth model, or any other decision that would be expensive to reverse.
 
 ## Found a Bug?
@@ -67,7 +66,7 @@ pnpm run test --filter backend
 A pull request that adds a new component under `apps/frontend/src/app` and no
 sibling `*.stories.tsx` fails CI (`scripts/ci/story-coverage.mjs`, run as the
 `Story coverage` check) - a required, blocking gate, the same tier as the
-Sonar quality gate. It only judges files the PR *adds*, not the pre-existing
+Sonar quality gate. It only judges files the PR _adds_, not the pre-existing
 backlog, so it can't block an unrelated change.
 
 If a file genuinely doesn't need a story (a thin wrapper, something only ever

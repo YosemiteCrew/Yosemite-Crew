@@ -328,7 +328,7 @@ cmd_scan() {
   check_exception_expiry
   # --fail-on critical is the merge gate (#1721: critical vulnerabilities block
   # merges). Known-accepted findings live in .grype.yaml with a reason and an
-  # expiry - see docs/security/supply-chain.md for the exception process.
+  # expiry.
   grype "sbom:${CDX_SBOM}" \
     --config "${REPO_ROOT}/.grype.yaml" \
     -o "sarif=${REPORT_DIR}/grype.sarif" \

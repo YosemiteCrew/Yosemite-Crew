@@ -174,6 +174,15 @@ for (const [rel, how] of [
 // Its absence makes an iOS build impossible, so it blocks rather than warns.
 checkFile('ios/mobileAppYC/Info.plist', 'ask a maintainer', bad);
 
+// The Amplify outputs template ships EXAMPLE ids, not a working pool. A copy
+// made from it is not configured, so say so rather than report it as set up.
+// Only checked when present: the current sign-in flow does not read it.
+for (const rel of ['devamplify_outputs.json', 'prodamplify_outputs.json']) {
+  if (existsSync(join(root, rel))) {
+    checkFile(rel, 'not configured; ask a maintainer for the shared dev values', warn);
+  }
+}
+
 // iOS ignores a bundled font that is not listed in UIAppFonts, and the failure
 // is silent for text (it falls back to the system face) and only slightly
 // louder for icon fonts (every glyph becomes a "?" box). Info.plist is tracked
@@ -491,7 +500,7 @@ if (process.argv.includes('--require-app-config')) {
 // too narrow (missing a real placeholder) or too broad (condemning real
 // config) fails loudly rather than silently reporting OK.
 //
-// Only these five are asserted. Other templates in config-templates/ are
+// Only these six are asserted. Other templates in config-templates/ are
 // instructional or carry no secret values, so they legitimately contain no
 // placeholder markers and flagging them would be wrong.
 if (process.argv.includes('--self-test')) {
@@ -502,6 +511,7 @@ if (process.argv.includes('--self-test')) {
     'android/local.properties.example',
     'ios/GoogleService-Info.example.plist',
     'ios/Secrets.xcconfig.example',
+    'amplify/amplify_outputs.example.json',
   ];
   let failures = 0;
   for (const rel of mustFlag) {
