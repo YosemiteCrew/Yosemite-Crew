@@ -29,7 +29,7 @@
 
 ## Product Walkthrough
 
-https://github.com/user-attachments/assets/50209ebc-f966-4916-abb4-d697b5fbf778
+https://github.com/user-attachments/assets/3f26baf9-5012-4026-90f9-bf64fc40284d
 
 ## Code Quality (SonarCloud)
 
