@@ -1,5 +1,10 @@
 export { getAuthAppInfo } from './config/appInfo.js';
 export { getSuperTokensConfig } from './config/supertokens.config.js';
+export {
+  isValidTurnstileToken,
+  verifyTurnstileToken,
+  type VerifyTurnstileTokenInput,
+} from './turnstile.js';
 
 export { initSuperTokens } from './express/initSuperTokens.js';
 export {

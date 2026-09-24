@@ -17,6 +17,7 @@ import UserRoles from 'supertokens-node/recipe/userroles';
 import { SMTPService as PasswordlessSMTPService } from 'supertokens-node/recipe/passwordless/emaildelivery';
 import { getAuthHooks } from '../hooks.js';
 import type { AuthProfile, LoginMethod } from '../types.js';
+import { isValidTurnstileToken, verifyTurnstileToken } from '../turnstile.js';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -29,15 +30,10 @@ function requireEnv(name: string): string {
 }
 
 const SUPERTOKENS_API_KEY_FIELD = 'apiKey' as const;
-const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_ACTION = 'business_signup';
 const TURNSTILE_TOKEN_FIELD = 'turnstileToken';
 const TURNSTILE_FIELD_ERROR = 'Complete bot verification before creating an account.';
 const TURNSTILE_SIGNUP_ERROR = 'We could not verify this signup. Please refresh and try again.';
-
-function isValidTurnstileToken(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 2048;
-}
 
 // Keys this package stores on SuperTokens' userContext to carry login-flow
 // facts from the recipe overrides into session creation and MFA policy.
@@ -105,37 +101,6 @@ function readEmailField(input: {
 }): string | undefined {
   const value = input.formFields.find((field) => field.id === 'email')?.value;
   return typeof value === 'string' ? value : undefined;
-}
-
-async function verifyTurnstile(input: {
-  token: string;
-  secret: string;
-  hostname: string;
-  remoteIp?: string;
-}): Promise<boolean> {
-  try {
-    const body = new URLSearchParams({ secret: input.secret, response: input.token });
-    if (input.remoteIp) body.set('remoteip', input.remoteIp);
-    const response = await fetch(TURNSTILE_SITEVERIFY_URL, {
-      method: 'POST',
-      body,
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) return false;
-    const result = (await response.json()) as {
-      success?: boolean;
-      action?: string;
-      hostname?: string;
-    };
-    return (
-      result.success === true &&
-      result.action === TURNSTILE_ACTION &&
-      result.hostname === input.hostname
-    );
-  } catch (error) {
-    console.error('[auth] Turnstile verification failed', error);
-    return false;
-  }
 }
 
 function defaultProfileForMethod(method: LoginMethod): AuthProfile {
@@ -465,10 +430,11 @@ export function getSuperTokensConfig(): TypeInput {
                         if (
                           !turnstileSecret ||
                           !isValidTurnstileToken(token) ||
-                          !(await verifyTurnstile({
+                          !(await verifyTurnstileToken({
                             token,
                             secret: turnstileSecret,
                             hostname: turnstileHostname,
+                            action: TURNSTILE_ACTION,
                             remoteIp,
                           }))
                         ) {
