@@ -625,6 +625,18 @@ describe("credits and payments", () => {
     const draftBill = await draft({ externalReference: "BILL-D" });
     await expectError(credit(draftBill.id, 1), 409);
     await expectError(credit("missing", 1), 404);
+    const posted = await postedBill();
+    await expectError(
+      SupplierBillService.createCredit({
+        organisationId: ORG_A,
+        vendorId: VENDOR,
+        currency: "EUR",
+        externalReference: "CN-EUR",
+        amount: 1,
+        billId: posted.id,
+      }),
+      404,
+    );
     await expectError(credit(undefined, 0), 400);
     await expectError(
       SupplierBillService.createCredit({
