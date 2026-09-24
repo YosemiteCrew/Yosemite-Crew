@@ -394,6 +394,7 @@ describe("WorkspaceDocumentPacketService.sign", () => {
     mockedRenderCombinedPacketPdf.mockResolvedValue(combinedPdfResult());
     mockedDocumenso.createDocument.mockResolvedValue({
       id: 123,
+      envelopeId: "envelope_123",
       recipients: [{ token: "tok-1" }],
     });
     mockedDocumenso.distributeDocument.mockResolvedValue({});
@@ -441,7 +442,7 @@ describe("WorkspaceDocumentPacketService.sign", () => {
       }),
     );
     expect(mockedDocumenso.distributeDocument).toHaveBeenCalledWith({
-      documentId: 123,
+      envelopeId: "envelope_123",
       apiKey: "api-key",
     });
 

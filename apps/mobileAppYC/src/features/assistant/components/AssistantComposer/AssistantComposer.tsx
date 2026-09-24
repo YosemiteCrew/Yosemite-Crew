@@ -96,7 +96,7 @@ export const AssistantComposer: React.FC<AssistantComposerProps> = ({
         accessibilityLabel={t('assistant.composerPlaceholder')}
         onSubmitEditing={handleSubmit}
         returnKeyType="send"
-        blurOnSubmit
+        submitBehavior="blurAndSubmit"
       />
       <PressableOpacity
         testID="assistant-send"

@@ -1,6 +1,6 @@
 import React from 'react';
 import {Platform, useColorScheme} from 'react-native';
-import {render, fireEvent} from '@testing-library/react-native';
+import {render, fireEvent, act} from '@testing-library/react-native';
 import {SimpleDatePicker} from '../../../src/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import {
   formatDateForDisplay,
@@ -163,7 +163,7 @@ describe('SimpleDatePicker Component', () => {
       const picker = getByTestId('mock-datetime-picker');
       const newDate = new Date('2023-01-02T10:00:00');
 
-      fireEvent(picker, 'onChange', {type: 'set'}, newDate);
+      fireEvent(picker, 'onValueChange', {nativeEvent: {}}, newDate);
       expect(mockOnDateChange).not.toHaveBeenCalled();
       expect(mockOnDismiss).not.toHaveBeenCalled();
 
@@ -172,7 +172,7 @@ describe('SimpleDatePicker Component', () => {
       expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps the existing iOS draft date when the change event has no selected date', () => {
+    it('confirms the original value when Done is pressed without a change', () => {
       const {getByTestId} = render(
         <SimpleDatePicker
           value={defaultDate}
@@ -182,11 +182,9 @@ describe('SimpleDatePicker Component', () => {
         />,
       );
 
-      const picker = getByTestId('mock-datetime-picker');
-      fireEvent(picker, 'onChange', {type: 'set'}, undefined);
-
       fireEvent.press(getByTestId('ios-datetime-picker-done'));
       expect(mockOnDateChange).toHaveBeenCalledWith(defaultDate);
+      expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     });
 
     it('resets iOS draft date when value prop changes while visible', () => {
@@ -202,10 +200,8 @@ describe('SimpleDatePicker Component', () => {
 
       fireEvent(
         getByTestId('mock-datetime-picker'),
-        'onChange',
-        {
-          type: 'set',
-        },
+        'onValueChange',
+        {nativeEvent: {}},
         new Date('2023-01-02T10:00:00'),
       );
 
@@ -249,10 +245,12 @@ describe('SimpleDatePicker Component', () => {
       );
 
       const picker = getByTestId('mock-datetime-picker');
-      fireEvent(picker, 'onChange', {type: 'dismissed'}, undefined);
+      // Called on the picker itself: fireEvent would bubble to SimpleDatePicker's
+      // own onDismiss prop and pass even if the picker were never given one.
+      act(() => picker.props.onDismiss());
 
       expect(mockOnDateChange).not.toHaveBeenCalled();
-      expect(mockOnDismiss).toHaveBeenCalled();
+      expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     });
 
     it('adapts styles for Dark Mode', () => {
@@ -343,7 +341,7 @@ describe('SimpleDatePicker Component', () => {
       expect(queryByText('Done')).toBeNull();
     });
 
-    it('calls onDateChange and dismisses immediately on selection (event type "set")', () => {
+    it('calls onDateChange and dismisses immediately on selection', () => {
       const {getByTestId} = render(
         <SimpleDatePicker
           value={defaultDate}
@@ -357,13 +355,13 @@ describe('SimpleDatePicker Component', () => {
       const newDate = new Date('2023-05-05');
 
       // Trigger change
-      fireEvent(picker, 'onChange', {type: 'set'}, newDate);
+      fireEvent(picker, 'onValueChange', {nativeEvent: {}}, newDate);
 
       expect(mockOnDateChange).toHaveBeenCalledWith(newDate);
-      expect(mockOnDismiss).toHaveBeenCalled();
+      expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     });
 
-    it('dismisses without saving on cancel (event type "dismissed")', () => {
+    it('dismisses without saving on cancel', () => {
       const {getByTestId} = render(
         <SimpleDatePicker
           value={defaultDate}
@@ -375,14 +373,14 @@ describe('SimpleDatePicker Component', () => {
 
       const picker = getByTestId('mock-datetime-picker');
 
-      // Trigger dismiss (no date passed)
-      fireEvent(picker, 'onChange', {type: 'dismissed'}, undefined);
+      // On the picker itself, not bubbled: see the iOS dismiss test.
+      act(() => picker.props.onDismiss());
 
       expect(mockOnDateChange).not.toHaveBeenCalled();
-      expect(mockOnDismiss).toHaveBeenCalled();
+      expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     });
 
-    it('dismisses without calling onDateChange when the event type is neither "set" nor "dismissed"', () => {
+    it('dismisses without calling onDateChange on the neutral button', () => {
       const {getByTestId} = render(
         <SimpleDatePicker
           value={defaultDate}
@@ -393,12 +391,11 @@ describe('SimpleDatePicker Component', () => {
       );
 
       const picker = getByTestId('mock-datetime-picker');
-      const newDate = new Date('2023-05-05');
 
-      fireEvent(picker, 'onChange', {type: 'neutral'}, newDate);
+      fireEvent(picker, 'onNeutralButtonPress');
 
       expect(mockOnDateChange).not.toHaveBeenCalled();
-      expect(mockOnDismiss).toHaveBeenCalled();
+      expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     });
   });
 });

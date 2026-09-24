@@ -725,7 +725,7 @@ export const signPersistedRenderedDocument = async (
       : null;
 
   await DocumensoService.distributeDocument({
-    documentId: doc.id,
+    envelopeId: doc.envelopeId,
     apiKey,
   });
 
