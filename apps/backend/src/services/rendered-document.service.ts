@@ -1118,7 +1118,7 @@ const claimSignedDocument = async (
   existing: PersistedRenderedDocument,
   signing: PinnedRenderedDocumentSigning,
   documentId: string,
-  signed: { by: string | undefined; at: Date; pdfUrl: string | null },
+  signed: SignedCopy,
 ): Promise<Omit<PersistedRenderedDocument, "signature">> => {
   try {
     return await tx.renderedDocument.update({
@@ -1142,54 +1142,57 @@ const claimSignedDocument = async (
   }
 };
 
-export const completePersistedRenderedDocumentSigning = async (
-  renderedDocumentId: string,
-): Promise<PersistedRenderedDocument> => {
-  const existing = await getPersistedRenderedDocument(renderedDocumentId, null);
+type SignedCopy = { by: string | undefined; at: Date; pdfUrl: string | null };
 
+type CompletedSigning = {
+  document: PersistedRenderedDocument;
+  linked: LinkedRecord | null;
+};
+
+/**
+ * The signing request a completion acts on, or `null` when there is nothing to
+ * complete. Only a signing still awaiting its signature completes: one already
+ * signed, withdrawn or discarded is left as it is, whatever order events
+ * arrive in.
+ */
+const readOpenSigning = (
+  existing: PersistedRenderedDocument,
+): { signing: PinnedRenderedDocumentSigning; documentId: string } | null => {
   if (!existing.signing) {
     throw new RenderedDocumentServiceError("Document signing not started", 409);
   }
 
-  if (existing.status === "SIGNED") {
-    return existing;
-  }
-
-  // Only a signing still awaiting its signature completes: one already signed,
-  // withdrawn, or discarded is left as it is, whatever order events arrive in.
   const signing = existing.signing as PinnedRenderedDocumentSigning;
-  if (signing.status !== "IN_PROGRESS") {
-    return existing;
+  if (existing.status === "SIGNED" || signing.status !== "IN_PROGRESS") {
+    return null;
   }
 
-  const documentId = signing.documentId;
-  if (!documentId) {
+  if (!signing.documentId) {
     throw new RenderedDocumentServiceError(
       "Documenso document id missing",
       400,
     );
   }
 
-  const signedPdf = await downloadSignedCopy(
-    existing.organisationId,
-    documentId,
-  );
-  const signed = {
-    by: signing.signerId ?? existing.signedBy ?? undefined,
-    at: new Date(),
-    pdfUrl: signedPdf.downloadUrl ?? null,
-  };
+  return { signing, documentId: signing.documentId };
+};
+
+/**
+ * One transaction: the linked record, the document and its signature row
+ * commit together or not at all, so a failure part-way leaves nothing for a
+ * retry to trip over. `null` when the completion is not kept; a discarded one
+ * also returns the document to not started.
+ */
+const commitSigningCompletion = async (
+  existing: PersistedRenderedDocument,
+  signing: PinnedRenderedDocumentSigning,
+  documentId: string,
+  signed: SignedCopy,
+): Promise<CompletedSigning | null> => {
   const signatureData = buildSignatureData(existing, signing, signed.at);
 
-  // One transaction: the linked record, the document and its signature row
-  // commit together or not at all, so a failure part-way leaves nothing for a
-  // retry to trip over.
-  let completed: {
-    document: PersistedRenderedDocument;
-    linked: LinkedRecord | null;
-  };
   try {
-    completed = await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx) => {
       // Not moved: the record was reopened, edited, voided or superseded while
       // the signature was outstanding, so no signed copy of content it no
       // longer stands for is recorded against it.
@@ -1232,6 +1235,34 @@ export const completePersistedRenderedDocumentSigning = async (
     if (error.recordChanged) {
       await releaseDiscardedSigning(existing, documentId);
     }
+    return null;
+  }
+};
+
+export const completePersistedRenderedDocumentSigning = async (
+  renderedDocumentId: string,
+): Promise<PersistedRenderedDocument> => {
+  const existing = await getPersistedRenderedDocument(renderedDocumentId, null);
+  const open = readOpenSigning(existing);
+  if (!open) {
+    return existing;
+  }
+
+  const signedPdf = await downloadSignedCopy(
+    existing.organisationId,
+    open.documentId,
+  );
+  const completed = await commitSigningCompletion(
+    existing,
+    open.signing,
+    open.documentId,
+    {
+      by: open.signing.signerId ?? existing.signedBy ?? undefined,
+      at: new Date(),
+      pdfUrl: signedPdf.downloadUrl ?? null,
+    },
+  );
+  if (!completed) {
     return existing;
   }
 
