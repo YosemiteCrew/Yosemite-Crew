@@ -58,9 +58,7 @@ export type VitalsHistoryResult = {
 };
 
 const unitFor = (code: string) =>
-  Object.prototype.hasOwnProperty.call(VITAL_RECORD_UNITS, code)
-    ? VITAL_RECORD_UNITS[code]
-    : null;
+  Object.hasOwn(VITAL_RECORD_UNITS, code) ? VITAL_RECORD_UNITS[code] : null;
 
 const readMeasurement = (
   code: string,

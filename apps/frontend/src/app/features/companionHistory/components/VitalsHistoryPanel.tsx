@@ -45,7 +45,7 @@ const MEASUREMENT_LABEL: Record<string, string> = {
 const WEIGHT_CODES = new Set(['weightKg', 'weightLbs']);
 
 const labelFor = (code: string) =>
-  Object.prototype.hasOwnProperty.call(MEASUREMENT_LABEL, code) ? MEASUREMENT_LABEL[code] : code;
+  Object.hasOwn(MEASUREMENT_LABEL, code) ? MEASUREMENT_LABEL[code] : code;
 
 const formatValue = (m: VitalMeasurement) => (m.unit ? `${m.value} ${m.unit}` : String(m.value));
 
