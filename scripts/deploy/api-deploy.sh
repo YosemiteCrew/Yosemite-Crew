@@ -60,7 +60,7 @@ DEPLOY_BLOCKING_CONTROLS="${DEPLOY_BLOCKING_CONTROLS:-authentication}"
 # looking for a helper that is not on the box, and bash exits before preflight
 # with a bare "No such file or directory" - so say what is actually wrong.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for helper in git-sync migrate controls; do
+for helper in git-sync migrate controls backups; do
   if [ ! -r "$SCRIPT_DIR/lib/$helper.sh" ]; then
     echo "missing $SCRIPT_DIR/lib/$helper.sh" >&2
     echo "Copy the whole scripts/deploy directory to the host, not just this file." >&2
@@ -73,6 +73,8 @@ done
 . "$SCRIPT_DIR/lib/migrate.sh"
 # shellcheck source=lib/controls.sh
 . "$SCRIPT_DIR/lib/controls.sh"
+# shellcheck source=lib/backups.sh
+. "$SCRIPT_DIR/lib/backups.sh"
 export PATH="$NODE_BIN:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
@@ -93,8 +95,11 @@ echo "rollback sha: $ROLLBACK_SHA"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 echo "$ROLLBACK_SHA" > "/tmp/api-rollback-$STAMP.txt"
 tar czf "/tmp/api-dist-before-$STAMP.tgz" apps/backend/dist packages/*/dist 2>/dev/null || true
-cp apps/backend/.env "/tmp/api-env-before-$STAMP" 2>/dev/null || true
-echo "backups: /tmp/api-dist-before-$STAMP.tgz  /tmp/api-env-before-$STAMP"
+# Owner-only, and pruned to the newest three after a verified cutover - see
+# lib/backups.sh.
+ENV_BACKUP_PREFIX="/tmp/api-env-before-"
+deploy_backup_env apps/backend/.env "${ENV_BACKUP_PREFIX}$STAMP"
+echo "backups: /tmp/api-dist-before-$STAMP.tgz  ${ENV_BACKUP_PREFIX}$STAMP"
 # Where the schema-hazard notice is written in addition to stderr. Built here,
 # with the other preflight artifacts, because stderr is the one destination that
 # is guaranteed to be gone in the case the notice matters most: it is the ssh
@@ -367,6 +372,9 @@ CUTOVER_DONE=1
 # describe a deploy that did not happen - which is the exact defect that made
 # the preflight file unusable as a record.
 deploy_record_deployed_sha "$DEPLOYED_SHA_RECORD" "$(git -C "$REPO_DIR" rev-parse HEAD)"
+# Only now, so a deploy that stops keeps every copy. Tidying never fails a
+# deploy that has already cut over.
+deploy_prune_backups "$ENV_BACKUP_PREFIX" 3 || echo "  could not prune old .env backups" >&2
 
 say "done"
 echo "deployed $(git -C "$REPO_DIR" rev-parse --short HEAD)  (rollback: $ROLLBACK_SHA)"
