@@ -15,6 +15,11 @@ import { FinanceEventService } from "./events";
 import { getNetPaymentAmount, roundMoney } from "./pricing";
 import { sameCurrency } from "./currency";
 import {
+  isLedgerCurrencySupported,
+  quantizeMoney,
+  resolveLedgerExponent,
+} from "./currency";
+import {
   fromStripeMinorUnits,
   isStripeChargeCurrencySupported,
   toStripeMinorUnits,
@@ -860,6 +865,15 @@ type CheckoutLineItemSource = {
 // those cases we charge a single, tax-inclusive balance line with automatic tax
 // disabled so the balance is never taxed twice. Comparing against the PRE-TAX
 // total (not the balance) is what stops a plain tax line from dropping itemisation.
+// Rounds a checkout amount the way invoice pricing posted it: exactly, at the
+// invoice currency's own precision. A currency the ledger refuses to price
+// cannot have been posted by the quantizer, so it keeps the legacy rounding
+// its invoice was totalled with.
+const quantizeCheckoutAmount = (value: number, currency: string): number =>
+  isLedgerCurrencySupported(currency)
+    ? quantizeMoney(value, resolveLedgerExponent(currency))
+    : roundMoney(value);
+
 const buildCheckoutSessionLineItems = (params: {
   invoice: { id: string; totalAmount: number; taxTotal: number | null };
   items: unknown[];
@@ -868,9 +882,10 @@ const buildCheckoutSessionLineItems = (params: {
 }) => {
   const { invoice, items, summary, invoiceCurrency } = params;
 
-  const preTaxInvoiceTotal = roundMoney(
+  const preTaxInvoiceTotal = quantizeCheckoutAmount(
     invoice.totalAmount -
       (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
+    invoiceCurrency,
   );
 
   // Build the itemised lines BEFORE deciding whether to use them, so the guard
@@ -894,15 +909,19 @@ const buildCheckoutSessionLineItems = (params: {
     // What the line must collect: the stored snapshot total the invoice was
     // totalled from, falling back to the product when there is no snapshot.
     const lineAmount = toStripeMinorUnits(
-      roundMoney(
+      quantizeCheckoutAmount(
         typeof typed.total === "number"
           ? typed.total
           : unitPrice * quantity * (1 - discountPercent / 100),
+        invoiceCurrency,
       ),
       invoiceCurrency,
     );
     const unitAmount = toStripeMinorUnits(
-      roundMoney(unitPrice * (1 - discountPercent / 100)),
+      quantizeCheckoutAmount(
+        unitPrice * (1 - discountPercent / 100),
+        invoiceCurrency,
+      ),
       invoiceCurrency,
     );
     // Keep Stripe's per-unit presentation ("2 x $30.00") wherever the units
@@ -940,12 +959,9 @@ const buildCheckoutSessionLineItems = (params: {
   // Read `!==` as "the itemised lines do not collect the pre-tax total". It is
   // compared in minor units, which is both the unit Stripe is given and an
   // exact integer comparison - the amounts either side of the previous `!==`
-  // were floats. A tie still lands here, because invoice pricing posts the
-  // total by quantizing exact integers (8.165 -> 8.17) while these lines round
-  // the scaled float the other way (8.165 -> 8.16); that selects the balance
-  // line, which charges what is owed. Giving the itemised branch the ledger
-  // quantizer is the payment slice of #3153, not this one. Pinned in
-  // finance.payment.test.ts.
+  // were floats. Both sides round through the ledger quantizer, so a tie
+  // (8.165 -> 8.17) lands on the same cent the invoice was posted at and stays
+  // itemised. Pinned in finance.payment.test.ts.
   const useBalanceLine =
     summary.paid > 0 ||
     summary.credited > 0 ||

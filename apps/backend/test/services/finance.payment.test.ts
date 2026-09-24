@@ -3121,18 +3121,11 @@ describe("FinancePaymentService", () => {
   });
 
   // Invoice pricing quantizes at the ledger currency's precision and rounds a
-  // tie away from zero, while the stored line snapshot carries the raw product
-  // and this comparison reads it through `roundMoney`, which rounds the scaled
-  // float and takes 8.165 to 8.16. A tie therefore makes the item sum differ
-  // from the pre-tax invoice total and selects the balance line.
-  //
-  // Pinned rather than removed, because the balance line is the branch that
-  // charges what is owed: itemising this invoice submits
-  // `roundMoney(8.165) * 100` = 816, one cent short of the 817 the invoice was
-  // posted at. Making the itemised branch able to represent a rounded line
-  // total is the payment slice of #3153, not this one; the test below holds
-  // the half of that shortfall which predates the quantizer.
-  it("charges the balance line at the posted total when a tie splits the two roundings", async () => {
+  // tie away from zero, so a single 8.165 line posts at 8.17. The checkout
+  // rounds the same way, so the tie no longer splits the item sum from the
+  // pre-tax total: the session stays itemised and submits the 817 the invoice
+  // was posted at, where the old two-decimal float rounding submitted 816.
+  it("itemises a tie at the cent the invoice was posted at", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
@@ -3191,13 +3184,72 @@ describe("FinancePaymentService", () => {
     ];
     expect(sessionArgs.line_items).toHaveLength(1);
     expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
-      "Outstanding balance for invoice inv_tie",
+      "Consult",
     );
-    // 817, not the 816 the itemised branch would have submitted.
     expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(817);
-    // The invoice carries no tax, so switching automatic tax off here would
-    // charge a pre-tax amount: the balance line keeps Stripe calculating it.
-    expect(sessionArgs.automatic_tax).toEqual({ enabled: true });
+  });
+
+  // A currency the ledger refuses to price was never posted by the quantizer,
+  // so its checkout keeps the legacy rounding instead of failing to open.
+  it("keeps the legacy rounding for a currency the ledger cannot price", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_huf",
+      totalAmount: 8.16,
+      taxTotal: 0,
+      currency: "huf",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          unitPrice: 8.165,
+          quantity: 1,
+          total: 8.165,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_huf",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_huf",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_huf",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_huf",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_huf");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: { unit_amount: number; product_data: { name: string } };
+        }>;
+      },
+    ];
+    expect(sessionArgs.line_items).toHaveLength(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
+      "Consult",
+    );
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(816);
   });
 
   // #3305. Stripe multiplies a per-UNIT amount by the quantity, so a line whose
