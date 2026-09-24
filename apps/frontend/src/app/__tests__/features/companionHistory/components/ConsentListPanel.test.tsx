@@ -42,7 +42,7 @@ const fetchMock = fetchPatientConsents as jest.Mock;
 const grantMock = grantPatientConsent as jest.Mock;
 const revokeMock = revokePatientConsent as jest.Mock;
 const isAuthRedirectMock = isAuthRedirectError as jest.Mock;
-const loadSignedDocumentsMock = loadConsentDocumentsForCompanion as jest.Mock;
+const loadConsentDocumentsMock = loadConsentDocumentsForCompanion as jest.Mock;
 
 const consent = (
   over: Partial<PatientConsent> & { id: string; consentType: PatientConsent['consentType'] }
@@ -68,7 +68,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   permissionsMock = ['appointments:view:any', 'appointments:edit:any'];
   fetchMock.mockResolvedValue([]);
-  loadSignedDocumentsMock.mockResolvedValue([]);
+  loadConsentDocumentsMock.mockResolvedValue([]);
 });
 
 describe('ConsentListPanel', () => {
@@ -303,7 +303,7 @@ describe('ConsentListPanel', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('loads and renders signed consent documents from the e-signing portal', async () => {
+  it('loads and renders consent documents from the e-signing portal', async () => {
     const signedDoc: CompanionRecord = {
       id: 'doc-1',
       title: 'Surgical consent - Buddy',
@@ -314,7 +314,7 @@ describe('ConsentListPanel', () => {
       pdfUrl: 'https://files.example.com/consent-doc-1.pdf',
       sourceKind: 'TEMPLATE_INSTANCE',
     };
-    loadSignedDocumentsMock.mockResolvedValue([signedDoc]);
+    loadConsentDocumentsMock.mockResolvedValue([signedDoc]);
     const openSpy = jest.spyOn(globalThis, 'open').mockImplementation(() => null);
 
     render(<ConsentListPanel companionId="comp-1" />);
@@ -322,7 +322,7 @@ describe('ConsentListPanel', () => {
     expect(await screen.findByText('Surgical consent - Buddy')).toBeInTheDocument();
     expect(screen.getByText('Consent documents')).toBeInTheDocument();
     expect(screen.getByText(/Signed Feb 1, 2026/)).toBeInTheDocument();
-    expect(loadSignedDocumentsMock).toHaveBeenCalledWith('comp-1');
+    expect(loadConsentDocumentsMock).toHaveBeenCalledWith('comp-1');
 
     await userEvent.click(
       screen.getByRole('button', { name: 'View consent document: Surgical consent - Buddy' })
@@ -351,7 +351,7 @@ describe('ConsentListPanel', () => {
   });
 
   it('lists a submitted consent document that is not signed yet', async () => {
-    loadSignedDocumentsMock.mockResolvedValue([unsignedDoc(null)]);
+    loadConsentDocumentsMock.mockResolvedValue([unsignedDoc(null)]);
 
     render(<ConsentListPanel companionId="comp-1" />);
 
@@ -364,7 +364,7 @@ describe('ConsentListPanel', () => {
   });
 
   it('names the View button without calling an unsigned document signed', async () => {
-    loadSignedDocumentsMock.mockResolvedValue([
+    loadConsentDocumentsMock.mockResolvedValue([
       unsignedDoc('https://files.example.com/consent-doc-2.pdf'),
     ]);
 
@@ -377,10 +377,10 @@ describe('ConsentListPanel', () => {
     expect(screen.queryByRole('button', { name: /signed/i })).not.toBeInTheDocument();
   });
 
-  it('does not load signed documents when the member cannot view consents', () => {
+  it('does not load consent documents when the member cannot view consents', () => {
     permissionsMock = [];
     render(<ConsentListPanel companionId="comp-1" />);
-    expect(loadSignedDocumentsMock).not.toHaveBeenCalled();
+    expect(loadConsentDocumentsMock).not.toHaveBeenCalled();
   });
 
   it('hides the edit controls when the member can view but not edit', async () => {

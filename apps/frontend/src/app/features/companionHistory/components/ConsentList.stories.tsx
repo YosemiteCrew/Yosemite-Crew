@@ -122,7 +122,7 @@ export const WithError: Story = {
 };
 
 export const WithConsentDocuments: Story = {
-  args: { signedDocuments: CONSENT_DOCUMENTS },
+  args: { consentDocuments: CONSENT_DOCUMENTS },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 

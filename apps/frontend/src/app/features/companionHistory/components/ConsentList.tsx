@@ -52,12 +52,12 @@ export type ConsentListProps = {
   /** Id of the consent currently being revoked, so its row shows a pending state. */
   revokingId?: string | null;
   /**
-   * Signed/generated consent PDFs from the e-signing portal (Documenso).
-   * A separate data source from `consents` above - see
-   * `useSignedConsentDocuments` - so it renders as its own sub-list rather
+   * Consent PDFs from the e-signing portal (Documenso), signed or still
+   * waiting for a signature. A separate data source from `consents` above -
+   * see `useConsentDocuments` - so it renders as its own sub-list rather
    * than being merged into rows it has no link to.
    */
-  signedDocuments?: CompanionRecord[];
+  consentDocuments?: CompanionRecord[];
 };
 
 const STATUS_LABEL: Record<ConsentStatus, string> = {
@@ -452,7 +452,7 @@ const ConsentList = ({
   onRevoke,
   creating = false,
   revokingId = null,
-  signedDocuments = [],
+  consentDocuments = [],
 }: ConsentListProps) => {
   const [showForm, setShowForm] = useState(false);
   const activeCount = useMemo(
@@ -492,7 +492,7 @@ const ConsentList = ({
         revokingId={revokingId}
       />
 
-      <ConsentDocuments documents={signedDocuments} />
+      <ConsentDocuments documents={consentDocuments} />
     </section>
   );
 };
