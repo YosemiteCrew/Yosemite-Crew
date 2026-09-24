@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 import {
   fromStripeMinorUnits,
+  isStripeChargeCurrencySupported,
   toStripeMinorUnits,
 } from "src/utils/stripe-minor-units";
 
@@ -263,7 +264,13 @@ const buildAutomaticTaxSnapshot = async (
   const provider = input.provider ?? DEFAULT_TAX_PROVIDER;
   const taxBehavior = input.taxBehavior ?? DEFAULT_TAX_BEHAVIOR;
 
-  if (!input.customerAddress) {
+  // Stripe Tax is sent every line in Stripe's minor units, which a
+  // three-decimal currency cannot be converted to yet; the rate-based
+  // calculation prices it at the ledger's own precision instead.
+  if (
+    !input.customerAddress ||
+    !isStripeChargeCurrencySupported(input.currency)
+  ) {
     return buildFallbackInvoiceTaxSnapshot(
       {
         provider,

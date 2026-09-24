@@ -465,9 +465,14 @@ jobs:
           PRERELEASE: ${{ needs.verify.outputs.prerelease }}
         run: |
           if [ "$PRERELEASE" = "true" ]; then LATEST=false; else LATEST=true; fi
+          # Never labelled "Pre-release", whatever the version suffix: the
+          # suffix decides only the Latest badge. Explicit because the draft
+          # step reuses a release someone may have created by hand in the UI,
+          # which pre-ticks the label for a -beta tag.
           gh release edit "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --draft=false \
+            --prerelease=false \
             --latest="$LATEST"
           echo "Published $TAG (latest=${LATEST})."
 

@@ -29,6 +29,7 @@ jest.mock("../../src/services/companion.service", () => {
       getById: jest.fn(),
       getByIdForOrg: jest.fn(),
       update: jest.fn(),
+      updateForOrg: jest.fn(),
       delete: jest.fn(),
       getByName: jest.fn(),
       listByParent: jest.fn(),
@@ -427,6 +428,72 @@ describe("CompanionController", () => {
         new Error("Test error"),
       );
       await CompanionController.updateCompanion(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("updateCompanionPMS", () => {
+    beforeEach(() => {
+      (req as { organisationId?: string }).organisationId = "org-1";
+    });
+
+    it("returns 400 if id is missing", async () => {
+      await CompanionController.updateCompanionPMS(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(CompanionService.updateForOrg).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 when no organisation context is present", async () => {
+      req.params.id = "c1";
+      req.body = validFHIR;
+      (req as { organisationId?: string }).organisationId = undefined;
+
+      await CompanionController.updateCompanionPMS(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(CompanionService.updateForOrg).not.toHaveBeenCalled();
+      expect(CompanionService.update).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 when the id is not in the caller's organisation", async () => {
+      req.params.id = "c1";
+      req.body = validFHIR;
+      (CompanionService.updateForOrg as jest.Mock).mockResolvedValue(null);
+
+      await CompanionController.updateCompanionPMS(req, res);
+
+      expect(CompanionService.updateForOrg).toHaveBeenCalledWith(
+        "c1",
+        "org-1",
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(CompanionService.update).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it("returns 200 on success", async () => {
+      req.params.id = "c1";
+      req.body = validFHIR;
+      (CompanionService.updateForOrg as jest.Mock).mockResolvedValue({
+        response: "updated",
+      });
+
+      await CompanionController.updateCompanionPMS(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith("updated");
+    });
+
+    it("handles errors", async () => {
+      req.params.id = "c1";
+      req.body = validFHIR;
+      (CompanionService.updateForOrg as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+
+      await CompanionController.updateCompanionPMS(req, res);
+
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });

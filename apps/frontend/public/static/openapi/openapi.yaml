@@ -5289,6 +5289,71 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/coparent-invite/decline':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/coparent-invite/decline'
+      description: Declines a co-parent invite using the token from the invite email. Needs no sign-in, because the invitee may not have an account yet; the token is the credential. A declined invite is consumed and cannot be accepted afterwards.
+      operationId: post_v1_coparent_invite_decline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: The invite token from the invite email.
+      responses:
+        200:
+          description: The invite was declined.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - email
+                  - patientId
+                  - invitedByParentId
+                properties:
+                  message:
+                    type: string
+                  email:
+                    type: string
+                    description: The address the invite was sent to.
+                  patientId:
+                    type: string
+                  invitedByParentId:
+                    type: string
+        400:
+          description: No token was sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: No invite has this token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        410:
+          description: The invite has already been used or has expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
   '/v1/coparent-invite/pending':
     get:
       tags:
@@ -8096,6 +8161,387 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/mobile/appointments/{appointmentId}/invoices':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/finance/mobile/appointments/{appointmentId}/invoices'
+      description: Lists the signed-in pet parent's invoices for one appointment, newest first. Only invoices billed to the caller's parent account are returned.
+      operationId: post_v1_finance_mobile_appointments_appointmentId_invoices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MobileFinanceInvoice'
+                  meta:
+                    nullable: true
+                  error:
+                    nullable: true
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/mobile/appointments/{appointmentId}/seed':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/finance/mobile/appointments/{appointmentId}/seed'
+      description: Returns the appointment's open (PENDING or AWAITING_PAYMENT) invoice, else its PAID or REFUNDED one, else creates a draft from the booked service. An appointment the caller is not linked to answers 404 before any invoice is created. The first two cases return the stored row, so absent optional fields arrive as null.
+      operationId: post_v1_finance_mobile_appointments_appointmentId_seed
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+                    required:
+                      - id
+                      - status
+                      - totalAmount
+                      - currency
+                    properties:
+                      id:
+                        type: string
+                      appointmentId:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum:
+                          - PENDING
+                          - AWAITING_PAYMENT
+                          - PAID
+                          - FAILED
+                          - CANCELLED
+                          - REFUNDED
+                      subtotal:
+                        type: number
+                      totalAmount:
+                        type: number
+                      currency:
+                        type: string
+                  meta:
+                    nullable: true
+                  error:
+                    nullable: true
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/mobile/invoices/{invoiceId}/payments/sessions':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/finance/mobile/invoices/{invoiceId}/payments/sessions'
+      description: Creates (or reuses) a Stripe payment intent for the balance of an invoice billed to the caller. The client confirms it with `clientSecret` on `connectedAccountId`.
+      operationId: post_v1_finance_mobile_invoices_invoiceId_payments_sessions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        201:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MobilePaymentSession'
+                  meta:
+                    nullable: true
+                  error:
+                    nullable: true
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/mobile/parents/{parentId}/invoices':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/mobile/parents/{parentId}/invoices'
+      description: Lists every invoice for a parent account. `parentId` must be the caller's own parent account, otherwise 403.
+      operationId: get_v1_finance_mobile_parents_parentId_invoices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MobileFinanceInvoice'
+                  meta:
+                    nullable: true
+                  error:
+                    nullable: true
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/mobile/payment-intent/{paymentIntentId}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/mobile/payment-intent/{paymentIntentId}'
+      description: Retrieves a Stripe payment intent for an invoice billed to the caller, for example to recover a missing `client_secret`. An unknown id and an intent on someone else's invoice both answer 404.
+      operationId: get_v1_finance_mobile_payment_intent_paymentIntentId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: paymentIntentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    description: The Stripe PaymentIntent object, returned as Stripe serialises it.
+                    additionalProperties: true
+                    properties:
+                      id:
+                        type: string
+                      status:
+                        type: string
+                      amount:
+                        type: integer
+                      currency:
+                        type: string
+                      client_secret:
+                        type: string
+                        nullable: true
+                  meta:
+                    nullable: true
+                  error:
+                    nullable: true
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/mobile/{invoiceId}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/mobile/{invoiceId}'
+      description: Returns one invoice billed to the caller, with the issuing organisation's display details. An invoice on another parent's account answers 404.
+      operationId: get_v1_finance_mobile_invoiceId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - organistion
+                      - invoice
+                    properties:
+                      organistion:
+                        type: object
+                        description: The issuing organisation. The key is spelled `organistion` on the wire.
+                        properties:
+                          name:
+                            type: string
+                          placesId:
+                            type: string
+                          address:
+                            description: The organisation's address record, or an empty string when it has none.
+                          image:
+                            type: string
+                      invoice:
+                        $ref: '#/components/schemas/MobileFinanceInvoice'
+                  meta:
+                    nullable: true
+                  error:
+                    nullable: true
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
   '/v1/finance/organisation/{organisationId}/clients/{parentId}/account-credit':
     get:
       tags:
@@ -25743,6 +26189,209 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/parasite-risk':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/parasite-risk'
+      description: Modelled parasite risk for the ~25 km grid cell containing a coordinate. The coordinate is snapped to the cell centre and is not stored. Readings are cached per cell for a day; when fresh weather cannot be fetched, a reading up to a week old is served instead.
+      operationId: get_v1_parasite_risk
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+        - name: countryCode
+          in: query
+          required: false
+          description: ISO 3166-1 alpha-2 code. Optional; when absent or not two letters, the region is inferred from the coordinate.
+          schema:
+            type: string
+            pattern: '^[A-Za-z]{2}$'
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParasiteRiskCellReading'
+        400:
+          description: lat or lon is missing or out of range.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        401:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: Parasite risk is not published for this location.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/parasite-risk/subscriptions':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/parasite-risk/subscriptions'
+      description: The locations the signed-in pet parent follows for parasite risk alerts, oldest first.
+      operationId: get_v1_parasite_risk_subscriptions
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ParasiteRiskSubscription'
+        401:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/parasite-risk/subscriptions'
+      description: Follows a location for parasite risk alerts. Following a coordinate in a cell the parent already follows updates that subscription instead of adding one. A parent can follow at most five locations.
+      operationId: post_v1_parasite_risk_subscriptions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - lat
+                - lon
+                - label
+              properties:
+                lat:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                lon:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                countryCode:
+                  type: string
+                  pattern: '^[A-Za-z]{2}$'
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                  description: Place name shown in alerts.
+                alertTier:
+                  $ref: '#/components/schemas/ParasiteRiskTier'
+      responses:
+        201:
+          description: The subscription was created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParasiteRiskSubscription'
+        400:
+          description: The body failed validation, including any unknown field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        401:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: Parasite risk is not published for this location.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        409:
+          description: The parent already follows the maximum of five locations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/parasite-risk/subscriptions/{subscriptionId}':
+    delete:
+      tags:
+        - 'Non-FHIR'
+      summary: 'DELETE /v1/parasite-risk/subscriptions/{subscriptionId}'
+      description: Stops following a location. A subscription that belongs to another parent answers 404, the same as one that does not exist.
+      operationId: delete_v1_parasite_risk_subscriptions_subscriptionId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: The subscription was removed.
+        401:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: No subscription with this id belongs to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
 components:
   securitySchemes:
     BearerAuth:
@@ -31649,6 +32298,301 @@ components:
           format: date-time
           nullable: true
         createdAt:
+          type: string
+          format: date-time
+    MessageError:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+    ParasiteRiskTier:
+      type: string
+      enum:
+        - LOW
+        - MODERATE
+        - HIGH
+        - EXTREME
+    ParasiteRiskCellReading:
+      type: object
+      description: Modelled parasite risk for one grid cell (packages/types/src/parasite-risk.ts).
+      required:
+        - cell
+        - countryCode
+        - region
+        - modelVersion
+        - computedAt
+        - overallTier
+        - readings
+        - degraded
+      properties:
+        cell:
+          type: object
+          description: Centre of the grid cell, not the caller's position.
+          required:
+            - lat
+            - lon
+          properties:
+            lat:
+              type: number
+            lon:
+              type: number
+        countryCode:
+          type: string
+        region:
+          type: string
+          enum:
+            - AU
+            - US
+            - EU
+        modelVersion:
+          type: string
+        computedAt:
+          type: string
+          format: date-time
+        overallTier:
+          $ref: '#/components/schemas/ParasiteRiskTier'
+        readings:
+          type: array
+          items:
+            type: object
+            required:
+              - parasiteId
+              - group
+              - index
+              - tier
+              - trend
+            properties:
+              parasiteId:
+                type: string
+                enum:
+                  - heartworm
+                  - paralysis_tick
+                  - brown_dog_tick
+                  - blacklegged_tick
+                  - lone_star_tick
+                  - american_dog_tick
+                  - castor_bean_tick
+                  - ornate_dog_tick
+                  - flea
+                  - sandfly_leishmania
+                  - lungworm
+                  - intestinal_worms
+              group:
+                type: string
+                enum:
+                  - TICK
+                  - FLEA
+                  - WORM
+                  - VECTOR_BORNE
+              index:
+                type: number
+                minimum: 0
+                maximum: 100
+                description: Normalised per parasite. Not a probability and not a case count.
+              tier:
+                $ref: '#/components/schemas/ParasiteRiskTier'
+              trend:
+                type: string
+                enum:
+                  - RISING
+                  - STEADY
+                  - FALLING
+        degraded:
+          type: boolean
+          description: True when a weather input was unavailable and a neutral fallback was used.
+    ParasiteRiskSubscription:
+      type: object
+      description: A location a pet parent follows for parasite risk alerts. lat and lon are the snapped cell centre.
+      required:
+        - id
+        - lat
+        - lon
+        - countryCode
+        - label
+        - alertTier
+        - createdAt
+      properties:
+        id:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        countryCode:
+          type: string
+        label:
+          type: string
+        alertTier:
+          $ref: '#/components/schemas/ParasiteRiskTier'
+        createdAt:
+          type: string
+          format: date-time
+    MobilePaymentSession:
+      type: object
+      required:
+        - paymentIntentId
+      properties:
+        paymentIntentId:
+          type: string
+        clientSecret:
+          type: string
+          nullable: true
+        connectedAccountId:
+          type: string
+          nullable: true
+        amount:
+          type: number
+          description: The outstanding balance being collected, in major currency units.
+        currency:
+          type: string
+    MobileFinanceInvoice:
+      type: object
+      description: An invoice as the pet-parent app receives it (packages/types Invoice), not the FHIR Invoice resource.
+      additionalProperties: true
+      required:
+        - id
+        - items
+        - subtotal
+        - totalAmount
+        - currency
+        - status
+        - paymentCollectionMethod
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        parentId:
+          type: string
+        patientId:
+          type: string
+        organisationId:
+          type: string
+        appointmentId:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - quantity
+              - unitPrice
+              - total
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+                nullable: true
+              quantity:
+                type: number
+              unitPrice:
+                type: number
+              discountPercent:
+                type: number
+              total:
+                type: number
+        subtotal:
+          type: number
+        taxPercent:
+          type: number
+        taxTotal:
+          type: number
+        discountTotal:
+          type: number
+        totalAmount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum:
+            - PENDING
+            - AWAITING_PAYMENT
+            - PAID
+            - FAILED
+            - CANCELLED
+            - REFUNDED
+        paymentCollectionMethod:
+          type: string
+          enum:
+            - PAYMENT_INTENT
+            - PAYMENT_LINK
+            - PAYMENT_AT_CLINIC
+        billingCollectionMode:
+          type: string
+          enum:
+            - PREPAY_AT_BOOKING
+            - PAY_AT_VISIT_END
+            - STAGED_DURING_VISIT
+            - DEPOSIT_THEN_SETTLE
+            - MANUAL_OFFLINE
+        visitBillingStage:
+          type: string
+          enum:
+            - DRAFT
+            - READY_FOR_BILLING
+            - SETTLED
+        depositTargetAmount:
+          type: number
+        depositCollectedAmount:
+          type: number
+        creditNotes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              id:
+                type: string
+              creditNoteNumber:
+                type: string
+              amount:
+                type: number
+              status:
+                type: string
+                enum:
+                  - DRAFT
+                  - ISSUED
+                  - VOIDED
+        settlementSummary:
+          type: object
+          additionalProperties: true
+          properties:
+            invoiceTotal:
+              type: number
+            cashPaid:
+              type: number
+            credited:
+              type: number
+            effectivePaid:
+              type: number
+            balance:
+              type: number
+        metadata:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+        renderedDocumentId:
+          type: string
+        pdfUrl:
+          type: string
+          nullable: true
+        paidAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
           type: string
           format: date-time
     DeveloperSubscription:

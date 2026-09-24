@@ -15,6 +15,7 @@ import { FinanceEventService } from "./events";
 import { getNetPaymentAmount, roundMoney } from "./pricing";
 import {
   fromStripeMinorUnits,
+  isStripeChargeCurrencySupported,
   toStripeMinorUnits,
 } from "src/utils/stripe-minor-units";
 import { markInvoiceTreatmentItemsSettled } from "./settlement";
@@ -127,6 +128,19 @@ export class FinancePaymentError extends Error {
     this.name = "FinancePaymentError";
   }
 }
+
+// A three-decimal currency cannot be charged or refunded through Stripe yet
+// (see `utils/stripe-minor-units`). Refused before anything changes at the
+// provider or on the invoice's attempts, and as the caller's request rather
+// than as a server fault.
+const assertStripeChargeCurrency = (currency: string): void => {
+  if (!isStripeChargeCurrencySupported(currency)) {
+    throw new FinancePaymentError(
+      `Online payment is not available in ${currency.trim().toUpperCase()}`,
+      422,
+    );
+  }
+};
 
 // Callers must state the tenant they act for: PMS routes bind by organisation,
 // mobile routes by pet parent. Passing neither is a programming error, never a
@@ -1475,6 +1489,7 @@ export const FinancePaymentService = {
     requestedDepositAmount?: number | null,
   ): Promise<CheckoutSessionResult> {
     const invoice = await loadCheckoutEligibleInvoice(invoiceId, provider);
+    assertStripeChargeCurrency(invoice.currency || "usd");
 
     const existingCheckoutAttempt = await prisma.paymentAttempt.findFirst({
       where: {
@@ -1667,6 +1682,8 @@ export const FinancePaymentService = {
         409,
       );
     }
+
+    assertStripeChargeCurrency(invoice.currency || "usd");
 
     if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
       await cancelOpenCheckoutSessionAttempts(invoiceId);
@@ -1911,6 +1928,9 @@ export const FinancePaymentService = {
           409,
         );
       }
+      assertStripeChargeCurrency(
+        payment.currency ?? payment.invoice.currency ?? "usd",
+      );
 
       const connectedAccountId = await resolveStripeConnectedAccountId({
         invoiceId: payment.invoiceId,

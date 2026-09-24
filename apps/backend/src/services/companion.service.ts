@@ -667,6 +667,40 @@ export const CompanionService = {
     return { response: toFHIRFromPrisma(doc) };
   },
 
+  /**
+   * PMS update, limited to companions linked to the caller's practice - the
+   * same rule as getByIdForOrg. Returns null (404) for any other id.
+   */
+  async updateForOrg(
+    id: string,
+    organisationId: string,
+    payload: CompanionRequestDTO,
+    context?: CompanionCreateContext,
+  ) {
+    if (!id || typeof id !== "string") return null;
+
+    const org = organisationId?.trim();
+    if (!org) {
+      throw new CompanionServiceError("Organisation is required.", 400);
+    }
+
+    const linked = await prisma.patient.findFirst({
+      where: {
+        id,
+        organisations: {
+          some: { organisationId: org, status: "ACTIVE" },
+        },
+      },
+      select: { id: true },
+    });
+    if (!linked) return null;
+
+    return CompanionService.update(id, payload, {
+      ...context,
+      organisationId: org,
+    });
+  },
+
   async delete(id: string, context?: CompanionCreateContext) {
     if (!context?.authUserId) {
       throw new CompanionServiceError(

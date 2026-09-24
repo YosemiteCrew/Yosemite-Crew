@@ -146,6 +146,18 @@ export const getAllCurrencies = (): CurrencyRecord[] => {
 };
 
 /**
+ * Narrow an API-supplied currency string to one this app can actually render.
+ * The profile field is free-form, so a stored 'GBP' must not be handed to
+ * anything typed CurrencyCode.
+ */
+export const asSupportedCurrency = (
+  value?: string | null,
+): CurrencyCode | undefined => {
+  const normalized = value?.toUpperCase();
+  return SUPPORTED_CURRENCIES.find(code => code === normalized);
+};
+
+/**
  * The currency to show a user when nothing more specific applies.
  *
  * There were three answers to this question and they disagreed: Edit parent
@@ -161,18 +173,6 @@ export const getAllCurrencies = (): CurrencyRecord[] => {
  * invoice, a payment intent, a service's price - belongs to that thing and
  * must not be replaced by this.
  */
-/**
- * Narrow an API-supplied currency string to one this app can actually render.
- * The profile field is free-form, so a stored 'GBP' must not be handed to
- * anything typed CurrencyCode.
- */
-export const asSupportedCurrency = (
-  value?: string | null,
-): CurrencyCode | undefined => {
-  const normalized = value?.toUpperCase();
-  return SUPPORTED_CURRENCIES.find(code => code === normalized);
-};
-
 export const resolveUserCurrency = (
   countryName?: string | null,
   override?: CurrencyCode | null,

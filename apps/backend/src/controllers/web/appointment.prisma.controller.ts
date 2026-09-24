@@ -46,21 +46,6 @@ type AdmitBody = {
   assignmentReason?: string;
 };
 
-/**
- * The organisation the RBAC middleware authorized the caller against. On
- * resource-scoped routes that is the appointment's own organisation, not
- * whatever the URL named, so it is the only value safe to filter on.
- */
-/**
- * The organisation the request BODY names, via its FHIR `Organization`
- * participant.
- *
- * This is the value the write is actually persisted under:
- * `fromFHIRAppointment` (packages/types/src/appointment.ts) reads the same
- * participant into `organisationId`, and that is what reaches
- * `tx.appointment.create`. It is a different source from the one
- * `withOrgPermissions()` authorises, which is why the two must be compared.
- */
 const ORGANIZATION_REFERENCE_PREFIX = "Organization/";
 
 /**
@@ -109,6 +94,16 @@ const tenantGuardBodySchema = z.object({
 
 type TenantGuardBody = z.infer<typeof tenantGuardBodySchema>;
 
+/**
+ * The organisation the request BODY names, via its FHIR `Organization`
+ * participant.
+ *
+ * This is the value the write is actually persisted under:
+ * `fromFHIRAppointment` (packages/types/src/appointment.ts) reads the same
+ * participant into `organisationId`, and that is what reaches
+ * `tx.appointment.create`. It is a different source from the one
+ * `withOrgPermissions()` authorises, which is why the two must be compared.
+ */
 const resolveBodyOrganisationId = (
   body: TenantGuardBody,
 ): string | undefined => {
@@ -125,6 +120,11 @@ const resolveBodyOrganisationId = (
   return undefined;
 };
 
+/**
+ * The organisation the RBAC middleware authorized the caller against. On
+ * resource-scoped routes that is the appointment's own organisation, not
+ * whatever the URL named, so it is the only value safe to filter on.
+ */
 const resolveAuthorizedOrganisationId = (req: Request): string | undefined => {
   const orgReq = req as OrgRequest;
   const organisationId = orgReq.organisationId ?? orgReq.params?.organisationId;

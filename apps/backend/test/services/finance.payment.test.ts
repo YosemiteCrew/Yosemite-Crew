@@ -2677,6 +2677,115 @@ describe("FinancePaymentService", () => {
     expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(500);
   });
 
+  // A three-decimal invoice cannot reach Stripe at its posted precision, so
+  // it is refused before an open session for it is expired or replaced.
+  it("refuses a three-decimal checkout before touching an open session", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_kwd",
+      totalAmount: 12.345,
+      currency: "kwd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
+      items: [{ name: "Consult", quantity: 1, unitPrice: 12.345 }],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "pa_open",
+        amount: 1,
+        providerCheckoutSessionId: "cs_open",
+        rawProviderPayload: {},
+      });
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+      stripeAccountId: "acct_kwd",
+    });
+
+    const error = await FinancePaymentService.createCheckoutSessionForInvoice(
+      "inv_kwd",
+    ).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FinancePaymentError);
+    expect((error as FinancePaymentError).statusCode).toBe(422);
+    expect(stripeClient.checkout.sessions.expire).not.toHaveBeenCalled();
+    expect(prisma.paymentAttempt.update).not.toHaveBeenCalled();
+    expect(stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a three-decimal payment intent before cancelling open links", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
+      id: "inv_kwd",
+      totalAmount: 12.345,
+      currency: "kwd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
+      items: [],
+    });
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+      stripeAccountId: "acct_kwd",
+    });
+
+    const error = await FinancePaymentService.createPaymentIntentForInvoice(
+      "inv_kwd",
+      { organisationId: "org_1" },
+    ).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FinancePaymentError);
+    expect((error as FinancePaymentError).statusCode).toBe(422);
+    expect(prisma.paymentAttempt.findMany).not.toHaveBeenCalled();
+    expect(stripeClient.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a Stripe refund of a three-decimal payment before calling Stripe", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_kwd",
+      invoiceId: "inv_kwd",
+      provider: "STRIPE",
+      providerPaymentId: "pi_kwd",
+      amount: 12.345,
+      currency: "kwd",
+      invoice: { organisationId: "org_1", currency: "kwd" },
+    });
+
+    const error = await FinancePaymentService.refundPaymentById("pay_kwd", {
+      amount: 1,
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FinancePaymentError);
+    expect((error as FinancePaymentError).statusCode).toBe(422);
+    expect(stripeClient.paymentIntents.retrieve).not.toHaveBeenCalled();
+    expect(stripeClient.refunds.create).not.toHaveBeenCalled();
+    expect(prisma.refund.create).not.toHaveBeenCalled();
+  });
+
   it("charges the current invoice balance when discounts change the raw item total", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },

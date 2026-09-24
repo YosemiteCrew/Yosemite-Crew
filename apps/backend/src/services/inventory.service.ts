@@ -631,9 +631,6 @@ export interface InventoryTurnoverRow {
 type PrismaClientOrTx = typeof prisma | Prisma.TransactionClient;
 
 /**
- * HELPER: Recompute onHand and allocated from batches
- */
-/**
  * `stockSource` arrives straight off the request body, so an unrecognised value
  * is rejected rather than silently falling back to NORMAL: a caller that meant
  * to draw down a reservation and mistyped the source would otherwise be told
@@ -650,6 +647,9 @@ const resolveConsumeStockSource = (
   );
 };
 
+/**
+ * HELPER: Recompute onHand and allocated from batches
+ */
 const recomputeStockFromBatches = async (
   itemId: string,
   client: PrismaClientOrTx = prisma,
