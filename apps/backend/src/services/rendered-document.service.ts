@@ -22,9 +22,13 @@ import {
 import type { ClinicalPdfSignaturePlacement } from "@yosemite-crew/lib";
 import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
-import { AuditTrailService } from "src/services/audit-trail.service";
+import {
+  AuditTrailService,
+  type AuditTrailRecordInput,
+} from "src/services/audit-trail.service";
 import { DocumensoService } from "src/services/documenso.service";
 import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
+import logger from "src/utils/logger";
 import type { AuditEventType } from "src/models/audit-trail";
 import {
   INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
@@ -641,11 +645,13 @@ type ClinicalRecordLinkage = {
 type LinkedRecord = ClinicalRecordLinkage & {
   status: string;
   authorId: string | null;
+  updatedAt: Date;
 };
 
 const LINKED_RECORD_SELECT = {
   status: true,
   authorId: true,
+  updatedAt: true,
   appointmentId: true,
   caseId: true,
   encounterId: true,
@@ -816,7 +822,10 @@ export const signPersistedRenderedDocument = async (
           signerName: input.signerName,
           signingUrl,
           signatureText: input.signatureText ?? null,
-        },
+          // The revision of the record the signer is shown. Completion only
+          // marks the record signed while it still stands at this revision.
+          sourceRevision: linked ? linked.updatedAt.toISOString() : null,
+        } satisfies PinnedRenderedDocumentSigning,
       },
       include: { signature: true },
     }),
@@ -878,40 +887,76 @@ const resolvePatientIdForSignedDocument = async (
   return null;
 };
 
+/** `signing` as stored on a rendered document, with the pinned revision. */
+type PinnedRenderedDocumentSigning = RenderedDocumentSigning & {
+  sourceRevision?: string | null;
+};
+
+/**
+ * The pinned revision as a timestamp, or `null` when there is none or it does
+ * not parse. A signing started without one is never matched to its record.
+ */
+const parseSourceRevision = (value: unknown): Date | null => {
+  if (typeof value !== "string") return null;
+  const revision = new Date(value);
+  return Number.isNaN(revision.getTime()) ? null : revision;
+};
+
 /**
  * Moves the TemplateInstance/ClinicalArtifact a just-signed RenderedDocument is
- * linked to on to SIGNED, and returns the record as it then stands (its clinical
- * linkage lets the caller resolve a patient for the audit event). COMPLETED is
- * the only status that moves: it is what $finalize and a template instance
- * submit leave behind, and the only one signing starts from. The status is in
- * the WHERE, so a record reopened, voided or superseded while the signature was
- * outstanding keeps its status even when that change commits concurrently.
+ * linked to on to SIGNED, and reports whether it moved. It only moves while it
+ * is still COMPLETED at the revision pinned when signing started, both in the
+ * WHERE, so a record reopened, edited, voided or superseded while the signature
+ * was outstanding (even one finalised again since) keeps its status, and so
+ * does one whose change commits concurrently. Returns `true` for a document
+ * with no linked record.
  */
 const propagateSigningCompletionToLinkedRecord = async (
   client: RenderedDocumentWriteClient,
   existing: PersistedRenderedDocument,
+  sourceRevision: Date | null,
   signedBy: string | undefined,
   signedAt: Date,
-): Promise<LinkedRecord | null> => {
-  if (existing.templateInstanceId) {
-    await client.templateInstance.updateMany({
-      where: { id: String(existing.templateInstanceId), status: "COMPLETED" },
-      data: { status: "SIGNED", signedBy, signedAt },
-    });
-  } else if (existing.clinicalArtifactId) {
-    await client.clinicalArtifact.updateMany({
-      where: { id: String(existing.clinicalArtifactId), status: "COMPLETED" },
-      // See the artifact's `version` column (#3144): signing is a generation.
-      data: { status: "SIGNED", signedBy, signedAt, version: { increment: 1 } },
-    });
+): Promise<boolean> => {
+  if (!existing.templateInstanceId && !existing.clinicalArtifactId) {
+    return true;
   }
-  return findLinkedRecord(client, existing);
+  // Prisma drops a filter whose value is undefined, so a missing revision must
+  // not reach the WHERE: it would widen the claim to any COMPLETED revision.
+  if (!sourceRevision) {
+    return false;
+  }
+  const moved = existing.templateInstanceId
+    ? await client.templateInstance.updateMany({
+        where: {
+          id: existing.templateInstanceId,
+          status: "COMPLETED",
+          updatedAt: sourceRevision,
+        },
+        data: { status: "SIGNED", signedBy, signedAt },
+      })
+    : await client.clinicalArtifact.updateMany({
+        where: {
+          id: String(existing.clinicalArtifactId),
+          status: "COMPLETED",
+          updatedAt: sourceRevision,
+        },
+        // See the artifact's `version` column (#3144): signing is a generation.
+        data: {
+          status: "SIGNED",
+          signedBy,
+          signedAt,
+          version: { increment: 1 },
+        },
+      });
+  return moved.count > 0;
 };
 
-const recordRenderedDocumentSignedAuditSafely = async (
+const recordRenderedDocumentAuditSafely = async (
   client: RenderedDocumentWriteClient,
   existing: PersistedRenderedDocument,
   linkage: ClinicalRecordLinkage | null,
+  event: Pick<AuditTrailRecordInput, "eventType" | "actorType" | "metadata">,
 ): Promise<void> => {
   if (!linkage) return;
   const patientId = await resolvePatientIdForSignedDocument(client, linkage);
@@ -920,17 +965,70 @@ const recordRenderedDocumentSignedAuditSafely = async (
   await AuditTrailService.recordSafely({
     organisationId: existing.organisationId,
     patientId,
-    eventType:
-      RENDERED_DOCUMENT_SIGNED_AUDIT_EVENT[existing.kind] ?? "DOCUMENT_UPDATED",
-    actorType: "PMS_USER",
     entityType: "DOCUMENT",
     entityId: existing.id,
-    metadata: { renderedDocumentId: existing.id, kind: existing.kind },
+    ...event,
   });
 };
 
+/** The claim on a document still awaiting this very Documenso document. */
+const awaitingSignatureWhere = (
+  existing: PersistedRenderedDocument,
+  documentId: string,
+): Prisma.RenderedDocumentWhereUniqueInput => ({
+  id: existing.id,
+  status: { not: "SIGNED" },
+  AND: [
+    { signing: { path: ["documentId"], equals: documentId } },
+    { signing: { path: ["status"], equals: "IN_PROGRESS" } },
+  ],
+});
+
+/**
+ * A signed copy whose record changed while the signature was outstanding is
+ * not kept. The document goes back to not started, so the record can be sent
+ * for signing again once it is finalised, and the discard is logged and
+ * audited. Conditional on the document still awaiting this Documenso document,
+ * so a concurrent completion or a newer signing request is left alone.
+ */
+const releaseDiscardedSigning = async (
+  existing: PersistedRenderedDocument,
+  signing: PinnedRenderedDocumentSigning,
+  documentId: string,
+): Promise<void> => {
+  const released = await renderedDocumentClient.renderedDocument.updateMany({
+    where: awaitingSignatureWhere(existing, documentId),
+    data: { signing: { ...signing, status: "NOT_STARTED" } },
+  });
+  if (released.count === 0) return;
+
+  logger.warn(
+    "[RenderedDocument] Signed copy discarded: the record changed while the signature was outstanding",
+    { renderedDocumentId: existing.id },
+  );
+  await recordRenderedDocumentAuditSafely(
+    renderedDocumentClient,
+    existing,
+    await findLinkedRecord(renderedDocumentClient, existing),
+    {
+      eventType: "DOCUMENT_UPDATED",
+      actorType: "SYSTEM",
+      metadata: {
+        renderedDocumentId: existing.id,
+        kind: existing.kind,
+        outcome: "SIGNATURE_DISCARDED",
+      },
+    },
+  );
+};
+
 /** Rolls the completion transaction back when there is nothing to complete. */
-class SigningCompletionSkipped extends Error {}
+class SigningCompletionSkipped extends Error {
+  /** `true` when the linked record no longer matches what was signed. */
+  constructor(readonly recordChanged: boolean) {
+    super("Signing completion skipped");
+  }
+}
 
 const isRecordNotFoundError = (error: unknown): boolean =>
   error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -949,8 +1047,10 @@ export const completePersistedRenderedDocumentSigning = async (
     return existing;
   }
 
-  const signing = existing.signing as RenderedDocumentSigning;
-  if (signing.status === "SIGNED") {
+  // Only a signing still awaiting its signature completes: one already signed,
+  // withdrawn, or discarded is left as it is, whatever order events arrive in.
+  const signing = existing.signing as PinnedRenderedDocumentSigning;
+  if (signing.status !== "IN_PROGRESS") {
     return existing;
   }
 
@@ -1010,25 +1110,28 @@ export const completePersistedRenderedDocumentSigning = async (
   };
   try {
     completed = await prisma.$transaction(async (tx) => {
-      const linked = await propagateSigningCompletionToLinkedRecord(
+      const moved = await propagateSigningCompletionToLinkedRecord(
         tx,
         existing,
+        parseSourceRevision(signing.sourceRevision),
         signedBy,
         signedAt,
       );
-      // Anything but SIGNED is a record reopened, voided or superseded while
-      // the signature was outstanding. It keeps its status, and no signed copy
-      // of content it no longer stands for is recorded against it.
-      if (linked && linked.status !== "SIGNED") {
-        throw new SigningCompletionSkipped();
+      // The record was reopened, edited, voided or superseded while the
+      // signature was outstanding: no signed copy of content it no longer
+      // stands for is recorded against it.
+      if (!moved) {
+        throw new SigningCompletionSkipped(true);
       }
 
-      // Claimed on the status, so of two deliveries that both read the
-      // document unsigned, the second matches nothing once the first commits.
+      // Claimed on the status and on this Documenso document, so of two
+      // deliveries that both read the document unsigned the second matches
+      // nothing once the first commits, and a stale event for an earlier
+      // signing request never completes a newer one.
       let document: Omit<PersistedRenderedDocument, "signature">;
       try {
         document = await tx.renderedDocument.update({
-          where: { id: existing.id, status: { not: "SIGNED" } },
+          where: awaitingSignatureWhere(existing, documentId),
           data: {
             status: "SIGNED",
             signedBy,
@@ -1045,7 +1148,7 @@ export const completePersistedRenderedDocumentSigning = async (
         });
       } catch (error) {
         throw isRecordNotFoundError(error)
-          ? new SigningCompletionSkipped()
+          ? new SigningCompletionSkipped(false)
           : error;
       }
 
@@ -1057,19 +1160,32 @@ export const completePersistedRenderedDocumentSigning = async (
         update: signatureData,
       });
 
-      return { document: { ...document, signature: signatureRow }, linked };
+      return {
+        document: { ...document, signature: signatureRow },
+        linked: await findLinkedRecord(tx, existing),
+      };
     });
   } catch (error) {
-    if (error instanceof SigningCompletionSkipped) {
-      return existing;
+    if (!(error instanceof SigningCompletionSkipped)) {
+      throw error;
     }
-    throw error;
+    if (error.recordChanged) {
+      await releaseDiscardedSigning(existing, signing, documentId);
+    }
+    return existing;
   }
 
-  await recordRenderedDocumentSignedAuditSafely(
+  await recordRenderedDocumentAuditSafely(
     renderedDocumentClient,
     existing,
     completed.linked,
+    {
+      eventType:
+        RENDERED_DOCUMENT_SIGNED_AUDIT_EVENT[existing.kind] ??
+        "DOCUMENT_UPDATED",
+      actorType: "PMS_USER",
+      metadata: { renderedDocumentId: existing.id, kind: existing.kind },
+    },
   );
 
   return normalizePersistedRenderedDocument(completed.document);

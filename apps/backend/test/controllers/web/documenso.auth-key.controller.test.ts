@@ -44,6 +44,7 @@ jest.mock("../../../src/config/prisma", () => ({
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     workspaceDocumentPacket: {
       findFirst: jest.fn(),
@@ -312,9 +313,9 @@ describe("Documenso controllers", () => {
         id: "rendered-del-1",
       });
       mockedPrisma.renderedDocument.findUnique.mockResolvedValue({
-        signing: { status: "NOT_STARTED" },
+        signing: { status: "IN_PROGRESS", documentId: "123" },
       });
-      mockedPrisma.renderedDocument.update.mockResolvedValue(undefined);
+      mockedPrisma.renderedDocument.updateMany.mockResolvedValue({ count: 1 });
 
       await handleSigned();
 
@@ -322,9 +323,9 @@ describe("Documenso controllers", () => {
         where: { id: "rendered-del-1" },
         select: { signing: true },
       });
-      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+      expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "rendered-del-1" },
+          where: expect.objectContaining({ id: "rendered-del-1" }),
           data: expect.objectContaining({
             signing: expect.objectContaining({ status: "NOT_STARTED" }),
           }),
@@ -350,7 +351,7 @@ describe("Documenso controllers", () => {
 
       await handleSigned();
 
-      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.updateMany).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
@@ -369,7 +370,7 @@ describe("Documenso controllers", () => {
 
       await handleSigned();
 
-      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.updateMany).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
     });
   });

@@ -21,6 +21,7 @@ import { DocumensoService } from "../../src/services/documenso.service";
 import { renderRenderedDocumentPdfWithMetadata } from "../../src/services/rendered-document-renderer.service";
 import { uploadBufferAsFile } from "../../src/middlewares/upload";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
+import logger from "../../src/utils/logger";
 
 jest.mock("src/config/prisma", () => {
   const prisma: Record<string, unknown> = {
@@ -28,6 +29,7 @@ jest.mock("src/config/prisma", () => {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     documentSignature: {
       upsert: jest.fn(),
@@ -77,6 +79,7 @@ jest.mock("../../src/services/audit-trail.service", () => ({
 jest.mock("axios", () => ({
   get: jest.fn(),
 }));
+jest.mock("../../src/utils/logger");
 
 describe("rendered-document service", () => {
   const originalDocumensoHostUrl = process.env.DOCUMENSO_HOST_URL;
@@ -85,6 +88,7 @@ describe("rendered-document service", () => {
       create: jest.Mock;
       findUnique: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
     documentSignature: {
       upsert: jest.Mock;
@@ -133,9 +137,18 @@ describe("rendered-document service", () => {
     // `not.toHaveBeenCalled()` false-fail on a call left over from an
     // earlier test.
     mockedPrisma.templateInstance.findUnique.mockReset();
-    mockedPrisma.templateInstance.updateMany.mockReset();
+    // A guarded move matches its row unless a test says otherwise.
+    mockedPrisma.templateInstance.updateMany
+      .mockReset()
+      .mockResolvedValue({ count: 1 });
     mockedPrisma.clinicalArtifact.findUnique.mockReset();
-    mockedPrisma.clinicalArtifact.updateMany.mockReset();
+    mockedPrisma.clinicalArtifact.updateMany
+      .mockReset()
+      .mockResolvedValue({ count: 1 });
+    mockedPrisma.renderedDocument.updateMany
+      .mockReset()
+      .mockResolvedValue({ count: 1 });
+    jest.mocked(logger.warn).mockClear();
     mockedPrisma.documentSignature.upsert.mockReset();
     mockedPrisma.renderedDocument.update.mockReset();
     mockedPrisma.$transaction.mockClear();
@@ -1072,6 +1085,7 @@ describe("rendered-document service", () => {
         signerEmail: "user@example.com",
         signerName: "User One",
         signingUrl: "https://documenso.example/sign/token-123",
+        sourceRevision: "2026-06-13T08:00:00.000Z",
       },
       signedBy: null,
       signedAt: null,
@@ -1155,8 +1169,16 @@ describe("rendered-document service", () => {
     );
     expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        // Claimed on the status, so a concurrent completion matches nothing.
-        where: { id: "doc-1", status: { not: "SIGNED" } },
+        // Claimed on the status, so a concurrent completion matches nothing,
+        // and on this Documenso document, so a stale event completes nothing.
+        where: {
+          id: "doc-1",
+          status: { not: "SIGNED" },
+          AND: [
+            { signing: { path: ["documentId"], equals: "42" } },
+            { signing: { path: ["status"], equals: "IN_PROGRESS" } },
+          ],
+        },
         data: expect.objectContaining({
           status: "SIGNED",
           pdfUrl: "https://signed.example/doc.pdf",
@@ -1178,7 +1200,11 @@ describe("rendered-document service", () => {
     // never find a document RenderedDocument itself already calls signed.
     // Only from COMPLETED: the status is part of the WHERE.
     expect(mockedPrisma.templateInstance.updateMany).toHaveBeenCalledWith({
-      where: { id: "instance-123", status: "COMPLETED" },
+      where: {
+        id: "instance-123",
+        status: "COMPLETED",
+        updatedAt: new Date("2026-06-13T08:00:00.000Z"),
+      },
       data: expect.objectContaining({ status: "SIGNED", signedBy: "user-1" }),
     });
     expect(mockedPrisma.clinicalArtifact.updateMany).not.toHaveBeenCalled();
@@ -1228,6 +1254,7 @@ describe("rendered-document service", () => {
         signerId: "parent-1",
         signerType: "PARENT",
         signatureText: "Jane Owner",
+        sourceRevision: "2026-06-13T08:00:00.000Z",
       },
       signedBy: null,
       signedAt: null,
@@ -1271,7 +1298,11 @@ describe("rendered-document service", () => {
       }),
     );
     expect(mockedPrisma.clinicalArtifact.updateMany).toHaveBeenCalledWith({
-      where: { id: "artifact-1", status: "COMPLETED" },
+      where: {
+        id: "artifact-1",
+        status: "COMPLETED",
+        updatedAt: new Date("2026-06-13T08:00:00.000Z"),
+      },
       // Signing advances the artifact generation (#3144).
       data: expect.objectContaining({
         status: "SIGNED",
@@ -1316,6 +1347,7 @@ describe("rendered-document service", () => {
         documentId: "44",
         signerId: "user-9",
         signerType: "PMS_USER",
+        sourceRevision: "2026-06-13T08:00:00.000Z",
       },
       signedBy: null,
       signedAt: null,
@@ -1377,15 +1409,18 @@ describe("rendered-document service", () => {
       signature: null,
       ...overrides,
     });
+    const pinnedRevision = "2026-09-24T08:00:00.000Z";
     const linkedRecord = (
       status: string,
       authorId: string | null = "vet-1",
+      updatedAt = new Date(pinnedRevision),
     ) => ({
       status,
       authorId,
       appointmentId: null,
       caseId: null,
       encounterId: "encounter-9",
+      updatedAt,
     });
     const signInput = {
       renderedDocumentId: "doc-9",
@@ -1403,6 +1438,7 @@ describe("rendered-document service", () => {
       signerId: "vet-1",
       signerType: "PMS_USER",
       signatureText: "Vet One",
+      sourceRevision: pinnedRevision,
     };
     const signedPdfAvailable = () => {
       mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
@@ -1507,6 +1543,16 @@ describe("rendered-document service", () => {
         expect(result.signing).toEqual(
           expect.objectContaining({ status: "IN_PROGRESS" }),
         );
+        // The revision the signer is shown is pinned for completion.
+        expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              signing: expect.objectContaining({
+                sourceRevision: pinnedRevision,
+              }),
+            }),
+          }),
+        );
       });
     });
 
@@ -1572,12 +1618,27 @@ describe("rendered-document service", () => {
         return row;
       };
 
+      const discardedSigning = {
+        where: {
+          id: "doc-9",
+          status: { not: "SIGNED" },
+          AND: [
+            { signing: { path: ["documentId"], equals: "99" } },
+            { signing: { path: ["status"], equals: "IN_PROGRESS" } },
+          ],
+        },
+        data: { signing: { ...inProgressSigning, status: "NOT_STARTED" } },
+      };
+
       it.each(["VOID", "IN_PROGRESS", "DRAFT"])(
         "leaves a clinical record that became %s while the signature was outstanding",
         async (status) => {
           const stored = storeInProgress();
           signedPdfAvailable();
           // The guarded move matched nothing, so the record reads as it was.
+          mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+            count: 0,
+          });
           mockedPrisma.clinicalArtifact.findUnique.mockResolvedValueOnce(
             linkedRecord(status),
           );
@@ -1588,12 +1649,20 @@ describe("rendered-document service", () => {
           expect(result).toEqual(stored);
           expect(mockedPrisma.clinicalArtifact.updateMany).toHaveBeenCalledWith(
             {
-              where: { id: "artifact-9", status: "COMPLETED" },
+              where: {
+                id: "artifact-9",
+                status: "COMPLETED",
+                updatedAt: new Date(pinnedRevision),
+              },
               data: expect.objectContaining({ status: "SIGNED" }),
             },
           );
           expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
           expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
+          // The document goes back to not started instead of staying stuck.
+          expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
+            discardedSigning,
+          );
           expect(mockedAuditTrailService.recordSafely).not.toHaveBeenCalled();
         },
       );
@@ -1607,6 +1676,9 @@ describe("rendered-document service", () => {
           kind: "CONSENT",
         });
         signedPdfAvailable();
+        mockedPrisma.templateInstance.updateMany.mockResolvedValueOnce({
+          count: 0,
+        });
         mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
           linkedRecord("VOID"),
         );
@@ -1614,13 +1686,154 @@ describe("rendered-document service", () => {
         await completePersistedRenderedDocumentSigning("doc-9");
 
         expect(mockedPrisma.templateInstance.updateMany).toHaveBeenCalledWith({
-          where: { id: "instance-9", status: "COMPLETED" },
+          where: {
+            id: "instance-9",
+            status: "COMPLETED",
+            updatedAt: new Date(pinnedRevision),
+          },
           data: expect.objectContaining({ status: "SIGNED" }),
         });
         expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
         expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
+        expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
+          discardedSigning,
+        );
+      });
+
+      it("discards a signature on a record reopened, edited and finalised again", async () => {
+        const stored = storeInProgress();
+        signedPdfAvailable();
+        // Finalised again, so COMPLETED once more, but at a later revision
+        // than the one the signer was shown: the pinned move matches nothing.
+        mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+          count: 0,
+        });
+        mockedPrisma.clinicalArtifact.findUnique.mockResolvedValueOnce(
+          linkedRecord("COMPLETED", "vet-1", new Date("2026-09-24T09:30:00Z")),
+        );
+        mockedPrisma.encounter.findUnique.mockResolvedValueOnce({
+          patientId: "patient-9",
+        });
+
+        const result = await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(result).toEqual(stored);
+        expect(mockedPrisma.clinicalArtifact.updateMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              updatedAt: new Date(pinnedRevision),
+            }),
+          }),
+        );
+        expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+        expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
+        expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
+          discardedSigning,
+        );
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringContaining("Signed copy discarded"),
+          { renderedDocumentId: "doc-9" },
+        );
+        // Audited as a discard by the system, never as a signature.
+        expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledTimes(1);
+        expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith({
+          organisationId: "org-123",
+          patientId: "patient-9",
+          entityType: "DOCUMENT",
+          entityId: "doc-9",
+          eventType: "DOCUMENT_UPDATED",
+          actorType: "SYSTEM",
+          metadata: {
+            renderedDocumentId: "doc-9",
+            kind: "PRESCRIPTION",
+            outcome: "SIGNATURE_DISCARDED",
+          },
+        });
+      });
+
+      it.each([
+        ["no pinned revision", undefined],
+        ["an unreadable pinned revision", "not-a-date"],
+      ])(
+        "never moves a linked record for a signing with %s",
+        async (_label, sourceRevision) => {
+          storeInProgress({
+            signing: { ...inProgressSigning, sourceRevision },
+          });
+          signedPdfAvailable();
+          mockedPrisma.clinicalArtifact.findUnique.mockResolvedValueOnce(
+            linkedRecord("COMPLETED"),
+          );
+
+          await completePersistedRenderedDocumentSigning("doc-9");
+
+          expect(
+            mockedPrisma.clinicalArtifact.updateMany,
+          ).not.toHaveBeenCalled();
+          expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+          expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+              data: {
+                signing: expect.objectContaining({ status: "NOT_STARTED" }),
+              },
+            }),
+          );
+        },
+      );
+
+      it("logs and audits nothing when the discarded signing was already moved on", async () => {
+        storeInProgress();
+        signedPdfAvailable();
+        mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+          count: 0,
+        });
+        // A concurrent completion or a newer signing request got there first.
+        mockedPrisma.renderedDocument.updateMany.mockResolvedValueOnce({
+          count: 0,
+        });
+
+        await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(logger.warn).not.toHaveBeenCalled();
+        expect(mockedPrisma.clinicalArtifact.findUnique).not.toHaveBeenCalled();
         expect(mockedAuditTrailService.recordSafely).not.toHaveBeenCalled();
       });
+
+      it("refuses to complete a document whose signing never started", async () => {
+        storeInProgress({ signing: null });
+
+        await expect(
+          completePersistedRenderedDocumentSigning("doc-9"),
+        ).rejects.toMatchObject({
+          statusCode: 409,
+          message: "Document signing not started",
+        });
+        expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+      });
+
+      it.each(["NOT_STARTED", "SIGNED"])(
+        "leaves a signing that is %s alone when a completion arrives late",
+        async (status) => {
+          const stored = storeInProgress({
+            signing: { ...inProgressSigning, status },
+          });
+
+          const result =
+            await completePersistedRenderedDocumentSigning("doc-9");
+
+          expect(result).toEqual(stored);
+          expect(
+            mockedDocumensoService.downloadSignedDocument,
+          ).not.toHaveBeenCalled();
+          expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+          expect(
+            mockedPrisma.renderedDocument.updateMany,
+          ).not.toHaveBeenCalled();
+        },
+      );
 
       it("writes every row through one transaction", async () => {
         storeInProgress();
@@ -1757,6 +1970,8 @@ describe("rendered-document service", () => {
 
         expect(result).toEqual(stored);
         expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
+        // The record did not change, so nothing is discarded or reset.
+        expect(mockedPrisma.renderedDocument.updateMany).not.toHaveBeenCalled();
         expect(mockedAuditTrailService.recordSafely).not.toHaveBeenCalled();
       });
 

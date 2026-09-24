@@ -51,6 +51,7 @@ jest.mock("../../../src/config/prisma", () => {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     documentSignature: {
       upsert: jest.fn(),
@@ -766,6 +767,7 @@ describe("DocumensoWebhookController", () => {
         signerEmail: "vet@example.com",
         signerName: "Vet One",
         signatureText: "Vet One",
+        sourceRevision: "2026-09-24T08:00:00.000Z",
       },
       signedBy: null,
       signedAt: null,
@@ -835,6 +837,7 @@ describe("DocumensoWebhookController", () => {
       mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
       mockedPrisma.documentSignature.upsert.mockResolvedValue({ id: "sig-1" });
       mockedPrisma.templateInstance.updateMany.mockResolvedValue({ count: 1 });
+      mockedPrisma.renderedDocument.updateMany.mockResolvedValue({ count: 1 });
       linkedInstanceIs("SIGNED");
       mockedPrisma.case.findUnique.mockResolvedValue({ patientId: "pat-1" });
     });
@@ -847,6 +850,7 @@ describe("DocumensoWebhookController", () => {
       mockedPrisma.renderedDocument.findFirst.mockReset();
       mockedPrisma.renderedDocument.findUnique.mockReset();
       mockedPrisma.renderedDocument.update.mockReset();
+      mockedPrisma.renderedDocument.updateMany.mockReset();
       mockedPrisma.documentSignature.upsert.mockReset();
       mockedPrisma.templateInstance.updateMany.mockReset();
       mockedPrisma.templateInstance.findUnique.mockReset();
@@ -879,7 +883,14 @@ describe("DocumensoWebhookController", () => {
       );
       expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "rd-1", status: { not: "SIGNED" } },
+          where: {
+            id: "rd-1",
+            status: { not: "SIGNED" },
+            AND: [
+              { signing: { path: ["documentId"], equals: "777" } },
+              { signing: { path: ["status"], equals: "IN_PROGRESS" } },
+            ],
+          },
           data: expect.objectContaining({
             status: "SIGNED",
             pdfUrl: "https://files.example/signed.pdf",
@@ -891,7 +902,11 @@ describe("DocumensoWebhookController", () => {
         }),
       );
       expect(mockedPrisma.templateInstance.updateMany).toHaveBeenCalledWith({
-        where: { id: "instance-1", status: "COMPLETED" },
+        where: {
+          id: "instance-1",
+          status: "COMPLETED",
+          updatedAt: new Date("2026-09-24T08:00:00.000Z"),
+        },
         data: expect.objectContaining({ status: "SIGNED" }),
       });
       expect(AuditTrailService.recordSafely).toHaveBeenCalledTimes(1);
@@ -961,12 +976,36 @@ describe("DocumensoWebhookController", () => {
       await handle();
 
       expect(mockedPrisma.templateInstance.updateMany).toHaveBeenCalledWith({
-        where: { id: "instance-1", status: "COMPLETED" },
+        where: {
+          id: "instance-1",
+          status: "COMPLETED",
+          updatedAt: new Date("2026-09-24T08:00:00.000Z"),
+        },
         data: expect.objectContaining({ status: "SIGNED" }),
       });
       expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
       expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
-      expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+      // Back to not started, so it can be sent again, with the discard audited.
+      expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            signing: expect.objectContaining({
+              status: "NOT_STARTED",
+              documentId: "777",
+            }),
+          },
+        }),
+      );
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledTimes(1);
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patientId: "pat-1",
+          actorType: "SYSTEM",
+          metadata: expect.objectContaining({
+            outcome: "SIGNATURE_DISCARDED",
+          }),
+        }),
+      );
       // Acked: nothing is wrong with the delivery, so a retry changes nothing.
       expect(statusMock).toHaveBeenCalledWith(200);
     });
@@ -994,13 +1033,66 @@ describe("DocumensoWebhookController", () => {
 
       await handle();
 
-      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith({
-        where: { id: "rd-1" },
+      // Only while the document still awaits this very Documenso document.
+      expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "rd-1",
+          status: { not: "SIGNED" },
+          AND: [
+            { signing: { path: ["documentId"], equals: "777" } },
+            { signing: { path: ["status"], equals: "IN_PROGRESS" } },
+          ],
+        },
         data: { signing: { status: "NOT_STARTED", documentId: "777" } },
       });
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
       expect(mockedPacketService.resetSigning).not.toHaveBeenCalled();
       expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it.each(["SIGNED", "NOT_STARTED"])(
+      "writes nothing for a deletion that arrives after the signing is %s",
+      async (status) => {
+        mockedPrisma.renderedDocument.findFirst.mockResolvedValue({
+          id: "rd-1",
+        });
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValue({
+          signing: { status, documentId: "777" },
+        });
+        webhookFor("DOCUMENT_DELETED", 777);
+
+        await handle();
+
+        expect(mockedPrisma.renderedDocument.updateMany).not.toHaveBeenCalled();
+        expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+        expect(statusMock).toHaveBeenCalledWith(200);
+      },
+    );
+
+    it("does not complete a signing a deletion already withdrew", async () => {
+      storeRenderedDocument();
+      webhookFor("DOCUMENT_DELETED", 777);
+      mockedPrisma.renderedDocument.updateMany.mockImplementationOnce(
+        async ({ data }: { data: { signing: unknown } }) => {
+          const current = await mockedPrisma.renderedDocument.findUnique();
+          Object.assign(current, { signing: data.signing });
+          return { count: 1 };
+        },
+      );
+      await handle();
+
+      // The completion for the same request is delivered after the deletion.
+      webhookFor("DOCUMENT_COMPLETED", 777);
+      await handle();
+
+      expect(
+        mockedDocumensoService.downloadSignedDocument,
+      ).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+      expect(statusMock.mock.calls).toEqual([[200], [200]]);
     });
   });
 

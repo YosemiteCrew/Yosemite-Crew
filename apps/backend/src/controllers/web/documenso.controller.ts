@@ -165,6 +165,7 @@ async function findWebhookRenderedDocument(documentId: string) {
 
 async function handleRenderedDocumentEvent(
   eventType: string,
+  documentId: string,
   renderedDocument: { id: string } | null,
 ) {
   if (!renderedDocument) {
@@ -174,7 +175,7 @@ async function handleRenderedDocumentEvent(
   if (eventType === "DOCUMENT_COMPLETED") {
     await handleRenderedDocumentCompletedPrisma(renderedDocument.id);
   } else if (eventType === "DOCUMENT_DELETED") {
-    await handleRenderedDocumentDeletedPrisma(renderedDocument.id);
+    await handleRenderedDocumentDeletedPrisma(renderedDocument.id, documentId);
   }
 }
 
@@ -395,7 +396,11 @@ export const DocumensoWebhookController = {
         const renderedDocument = await findWebhookRenderedDocument(
           event.documentId,
         );
-        await handleRenderedDocumentEvent(event.eventType, renderedDocument);
+        await handleRenderedDocumentEvent(
+          event.eventType,
+          event.documentId,
+          renderedDocument,
+        );
       }
       // case "DOCUMENT_EXPIRED":
       //   await handleDocumentExpired(submission);
@@ -676,7 +681,16 @@ async function handleRenderedDocumentCompletedPrisma(
   await completePersistedRenderedDocumentSigning(renderedDocumentId);
 }
 
-async function handleRenderedDocumentDeletedPrisma(renderedDocumentId: string) {
+/**
+ * Withdraws the signing request this event is about. The write is conditional
+ * on the document still awaiting that same Documenso document, so an event
+ * that arrives late (after completion, or after a newer request was sent)
+ * changes nothing.
+ */
+async function handleRenderedDocumentDeletedPrisma(
+  renderedDocumentId: string,
+  documentId: string,
+) {
   const renderedDocument = await prisma.renderedDocument.findUnique({
     where: { id: renderedDocumentId },
     select: { signing: true },
@@ -686,14 +700,19 @@ async function handleRenderedDocumentDeletedPrisma(renderedDocumentId: string) {
     status?: string;
   } | null;
 
-  if (!signing || signing.status === "SIGNED") {
+  if (signing?.status !== "IN_PROGRESS") {
     return;
   }
 
-  signing.status = "NOT_STARTED";
-
-  await prisma.renderedDocument.update({
-    where: { id: renderedDocumentId },
-    data: { signing: signing },
+  await prisma.renderedDocument.updateMany({
+    where: {
+      id: renderedDocumentId,
+      status: { not: "SIGNED" },
+      AND: [
+        { signing: { path: ["documentId"], equals: documentId } },
+        { signing: { path: ["status"], equals: "IN_PROGRESS" } },
+      ],
+    },
+    data: { signing: { ...signing, status: "NOT_STARTED" } },
   });
 }
