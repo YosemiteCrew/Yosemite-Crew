@@ -84,28 +84,34 @@ cd "$REPO_DIR"
 
 say "preflight"
 node -v
+# The deploy's own records, backups and logs live here, readable by this user
+# only. The workflow copies the scripts into its scripts/ directory.
+DEPLOY_STATE_DIR="$HOME/.yc-deploy"
+deploy_private_dir "$DEPLOY_STATE_DIR"
 # The commit this box is SERVING, which is not the same question as "what is
 # HEAD". Read from the record written at the last verified cutover, before
 # deploy_git_sync moves the tree - see deploy_deployed_sha for why HEAD alone is
 # wrong on every retry, and why the stamped file written just below is not the
 # record despite looking exactly like it.
-DEPLOYED_SHA_RECORD="/tmp/api-deployed-sha.txt"
+DEPLOYED_SHA_RECORD="$DEPLOY_STATE_DIR/api-deployed-sha.txt"
+# Older versions of this script kept the record in /tmp.
+deploy_adopt_legacy_record "$DEPLOYED_SHA_RECORD" /tmp/api-deployed-sha.txt
 ROLLBACK_SHA="$(deploy_deployed_sha "$DEPLOYED_SHA_RECORD" "$REPO_DIR")"
 echo "rollback sha: $ROLLBACK_SHA"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-echo "$ROLLBACK_SHA" > "/tmp/api-rollback-$STAMP.txt"
-tar czf "/tmp/api-dist-before-$STAMP.tgz" apps/backend/dist packages/*/dist 2>/dev/null || true
+echo "$ROLLBACK_SHA" > "$DEPLOY_STATE_DIR/api-rollback-$STAMP.txt"
+tar czf "$DEPLOY_STATE_DIR/api-dist-before-$STAMP.tgz" apps/backend/dist packages/*/dist 2>/dev/null || true
 # Owner-only, and pruned to the newest three after a verified cutover - see
 # lib/backups.sh.
-ENV_BACKUP_PREFIX="/tmp/api-env-before-"
+ENV_BACKUP_PREFIX="$DEPLOY_STATE_DIR/api-env-before-"
 deploy_backup_env apps/backend/.env "${ENV_BACKUP_PREFIX}$STAMP"
-echo "backups: /tmp/api-dist-before-$STAMP.tgz  ${ENV_BACKUP_PREFIX}$STAMP"
+echo "backups: $DEPLOY_STATE_DIR/api-dist-before-$STAMP.tgz  ${ENV_BACKUP_PREFIX}$STAMP"
 # Where the schema-hazard notice is written in addition to stderr. Built here,
 # with the other preflight artifacts, because stderr is the one destination that
 # is guaranteed to be gone in the case the notice matters most: it is the ssh
 # pipe, and the teardown of that connection is what kills this script. The
 # rollback sha the notice hands the operator is already written next door.
-HAZARD_LOG="/tmp/api-schema-hazard-$STAMP.txt"
+HAZARD_LOG="$DEPLOY_STATE_DIR/api-schema-hazard-$STAMP.txt"
 
 say "checkout $GIT_REF"
 # Fetch and checkout live in lib/git-sync.sh so their two failure modes - a stale
@@ -175,12 +181,12 @@ for pkg in types fhirtypes fhir lib database auth; do
          "packages/$pkg/tsconfig.build.tsbuildinfo" \
          "packages/$pkg/tsconfig.tsbuildinfo" 2>/dev/null || true
   printf '  %-12s ' "$pkg"
-  pnpm --filter "@yosemite-crew/$pkg" run build >"/tmp/build-$pkg.log" 2>&1 \
-    && echo ok || { echo FAILED; tail -20 "/tmp/build-$pkg.log"; exit 1; }
+  pnpm --filter "@yosemite-crew/$pkg" run build >"$DEPLOY_STATE_DIR/build-$pkg.log" 2>&1 \
+    && echo ok || { echo FAILED; tail -20 "$DEPLOY_STATE_DIR/build-$pkg.log"; exit 1; }
 done
 printf '  %-12s ' backend
-pnpm --filter backend run build >/tmp/build-backend.log 2>&1 \
-  && echo ok || { echo FAILED; tail -30 /tmp/build-backend.log; exit 1; }
+pnpm --filter backend run build >"$DEPLOY_STATE_DIR/build-backend.log" 2>&1 \
+  && echo ok || { echo FAILED; tail -30 "$DEPLOY_STATE_DIR/build-backend.log"; exit 1; }
 
 say "freshness (exit 0 is not evidence a build produced anything)"
 for pkg in types fhirtypes fhir lib database auth; do
@@ -225,8 +231,8 @@ pnpm --filter @yosemite-crew/database run schema:assert
 
 say "smoke boot on :$SMOKE_PORT"
 cd apps/backend
-rm -f /tmp/api-smoke.log
-PORT="$SMOKE_PORT" nohup node dist/index.js >/tmp/api-smoke.log 2>&1 &
+rm -f "$DEPLOY_STATE_DIR/api-smoke.log"
+PORT="$SMOKE_PORT" nohup node dist/index.js >"$DEPLOY_STATE_DIR/api-smoke.log" 2>&1 &
 SMOKE_PID=$!
 sleep 25
 CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://127.0.0.1:$SMOKE_PORT/health" || echo 000)"
@@ -317,7 +323,7 @@ CONTROL_FAILURES="$(deploy_blocking_control_failures "$CONTROLS_BODY" "$DEPLOY_B
 # Reports, never gates - the `|| true` is what makes that true, and it is
 # deliberate: this is a second signal for whoever reads the log, and POST_CODE
 # above is the gate.
-grep -iE 'ERR_REQUIRE_ESM|Cannot find module|FATAL ERROR|getBody is not a function' /tmp/api-smoke.log | head -5 || true
+grep -iE 'ERR_REQUIRE_ESM|Cannot find module|FATAL ERROR|getBody is not a function' "$DEPLOY_STATE_DIR/api-smoke.log" | head -5 || true
 kill "$SMOKE_PID" 2>/dev/null || true
 SMOKE_PID=""
 sleep 2
@@ -375,6 +381,8 @@ deploy_record_deployed_sha "$DEPLOYED_SHA_RECORD" "$(git -C "$REPO_DIR" rev-pars
 # Only now, so a deploy that stops keeps every copy. Tidying never fails a
 # deploy that has already cut over.
 deploy_prune_backups "$ENV_BACKUP_PREFIX" 3 || echo "  could not prune old .env backups" >&2
+# Copies from before the backups moved out of /tmp.
+deploy_prune_backups /tmp/api-env-before- 0 || echo "  could not remove old .env backups from /tmp" >&2
 
 say "done"
 echo "deployed $(git -C "$REPO_DIR" rev-parse --short HEAD)  (rollback: $ROLLBACK_SHA)"

@@ -69,7 +69,7 @@ deploy_incoming_migrations() {
 #     which is not a missing warning but a wrong instruction, printed at the
 #     moment someone is deciding what to do.
 #
-# WHY NOT /tmp/api-rollback-$STAMP.txt, which already exists and looks exactly
+# WHY NOT api-rollback-$STAMP.txt, which already exists and looks exactly
 # like this record. It is written in preflight, unconditionally, before anything
 # can fail - so a failed attempt writes one too, carrying the same stale sha.
 # Reading the newest of those rebuilds the defect inside its own fix, and does
@@ -177,6 +177,24 @@ deploy_record_deployed_sha() {
   echo "warning: could not record the deployed sha to $record" >&2
   rm -f "$record.tmp" 2>/dev/null || true
   return 0
+}
+
+# deploy_adopt_legacy_record <record-file> <legacy-file>
+#
+# Carries the record over from where older versions of this script kept it:
+# only while <record-file> does not exist, and only from a regular file owned
+# by this user. Never fails.
+deploy_adopt_legacy_record() {
+  local record="${1:?record file required}"
+  local legacy="${2:?legacy record file required}"
+  local sha
+
+  if [ -e "$record" ]; then return 0; fi
+  if [ -L "$legacy" ] || [ ! -f "$legacy" ] || [ ! -O "$legacy" ]; then return 0; fi
+  sha="$(tr -d " \t\r\n" < "$legacy")" || return 0
+  if [ -n "$sha" ]; then
+    deploy_record_deployed_sha "$record" "$sha"
+  fi
 }
 
 # deploy_arm_exit_traps
