@@ -3,6 +3,7 @@
 import axios from "axios";
 import { prisma } from "src/config/prisma";
 import logger from "../../src/utils/logger";
+import { SDK_METADATA } from "@documenso/sdk-typescript/lib/config.js";
 import { DocumensoError } from "@documenso/sdk-typescript/models/errors/index.js";
 
 // --- MOCK SETUP ---
@@ -25,24 +26,40 @@ jest.mock("../../src/utils/logger", () => ({
   },
 }));
 
-const mockCreate = jest.fn();
 const mockDistribute = jest.fn();
 
-// Only the legacy create and the envelope distribute go through the SDK. A
-// call to the deprecated documents.get or documents.distribute, or to the SDK
-// envelope reads that reject Documenso 2.4.0's responses, throws here.
+// Only the envelope distribute goes through the SDK. A call to any deprecated
+// documents.* method, or to the SDK envelope reads that reject Documenso
+// 2.4.0's responses, throws here.
 jest.mock("@documenso/sdk-typescript", () => {
   return {
     Documenso: jest.fn().mockImplementation(() => ({
-      documents: {
-        create: mockCreate,
-      },
       envelopes: {
         distribute: mockDistribute,
       },
     })),
   };
 });
+
+// The create answer Documenso 2.4.0 gives (its ZCreateDocumentResponseSchema).
+const created = (id: number, envelopeId: string) => ({
+  data: { envelopeId, id },
+});
+
+// What createDocument posted to /document/create, read as Documenso reads it.
+const postedCreate = () => {
+  const [url, form, config] = (axios.post as jest.Mock).mock.calls.at(-1) as [
+    string,
+    FormData,
+    { headers: Record<string, string> },
+  ];
+  return {
+    url,
+    payload: JSON.parse(form.get("payload") as string),
+    file: form.get("file") as File,
+    headers: config.headers,
+  };
+};
 
 /*
  * An envelope exactly as Documenso 2.4.0 (what production runs) returns it:
@@ -276,7 +293,7 @@ describe("DocumensoService", () => {
 
     describe("createDocument", () => {
       it("creates a document successfully and falls back to signerEmail for name", async () => {
-        mockCreate.mockResolvedValueOnce({ id: 1, envelopeId: "env_1" });
+        (axios.post as jest.Mock).mockResolvedValueOnce(created(1, "env_1"));
         (axios.get as jest.Mock).mockResolvedValueOnce({
           data: {
             id: "env_1",
@@ -296,18 +313,25 @@ describe("DocumensoService", () => {
           envelopeId: "env_1",
           recipients: [{ id: 11, token: "synthetic-recipient-token" }],
         });
-        expect(mockCreate).toHaveBeenCalledWith(
+        // POST /document/create, the route the SDK's documents.create called,
+        // with its headers and its two multipart parts.
+        const posted = postedCreate();
+        expect(posted.url).toBe("http://api.documenso.local/document/create");
+        expect(posted.headers).toEqual({
+          Accept: "application/json",
+          Authorization: "valid_api_key",
+          "User-Agent": SDK_METADATA.userAgent,
+        });
+        expect(posted.payload.recipients).toEqual([
           expect.objectContaining({
-            payload: expect.objectContaining({
-              recipients: expect.arrayContaining([
-                expect.objectContaining({ name: "test@test.com" }),
-              ]),
-            }),
-            file: {
-              fileName: "document.pdf",
-              content: expect.any(Uint8Array),
-            },
+            email: "test@test.com",
+            name: "test@test.com",
           }),
+        ]);
+        expect(posted.file.name).toBe("document.pdf");
+        expect(posted.file.type).toBe("application/pdf");
+        expect(Buffer.from(await posted.file.arrayBuffer()).toString()).toBe(
+          "test",
         );
         // GET /envelope/{id}, the route the SDK's envelopes.get calls, with
         // the key the SDK sends.
@@ -318,7 +342,9 @@ describe("DocumensoService", () => {
       });
 
       it("reads the signing token from a Documenso 2.4.0 envelope", async () => {
-        mockCreate.mockResolvedValueOnce({ id: 1, envelopeId: "envelope_1" });
+        (axios.post as jest.Mock).mockResolvedValueOnce(
+          created(1, "envelope_1"),
+        );
         (axios.get as jest.Mock).mockResolvedValueOnce({
           data: envelope240("DRAFT", "synthetic-recipient-token"),
         });
@@ -339,13 +365,14 @@ describe("DocumensoService", () => {
             }),
           ],
         });
+        expect(postedCreate().headers.Authorization).toBe("org_key");
         expect(axios.get).toHaveBeenCalledWith(
           "http://api.documenso.local/envelope/envelope_1",
           { headers: { Authorization: "org_key" } },
         );
       });
 
-      it("resolves the lookup under the base URL's path, with or without a trailing slash", async () => {
+      it("resolves both requests under the base URL's path, with or without a trailing slash", async () => {
         for (const base of [
           "https://ds.example/api/v2",
           "https://ds.example/api/v2/",
@@ -354,7 +381,7 @@ describe("DocumensoService", () => {
             DOCUMENSO_BASE_URL: base,
             DOCUMENSO_API_KEY: "valid_api_key",
           });
-          mockCreate.mockResolvedValueOnce({ id: 1, envelopeId: "env/1" });
+          (axios.post as jest.Mock).mockResolvedValueOnce(created(1, "env/1"));
           (axios.get as jest.Mock).mockResolvedValueOnce({
             data: { recipients: [] },
           });
@@ -364,6 +391,9 @@ describe("DocumensoService", () => {
             signerEmail: "test@test.com",
           });
 
+          expect(postedCreate().url).toBe(
+            "https://ds.example/api/v2/document/create",
+          );
           // The id is one path segment, whatever it holds.
           expect((axios.get as jest.Mock).mock.calls.at(-1)?.[0]).toBe(
             "https://ds.example/api/v2/envelope/env%2F1",
@@ -371,43 +401,35 @@ describe("DocumensoService", () => {
         }
       });
 
-      it("uses provided signerName and caches Documenso Client", async () => {
-        mockCreate.mockResolvedValue({ id: 2, envelopeId: "env_2" });
-        const lookup = { data: { id: "env_2", recipients: [] } };
-        (axios.get as jest.Mock)
-          .mockResolvedValueOnce(lookup)
-          .mockResolvedValueOnce(lookup);
-
-        // 1st Call - Misses cache, sets cache
-        await DocumensoService.createDocument({
-          pdf: Buffer.from("test"),
-          signerEmail: "test@test.com",
-          signerName: "John Doe",
-          apiKey: "cache_key_1",
+      it("uses the provided signerName and title", async () => {
+        (axios.post as jest.Mock).mockResolvedValueOnce(created(2, "env_2"));
+        (axios.get as jest.Mock).mockResolvedValueOnce({
+          data: { id: "env_2", recipients: [] },
         });
 
-        // 2nd Call - Hits cache branch: `if (cached) return cached;`
         const result = await DocumensoService.createDocument({
           pdf: Buffer.from("test"),
           signerEmail: "test@test.com",
           signerName: "John Doe",
-          apiKey: "cache_key_1",
+          title: "Consent form",
         });
 
         expect(result).toEqual({ id: 2, envelopeId: "env_2", recipients: [] });
-        expect(mockCreate).toHaveBeenCalledWith(
+        expect(postedCreate().payload).toEqual(
           expect.objectContaining({
-            payload: expect.objectContaining({
-              recipients: expect.arrayContaining([
-                expect.objectContaining({ name: "John Doe" }),
-              ]),
-            }),
+            title: "Consent form",
+            recipients: [
+              expect.objectContaining({
+                email: "test@test.com",
+                name: "John Doe",
+              }),
+            ],
           }),
         );
       });
 
       it("sends the signature field on-page so the signer can reach it", async () => {
-        mockCreate.mockResolvedValueOnce({ id: 3, envelopeId: "env_3" });
+        (axios.post as jest.Mock).mockResolvedValueOnce(created(3, "env_3"));
         (axios.get as jest.Mock).mockResolvedValueOnce({
           data: { id: "env_3", recipients: [] },
         });
@@ -424,20 +446,7 @@ describe("DocumensoService", () => {
           },
         });
 
-        const arg = mockCreate.mock.calls.at(-1)?.[0] as {
-          payload: {
-            recipients: Array<{
-              fields: Array<{
-                type: string;
-                pageX: number;
-                pageY: number;
-                width: number;
-                height: number;
-              }>;
-            }>;
-          };
-        };
-        const field = arg.payload.recipients[0].fields[0];
+        const field = postedCreate().payload.recipients[0].fields[0];
         expect(field.type).toBe("SIGNATURE");
         // Documenso uses 0–100 page percentages. PDF points (>100) placed the
         // field off-page where the signer could not reach it — the historical
@@ -456,7 +465,7 @@ describe("DocumensoService", () => {
       });
 
       it("falls back to an on-page default placement when none is provided", async () => {
-        mockCreate.mockResolvedValueOnce({ id: 4, envelopeId: "env_4" });
+        (axios.post as jest.Mock).mockResolvedValueOnce(created(4, "env_4"));
         (axios.get as jest.Mock).mockResolvedValueOnce({
           data: { id: "env_4", recipients: [] },
         });
@@ -466,46 +475,44 @@ describe("DocumensoService", () => {
           signerEmail: "test@test.com",
         });
 
-        const arg = mockCreate.mock.calls.at(-1)?.[0] as {
-          payload: {
-            recipients: Array<{
-              fields: Array<{ pageX: number; pageY: number; height: number }>;
-            }>;
-          };
-        };
-        const field = arg.payload.recipients[0].fields[0];
+        const field = postedCreate().payload.recipients[0].fields[0];
         expect(field.pageX).toBeLessThanOrEqual(100);
         expect(field.pageY).toBeLessThanOrEqual(100);
         expect(field.pageY + field.height).toBeLessThanOrEqual(100);
       });
 
-      it("handles DocumensoError", async () => {
-        mockCreate.mockRejectedValueOnce(
-          new (DocumensoError as any)("API Failed", 400, "Bad Request"),
+      /*
+       * The create request carries the API key as a header, so the axios error
+       * for a failed create carries it in `config.headers`. The document was
+       * not made, so there is nothing to look up either.
+       */
+      it("handles a failed create without logging the API key", async () => {
+        const apiKeyValue = "documenso-api-key-placeholder";
+        (axios.post as jest.Mock).mockRejectedValueOnce(
+          axiosError("Request failed with status code 401", apiKeyValue, 401),
         );
-        await DocumensoService.createDocument({
-          pdf: Buffer.from(""),
-          signerEmail: "a@a.com",
+
+        const result = await DocumensoService.createDocument({
+          pdf: Buffer.from("test"),
+          signerEmail: "test@test.com",
+          apiKey: apiKeyValue,
         });
 
-        expect(logger.error).toHaveBeenCalledWith("API error:", "API Failed");
-        expect(logger.error).toHaveBeenCalledWith("Status code:", 400);
+        expect(result).toBeUndefined();
+        expect(logger.error).toHaveBeenCalledWith(
+          "An unexpected error occurred:",
+          { message: "Request failed with status code 401", status: 401 },
+        );
+        expect(everythingLogged()).not.toContain(apiKeyValue);
+        expect(axios.get).not.toHaveBeenCalled();
       });
 
-      /*
-       * When the SDK cannot parse a 2xx response it throws with the raw
-       * response as `body`, and a Documenso response that names recipients
-       * carries their signing tokens.
-       */
-      it("never writes a response body the SDK rejected into the log", async () => {
+      // Parsed as strictly as the SDK parsed it: both ids, with their types.
+      it("fails, without logging the answer, when the create answer is not a document", async () => {
         const token = "recipient-signing-token-placeholder";
-        mockCreate.mockRejectedValueOnce(
-          new (DocumensoError as any)(
-            "Response validation failed",
-            200,
-            JSON.stringify({ recipients: [{ token }] }),
-          ),
-        );
+        (axios.post as jest.Mock).mockResolvedValueOnce({
+          data: { id: "1", envelopeId: 1, note: token },
+        });
 
         const result = await DocumensoService.createDocument({
           pdf: Buffer.from("test"),
@@ -514,15 +521,18 @@ describe("DocumensoService", () => {
 
         expect(result).toBeUndefined();
         expect(logger.error).toHaveBeenCalledWith(
-          "API error:",
-          "Response validation failed",
+          "An unexpected error occurred:",
+          expect.objectContaining({
+            message: expect.stringContaining("envelopeId"),
+          }),
         );
         expect(everythingLogged()).not.toContain(token);
+        expect(axios.get).not.toHaveBeenCalled();
       });
 
       it("handles a failed lookup after the document is created", async () => {
         const apiKeyValue = "documenso-api-key-placeholder";
-        mockCreate.mockResolvedValueOnce({ id: 5, envelopeId: "env_5" });
+        (axios.post as jest.Mock).mockResolvedValueOnce(created(5, "env_5"));
         (axios.get as jest.Mock).mockRejectedValueOnce(
           axiosError("Request failed with status code 503", apiKeyValue, 503),
         );
@@ -543,7 +553,7 @@ describe("DocumensoService", () => {
 
       it("fails, without logging the token, when the envelope has no usable recipients", async () => {
         const token = "recipient-signing-token-placeholder";
-        mockCreate.mockResolvedValueOnce({ id: 6, envelopeId: "env_6" });
+        (axios.post as jest.Mock).mockResolvedValueOnce(created(6, "env_6"));
         (axios.get as jest.Mock).mockResolvedValueOnce({
           data: { recipients: [{ id: 1, signingToken: token }] },
         });

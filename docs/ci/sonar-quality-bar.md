@@ -101,6 +101,9 @@ analyzes only each project's main branch, and the remediation merged to `dev`,
 so the dashboard figures refresh when `dev` is next promoted to `main`.
 
 One finding was deliberately left open rather than papered over: the deprecated
-Documenso `documents.createV0` call (#2207), whose replacement is not a
-behavior-identical swap. It is excluded from no gate - the issue tracks the
-migration, and until it lands the backend leg reflects it honestly.
+Documenso `documents.createV0` call (#2207), whose replacement was not a
+behavior-identical swap. It was excluded from no gate. #2697 moved it to
+`documents.create`, which is deprecated too, and the backend now sends that
+request itself: the same route and the same multipart body, which a test proves
+by sending the old SDK call and the new code to a local server and comparing
+what arrives. No deprecated call remains in the backend.

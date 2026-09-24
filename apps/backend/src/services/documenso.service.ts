@@ -1,4 +1,5 @@
 import { Documenso } from "@documenso/sdk-typescript";
+import { SDK_METADATA } from "@documenso/sdk-typescript/lib/config.js";
 import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
 import axios from "axios";
 import { z } from "zod";
@@ -150,8 +151,14 @@ const logDocumensoFailure = (error: unknown) => {
  * require fields that the Documenso 2.4.0 production runs does not have
  * (recipients[].expiresAt, documentMeta.envelopeExpirationPeriod,
  * envelopeItems[].documentDataId), so the SDK rejects every envelope 2.4.0
- * returns. These schemas hold only what this service reads.
+ * returns. The create goes around it too, because its documents.create is
+ * deprecated. These schemas hold only what this service reads.
  */
+const DocumentCreatedSchema = z.object({
+  envelopeId: z.string(),
+  id: z.number(),
+});
+
 const EnvelopeRecipientsSchema = z.object({
   recipients: z.array(z.looseObject({ token: z.string() })),
 });
@@ -194,7 +201,8 @@ export class DocumensoService {
     title?: string;
   }) {
     try {
-      const documenso = getDocumensoClient(apiKey);
+      const Authorization = resolveApiKey(apiKey);
+      const url = apiUrl("document/create");
       const placement = signaturePlacement ?? DEFAULT_SIGNATURE_PLACEMENT;
       logger.info("Creating document with signature placement", {
         placement,
@@ -219,19 +227,27 @@ export class DocumensoService {
           },
         ],
       };
-      // Still the legacy create: envelopes.create makes an internalVersion 2
-      // envelope, which Documenso signs through a different page and seals
-      // differently, so it is not a like-for-like swap for this flow.
-      const created = await documenso.documents.create({
-        payload,
-        file: {
-          fileName: "document.pdf",
-          content: new Uint8Array(pdf),
+      // The request the SDK's deprecated documents.create sent, part for part:
+      // the same route, which makes an internalVersion 1 envelope. The SDK's
+      // envelopes.create makes an internalVersion 2 one, which Documenso signs
+      // through a different page and seals differently.
+      const form = new FormData();
+      // Copied, as the SDK did: a Buffer can be a view into a larger pool.
+      const file = new Blob([new Uint8Array(pdf)], { type: "application/pdf" });
+      form.append("file", file, "document.pdf");
+      form.append("payload", JSON.stringify(payload));
+      const { data: createResponse } = await axios.post<unknown>(url, form, {
+        headers: {
+          Accept: "application/json",
+          Authorization,
+          // Documenso writes the user agent into the document's audit log.
+          "User-Agent": SDK_METADATA.userAgent,
         },
       });
+      const created = DocumentCreatedSchema.parse(createResponse);
       const { data: envelope } = await axios.get<unknown>(
         apiUrl(`envelope/${encodeURIComponent(created.envelopeId)}`),
-        { headers: { Authorization: resolveApiKey(apiKey) } },
+        { headers: { Authorization } },
       );
       const { recipients } = EnvelopeRecipientsSchema.parse(envelope);
 
