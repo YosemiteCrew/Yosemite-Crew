@@ -761,12 +761,19 @@ export function getSuperTokensConfig(): TypeInput {
       // the migration's OTP first-login path: an email-OTP sign-in with a
       // verified email links into the pre-provisioned account instead of
       // creating a parallel user. Verification is required before linking to
-      // prevent account takeover via unverified sign-ups.
+      // prevent account takeover via unverified sign-ups. Admin console users
+      // add sign-in methods from the console, so nothing links onto them here.
       AccountLinking.init({
-        shouldDoAutomaticAccountLinking: async () => ({
-          shouldAutomaticallyLink: true,
-          shouldRequireVerification: true,
-        }),
+        shouldDoAutomaticAccountLinking: async (
+          _newAccountInfo,
+          user,
+          _session,
+          _tenantId,
+          userContext
+        ) =>
+          user !== undefined && (await isAdminConsoleUser(user.id, userContext))
+            ? { shouldAutomaticallyLink: false }
+            : { shouldAutomaticallyLink: true, shouldRequireVerification: true },
       }),
       UserMetadata.init(),
       UserRoles.init(),
