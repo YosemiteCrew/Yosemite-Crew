@@ -188,14 +188,11 @@ async function persistDocumensoApiKey(
   return { stored: true, notFound: false };
 }
 
-type WebhookSignatureState = "verified" | "unverified" | "invalid";
+type WebhookSignatureState = "verified" | "invalid";
 
 /**
- * Three-way result rather than a boolean, because "we could not check" and "we
- * checked and it passed" are not the same trust level. Deployments without
- * DOCUMENSO_WEBHOOK_SECRET stay accepted for form/packet signing (long-standing
- * behaviour), but "unverified" is not good enough to record a veterinarian's
- * clinical attestation - see handlePassportRecordEvent.
+ * A call is accepted only when DOCUMENSO_WEBHOOK_SECRET is configured and the
+ * body carries its signature. Without the setting every call is refused.
  */
 const documensoWebhookSignatureState = (
   rawBody: Buffer,
@@ -203,7 +200,7 @@ const documensoWebhookSignatureState = (
 ): WebhookSignatureState => {
   const secret = process.env.DOCUMENSO_WEBHOOK_SECRET;
   if (!secret) {
-    return "unverified";
+    return "invalid";
   }
 
   if (!signature) {
