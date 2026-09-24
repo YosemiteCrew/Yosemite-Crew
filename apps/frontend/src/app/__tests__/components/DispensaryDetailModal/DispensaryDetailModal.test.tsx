@@ -53,6 +53,7 @@ const defaultProps = {
   setShowModal: jest.fn(),
   organisationId: 'org-123',
   onActionComplete: jest.fn(),
+  canDispense: true,
 };
 
 describe('DispensaryDetailModal', () => {
@@ -182,6 +183,53 @@ describe('DispensaryDetailModal', () => {
       render(<DispensaryDetailModal {...defaultProps} record={pendingRecord} />);
       fireEvent.click(screen.getByText(/not dispensed/i));
       await waitFor(() => expect(notDispensedMock).toHaveBeenCalledWith('org-123', 'rx-abc'));
+    });
+  });
+
+  // Both queue endpoints require prescription:edit:any AND inventory:edit:any.
+  // A viewer without that pair still reads the request, but is not offered
+  // actions the API would refuse (#3601).
+  describe('Pending state without dispense permission', () => {
+    const pendingRecord = { ...baseRecord, status: 'PENDING' as const };
+    const reason =
+      'Only staff with prescription and inventory edit access can dispense this request.';
+
+    it('hides Dispense all and Not dispensed and says why', () => {
+      render(
+        <DispensaryDetailModal {...defaultProps} record={pendingRecord} canDispense={false} />
+      );
+      expect(screen.queryByRole('button', { name: /dispense all/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /not dispensed/i })).not.toBeInTheDocument();
+      expect(screen.getByText(reason)).toBeInTheDocument();
+      expect(dispenseMock).not.toHaveBeenCalled();
+      expect(notDispensedMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the request itself readable', () => {
+      render(
+        <DispensaryDetailModal {...defaultProps} record={pendingRecord} canDispense={false} />
+      );
+      expect(screen.getByText('Dispense request')).toBeInTheDocument();
+      expect(screen.getByText('appt-1')).toBeInTheDocument();
+    });
+
+    it('does not show the reason to a viewer who can dispense', () => {
+      render(<DispensaryDetailModal {...defaultProps} record={pendingRecord} />);
+      expect(screen.queryByText(reason)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /dispense all/i })).toBeInTheDocument();
+    });
+
+    it('shows neither actions nor the reason on a request already marked not dispensed', () => {
+      const closed = { ...baseRecord, status: 'NOT_DISPENSED' as const };
+      render(<DispensaryDetailModal {...defaultProps} record={closed} canDispense={false} />);
+      expect(screen.queryByText(reason)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /dispense all/i })).not.toBeInTheDocument();
+    });
+
+    it('still offers the label reprint once dispensed, which needs only view access', () => {
+      render(<DispensaryDetailModal {...defaultProps} canDispense={false} />);
+      expect(screen.getByRole('button', { name: /label/i })).toBeInTheDocument();
+      expect(screen.queryByText(reason)).not.toBeInTheDocument();
     });
   });
 

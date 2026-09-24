@@ -18,6 +18,13 @@ type Props = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   organisationId: string;
   onActionComplete: () => void;
+  /**
+   * Whether the viewer may dispense or decline this request. Both endpoints
+   * require prescription:edit:any AND inventory:edit:any (prescription.router.ts),
+   * so the caller passes that same all-of check. Required, so a new caller has
+   * to decide rather than inherit buttons the API refuses.
+   */
+  canDispense: boolean;
 };
 
 const parseFrequencyPerDay = (frequency?: string): number | null => {
@@ -309,6 +316,7 @@ type DispensaryFooterProps = {
   isDispensed: boolean;
   isPending: boolean;
   itemCount: number;
+  canDispense: boolean;
   actions: ReturnType<typeof useDispensaryActions>;
 };
 
@@ -316,6 +324,7 @@ const DispensaryFooter = ({
   isDispensed,
   isPending,
   itemCount,
+  canDispense,
   actions,
 }: Readonly<DispensaryFooterProps>) => {
   if (isDispensed) {
@@ -335,6 +344,16 @@ const DispensaryFooter = ({
   }
 
   if (!isPending) return null;
+
+  if (!canDispense) {
+    return (
+      <ModalFooter align="start">
+        <p className="text-caption-1 text-text-secondary">
+          Only staff with prescription and inventory edit access can dispense this request.
+        </p>
+      </ModalFooter>
+    );
+  }
 
   return (
     <ModalFooter align="stretch">
@@ -360,6 +379,7 @@ const DispensaryDetailModal = ({
   setShowModal,
   organisationId,
   onActionComplete,
+  canDispense,
 }: Props) => {
   const actions = useDispensaryActions({
     organisationId,
@@ -424,6 +444,7 @@ const DispensaryDetailModal = ({
           isDispensed={isDispensed}
           isPending={isPending}
           itemCount={items.length}
+          canDispense={canDispense}
           actions={actions}
         />
       </div>

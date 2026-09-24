@@ -152,7 +152,8 @@ const meta = {
           'twice - as the blue summary beside the item name and again as the green "To dispense" ' +
           'value - so the two agreeing is a property worth asserting rather than eyeballing.\n\n' +
           'The footer is a third state machine on top of that: `PENDING` gets the ' +
-          '`Dispense all (n)` / `Not dispensed` pair, `DISPENSED` swaps the whole row for a single ' +
+          '`Dispense all (n)` / `Not dispensed` pair (or, when `canDispense` is false, a one-line ' +
+          'reason in their place), `DISPENSED` swaps the whole row for a single ' +
           'Label button and puts a green check in the header, and `NOT_DISPENSED` renders **no ' +
           'footer at all** - a panel that is read-only with nothing saying so. All three are drawn ' +
           'below.\n\n' +
@@ -169,6 +170,7 @@ const meta = {
     setShowModal: fn(),
     organisationId: 'org-storybook',
     onActionComplete: fn(),
+    canDispense: true,
   },
   render: (args) => <DispensaryFlowHarness {...args} />,
 } satisfies Meta<typeof DispensaryDetailModal>;
@@ -301,6 +303,36 @@ export const NotDispensedRecord: Story = {
           'A refused request. The footer disappears entirely and the eyebrow still reads "Dispense ' +
           'request", so the panel looks live and simply has no actions - the state this frame exists ' +
           'to make visible.',
+      },
+    },
+  },
+};
+
+export const PendingWithoutDispensePermission: Story = {
+  name: 'Pending, viewer cannot dispense',
+  args: { canDispense: false },
+  play: async ({ canvasElement }) => {
+    const panel = within(await openPanel(canvasElement));
+    // Dispensing and declining both need prescription:edit:any AND
+    // inventory:edit:any. A veterinarian or technician holds neither pair, so
+    // the actions give way to the reason instead of a button the API refuses.
+    await expect(panel.queryByRole('button', { name: /Dispense all/ })).not.toBeInTheDocument();
+    await expect(panel.queryByRole('button', { name: 'Not dispensed' })).not.toBeInTheDocument();
+    await expect(
+      panel.getByText(
+        'Only staff with prescription and inventory edit access can dispense this request.'
+      )
+    ).toBeInTheDocument();
+    // The request stays fully readable - the arithmetic is still there.
+    await expect(panel.getByText('20 tablets')).toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The same pending request opened by a role without the dispense permission pair, such as ' +
+          'a veterinarian. The lines and the working are unchanged; the footer carries a one-line ' +
+          'reason where the two queue actions would be.',
       },
     },
   },
