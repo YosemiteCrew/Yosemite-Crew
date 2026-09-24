@@ -135,6 +135,12 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // RFC 9116 serves the security contact file from /.well-known/. The route is
+  // app/security.txt because the type-checker does not read dot folders.
+  async rewrites() {
+    return [{ source: '/.well-known/security.txt', destination: '/security.txt' }];
+  },
+
   async headers() {
     return [
       {
