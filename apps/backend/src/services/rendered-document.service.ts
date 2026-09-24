@@ -995,14 +995,7 @@ export const withdrawPersistedRenderedDocumentSigning = async (
   documentId: string,
 ): Promise<boolean> => {
   const withdrawn = await renderedDocumentClient.renderedDocument.updateMany({
-    where: {
-      id: String(renderedDocumentId),
-      status: { not: "SIGNED" },
-      AND: [
-        { signing: { path: ["documentId"], equals: String(documentId) } },
-        { signing: { path: ["status"], equals: "IN_PROGRESS" } },
-      ],
-    },
+    where: awaitingSignatureWhere(renderedDocumentId, documentId),
     data: {
       signing: {
         required: true,
@@ -1064,6 +1057,91 @@ const isRecordNotFoundError = (error: unknown): boolean =>
   error instanceof Prisma.PrismaClientKnownRequestError &&
   error.code === "P2025";
 
+/** The signed PDF Documenso holds for a completed signing request. */
+const downloadSignedCopy = async (
+  organisationId: string,
+  documentId: string,
+): Promise<{ downloadUrl?: string | null }> => {
+  const apiKey =
+    await DocumensoService.resolveOrganisationApiKey(organisationId);
+
+  if (!apiKey) {
+    throw new RenderedDocumentServiceError(
+      "Documenso API key not configured for organisation",
+      400,
+    );
+  }
+
+  const signedPdf = await DocumensoService.downloadSignedDocument({
+    documentId: Number.parseInt(documentId, 10),
+    apiKey,
+  });
+
+  if (!signedPdf) {
+    throw new RenderedDocumentServiceError(
+      "Unable to download signed document",
+      502,
+    );
+  }
+
+  return signedPdf;
+};
+
+const buildSignatureData = (
+  existing: PersistedRenderedDocument,
+  signing: PinnedRenderedDocumentSigning,
+  signedAt: Date,
+) => {
+  const signature = buildDocumentSignature(existing.id, {
+    signerId:
+      signing.signerId ?? signing.signerEmail ?? existing.signedBy ?? "",
+    signerType: signing.signerType ?? "PMS_USER",
+    signatureText: signing.signatureText,
+    signedAt,
+  });
+  return {
+    signerId: signature.signerId,
+    signerType: signature.signerType,
+    signatureText: signature.signatureText,
+    signedAt: signature.signedAt,
+  };
+};
+
+/**
+ * Marks the document signed. Claimed on the status and on this Documenso
+ * document, so of two deliveries that both read the document unsigned the
+ * second matches nothing once the first commits, and a stale event for an
+ * earlier signing request never completes a newer one.
+ */
+const claimSignedDocument = async (
+  tx: RenderedDocumentWriteClient,
+  existing: PersistedRenderedDocument,
+  signing: PinnedRenderedDocumentSigning,
+  documentId: string,
+  signed: { by: string | undefined; at: Date; pdfUrl: string | null },
+): Promise<Omit<PersistedRenderedDocument, "signature">> => {
+  try {
+    return await tx.renderedDocument.update({
+      where: awaitingSignatureWhere(existing.id, documentId),
+      data: {
+        status: "SIGNED",
+        signedBy: signed.by,
+        signedAt: signed.at,
+        pdfUrl: signed.pdfUrl ?? existing.pdfUrl ?? undefined,
+        signing: {
+          ...signing,
+          status: "SIGNED",
+          pdf: { url: signed.pdfUrl },
+        },
+      },
+    });
+  } catch (error) {
+    throw isRecordNotFoundError(error)
+      ? new SigningCompletionSkipped(false)
+      : error;
+  }
+};
+
 export const completePersistedRenderedDocumentSigning = async (
   renderedDocumentId: string,
 ): Promise<PersistedRenderedDocument> => {
@@ -1092,44 +1170,16 @@ export const completePersistedRenderedDocumentSigning = async (
     );
   }
 
-  const apiKey = await DocumensoService.resolveOrganisationApiKey(
+  const signedPdf = await downloadSignedCopy(
     existing.organisationId,
+    documentId,
   );
-
-  if (!apiKey) {
-    throw new RenderedDocumentServiceError(
-      "Documenso API key not configured for organisation",
-      400,
-    );
-  }
-
-  const signedPdf = await DocumensoService.downloadSignedDocument({
-    documentId: Number.parseInt(documentId, 10),
-    apiKey,
-  });
-
-  if (!signedPdf) {
-    throw new RenderedDocumentServiceError(
-      "Unable to download signed document",
-      502,
-    );
-  }
-
-  const signedAt = new Date();
-  const signedBy = signing.signerId ?? existing.signedBy ?? undefined;
-  const signature = buildDocumentSignature(existing.id, {
-    signerId:
-      signing.signerId ?? signing.signerEmail ?? existing.signedBy ?? "",
-    signerType: signing.signerType ?? "PMS_USER",
-    signatureText: signing.signatureText,
-    signedAt,
-  });
-  const signatureData = {
-    signerId: signature.signerId,
-    signerType: signature.signerType,
-    signatureText: signature.signatureText,
-    signedAt: signature.signedAt,
+  const signed = {
+    by: signing.signerId ?? existing.signedBy ?? undefined,
+    at: new Date(),
+    pdfUrl: signedPdf.downloadUrl ?? null,
   };
+  const signatureData = buildSignatureData(existing, signing, signed.at);
 
   // One transaction: the linked record, the document and its signature row
   // commit together or not at all, so a failure part-way leaves nothing for a
@@ -1140,47 +1190,27 @@ export const completePersistedRenderedDocumentSigning = async (
   };
   try {
     completed = await prisma.$transaction(async (tx) => {
+      // Not moved: the record was reopened, edited, voided or superseded while
+      // the signature was outstanding, so no signed copy of content it no
+      // longer stands for is recorded against it.
       const moved = await propagateSigningCompletionToLinkedRecord(
         tx,
         existing,
         parseSourceRevision(signing.sourceRevision),
-        signedBy,
-        signedAt,
+        signed.by,
+        signed.at,
       );
-      // The record was reopened, edited, voided or superseded while the
-      // signature was outstanding: no signed copy of content it no longer
-      // stands for is recorded against it.
       if (!moved) {
         throw new SigningCompletionSkipped(true);
       }
 
-      // Claimed on the status and on this Documenso document, so of two
-      // deliveries that both read the document unsigned the second matches
-      // nothing once the first commits, and a stale event for an earlier
-      // signing request never completes a newer one.
-      let document: Omit<PersistedRenderedDocument, "signature">;
-      try {
-        document = await tx.renderedDocument.update({
-          where: awaitingSignatureWhere(existing.id, documentId),
-          data: {
-            status: "SIGNED",
-            signedBy,
-            signedAt,
-            pdfUrl: signedPdf.downloadUrl ?? existing.pdfUrl ?? undefined,
-            signing: {
-              ...signing,
-              status: "SIGNED",
-              pdf: {
-                url: signedPdf.downloadUrl ?? null,
-              },
-            },
-          },
-        });
-      } catch (error) {
-        throw isRecordNotFoundError(error)
-          ? new SigningCompletionSkipped(false)
-          : error;
-      }
+      const document = await claimSignedDocument(
+        tx,
+        existing,
+        signing,
+        documentId,
+        signed,
+      );
 
       // An upsert, so a signature row left by an earlier partial completion
       // is taken over rather than failing every retry on the unique key.
