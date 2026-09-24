@@ -565,7 +565,7 @@ fi
 # Behavioural rather than positional this time: the caller's value has to
 # survive the arming. If it does not, the notice still lands - the default
 # catches it - but it stops being keyed to the same $STAMP as
-# /tmp/api-rollback-$STAMP.txt and /tmp/api-dist-before-$STAMP.tgz, so an
+# api-rollback-$STAMP.txt and api-dist-before-$STAMP.tgz, so an
 # operator correlating one deploy's artifacts loses the link and nothing fails.
 CALLER_DEST="$(
   HAZARD_LOG="$WORK/caller-named.txt" \
@@ -752,6 +752,45 @@ check "a failed write leaves the previous record intact" \
   "$M1" "$(deploy_deployed_sha "$REC" "$REPO")"
 rmdir "$REC.tmp"
 
+echo
+echo "deploy_adopt_legacy_record"
+
+# Older versions kept the record in /tmp. It is carried over once, only while
+# the new record does not exist, and only from a regular file owned by this user.
+LEGACY="$WORK/legacy-deployed-sha.txt"
+printf '%s\n' "$M1" > "$LEGACY"
+rm -f "$REC"
+deploy_adopt_legacy_record "$REC" "$LEGACY"
+check "a missing record is carried over from the old location" \
+  "$M1" "$(deploy_deployed_sha "$REC" "$REPO")"
+
+printf '%s\n' "$M2" > "$LEGACY"
+deploy_adopt_legacy_record "$REC" "$LEGACY"
+check "an existing record is not replaced from the old location" \
+  "$M1" "$(deploy_deployed_sha "$REC" "$REPO")"
+
+no_record_after() { # no_record_after <name> <legacy-path>
+  local rc=0
+  rm -f "$REC"
+  ( deploy_adopt_legacy_record "$REC" "$2" ) 2>"$WORK/adopt-stderr.txt" || rc=$?
+  check "$1" "0 absent 0" \
+    "$rc $([ -e "$REC" ] && echo present || echo absent) $(wc -c <"$WORK/adopt-stderr.txt" | tr -d ' ')"
+}
+
+no_record_after "no old record: nothing is written" "$WORK/no-such-legacy.txt"
+ln -s "$LEGACY" "$WORK/legacy-link.txt"
+no_record_after "an old record that is a link is not read" "$WORK/legacy-link.txt"
+mkdir -p "$WORK/legacy-dir"
+no_record_after "an old record that is a directory is skipped quietly" "$WORK/legacy-dir"
+printf '  \n' > "$WORK/legacy-blank.txt"
+no_record_after "a blank old record writes nothing and does not stop the deploy" "$WORK/legacy-blank.txt"
+# A system file stands in for one owned by someone else. Skipped when it is
+# ours, which is the case when running as root.
+if [ -f /etc/shells ] && [ ! -O /etc/shells ]; then
+  no_record_after "an old record owned by another user is not read" /etc/shells
+fi
+rm -f "$REC"
+
 # ---------------------------------------------------------------------------
 # THE REGRESSION. This is #2714 and it is the reason the two functions exist.
 #
@@ -827,12 +866,12 @@ fi
 # single ones: `'$STAMP'` is an expansion that deliberately will not happen,
 # which is precisely what SC2016 warns about and cannot be spelled otherwise.
 STAMP_TOKEN="\$STAMP"
-HAZARD_LINE="$(line_of "HAZARD_LOG=\"/tmp/api-schema-hazard-${STAMP_TOKEN}.txt\"")"
+HAZARD_LINE="$(line_of "HAZARD_LOG=\"\$DEPLOY_STATE_DIR/api-schema-hazard-${STAMP_TOKEN}.txt\"")"
 if [ -n "$HAZARD_LINE" ]; then
   ok "api-deploy.sh keys the durable destination to the preflight \$STAMP"
 else
   no "api-deploy.sh keys the durable destination to the preflight \$STAMP" \
-     "no assignment naming /tmp/api-schema-hazard-\$STAMP.txt"
+     "no assignment naming \$DEPLOY_STATE_DIR/api-schema-hazard-\$STAMP.txt"
 fi
 
 # The one thing left that a string match has to carry: that the script calls the
@@ -926,6 +965,14 @@ SYNC_LINE="$(line_of "deploy_git_sync \"${REPO_DIR_TOKEN}\"")"
 CUTOVER_LINE="$(line_of_exact 'CUTOVER_DONE=1')"
 WRITE_LINE="$(line_of "deploy_record_deployed_sha \"${DEPLOYED_SHA_RECORD_TOKEN}\"")"
 
+ADOPT_LINE="$(line_of "deploy_adopt_legacy_record \"${DEPLOYED_SHA_RECORD_TOKEN}\" /tmp/api-deployed-sha.txt")"
+if [ -n "$ADOPT_LINE" ] && [ -n "$READ_LINE" ] && [ "$ADOPT_LINE" -lt "$READ_LINE" ]; then
+  ok "api-deploy.sh carries the old /tmp record over before reading the record"
+else
+  no "api-deploy.sh carries the old /tmp record over before reading the record" \
+     "adopt=$ADOPT_LINE read=$READ_LINE"
+fi
+
 if [ -n "$READ_LINE" ] && [ -n "$SYNC_LINE" ] && [ "$READ_LINE" -lt "$SYNC_LINE" ]; then
   ok "api-deploy.sh reads the deployed sha before the checkout moves the tree"
 else
@@ -942,9 +989,9 @@ fi
 
 # Fixed name, not $STAMP-keyed. "The newest of the stamped files" is the defect
 # rebuilt as a sort over a directory that also holds every failed attempt - the
-# preflight /tmp/api-rollback-$STAMP.txt is exactly that and is why it cannot be
+# preflight api-rollback-$STAMP.txt is exactly that and is why it cannot be
 # the record.
-if grep -q 'DEPLOYED_SHA_RECORD="/tmp/api-deployed-sha.txt"' "$DEPLOY_SH"; then
+if grep -qF "DEPLOYED_SHA_RECORD=\"\$DEPLOY_STATE_DIR/api-deployed-sha.txt\"" "$DEPLOY_SH"; then
   ok "the deployed-sha record has a fixed name rather than a stamped one"
 else
   no "the deployed-sha record has a fixed name rather than a stamped one" \

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # The preflight copy of apps/backend/.env that api-deploy.sh keeps next to the
-# rollback sha: who can read it, and how many are kept.
+# rollback sha: who can read it, and how many are kept. Also the directory the
+# deploy scripts and those files live in.
 #
 # Extracted so both rules are tested rather than only being found on a live
 # box, the same reason the other files in lib/ exist.
@@ -56,4 +57,33 @@ deploy_prune_backups() {
     fi
     i=$((i + 1))
   done
+}
+
+# deploy_private_dir <dir>
+#
+# Creates <dir> if it is missing and makes it owner-only. Fails, saying why,
+# unless <dir> is a real directory (not a link) owned by this user.
+deploy_private_dir() {
+  local dir="${1:?directory required}"
+
+  if [ ! -e "$dir" ]; then
+    mkdir -m 700 -- "$dir" || return 1
+  fi
+  if [ -L "$dir" ] || [ ! -d "$dir" ] || [ ! -O "$dir" ]; then
+    echo "$dir must be a directory owned by this user, not a link" >&2
+    return 1
+  fi
+  chmod 700 "$dir"
+}
+
+# deploy_prepare_stage <root>
+#
+# Readies the deploy directory: <root> keeps the deploy's files between runs,
+# and <root>/scripts, where the workflow copies scripts/deploy, starts empty.
+deploy_prepare_stage() {
+  local root="${1:?deploy directory required}"
+
+  deploy_private_dir "$root" || return 1
+  rm -rf -- "$root/scripts"
+  deploy_private_dir "$root/scripts"
 }
