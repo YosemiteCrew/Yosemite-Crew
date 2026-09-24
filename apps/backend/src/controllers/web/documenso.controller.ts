@@ -134,19 +134,26 @@ async function findWebhookPacket(documentId: string) {
   });
 }
 
-async function handlePacketEvent(
-  eventType: string,
-  packet: { id: string } | null,
-) {
-  if (!packet) {
-    return;
-  }
-
+async function handlePacketEvent(eventType: string, packet: { id: string }) {
   if (eventType === "DOCUMENT_COMPLETED") {
     await WorkspaceDocumentPacketService.completeSigning(packet.id);
   } else if (eventType === "DOCUMENT_DELETED") {
     await WorkspaceDocumentPacketService.resetSigning(packet.id);
   }
+}
+
+// Every rendered-document signing (standalone, or on behalf of a form
+// submission) stores the Documenso document id on the rendered document.
+async function findWebhookRenderedDocument(documentId: string) {
+  return prisma.renderedDocument.findFirst({
+    where: {
+      signing: {
+        path: ["documentId"],
+        equals: documentId,
+      },
+    },
+    select: { id: true },
+  });
 }
 
 async function handleRenderedDocumentEvent(
@@ -366,19 +373,20 @@ export const DocumensoWebhookController = {
         // document packet (not a FormSubmission), so route packet completions
         // to packet finalization when no submission matches.
         const packet = await findWebhookPacket(event.documentId);
-        await handlePacketEvent(event.eventType, packet);
-        return res.status(200).json({ received: true });
+        if (packet) {
+          await handlePacketEvent(event.eventType, packet);
+          return res.status(200).json({ received: true });
+        }
+        // A rendered document signed on its own (POST
+        // /fhir/v1/rendered-document/organisation/:org/:id/sign) has neither a
+        // submission nor a packet, so it falls through to the lookup below.
       }
 
-      const renderedDocument = await prisma.renderedDocument.findFirst({
-        where: {
-          signing: {
-            path: ["documentId"],
-            equals: event.documentId,
-          },
-        },
-      });
-
+      // Completion is idempotent: a redelivered DOCUMENT_COMPLETED finds the
+      // document already SIGNED and returns without writing or auditing again.
+      const renderedDocument = await findWebhookRenderedDocument(
+        event.documentId,
+      );
       await handleRenderedDocumentEvent(event.eventType, renderedDocument);
       // case "DOCUMENT_EXPIRED":
       //   await handleDocumentExpired(submission);

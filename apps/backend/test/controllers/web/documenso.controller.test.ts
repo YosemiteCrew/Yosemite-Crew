@@ -1,6 +1,7 @@
 import {
   beforeAll,
   afterAll,
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -47,7 +48,17 @@ jest.mock("../../../src/config/prisma", () => ({
     },
     renderedDocument: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
+    },
+    documentSignature: {
+      create: jest.fn(),
+    },
+    templateInstance: {
+      update: jest.fn(),
+    },
+    case: {
+      findUnique: jest.fn(),
     },
     workspaceDocumentPacket: {
       findFirst: jest.fn(),
@@ -696,8 +707,245 @@ describe("DocumensoWebhookController", () => {
 
     expect(mockedPacketService.completeSigning).not.toHaveBeenCalled();
     expect(mockedPacketService.resetSigning).not.toHaveBeenCalled();
+    // An id nothing knows about is still acked, and nothing is completed.
+    expect(mockedPrisma.renderedDocument.findFirst).toHaveBeenCalledWith({
+      where: { signing: { path: ["documentId"], equals: "unknown-doc" } },
+      select: { id: true },
+    });
+    expect(mockedPrisma.renderedDocument.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.documentSignature.create).not.toHaveBeenCalled();
+    expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(jsonMock).toHaveBeenCalledWith({ received: true });
+  });
+
+  // #3615: a rendered document signed on its own (POST
+  // /fhir/v1/rendered-document/organisation/:org/:id/sign) has no FormSubmission
+  // and no packet. These run the real completePersistedRenderedDocumentSigning
+  // against the prisma mock, so they exercise the completion the webhook reaches.
+  describe("rendered documents signed on their own", () => {
+    const mockedPrisma = prisma as any;
+    const mockedDocumensoService = DocumensoService as unknown as {
+      resolveOrganisationApiKey: jest.Mock<any>;
+      downloadSignedDocument: jest.Mock<any>;
+    };
+    const mockedPacketService = WorkspaceDocumentPacketService as unknown as {
+      completeSigning: jest.Mock;
+      resetSigning: jest.Mock;
+    };
+
+    const inProgressConsent = () => ({
+      id: "rd-1",
+      organisationId: "org-1",
+      sourceKind: "TEMPLATE_INSTANCE",
+      sourceId: "instance-1",
+      templateInstanceId: "instance-1",
+      clinicalArtifactId: null,
+      templateId: "template-1",
+      templateVersion: 1,
+      templateVersionId: null,
+      kind: "CONSENT",
+      version: 1,
+      title: "Surgical consent",
+      mimeType: "application/pdf",
+      status: "FINAL",
+      signable: true,
+      pdfUrl: "https://files.example/unsigned.pdf",
+      pdf: null,
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "IN_PROGRESS",
+        documentId: "777",
+        signerId: "user-1",
+        signerType: "PMS_USER",
+        signerEmail: "vet@example.com",
+        signerName: "Vet One",
+        signatureText: "Vet One",
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-09-24T00:00:00.000Z"),
+      updatedAt: new Date("2026-09-24T00:00:00.000Z"),
+      signature: null,
+    });
+
+    const webhookFor = (event: string, id: string | number) => {
+      req = {
+        ...req,
+        body: Buffer.from(JSON.stringify({ event, payload: { id } })),
+        headers: {},
+      };
+    };
+
+    // The stored row, as each delivery reads it: the first completion writes
+    // SIGNED back, so a redelivery reads what a real database would return.
+    const storeRenderedDocument = () => {
+      let stored: Record<string, unknown> = inProgressConsent();
+      mockedPrisma.renderedDocument.findFirst.mockResolvedValue({ id: "rd-1" });
+      mockedPrisma.renderedDocument.findUnique.mockImplementation(
+        async () => stored,
+      );
+      mockedPrisma.renderedDocument.update.mockImplementation(
+        async ({ data }: { data: Record<string, unknown> }) => {
+          stored = { ...stored, ...data, signature: { id: "sig-1" } };
+          return stored;
+        },
+      );
+    };
+
+    const signedPdfAvailable = () => {
+      mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
+        "api-key-1",
+      );
+      mockedDocumensoService.downloadSignedDocument.mockResolvedValueOnce({
+        downloadUrl: "https://files.example/signed.pdf",
+      });
+    };
+
+    beforeEach(() => {
+      mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValue(
+        null,
+      );
+      mockedPrisma.formSubmission.findFirst.mockResolvedValue(null);
+      mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
+      mockedPrisma.documentSignature.create.mockResolvedValue({ id: "sig-1" });
+      mockedPrisma.templateInstance.update.mockResolvedValue({
+        appointmentId: null,
+        caseId: "case-1",
+        encounterId: null,
+      });
+      mockedPrisma.case.findUnique.mockResolvedValue({ patientId: "pat-1" });
+    });
+
+    // Implementations and unconsumed once-values outlive clearAllMocks; later
+    // tests expect the bare mocks back even when one of these fails early.
+    afterEach(() => {
+      mockedDocumensoService.resolveOrganisationApiKey.mockReset();
+      mockedDocumensoService.downloadSignedDocument.mockReset();
+      mockedPrisma.renderedDocument.findFirst.mockReset();
+      mockedPrisma.renderedDocument.findUnique.mockReset();
+      mockedPrisma.renderedDocument.update.mockReset();
+      mockedPrisma.documentSignature.create.mockReset();
+      mockedPrisma.templateInstance.update.mockReset();
+      mockedPrisma.case.findUnique.mockReset();
+    });
+
+    it("completes the rendered document when no submission or packet matches", async () => {
+      storeRenderedDocument();
+      signedPdfAvailable();
+      webhookFor("DOCUMENT_COMPLETED", 777);
+
+      await handle();
+
+      expect(mockedPrisma.renderedDocument.findFirst).toHaveBeenCalledWith({
+        where: { signing: { path: ["documentId"], equals: "777" } },
+        select: { id: true },
+      });
+      expect(
+        mockedDocumensoService.downloadSignedDocument,
+      ).toHaveBeenCalledWith({ documentId: 777, apiKey: "api-key-1" });
+      expect(mockedPrisma.documentSignature.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          renderedDocumentId: "rd-1",
+          signerId: "user-1",
+          signatureText: "Vet One",
+        }),
+      });
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "rd-1" },
+          data: expect.objectContaining({
+            status: "SIGNED",
+            pdfUrl: "https://files.example/signed.pdf",
+            signing: expect.objectContaining({
+              status: "SIGNED",
+              pdf: { url: "https://files.example/signed.pdf" },
+            }),
+          }),
+        }),
+      );
+      expect(mockedPrisma.templateInstance.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "instance-1" },
+          data: expect.objectContaining({ status: "SIGNED" }),
+        }),
+      );
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledTimes(1);
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "org-1",
+          patientId: "pat-1",
+          eventType: "CONSENT_FORM_SIGNED",
+          entityId: "rd-1",
+        }),
+      );
+      expect(mockedPacketService.completeSigning).not.toHaveBeenCalled();
+      expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ received: true });
+    });
+
+    it("treats a redelivered completion as a no-op", async () => {
+      storeRenderedDocument();
+      signedPdfAvailable();
+      webhookFor("DOCUMENT_COMPLETED", "777");
+
+      await handle();
+      await handle();
+
+      // One completion, one signature, one audit event across both deliveries.
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledTimes(2);
+      expect(
+        mockedDocumensoService.downloadSignedDocument,
+      ).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.documentSignature.create).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.templateInstance.update).toHaveBeenCalledTimes(1);
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledTimes(1);
+      expect(statusMock.mock.calls).toEqual([[200], [200]]);
+      expect(jsonMock.mock.calls).toEqual([
+        [{ received: true }],
+        [{ received: true }],
+      ]);
+    });
+
+    it("writes and audits nothing more when a concurrent delivery loses the signature insert", async () => {
+      // Two deliveries that both read IN_PROGRESS race to the one-per-document
+      // signature row (renderedDocumentId is unique). The loser must stop there.
+      storeRenderedDocument();
+      signedPdfAvailable();
+      mockedPrisma.documentSignature.create.mockRejectedValueOnce(
+        Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+      );
+      webhookFor("DOCUMENT_COMPLETED", 777);
+
+      await handle();
+
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.templateInstance.update).not.toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+      // Not acked, so the provider retries and the retry reads SIGNED.
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("resets the signing state when the rendered document is deleted", async () => {
+      mockedPrisma.renderedDocument.findFirst.mockResolvedValue({ id: "rd-1" });
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValue({
+        signing: { status: "IN_PROGRESS", documentId: "777" },
+      });
+      webhookFor("DOCUMENT_DELETED", 777);
+
+      await handle();
+
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith({
+        where: { id: "rd-1" },
+        data: { signing: { status: "NOT_STARTED", documentId: "777" } },
+      });
+      expect(mockedPacketService.resetSigning).not.toHaveBeenCalled();
+      expect(mockedPrisma.documentSignature.create).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
   });
 
   it("returns 500 when a webhook lookup throws", async () => {
