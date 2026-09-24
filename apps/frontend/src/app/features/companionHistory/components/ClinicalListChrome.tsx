@@ -1,6 +1,7 @@
 import React from 'react';
-import { IoAddOutline } from 'react-icons/io5';
-import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import clsx from 'clsx';
+import { IoAddOutline, IoCloseOutline } from 'react-icons/io5';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 
 /**
  * Chrome shared by the clinical record lists in the companion record (problem
@@ -68,6 +69,10 @@ export type ClinicalListHeaderProps = {
   title: string;
   /** Count of active records; the pill is withheld while loading, on error, or at zero. */
   activeCount: number;
+  /** Word after the count in the pill. Defaults to "active". */
+  countLabel?: string;
+  /** Tone of the count pill. Defaults to warning, the tone of an active problem. */
+  countTone?: StatusTone;
   loading: boolean;
   /** When set, the body shows only the error and the count pill is withheld. */
   error?: string | null;
@@ -78,38 +83,56 @@ export type ClinicalListHeaderProps = {
   addLabel: string;
 };
 
+/*
+ * Below 768px the add control is a 44px icon button: the phone record is 354px
+ * wide and the full label overflowed it. The label stays in the accessible name.
+ */
 export const ClinicalListHeader = ({
   icon,
   headingId,
   title,
   activeCount,
+  countLabel = 'active',
+  countTone = 'warning',
   loading,
   error,
   canEdit,
   showForm,
   onToggle,
   addLabel,
-}: ClinicalListHeaderProps) => (
-  <header className="flex items-center gap-2 border-b border-[var(--divider)] px-4 py-3">
-    <span className="text-[var(--ink-muted)]" aria-hidden="true">
-      {icon}
-    </span>
-    <h2 id={headingId} className="text-[13.5px] font-bold text-[var(--ink)]">
-      {title}
-    </h2>
-    {!loading && !error && activeCount > 0 ? (
-      <StatusPill label={`${activeCount} active`} tone="warning" className="ml-2 tabular-nums" />
-    ) : null}
-    {canEdit ? (
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={showForm}
-        className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-soft)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
-      >
-        <IoAddOutline size={15} aria-hidden="true" />
-        {showForm ? 'Close' : addLabel}
-      </button>
-    ) : null}
-  </header>
-);
+}: ClinicalListHeaderProps) => {
+  const ToggleIcon = showForm ? IoCloseOutline : IoAddOutline;
+  return (
+    <header
+      className={clsx(
+        'flex items-center gap-2 border-b border-[var(--divider)] px-4 py-3',
+        canEdit && 'max-md:py-2 max-md:pr-2'
+      )}
+    >
+      <span className="text-[var(--ink-muted)]" aria-hidden="true">
+        {icon}
+      </span>
+      <h2 id={headingId} className="text-[13.5px] font-bold text-[var(--ink)]">
+        {title}
+      </h2>
+      {!loading && !error && activeCount > 0 ? (
+        <StatusPill
+          label={`${activeCount} ${countLabel}`}
+          tone={countTone}
+          className="ml-2 tabular-nums"
+        />
+      ) : null}
+      {canEdit ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={showForm}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-soft)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)] max-md:size-11 max-md:shrink-0 max-md:justify-center max-md:p-0"
+        >
+          <ToggleIcon size={15} aria-hidden="true" className="max-md:size-[18px]" />
+          <span className="max-md:sr-only">{showForm ? 'Close' : addLabel}</span>
+        </button>
+      ) : null}
+    </header>
+  );
+};

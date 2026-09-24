@@ -136,3 +136,101 @@ runClinicalControllerSuite({
     },
   ],
 });
+
+describe("PocLabController.create body validation", () => {
+  const createMock = PocLabService.create as unknown as jest.Mock;
+
+  const send = async (body: Record<string, unknown>) => {
+    const json = jest.fn();
+    const status = jest.fn((_code: number) => ({ json, send: jest.fn() }));
+    await PocLabController.create(
+      {
+        params: { organisationId: ORG_ID },
+        query: {},
+        body,
+        userId: USER_ID,
+      } as never,
+      { status, json } as never,
+    );
+    return { status: status.mock.calls[0]?.[0] as unknown, json };
+  };
+
+  const valid = {
+    patientId: PATIENT_ID,
+    conductedAt: "2026-09-24T09:15:00.000Z",
+    testType: "CBC",
+    results: [{ name: "PLT", value: 38 }],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    createMock.mockResolvedValue({ id: RECORD_ID } as never);
+  });
+
+  it("accepts a companion keyed by a 24-hex id, like the sibling clinical creates", async () => {
+    const legacyId = "65f1c2a9b4d3e2f1a0b9c8d7";
+    const { status } = await send({ ...valid, patientId: legacyId });
+    expect(status).toBe(201);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ patientId: legacyId }),
+    );
+  });
+
+  it("trims parameter names and text values before they are stored", async () => {
+    await send({
+      ...valid,
+      results: [{ name: "  Sample quality ", value: " Haemolysed " }],
+    });
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        results: [{ name: "Sample quality", value: "Haemolysed" }],
+      }),
+    );
+  });
+
+  it.each([
+    ["a blank text value", [{ name: "PLT", value: "   " }]],
+    [
+      "a text value over 100 characters",
+      [{ name: "PLT", value: "x".repeat(101) }],
+    ],
+    ["a blank parameter name", [{ name: "  ", value: 38 }]],
+    [
+      "a reference high below the low",
+      [
+        {
+          name: "PLT",
+          value: 38,
+          referenceRangeLow: 500,
+          referenceRangeHigh: 200,
+        },
+      ],
+    ],
+    [
+      "more than 100 parameters",
+      Array.from({ length: 101 }, (_, i) => ({ name: `P${i}`, value: i })),
+    ],
+  ])(
+    "answers 400 for %s and never reaches the service",
+    async (_label, results) => {
+      const { status } = await send({ ...valid, results });
+      expect(status).toBe(400);
+      expect(createMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("accepts an equal reference low and high", async () => {
+    const { status } = await send({
+      ...valid,
+      results: [
+        {
+          name: "PLT",
+          value: 38,
+          referenceRangeLow: 200,
+          referenceRangeHigh: 200,
+        },
+      ],
+    });
+    expect(status).toBe(201);
+  });
+});

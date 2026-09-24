@@ -1,9 +1,13 @@
 import { AxiosError } from 'axios';
-import { fetchPocLabResults } from '@/app/features/companionHistory/services/pocLabService';
-import { getData } from '@/app/services/axios';
+import {
+  createPocLabResult,
+  fetchPocLabResults,
+  type CreatePocLabResultInput,
+} from '@/app/features/companionHistory/services/pocLabService';
+import { getData, postData } from '@/app/services/axios';
 import { logger } from '@/app/lib/logger';
 
-jest.mock('@/app/services/axios', () => ({ getData: jest.fn() }));
+jest.mock('@/app/services/axios', () => ({ getData: jest.fn(), postData: jest.fn() }));
 jest.mock('@/app/lib/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn() },
 }));
@@ -16,6 +20,7 @@ jest.mock('@/app/stores/orgStore', () => ({
 }));
 
 const getMock = getData as jest.Mock;
+const postMock = postData as jest.Mock;
 const errorMock = logger.error as jest.Mock;
 const warnMock = logger.warn as jest.Mock;
 const BASE = `/v1/pms/organisation/${ORG_ID}/poc-lab`;
@@ -98,5 +103,48 @@ describe('pocLabService', () => {
 
     await expect(fetchPocLabResults({ patientId: 'patient-1' })).rejects.toBe(error);
     expect(errorMock).toHaveBeenCalledWith('Failed to load point-of-care lab results:', error);
+  });
+});
+
+describe('createPocLabResult', () => {
+  const input: CreatePocLabResultInput = {
+    patientId: 'patient-1',
+    testType: 'CBC',
+    conductedAt: '2026-09-24T08:15:00.000Z',
+    results: [{ name: 'PLT', value: 38, flag: 'LL' }],
+    criticalFlags: ['PLT'],
+  };
+
+  it('posts the body to the organisation poc-lab endpoint and returns the stored record', async () => {
+    postMock.mockResolvedValue({ data: { id: 'lab-1' } });
+    await expect(createPocLabResult(input)).resolves.toEqual({ id: 'lab-1' });
+    expect(postMock).toHaveBeenCalledWith(BASE, input);
+  });
+
+  it('rejects a missing patient, a missing organisation and an unsafe organisation id', async () => {
+    await expect(createPocLabResult({ ...input, patientId: '' })).rejects.toThrow(
+      'Patient ID missing'
+    );
+    mockOrgId = null;
+    await expect(createPocLabResult(input)).rejects.toThrow('No active organisation selected.');
+    mockOrgId = 'org/../other';
+    await expect(createPocLabResult(input)).rejects.toThrow(
+      'Organisation ID contains unsupported characters'
+    );
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('logs the server message, never the body, and rethrows', async () => {
+    const error = new AxiosError('request failed');
+    const responseData = { message: 'Companion not found.', patientName: 'Private' };
+    error.response = { data: responseData } as never;
+    postMock.mockRejectedValue(error);
+
+    await expect(createPocLabResult(input)).rejects.toBe(error);
+    expect(errorMock).toHaveBeenCalledWith(
+      'Failed to record point-of-care lab result:',
+      'Companion not found.'
+    );
+    expect(errorMock.mock.calls[0]).not.toContainEqual(responseData);
   });
 });
