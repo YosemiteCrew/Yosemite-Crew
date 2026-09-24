@@ -3424,6 +3424,68 @@ describe("ClinicalArtifactService", () => {
     );
   });
 
+  describe("listVitalRecordsForVisits", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    it("queries every given visit, leaves voided records out and caps the rows", async () => {
+      mockedPrisma.vitalRecord.findMany.mockResolvedValueOnce([
+        vitalRow({ metadata: { recordedByDisplay: "Nurse Joy" } }),
+      ]);
+
+      const records = await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: ["appt-1"], encounterIds: ["enc-1", "enc-2"] },
+        11,
+      );
+
+      expect(mockedPrisma.vitalRecord.findMany).toHaveBeenCalledWith({
+        where: {
+          artifact: {
+            organisationId,
+            kind: "VITAL_RECORD",
+            status: { not: "VOID" },
+            OR: [
+              { appointmentId: { in: ["appt-1"] } },
+              { encounterId: { in: ["enc-1", "enc-2"] } },
+            ],
+          },
+        },
+        include: { artifact: true },
+        orderBy: { measuredAt: "desc" },
+        take: 11,
+      });
+      expect(records[0].vitalRecord.recordedByDisplay).toBe("Nurse Joy");
+    });
+
+    it("filters on appointments alone when the patient has no encounters", async () => {
+      mockedPrisma.vitalRecord.findMany.mockResolvedValueOnce([]);
+
+      await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: ["appt-1"], encounterIds: [] },
+        5,
+      );
+
+      const call = mockedPrisma.vitalRecord.findMany.mock.calls[0][0] as {
+        where: { artifact: { OR: unknown[] } };
+      };
+      expect(call.where.artifact.OR).toEqual([
+        { appointmentId: { in: ["appt-1"] } },
+      ]);
+    });
+
+    it("returns nothing without querying when the patient has no visits", async () => {
+      const records = await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: [], encounterIds: [] },
+        5,
+      );
+
+      expect(records).toEqual([]);
+      expect(mockedPrisma.vitalRecord.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("vital record recorder resolution", () => {
     beforeEach(resetClinicalPrismaMocks);
 

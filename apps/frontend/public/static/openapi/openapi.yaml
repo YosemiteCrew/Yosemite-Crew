@@ -2390,6 +2390,175 @@ paths:
                       - Available
                       - Off-Duty
                       - Unavailable
+  '/v1/companion-history/pms/organisation/{organisationId}/companion/{patientId}/vitals':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/companion-history/pms/organisation/{organisationId}/companion/{patientId}/vitals'
+      description: Weight and vital-sign readings for one companion across visits, newest first. Inpatient monitoring readings are included only when the caller can view appointments.
+      operationId: get_v1_companion_history_pms_organisation_organisationId_companion_patientId_vitals
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of readings to return. Defaults to 200.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Vitals history for the companion
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - entries
+                  - truncated
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - measuredAt
+                        - recordedBy
+                        - recordedByDisplay
+                        - source
+                        - measurements
+                      properties:
+                        measuredAt:
+                          type: string
+                          format: date-time
+                        recordedBy:
+                          type: string
+                          nullable: true
+                        recordedByDisplay:
+                          type: string
+                          nullable: true
+                        source:
+                          type: object
+                          required:
+                            - type
+                            - id
+                            - encounterId
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - VITAL_RECORD
+                                - INPATIENT_MONITORING
+                            id:
+                              type: string
+                            appointmentId:
+                              type: string
+                              nullable: true
+                              description: Present when type is VITAL_RECORD.
+                            admissionId:
+                              type: string
+                              nullable: true
+                              description: Present when type is INPATIENT_MONITORING.
+                            encounterId:
+                              type: string
+                              nullable: true
+                            status:
+                              type: string
+                              description: Present when type is VITAL_RECORD.
+                        measurements:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                              - code
+                              - value
+                              - unit
+                            properties:
+                              code:
+                                type: string
+                              value:
+                                oneOf:
+                                  - type: number
+                                  - type: string
+                              unit:
+                                type: string
+                                nullable: true
+                  truncated:
+                    type: boolean
+                    description: True when more readings exist than were returned.
+        400:
+          description: Invalid route or query parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        401:
+          description: No valid session presented
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: The caller lacks companion or forms view access in this organisation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Companion not found in this organisation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   /v1/care-reminders/mobile/due:
     get:
       tags:

@@ -35,6 +35,13 @@ jest.mock('@/app/features/companionHistory/components/FlagListPanel', () => ({
   ),
 }));
 
+jest.mock('@/app/features/companionHistory/components/VitalsHistoryPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => (
+    <div data-testid="vitals-history-panel" data-companion-id={companionId} />
+  ),
+}));
+
 jest.mock('@/app/features/companionHistory/components/PocLabListPanel', () => ({
   __esModule: true,
   default: ({ companionId }: any) => (
@@ -142,6 +149,10 @@ describe('PhoneCompanionRecord', () => {
       screen.getByTestId('flag-list-panel').compareDocumentPosition(labPanel) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+    expect(screen.getByTestId('vitals-history-panel')).toHaveAttribute(
+      'data-companion-id',
+      'AC-0092'
+    );
   });
 
   it('shows the edit affordance only with permission', () => {

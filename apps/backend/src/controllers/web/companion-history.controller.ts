@@ -7,6 +7,7 @@ import {
   type HistoryEntryType,
 } from "src/services/companion-history.service";
 import { OrgRequest } from "src/middlewares/rbac";
+import { PatientVitalsHistoryService } from "src/services/patient-vitals-history.service";
 
 const LAB_VIEW_PERMISSION = "labs:view:any" as const;
 const DEFAULT_HISTORY_TYPES: HistoryEntryType[] = [
@@ -46,6 +47,20 @@ const QuerySchema = z.object({
     .optional(),
   cursor: z.string().optional(),
   types: z.string().optional(),
+});
+
+const INPATIENT_VIEW_PERMISSION = "appointments:view:any" as const;
+const DEFAULT_VITALS_LIMIT = 200;
+
+const VitalsQuerySchema = z.object({
+  limit: z
+    .preprocess((value) => {
+      if (typeof value === "string" && value.trim() !== "") {
+        return Number(value);
+      }
+      return undefined;
+    }, z.number().int().positive().max(500).optional())
+    .optional(),
 });
 
 const parseTypes = (value?: string) => {
@@ -109,6 +124,48 @@ export const CompanionHistoryController = {
         return res.status(err.statusCode).json({ message: err.message });
       }
       logger.error("Companion history retrieval failed", err);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  listVitalsForCompanion: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!typedReq.userPermissions) {
+        return res.status(500).json({
+          message:
+            "Permissions not loaded. Include withOrgPermissions before handler.",
+        });
+      }
+
+      const paramsResult = ParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+
+      const queryResult = VitalsQuerySchema.safeParse(req.query);
+      if (!queryResult.success) {
+        return res.status(400).json({ message: "Invalid query parameters" });
+      }
+
+      const result = await PatientVitalsHistoryService.listForPatient({
+        organisationId: paramsResult.data.organisationId,
+        patientId: paramsResult.data.patientId,
+        limit: queryResult.data.limit ?? DEFAULT_VITALS_LIMIT,
+        includeInpatient: typedReq.userPermissions.includes(
+          INPATIENT_VIEW_PERMISSION,
+        ),
+      });
+
+      return res.status(200).json(result);
+    } catch (err) {
+      if (err instanceof CompanionHistoryServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Companion vitals history retrieval failed", err);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },

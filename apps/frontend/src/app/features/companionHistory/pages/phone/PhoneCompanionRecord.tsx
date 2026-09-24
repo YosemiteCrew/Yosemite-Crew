@@ -18,6 +18,7 @@ import ProblemListPanel from '@/app/features/companionHistory/components/Problem
 import AllergyListPanel from '@/app/features/companionHistory/components/AllergyListPanel';
 import ConsentListPanel from '@/app/features/companionHistory/components/ConsentListPanel';
 import FlagListPanel from '@/app/features/companionHistory/components/FlagListPanel';
+import VitalsHistoryPanel from '@/app/features/companionHistory/components/VitalsHistoryPanel';
 import PocLabListPanel from '@/app/features/companionHistory/components/PocLabListPanel';
 import PermissionGate from '@/app/ui/layout/guards/PermissionGate';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
@@ -431,6 +432,10 @@ const PhoneCompanionRecord = ({
 
         <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}>
           <PocLabListPanel companionId={companionId} />
+        </PermissionGate>
+
+        <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY, PERMISSIONS.FORMS_VIEW_ANY]}>
+          <VitalsHistoryPanel companionId={companionId} />
         </PermissionGate>
 
         <CompanionHistoryTimeline
