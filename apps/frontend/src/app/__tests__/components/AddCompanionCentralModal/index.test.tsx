@@ -84,10 +84,16 @@ jest.mock(
   })
 );
 
+// Faithful to the real CenterModal: a closed one still renders its children
+// (hidden only by opacity), so closed-means-absent has to hold at the call site.
+// The old mock returned null when closed and hid exactly that divergence.
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
   __esModule: true,
-  default: ({ showModal, children }: any) =>
-    showModal ? <div data-testid="center-modal">{children}</div> : null,
+  default: ({ showModal, children }: any) => (
+    <div data-testid="center-modal" data-open={String(showModal)}>
+      {children}
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
@@ -875,6 +881,17 @@ describe('AddCompanionCentralModal', () => {
   // ── 6. Discard changes confirmation ─────────────────────────────────────────
 
   describe('discard changes confirmation', () => {
+    it('mounts no confirm until a close is attempted', async () => {
+      // A closed confirm left in the DOM gave pages hosting two editors two
+      // "Discard changes?" headings.
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+    });
+
     it('shows discard confirm modal when closing with unsaved changes', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);

@@ -1018,6 +1018,12 @@ export const buildBookButtonLabel = (selectedClientName?: string): string => {
   return firstName ? `Book · ${firstName} gets notified` : 'Book appointment';
 };
 
+/**
+ * Mounted only while open. A closed CenterModal keeps its content laid out (its
+ * `flex` class overrides the browser's display:none for a dialog without
+ * `open`), and this modal nests the companion editor's own confirm, so every
+ * page hosting it carried two hidden "Discard changes?" headings.
+ */
 export const DiscardConfirmationModal = ({
   showModal,
   setShowModal,
@@ -1026,38 +1032,39 @@ export const DiscardConfirmationModal = ({
   showModal: boolean;
   setShowModal: Dispatch<SetStateAction<boolean>>;
   onDiscard: () => void;
-}) => (
-  <CenterModal
-    showModal={showModal}
-    setShowModal={setShowModal}
-    containerClassName="shadow-[0_0_40px_0_rgba(0,0,0,0.20)]!"
-  >
-    <div className="flex flex-col gap-4 p-2">
-      <h3 style={{ ...text14M, fontSize: 18 }}>Discard changes?</h3>
-      <p style={{ ...text14M, fontWeight: 400 }}>
-        You have unsaved changes. Are you sure you want to discard them?
-      </p>
-      <div className="flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={() => setShowModal(false)}
-          className="rounded-2xl border border-input-border-default px-5 py-2.5 transition-colors hover:bg-card-hover active:bg-card-hover/80"
-          style={text14M}
-        >
-          Keep editing
-        </button>
-        <button
-          type="button"
-          onClick={onDiscard}
-          className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] disabled:cursor-not-allowed disabled:opacity-60"
-          {...primaryButtonGlowHandlers}
-        >
-          Discard
-        </button>
+}) =>
+  showModal ? (
+    <CenterModal
+      showModal
+      setShowModal={setShowModal}
+      containerClassName="shadow-[0_0_40px_0_rgba(0,0,0,0.20)]!"
+    >
+      <div className="flex flex-col gap-4 p-2">
+        <h3 style={{ ...text14M, fontSize: 18 }}>Discard changes?</h3>
+        <p style={{ ...text14M, fontWeight: 400 }}>
+          You have unsaved changes. Are you sure you want to discard them?
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setShowModal(false)}
+            className="rounded-2xl border border-input-border-default px-5 py-2.5 transition-colors hover:bg-card-hover active:bg-card-hover/80"
+            style={text14M}
+          >
+            Keep editing
+          </button>
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] disabled:cursor-not-allowed disabled:opacity-60"
+            {...primaryButtonGlowHandlers}
+          >
+            Discard
+          </button>
+        </div>
       </div>
-    </div>
-  </CenterModal>
-);
+    </CenterModal>
+  ) : null;
 
 // ─── Main component ────────────────────────────────────────────────────────────
 

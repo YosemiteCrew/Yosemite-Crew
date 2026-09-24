@@ -6,6 +6,7 @@ import {
   headingNames,
   inventoryCounts,
   resolveCompanionOverview,
+  trackInFlightRequests,
   visibleTexts,
 } from './route-sweep.spec';
 
@@ -220,4 +221,80 @@ test('names the redirect when /companions is left while the lookup waits', async
   expect(await resolveCompanionOverview(page, 2_000, 500)).toEqual({
     unreachable: '/companions redirected to /dashboard',
   });
+});
+
+/*
+ * The sweep leaves each page only once no request is in flight. A request the
+ * next navigation aborts is logged by Firefox as a NetworkError from the app's
+ * own error handling, blamed on the next route.
+ */
+const LATE_LOAD = `
+  <button onclick="history.pushState({}, '', '/companions/history?companionId=abc123');
+    fetch('/late').then(() => { window.lateDone = true; })">Open overview</button>
+`;
+
+// A load that fails once and is retried after a short backoff, as the API
+// client does for a transient error: nothing is in flight during the backoff.
+const RETRIED_LATE_LOAD = `
+  <button onclick="history.pushState({}, '', '/companions/history?companionId=abc123');
+    fetch('/late')
+      .catch(() => new Promise((resolve) => setTimeout(resolve, 200)).then(() => fetch('/late')))
+      .then(() => { window.lateDone = true; })">Open overview</button>
+`;
+
+test('waits for a request that starts after the load settled', async ({ page }) => {
+  // What opening the overview does: a client-side navigation whose loads begin
+  // after networkidle already fired for the document. The first attempt fails,
+  // so a failed request must count as ended and the backoff gap must not read
+  // as quiet.
+  const network = trackInFlightRequests(page);
+  let attempts = 0;
+  await page.route(`${ORIGIN}/late`, async (route) => {
+    attempts += 1;
+    if (attempts === 1) {
+      await route.abort();
+      return;
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 800);
+    });
+    await route.fulfill({ body: 'ok' });
+  });
+  await serveCompanions(page, RETRIED_LATE_LOAD);
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: 'Open overview' }).click();
+
+  expect(await network.settle({ timeoutMs: 5_000 })).toEqual([]);
+  expect(attempts).toBe(2);
+  expect(await page.evaluate(() => (globalThis as { lateDone?: boolean }).lateDone)).toBe(true);
+});
+
+test('names the request still in flight when the wait runs out', async ({ page }) => {
+  const network = trackInFlightRequests(page);
+  let release = () => {};
+  await page.route(`${ORIGIN}/late`, async (route) => {
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await route.abort().catch(() => {});
+  });
+  await serveCompanions(page, LATE_LOAD);
+  await page.getByRole('button', { name: 'Open overview' }).click();
+
+  const started = Date.now();
+  expect(await network.settle({ quietMs: 200, timeoutMs: 1_000 })).toEqual([`${ORIGIN}/late`]);
+  expect(Date.now() - started).toBeLessThan(3_000);
+  release();
+});
+
+test('forgets the requests a new document abandoned', async ({ page }) => {
+  // Chromium emits neither requestfinished nor requestfailed for a request the
+  // next document load abandons; kept, it would stall every later wait.
+  const network = trackInFlightRequests(page);
+  await page.route(`${ORIGIN}/late`, () => {});
+  await serveCompanions(page, LATE_LOAD);
+  await page.getByRole('button', { name: 'Open overview' }).click();
+  await serveAt(page, '/dashboard', '<p>Good morning</p>');
+
+  expect(await network.settle({ quietMs: 200, timeoutMs: 2_000 })).toEqual([]);
 });

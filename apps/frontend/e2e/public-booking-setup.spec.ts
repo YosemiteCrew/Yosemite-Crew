@@ -114,7 +114,7 @@ test('booking setup persists across a reload and never shows a dead address', as
 
   const stored = storedWindowDays(page);
   await page.goto(SETUP_PATH, { waitUntil: 'domcontentloaded' });
-  const setupForm = page.getByText('What can pet parents book?');
+  const setupForm = page.getByText('What can pet parents book?', { exact: true });
   await setupForm.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
   // A redirect here is the account's data, not the page: without this it read
   // only as a 30-second wait for a form that was never going to render.
@@ -145,8 +145,12 @@ test('booking setup persists across a reload and never shows a dead address', as
   await page.getByRole('option', { name: WINDOW_LABELS[targetDays] }).click();
   await showsWindow(page, targetDays);
 
-  await page.getByRole('button', { name: /Continue/ }).click();
-  await expect(page.getByText('Your booking page')).toBeVisible();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  // Exact: once a save has reserved the org's address, the step also says "Your
+  // booking page is closed, so there is no link..." (or "...is open..."). The
+  // first save on an environment allocates that address, so a substring match
+  // passed on the first run and was ambiguous on every run after it.
+  await expect(page.getByText('Your booking page', { exact: true })).toBeVisible();
 
   // The whole point of the change: the wizard must never render the
   // book.yosemitecrew.com address, which has no DNS record.
