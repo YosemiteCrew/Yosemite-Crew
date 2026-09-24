@@ -2267,6 +2267,41 @@ describe("StripeService", () => {
   });
 
   describe("_handleAccountUpdated fallbacks", () => {
+    it("replays account snapshots idempotently with absolute values", async () => {
+      const account = {
+        id: "acct_replay",
+        charges_enabled: true,
+        payouts_enabled: false,
+        default_currency: "eur",
+        requirements: {
+          currently_due: ["bank_account"],
+          eventually_due: [],
+          past_due: [],
+          pending_verification: [],
+          errors: [],
+        },
+      } as any;
+
+      await StripeService._handleAccountUpdated(account);
+      await StripeService._handleAccountUpdated(account);
+
+      const firstWrite = (prisma.organizationBilling.updateMany as jest.Mock)
+        .mock.calls[0][0];
+      const secondWrite = (prisma.organizationBilling.updateMany as jest.Mock)
+        .mock.calls[1][0];
+
+      expect(prisma.organizationBilling.updateMany).toHaveBeenCalledTimes(2);
+      expect(secondWrite).toEqual(firstWrite);
+      expect(firstWrite.data).toEqual(
+        expect.objectContaining({
+          canAcceptPayments: false,
+          connectChargesEnabled: true,
+          connectPayoutsEnabled: false,
+          currency: "eur",
+        }),
+      );
+    });
+
     it("defaults enablement fields when the account omits them", async () => {
       (
         prisma.organizationBilling.updateMany as jest.Mock
