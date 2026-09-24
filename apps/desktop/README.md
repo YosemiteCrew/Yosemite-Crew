@@ -149,7 +149,7 @@ pnpm --filter desktop run desktop:dist:linux  # AppImage
 - **Strict navigation policy** - only PIMS origins load in-app; developer-portal and external links open in the system browser.
 - **Redacted structured logs** to the OS log directory; local crash dumps by default (no upload unless an intake URL is configured).
 
-See [`docs/desktop-architecture.md`](docs/desktop-architecture.md) for the full process/IPC/trust-boundary model and [`docs/update-feed-threat-model.md`](docs/update-feed-threat-model.md) for update-channel risks.
+See [`docs/desktop-architecture.md`](docs/desktop-architecture.md) for the full process/IPC/trust-boundary model.
 
 ## ⚙️ Configuration
 

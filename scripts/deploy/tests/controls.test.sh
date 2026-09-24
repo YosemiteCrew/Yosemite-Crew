@@ -603,7 +603,7 @@ done
 #   echo "::error::…" >&2          line-local, trailing
 #   >&2 echo "::error::…"          line-local, leading
 #   { echo "::error::…" ; } >&2    ENCLOSING - and this is the house style:
-#                                  deploy-api.yml:106-121 wraps all three of its
+#                                  deploy-api.yml's preflight step wraps all its
 #                                  preflight annotations in exactly this shape.
 #   ( echo "::error::…" ) >&2      ENCLOSING, subshell. Same construct, different
 #                                  bracket; raised in review after the first

@@ -23,7 +23,7 @@ import {
  *
  * `RelatedArtifact` is the standard's own type for exactly this - the citation
  * supporting a definitional resource - so there is no reason to invent a shape
- * for it, and apps/backend/AGENTS.md says as much. The mapping:
+ * for it. The mapping:
  *
  *   type     "citation"
  *   citation the bibliographic string

@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-This document describes the intended module boundaries for `apps/frontend`, the Yosemite Crew (YC) Next.js web app. It is aimed at contributors deciding where new code belongs. For the enforced quality bar see [`FRONTEND_QUALITY_GUIDE.md`](FRONTEND_QUALITY_GUIDE.md); for the agent-facing coding rules see [`../AGENTS.md`](../AGENTS.md).
+This document describes the intended module boundaries for `apps/frontend`, the Yosemite Crew (YC) Next.js web app. It is aimed at contributors deciding where new code belongs. For the enforced quality bar see [`FRONTEND_QUALITY_GUIDE.md`](FRONTEND_QUALITY_GUIDE.md).
 
 ## High-Level Structure
 

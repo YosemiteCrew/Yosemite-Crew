@@ -78,7 +78,7 @@ const REFACTOR_2696_MERGED_AT = Date.parse("2026-09-05T12:46:40Z");
  * same fan-out.
  *
  * A chosen bound, not a measured one: nothing in the table records which push
- * a row came from, and this desk has no production data to fit it to. It is
+ * a row came from, and no production data is available to fit it to. It is
  * sized on the one mechanism it models, because only one end of the range is
  * bounded by anything at all.
  *

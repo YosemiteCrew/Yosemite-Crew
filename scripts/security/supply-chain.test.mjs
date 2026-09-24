@@ -163,7 +163,7 @@ test('a grype ignore entry without a dated re-review line fails the scan', () =>
   writeFileSync(
     join(root, '.grype.yaml'),
     'ignore:\n' +
-      '  # Not reachable in our usage. Owner: ankit-yc.\n' +
+      '  # Not reachable in our usage. Owner: maintainers.\n' +
       '  - vulnerability: GHSA-xxxx-xxxx-xxxx\n' +
       '    package:\n' +
       '      name: foo\n'

@@ -25,7 +25,7 @@ ${fonts.map((f) => `\t\t<string>${f}</string>`).join('\n')}
 `;
 
 /** Build a fixture repo and return doctor's stdout. */
-const runDoctor = ({ assetFonts, registered, plistBody }) => {
+const runDoctor = ({ assetFonts, registered, plistBody, extraFiles = {} }) => {
   const root = mkdtempSync(join(tmpdir(), 'yc-doctor-'));
   try {
     mkdirSync(join(root, 'scripts/mobile'), { recursive: true });
@@ -37,6 +37,7 @@ const runDoctor = ({ assetFonts, registered, plistBody }) => {
     mkdirSync(join(app, 'ios/mobileAppYC'), { recursive: true });
     for (const f of assetFonts) writeFileSync(join(app, 'assets/fonts', f), '');
     writeFileSync(join(app, 'ios/mobileAppYC/Info.plist'), plistBody ?? plist(registered));
+    for (const [rel, body] of Object.entries(extraFiles)) writeFileSync(join(app, rel), body);
     // doctor reports on many unrelated things and exits non-zero when the host
     // lacks a JDK or an Android SDK, so the exit code says nothing about the
     // font gate. Read stdout and ignore the status.
@@ -122,6 +123,50 @@ test('ignores non-font files sitting in assets/fonts', () => {
     registered: ['Satoshi-Regular.otf', 'Ionicons.ttf', 'MaterialIcons.ttf'],
   });
   assert.match(fontLine(out), /^OK\s+UIAppFonts/);
+});
+
+// --- Amplify outputs ---------------------------------------------------------
+// The shipped template holds EXAMPLE ids. A copy of it must read as not
+// configured, and a file with real-shaped ids must not be condemned.
+const amplifyOutputs = (userPoolId, clientId) =>
+  JSON.stringify({ auth: { user_pool_id: userPoolId, user_pool_client_id: clientId } });
+const amplifyLine = (out) =>
+  out.split('\n').find((l) => l.includes('devamplify_outputs.json')) ?? '(no amplify line)';
+const fonts = { assetFonts: [], registered: ['Ionicons.ttf', 'MaterialIcons.ttf'] };
+
+test('reports an Amplify outputs copy that still holds EXAMPLE ids as not configured', () => {
+  const out = runDoctor({
+    ...fonts,
+    extraFiles: {
+      'devamplify_outputs.json': amplifyOutputs('eu-central-1_EXAMPLE01', 'EXAMPLECLIENTID02'),
+    },
+  });
+  assert.match(amplifyLine(out), /^WARN\s+devamplify_outputs\.json\s+is a PLACEHOLDER template/);
+  assert.match(amplifyLine(out), /not configured/);
+});
+
+test('accepts an Amplify outputs file with real-shaped ids', () => {
+  const out = runDoctor({
+    ...fonts,
+    extraFiles: {
+      'devamplify_outputs.json': amplifyOutputs(
+        'eu-central-1_abcDEF123',
+        'a1b2c3d4e5f6g7h8i9j0k1l2m3'
+      ),
+    },
+  });
+  assert.match(amplifyLine(out), /^OK\s+devamplify_outputs\.json/);
+});
+
+test('says nothing about Amplify outputs when no copy exists', () => {
+  const out = runDoctor(fonts);
+  assert.equal(amplifyLine(out), '(no amplify line)');
+});
+
+test('the shipped Amplify template passes the placeholder self-test', () => {
+  const out = execFileSync(process.execPath, [DOCTOR, '--self-test'], { encoding: 'utf8' });
+  assert.match(out, /FLAGGED\s+amplify\/amplify_outputs\.example\.json/);
+  assert.match(out, /self-test: passed/);
 });
 
 // --- --require-production-api ----------------------------------------------

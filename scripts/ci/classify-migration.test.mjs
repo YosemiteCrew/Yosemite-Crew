@@ -394,7 +394,7 @@ test('ALTER DEFAULT PRIVILEGES is not a hazard - it cannot change what is read t
   // The exclusion is a substring test, so an object name containing the
   // excluded text is what tells a narrow exclusion from a wide one: widening it
   // to `ALTER` alone leaves every other case in this test passing and quietly
-  // excuses these two. Raised by ankit-yc on #2731.
+  // excuses these two. Raised in review on #2731.
   assert.deepEqual(kinds('REVOKE ALL ON "alter_log" FROM PUBLIC;'), ['revokes a privilege']);
   assert.deepEqual(kinds('REVOKE ALL ON "altered_records" FROM PUBLIC;'), ['revokes a privilege']);
 
@@ -500,7 +500,7 @@ test('SECURITY LABEL is not flagged', () => {
 });
 
 // Three statements that mean what a rule above means and did not match it.
-// Raised by ankit-yc reviewing #2731, and each is one entry rather than a new
+// Raised in review of #2731, and each is one entry rather than a new
 // concept - which is the test of whether the dimension is real.
 
 test('REASSIGN OWNED BY is an owner change, in bulk', () => {
@@ -534,7 +534,7 @@ test('moving an object to another schema is a hazard, and a shape one', () => {
 
 // ALTER USER and DROP USER are exact aliases for ALTER ROLE and DROP ROLE in
 // PostgreSQL, not near synonyms, so matching one spelling matches half the
-// language. Raised by ankit-yc reviewing #2731.
+// language. Raised in review of #2731.
 test('the role rule matches the USER spelling too', () => {
   for (const spelling of ['ROLE', 'USER']) {
     assert.deepEqual(kinds(`ALTER ${spelling} app_role NOLOGIN;`), [

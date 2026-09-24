@@ -259,10 +259,22 @@ workflow_has() { # workflow_has <name> <fixed-string>
 workflow_has "the workflow sets the directory up on the host" \
   '{ cat scripts/deploy/lib/backups.sh; echo "deploy_prepare_stage \"\$HOME/.yc-deploy\""; }'
 workflow_has "the workflow copies the scripts into it" \
-  'scripts/deploy/. "ubuntu@$HOST:.yc-deploy/scripts/"'
+  'scripts/deploy/. "$DEPLOY_USER@$HOST:.yc-deploy/scripts/"'
 workflow_has "the workflow runs the copy it made" \
   "\\\$HOME/.yc-deploy/scripts/api-deploy.sh '"
 check "the workflow does not use /tmp" "0" "$(grep -c '/tmp' "$WORKFLOW" || true)"
+
+# The deploy target comes from the environment, never from this file.
+for name in API_HOST API_DEPLOY_USER API_REPO_DIR API_PROCESS; do
+  workflow_has "the workflow reads $name from the environment" "\${{ secrets.$name }}"
+done
+workflow_has "the workflow refuses to deploy with a target value missing" \
+  'for name in API_HOST API_DEPLOY_USER API_REPO_DIR API_PROCESS; do'
+check "the workflow names no IPv4 host" "" \
+  "$(grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' "$WORKFLOW" || true)"
+check "the workflow names no home-directory checkout" "0" "$(grep -c '/home/' "$WORKFLOW" || true)"
+check "every ssh and scp target is the configured deploy user" "" \
+  "$(grep -oE '"[A-Za-z0-9_$.-]*@\$HOST' "$WORKFLOW" | grep -vxF '"$DEPLOY_USER@$HOST' || true)"
 
 echo
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"

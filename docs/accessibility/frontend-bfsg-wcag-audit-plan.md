@@ -630,7 +630,7 @@ Suggested epic order:
 
 Use this prompt verbatim or with minor edits:
 
-> Read `AGENTS.md`, `apps/frontend/AGENTS.md`, and `docs/accessibility/frontend-bfsg-wcag-audit-plan.md`. Implement **Phase 1 only** from the accessibility plan. Make the smallest safe code changes inside `apps/frontend`. Add or update targeted tests for every touched file. Before finishing, run from `apps/frontend`: `npx tsc --noemit` with a 120s timeout, `pnpm --filter frontend run lint`, and targeted tests for all touched files. Report exact results and propose a COMMIT CHECKPOINT message.
+> Read `docs/accessibility/frontend-bfsg-wcag-audit-plan.md`. Implement **Phase 1 only** from the accessibility plan. Make the smallest safe code changes inside `apps/frontend`. Add or update targeted tests for every touched file. Before finishing, run from `apps/frontend`: `npx tsc --noemit` with a 120s timeout, `pnpm --filter frontend run lint`, and targeted tests for all touched files. Report exact results and propose a COMMIT CHECKPOINT message.
 
 ## Sources
 

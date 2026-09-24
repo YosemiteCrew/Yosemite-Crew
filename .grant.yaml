@@ -50,8 +50,8 @@ allow:
 
 # 295 installed packages carry no machine-readable license in their
 # package.json (mostly store-internal artifacts and packages with nonstandard
-# license fields). Flipping this to true is the documented follow-up hardening
-# once that tail is triaged - see docs/security/supply-chain.md.
+# license fields). Flipping this to true is the follow-up hardening once that
+# tail is triaged.
 require-license: false
 
 # Package-level exceptions. Every entry carries: the verified reason, an
@@ -59,16 +59,16 @@ require-license: false
 # package was read - not the package.json field.
 ignore-packages:
   # (BSD-3-Clause OR GPL-2.0) dual license; the project elects BSD-3-Clause.
-  # The scanner flags the GPL-2.0 arm of the expression. Owner: ankit-yc.
+  # The scanner flags the GPL-2.0 arm of the expression. Owner: maintainers.
   # Re-review by: 2027-02-09 (or on major version bump, whichever is first).
   - node-forge
   # package.json says "bsd" (nonstandard spelling); the LICENSE file is plain
-  # BSD. Owner: ankit-yc.
+  # BSD. Owner: maintainers.
   # Re-review by: 2027-02-09 (or on version bump, whichever is first).
   - multi-sort-stream
   # package.json says MPL-1.1; the underlying snowball stemmer files carry the
   # Mozilla MPL-1.1/GPL-2.0/LGPL-2.1 tri-license and are used unmodified,
-  # only inside the generated docs search bundle. Owner: ankit-yc.
+  # only inside the generated docs search bundle. Owner: maintainers.
   # Re-review by: 2026-11-01.
   - lunr-languages
   # GENUINE FINDING, exception pending a licensing decision - NOT cleared.
@@ -76,7 +76,7 @@ ignore-packages:
   # Agreement; the @calcom/embed family ships the Cal.com Commercial (EE)
   # license. Both are vendor SDKs for paid services the product integrates,
   # used at arm's length over the network, but their compatibility with
-  # AGPL-3.0 distribution needs an explicit decision. Owner: ankit-yc.
+  # AGPL-3.0 distribution needs an explicit decision. Owner: maintainers.
   # Re-review by: 2026-10-01 - do not renew silently.
   - stream-chat
   - stream-chat-react
@@ -86,6 +86,6 @@ ignore-packages:
   - '@calcom/embed-core'
   - '@calcom/embed-react'
   # package.json says "Apache 2.0" (nonstandard spelling of Apache-2.0).
-  # Owner: ankit-yc.
+  # Owner: maintainers.
   # Re-review by: 2027-02-09 (or on version bump, whichever is first).
   - supertokens-react-native

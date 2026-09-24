@@ -1,6 +1,6 @@
 # Real-Time Sync - Backend Implementation Guide
 
-> Status: not implemented as of 2026-07. No Socket.IO/EventBus code exists in the tree and the listed dependencies are not installed. The Cognito JWT handshake described below must be re-targeted at SuperTokens session verification (see `docs/plans/supertokens-migration.md`) before building.
+> Status: not implemented as of 2026-07. No Socket.IO/EventBus code exists in the tree and the listed dependencies are not installed. The Cognito JWT handshake described below must be re-targeted at SuperTokens session verification before building.
 >
 > **Tenant isolation:** org rooms carry one organisation's appointments, tasks and invoices. Authenticating the socket establishes identity only - every `join:org` must additionally be authorised against the user's organisation membership, or any logged-in user can subscribe to any org. See the `join:org` handler in `src/realtime/socket.ts` below.
 

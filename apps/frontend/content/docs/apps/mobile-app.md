@@ -222,7 +222,7 @@ The app authenticates with **SuperTokens** sessions against the Yosemite Crew ba
 - `USE_DEV_API = true` → sessions against `devapi.yosemitecrew.com` (recommended for development)
 - `USE_DEV_API = false` → sessions against `api.yosemitecrew.com` (production)
 
-Sign in with email OTP against the dev API, or use the review-login bypass (`test@yosemitecrew.com`) when `enableReviewLogin` is active on the dev API. The dev API is a shared environment - do not store sensitive data in it.
+Sign in with email OTP against the dev API. The dev API is a shared environment - do not store sensitive data in it.
 
 ---
 
