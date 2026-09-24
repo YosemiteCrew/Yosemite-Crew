@@ -142,14 +142,16 @@ const createInstanceFromQuestionnaireResponse = async (
     template,
   );
 
-  const instanceUpdateData = submit
-    ? {
-        data: instanceInput.data,
-      }
-    : {
-        data: instanceInput.data,
-        status: instanceInput.status,
-      };
+  // Completion runs only through the submit route and signing only through the
+  // signing flow, so a plain write never carries either status.
+  const { status } = instanceInput;
+  const writableStatus =
+    submit || status === "COMPLETED" || status === "SIGNED"
+      ? undefined
+      : status;
+  const instanceUpdateData = writableStatus
+    ? { data: instanceInput.data, status: writableStatus }
+    : { data: instanceInput.data };
 
   let instance = instanceId
     ? await TemplateService.updateInstance(
@@ -163,7 +165,8 @@ const createInstanceFromQuestionnaireResponse = async (
         appointmentId: instanceInput.appointmentId ?? undefined,
         caseId: instanceInput.caseId ?? undefined,
         encounterId: instanceInput.encounterId ?? undefined,
-        authorId: instanceInput.authorId ?? userId,
+        // The author is the verified session user, never the response body.
+        authorId: userId || undefined,
         data: instanceInput.data,
       });
 

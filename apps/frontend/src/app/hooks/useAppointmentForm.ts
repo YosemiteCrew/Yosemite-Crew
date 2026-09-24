@@ -28,6 +28,7 @@ import {
 } from '@/app/features/appointments/utils/slotNormalization';
 import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { useCanMoreForPrimaryOrg, useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { labelWithCurrency } from '@/app/lib/money';
 import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
 import { EMPTY_APPOINTMENT } from '@/app/features/appointments/constants/emptyAppointment';
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
@@ -574,7 +575,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const ServiceFields = useMemo(
     () => [
       { label: 'Duration (mins)', key: 'duration', type: 'text' },
-      { label: `Cost (${currency})`, key: 'cost', type: 'text' },
+      { label: labelWithCurrency('Cost', currency), key: 'cost', type: 'text' },
       { label: 'Max discount', key: 'maxDiscount', type: 'text' },
     ],
     [currency]

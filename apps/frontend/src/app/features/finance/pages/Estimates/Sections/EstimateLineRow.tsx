@@ -12,7 +12,7 @@ import {
 type EstimateLineRowProps = {
   line: DraftLine;
   index: number;
-  currency: string;
+  currency: string | undefined;
   canRemove: boolean;
   onChange: (key: string, patch: Partial<DraftLine>) => void;
   onRemove: (key: string) => void;

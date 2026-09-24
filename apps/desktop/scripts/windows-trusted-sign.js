@@ -3,10 +3,17 @@
 const childProcess = require('node:child_process');
 const path = require('node:path');
 
-const REQUIRED_AZURE_ENV = ['AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET'];
+// The signing account and certificate profile have no defaults: they come from
+// the release configuration, and a build without them is treated like one
+// without credentials (skipped locally, refused where signing is required).
+const REQUIRED_AZURE_ENV = [
+  'AZURE_TENANT_ID',
+  'AZURE_CLIENT_ID',
+  'AZURE_CLIENT_SECRET',
+  'AZURE_TRUSTED_SIGNING_ACCOUNT',
+  'AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE',
+];
 const DEFAULT_ENDPOINT = 'https://swn.codesigning.azure.net/';
-const DEFAULT_ACCOUNT = 'yc-signing';
-const DEFAULT_CERTIFICATE_PROFILE = 'yc-public-trust';
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_MODULE_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -26,9 +33,8 @@ const getMissingAzureEnv = (env = process.env) =>
 
 const getTrustedSigningConfig = (env = process.env) => ({
   endpoint: env.AZURE_TRUSTED_SIGNING_ENDPOINT || DEFAULT_ENDPOINT,
-  codeSigningAccountName: env.AZURE_TRUSTED_SIGNING_ACCOUNT || DEFAULT_ACCOUNT,
-  certificateProfileName:
-    env.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE || DEFAULT_CERTIFICATE_PROFILE,
+  codeSigningAccountName: env.AZURE_TRUSTED_SIGNING_ACCOUNT,
+  certificateProfileName: env.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE,
   timestampRfc3161:
     env.AZURE_TRUSTED_SIGNING_TIMESTAMP_RFC3161 || 'http://timestamp.acs.microsoft.com',
   timestampDigest: env.AZURE_TRUSTED_SIGNING_TIMESTAMP_DIGEST || 'SHA256',

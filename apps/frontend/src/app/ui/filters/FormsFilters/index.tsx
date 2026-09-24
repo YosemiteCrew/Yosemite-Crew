@@ -147,7 +147,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
                   <button
                     key={opt.value}
                     type="button"
-                    // Single-select, so these are plain buttons per AGENTS.md, not
+                    // Single-select, so these are plain buttons, not
                     // toggles: aria-pressed would expose eight independent
                     // switches. aria-current marks the chosen one within the set
                     // without claiming a listbox or menu widget.

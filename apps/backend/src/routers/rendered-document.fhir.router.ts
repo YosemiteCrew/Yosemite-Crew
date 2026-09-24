@@ -28,7 +28,12 @@ router.post(
   "/organisation/:organisationId/:renderedDocumentId/rerender-pdf",
   requireWebAuth,
   withRenderedDocumentOrgPermissions(),
-  requirePermission(["forms:edit:any", "prescription:edit:any"]),
+  // The controller narrows this to the permission each document kind takes.
+  requirePermission([
+    "forms:edit:any",
+    "prescription:edit:any",
+    "prescription:edit:own",
+  ]),
   (req, res) =>
     RenderedDocumentFhirController.rerenderRenderedDocumentPdf(req, res),
 );
@@ -37,7 +42,12 @@ router.post(
   "/organisation/:organisationId/:renderedDocumentId/sign",
   requireWebAuth,
   withRenderedDocumentOrgPermissions(),
-  requirePermission(["forms:edit:any", "prescription:edit:any"]),
+  // The controller narrows this to the permission each document kind takes.
+  requirePermission([
+    "forms:edit:any",
+    "prescription:edit:any",
+    "prescription:edit:own",
+  ]),
   (req, res) => RenderedDocumentFhirController.signRenderedDocument(req, res),
 );
 

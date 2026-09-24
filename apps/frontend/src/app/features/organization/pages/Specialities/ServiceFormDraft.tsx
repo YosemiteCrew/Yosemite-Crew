@@ -140,7 +140,7 @@ type ServicePricingRowProps = {
   onMaxDiscountChange: (value: string) => void;
   maxDiscountError?: string;
   total: number;
-  currency: string;
+  currency: string | undefined;
 };
 
 const ServicePricingRow = ({

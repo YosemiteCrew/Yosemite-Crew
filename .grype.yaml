@@ -9,7 +9,7 @@
 #
 # ignore:
 #   # GHSA-xxxx-xxxx-xxxx in foo@1.2.3: not reachable - the vulnerable code
-#   # path needs server-side rendering we never enable. Owner: ankit-yc.
+#   # path needs server-side rendering we never enable. Owner: maintainers.
 #   # Re-review by: YYYY-MM-DD. (a real date here - the placeholder is
 #   # deliberate so this example never trips the expiry guard)
 #   - vulnerability: GHSA-xxxx-xxxx-xxxx
@@ -28,7 +28,7 @@ ignore:
   # apps/frontend Storybook devDependency) take 2.0.2. Each of them measures
   # images committed in this repository; no request handler, deployed service
   # or shipped bundle parses caller-supplied ICNS/JXL/HEIF bytes, so the
-  # infinite loop can only stall a build we ran ourselves. Owner: ankit-yc.
+  # infinite loop can only stall a build we ran ourselves. Owner: maintainers.
   # Re-review by: 2026-11-11.
   - vulnerability: GHSA-w3rx-r6r6-pgpr
     package:
@@ -53,7 +53,7 @@ ignore:
   # Electron binary archive that @electron/get downloads from a pinned release
   # and checksum-verifies first. The symlink traversal needs an attacker-built
   # archive, and we never hand extract-zip a user- or third-party-supplied
-  # zip; it ships in no release artifact. Owner: ankit-yc.
+  # zip; it ships in no release artifact. Owner: maintainers.
   # Re-review by: 2026-11-11.
   - vulnerability: GHSA-jmr9-qjv8-65gv
     package:
@@ -80,7 +80,7 @@ ignore:
   # Removing the package outright was tried and rejected as the riskier fix:
   # the peer is baked into the lockfile resolution keys, so dropping it needs a
   # full re-resolution across every workspace to delete build-time tooling that
-  # never runs. Owner: ankit-yc. Re-review by: 2026-11-14.
+  # never runs. Owner: maintainers. Re-review by: 2026-11-14.
   - vulnerability: CVE-2017-17969
     package:
       name: 7-Zip
@@ -266,7 +266,7 @@ ignore:
   # services/marketing-unsubscribe.service.ts and utils/email.ts), so the
   # parameter an attacker would need to influence is not reachable from a
   # request. Migrating apps/backend to AWS SDK v3 is the real fix and wants its
-  # own change. Owner: ankit-yc. Re-review by: 2026-11-14.
+  # own change. Owner: maintainers. Re-review by: 2026-11-14.
   - vulnerability: GHSA-j965-2qgj-vjmq
     package:
       name: aws-sdk

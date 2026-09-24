@@ -5,6 +5,7 @@ import type {
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { reconciliationScopeForOrganisation } from "src/services/finance/provider-receipt";
+import { sameCurrency } from "src/services/finance/currency";
 import {
   clampPageSize,
   encodeKeysetCursor,
@@ -227,7 +228,9 @@ const classify = (
   if (journalled.length > 1) return "AMBIGUOUS_JOURNAL_MATCH";
 
   const [receipt] = journalled;
-  if (receipt.currency !== payment.currency) return "CURRENCY_DIFFERS";
+  if (!sameCurrency(receipt.currency, payment.currency)) {
+    return "CURRENCY_DIFFERS";
+  }
   if (receipt.amount !== payment.amount) return "AMOUNT_DIFFERS";
   return null;
 };

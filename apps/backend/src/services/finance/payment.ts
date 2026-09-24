@@ -13,6 +13,7 @@ import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
 import { getNetPaymentAmount, roundMoney } from "./pricing";
+import { sameCurrency } from "./currency";
 import {
   fromStripeMinorUnits,
   isStripeChargeCurrencySupported,
@@ -202,6 +203,31 @@ export type InvoicePaymentInput = {
   paymentAttemptId?: string | null;
   collectionMode?: PrismaBillingCollectionMode | null;
   rawProviderPayload?: Prisma.InputJsonValue | null;
+};
+
+/**
+ * The currency a payment is recorded in. A manual payment is money the clinic
+ * took against the invoice, so it is recorded in the invoice's currency; a
+ * client that sends a different one is stale or guessing (the workspace sent
+ * a hardcoded USD, #3607), and receipts and refunds read the payment's
+ * currency back. A provider capture keeps the currency the provider reports,
+ * because that is the money that actually moved.
+ */
+const resolvePaymentCurrency = (
+  invoiceCurrency: string,
+  input: Pick<InvoicePaymentInput, "provider" | "currency">,
+): string => {
+  if (input.provider !== "MANUAL") return input.currency ?? invoiceCurrency;
+  if (
+    input.currency !== undefined &&
+    !sameCurrency(input.currency, invoiceCurrency)
+  ) {
+    throw new FinancePaymentError(
+      `Payment currency must be the invoice's currency, ${invoiceCurrency.toUpperCase()}.`,
+      400,
+    );
+  }
+  return invoiceCurrency;
 };
 
 export type RefundInvoiceResult = {
@@ -2092,6 +2118,7 @@ export const FinancePaymentService = {
         if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
           throw new FinancePaymentError("Invoice cannot accept payment", 409);
         }
+        const currency = resolvePaymentCurrency(invoice.currency, input);
 
         const isDepositPayment =
           input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
@@ -2141,7 +2168,7 @@ export const FinancePaymentService = {
                 amountRequested: requestedAmount,
                 amountCaptured: appliedAmount,
                 amountApplied: appliedAmount,
-                currency: input.currency ?? invoice.currency,
+                currency,
                 collectionMode: input.collectionMode ?? null,
                 isOffline: input.provider === "MANUAL",
                 isPartial,
@@ -2157,7 +2184,7 @@ export const FinancePaymentService = {
                 amountRequested: requestedAmount,
                 amountCaptured: appliedAmount,
                 amountApplied: appliedAmount,
-                currency: input.currency ?? invoice.currency,
+                currency,
                 collectionMode: input.collectionMode ?? null,
                 providerPaymentIntentId: input.providerPaymentId ?? null,
                 isOffline: input.provider === "MANUAL",
@@ -2176,7 +2203,7 @@ export const FinancePaymentService = {
             collectionMode: input.collectionMode ?? null,
             providerPaymentId: input.providerPaymentId ?? null,
             amount: appliedAmount,
-            currency: input.currency ?? invoice.currency,
+            currency,
             status: "SUCCEEDED",
             paidAt: receivedAt,
             receiptUrl: input.reference ?? undefined,

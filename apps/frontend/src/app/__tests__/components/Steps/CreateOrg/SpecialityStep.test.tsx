@@ -17,6 +17,13 @@ import { getOnboardingSpecialityCatalog } from '@/app/lib/onboardingSpecialityCa
 import { Organisation, Service, Speciality } from '@yosemite-crew/types';
 import axios from 'axios';
 
+// A USD-billed organisation, stated rather than relied on: with no billing data
+// the currency hook has nothing to offer and no longer guesses USD (#3607).
+jest.mock('@/app/hooks/useBilling', () => ({
+  ...jest.requireActual('@/app/hooks/useBilling'),
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
 jest.mock('axios', () => {
   const actual = jest.requireActual('axios');
   return {

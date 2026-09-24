@@ -8,7 +8,7 @@ import { getSafeStripeRedirectUrl } from '@/app/lib/urls';
 
 type InvoicePaymentLedgerProps = {
   invoice: Invoice;
-  currency: string;
+  currency: string | undefined;
   payerName?: string;
 };
 

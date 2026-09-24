@@ -3424,6 +3424,68 @@ describe("ClinicalArtifactService", () => {
     );
   });
 
+  describe("listVitalRecordsForVisits", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    it("queries every given visit, leaves voided records out and caps the rows", async () => {
+      mockedPrisma.vitalRecord.findMany.mockResolvedValueOnce([
+        vitalRow({ metadata: { recordedByDisplay: "Nurse Joy" } }),
+      ]);
+
+      const records = await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: ["appt-1"], encounterIds: ["enc-1", "enc-2"] },
+        11,
+      );
+
+      expect(mockedPrisma.vitalRecord.findMany).toHaveBeenCalledWith({
+        where: {
+          artifact: {
+            organisationId,
+            kind: "VITAL_RECORD",
+            status: { not: "VOID" },
+            OR: [
+              { appointmentId: { in: ["appt-1"] } },
+              { encounterId: { in: ["enc-1", "enc-2"] } },
+            ],
+          },
+        },
+        include: { artifact: true },
+        orderBy: { measuredAt: "desc" },
+        take: 11,
+      });
+      expect(records[0].vitalRecord.recordedByDisplay).toBe("Nurse Joy");
+    });
+
+    it("filters on appointments alone when the patient has no encounters", async () => {
+      mockedPrisma.vitalRecord.findMany.mockResolvedValueOnce([]);
+
+      await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: ["appt-1"], encounterIds: [] },
+        5,
+      );
+
+      const call = mockedPrisma.vitalRecord.findMany.mock.calls[0][0] as {
+        where: { artifact: { OR: unknown[] } };
+      };
+      expect(call.where.artifact.OR).toEqual([
+        { appointmentId: { in: ["appt-1"] } },
+      ]);
+    });
+
+    it("returns nothing without querying when the patient has no visits", async () => {
+      const records = await ClinicalArtifactService.listVitalRecordsForVisits(
+        organisationId,
+        { appointmentIds: [], encounterIds: [] },
+        5,
+      );
+
+      expect(records).toEqual([]);
+      expect(mockedPrisma.vitalRecord.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("vital record recorder resolution", () => {
     beforeEach(resetClinicalPrismaMocks);
 
@@ -5464,6 +5526,343 @@ describe("ClinicalArtifactService", () => {
         { medication: "PlainString", sortOrder: 4 },
         { medication: "", sortOrder: 5 },
       ]);
+    });
+  });
+
+  describe("document out for signature or signed (#3627)", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    const renderedDocumentRow = (overrides: Record<string, unknown> = {}) => ({
+      id: "doc-1",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/original.pdf",
+      pdf: { version: 1, title: "SOAP note" },
+      signing: null,
+      signedBy: null,
+      signedAt: null,
+      createdAt: D1,
+      updatedAt: D1,
+      ...overrides,
+    });
+
+    const OUT_FOR_SIGNATURE = {
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "IN_PROGRESS",
+        documentId: "42",
+      },
+    };
+
+    const SIGNED = {
+      status: "SIGNED",
+      signedBy: "vet-1",
+      signedAt: D2,
+      pdfUrl: "https://documenso.example/signed.pdf",
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "SIGNED",
+        documentId: "42",
+      },
+    };
+
+    const LOCKED_MESSAGE =
+      "This record's document is out for signature or signed, so the record cannot be edited in place. Amend it to create a new version.";
+
+    const expectNothingWritten = () => {
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+      expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
+      expect(mockedUploadBufferAsFile).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    };
+
+    type LockedSave = [
+      label: string,
+      kind: "SOAP_NOTE" | "PRESCRIPTION" | "DISCHARGE_SUMMARY" | "VITAL_RECORD",
+      recordUpdate: () => jest.Mock,
+      save: (artifactStatus: string) => Promise<unknown>,
+    ];
+
+    // One row per writer that re-renders the document after an in-place save,
+    // so dropping the check from any one of them fails its own row.
+    const lockedSaves: LockedSave[] = [
+      [
+        "SOAP note",
+        "SOAP_NOTE",
+        () => mockedPrisma.soapNote.update,
+        (artifactStatus) => {
+          mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(
+            soapRow({ artifact: artifactRow({ status: artifactStatus }) }),
+          );
+          return ClinicalArtifactService.updateSoapNote(
+            soapNoteId,
+            { status: "IN_PROGRESS", plan: { instructions: "Edited" } },
+            organisationId,
+          );
+        },
+      ],
+      [
+        "prescription",
+        "PRESCRIPTION",
+        () => mockedPrisma.prescription.update,
+        (artifactStatus) => {
+          mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+            prescriptionRow({
+              artifact: artifactRow({
+                kind: "PRESCRIPTION",
+                status: artifactStatus,
+              }),
+            }),
+          );
+          return ClinicalArtifactService.updatePrescription(
+            "prescription-1",
+            { status: "IN_PROGRESS", notes: { text: "Edited" } },
+            organisationId,
+            { actorId: "vet-1", canEditAny: true },
+          );
+        },
+      ],
+      [
+        "discharge summary",
+        "DISCHARGE_SUMMARY",
+        () => mockedPrisma.dischargeSummary.update,
+        (artifactStatus) => {
+          mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce(
+            dischargeRow({
+              artifact: artifactRow({
+                kind: "DISCHARGE_SUMMARY",
+                status: artifactStatus,
+              }),
+            }),
+          );
+          return ClinicalArtifactService.updateDischargeSummary(
+            "discharge-1",
+            { status: "IN_PROGRESS", instructions: { text: "Edited" } },
+            organisationId,
+          );
+        },
+      ],
+      [
+        "vital record",
+        "VITAL_RECORD",
+        () => mockedPrisma.vitalRecord.update,
+        (artifactStatus) => {
+          mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+            vitalRow({
+              artifact: artifactRow({
+                kind: "VITAL_RECORD",
+                status: artifactStatus,
+              }),
+            }),
+          );
+          return ClinicalArtifactService.updateVitalRecord(
+            "vital-1",
+            { status: "IN_PROGRESS", notes: { text: "Edited" } },
+            organisationId,
+          );
+        },
+      ],
+    ];
+
+    it("still re-renders a draft document when its record is saved", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(soapRow());
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValue(
+        renderedDocumentRow(),
+      );
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ status: "IN_PROGRESS" }),
+      );
+      const { artifact: _artifact, ...updatedNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.update.mockResolvedValueOnce(updatedNote);
+
+      await ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { status: "IN_PROGRESS", plan: { instructions: "Edited" } },
+        organisationId,
+      );
+
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
+        where: { clinicalArtifactId: artifactId },
+      });
+      expect(mockedRenderedDocumentRenderer).toHaveBeenCalledTimes(1);
+      expect(mockedUploadBufferAsFile).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith({
+        where: { id: "doc-1" },
+        data: {
+          pdfUrl: "https://cdn.example/rendered.pdf",
+          pdf: expect.objectContaining({
+            signaturePlacement: expect.objectContaining({ pageNumber: 1 }),
+          }),
+        },
+      });
+    });
+
+    it("keeps the PDF when signing starts after the save's own check", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(soapRow());
+      mockedPrisma.renderedDocument.findUnique
+        .mockResolvedValueOnce(renderedDocumentRow())
+        .mockResolvedValueOnce(renderedDocumentRow(OUT_FOR_SIGNATURE));
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ status: "IN_PROGRESS" }),
+      );
+      const { artifact: _artifact, ...updatedNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.update.mockResolvedValueOnce(updatedNote);
+
+      await ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { status: "IN_PROGRESS", plan: { instructions: "Edited" } },
+        organisationId,
+      );
+
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledTimes(2);
+      expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
+      expect(mockedUploadBufferAsFile).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    });
+
+    it.each(lockedSaves)(
+      "refuses to save a %s whose document is out for signature and writes nothing",
+      async (_label, kind, recordUpdate, save) => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          renderedDocumentRow({ kind, ...OUT_FOR_SIGNATURE }),
+        );
+
+        await expect(save("DRAFT")).rejects.toMatchObject({
+          statusCode: 409,
+          message: LOCKED_MESSAGE,
+        });
+
+        expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
+          where: { clinicalArtifactId: artifactId },
+        });
+        expect(recordUpdate()).not.toHaveBeenCalled();
+        expectNothingWritten();
+      },
+    );
+
+    it.each(lockedSaves)(
+      "refuses to reopen a signed %s in place and leaves its signed PDF alone",
+      async (_label, kind, recordUpdate, save) => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          renderedDocumentRow({ kind, ...SIGNED }),
+        );
+
+        await expect(save("SIGNED")).rejects.toMatchObject({
+          statusCode: 409,
+          message: LOCKED_MESSAGE,
+        });
+
+        expect(recordUpdate()).not.toHaveBeenCalled();
+        expectNothingWritten();
+      },
+    );
+
+    it("voids a record whose document is signed without re-rendering that document", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(
+        soapRow({ artifact: artifactRow({ status: "SIGNED" }) }),
+      );
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+        renderedDocumentRow(SIGNED),
+      );
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ status: "VOID" }),
+      );
+      const { artifact: _artifact, ...updatedNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.update.mockResolvedValueOnce(updatedNote);
+
+      const result = await ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { status: "VOID" },
+        organisationId,
+      );
+
+      expect(result.artifact.status).toBe("VOID");
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "VOID" }),
+        }),
+      );
+      expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
+      expect(mockedUploadBufferAsFile).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    });
+
+    it("amends a signed record into a new record whose own document is rendered", async () => {
+      const amendedArtifactId = "artifact-2";
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(
+        soapRow({ artifact: artifactRow({ status: "SIGNED" }) }),
+      );
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({ id: amendedArtifactId, status: "DRAFT" }),
+      );
+      const { artifact: _artifact, ...amendedNote } = soapRow({
+        id: "soap-2",
+        artifactId: amendedArtifactId,
+      }) as Record<string, unknown>;
+      mockedPrisma.soapNote.create.mockResolvedValueOnce(amendedNote);
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+        renderedDocumentRow({
+          id: "doc-2",
+          sourceId: amendedArtifactId,
+          clinicalArtifactId: amendedArtifactId,
+          pdfUrl: null,
+        }),
+      );
+
+      const result = await ClinicalArtifactService.amendSoapNote(
+        soapNoteId,
+        organisationId,
+        "vet-2",
+      );
+
+      expect(result.artifact.id).toBe(amendedArtifactId);
+      // Only the new record's document is read and written; the signed
+      // original is never looked up, let alone re-rendered.
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
+        where: { clinicalArtifactId: amendedArtifactId },
+      });
+      expect(mockedPrisma.renderedDocument.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            clinicalArtifactId: amendedArtifactId,
+            status: "DRAFT",
+          }),
+        }),
+      );
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "doc-2" },
+          data: expect.objectContaining({
+            pdfUrl: "https://cdn.example/rendered.pdf",
+          }),
+        }),
+      );
     });
   });
 });

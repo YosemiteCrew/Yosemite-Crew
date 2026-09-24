@@ -80,7 +80,7 @@ type ServicesStepProps = {
   step: 1 | 2;
   bookableServices: ServiceRevamp[];
   /** The organisation's currency, used only where a service carries none. */
-  currency: string;
+  currency: string | undefined;
   selected: Set<string>;
   onToggleService: (id: string) => void;
   bookingWindowDays: number;

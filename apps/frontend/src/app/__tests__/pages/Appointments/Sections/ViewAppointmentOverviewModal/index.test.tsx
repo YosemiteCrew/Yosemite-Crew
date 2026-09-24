@@ -14,6 +14,13 @@ const settle = async () => {
   });
 };
 
+// A USD-billed organisation, stated rather than relied on: with no billing data
+// the currency hook has nothing to offer and no longer guesses USD (#3607).
+jest.mock('@/app/hooks/useBilling', () => ({
+  ...jest.requireActual('@/app/hooks/useBilling'),
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
 jest.mock('next/image', () => {
   const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
   MockImage.displayName = 'Image';

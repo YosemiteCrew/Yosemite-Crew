@@ -651,23 +651,56 @@ describe("TemplateController", () => {
   describe("updateInstance", () => {
     it("updates the instance within the organisation", async () => {
       req.params = { instanceId: "instance-1", organisationId: "org-1" };
-      req.body = { status: "COMPLETED" };
+      req.body = { data: { weight: 12 }, status: "IN_PROGRESS" };
       mockedService.updateInstance.mockResolvedValue({
         id: "instance-1",
-        status: "COMPLETED",
+        status: "IN_PROGRESS",
       });
 
       await TemplateController.updateInstance(req as Request, res);
 
       expect(mockedService.updateInstance).toHaveBeenCalledWith(
         "instance-1",
-        { status: "COMPLETED" },
+        { data: { weight: 12 }, status: "IN_PROGRESS" },
         "org-1",
       );
       expect(jsonMock).toHaveBeenCalledWith({
         id: "instance-1",
-        status: "COMPLETED",
+        status: "IN_PROGRESS",
       });
+    });
+
+    it.each(["COMPLETED", "SIGNED"])(
+      "returns 400 for a %s status sent on a plain write",
+      async (status) => {
+        req.params = { instanceId: "instance-1", organisationId: "org-1" };
+        req.body = { status, signedBy: "someone-else" };
+
+        await TemplateController.updateInstance(req as Request, res);
+
+        expect(mockedService.updateInstance).not.toHaveBeenCalled();
+        expect(statusMock).toHaveBeenCalledWith(400);
+      },
+    );
+
+    it("drops signer and rendered-PDF fields from the payload", async () => {
+      req.params = { instanceId: "instance-1", organisationId: "org-1" };
+      req.body = {
+        data: { weight: 12 },
+        signedBy: "someone-else",
+        signedAt: "2026-01-01T00:00:00.000Z",
+        generatedPdfUrl: "https://pdf",
+        generatedPdf: { p: 1 },
+      };
+      mockedService.updateInstance.mockResolvedValue({ id: "instance-1" });
+
+      await TemplateController.updateInstance(req as Request, res);
+
+      expect(mockedService.updateInstance).toHaveBeenCalledWith(
+        "instance-1",
+        { data: { weight: 12 } },
+        "org-1",
+      );
     });
 
     it("returns 400 for an unknown instance status", async () => {

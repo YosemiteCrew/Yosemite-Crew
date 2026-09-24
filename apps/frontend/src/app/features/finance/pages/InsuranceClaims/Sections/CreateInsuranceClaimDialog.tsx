@@ -14,7 +14,8 @@ type CreateInsuranceClaimDialogProps = {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   companions: CompanionChoice[];
-  currency: string;
+  /** The organisation's billing currency, or undefined while it is not known. */
+  currency: string | undefined;
   saving: boolean;
   error: string | null;
   onSubmit: (input: CreateInsuranceClaimInput) => void;

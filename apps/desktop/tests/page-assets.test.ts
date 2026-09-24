@@ -12,7 +12,7 @@ import path from 'node:path';
 // Three things are checked here, all of them purely from the files:
 //   1. every asset a page references exists;
 //   2. every asset a page references is registered for packaging, or it will
-//      not ship (the rule apps/desktop/AGENTS.md states);
+//      not ship;
 //   3. every `globalThis.ycSomething` a page script reads is assigned by a
 //      helper the same page loads.
 

@@ -3,6 +3,8 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import type { CatalogItemType, ServiceRevamp } from '@/app/features/organization/types/revamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
 import ServiceFormDraft from './ServiceFormDraft';
 
 const ORG_ID = 'org-avenger-park';
@@ -48,13 +50,33 @@ const STUB_CODES: Record<CatalogItemType, string> = {
 
 const realGenerateItemCode = useRevampCatalogStore.getState().generateItemCode;
 
+/**
+ * A USD-billed primary organisation, restored on unmount. The currency hook no
+ * longer guesses USD for an organisation with no billing data (#3607), so the
+ * amounts asserted in dollars below need the currency seeded.
+ */
+const seedUsdOrganisation = () => {
+  const orgSnapshot = useOrgStore.getState();
+  const subscriptionSnapshot = useSubscriptionStore.getState();
+  useOrgStore.setState({ primaryOrgId: ORG_ID, status: 'loaded' });
+  useSubscriptionStore.setState({
+    subscriptionByOrgId: { [ORG_ID]: { orgId: ORG_ID, currency: 'USD' } },
+  });
+  return () => {
+    useSubscriptionStore.setState(subscriptionSnapshot);
+    useOrgStore.setState(orgSnapshot);
+  };
+};
+
 const seed = () => {
   useRevampCatalogStore.setState({
     services: [EXISTING],
     loadedSpecialityIds: [`${SPECIALITY_ID}:active`],
     generateItemCode: (type) => STUB_CODES[type],
   });
+  const restoreOrganisation = seedUsdOrganisation();
   return () => {
+    restoreOrganisation();
     useRevampCatalogStore.setState({
       services: [],
       loadedSpecialityIds: [],

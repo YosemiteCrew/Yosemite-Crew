@@ -11,7 +11,9 @@ import {
   createTemplateInstanceSchema,
   createTemplateSchema,
   TemplateService,
+  updateTemplateInstanceSchema,
 } from "src/services/template.service";
+import { z } from "zod";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -1235,108 +1237,189 @@ describe("TemplateService.updateInstance", () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it("merges patch data and applies every mutable field", async () => {
-    const signedAt = new Date("2026-01-01T00:00:00.000Z");
-    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue({
-      id: "inst-1",
-      organisationId: "org-1",
-      data: { keep: 1 },
-      status: "DRAFT",
-      signedBy: null,
-      signedAt: null,
-      generatedPdfUrl: null,
-      generatedPdf: null,
+  const openInstance = (overrides: Record<string, unknown> = {}) => ({
+    id: "inst-1",
+    organisationId: "org-1",
+    data: { keep: 1 },
+    status: "DRAFT",
+    signedBy: null,
+    signedAt: null,
+    generatedPdfUrl: null,
+    generatedPdf: null,
+    ...overrides,
+  });
+
+  it("merges patch data and applies an allowed status", async () => {
+    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+      openInstance(),
+    );
+    (prisma.templateInstance.update as jest.Mock).mockResolvedValue({});
+
+    await TemplateService.updateInstance(
+      "inst-1",
+      { data: { added: 2 }, status: "IN_PROGRESS" },
+      "org-1",
+    );
+
+    expect(prisma.templateInstance.update).toHaveBeenCalledWith({
+      where: { id: "inst-1", status: "DRAFT" },
+      data: { data: { keep: 1, added: 2 }, status: "IN_PROGRESS" },
     });
+  });
+
+  it("lets server-side form submission complete an open instance", async () => {
+    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+      openInstance({ status: "IN_PROGRESS" }),
+    );
+    (prisma.templateInstance.update as jest.Mock).mockResolvedValue({});
+
+    await TemplateService.updateInstance(
+      "inst-1",
+      { status: "COMPLETED" },
+      "org-1",
+    );
+
+    expect(prisma.templateInstance.update).toHaveBeenCalledWith({
+      where: { id: "inst-1", status: "IN_PROGRESS" },
+      data: { data: undefined, status: "COMPLETED" },
+    });
+  });
+
+  it("keeps the existing data and status when the patch omits them", async () => {
+    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+      openInstance({ status: "IN_PROGRESS" }),
+    );
+    (prisma.templateInstance.update as jest.Mock).mockResolvedValue({});
+
+    await TemplateService.updateInstance("inst-1", {}, "org-1");
+
+    expect(prisma.templateInstance.update).toHaveBeenCalledWith({
+      where: { id: "inst-1", status: "IN_PROGRESS" },
+      data: { data: undefined, status: "IN_PROGRESS" },
+    });
+  });
+
+  it("merges onto an empty object when the stored data is not an object", async () => {
+    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+      openInstance({ data: null }),
+    );
+    (prisma.templateInstance.update as jest.Mock).mockResolvedValue({});
+
+    await TemplateService.updateInstance(
+      "inst-1",
+      { data: { fresh: 1 } },
+      "org-1",
+    );
+
+    expect(prisma.templateInstance.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { data: { fresh: 1 }, status: "DRAFT" },
+      }),
+    );
+  });
+
+  it("refuses a SIGNED status so signing stays on the signing path", async () => {
+    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+      openInstance(),
+    );
+
+    await expect(
+      TemplateService.updateInstance(
+        "inst-1",
+        { status: "SIGNED" } as never,
+        "org-1",
+      ),
+    ).rejects.toBeInstanceOf(z.ZodError);
+    expect(prisma.templateInstance.update).not.toHaveBeenCalled();
+  });
+
+  it("never writes signer or rendered-PDF fields supplied by the caller", async () => {
+    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+      openInstance(),
+    );
     (prisma.templateInstance.update as jest.Mock).mockResolvedValue({});
 
     await TemplateService.updateInstance(
       "inst-1",
       {
         data: { added: 2 },
-        status: "COMPLETED",
-        signedBy: "vet-1",
-        signedAt,
+        signedBy: "someone-else",
+        signedAt: new Date("2026-01-01T00:00:00.000Z"),
         generatedPdfUrl: "https://pdf",
         generatedPdf: { p: 1 },
-      },
+      } as never,
       "org-1",
     );
 
-    expect(prisma.templateInstance.update).toHaveBeenCalledWith({
-      where: { id: "inst-1" },
-      data: {
-        data: { keep: 1, added: 2 },
-        status: "COMPLETED",
-        signedBy: "vet-1",
-        signedAt,
-        generatedPdfUrl: "https://pdf",
-        generatedPdf: { p: 1 },
-      },
+    const [[call]] = (prisma.templateInstance.update as jest.Mock).mock.calls;
+    expect(call.data).toEqual({
+      data: { keep: 1, added: 2 },
+      status: "DRAFT",
     });
   });
 
-  it("preserves existing values when the patch omits fields", async () => {
-    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue({
-      id: "inst-1",
-      organisationId: "org-1",
-      data: { keep: 1 },
-      status: "DRAFT",
-      signedBy: "existing",
-      signedAt: new Date("2026-02-02T00:00:00.000Z"),
-      generatedPdfUrl: "https://existing",
-      generatedPdf: { existing: true },
-    });
-    (prisma.templateInstance.update as jest.Mock).mockResolvedValue({});
+  it.each(["COMPLETED", "SIGNED", "VOID"])(
+    "refuses any edit to a %s instance",
+    async (status) => {
+      (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+        openInstance({ status }),
+      );
 
-    await TemplateService.updateInstance("inst-1", {}, "org-1");
+      await expect(
+        TemplateService.updateInstance(
+          "inst-1",
+          { data: { changed: true } },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(prisma.templateInstance.update).not.toHaveBeenCalled();
+    },
+  );
 
-    expect(prisma.templateInstance.update).toHaveBeenCalledWith({
-      where: { id: "inst-1" },
-      data: expect.objectContaining({
-        data: { keep: 1 },
-        status: "DRAFT",
-        signedBy: "existing",
-        generatedPdfUrl: "https://existing",
+  it("reports a conflict when the instance moved on before the write", async () => {
+    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+      openInstance(),
+    );
+    (prisma.templateInstance.update as jest.Mock).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("No record", {
+        code: "P2025",
+        clientVersion: "test",
       }),
-    });
-  });
-
-  it("nulls out signature and pdf fields when the patch clears them", async () => {
-    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue({
-      id: "inst-1",
-      organisationId: "org-1",
-      // A non-object base exercises the mergeJsonObject fallback branch.
-      data: null,
-      status: "DRAFT",
-      signedBy: "existing",
-      signedAt: new Date("2026-02-02T00:00:00.000Z"),
-      generatedPdfUrl: "https://existing",
-      generatedPdf: { existing: true },
-    });
-    (prisma.templateInstance.update as jest.Mock).mockResolvedValue({});
-
-    await TemplateService.updateInstance(
-      "inst-1",
-      {
-        data: { fresh: 1 },
-        signedBy: null,
-        signedAt: null,
-        generatedPdfUrl: null,
-        generatedPdf: null,
-      },
-      "org-1",
     );
 
-    expect(prisma.templateInstance.update).toHaveBeenCalledWith({
-      where: { id: "inst-1" },
-      data: expect.objectContaining({
-        data: { fresh: 1 },
-        signedBy: undefined,
-        signedAt: undefined,
-        generatedPdfUrl: undefined,
-        generatedPdf: Prisma.DbNull,
+    await expect(
+      TemplateService.updateInstance("inst-1", { data: { a: 1 } }, "org-1"),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("rethrows unexpected write failures", async () => {
+    (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
+      openInstance(),
+    );
+    const failure = new Error("db down");
+    (prisma.templateInstance.update as jest.Mock).mockRejectedValue(failure);
+
+    await expect(
+      TemplateService.updateInstance("inst-1", { data: { a: 1 } }, "org-1"),
+    ).rejects.toBe(failure);
+  });
+});
+
+describe("updateTemplateInstanceSchema (client payload)", () => {
+  it.each(["COMPLETED", "SIGNED"])("rejects a %s status", (status) => {
+    expect(updateTemplateInstanceSchema.safeParse({ status }).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts the open statuses and strips signer fields", () => {
+    expect(
+      updateTemplateInstanceSchema.parse({
+        status: "VOID",
+        signedBy: "someone-else",
+        signedAt: "2026-01-01",
       }),
-    });
+    ).toEqual({ status: "VOID" });
   });
 });
 

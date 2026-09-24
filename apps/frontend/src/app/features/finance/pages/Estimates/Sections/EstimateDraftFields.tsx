@@ -81,7 +81,7 @@ export const EstimateLineEditor = ({
   addLine,
 }: {
   lines: DraftLine[];
-  currency: string;
+  currency: string | undefined;
   updateLine: (key: string, patch: Partial<DraftLine>) => void;
   removeLine: (key: string) => void;
   addLine: () => void;
@@ -153,7 +153,7 @@ export const EstimateTotalsPanel = ({
   currency,
 }: {
   totals: EstimateTotals;
-  currency: string;
+  currency: string | undefined;
 }) => (
   <div className="flex flex-col gap-2 border-t border-t-card-border pt-3!">
     <TotalsRow label="Subtotal" value={formatMoneyPrecise(totals.subtotal, currency)} />

@@ -2,6 +2,7 @@ import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import ServiceSearch from '@/app/ui/inputs/ServiceSearch/ServiceSearch';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { labelWithCurrency } from '@/app/lib/money';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { Service } from '@yosemite-crew/types';
 import React from 'react';
@@ -93,7 +94,7 @@ const SpecialityCard = ({ setFormData, speciality, index }: SpecialityCardProps)
                 intype="number"
                 inname="charge"
                 value={String(service.cost)}
-                inlabel={`Service charge (${currency})`}
+                inlabel={labelWithCurrency('Service charge', currency)}
                 onChange={(event) => updateServiceField(serviceIndex, 'cost', event.target.value)}
               />
               <FormInput

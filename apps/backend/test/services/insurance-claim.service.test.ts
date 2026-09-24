@@ -8,6 +8,9 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 jest.mock("src/config/prisma", () => ({
   prisma: {
     patientOrganisation: { findFirst: jest.fn() },
+    organizationBilling: { findUnique: jest.fn() },
+    organizationAddress: { findUnique: jest.fn() },
+    invoice: { findFirst: jest.fn() },
     insuranceClaim: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -70,6 +73,17 @@ beforeEach(() => {
       Promise.resolve(makeClaim({ ...args.data })),
   );
   pm.insuranceClaim.findMany.mockResolvedValue([makeClaim()]);
+  // A UK clinic whose Connect account cannot take charges yet: its billing row
+  // still carries the schema-default "usd", so only the country (stored as
+  // its name, as the web app writes it) can say it bills in GBP.
+  (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+    currency: "usd",
+    connectChargesEnabled: false,
+  });
+  (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+    country: "United Kingdom",
+  });
+  (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -118,19 +132,147 @@ describe("InsuranceClaimService.create", () => {
     expect(result.status).toBe("DRAFT");
   });
 
-  it("defaults currency to GBP when not supplied", async () => {
-    await InsuranceClaimService.create({
-      organisationId: "org-1",
-      patientId: "pat-1",
-      insurerName: "PetPlan",
-      policyNumber: "PP-12345",
-      submittedAmount: 200,
+  const claimInput = {
+    organisationId: "org-1",
+    patientId: "pat-1",
+    insurerName: "PetPlan",
+    policyNumber: "PP-12345",
+    submittedAmount: 200,
+  };
+
+  // #3607: the claim form sent a guessed USD and the service stored whatever
+  // arrived, or a hardcoded GBP when nothing did.
+  it("stores the organisation's billing currency when none is sent", async () => {
+    (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+      country: "Germany",
     });
+
+    await InsuranceClaimService.create(claimInput);
+
+    expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "EUR" }),
+      }),
+    );
+  });
+
+  it("stores the Connect account's currency once it can take charges", async () => {
+    (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+      currency: "usd",
+      connectChargesEnabled: true,
+    });
+
+    await InsuranceClaimService.create(claimInput);
+
+    expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "USD" }),
+      }),
+    );
+  });
+
+  it("accepts the organisation's own currency when it is sent", async () => {
+    await InsuranceClaimService.create({ ...claimInput, currency: "gbp" });
+
     expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ currency: "GBP" }),
       }),
     );
+  });
+
+  it("refuses a currency other than the organisation's, writing nothing", async () => {
+    const attempt = InsuranceClaimService.create({
+      ...claimInput,
+      currency: "USD",
+    });
+
+    await expect(attempt).rejects.toBeInstanceOf(InsuranceClaimError);
+    await expect(attempt).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Currency must be the organisation's billing currency, GBP.",
+    });
+    expect(pm.insuranceClaim.create).not.toHaveBeenCalled();
+  });
+
+  // A claim reclaims an invoice, and invoices keep the currency they were
+  // raised in: one converted from an estimate before #3607 carries GBP in a
+  // clinic that bills in EUR. Forcing the billing currency on it mislabelled
+  // the amount and refused a caller that sent the invoice's own currency.
+  describe("against an invoice", () => {
+    const againstInvoice = { ...claimInput, invoiceId: "inv-9" };
+
+    beforeEach(() => {
+      (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
+        country: "Germany",
+      });
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue({
+        currency: "GBP",
+      });
+    });
+
+    it("stores the invoice's currency, looked up inside the organisation", async () => {
+      await InsuranceClaimService.create(againstInvoice);
+
+      expect(prisma.invoice.findFirst).toHaveBeenCalledWith({
+        where: { id: "inv-9", organisationId: "org-1" },
+        select: { currency: true },
+      });
+      expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            invoiceId: "inv-9",
+            currency: "GBP",
+          }),
+        }),
+      );
+    });
+
+    it("accepts the invoice's currency when it is sent", async () => {
+      await InsuranceClaimService.create({
+        ...againstInvoice,
+        currency: "gbp",
+      });
+
+      expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ currency: "GBP" }),
+        }),
+      );
+    });
+
+    it("refuses the organisation's currency when the invoice is in another, writing nothing", async () => {
+      const attempt = InsuranceClaimService.create({
+        ...againstInvoice,
+        currency: "EUR",
+      });
+
+      await expect(attempt).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Currency must be the invoice's currency, GBP.",
+      });
+      expect(pm.insuranceClaim.create).not.toHaveBeenCalled();
+    });
+
+    // The id is free text (a claim may be filed before its invoice exists),
+    // and another tenant's invoice must not lend it a currency.
+    it("takes the organisation's currency when the invoice is not in the organisation", async () => {
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(null);
+
+      await InsuranceClaimService.create(againstInvoice);
+
+      expect(pm.insuranceClaim.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ currency: "EUR" }),
+        }),
+      );
+    });
+  });
+
+  it("does not look for an invoice when the claim cites none", async () => {
+    await InsuranceClaimService.create(claimInput);
+
+    expect(prisma.invoice.findFirst).not.toHaveBeenCalled();
   });
 });
 

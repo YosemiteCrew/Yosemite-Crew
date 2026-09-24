@@ -17,10 +17,10 @@ const XCCONFIG = 'ios/mobileAppYC/Secrets.xcconfig';
 /**
  * The repository's placeholder vocabulary, shared with doctor.mjs. One regex,
  * because a gate that recognises only one spelling waves through the others:
- * CHANGE_ME, REPLACE_ME and <API_KEY> are all shapes the templates in this
- * repo have used.
+ * CHANGE_ME, REPLACE_ME, <API_KEY> and numbered EXAMPLE ids (EXAMPLE01,
+ * EXAMPLECLIENTID01) are all shapes the templates in this repo have used.
  */
-export const PLACEHOLDER = /YOUR_[A-Z_]+|CHANGE_?ME|REPLACE_?ME|<[A-Z_]+>/;
+export const PLACEHOLDER = /YOUR_[A-Z_]+|CHANGE_?ME|REPLACE_?ME|<[A-Z_]+>|EXAMPLE[A-Z]*\d+/;
 
 export const REQUIRED = [
   'GOOGLE_MAPS_API_KEY',

@@ -29,7 +29,7 @@
 
 ## Product Walkthrough
 
-https://github.com/user-attachments/assets/50209ebc-f966-4916-abb4-d697b5fbf778
+https://github.com/user-attachments/assets/3f26baf9-5012-4026-90f9-bf64fc40284d
 
 ## Code Quality (SonarCloud)
 
@@ -236,7 +236,7 @@ This is a TypeScript monorepo managed with pnpm workspaces and Turborepo.
 | [`@yosemite-crew/lib`](./packages/lib)                        | Cross-workspace utilities, shared error handling, and clinical PDF generation.                                 |
 | [`@yosemitecrew/mcp-server`](./packages/mcp-server/README.md) | Optional MCP interface to selected read-only developer API operations, authenticated with a developer API key. |
 
-Skills live in [`.agents/skills`](./.agents/skills/) and [`.claude/skills`](./.claude/skills/). Contributor instructions are in [AGENTS.md](./AGENTS.md).
+Skills live in [`.agents/skills`](./.agents/skills/) and [`.claude/skills`](./.claude/skills/). Contributor instructions are in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Our Tech Stack
 
@@ -334,9 +334,9 @@ pnpm --filter mobileAppYC run android
 
 ### 5. Validate Your Changes
 
-Follow [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md) for the affected workspace's checks and targeted tests. Root `pnpm run lint` and `pnpm run type-check` also run on pre-push.
+Follow [CONTRIBUTING.md](./CONTRIBUTING.md) for the affected workspace's checks and targeted tests. Root `pnpm run lint` and `pnpm run type-check` also run on pre-push.
 
-`pnpm run verify` runs lint, type-check, tests, and builds. CI also checks security, accessibility, end-to-end workflows, and releases; required checks are documented in the [CI runbook](./docs/ci/required-checks-migration.md).
+`pnpm run verify` runs lint, type-check, tests, and builds. CI also checks security, accessibility, end-to-end workflows, and releases.
 
 ## Security and Quality
 
@@ -352,7 +352,7 @@ Follow [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md) for the
 | Secret protection      | Staged-secret scanning and CI secret checks                                            |
 | Contribution standards | Conventional commits, PR title validation, and required review workflows               |
 
-Contribution requirements: [engineering standards](./docs/engineering-standards.md) and [required CI checks](./docs/ci/required-checks-migration.md).
+Contribution requirements: [engineering standards](./docs/engineering-standards.md).
 
 ## Documentation
 

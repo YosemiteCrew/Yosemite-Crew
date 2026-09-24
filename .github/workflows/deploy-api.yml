@@ -1,15 +1,11 @@
 name: Deploy API
 
-# The two API hosts are hand-provisioned and NOTHING deployed them: no workflow
-# in this repo touched api.yosemitecrew.com or devapi.yosemitecrew.com, so a
-# green main said nothing about what was running. On 2026-08-23 the dev box was
-# found 254 commits and six migrations behind while main had been green for days,
-# and every production fix that week needed a hand-deploy from someone's laptop.
+# Deploys the backend to the dev or production API host. Deliberately manual
+# (workflow_dispatch, not push): a deploy runs migrations against the live
+# database, so it is a decision someone makes, not a side effect of merging.
 #
-# Deliberately manual (workflow_dispatch, not push). These hosts run migrations
-# against the live database and there is no blue/green, so a deploy is a decision
-# someone makes, not a side effect of merging. What this removes is the drift and
-# the laptop, not the judgement.
+# Deploy targets come from the selected GitHub environment's secrets:
+# API_HOST, API_DEPLOY_USER, API_REPO_DIR, API_PROCESS and API_DEPLOY_SSH_KEY.
 on:
   # The deploy itself stays manual (see below). The unit tests for its git-sync
   # and migration steps do not: they are the only thing standing between a
@@ -113,7 +109,7 @@ jobs:
               echo "  Settings > Environments > ${ENVIRONMENT} > Environment secrets > New secret"
               echo "  Name:  API_DEPLOY_SSH_KEY"
               echo "  Value: the PRIVATE half of the key pair whose public half is in"
-              echo "         ubuntu@<host>:~/.ssh/authorized_keys on that box."
+              echo "         ~/.ssh/authorized_keys of the deploy user on that box."
               echo
               echo "If '${ENVIRONMENT}' is not listed under Environments, create it first."
               echo "A job that names an environment creates it implicitly and empty, so"
@@ -163,12 +159,24 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           INPUT_REF: ${{ inputs.ref }}
+          API_HOST: ${{ secrets.API_HOST }}
+          API_DEPLOY_USER: ${{ secrets.API_DEPLOY_USER }}
+          API_REPO_DIR: ${{ secrets.API_REPO_DIR }}
+          API_PROCESS: ${{ secrets.API_PROCESS }}
         run: |
           set -euo pipefail
+          # The target itself lives in the environment, not in this file. Every
+          # value is required: an empty one would send the deploy nowhere, or to
+          # the wrong checkout, and fail late with a confusing ssh or pm2 error.
+          missing=""
+          for name in API_HOST API_DEPLOY_USER API_REPO_DIR API_PROCESS; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing in the '${ENVIRONMENT}' environment secrets:${missing}. No deploy has happened." >&2
+            exit 1
+          fi
           if [ "$ENVIRONMENT" = "production" ]; then
-            echo "host=63.181.54.147"                       >> "$GITHUB_OUTPUT"
-            echo "repo=/home/ubuntu/Yosemite-Crew"          >> "$GITHUB_OUTPUT"
-            echo "pm2=yosemite-backend"                     >> "$GITHUB_OUTPUT"
             echo "default_ref=main"                         >> "$GITHUB_OUTPUT"
             # Production runs only what has reached main. `default_ref` alone
             # does not achieve that: `ref` is a free-text input that overrides
@@ -176,11 +184,6 @@ jobs:
             # workflow runs from, not the ref the box checks out.
             echo "promotion_branch=main"                    >> "$GITHUB_OUTPUT"
           else
-            echo "host=63.179.216.42"                       >> "$GITHUB_OUTPUT"
-            echo "repo=/home/ubuntu/fix/Yosemite-Crew"      >> "$GITHUB_OUTPUT"
-            # By name, like production: `pm2 resurrect` (the boot unit) renumbers
-            # processes from 0, so a numeric id stops matching after a reboot.
-            echo "pm2=yosemite-temp"                        >> "$GITHUB_OUTPUT"
             echo "default_ref=dev"                          >> "$GITHUB_OUTPUT"
             # Deliberately empty: dev is where work arrives before promotion, so
             # constraining it would defeat the point of having a dev host.
@@ -193,9 +196,14 @@ jobs:
         shell: bash
         env:
           SSH_KEY: ${{ secrets.API_DEPLOY_SSH_KEY }}
-          HOST: ${{ steps.target.outputs.host }}
-          REPO: ${{ steps.target.outputs.repo }}
-          PM2_TARGET: ${{ steps.target.outputs.pm2 }}
+          # Read straight from the environment secrets rather than passed through
+          # step outputs: outputs that carry a secret are dropped by the runner.
+          HOST: ${{ secrets.API_HOST }}
+          DEPLOY_USER: ${{ secrets.API_DEPLOY_USER }}
+          REPO: ${{ secrets.API_REPO_DIR }}
+          # By name, not numeric id: `pm2 resurrect` (the boot unit) renumbers
+          # processes from 0, so a numeric id stops matching after a reboot.
+          PM2_TARGET: ${{ secrets.API_PROCESS }}
           PROMOTION_BRANCH: ${{ steps.target.outputs.promotion_branch }}
           REF: ${{ steps.target.outputs.ref }}
           DEFAULT_REF: ${{ steps.target.outputs.default_ref }}
@@ -219,7 +227,7 @@ jobs:
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
           TARGET_REF="${REF:-$DEFAULT_REF}"
-          echo "Deploying $TARGET_REF to $HOST ($REPO)"
+          echo "Deploying $TARGET_REF to the ${ENVIRONMENT} API host"
 
           # Ship the whole deploy directory from THIS checkout rather than
           # trusting whatever version happens to be on the box. The directory,
@@ -231,18 +239,18 @@ jobs:
           # deploy_prepare_stage in lib/backups.sh. scp resolves the relative path
           # from the home directory.
           { cat scripts/deploy/lib/backups.sh; echo "deploy_prepare_stage \"\$HOME/.yc-deploy\""; } \
-            | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "ubuntu@$HOST" 'bash -s'
+            | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DEPLOY_USER@$HOST" 'bash -s'
 
           scp -r -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            scripts/deploy/. "ubuntu@$HOST:.yc-deploy/scripts/"
+            scripts/deploy/. "$DEPLOY_USER@$HOST:.yc-deploy/scripts/"
 
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            -o ServerAliveInterval=30 "ubuntu@$HOST" \
+            -o ServerAliveInterval=30 "$DEPLOY_USER@$HOST" \
             "chmod +x \$HOME/.yc-deploy/scripts/api-deploy.sh && REQUIRE_PROMOTED_FROM='$PROMOTION_BRANCH' \$HOME/.yc-deploy/scripts/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
 
           # The exact commit the box now serves, for the outside check below.
           # Read only after the script succeeded, so it is the cutover commit.
-          DEPLOYED_SHA="$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "ubuntu@$HOST" \
+          DEPLOYED_SHA="$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DEPLOY_USER@$HOST" \
             "git -C '$REPO' rev-parse HEAD")"
           echo "deployed_sha=$DEPLOYED_SHA" >> "$GITHUB_OUTPUT"
 

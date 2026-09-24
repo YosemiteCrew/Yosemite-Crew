@@ -12,7 +12,7 @@ import {
 
 const getExploreStats = (
   metrics: { revenue: number; appointments: number; tasks: number; staffOnDuty: number },
-  currency: string
+  currency: string | undefined
 ) => [
   {
     name: 'Revenue',

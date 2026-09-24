@@ -5322,6 +5322,77 @@ describe("FinancePaymentService", () => {
     );
   });
 
+  // #3607: the appointment workspace sent a hardcoded "usd" with its cash and
+  // deposit payments, and the payment kept whatever arrived, so a receipt or a
+  // refund could read a currency the invoice was never in.
+  describe("the currency a payment is recorded in", () => {
+    const invoiceInGbp = () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_gbp",
+        totalAmount: 100,
+        currency: "GBP",
+        status: "AWAITING_PAYMENT",
+      });
+      (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+        id: "pa_gbp",
+      });
+      (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+        id: "pay_gbp",
+        amount: 30,
+        status: "SUCCEEDED",
+      });
+    };
+    const recordedCurrencies = () => [
+      (prisma.paymentAttempt.create as jest.Mock).mock.calls[0][0].data
+        .currency,
+      (prisma.payment.create as jest.Mock).mock.calls[0][0].data.currency,
+    ];
+
+    it("records a manual payment in its invoice's currency, whatever case was sent", async () => {
+      invoiceInGbp();
+
+      await FinancePaymentService.recordInvoicePayment("inv_gbp", {
+        provider: "MANUAL",
+        amount: 30,
+        currency: " gbp ",
+      });
+
+      expect(recordedCurrencies()).toEqual(["GBP", "GBP"]);
+    });
+
+    it("refuses a manual payment in another currency, recording nothing", async () => {
+      invoiceInGbp();
+
+      const attempt = FinancePaymentService.recordInvoicePayment("inv_gbp", {
+        provider: "MANUAL",
+        amount: 30,
+        currency: "usd",
+      });
+
+      await expect(attempt).rejects.toBeInstanceOf(FinancePaymentError);
+      await expect(attempt).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Payment currency must be the invoice's currency, GBP.",
+      });
+      expect(prisma.paymentAttempt.create).not.toHaveBeenCalled();
+      expect(prisma.payment.create).not.toHaveBeenCalled();
+    });
+
+    // A capture already happened in the currency the provider reports;
+    // refusing it would lose the record of money that moved.
+    it("keeps a provider capture in the currency the provider reports", async () => {
+      invoiceInGbp();
+
+      await FinancePaymentService.recordInvoicePayment("inv_gbp", {
+        provider: "STRIPE",
+        amount: 30,
+        currency: "eur",
+      });
+
+      expect(recordedCurrencies()).toEqual(["eur", "eur"]);
+    });
+  });
+
   it("defaults manual settlements to cash when no channel is provided", async () => {
     (prisma.invoice.findUnique as jest.Mock)
       .mockResolvedValueOnce({

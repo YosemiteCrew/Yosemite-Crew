@@ -1,6 +1,6 @@
 # Desktop Architecture
 
-This document is the trust-boundary and process-model reference for the Electron desktop shell that packages the Yosemite Crew (YC) PIMS (Practice Information Management System, the veterinary clinic web app). It is written for contributors working in `apps/desktop/` and explains where native capability lives, how the renderer reaches it, and which boundaries must not be weakened. Pair it with [`update-feed-threat-model.md`](update-feed-threat-model.md) for auto-update risks and the app's [`AGENTS.md`](../AGENTS.md) for the day-to-day rules.
+This document is the trust-boundary and process-model reference for the Electron desktop shell that packages the Yosemite Crew (YC) PIMS (Practice Information Management System, the veterinary clinic web app). It is written for contributors working in `apps/desktop/` and explains where native capability lives, how the renderer reaches it, and which boundaries must not be weakened.
 
 ## Process Model
 

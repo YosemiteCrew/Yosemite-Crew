@@ -100,7 +100,7 @@ deploy_deployed_sha() {
   # is the commit being DEPLOYED, the exact value this function exists to stop
   # returning, arriving through the check meant to prevent it. Only reachable
   # through a corrupted or hand-edited record, which is precisely the case this
-  # function's own comment anticipates. Raised by ankit-yc on #2732.
+  # function's own comment anticipates. Raised in review on #2732.
   #
   # Nearly, but not entirely, subsumed by the prefix comparison below: "dev" and
   # "HEAD" resolve to something that does not begin with themselves, so the
@@ -117,7 +117,7 @@ deploy_deployed_sha() {
 
   # Shape is necessary and not sufficient: a BRANCH whose name is seven or more
   # hex characters passes every check above and is then resolved as a ref, so
-  # `deadbeef` comes back as whatever that branch points at. Raised by ankit-yc
+  # `deadbeef` comes back as whatever that branch points at. Raised in review
   # on #2733 after the shape guard landed.
   #
   # So the value is COMPARED rather than described: resolve it, then require the

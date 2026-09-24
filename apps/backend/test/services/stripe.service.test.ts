@@ -302,22 +302,67 @@ describe("StripeService", () => {
       process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
     });
 
-    it("should return billing and usage rows", async () => {
+    const statusFor = async (
+      billing: Record<string, unknown> | null,
+      country: string | null,
+    ) => {
       (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "org_1",
+        address: country === null ? null : { country },
       });
       (
         prisma.organizationBilling.findUnique as jest.Mock
-      ).mockResolvedValueOnce({ orgId: "org_1" });
+      ).mockResolvedValueOnce(billing);
       (
         prisma.organizationUsageCounter.findUnique as jest.Mock
       ).mockResolvedValueOnce({ orgId: "org_1" });
+      return StripeService.getAccountStatus("org_1");
+    };
 
-      const result = await StripeService.getAccountStatus("org_1");
+    it("should return billing and usage rows", async () => {
+      const result = await statusFor(
+        { orgId: "org_1", currency: "usd", connectChargesEnabled: false },
+        null,
+      );
+
       expect(result).toEqual({
-        orgBilling: { orgId: "org_1" },
+        orgBilling: {
+          orgId: "org_1",
+          currency: "usd",
+          connectChargesEnabled: false,
+        },
         orgUsage: { orgId: "org_1" },
       });
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith({
+        where: { id: "org_1" },
+        select: { id: true, address: { select: { country: true } } },
+      });
+    });
+
+    it("returns no billing row when the organisation has none", async () => {
+      const result = await statusFor(null, "United Kingdom");
+
+      expect(result.orgBilling).toBeNull();
+    });
+
+    // #3607: the column holds its "usd" default until the Connect account can
+    // take charges, so the raw row told a UK clinic it billed in dollars.
+    it("hands back the resolved currency until Connect can take charges", async () => {
+      const result = await statusFor(
+        { orgId: "org_1", currency: "usd", connectChargesEnabled: false },
+        "United Kingdom",
+      );
+
+      expect(result.orgBilling?.currency).toBe("gbp");
+    });
+
+    it("hands back the Connect currency once the account can take charges", async () => {
+      const result = await statusFor(
+        { orgId: "org_1", currency: "eur", connectChargesEnabled: true },
+        "United Kingdom",
+      );
+
+      expect(result.orgBilling?.currency).toBe("eur");
     });
   });
 
@@ -426,7 +471,10 @@ describe("StripeService", () => {
       });
       (
         prisma.organizationBilling.findUnique as jest.Mock
-      ).mockResolvedValueOnce({ currency: "jpy" });
+      ).mockResolvedValueOnce({
+        currency: "jpy",
+        connectChargesEnabled: true,
+      });
       mStripe.paymentIntents.create.mockResolvedValueOnce({
         id: "pi_jpy",
         client_secret: "cs_jpy",

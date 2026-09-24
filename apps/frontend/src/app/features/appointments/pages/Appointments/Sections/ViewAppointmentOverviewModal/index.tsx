@@ -124,7 +124,7 @@ const resolveEstimateDisplay = (
   invoicesByAppointmentId: Record<string, import('@yosemite-crew/types').Invoice>,
   serviceInfoCost: string | number,
   serviceInfoMaxDiscount: string | number,
-  orgCurrency: string
+  orgCurrency: string | undefined
 ): string => {
   const normalizedId = normalizeAppointmentId(appointmentId);
   if (normalizedId) {
@@ -285,7 +285,7 @@ type OverviewRightColumnProps = {
     : never;
   estimateDisplay: string;
   /** The org's currency, so the cost and discount rows match the estimate above them. */
-  orgCurrency: string;
+  orgCurrency: string | undefined;
 };
 
 const OverviewRightColumn = ({

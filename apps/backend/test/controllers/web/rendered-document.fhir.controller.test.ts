@@ -5,9 +5,14 @@ import { RenderedDocumentFhirController } from "../../../src/controllers/web/ren
 import {
   getPersistedRenderedDocument,
   getPersistedRenderedDocumentPdf,
+  getRenderedDocumentSourceAuthorId,
   rerenderPersistedClinicalRenderedDocumentPdf,
   signPersistedRenderedDocument,
 } from "../../../src/services/rendered-document.service";
+import {
+  ROLE_PERMISSIONS,
+  type RoleCode,
+} from "../../../src/models/role-permission";
 import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/config/prisma", () => ({
@@ -25,6 +30,7 @@ jest.mock("../../../src/services/rendered-document.service", () => ({
   ) as object),
   getPersistedRenderedDocument: jest.fn(),
   getPersistedRenderedDocumentPdf: jest.fn(),
+  getRenderedDocumentSourceAuthorId: jest.fn(),
   rerenderPersistedClinicalRenderedDocumentPdf: jest.fn(),
   signPersistedRenderedDocument: jest.fn(),
 }));
@@ -42,6 +48,9 @@ const mockedRerenderPersistedClinicalRenderedDocumentPdf = jest.mocked(
 );
 const mockedSignPersistedRenderedDocument = jest.mocked(
   signPersistedRenderedDocument,
+);
+const mockedGetRenderedDocumentSourceAuthorId = jest.mocked(
+  getRenderedDocumentSourceAuthorId,
 );
 const mockedLogger = jest.mocked(logger);
 
@@ -240,6 +249,14 @@ describe("RenderedDocumentFhirController", () => {
   });
 
   it("rerenders a clinical rendered document pdf by id", async () => {
+    (req as { userPermissions?: string[] }).userPermissions = [
+      "forms:edit:any",
+    ];
+    mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId: "org-1",
+      kind: "SOAP_NOTE",
+    } as never);
     mockedRerenderPersistedClinicalRenderedDocumentPdf.mockResolvedValueOnce({
       pdf: Buffer.from("%PDF-RERENDERED"),
       filename: "soap-note-doc-1.pdf",
@@ -268,7 +285,15 @@ describe("RenderedDocumentFhirController", () => {
 
   it("signs a rendered document using the authenticated user", async () => {
     (req as { userId?: string }).userId = "user-1";
+    (req as { userPermissions?: string[] }).userPermissions = [
+      "forms:edit:any",
+    ];
     req.body = { signatureText: "Signed" };
+    mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId: "org-1",
+      kind: "CONSENT",
+    } as never);
     mockedSignPersistedRenderedDocument.mockResolvedValueOnce({
       id: "doc-1",
       signing: {
@@ -314,6 +339,14 @@ describe("RenderedDocumentFhirController", () => {
 
   it("rejects signing when the user profile is missing an email", async () => {
     (req as { userId?: string }).userId = "user-1";
+    (req as { userPermissions?: string[] }).userPermissions = [
+      "forms:edit:any",
+    ];
+    mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId: "org-1",
+      kind: "FORM",
+    } as never);
     (mockedUserFindUnique as any).mockResolvedValueOnce({
       email: null,
       firstName: "User",
@@ -344,6 +377,224 @@ describe("RenderedDocumentFhirController", () => {
     expect(statusMock).toHaveBeenCalledWith(500);
     expect(jsonMock).toHaveBeenCalledWith({
       message: "Internal Server Error",
+    });
+  });
+
+  // Signing or re-rendering acts on the record a document was produced from,
+  // so each kind takes the permission that record's own routes take.
+  describe("edit permission per document kind", () => {
+    const ROLES = Object.keys(ROLE_PERMISSIONS) as RoleCode[];
+
+    // Queued author values a refused call never consumed must not reach the
+    // next case.
+    beforeEach(() => {
+      mockedGetRenderedDocumentSourceAuthorId.mockReset();
+    });
+
+    const actAs = (permissions: readonly string[], userId = "user-1") => {
+      (req as { userId?: string }).userId = userId;
+      (req as { userPermissions?: string[] }).userPermissions = [
+        ...permissions,
+      ];
+    };
+
+    const documentOfKind = (kind: string) =>
+      mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
+        id: "doc-1",
+        organisationId: "org-1",
+        kind,
+        templateInstanceId: null,
+        clinicalArtifactId: "artifact-1",
+      } as never);
+
+    const sign = async () => {
+      mockedSignPersistedRenderedDocument.mockResolvedValueOnce({
+        id: "doc-1",
+        signing: { documentId: "42", signingUrl: null },
+      } as never);
+      await RenderedDocumentFhirController.signRenderedDocument(
+        req as Request,
+        res as Response,
+      );
+    };
+
+    const rerender = async () => {
+      mockedRerenderPersistedClinicalRenderedDocumentPdf.mockResolvedValueOnce({
+        pdf: Buffer.from("%PDF-RERENDERED"),
+        filename: "doc-1.pdf",
+        contentType: "application/pdf",
+      } as never);
+      await RenderedDocumentFhirController.rerenderRenderedDocumentPdf(
+        req as Request,
+        res as Response,
+      );
+    };
+
+    const expectRefused = () => {
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Forbidden – insufficient permissions",
+      });
+      expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+      expect(
+        mockedRerenderPersistedClinicalRenderedDocumentPdf,
+      ).not.toHaveBeenCalled();
+    };
+
+    // Every role holds forms:edit:any, which is what the form, consent, SOAP
+    // note, discharge summary and vital record routes take.
+    it.each(
+      ROLES.flatMap((role) =>
+        [
+          "FORM",
+          "CONSENT",
+          "SOAP_NOTE",
+          "DISCHARGE_SUMMARY",
+          "VITAL_RECORD",
+        ].map((kind) => [role, kind] as const),
+      ),
+    )("lets %s sign a %s document", async (role, kind) => {
+      actAs(ROLE_PERMISSIONS[role]);
+      documentOfKind(kind);
+
+      await sign();
+
+      expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledTimes(1);
+      expect(statusMock).toHaveBeenCalledWith(200);
+      // Only a prescription asks who wrote the record.
+      expect(mockedGetRenderedDocumentSourceAuthorId).not.toHaveBeenCalled();
+    });
+
+    it("refuses a clinical note to a caller without forms:edit:any", async () => {
+      actAs(["prescription:edit:any", "prescription:edit:own"]);
+      documentOfKind("SOAP_NOTE");
+
+      await sign();
+
+      expectRefused();
+    });
+
+    // prescription:edit:any signs any prescription; prescription:edit:own only
+    // the caller's own; a role with neither signs none.
+    const PRESCRIPTION_CASES: Array<[RoleCode, boolean, boolean]> = [
+      ["OWNER", true, true],
+      ["ADMIN", true, true],
+      ["SUPERVISOR", true, true],
+      ["VETERINARIAN", false, true],
+      ["TECHNICIAN", false, true],
+      ["ASSISTANT", false, true],
+      ["RECEPTIONIST", false, false],
+    ];
+
+    it.each(PRESCRIPTION_CASES)(
+      "lets %s sign a colleague's prescription: %s; their own: %s",
+      async (role, colleagues, own) => {
+        actAs(ROLE_PERMISSIONS[role]);
+        documentOfKind("PRESCRIPTION");
+        mockedGetRenderedDocumentSourceAuthorId.mockResolvedValue(
+          "colleague-1",
+        );
+
+        await sign();
+
+        expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledTimes(
+          colleagues ? 1 : 0,
+        );
+        expect(statusMock).toHaveBeenCalledWith(colleagues ? 200 : 403);
+
+        jest.clearAllMocks();
+        actAs(ROLE_PERMISSIONS[role]);
+        documentOfKind("PRESCRIPTION");
+        mockedGetRenderedDocumentSourceAuthorId.mockResolvedValue("user-1");
+
+        await sign();
+
+        expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledTimes(
+          own ? 1 : 0,
+        );
+        expect(statusMock).toHaveBeenCalledWith(own ? 200 : 403);
+      },
+    );
+
+    it("reads the prescription's author from the document it loaded", async () => {
+      actAs(ROLE_PERMISSIONS.VETERINARIAN);
+      documentOfKind("PRESCRIPTION");
+      mockedGetRenderedDocumentSourceAuthorId.mockResolvedValueOnce("user-1");
+
+      await sign();
+
+      expect(mockedGetRenderedDocumentSourceAuthorId).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "doc-1",
+          clinicalArtifactId: "artifact-1",
+        }),
+      );
+    });
+
+    it("refuses a prescription with no author to an own-scope caller", async () => {
+      actAs(ROLE_PERMISSIONS.VETERINARIAN);
+      documentOfKind("PRESCRIPTION");
+      mockedGetRenderedDocumentSourceAuthorId.mockResolvedValueOnce(null);
+
+      await sign();
+
+      expectRefused();
+    });
+
+    it("never treats a blank session user as the author", async () => {
+      actAs(ROLE_PERMISSIONS.VETERINARIAN, "  ");
+      documentOfKind("PRESCRIPTION");
+      mockedGetRenderedDocumentSourceAuthorId.mockResolvedValueOnce("");
+
+      await RenderedDocumentFhirController.rerenderRenderedDocumentPdf(
+        req as Request,
+        res as Response,
+      );
+
+      expectRefused();
+    });
+
+    it("applies the same rule to re-rendering a prescription", async () => {
+      actAs(ROLE_PERMISSIONS.TECHNICIAN);
+      documentOfKind("PRESCRIPTION");
+      mockedGetRenderedDocumentSourceAuthorId.mockResolvedValueOnce(
+        "colleague-1",
+      );
+
+      await rerender();
+
+      expectRefused();
+
+      jest.clearAllMocks();
+      actAs(ROLE_PERMISSIONS.TECHNICIAN);
+      documentOfKind("PRESCRIPTION");
+      mockedGetRenderedDocumentSourceAuthorId.mockResolvedValueOnce("user-1");
+
+      await rerender();
+
+      expect(
+        mockedRerenderPersistedClinicalRenderedDocumentPdf,
+      ).toHaveBeenCalledWith("doc-1", "org-1");
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("refuses re-rendering a clinical note without forms:edit:any", async () => {
+      actAs(["prescription:edit:any"]);
+      documentOfKind("DISCHARGE_SUMMARY");
+
+      await rerender();
+
+      expectRefused();
+    });
+
+    it("checks the kind before resolving the signer", async () => {
+      actAs(ROLE_PERMISSIONS.RECEPTIONIST);
+      documentOfKind("PRESCRIPTION");
+
+      await sign();
+
+      expectRefused();
+      expect(mockedUserFindUnique).not.toHaveBeenCalled();
     });
   });
 });

@@ -7,22 +7,28 @@ import {
   fieldClass,
   inputClass,
 } from '@/app/features/finance/pages/Estimates/Sections/estimateDraft';
-import type { ClaimDraft } from '@/app/features/finance/pages/InsuranceClaims/Sections/useInsuranceClaimDraft';
+import {
+  draftClaimCurrency,
+  type ClaimDraft,
+} from '@/app/features/finance/pages/InsuranceClaims/Sections/useInsuranceClaimDraft';
 
 export type CompanionChoice = { id: string; name: string };
 
 type InsuranceClaimFormFieldsProps = {
   draft: ClaimDraft;
   setField: (patch: Partial<ClaimDraft>) => void;
-  currency: string;
+  /** The organisation's billing currency, or undefined while it is not known. */
+  currency: string | undefined;
   companions: CompanionChoice[];
 };
 
 /**
  * The claim create form's fields. Only the fields the create endpoint accepts
  * are shown; the optional invoice and encounter links are free text because a
- * claim can be filed before either exists. Presentational - the draft state and
- * its validation live in `useInsuranceClaimDraft`.
+ * claim can be filed before either exists. The amount carries no currency symbol
+ * once an invoice is cited, because the claim then takes that invoice's
+ * currency. Presentational - the draft state and its validation live in
+ * `useInsuranceClaimDraft`.
  */
 const InsuranceClaimFormFields = ({
   draft,
@@ -73,7 +79,9 @@ const InsuranceClaimFormFields = ({
 
     <div className="flex flex-col gap-1">
       <label htmlFor="claim-amount" className="text-caption-2 font-bold text-text-tertiary">
-        {`Submitted amount (${currencySymbol(currency)})`}
+        {draftClaimCurrency(draft, currency)
+          ? `Submitted amount (${currencySymbol(currency)})`
+          : 'Submitted amount'}
       </label>
       <span className={`${fieldClass} max-w-52`}>
         <input

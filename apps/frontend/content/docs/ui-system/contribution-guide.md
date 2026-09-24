@@ -163,4 +163,3 @@ When asked to add or modify UI in `apps/frontend`:
 5. Do not hardcode hex values. Use CSS token variables.
 6. Colocate stories beside the component.
 7. Run `npx tsc --noemit` and `pnpm --filter frontend run lint` before finishing.
-8. Follow CLAUDE.md commit discipline: do not commit — report a COMMIT CHECKPOINT to the user.
