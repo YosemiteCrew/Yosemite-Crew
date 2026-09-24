@@ -765,3 +765,131 @@ describe("reads", () => {
     );
   });
 });
+
+describe("organisation scoping", () => {
+  // A caller in ORG_B names records that belong to ORG_A. Every path must
+  // answer 404 and leave the whole store exactly as it was.
+  const expectForeign = async (promise: Promise<unknown>) => {
+    const before = structuredClone(store);
+    await expectError(promise, 404);
+    expect(store).toEqual(before);
+  };
+
+  const postedBillOfA = async (vendorId = VENDOR) => {
+    const bill = await draft({ vendorId });
+    await post(bill.id);
+    return store.bills.find((b) => b.id === bill.id)!;
+  };
+
+  // A bill of ORG_A that carries ORG_B's supplier, so only the organisation
+  // check stands between ORG_B and it: the supplier and currency filters
+  // would otherwise hide the bill on their own.
+  const billOfAUnderVendorB = () => {
+    const bill = newRow("bill", {
+      organisationId: ORG_A,
+      vendorId: VENDOR_B,
+      currency: "GBP",
+      externalReference: "BILL-X",
+      status: "POSTED",
+      totalAmount: 20,
+      taxTotal: 0,
+      version: 1,
+    });
+    store.bills.push(bill);
+    return bill;
+  };
+
+  it("hides another organisation's bill from reads", async () => {
+    const bill = await postedBillOfA();
+    await expectForeign(SupplierBillService.getById(bill.id, ORG_B));
+    const listed = await SupplierBillService.list({ organisationId: ORG_B });
+    expect(listed.bills).toEqual([]);
+  });
+
+  it("will not post another organisation's draft", async () => {
+    const bill = await draft();
+    await expectForeign(
+      SupplierBillService.postBill({
+        billId: bill.id,
+        organisationId: ORG_B,
+        actorId: "user-2",
+        expectedVersion: 0,
+        idempotencyKey: "post-b",
+      }),
+    );
+  });
+
+  it("will not void another organisation's bill", async () => {
+    const bill = await postedBillOfA();
+    await expectForeign(
+      SupplierBillService.voidBill({
+        billId: bill.id,
+        organisationId: ORG_B,
+        actorId: "user-2",
+        reason: "Not ours",
+        expectedVersion: bill.version,
+      }),
+    );
+  });
+
+  it("will not credit another organisation's bill", async () => {
+    const bill = billOfAUnderVendorB();
+    await expectForeign(
+      SupplierBillService.createCredit({
+        organisationId: ORG_B,
+        vendorId: VENDOR_B,
+        currency: "GBP",
+        externalReference: "CN-B",
+        amount: 5,
+        billId: bill.id,
+      }),
+    );
+  });
+
+  it("will not allocate a payment to another organisation's bill", async () => {
+    const bill = billOfAUnderVendorB();
+    await expectForeign(
+      pay({
+        organisationId: ORG_B,
+        vendorId: VENDOR_B,
+        amount: 5,
+        allocations: [{ billId: bill.id, amount: 5 }],
+      }),
+    );
+  });
+
+  it("will not write against another organisation's supplier", async () => {
+    await expectForeign(draft({ organisationId: ORG_B }));
+    await expectForeign(
+      SupplierBillService.createCredit({
+        organisationId: ORG_B,
+        vendorId: VENDOR,
+        currency: "GBP",
+        externalReference: "CN-B",
+        amount: 5,
+      }),
+    );
+    const bill = await postedBillOfA();
+    await expectForeign(
+      pay({
+        organisationId: ORG_B,
+        amount: 5,
+        allocations: [{ billId: bill.id, amount: 5 }],
+      }),
+    );
+  });
+
+  it("hides another organisation's supplier account and statement", async () => {
+    await postedBillOfA();
+    await expectForeign(
+      SupplierBillService.getSupplierAccount(ORG_B, VENDOR, "GBP"),
+    );
+    await expectForeign(
+      SupplierBillService.getSupplierAccountStatement({
+        organisationId: ORG_B,
+        vendorId: VENDOR,
+        currency: "GBP",
+      }),
+    );
+  });
+});

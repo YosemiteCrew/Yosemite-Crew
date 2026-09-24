@@ -96,6 +96,98 @@ describe("SupplierBillController", () => {
     );
   });
 
+  // Every route also names an organisation in the path, query or body. Only
+  // the one withOrgPermissions verified may reach the service.
+  const foreign = { organisationId: "org-b" };
+  it.each([
+    [
+      "createDraft",
+      {
+        body: {
+          vendorId: "vendor-a",
+          currency: "GBP",
+          externalReference: "BILL-1",
+          lines: [line],
+        },
+      },
+    ],
+    ["getById", { params: { id: "bill-1" } }],
+    ["list", { params: {}, query: {} }],
+    [
+      "postBill",
+      {
+        params: { id: "bill-1" },
+        body: { expectedVersion: 0, idempotencyKey: "post-1" },
+      },
+    ],
+    [
+      "voidBill",
+      {
+        params: { id: "bill-1" },
+        body: { reason: "Entered twice", expectedVersion: 1 },
+      },
+    ],
+    [
+      "createCredit",
+      {
+        body: {
+          vendorId: "vendor-a",
+          currency: "GBP",
+          externalReference: "CN-1",
+          amount: 3,
+        },
+      },
+    ],
+    [
+      "createPayment",
+      {
+        body: {
+          vendorId: "vendor-a",
+          currency: "GBP",
+          amount: 5,
+          paidAt: "2026-02-01T00:00:00.000Z",
+          method: "CASH",
+          reference: "Till",
+          allocations: [{ billId: "bill-1", amount: 5 }],
+          idempotencyKey: "pay-1",
+        },
+      },
+    ],
+    [
+      "getSupplierAccount",
+      { params: { vendorId: "vendor-a", currency: "GBP" } },
+    ],
+    [
+      "getSupplierAccountStatement",
+      { params: { vendorId: "vendor-a", currency: "GBP" } },
+    ],
+  ] as const)(
+    "%s acts only for the verified organisation",
+    async (name, input) => {
+      const inputRecord = input as Record<string, Record<string, unknown>>;
+      service[name].mockResolvedValue({});
+      const res = await run(
+        (
+          SupplierBillController as Record<
+            string,
+            typeof SupplierBillController.getById
+          >
+        )[name],
+        makeReq({
+          params: { ...inputRecord.params, ...foreign },
+          query: { ...inputRecord.query, ...foreign },
+          body: { ...inputRecord.body, ...foreign },
+        }),
+      );
+
+      expect(res.status.mock.calls[0][0]).toBeLessThan(300);
+      expect(service[name]).toHaveBeenCalledTimes(1);
+      const args = JSON.stringify(service[name].mock.calls[0]);
+      expect(args).toContain("org-a");
+      expect(args).not.toContain("org-b");
+    },
+  );
+
   it.each([
     ["organisation", { organisationId: undefined }],
     ["user", { userId: undefined }],

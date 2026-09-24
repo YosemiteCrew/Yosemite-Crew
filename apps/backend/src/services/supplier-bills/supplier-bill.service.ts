@@ -522,7 +522,12 @@ export const SupplierBillService = {
 
     await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const claimed = await tx.supplierBill.updateMany({
-        where: { id: billId, version: expectedVersion, status: "DRAFT" },
+        where: {
+          id: billId,
+          organisationId,
+          version: expectedVersion,
+          status: "DRAFT",
+        },
         data: {
           status: "POSTED",
           version: { increment: 1 },
@@ -574,7 +579,12 @@ export const SupplierBillService = {
 
     await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const claimed = await tx.supplierBill.updateMany({
-        where: { id: billId, version: expectedVersion, status: "POSTED" },
+        where: {
+          id: billId,
+          organisationId,
+          version: expectedVersion,
+          status: "POSTED",
+        },
         data: {
           status: "VOID",
           version: { increment: 1 },
