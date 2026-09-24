@@ -184,6 +184,11 @@ deploy_record_deployed_sha() {
 # Carries the record over from where older versions of this script kept it:
 # only while <record-file> does not exist, and only from a regular file owned
 # by this user. Never fails.
+#
+# The old file is removed once the record holds its value. Nothing updates it
+# any more, so from the next cutover on it is out of date, and leaving it would
+# hand that out-of-date commit back as the rollback sha if the record were ever
+# lost. Kept when the record could not be written, so the next deploy retries.
 deploy_adopt_legacy_record() {
   local record="${1:?record file required}"
   local legacy="${2:?legacy record file required}"
@@ -195,6 +200,7 @@ deploy_adopt_legacy_record() {
   if [ -n "$sha" ]; then
     deploy_record_deployed_sha "$record" "$sha"
   fi
+  if [ -e "$record" ]; then rm -f -- "$legacy" 2>/dev/null || true; fi
 }
 
 # deploy_arm_exit_traps

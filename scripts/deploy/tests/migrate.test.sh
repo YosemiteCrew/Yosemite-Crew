@@ -763,7 +763,24 @@ rm -f "$REC"
 deploy_adopt_legacy_record "$REC" "$LEGACY"
 check "a missing record is carried over from the old location" \
   "$M1" "$(deploy_deployed_sha "$REC" "$REPO")"
+check "and the old record is removed" "absent" \
+  "$([ -e "$LEGACY" ] && echo present || echo absent)"
 
+# The box moves on and the record is later lost. The old value is out of date
+# by then and must not come back as the rollback sha.
+deploy_record_deployed_sha "$REC" "$M2"
+rm -f "$REC"
+deploy_adopt_legacy_record "$REC" "$LEGACY"
+check "a record lost after the carry-over is not rebuilt from the old location" \
+  "absent" "$([ -e "$REC" ] && echo present || echo absent)"
+
+# A carry-over that could not be written leaves the old record for the next try.
+printf '%s\n' "$M1" > "$LEGACY"
+deploy_adopt_legacy_record "$WORK/no-such-dir/deployed-sha.txt" "$LEGACY" 2>/dev/null
+check "an old record that could not be carried over is kept" "$M1" "$(cat "$LEGACY")"
+
+# Carried over for real, so the record holds the first commit again.
+deploy_adopt_legacy_record "$REC" "$LEGACY"
 printf '%s\n' "$M2" > "$LEGACY"
 deploy_adopt_legacy_record "$REC" "$LEGACY"
 check "an existing record is not replaced from the old location" \
