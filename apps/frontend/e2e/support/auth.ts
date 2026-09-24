@@ -36,6 +36,15 @@ export const getRequiredEnv = (name: 'YC_E2E_EMAIL' | 'YC_E2E_PASSWORD') => {
  * routes these specs exercise do not exist there - skip instead of failing on
  * an environment that has not been migrated yet.
  */
+/**
+ * Whether a probe hit a route the target API does not serve. Express answers an unknown
+ * route with its own HTML "Cannot GET/POST" page; the app answers every route it serves
+ * with JSON, including its own 404s (an unknown org, an unknown id). Only the former
+ * means "not deployed", so a status code alone cannot decide a skip.
+ */
+export const isRouteAbsent = async (response: Response) =>
+  response.status === 404 && /Cannot (GET|POST|PUT|PATCH|DELETE) /.test(await response.text());
+
 export const skipUnlessAuthSurfaceDeployed = async () => {
   const base = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '');
   if (!base) return;
@@ -50,8 +59,12 @@ export const skipUnlessAuthSurfaceDeployed = async () => {
     body: JSON.stringify({}),
   });
 
+  const absent = await isRouteAbsent(response);
+  console.log(
+    `auth surface probe: HTTP ${response.status}${absent ? ' (route not deployed)' : ''}`
+  );
   test.skip(
-    response.status === 404,
+    absent,
     'Target API does not serve the SuperTokens auth surface yet (pre-cutover environment)'
   );
 
@@ -64,6 +77,17 @@ export const skipUnlessAuthSurfaceDeployed = async () => {
 
 const LOOPBACK_HOST = /^(127\.0\.0\.1|localhost|\[::1\])$/;
 const relayedContexts = new WeakSet<BrowserContext>();
+
+/**
+ * True for the errors Playwright raises when a relayed request is still in flight as a
+ * test finishes (the page or context is gone, or the test has ended). Nothing is waiting
+ * for that response any more, so the relay drops it instead of failing the run.
+ */
+export const isTeardownError = (error: unknown) =>
+  error instanceof Error &&
+  /Test ended|Target page, context or browser has been closed|Route is already handled/.test(
+    error.message
+  );
 
 /**
  * Sends the app's API calls from the Playwright runner when the app is served on
@@ -105,21 +129,31 @@ const relayApiForLoopbackApp = async (page: Page) => {
       });
       return;
     }
-    const response = await route.fetch();
+    let response;
+    try {
+      response = await route.fetch();
+    } catch (error) {
+      if (isTeardownError(error)) return;
+      throw error;
+    }
     // The body arrives decoded, so the encoding and length no longer describe it.
     const headers = Object.fromEntries(
       Object.entries(response.headers()).filter(
         ([name]) => name !== 'content-encoding' && name !== 'content-length'
       )
     );
-    await route.fulfill({
-      response,
-      headers: {
-        ...headers,
-        ...cors,
-        'access-control-expose-headers': Object.keys(headers).join(','),
-      },
-    });
+    await route
+      .fulfill({
+        response,
+        headers: {
+          ...headers,
+          ...cors,
+          'access-control-expose-headers': Object.keys(headers).join(','),
+        },
+      })
+      .catch((error: unknown) => {
+        if (!isTeardownError(error)) throw error;
+      });
   });
 };
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Response } from '@playwright/test';
-import { submitSignIn, waitForRouteAwayFrom } from './support/auth';
+import { isRouteAbsent, submitSignIn, waitForRouteAwayFrom } from './support/auth';
 
 // Signs in with a real credential, exactly as auth-flow.spec.ts does, so the
 // same artefact suppression applies: Playwright records input values verbatim
@@ -35,8 +35,12 @@ const skipUnlessBookingApiDeployed = async () => {
     method: 'GET',
   });
 
+  const absent = await isRouteAbsent(response);
+  console.log(
+    `booking-page probe: HTTP ${response.status}${absent ? ' (route not deployed)' : ''}`
+  );
   test.skip(
-    response.status === 404,
+    absent,
     'Target API does not serve /v1/booking-page yet (frontend deployed ahead of the API)'
   );
 

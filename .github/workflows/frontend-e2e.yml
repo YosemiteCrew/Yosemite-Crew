@@ -21,8 +21,11 @@ env:
   NEXT_PUBLIC_BASE_URL: https://devapi.yosemitecrew.com/
   NEXT_PUBLIC_DISABLE_AUTH_GUARD: 'false'
 
+# A push supersedes the run before it. A manual run is a deliberate check (for example of
+# the authenticated suite after a fixture change) and gets its own group, so the next
+# merge to dev cannot cancel it while it waits for the e2e approval or runs.
 concurrency:
-  group: frontend-e2e-${{ github.ref }}
+  group: frontend-e2e-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:

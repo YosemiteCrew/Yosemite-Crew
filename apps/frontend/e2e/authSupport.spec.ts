@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { LAST_ACTIVE_ORG_ID_KEY, pinPrimaryOrg, submitSignIn } from './support/auth';
+import {
+  LAST_ACTIVE_ORG_ID_KEY,
+  isRouteAbsent,
+  isTeardownError,
+  pinPrimaryOrg,
+  submitSignIn,
+} from './support/auth';
 
 /**
  * The org pin runs in every authenticated spec, which only run after a merge.
@@ -61,4 +67,24 @@ test('signing in applies the org from YC_E2E_ORG_ID', async ({ page }) => {
     if (previous === undefined) delete process.env.YC_E2E_ORG_ID;
     else process.env.YC_E2E_ORG_ID = previous;
   }
+});
+
+test('a deploy probe skips only on the framework 404 for a route the API does not serve', async () => {
+  const expressAbsent = new Response('<pre>Cannot GET /v1/booking-page/x</pre>', { status: 404 });
+  const appNotFound = new Response('{"message":"Booking page not found."}', { status: 404 });
+  const unauthenticated = new Response('{"message":"Authentication required"}', { status: 401 });
+  expect(await isRouteAbsent(expressAbsent)).toBe(true);
+  expect(await isRouteAbsent(appNotFound)).toBe(false);
+  expect(await isRouteAbsent(unauthenticated)).toBe(false);
+  expect(
+    await isRouteAbsent(new Response('<pre>Cannot POST /auth/signinup/code</pre>', { status: 404 }))
+  ).toBe(true);
+});
+
+test('the relay drops only the errors a finished test leaves behind', () => {
+  expect(isTeardownError(new Error('route.fetch: Test ended.'))).toBe(true);
+  expect(isTeardownError(new Error('Target page, context or browser has been closed'))).toBe(true);
+  expect(isTeardownError(new Error('route.fulfill: Route is already handled!'))).toBe(true);
+  expect(isTeardownError(new Error('route.fetch: net::ERR_CONNECTION_REFUSED'))).toBe(false);
+  expect(isTeardownError('Test ended')).toBe(false);
 });
