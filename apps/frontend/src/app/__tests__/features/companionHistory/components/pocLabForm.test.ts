@@ -3,6 +3,7 @@ import {
   TEST_TYPE_OPTIONS,
   buildPocLabPayload,
   emptyPocLabForm,
+  formatConductedAt,
   hasErrors,
   isBlankRow,
   newRow,
@@ -78,6 +79,8 @@ describe('parseResultValue', () => {
     ['-1', -1],
     [' 38 ', 38],
     ['0.41', 0.41],
+    ['12', 12],
+    ['12.5', 12.5],
   ])('sends %p as the number %p', (text, expected) => {
     expect(parseResultValue(text)).toBe(expected);
   });
@@ -86,11 +89,23 @@ describe('parseResultValue', () => {
     ['Haemolysed', 'Haemolysed'],
     ['1+', '1+'],
     ['<5', '<5'],
+    ['<0.1', '<0.1'],
     ['1e3', '1e3'],
     ['.5', '.5'],
     ['  Trace ', 'Trace'],
+    ['Infinity', 'Infinity'],
   ])('keeps %p as the text %p', (text, expected) => {
     expect(parseResultValue(text)).toBe(expected);
+  });
+
+  // A number would print these differently, so the reading is kept as typed.
+  it.each([
+    ['1.50', 'a trailing zero'],
+    ['007', 'leading zeros'],
+    ['12345678901234567890', 'the digits past double precision'],
+    ['-0', 'the sign'],
+  ])('keeps %p as text rather than lose %s', (text) => {
+    expect(parseResultValue(text)).toBe(text);
   });
 });
 
@@ -225,5 +240,36 @@ describe('buildPocLabPayload', () => {
     expect(Object.keys(payload).sort()).toEqual(
       ['conductedAt', 'patientId', 'results', 'testType'].sort()
     );
+  });
+});
+
+describe('formatConductedAt', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    [new Date(2026, 8, 24, 0, 30), /(12|00):30/],
+    [new Date(2026, 8, 24, 23, 30), /(11|23):30/],
+  ])('shows %s on its local day with its local time', (instant, time) => {
+    const text = formatConductedAt(instant.toISOString());
+    expect(text).toMatch(/24/);
+    expect(text).toMatch(/Sep/);
+    expect(text).toMatch(time);
+  });
+
+  it('formats in the browser zone, never pinned to UTC', () => {
+    const spy = jest.spyOn(Date.prototype, 'toLocaleString');
+    formatConductedAt('2026-09-24T09:15:00.000Z');
+    expect(spy).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ hour: 'numeric', minute: '2-digit' })
+    );
+    expect(spy).not.toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ timeZone: expect.anything() })
+    );
+  });
+
+  it('returns null for an unparseable value', () => {
+    expect(formatConductedAt('not-a-date')).toBeNull();
   });
 });

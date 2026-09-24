@@ -162,6 +162,27 @@ describe('PocLabResultForm', () => {
     expect(screen.queryByRole('button', { name: /Remove parameter/ })).not.toBeInTheDocument();
   });
 
+  it('stops Add parameter at the 100-parameter limit and says why', () => {
+    setup();
+    const add = screen.getByRole('button', { name: 'Add parameter' });
+    // Mounted from the start so the limit is announced when it is reached.
+    const status = screen.getByRole('status');
+    expect(status).toBeEmptyDOMElement();
+    expect(status).toHaveClass('sr-only');
+
+    for (let count = 1; count < 100; count += 1) fireEvent.click(add);
+
+    expect(field('Parameter 100 name')).toBeInTheDocument();
+    expect(add).toBeDisabled();
+    expect(status).toHaveTextContent('A lab result can have up to 100 parameters.');
+    expect(status).not.toHaveClass('sr-only');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove parameter 100' }));
+    expect(add).toBeEnabled();
+    expect(status).toBeEmptyDOMElement();
+    expect(status).toHaveClass('sr-only');
+  });
+
   it('submits the entered values and closes once saved', async () => {
     const { onCreate, onClose } = setup();
     await pick(/Test type/, 'Complete blood count');

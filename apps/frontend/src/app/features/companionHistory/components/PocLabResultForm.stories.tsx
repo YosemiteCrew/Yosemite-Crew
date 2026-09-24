@@ -175,6 +175,23 @@ export const Submits: Story = {
   },
 };
 
+export const ParameterLimit: Story = {
+  name: 'Parameter limit reached (100)',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const add = canvas.getByRole('button', { name: 'Add parameter' });
+    const status = canvas.getByRole('status');
+    await expect(status).toBeEmptyDOMElement();
+    // One click at a time: each new row has to render before the next click reads the rows.
+    for (let count = 1; count < 100; count += 1) await userEvent.click(add);
+    await waitFor(() => expect(canvas.getByLabelText('Parameter 100 name')).toHaveFocus());
+    await expect(add).toBeDisabled();
+    await expect(status).toHaveTextContent('A lab result can have up to 100 parameters.');
+    await expect(status).toBeVisible();
+    await expect(canvas.queryByLabelText('Parameter 101 name')).toBeNull();
+  },
+};
+
 // Pinned as a global: Storybook 10 reads the viewport selection from globals only.
 const phone = { globals: { viewport: { value: 'mobile', isRotated: false } } } as const;
 

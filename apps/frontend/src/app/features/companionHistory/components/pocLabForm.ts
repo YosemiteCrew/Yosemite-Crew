@@ -67,6 +67,9 @@ export type PocLabFormErrors = {
   rows: Record<string, PocLabRowErrors>;
 };
 
+/** The backend refuses a result with more parameters than this. */
+export const MAX_PARAMETERS = 100;
+
 export const PARAMETER_REQUIRED = 'Enter a parameter name.';
 export const VALUE_REQUIRED = 'Enter a value.';
 
@@ -109,10 +112,16 @@ export const emptyPocLabForm = (now: Date): PocLabFormValues => ({
 export const isBlankRow = (row: PocLabRowValues): boolean =>
   !row.flag && [row.name, row.value, row.unit, row.low, row.high].every((v) => !v.trim());
 
-/** A reading is sent as a number only when the whole text is one ("7.2", "-1"). */
+/**
+ * A reading is sent as a number only when the number prints back as exactly
+ * what was typed ("7.2", "-1"). Anything a number would change stays text:
+ * "1.50" would lose its trailing zero, "007" its leading zeros, and a long
+ * digit string would be rounded.
+ */
 export const parseResultValue = (text: string): number | string => {
   const trimmed = text.trim();
-  return NUMBER.test(trimmed) ? Number(trimmed) : trimmed;
+  const number = Number(trimmed);
+  return NUMBER.test(trimmed) && String(number) === trimmed ? number : trimmed;
 };
 
 const validateRow = (row: PocLabRowValues): PocLabRowErrors => {
@@ -198,4 +207,20 @@ export const buildPocLabPayload = (
     ...optionalText('notes', values.notes),
     ...(values.followUp ? { followUpRecommended: true } : {}),
   };
+};
+
+/**
+ * Local date and time. Not the shared `formatDate`: that one reads the UTC day
+ * and drops the time, so a test run late in the evening showed on the next day.
+ */
+export const formatConductedAt = (value: string): string | null => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 };

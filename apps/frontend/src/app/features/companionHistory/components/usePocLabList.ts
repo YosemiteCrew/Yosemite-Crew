@@ -29,6 +29,8 @@ type RecordsState = {
   error: string | null;
   /** The record this member just saved, so the list can open it. */
   createdId: string | null;
+  /** Bumped to fetch the same list again. */
+  attempt: number;
 };
 
 const loadingState = (key: string): RecordsState => ({
@@ -37,29 +39,63 @@ const loadingState = (key: string): RecordsState => ({
   loading: true,
   error: null,
   createdId: null,
+  attempt: 0,
 });
 
 const usePocLabRecords = (companionId: string, canView: boolean, key: string) => {
   const [state, setState] = useState<RecordsState>(() => loadingState(''));
+  const { attempt } = state;
   useEffect(() => {
     if (!canView || !companionId) return;
     let active = true;
     fetchPocLabResults({ patientId: companionId })
       .then((records) => {
-        if (active) setState({ key, records, loading: false, error: null, createdId: null });
+        if (!active) return;
+        // The attempt count carries over, or the effect would run again for it.
+        setState(({ attempt: kept }) => ({
+          key,
+          records,
+          loading: false,
+          error: null,
+          createdId: null,
+          attempt: kept,
+        }));
       })
       .catch((error) => {
         if (!active) return;
         // An auth redirect is already navigating away; an error banner would flash.
         const message = isAuthRedirectError(error) ? null : LOAD_ERROR;
-        setState({ key, records: [], loading: false, error: message, createdId: null });
+        setState(({ attempt: kept }) => ({
+          key,
+          records: [],
+          loading: false,
+          error: message,
+          createdId: null,
+          attempt: kept,
+        }));
       });
     return () => {
       active = false;
     };
-  }, [canView, companionId, key]);
+  }, [canView, companionId, key, attempt]);
   return { state: state.key === key ? state : loadingState(key), setState };
 };
+
+/**
+ * Where a saved record goes. A loaded list takes it in date order. A list that
+ * failed to load is unknown, so it is fetched again rather than shown as just
+ * this one record under a stale load error.
+ */
+const withCreated = (current: RecordsState, created: PointOfCareLabResult): RecordsState =>
+  current.error
+    ? {
+        ...current,
+        loading: true,
+        error: null,
+        createdId: created.id,
+        attempt: current.attempt + 1,
+      }
+    : { ...current, records: newestFirst([created, ...current.records]), createdId: created.id };
 
 const useCreatePocLabResult = (
   companionId: string,
@@ -77,11 +113,7 @@ const useCreatePocLabResult = (
       try {
         const created = await createPocLabResult(buildPocLabPayload(companionId, values));
         if (keyRef.current !== operationKey) return false;
-        setState((current) => ({
-          ...current,
-          records: newestFirst([created, ...current.records]),
-          createdId: created.id,
-        }));
+        setState((current) => withCreated(current, created));
         notify('success', {
           title: 'Lab result recorded',
           text: `${TEST_TYPE_LABEL[created.testType]} was added to in-house lab results.`,

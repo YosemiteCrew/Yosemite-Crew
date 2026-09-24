@@ -1,11 +1,9 @@
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { isAuthRedirectError } from '@/app/services/axios';
-import PocLabListPanel, {
-  formatConductedAt,
-} from '@/app/features/companionHistory/components/PocLabListPanel';
+import PocLabListPanel from '@/app/features/companionHistory/components/PocLabListPanel';
 import {
   createPocLabResult,
   fetchPocLabResults,
@@ -43,6 +41,11 @@ const fetchMock = fetchPocLabResults as jest.Mock;
 const createMock = createPocLabResult as jest.Mock;
 const isAuthRedirectMock = isAuthRedirectError as jest.Mock;
 const EMPTY = 'No in-house lab results recorded for this patient yet.';
+
+type Settle = {
+  resolve: (records: PointOfCareLabResult[]) => void;
+  reject: (reason: unknown) => void;
+};
 
 const labResult = (
   overrides: Partial<PointOfCareLabResult> & { id: string }
@@ -189,6 +192,27 @@ describe('PocLabListPanel', () => {
     expect(fetchMock).toHaveBeenLastCalledWith({ patientId: 'patient-2' });
   });
 
+  it.each([
+    ['answers', (settle: Settle) => settle.resolve([labResult({ id: 'lab-1' })])],
+    ['fails', (settle: Settle) => settle.reject(new Error('late'))],
+  ])('ignores a list request that %s after the companion changes', async (_label, finish) => {
+    const settle = {} as Settle;
+    fetchMock
+      .mockReturnValueOnce(
+        new Promise((resolve, reject) => Object.assign(settle, { resolve, reject }))
+      )
+      .mockResolvedValueOnce([labResult({ id: 'lab-2', testType: 'URINALYSIS' })]);
+    const { rerender } = render(<PocLabListPanel companionId="patient-1" />);
+    rerender(<PocLabListPanel companionId="patient-2" />);
+    expect(await screen.findByText('Urinalysis')).toBeInTheDocument();
+
+    await act(async () => finish(settle));
+
+    expect(screen.getByText('Urinalysis')).toBeInTheDocument();
+    expect(screen.queryByText('Complete blood count')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('renders nothing without view permission or a companion id', async () => {
     permissionsMock = [];
     const { container, rerender } = render(<PocLabListPanel companionId="patient-1" />);
@@ -279,6 +303,63 @@ describe('PocLabListPanel', () => {
     expect(order[2]).toMatch(/^Cytology/);
   });
 
+  it('reloads a list that failed to load once a result is saved, and opens the new one', async () => {
+    permissionsMock = [VIEW, EDIT];
+    const older = labResult({
+      id: 'older',
+      testType: 'CYTOLOGY',
+      conductedAt: '2026-05-01T10:00:00.000Z',
+    });
+    const created = labResult({
+      id: 'created',
+      conductedAt: '2026-07-01T10:00:00.000Z',
+      results: [{ name: 'PLT', value: 38, flag: 'LL' }],
+    });
+    fetchMock.mockRejectedValueOnce(new Error('failed')).mockResolvedValueOnce([created, older]);
+    createMock.mockResolvedValue(created);
+    render(<PocLabListPanel companionId="patient-1" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load in-house lab results'
+    );
+
+    await recordMinimalResult();
+
+    expect(await screen.findByText('2 recorded')).toBeInTheDocument();
+    expect(screen.queryByText(/Could not load in-house lab results/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Complete blood count/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: /Cytology/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    expect(mockNotify).toHaveBeenCalledWith('success', {
+      title: 'Lab result recorded',
+      text: 'Complete blood count was added to in-house lab results.',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenLastCalledWith({ patientId: 'patient-1' });
+  });
+
+  it('shows the load error again, once, when that reload fails too', async () => {
+    permissionsMock = [VIEW, EDIT];
+    fetchMock.mockRejectedValue(new Error('failed'));
+    createMock.mockResolvedValue(labResult({ id: 'created' }));
+    render(<PocLabListPanel companionId="patient-1" />);
+    await screen.findByRole('alert');
+
+    await recordMinimalResult();
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load in-house lab results'
+    );
+    expect(screen.queryByText(/recorded$/)).not.toBeInTheDocument();
+    // The reload is not retried in a loop.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps the form open with its values and notifies when the save fails', async () => {
     permissionsMock = [VIEW, EDIT];
     createMock.mockRejectedValue(new Error('500'));
@@ -355,36 +436,5 @@ describe('PocLabListPanel', () => {
 
     expect(createMock).not.toHaveBeenCalled();
     expect(screen.getByRole('form', { name: 'Record a lab result' })).toBeInTheDocument();
-  });
-});
-
-describe('formatConductedAt', () => {
-  afterEach(() => jest.restoreAllMocks());
-
-  it.each([
-    [new Date(2026, 8, 24, 0, 30), /(12|00):30/],
-    [new Date(2026, 8, 24, 23, 30), /(11|23):30/],
-  ])('shows %s on its local day with its local time', (instant, time) => {
-    const text = formatConductedAt(instant.toISOString());
-    expect(text).toMatch(/24/);
-    expect(text).toMatch(/Sep/);
-    expect(text).toMatch(time);
-  });
-
-  it('formats in the browser zone, never pinned to UTC', () => {
-    const spy = jest.spyOn(Date.prototype, 'toLocaleString');
-    formatConductedAt('2026-09-24T09:15:00.000Z');
-    expect(spy).toHaveBeenCalledWith(
-      undefined,
-      expect.objectContaining({ hour: 'numeric', minute: '2-digit' })
-    );
-    expect(spy).not.toHaveBeenCalledWith(
-      undefined,
-      expect.objectContaining({ timeZone: expect.anything() })
-    );
-  });
-
-  it('returns null for an unparseable value', () => {
-    expect(formatConductedAt('not-a-date')).toBeNull();
   });
 });

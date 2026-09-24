@@ -15,6 +15,7 @@ import {
 import PocLabResultForm from '@/app/features/companionHistory/components/PocLabResultForm';
 import {
   TEST_TYPE_LABEL,
+  formatConductedAt,
   type PocLabFormValues,
 } from '@/app/features/companionHistory/components/pocLabForm';
 import { usePocLabList } from '@/app/features/companionHistory/components/usePocLabList';
@@ -84,22 +85,6 @@ const LabResultDetails = ({ record }: { record: PointOfCareLabResult }) => (
     ) : null}
   </div>
 );
-
-/**
- * Local date and time. Not the shared `formatDate`: that one reads the UTC day
- * and drops the time, so a test run late in the evening showed on the next day.
- */
-export const formatConductedAt = (value: string): string | null => {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-};
 
 const LabResultRow = ({
   record,

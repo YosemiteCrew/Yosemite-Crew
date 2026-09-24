@@ -284,74 +284,113 @@ const respond = (config: InternalAxiosRequestConfig, data: unknown): AxiosRespon
   config,
 });
 
+/** What the server would store for a POST body. */
+const storedRecord = (body: CreatePocLabResultInput): PointOfCareLabResult => ({
+  ...SAVED[1],
+  ...body,
+  id: 'lab-recorded',
+  organisationId: ORG_ID,
+  encounterId: null,
+  analyzerName: body.analyzerName ?? null,
+  sampleType: body.sampleType ?? null,
+  overallInterpretation: body.overallInterpretation ?? null,
+  notes: body.notes ?? null,
+  abnormalFlags: body.abnormalFlags ?? [],
+  criticalFlags: body.criticalFlags ?? [],
+  followUpRecommended: body.followUpRecommended ?? null,
+});
+
 /**
  * The panel talks to `/v1/pms/organisation/:id/poc-lab` through the shared axios
- * instance, so its adapter is the seam: the GET answers with one older result and
- * a POST is echoed back as the record the server would store.
+ * instance, so its adapter is the seam: a small in-memory server whose GET lists
+ * one older result plus anything posted, and whose POST stores and echoes the
+ * record. `failFirstGet` makes the first list request fail.
  */
-const pocLabAdapter: AxiosAdapter = (config) => {
-  const url = String(config.url ?? '');
-  if (!url.includes('/poc-lab')) return Promise.resolve(respond(config, []));
-  if (String(config.method).toLowerCase() === 'post') {
-    const body = JSON.parse(String(config.data ?? '{}')) as CreatePocLabResultInput;
-    return Promise.resolve(
-      respond(config, {
-        ...SAVED[1],
-        ...body,
-        id: 'lab-recorded',
-        organisationId: ORG_ID,
-        encounterId: null,
-        analyzerName: body.analyzerName ?? null,
-        sampleType: body.sampleType ?? null,
-        overallInterpretation: body.overallInterpretation ?? null,
-        notes: body.notes ?? null,
-        abnormalFlags: body.abnormalFlags ?? [],
-        criticalFlags: body.criticalFlags ?? [],
-        followUpRecommended: body.followUpRecommended ?? null,
-      })
-    );
-  }
-  return Promise.resolve(respond(config, [{ ...SAVED[1], patientId: COMPANION_ID }]));
+const pocLabServer = ({ failFirstGet = false } = {}): AxiosAdapter => {
+  const stored: PointOfCareLabResult[] = [{ ...SAVED[1], patientId: COMPANION_ID }];
+  let failNextGet = failFirstGet;
+  return (config) => {
+    const url = String(config.url ?? '');
+    if (!url.includes('/poc-lab')) return Promise.resolve(respond(config, []));
+    if (String(config.method).toLowerCase() === 'post') {
+      const record = storedRecord(JSON.parse(String(config.data ?? '{}')));
+      stored.unshift(record);
+      return Promise.resolve(respond(config, record));
+    }
+    if (failNextGet) {
+      failNextGet = false;
+      return Promise.reject(new Error('The lab results service is unavailable.'));
+    }
+    return Promise.resolve(respond(config, [...stored]));
+  };
 };
 
 const REAL_ADAPTER = api.defaults.adapter;
 
+/** Points the shared axios instance at `adapter` and the org store at the story org. */
+const installLiveServer = (adapter: AxiosAdapter) => {
+  clearInFlightGetRequests();
+  const orgSnapshot = useOrgStore.getState();
+  api.defaults.adapter = adapter;
+  useOrgStore.setState({
+    primaryOrgId: ORG_ID,
+    orgIds: [ORG_ID],
+    membershipsByOrgId: { [ORG_ID]: membership() },
+    status: 'loaded',
+  });
+  return () => {
+    api.defaults.adapter = REAL_ADAPTER;
+    useOrgStore.setState(orgSnapshot);
+    clearInFlightGetRequests();
+  };
+};
+
+/** Opens the form, records the smallest valid CBC and waits for the form to close. */
+const recordPlatelets = async (canvasElement: HTMLElement) => {
+  const canvas = within(canvasElement);
+  await userEvent.click(canvas.getByRole('button', { name: 'Add lab result' }));
+  await userEvent.click(canvas.getByRole('button', { name: 'Test type' }));
+  const listbox = await within(canvasElement.ownerDocument.body).findByRole('listbox');
+  await userEvent.click(within(listbox).getByRole('option', { name: 'Complete blood count' }));
+  fireEvent.change(canvas.getByLabelText('Parameter 1 name'), { target: { value: 'PLT' } });
+  fireEvent.change(canvas.getByLabelText('Parameter 1 value'), { target: { value: '38' } });
+  await userEvent.click(canvas.getByRole('button', { name: 'Save lab result' }));
+  await waitFor(() =>
+    expect(canvas.queryByRole('form', { name: 'Record a lab result' })).toBeNull()
+  );
+};
+
 export const RecordsAResult: Story = {
   name: 'Records a result (live panel)',
   args: { records: [] },
-  beforeEach: () => {
-    clearInFlightGetRequests();
-    const orgSnapshot = useOrgStore.getState();
-    api.defaults.adapter = pocLabAdapter;
-    useOrgStore.setState({
-      primaryOrgId: ORG_ID,
-      orgIds: [ORG_ID],
-      membershipsByOrgId: { [ORG_ID]: membership() },
-      status: 'loaded',
-    });
-    return () => {
-      api.defaults.adapter = REAL_ADAPTER;
-      useOrgStore.setState(orgSnapshot);
-      clearInFlightGetRequests();
-    };
-  },
+  beforeEach: () => installLiveServer(pocLabServer()),
   render: () => <PocLabListPanel companionId={COMPANION_ID} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText('Urinalysis', {}, { timeout: 10000 });
-    await userEvent.click(canvas.getByRole('button', { name: 'Add lab result' }));
-    await userEvent.click(canvas.getByRole('button', { name: 'Test type' }));
-    const listbox = await within(canvasElement.ownerDocument.body).findByRole('listbox');
-    await userEvent.click(within(listbox).getByRole('option', { name: 'Complete blood count' }));
-    fireEvent.change(canvas.getByLabelText('Parameter 1 name'), { target: { value: 'PLT' } });
-    fireEvent.change(canvas.getByLabelText('Parameter 1 value'), { target: { value: '38' } });
-    await userEvent.click(canvas.getByRole('button', { name: 'Save lab result' }));
-
-    await waitFor(() =>
-      expect(canvas.queryByRole('form', { name: 'Record a lab result' })).toBeNull()
-    );
+    await recordPlatelets(canvasElement);
     const saved = await canvas.findByRole('button', { name: /Complete blood count/ });
     await expect(saved).toHaveAttribute('aria-expanded', 'true');
     await expect(canvas.getByText('2 recorded')).toBeVisible();
+  },
+};
+
+export const RecordsAfterLoadError: Story = {
+  name: 'Records a result after a failed load (live panel)',
+  args: { records: [] },
+  beforeEach: () => installLiveServer(pocLabServer({ failFirstGet: true })),
+  render: () => <PocLabListPanel companionId={COMPANION_ID} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole('alert', {}, { timeout: 10000 })).toHaveTextContent(
+      'Could not load in-house lab results'
+    );
+    await recordPlatelets(canvasElement);
+    // The list is fetched again, so it shows the older result as well as the new one.
+    await expect(await canvas.findByText('2 recorded', {}, { timeout: 10000 })).toBeVisible();
+    await expect(canvas.queryByRole('alert')).toBeNull();
+    const saved = canvas.getByRole('button', { name: /Complete blood count/ });
+    await expect(saved).toHaveAttribute('aria-expanded', 'true');
+    await expect(canvas.getByRole('button', { name: /Urinalysis/ })).toBeVisible();
   },
 };

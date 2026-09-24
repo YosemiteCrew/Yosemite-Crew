@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import clsx from 'clsx';
 import { IoAddOutline, IoTrashOutline } from 'react-icons/io5';
 import Field from '@/app/ui/Field';
@@ -10,17 +10,17 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import {
   FLAG_OPTIONS,
+  MAX_PARAMETERS,
   TEST_TYPE_OPTIONS,
-  emptyPocLabForm,
-  hasErrors,
-  newRow,
   toDateTimeLocal,
-  validatePocLabForm,
-  type PocLabFormErrors,
   type PocLabFormValues,
   type PocLabRowErrors,
   type PocLabRowValues,
 } from '@/app/features/companionHistory/components/pocLabForm';
+import {
+  usePocLabResultForm,
+  type PocLabResultFormState,
+} from '@/app/features/companionHistory/components/usePocLabResultForm';
 import type {
   LabResultFlag,
   PocTestType,
@@ -43,7 +43,7 @@ const ROW_GRID =
 
 const COLUMNS = ['Parameter', 'Value', 'Unit', 'Reference low', 'Reference high', 'Flag'];
 
-const ROW_FIELDS = ['name', 'value', 'low', 'high'] as const;
+const PARAMETER_LIMIT = `A lab result can have up to ${MAX_PARAMETERS} parameters.`;
 
 const errorId = (controlId: string) => `${controlId}-error`;
 
@@ -101,6 +101,44 @@ const TEXT_COLUMNS: Record<
   high: { label: 'Reference high', aria: 'reference high', maxLength: 50, decimal: true },
 };
 
+type RowTextCellProps = {
+  column: TextColumn;
+  position: number;
+  controlId: string;
+  value: string;
+  error?: string;
+  onChange: (value: string) => void;
+};
+
+const RowTextCell = ({ column, position, controlId, value, error, onChange }: RowTextCellProps) => {
+  const spec = TEXT_COLUMNS[column];
+  return (
+    <RowCell label={spec.label} controlId={controlId} error={error}>
+      <Input
+        id={controlId}
+        aria-label={`Parameter ${position} ${spec.aria}`}
+        aria-describedby={describedBy(controlId, error)}
+        placeholder={spec.placeholder ?? ''}
+        maxLength={spec.maxLength}
+        inputMode={spec.decimal ? 'decimal' : undefined}
+        value={value}
+        error={Boolean(error)}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </RowCell>
+  );
+};
+
+type ResultRowProps = {
+  row: PocLabRowValues;
+  position: number;
+  errors: PocLabRowErrors;
+  canRemove: boolean;
+  idFor: (column: string) => string;
+  onChange: (patch: Partial<PocLabRowValues>) => void;
+  onRemove: () => void;
+};
+
 const ResultRow = ({
   row,
   position,
@@ -109,35 +147,17 @@ const ResultRow = ({
   idFor,
   onChange,
   onRemove,
-}: {
-  row: PocLabRowValues;
-  position: number;
-  errors: PocLabRowErrors;
-  canRemove: boolean;
-  idFor: (column: string) => string;
-  onChange: (patch: Partial<PocLabRowValues>) => void;
-  onRemove: () => void;
-}) => {
-  const text = (column: TextColumn) => {
-    const spec = TEXT_COLUMNS[column];
-    const controlId = idFor(column);
-    const message = column === 'unit' ? undefined : errors[column];
-    return (
-      <RowCell label={spec.label} controlId={controlId} error={message}>
-        <Input
-          id={controlId}
-          aria-label={`Parameter ${position} ${spec.aria}`}
-          aria-describedby={describedBy(controlId, message)}
-          placeholder={spec.placeholder ?? ''}
-          maxLength={spec.maxLength}
-          inputMode={spec.decimal ? 'decimal' : undefined}
-          value={row[column]}
-          error={Boolean(message)}
-          onChange={(event) => onChange({ [column]: event.target.value })}
-        />
-      </RowCell>
-    );
-  };
+}: ResultRowProps) => {
+  const text = (column: TextColumn) => (
+    <RowTextCell
+      column={column}
+      position={position}
+      controlId={idFor(column)}
+      value={row[column]}
+      error={column === 'unit' ? undefined : errors[column]}
+      onChange={(value) => onChange({ [column]: value })}
+    />
+  );
 
   return (
     <div
@@ -185,236 +205,230 @@ const ResultRow = ({
   );
 };
 
+type SectionProps = Pick<PocLabResultFormState, 'ids' | 'values' | 'errors' | 'patch'>;
+
+/**
+ * The latest time the control offers moves forward to now whenever it takes
+ * focus, so a form left open for a while still accepts the current minute.
+ */
+const PerformedAtField = ({ ids, values, errors, patch }: SectionProps) => {
+  const [latestAllowed, setLatestAllowed] = useState(() => toDateTimeLocal(new Date()));
+  return (
+    <Field
+      htmlFor={ids.performedAt}
+      label="Performed at"
+      error={errors?.performedAt}
+      messageId={errorId(ids.performedAt)}
+      className="min-w-0"
+    >
+      <Input
+        id={ids.performedAt}
+        type="datetime-local"
+        placeholder=""
+        max={latestAllowed}
+        value={values.performedAt}
+        error={Boolean(errors?.performedAt)}
+        aria-describedby={describedBy(ids.performedAt, errors?.performedAt)}
+        onFocus={() => setLatestAllowed(toDateTimeLocal(new Date()))}
+        onChange={(event) => patch({ performedAt: event.target.value })}
+      />
+    </Field>
+  );
+};
+
+/** Test type, performed at, sample type and analyzer. */
+const TestDetailsFields = (props: SectionProps) => {
+  const { ids, values, errors, patch } = props;
+  return (
+    <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div id={ids.testType} className="min-w-0">
+        <Dropdown
+          placeholder="Test type"
+          emptyLabel="Select a test type"
+          value={values.testType}
+          options={TEST_TYPE_OPTIONS}
+          error={errors?.testType}
+          onChange={(value: string) => patch({ testType: value as PocTestType })}
+        />
+      </div>
+      <PerformedAtField {...props} />
+      <Field
+        htmlFor={ids.sampleType}
+        label={<OptionalLabel text="Sample type" />}
+        className="min-w-0"
+      >
+        <Input
+          id={ids.sampleType}
+          placeholder="e.g. Whole blood (EDTA)"
+          maxLength={100}
+          value={values.sampleType}
+          onChange={(event) => patch({ sampleType: event.target.value })}
+        />
+      </Field>
+      <Field htmlFor={ids.analyzer} label={<OptionalLabel text="Analyzer" />} className="min-w-0">
+        <Input
+          id={ids.analyzer}
+          placeholder="e.g. In-clinic hematology analyzer"
+          maxLength={200}
+          value={values.analyzerName}
+          onChange={(event) => patch({ analyzerName: event.target.value })}
+        />
+      </Field>
+    </div>
+  );
+};
+
+type ResultsFieldsetProps = Pick<
+  PocLabResultFormState,
+  'ids' | 'values' | 'errors' | 'canAddRow' | 'addRow' | 'patchRow' | 'removeRow'
+> & { isCardLayout: boolean };
+
+/**
+ * One row per parameter, and Add parameter. At the backend's parameter limit
+ * the button is disabled and the status line under it says why.
+ */
+const ResultsFieldset = ({
+  ids,
+  values,
+  errors,
+  canAddRow,
+  addRow,
+  patchRow,
+  removeRow,
+  isCardLayout,
+}: ResultsFieldsetProps) => (
+  <fieldset className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
+    <legend className="mb-1 p-0">
+      <span className="block text-[13px] font-bold text-[var(--ink)]">Results</span>
+      <span className="mt-0.5 block text-xs text-[var(--ink-faint)]">
+        Parameter and value are required. Unit, reference range and flag are optional.
+      </span>
+    </legend>
+    <div className="flex flex-col gap-3 lg:gap-2">
+      <div aria-hidden="true" className={clsx('hidden gap-x-2 lg:grid', ROW_GRID)}>
+        {COLUMNS.map((column) => (
+          <span key={column} className="text-xs font-semibold text-[var(--ink-muted)]">
+            {column}
+          </span>
+        ))}
+      </div>
+      {values.rows.map((row, index) => (
+        <ResultRow
+          key={row.id}
+          row={row}
+          position={index + 1}
+          errors={errors?.rows[row.id] ?? {}}
+          canRemove={values.rows.length > 1}
+          idFor={(column) => ids.row(row.id, column)}
+          onChange={(partial) => patchRow(row.id, partial)}
+          onRemove={() => removeRow(row.id)}
+        />
+      ))}
+    </div>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <Secondary
+        text="Add parameter"
+        icon={<IoAddOutline />}
+        size={isCardLayout ? 'large' : 'compact'}
+        className={isCardLayout ? 'w-full' : undefined}
+        isDisabled={!canAddRow}
+        onClick={addRow}
+      />
+      {/* An <output> is a status region; it stays mounted so the limit is announced. */}
+      <output className={clsx('text-xs text-[var(--ink-faint)]', canAddRow && 'sr-only')}>
+        {canAddRow ? '' : PARAMETER_LIMIT}
+      </output>
+    </div>
+  </fieldset>
+);
+
+/** Interpretation and notes. */
+const NotesFields = ({ ids, values, patch }: SectionProps) => (
+  <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+    <Field htmlFor={ids.interpretation} label={<OptionalLabel text="Interpretation" />}>
+      <Textarea
+        id={ids.interpretation}
+        placeholder="Overall interpretation of these results"
+        maxLength={3000}
+        value={values.interpretation}
+        onChange={(event) => patch({ interpretation: event.target.value })}
+      />
+    </Field>
+    <Field htmlFor={ids.notes} label={<OptionalLabel text="Notes" />}>
+      <Textarea
+        id={ids.notes}
+        placeholder="Anything else the team should know"
+        maxLength={3000}
+        value={values.notes}
+        onChange={(event) => patch({ notes: event.target.value })}
+      />
+    </Field>
+  </div>
+);
+
+type FormFooterProps = Pick<SectionProps, 'ids' | 'values' | 'patch'> & {
+  creating: boolean;
+  onClose: () => void;
+};
+
+/** Follow-up, then Cancel and Save. Below 768px the buttons are full-width 44px targets. */
+const FormFooter = ({ ids, values, patch, creating, onClose }: FormFooterProps) => {
+  const isPhone = useIsPhone();
+  const buttonSize = isPhone ? 'large' : 'compact';
+  return (
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex min-h-11 items-center gap-2.5 md:min-h-0">
+        <input
+          id={ids.followUp}
+          type="checkbox"
+          className="m-0 size-[18px] shrink-0 accent-[var(--cta)]"
+          checked={values.followUp}
+          onChange={(event) => patch({ followUp: event.target.checked })}
+        />
+        <label htmlFor={ids.followUp} className="text-sm font-medium text-[var(--ink-body)]">
+          Follow-up recommended
+        </label>
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:flex md:gap-2">
+        <Secondary
+          text="Cancel"
+          size={buttonSize}
+          className={isPhone ? 'w-full' : undefined}
+          onClick={onClose}
+        />
+        <Primary
+          type="submit"
+          text="Save lab result"
+          size={buttonSize}
+          className={isPhone ? 'w-full' : undefined}
+          isDisabled={creating}
+        />
+      </div>
+    </div>
+  );
+};
+
 /**
  * Inline form that records one in-house (point-of-care) lab result. It
  * validates on submit and again on every change after the first attempt, and
  * keeps Save enabled so a press always says what is missing. It emits raw
- * values; the payload is built by the caller.
+ * values; the payload is built by the caller. State lives in
+ * {@link usePocLabResultForm}.
  */
 const PocLabResultForm = ({ creating = false, onCreate, onClose }: PocLabResultFormProps) => {
-  const baseId = useId();
-  const [values, setValues] = useState<PocLabFormValues>(() => emptyPocLabForm(new Date()));
-  const [latestAllowed, setLatestAllowed] = useState(values.performedAt);
-  const [errors, setErrors] = useState<PocLabFormErrors | null>(null);
-  const focusRowId = useRef<string | null>(null);
-  const isPhone = useIsPhone();
+  const form = usePocLabResultForm({ creating, onCreate, onClose });
   const isCardLayout = useIsPhone(CARD_QUERY);
-
-  const ids = {
-    testType: `${baseId}-test-type`,
-    performedAt: `${baseId}-performed-at`,
-    sampleType: `${baseId}-sample-type`,
-    analyzer: `${baseId}-analyzer`,
-    interpretation: `${baseId}-interpretation`,
-    notes: `${baseId}-notes`,
-    followUp: `${baseId}-follow-up`,
-    row: (rowId: string, column: string) => `${baseId}-${rowId}-${column}`,
-  };
-
-  useEffect(() => {
-    const rowId = focusRowId.current;
-    if (!rowId) return;
-    focusRowId.current = null;
-    document.getElementById(`${baseId}-${rowId}-name`)?.focus();
-  }, [values.rows, baseId]);
-
-  const update = (next: PocLabFormValues) => {
-    setValues(next);
-    if (errors) setErrors(validatePocLabForm(next, new Date()));
-  };
-  const patch = (partial: Partial<PocLabFormValues>) => update({ ...values, ...partial });
-  const patchRow = (rowId: string, partial: Partial<PocLabRowValues>) =>
-    patch({ rows: values.rows.map((row) => (row.id === rowId ? { ...row, ...partial } : row)) });
-
-  const addRow = () => {
-    const row = newRow();
-    focusRowId.current = row.id;
-    patch({ rows: [...values.rows, row] });
-  };
-
-  const focusFirstInvalid = (found: PocLabFormErrors) => {
-    if (found.testType) {
-      document.getElementById(ids.testType)?.querySelector('button')?.focus();
-      return;
-    }
-    if (found.performedAt) {
-      document.getElementById(ids.performedAt)?.focus();
-      return;
-    }
-    for (const row of values.rows) {
-      const column = ROW_FIELDS.find((key) => found.rows[row.id]?.[key]);
-      if (column) {
-        document.getElementById(ids.row(row.id, column))?.focus();
-        return;
-      }
-    }
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (creating) return;
-    const found = validatePocLabForm(values, new Date());
-    setErrors(found);
-    if (hasErrors(found)) {
-      focusFirstInvalid(found);
-      return;
-    }
-    const saved = await onCreate?.(values);
-    if (saved) onClose();
-  };
-
-  const buttonSize = isPhone ? 'large' : 'compact';
-
   return (
     <form
       noValidate
       aria-label="Record a lab result"
       className="flex flex-col gap-5 border-b border-[var(--divider)] bg-[var(--inset)] p-4"
-      onSubmit={handleSubmit}
+      onSubmit={form.handleSubmit}
     >
-      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div id={ids.testType} className="min-w-0">
-          <Dropdown
-            placeholder="Test type"
-            emptyLabel="Select a test type"
-            value={values.testType}
-            options={TEST_TYPE_OPTIONS}
-            error={errors?.testType}
-            onChange={(value: string) => patch({ testType: value as PocTestType })}
-          />
-        </div>
-        <Field
-          htmlFor={ids.performedAt}
-          label="Performed at"
-          error={errors?.performedAt}
-          messageId={errorId(ids.performedAt)}
-          className="min-w-0"
-        >
-          <Input
-            id={ids.performedAt}
-            type="datetime-local"
-            placeholder=""
-            max={latestAllowed}
-            value={values.performedAt}
-            error={Boolean(errors?.performedAt)}
-            aria-describedby={describedBy(ids.performedAt, errors?.performedAt)}
-            onFocus={() => setLatestAllowed(toDateTimeLocal(new Date()))}
-            onChange={(event) => patch({ performedAt: event.target.value })}
-          />
-        </Field>
-        <Field
-          htmlFor={ids.sampleType}
-          label={<OptionalLabel text="Sample type" />}
-          className="min-w-0"
-        >
-          <Input
-            id={ids.sampleType}
-            placeholder="e.g. Whole blood (EDTA)"
-            maxLength={100}
-            value={values.sampleType}
-            onChange={(event) => patch({ sampleType: event.target.value })}
-          />
-        </Field>
-        <Field htmlFor={ids.analyzer} label={<OptionalLabel text="Analyzer" />} className="min-w-0">
-          <Input
-            id={ids.analyzer}
-            placeholder="e.g. In-clinic hematology analyzer"
-            maxLength={200}
-            value={values.analyzerName}
-            onChange={(event) => patch({ analyzerName: event.target.value })}
-          />
-        </Field>
-      </div>
-
-      <fieldset className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
-        <legend className="mb-1 p-0">
-          <span className="block text-[13px] font-bold text-[var(--ink)]">Results</span>
-          <span className="mt-0.5 block text-xs text-[var(--ink-faint)]">
-            Parameter and value are required. Unit, reference range and flag are optional.
-          </span>
-        </legend>
-        <div className="flex flex-col gap-3 lg:gap-2">
-          <div aria-hidden="true" className={clsx('hidden gap-x-2 lg:grid', ROW_GRID)}>
-            {COLUMNS.map((column) => (
-              <span key={column} className="text-xs font-semibold text-[var(--ink-muted)]">
-                {column}
-              </span>
-            ))}
-          </div>
-          {values.rows.map((row, index) => (
-            <ResultRow
-              key={row.id}
-              row={row}
-              position={index + 1}
-              errors={errors?.rows[row.id] ?? {}}
-              canRemove={values.rows.length > 1}
-              idFor={(column) => ids.row(row.id, column)}
-              onChange={(partial) => patchRow(row.id, partial)}
-              onRemove={() => patch({ rows: values.rows.filter((item) => item.id !== row.id) })}
-            />
-          ))}
-        </div>
-        <div>
-          <Secondary
-            text="Add parameter"
-            icon={<IoAddOutline />}
-            size={isCardLayout ? 'large' : 'compact'}
-            className={isCardLayout ? 'w-full' : undefined}
-            onClick={addRow}
-          />
-        </div>
-      </fieldset>
-
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
-        <Field htmlFor={ids.interpretation} label={<OptionalLabel text="Interpretation" />}>
-          <Textarea
-            id={ids.interpretation}
-            placeholder="Overall interpretation of these results"
-            maxLength={3000}
-            value={values.interpretation}
-            onChange={(event) => patch({ interpretation: event.target.value })}
-          />
-        </Field>
-        <Field htmlFor={ids.notes} label={<OptionalLabel text="Notes" />}>
-          <Textarea
-            id={ids.notes}
-            placeholder="Anything else the team should know"
-            maxLength={3000}
-            value={values.notes}
-            onChange={(event) => patch({ notes: event.target.value })}
-          />
-        </Field>
-      </div>
-
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex min-h-11 items-center gap-2.5 md:min-h-0">
-          <input
-            id={ids.followUp}
-            type="checkbox"
-            className="m-0 size-[18px] shrink-0 accent-[var(--cta)]"
-            checked={values.followUp}
-            onChange={(event) => patch({ followUp: event.target.checked })}
-          />
-          <label htmlFor={ids.followUp} className="text-sm font-medium text-[var(--ink-body)]">
-            Follow-up recommended
-          </label>
-        </div>
-        <div className="grid grid-cols-2 gap-3 md:flex md:gap-2">
-          <Secondary
-            text="Cancel"
-            size={buttonSize}
-            className={isPhone ? 'w-full' : undefined}
-            onClick={onClose}
-          />
-          <Primary
-            type="submit"
-            text="Save lab result"
-            size={buttonSize}
-            className={isPhone ? 'w-full' : undefined}
-            isDisabled={creating}
-          />
-        </div>
-      </div>
+      <TestDetailsFields {...form} />
+      <ResultsFieldset {...form} isCardLayout={isCardLayout} />
+      <NotesFields {...form} />
+      <FormFooter {...form} creating={creating} onClose={onClose} />
     </form>
   );
 };
