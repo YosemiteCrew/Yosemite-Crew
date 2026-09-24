@@ -35,6 +35,13 @@ jest.mock('@/app/features/companionHistory/components/FlagListPanel', () => ({
   ),
 }));
 
+jest.mock('@/app/features/companionHistory/components/VitalsHistoryPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => (
+    <div data-testid="vitals-history-panel" data-companion-id={companionId} />
+  ),
+}));
+
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   __esModule: true,
   default: ({ children }: any) => children,
@@ -128,6 +135,10 @@ describe('PhoneCompanionRecord', () => {
       'AC-0092'
     );
     expect(screen.getByTestId('flag-list-panel')).toHaveAttribute('data-companion-id', 'AC-0092');
+    expect(screen.getByTestId('vitals-history-panel')).toHaveAttribute(
+      'data-companion-id',
+      'AC-0092'
+    );
   });
 
   it('shows the edit affordance only with permission', () => {
