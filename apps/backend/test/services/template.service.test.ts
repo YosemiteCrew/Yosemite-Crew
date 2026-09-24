@@ -66,6 +66,8 @@ jest.mock("src/services/clinical-template-blueprints", () => ({
 }));
 
 jest.mock("src/services/task-workflow-blueprints", () => ({
+  isWorkflowKind: jest.requireActual("src/services/task-workflow-blueprints")
+    .isWorkflowKind,
   validateTaskWorkflowTemplateBlueprint: jest.fn(() => ({
     requiredSectionIds: [],
     missingSectionIds: [],
@@ -1468,27 +1470,37 @@ describe("TemplateService.submitInstance", () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it("returns the instance untouched when already completed", async () => {
-    const instance = {
-      id: "inst-1",
-      organisationId: "org-1",
-      status: "COMPLETED",
-      template: { id: "tpl-1", kind: "SOAP_NOTE", ownership: "ORG_TEMPLATE" },
-    };
-    const { update } = runTransaction(instance);
+  // A signed instance is past submission too: submitting it again must not
+  // render a second document or step it back to COMPLETED.
+  it.each(["COMPLETED", "SIGNED"])(
+    "returns the instance untouched when already %s",
+    async (status) => {
+      const instance = {
+        id: "inst-1",
+        organisationId: "org-1",
+        status,
+        template: {
+          id: "tpl-1",
+          kind: "SOAP_NOTE",
+          ownership: "ORG_TEMPLATE",
+        },
+      };
+      const { update } = runTransaction(instance);
 
-    const result = await TemplateService.submitInstance(
-      "inst-1",
-      "org-1",
-      "vet-1",
-    );
+      const result = await TemplateService.submitInstance(
+        "inst-1",
+        "org-1",
+        "vet-1",
+      );
 
-    expect(result).toBe(instance);
-    expect(launchMock).not.toHaveBeenCalled();
-    expect(update).not.toHaveBeenCalled();
-  });
+      expect(result).toBe(instance);
+      expect(launchMock).not.toHaveBeenCalled();
+      expect(renderMock).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    },
+  );
 
-  it("throws when no submitter identity can be derived", async () => {
+  it("throws when no submitter identity can be derived for a task workflow", async () => {
     runTransaction({
       id: "inst-1",
       organisationId: "org-1",
@@ -1512,7 +1524,9 @@ describe("TemplateService.submitInstance", () => {
     expect(launchMock).not.toHaveBeenCalled();
   });
 
-  it("launches the workflow and records a rendered document for FORM kinds", async () => {
+  // The workflow service throws for every kind but TASK_TEMPLATE and
+  // CARE_PATHWAY, so launching it for a form failed the whole submit.
+  it("records a rendered document for FORM kinds without launching a task workflow", async () => {
     const { update } = runTransaction({
       id: "inst-1",
       organisationId: "org-1",
@@ -1522,7 +1536,13 @@ describe("TemplateService.submitInstance", () => {
       templateId: "tpl-1",
       templateVersion: 2,
       generatedPdf: null,
-      template: { id: "tpl-1", kind: "FORM", ownership: "ORG_TEMPLATE" },
+      template: {
+        id: "tpl-1",
+        kind: "FORM",
+        ownership: "ORG_TEMPLATE",
+        name: "Intake questionnaire",
+        rules: { category: "Custom" },
+      },
     });
     renderMock.mockResolvedValue({
       id: "rd-1",
@@ -1540,12 +1560,7 @@ describe("TemplateService.submitInstance", () => {
 
     await TemplateService.submitInstance("inst-1", "org-1");
 
-    expect(launchMock).toHaveBeenCalledWith(
-      "inst-1",
-      "org-1",
-      { actorId: "author-1", canEditAny: true },
-      expect.objectContaining({ notify: true }),
-    );
+    expect(launchMock).not.toHaveBeenCalled();
     expect(renderMock).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Form submission",
@@ -1570,6 +1585,42 @@ describe("TemplateService.submitInstance", () => {
     });
   });
 
+  it("submits a document-backed instance that names no submitter", async () => {
+    const { update } = runTransaction({
+      id: "inst-1",
+      organisationId: "org-1",
+      status: "DRAFT",
+      authorId: null,
+      signedBy: null,
+      templateId: "tpl-1",
+      templateVersion: 1,
+      generatedPdf: null,
+      template: {
+        id: "tpl-1",
+        kind: "FORM",
+        ownership: "ORG_TEMPLATE",
+        name: "Intake questionnaire",
+        rules: null,
+      },
+    });
+    renderMock.mockResolvedValue({
+      id: "rd-1",
+      kind: "FORM",
+      signedAt: null,
+      signedBy: null,
+      pdfUrl: null,
+    });
+
+    await TemplateService.submitInstance("inst-1", "org-1");
+
+    expect(launchMock).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+  });
+
   it("humanises non-FORM document titles and carries signature metadata", async () => {
     const signedAt = new Date("2026-03-03T00:00:00.000Z");
     const { update } = runTransaction({
@@ -1581,7 +1632,13 @@ describe("TemplateService.submitInstance", () => {
       templateId: "tpl-1",
       templateVersion: 1,
       generatedPdf: null,
-      template: { id: "tpl-1", kind: "SOAP_NOTE", ownership: "ORG_TEMPLATE" },
+      template: {
+        id: "tpl-1",
+        kind: "SOAP_NOTE",
+        ownership: "ORG_TEMPLATE",
+        name: "Dental SOAP",
+        rules: null,
+      },
     });
     renderMock.mockResolvedValue({
       id: "rd-2",
@@ -1599,13 +1656,7 @@ describe("TemplateService.submitInstance", () => {
 
     await TemplateService.submitInstance("inst-1", "org-1");
 
-    // authorId is null, so the signer identity is used as the submitter.
-    expect(launchMock).toHaveBeenCalledWith(
-      "inst-1",
-      "org-1",
-      { actorId: "vet-2", canEditAny: true },
-      expect.anything(),
-    );
+    expect(launchMock).not.toHaveBeenCalled();
     expect(renderMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: "SOAP NOTE" }),
       expect.anything(),
@@ -1623,43 +1674,52 @@ describe("TemplateService.submitInstance", () => {
     });
   });
 
+  const consentInstance = (template: Record<string, unknown>) => ({
+    id: "inst-1",
+    organisationId: "org-1",
+    status: "DRAFT",
+    authorId: "author-1",
+    signedBy: null,
+    templateId: "tpl-consent",
+    templateVersion: 3,
+    generatedPdf: null,
+    template: {
+      id: "tpl-consent",
+      ownership: "ORG_TEMPLATE",
+      rules: null,
+      ...template,
+    },
+  });
+
+  const consentDocument = {
+    id: "rd-consent",
+    sourceKind: "TEMPLATE_INSTANCE",
+    sourceId: "inst-1",
+    kind: "CONSENT",
+    version: 1,
+    status: "DRAFT",
+    signable: true,
+    mimeType: "application/pdf",
+    signedAt: null,
+    signedBy: null,
+    pdfUrl: null,
+  };
+
   // #3600: CONSENT was missing from the document-backed kinds, so a submitted
-  // consent template rendered nothing and the Consents panel stayed empty.
-  it("records a CONSENT rendered document for CONSENT templates", async () => {
-    const { update } = runTransaction({
-      id: "inst-1",
-      organisationId: "org-1",
-      status: "DRAFT",
-      authorId: "author-1",
-      signedBy: null,
-      templateId: "tpl-consent",
-      templateVersion: 3,
-      generatedPdf: null,
-      template: {
-        id: "tpl-consent",
-        kind: "CONSENT",
-        ownership: "ORG_TEMPLATE",
-      },
-    });
-    renderMock.mockResolvedValue({
-      id: "rd-consent",
-      sourceKind: "TEMPLATE_INSTANCE",
-      sourceId: "inst-1",
-      kind: "CONSENT",
-      version: 1,
-      status: "DRAFT",
-      signable: true,
-      mimeType: "application/pdf",
-      signedAt: null,
-      signedBy: null,
-      pdfUrl: null,
-    });
+  // consent template rendered nothing and the Consents panel stayed empty. The
+  // document carries the template's name so two consents can be told apart.
+  it("records a CONSENT rendered document titled with the template's name", async () => {
+    const { update } = runTransaction(
+      consentInstance({ kind: "CONSENT", name: "Anaesthesia consent" }),
+    );
+    renderMock.mockResolvedValue(consentDocument);
 
     await TemplateService.submitInstance("inst-1", "org-1");
 
+    expect(launchMock).not.toHaveBeenCalled();
     expect(renderMock).toHaveBeenCalledWith(
       {
-        title: "Consent form",
+        title: "Anaesthesia consent",
         source: {
           sourceKind: "TEMPLATE_INSTANCE",
           sourceId: "inst-1",
@@ -1685,7 +1745,64 @@ describe("TemplateService.submitInstance", () => {
     });
   });
 
-  it("skips rendered documents for non-document template kinds", async () => {
+  it("titles a consent from a template with a blank name 'Consent form'", async () => {
+    runTransaction(consentInstance({ kind: "CONSENT", name: "   " }));
+    renderMock.mockResolvedValue(consentDocument);
+
+    await TemplateService.submitInstance("inst-1", "org-1");
+
+    expect(renderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Consent form" }),
+      expect.anything(),
+    );
+  });
+
+  // Consent templates saved before CONSENT was a storage kind are stored as
+  // FORM; the builder's rules.category is what still marks them as consent.
+  it("records a CONSENT document for a consent template stored as FORM", async () => {
+    runTransaction(
+      consentInstance({
+        kind: "FORM",
+        name: "Vaccination consent",
+        rules: { category: "Consent form", species: [] },
+      }),
+    );
+    renderMock.mockResolvedValue(consentDocument);
+
+    await TemplateService.submitInstance("inst-1", "org-1");
+
+    expect(renderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Vaccination consent",
+        source: expect.objectContaining({ templateKind: "CONSENT" }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it.each([
+    ["another category", { category: "Custom" }],
+    ["no category", { species: ["dog"] }],
+    ["array rules", ["Consent form"]],
+    ["scalar rules", "Consent form"],
+  ])("keeps a FORM template with %s a FORM document", async (_label, rules) => {
+    runTransaction(
+      consentInstance({ kind: "FORM", name: "Intake questionnaire", rules }),
+    );
+    renderMock.mockResolvedValue({ ...consentDocument, kind: "FORM" });
+
+    await TemplateService.submitInstance("inst-1", "org-1");
+
+    expect(renderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Form submission",
+        source: expect.objectContaining({ templateKind: "FORM" }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("launches the task workflow and skips rendered documents for a task template", async () => {
     const { update } = runTransaction({
       id: "inst-1",
       organisationId: "org-1",
@@ -1704,6 +1821,12 @@ describe("TemplateService.submitInstance", () => {
 
     await TemplateService.submitInstance("inst-1", "org-1", "vet-1");
 
+    expect(launchMock).toHaveBeenCalledWith(
+      "inst-1",
+      "org-1",
+      { actorId: "vet-1", canEditAny: true },
+      expect.objectContaining({ notify: true }),
+    );
     expect(renderMock).not.toHaveBeenCalled();
     expect(update).toHaveBeenCalledWith({
       where: { id: "inst-1" },
@@ -1713,6 +1836,34 @@ describe("TemplateService.submitInstance", () => {
         generatedPdfUrl: undefined,
       },
     });
+  });
+
+  it("launches a care pathway as its signer when it names no author", async () => {
+    runTransaction({
+      id: "inst-1",
+      organisationId: "org-1",
+      status: "DRAFT",
+      authorId: null,
+      signedBy: "vet-2",
+      templateId: "tpl-1",
+      templateVersion: 1,
+      generatedPdf: null,
+      template: {
+        id: "tpl-1",
+        kind: "CARE_PATHWAY",
+        ownership: "ORG_TEMPLATE",
+      },
+    });
+
+    await TemplateService.submitInstance("inst-1", "org-1");
+
+    expect(launchMock).toHaveBeenCalledWith(
+      "inst-1",
+      "org-1",
+      { actorId: "vet-2", canEditAny: true },
+      expect.anything(),
+    );
+    expect(renderMock).not.toHaveBeenCalled();
   });
 });
 

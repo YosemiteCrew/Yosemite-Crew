@@ -261,6 +261,57 @@ describe("FormAssignmentService", () => {
     );
   });
 
+  // CONSENT became a storage kind of its own (1c3c790f0); a FORM-only lookup
+  // refused every consent template, so none could be sent to a client.
+  describe("assignable template kinds", () => {
+    const storedKinds: Record<string, string> = {
+      "template-form": "FORM",
+      "template-consent": "CONSENT",
+      "template-soap": "SOAP_NOTE",
+    };
+
+    beforeEach(() => {
+      mockedPrisma.template.findFirst.mockImplementation(
+        async ({ where }: { where: { id: string; kind: unknown } }) => {
+          const kind = storedKinds[where.id];
+          const filter = where.kind as string | { in: string[] };
+          const matches =
+            typeof filter === "string"
+              ? filter === kind
+              : filter.in.includes(kind);
+          return matches
+            ? { id: where.id, latestVersion: 2, publishedVersion: 2 }
+            : null;
+        },
+      );
+    });
+
+    const assign = (templateId: string) =>
+      FormAssignmentService.createForAppointment({
+        organisationId: "org-1",
+        appointmentId: "appt-1",
+        templateId,
+        createdBy: "user-1",
+      });
+
+    it.each(["template-form", "template-consent"])(
+      "assigns %s",
+      async (templateId) => {
+        await expect(assign(templateId)).resolves.toMatchObject({
+          assignmentId: "assignment-1",
+        });
+        expect(mockedPrisma.formAssignment.create).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("still refuses a clinical template", async () => {
+      await expect(assign("template-soap")).rejects.toMatchObject({
+        statusCode: 404,
+      });
+      expect(mockedPrisma.formAssignment.create).not.toHaveBeenCalled();
+    });
+  });
+
   it("rejects assignments for missing templates", async () => {
     mockedPrisma.template.findFirst.mockResolvedValueOnce(null);
 

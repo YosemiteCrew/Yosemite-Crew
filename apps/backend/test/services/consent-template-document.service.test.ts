@@ -1,15 +1,22 @@
 /**
- * #3600: a consent template must produce a CONSENT rendered document that the
- * patient's consent documents list (GET /v1/document/pms/:patientId/consent)
- * returns. This drives the real TemplateService.submitInstance, the real
- * rendered-document create/sign/complete path and the real
+ * #3600: every way a consent template is submitted must leave a CONSENT
+ * rendered document that the patient's consent documents list
+ * (GET /v1/document/pms/:patientId/consent) returns. This drives the real
+ * FormService.submitFHIR (the mobile and PMS form submit routes), the real
+ * TemplateService.createInstance/submitInstance, the real TaskWorkflowService,
+ * the real rendered-document create/sign/complete path and the real
  * DocumentService.listConsentDocumentsForPms against one in-memory store, so
  * the kind written on submit is the kind the list filters on.
  */
+import {
+  toFormSubmissionResponseDTO,
+  type FormSubmission,
+} from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "src/services/audit-trail.service";
 import { DocumentService } from "src/services/document.service";
 import { DocumensoService } from "src/services/documenso.service";
+import { FormService } from "src/services/form.service";
 import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
 import {
   completePersistedRenderedDocumentSigning,
@@ -19,24 +26,33 @@ import { TemplateService } from "src/services/template.service";
 
 type Row = Record<string, unknown>;
 type Store = {
+  templates: Map<string, Row>;
+  templateVersions: Row[];
   templateInstances: Map<string, Row>;
   renderedDocuments: Map<string, Row>;
   documentSignatures: Row[];
   appointments: Row[];
   patientLinks: Row[];
+  parentLinks: Row[];
+  formAssignments: Row[];
 };
 
 // Everything lives inside the factory: it runs while the imports above are
 // being resolved, before any top-level const of this file exists.
 jest.mock("src/config/prisma", () => {
   const store: Store = {
+    templates: new Map(),
+    templateVersions: [],
     templateInstances: new Map(),
     renderedDocuments: new Map(),
     documentSignatures: [],
     appointments: [],
     patientLinks: [],
+    parentLinks: [],
+    formAssignments: [],
   };
   let clock = Date.parse("2026-09-24T09:00:00.000Z");
+  let instanceSequence = 0;
   const tick = () => new Date((clock += 1000));
   const defined = (data: Row) =>
     Object.fromEntries(
@@ -78,12 +94,82 @@ jest.mock("src/config/prisma", () => {
     if (typeof kind === "string") return doc.kind === kind;
     return doc.kind !== (kind as { not: string }).not;
   };
+  const findVersion = (templateId: unknown, version: unknown) =>
+    store.templateVersions.find(
+      (row) => row.templateId === templateId && row.version === version,
+    ) ?? null;
 
   const client = {
-    templateInstance: {
+    template: {
       findUnique: async ({ where }: { where: { id: string } }) => {
+        const template = store.templates.get(where.id);
+        return template
+          ? {
+              ...template,
+              versions: store.templateVersions.filter(
+                (row) => row.templateId === where.id,
+              ),
+              catalogLinks: [],
+            }
+          : null;
+      },
+    },
+    templateVersion: {
+      findFirst: async ({ where }: { where: Row }) =>
+        findVersion(where.templateId, where.version),
+      findUnique: async ({
+        where,
+      }: {
+        where: { templateId_version: { templateId: string; version: number } };
+      }) =>
+        findVersion(
+          where.templateId_version.templateId,
+          where.templateId_version.version,
+        ),
+    },
+    // No concrete form ever exists here, so every submission resolves to a
+    // template, the way a template-backed form does in production.
+    form: { findUnique: async () => null },
+    formVersion: { findFirst: async () => null },
+    templateInstance: {
+      create: async ({ data }: { data: Row }) => {
+        const id = `inst-${++instanceSequence}`;
+        const instance: Row = {
+          id,
+          caseId: null,
+          encounterId: null,
+          appointmentId: null,
+          authorId: null,
+          signedBy: null,
+          signedAt: null,
+          generatedPdf: null,
+          generatedPdfUrl: null,
+          status: "DRAFT",
+          ...defined(data),
+        };
+        store.templateInstances.set(id, instance);
+        return { ...instance };
+      },
+      findUnique: async ({
+        where,
+        include,
+      }: {
+        where: { id: string };
+        include?: {
+          template?: { select: Record<string, boolean> };
+          taskSchedule?: boolean;
+        };
+      }) => {
         const instance = store.templateInstances.get(where.id);
-        return instance ? { ...instance } : null;
+        if (!instance) return null;
+        const template = store.templates.get(instance.templateId as string);
+        return {
+          ...instance,
+          ...(include?.template && template
+            ? { template: pick(template, include.template.select) }
+            : {}),
+          ...(include?.taskSchedule ? { taskSchedule: null } : {}),
+        };
       },
       update: async ({
         where,
@@ -103,7 +189,19 @@ jest.mock("src/config/prisma", () => {
       },
     },
     renderedDocument: {
+      // RenderedDocument.templateInstanceId is @unique, so a second document
+      // for one instance fails here the way it fails in Postgres.
       create: async ({ data }: { data: Row }) => {
+        const clash = [...store.renderedDocuments.values()].some(
+          (doc) =>
+            data.templateInstanceId !== undefined &&
+            doc.templateInstanceId === data.templateInstanceId,
+        );
+        if (clash) {
+          throw new Error(
+            "Unique constraint failed on the fields: (`templateInstanceId`)",
+          );
+        }
         const now = tick();
         const doc: Row = {
           templateInstanceId: null,
@@ -163,6 +261,23 @@ jest.mock("src/config/prisma", () => {
             link.patientId === where.patientId,
         ) ?? null,
     },
+    parentPatient: {
+      findFirst: async ({ where }: { where: Row }) =>
+        store.parentLinks.find(
+          (link) =>
+            link.parentId === where.parentId &&
+            link.patientId === where.patientId,
+        ) ?? null,
+    },
+    formAssignment: {
+      findFirst: async ({ where }: { where: Row }) =>
+        store.formAssignments.find(
+          (assignment) =>
+            assignment.organisationId === where.organisationId &&
+            assignment.templateId === where.templateId &&
+            assignment.appointmentId === where.appointmentId,
+        ) ?? null,
+    },
     appointment: {
       findMany: async ({
         where,
@@ -177,6 +292,12 @@ jest.mock("src/config/prisma", () => {
                 where.patient.equals,
           )
           .map((appointment) => ({ id: appointment.id })),
+      findFirst: async ({ where }: { where: Row }) =>
+        store.appointments.find(
+          (appointment) =>
+            appointment.id === where.id &&
+            appointment.organisationId === where.organisationId,
+        ) ?? null,
       findUnique: async ({ where }: { where: { id: string } }) =>
         store.appointments.find((appointment) => appointment.id === where.id) ??
         null,
@@ -195,8 +316,15 @@ jest.mock("src/config/prisma", () => {
   };
 });
 
-jest.mock("src/services/task-workflow.service", () => ({
-  TaskWorkflowService: { launchFromTemplateInstance: jest.fn() },
+// Assignment status bookkeeping runs after the instance is submitted and is
+// best-effort (a failure is only logged), so it is not part of this flow.
+jest.mock("src/services/form-assignment.service", () => ({
+  FormAssignmentService: { markSubmittedFromSubmission: jest.fn() },
+}));
+
+jest.mock("src/services/formPDF.service", () => ({
+  buildPdfViewModel: jest.fn(),
+  renderPdf: jest.fn(),
 }));
 
 jest.mock("src/services/documenso.service", () => ({
@@ -229,24 +357,96 @@ const recordAuditMock = AuditTrailService.recordSafely as jest.Mock;
 
 const ORG = "org-1";
 const PATIENT = "patient-1";
+const PARENT = "parent-1";
 const APPOINTMENT = "appt-1";
 
-const seedTemplateInstance = (id: string, kind: "CONSENT" | "FORM") => {
+type StorageKind =
+  | "FORM"
+  | "CONSENT"
+  | "SOAP_NOTE"
+  | "PRESCRIPTION"
+  | "DISCHARGE_SUMMARY"
+  | "VITAL_RECORD";
+
+const seedTemplate = (
+  id: string,
+  kind: StorageKind,
+  options: { name?: string; category?: string } = {},
+) => {
+  store.templates.set(id, {
+    id,
+    organisationId: ORG,
+    ownerUserId: null,
+    ownership: "ORG_TEMPLATE",
+    kind,
+    name: options.name ?? `${kind} template`,
+    status: "PUBLISHED",
+    // What the form builder writes (buildTemplatePayload): the author's
+    // category, which for consent was "Consent form" long before CONSENT
+    // became a storage kind.
+    rules: options.category ? { category: options.category } : null,
+    latestVersion: 2,
+    publishedVersion: 2,
+  });
+  store.templateVersions.push({
+    id: `${id}-v2`,
+    templateId: id,
+    version: 2,
+    schemaSnapshot: { sections: [] },
+  });
+  store.formAssignments.push({
+    id: `assignment-${id}`,
+    organisationId: ORG,
+    templateId: id,
+    appointmentId: APPOINTMENT,
+  });
+};
+
+// The instance the PMS template-instance routes create before submitting it.
+const seedTemplateInstance = (id: string, templateId: string) => {
   store.templateInstances.set(id, {
     id,
     organisationId: ORG,
     status: "DRAFT",
     authorId: "vet-1",
     signedBy: null,
-    templateId: `tpl-${id}`,
+    templateId,
     templateVersion: 2,
     generatedPdf: null,
     appointmentId: APPOINTMENT,
     caseId: null,
     encounterId: null,
-    template: { id: `tpl-${id}`, kind, ownership: "ORG_TEMPLATE" },
   });
 };
+
+const questionnaireResponse = (templateId: string) =>
+  toFormSubmissionResponseDTO({
+    _id: "",
+    formId: templateId,
+    formVersion: 2,
+    appointmentId: APPOINTMENT,
+    companionId: PATIENT,
+    parentId: PARENT,
+    answers: { agree: "yes" },
+    submittedAt: new Date("2026-09-24T08:00:00.000Z"),
+  } as FormSubmission);
+
+// POST /fhir/v1/form/mobile/forms/:formId/submit, as the pet parent.
+const submitFromMobile = (templateId: string) =>
+  FormService.submitFHIR(questionnaireResponse(templateId), undefined, PARENT, {
+    parentId: PARENT,
+  });
+
+// POST /fhir/v1/form/admin/:formId/submit, as a PMS user of the organisation.
+const submitFromPms = (templateId: string) =>
+  FormService.submitFHIR(
+    questionnaireResponse(templateId),
+    undefined,
+    "vet-1",
+    {
+      organisationId: ORG,
+    },
+  );
 
 const listConsentDocuments = () =>
   DocumentService.listConsentDocumentsForPms({
@@ -254,15 +454,50 @@ const listConsentDocuments = () =>
     organisationId: ORG,
   });
 
+const signAndComplete = async (renderedDocumentId: string) => {
+  documenso.resolveOrganisationApiKey.mockResolvedValue("documenso-key");
+  renderPdfMock.mockResolvedValue({
+    pdf: Buffer.from("%PDF-1.4 consent"),
+    pageCount: 1,
+    signaturePlacement: {
+      pageNumber: 1,
+      pageX: 10,
+      pageY: 10,
+      width: 20,
+      height: 5,
+    },
+  });
+  documenso.createDocument.mockResolvedValue({
+    id: 4242,
+    recipients: [{ token: "recipient-token" }],
+  } as never);
+  documenso.downloadSignedDocument.mockResolvedValue({
+    downloadUrl: "https://files.example/signed-consent.pdf",
+  } as never);
+
+  await signPersistedRenderedDocument({
+    renderedDocumentId,
+    organisationId: ORG,
+    signerId: "vet-1",
+    signerType: "PMS_USER",
+    signerEmail: "vet@example.com",
+    signerName: "Vet One",
+  });
+  await completePersistedRenderedDocumentSigning(renderedDocumentId);
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
+  store.templates.clear();
+  store.templateVersions.length = 0;
   store.templateInstances.clear();
   store.renderedDocuments.clear();
   store.documentSignatures.length = 0;
+  store.formAssignments.length = 0;
   store.appointments.splice(0, store.appointments.length, {
     id: APPOINTMENT,
     organisationId: ORG,
-    patient: { id: PATIENT },
+    patient: { id: PATIENT, parent: { id: PARENT } },
   });
   store.patientLinks.splice(0, store.patientLinks.length, {
     id: "link-1",
@@ -270,114 +505,188 @@ beforeEach(() => {
     patientId: PATIENT,
     status: "ACTIVE",
   });
+  store.parentLinks.splice(0, store.parentLinks.length, {
+    parentId: PARENT,
+    patientId: PATIENT,
+    role: "PRIMARY",
+    permissions: {},
+  });
 });
 
 describe("consent template documents (#3600)", () => {
-  it("returns a submitted CONSENT template from the patient's consent documents", async () => {
-    seedTemplateInstance("inst-consent", "CONSENT");
+  describe("PMS template-instance submit", () => {
+    it("returns a submitted CONSENT template from the patient's consent documents", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      seedTemplateInstance("inst-consent", "tpl-consent");
 
-    await TemplateService.submitInstance("inst-consent", ORG, "vet-1");
+      await TemplateService.submitInstance("inst-consent", ORG, "vet-1");
 
-    const documents = await listConsentDocuments();
-    expect(documents).toHaveLength(1);
-    expect(documents[0]).toMatchObject({
-      category: "CONSENT",
-      title: "Consent form",
-      sourceKind: "TEMPLATE_INSTANCE",
-      sourceId: "inst-consent",
-      appointmentId: APPOINTMENT,
-      templateId: "tpl-inst-consent",
-      templateVersion: 2,
-      signingStatus: "NOT_STARTED",
-      signedAt: null,
-      pdfUrl: null,
-    });
-    expect(store.templateInstances.get("inst-consent")).toMatchObject({
-      status: "COMPLETED",
-      generatedPdf: expect.objectContaining({
-        renderedDocumentId: documents[0].id,
-        kind: "CONSENT",
-      }),
-    });
-  });
-
-  it("keeps the document CONSENT through signing and lists it as signed", async () => {
-    seedTemplateInstance("inst-consent", "CONSENT");
-    await TemplateService.submitInstance("inst-consent", ORG, "vet-1");
-    const [submitted] = await listConsentDocuments();
-
-    documenso.resolveOrganisationApiKey.mockResolvedValue("documenso-key");
-    renderPdfMock.mockResolvedValue({
-      pdf: Buffer.from("%PDF-1.4 consent"),
-      pageCount: 1,
-      signaturePlacement: {
-        pageNumber: 1,
-        pageX: 10,
-        pageY: 10,
-        width: 20,
-        height: 5,
-      },
-    });
-    documenso.createDocument.mockResolvedValue({
-      id: 4242,
-      recipients: [{ token: "recipient-token" }],
-    } as never);
-    documenso.downloadSignedDocument.mockResolvedValue({
-      downloadUrl: "https://files.example/signed-consent.pdf",
-    } as never);
-
-    await signPersistedRenderedDocument({
-      renderedDocumentId: submitted.id as string,
-      organisationId: ORG,
-      signerId: "vet-1",
-      signerType: "PMS_USER",
-      signerEmail: "vet@example.com",
-      signerName: "Vet One",
-    });
-    await completePersistedRenderedDocumentSigning(submitted.id as string);
-
-    expect(renderPdfMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Consent form",
-        source: expect.objectContaining({
-          sourceKind: "TEMPLATE_INSTANCE",
-          templateKind: "CONSENT",
+      const documents = await listConsentDocuments();
+      expect(documents).toHaveLength(1);
+      expect(documents[0]).toMatchObject({
+        category: "CONSENT",
+        title: "Anaesthesia consent",
+        sourceKind: "TEMPLATE_INSTANCE",
+        sourceId: "inst-consent",
+        appointmentId: APPOINTMENT,
+        templateId: "tpl-consent",
+        templateVersion: 2,
+        signingStatus: "NOT_STARTED",
+        signedAt: null,
+        pdfUrl: null,
+      });
+      expect(store.templateInstances.get("inst-consent")).toMatchObject({
+        status: "COMPLETED",
+        generatedPdf: expect.objectContaining({
+          renderedDocumentId: documents[0].id,
+          kind: "CONSENT",
         }),
-      }),
+      });
+    });
+
+    it("keeps the document CONSENT through signing and lists it as signed", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      seedTemplateInstance("inst-consent", "tpl-consent");
+      await TemplateService.submitInstance("inst-consent", ORG, "vet-1");
+      const [submitted] = await listConsentDocuments();
+
+      await signAndComplete(submitted.id as string);
+
+      expect(renderPdfMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Anaesthesia consent",
+          source: expect.objectContaining({
+            sourceKind: "TEMPLATE_INSTANCE",
+            templateKind: "CONSENT",
+          }),
+        }),
+      );
+
+      const [signed] = await listConsentDocuments();
+      expect(signed).toMatchObject({
+        id: submitted.id,
+        category: "CONSENT",
+        signingStatus: "SIGNED",
+        pdfUrl: "https://files.example/signed-consent.pdf",
+        pmsVisible: true,
+      });
+      expect(signed.signedAt).toEqual(expect.any(String));
+      expect(store.templateInstances.get("inst-consent")?.status).toBe(
+        "SIGNED",
+      );
+      expect(recordAuditMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: ORG,
+          patientId: PATIENT,
+          eventType: "CONSENT_FORM_SIGNED",
+          metadata: { renderedDocumentId: submitted.id, kind: "CONSENT" },
+        }),
+      );
+    });
+
+    it("still renders a FORM template as a FORM document the consent list leaves out", async () => {
+      seedTemplate("tpl-form", "FORM", { category: "Custom" });
+      seedTemplateInstance("inst-form", "tpl-form");
+
+      await TemplateService.submitInstance("inst-form", ORG, "vet-1");
+
+      const stored = [...store.renderedDocuments.values()];
+      expect(stored).toHaveLength(1);
+      expect(stored[0]).toMatchObject({
+        kind: "FORM",
+        title: "Form submission",
+        templateInstanceId: "inst-form",
+      });
+      await expect(listConsentDocuments()).resolves.toEqual([]);
+    });
+  });
+
+  // Both form submit routes write a template-backed submission as a template
+  // instance (FormService.submitViaTemplateInstance). They used to set it
+  // COMPLETED directly, which rendered no document for any template kind.
+  describe.each([
+    ["mobile (pet parent)", submitFromMobile],
+    ["PMS form submit", submitFromPms],
+  ])("%s", (_route, submit) => {
+    it.each([
+      ["a CONSENT template", "CONSENT" as const, undefined],
+      // Saved before CONSENT was a storage kind: stored as FORM, and only its
+      // rules.category still says it is a consent.
+      ["a consent template stored as FORM", "FORM" as const, "Consent form"],
+    ])(
+      "lists %s in the patient's consent documents",
+      async (_label, kind, category) => {
+        seedTemplate("tpl-consent", kind, {
+          name: "Dental procedure consent",
+          category,
+        });
+
+        const submission = await submit("tpl-consent");
+
+        const documents = await listConsentDocuments();
+        expect(documents).toHaveLength(1);
+        expect(documents[0]).toMatchObject({
+          category: "CONSENT",
+          title: "Dental procedure consent",
+          sourceKind: "TEMPLATE_INSTANCE",
+          sourceId: submission._id,
+          appointmentId: APPOINTMENT,
+          templateId: "tpl-consent",
+          templateVersion: 2,
+          signingStatus: "NOT_STARTED",
+        });
+        expect(store.templateInstances.get(submission._id)).toMatchObject({
+          status: "COMPLETED",
+          data: { agree: "yes" },
+          generatedPdf: expect.objectContaining({
+            renderedDocumentId: documents[0].id,
+            kind: "CONSENT",
+          }),
+        });
+      },
     );
 
-    const [signed] = await listConsentDocuments();
-    expect(signed).toMatchObject({
-      id: submitted.id,
-      category: "CONSENT",
-      signingStatus: "SIGNED",
-      pdfUrl: "https://files.example/signed-consent.pdf",
-      pmsVisible: true,
-    });
-    expect(signed.signedAt).toEqual(expect.any(String));
-    expect(store.templateInstances.get("inst-consent")?.status).toBe("SIGNED");
-    expect(recordAuditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organisationId: ORG,
-        patientId: PATIENT,
-        eventType: "CONSENT_FORM_SIGNED",
-        metadata: { renderedDocumentId: submitted.id, kind: "CONSENT" },
-      }),
+    it.each([
+      "FORM",
+      "SOAP_NOTE",
+      "PRESCRIPTION",
+      "DISCHARGE_SUMMARY",
+      "VITAL_RECORD",
+    ] as const)(
+      "renders a %s template as a document of its own kind",
+      async (kind) => {
+        seedTemplate("tpl-doc", kind, { category: "Custom" });
+
+        const submission = await submit("tpl-doc");
+
+        const stored = [...store.renderedDocuments.values()];
+        expect(stored).toHaveLength(1);
+        expect(stored[0]).toMatchObject({
+          kind,
+          templateInstanceId: submission._id,
+          templateId: "tpl-doc",
+        });
+        expect(store.templateInstances.get(submission._id)?.status).toBe(
+          "COMPLETED",
+        );
+        await expect(listConsentDocuments()).resolves.toEqual([]);
+      },
     );
   });
 
-  it("still renders a FORM template as a FORM document the consent list leaves out", async () => {
-    seedTemplateInstance("inst-form", "FORM");
+  it("renders one document however many times the instance is submitted", async () => {
+    seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+    const submission = await submitFromMobile("tpl-consent");
 
-    await TemplateService.submitInstance("inst-form", ORG, "vet-1");
+    await TemplateService.submitInstance(submission._id, ORG, "vet-1");
+    const [document] = await listConsentDocuments();
+    await signAndComplete(document.id as string);
+    await TemplateService.submitInstance(submission._id, ORG, "vet-1");
 
-    const stored = [...store.renderedDocuments.values()];
-    expect(stored).toHaveLength(1);
-    expect(stored[0]).toMatchObject({
-      kind: "FORM",
-      title: "Form submission",
-      templateInstanceId: "inst-form",
-    });
-    await expect(listConsentDocuments()).resolves.toEqual([]);
+    expect(store.renderedDocuments.size).toBe(1);
+    expect(store.templateInstances.get(submission._id)?.status).toBe("SIGNED");
+    await expect(listConsentDocuments()).resolves.toEqual([
+      expect.objectContaining({ id: document.id, signingStatus: "SIGNED" }),
+    ]);
   });
 });

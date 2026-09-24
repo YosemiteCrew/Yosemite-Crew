@@ -30,7 +30,7 @@ jest.mock("../../src/services/template.service", () => ({
   TemplateService: {
     getById: jest.fn(),
     createInstance: jest.fn(),
-    updateInstance: jest.fn(),
+    submitInstance: jest.fn(),
   },
 }));
 
@@ -178,7 +178,7 @@ describe("FormService", () => {
 
     (TemplateService.getById as jest.Mock).mockReset();
     (TemplateService.createInstance as jest.Mock).mockReset();
-    (TemplateService.updateInstance as jest.Mock).mockReset();
+    (TemplateService.submitInstance as jest.Mock).mockReset();
 
     (templateMapper.templateToQuestionnaire as jest.Mock).mockReset();
     (
@@ -779,7 +779,7 @@ describe("FormService", () => {
           id: "instance-1",
           templateVersion: 1,
         });
-        (TemplateService.updateInstance as jest.Mock).mockResolvedValue({
+        (TemplateService.submitInstance as jest.Mock).mockResolvedValue({
           id: "instance-1",
           templateVersion: 1,
         });
@@ -874,6 +874,11 @@ describe("FormService", () => {
             organisationId: "org-template",
           }),
         );
+        expect(TemplateService.submitInstance).toHaveBeenCalledWith(
+          "instance-1",
+          "org-template",
+          "parent-1",
+        );
       });
     });
 
@@ -933,7 +938,7 @@ describe("FormService", () => {
         id: "instance-1",
         templateVersion: 1,
       });
-      (TemplateService.updateInstance as jest.Mock).mockResolvedValue({
+      (TemplateService.submitInstance as jest.Mock).mockResolvedValue({
         id: "instance-1",
         templateVersion: 1,
       });
@@ -955,13 +960,12 @@ describe("FormService", () => {
         authorId: "parent-1",
         data: { field1: "value" },
       });
-      expect(TemplateService.updateInstance).toHaveBeenCalledWith(
+      // Submitted through TemplateService, which renders the instance's
+      // document, rather than set COMPLETED directly (#3600).
+      expect(TemplateService.submitInstance).toHaveBeenCalledWith(
         "instance-1",
-        {
-          data: { field1: "value" },
-          status: "COMPLETED",
-        },
         "org-template",
+        "parent-1",
       );
       expect(prisma.formSubmission.create).not.toHaveBeenCalled();
       expect(

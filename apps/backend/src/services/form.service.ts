@@ -1043,13 +1043,13 @@ const submitViaTemplateInstance = async (
     data: submission.answers,
   });
 
-  const completed = await TemplateService.updateInstance(
+  // Submitting through TemplateService renders the document a consent (or any
+  // other document-backed template) owes. Setting the status to COMPLETED
+  // directly skipped it, so nothing reached the patient's Consents panel.
+  const completed = await TemplateService.submitInstance(
     instance.id,
-    {
-      data: submission.answers,
-      status: "COMPLETED",
-    },
     template.organisationId,
+    submittedBy,
   );
 
   try {

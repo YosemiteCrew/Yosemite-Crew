@@ -429,6 +429,10 @@ const findAssignmentForSubmission = async (params: {
   );
 };
 
+// The kinds a client can be asked to fill in. CONSENT became a storage kind of
+// its own (1c3c790f0), so a FORM-only lookup refused every consent template.
+const ASSIGNABLE_TEMPLATE_KINDS = [TemplateKind.FORM, TemplateKind.CONSENT];
+
 const ensureTemplate = async (
   organisationId: string,
   templateId: string,
@@ -438,7 +442,7 @@ const ensureTemplate = async (
     where: {
       id: templateId,
       organisationId,
-      kind: TemplateKind.FORM,
+      kind: { in: ASSIGNABLE_TEMPLATE_KINDS },
     },
     select: {
       id: true,
@@ -553,11 +557,6 @@ const isSubmittableAssignmentStatus = (status: FormAssignmentDbStatus) =>
 const isSignableAssignmentStatus = (status: FormAssignmentDbStatus) =>
   status === "SENT" || status === "VIEWED" || status === "SUBMITTED";
 
-const AUTO_ASSIGN_TEMPLATE_KINDS: Array<"FORM" | "CONSENT"> = [
-  "FORM",
-  "CONSENT",
-];
-
 /**
  * Materialise the form/consent assignments a linked template implies for an
  * appointment.
@@ -598,7 +597,7 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
     species,
   };
 
-  for (const kind of AUTO_ASSIGN_TEMPLATE_KINDS) {
+  for (const kind of ASSIGNABLE_TEMPLATE_KINDS) {
     try {
       const resolved = await TemplateService.resolve({
         ...resolveInput,

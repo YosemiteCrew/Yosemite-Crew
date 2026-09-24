@@ -24,7 +24,10 @@ import {
   createRenderedDocumentRecord,
   type PersistRenderedDocumentInput,
 } from "src/services/rendered-document.service";
-import { validateTaskWorkflowTemplateBlueprint } from "src/services/task-workflow-blueprints";
+import {
+  isWorkflowKind,
+  validateTaskWorkflowTemplateBlueprint,
+} from "src/services/task-workflow-blueprints";
 import { TaskWorkflowService } from "src/services/task-workflow.service";
 
 export class TemplateServiceError extends Error {
@@ -347,12 +350,35 @@ const DOCUMENT_BACKED_TEMPLATE_KINDS = new Set<TemplateKind>([
   "VITAL_RECORD",
 ]);
 
-// The consent title is what the Consents panel lists the document under.
 const RENDERED_DOCUMENT_TITLES: Partial<Record<TemplateContractKind, string>> =
   {
     FORM: "Form submission",
     CONSENT: "Consent form",
   };
+
+// Consent templates saved before CONSENT was a storage kind (1c3c790f0) are
+// still stored as FORM. The form builder has always written the author's
+// category to rules.category, so that is what still marks them as consent.
+const LEGACY_CONSENT_CATEGORY = "Consent form";
+
+const toRenderedDocumentTemplateKind = (template: {
+  kind: TemplateKind;
+  rules: Prisma.JsonValue;
+}): TemplateContractKind =>
+  template.kind === "FORM" &&
+  (template.rules as { category?: unknown } | null)?.category ===
+    LEGACY_CONSENT_CATEGORY
+    ? "CONSENT"
+    : normalizeTemplateKind(template.kind);
+
+// A consent is listed under its template's name, so the Consents panel can
+// tell one consent from another.
+const toRenderedDocumentTitle = (
+  kind: TemplateContractKind,
+  templateName: string,
+) =>
+  (kind === "CONSENT" && templateName.trim()) ||
+  (RENDERED_DOCUMENT_TITLES[kind] ?? kind.replaceAll("_", " "));
 
 const resolveVersionPayload = (template: {
   latestVersion: number;
@@ -1602,6 +1628,8 @@ export const TemplateService = {
               id: true,
               kind: true,
               ownership: true,
+              name: true,
+              rules: true,
             },
           },
         },
@@ -1618,43 +1646,48 @@ export const TemplateService = {
         );
       }
 
-      if (instance.status === "COMPLETED") {
+      // A signed instance is past submission too: submitting it again must not
+      // render a second document or step its status back to COMPLETED.
+      if (instance.status === "COMPLETED" || instance.status === "SIGNED") {
         return instance;
       }
 
-      const createdBy = ensureId(
-        submittedBy ?? instance.authorId ?? instance.signedBy ?? "",
-        "submittedBy",
-      );
+      // Only task templates and care pathways generate a task workflow. The
+      // workflow service throws for any other kind, so launching it for every
+      // submit failed each form, consent and clinical template before its
+      // document was rendered.
+      if (isWorkflowKind(instance.template.kind)) {
+        const createdBy = ensureId(
+          submittedBy ?? instance.authorId ?? instance.signedBy ?? "",
+          "submittedBy",
+        );
 
-      // The submit routes already gate on forms:edit:any, which governs template
-      // instances org-wide, so the schedule-level ownership check is satisfied.
-      await TaskWorkflowService.launchFromTemplateInstance(
-        instance.id,
-        orgScope,
-        { actorId: createdBy, canEditAny: true },
-        {
-          client: tx,
-          notify: true,
-        },
-      );
+        // The submit routes already gate on forms:edit:any, which governs
+        // template instances org-wide, so the schedule-level ownership check is
+        // satisfied.
+        await TaskWorkflowService.launchFromTemplateInstance(
+          instance.id,
+          orgScope,
+          { actorId: createdBy, canEditAny: true },
+          {
+            client: tx,
+            notify: true,
+          },
+        );
+      }
 
       let renderedDocumentSummary:
         Awaited<ReturnType<typeof createRenderedDocumentRecord>> | undefined;
 
       if (DOCUMENT_BACKED_TEMPLATE_KINDS.has(instance.template.kind)) {
-        const normalizedTemplateKind = normalizeTemplateKind(
-          instance.template.kind,
-        );
+        const documentKind = toRenderedDocumentTemplateKind(instance.template);
         const renderedDocumentInput: PersistRenderedDocumentInput = {
-          title:
-            RENDERED_DOCUMENT_TITLES[normalizedTemplateKind] ??
-            normalizedTemplateKind.replaceAll("_", " "),
+          title: toRenderedDocumentTitle(documentKind, instance.template.name),
           source: {
             sourceKind: "TEMPLATE_INSTANCE",
             sourceId: instance.id,
             organisationId: instance.organisationId,
-            templateKind: normalizedTemplateKind,
+            templateKind: documentKind,
             templateId: instance.templateId,
             templateVersion: instance.templateVersion,
           },
