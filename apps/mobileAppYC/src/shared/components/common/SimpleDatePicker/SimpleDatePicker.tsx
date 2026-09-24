@@ -62,16 +62,6 @@ const IOSPickerModal: React.FC<IOSPickerModalProps> = ({
     onDismiss();
   };
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    if (event?.type === 'dismissed') {
-      onDismiss();
-      return;
-    }
-    if (selectedDate) {
-      setIosDraftDate(selectedDate);
-    }
-  };
-
   const buildActionButton = (
     testID: string,
     labelKey: 'common.cancel' | 'common.done',
@@ -125,7 +115,10 @@ const IOSPickerModal: React.FC<IOSPickerModalProps> = ({
             value={iosDraftDate}
             mode={mode}
             display="spinner"
-            onChange={handleDateChange}
+            onValueChange={(_event, selectedDate) =>
+              setIosDraftDate(selectedDate)
+            }
+            onDismiss={onDismiss}
             minimumDate={minimumDate}
             maximumDate={maximumDate}
             locale={isTimeMode ? 'en-US' : undefined}
@@ -181,17 +174,9 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
     );
   }
 
-  const handleAndroidDateChange = (event: any, selectedDate?: Date) => {
-    const eventType = event?.type;
-
-    if (eventType === 'dismissed') {
-      onDismiss();
-      return;
-    }
-
-    if (selectedDate && eventType === 'set') {
-      onDateChange(selectedDate);
-    }
+  // Every outcome closes the Android dialog; only a picked date is saved.
+  const handleAndroidValueChange = (_event: unknown, selectedDate: Date) => {
+    onDateChange(selectedDate);
     onDismiss();
   };
 
@@ -200,7 +185,9 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
       value={value || fallbackDate}
       mode={mode}
       display="default"
-      onChange={handleAndroidDateChange}
+      onValueChange={handleAndroidValueChange}
+      onDismiss={onDismiss}
+      onNeutralButtonPress={onDismiss}
       minimumDate={minimumDate}
       maximumDate={maximumDate}
     />

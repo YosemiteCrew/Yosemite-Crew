@@ -28,14 +28,22 @@ jest.mock("../../src/utils/logger", () => ({
 const mockCreate = jest.fn();
 const mockDistribute = jest.fn();
 const mockGet = jest.fn();
+const mockGetMany = jest.fn();
 
+// Only the legacy create stays on `documents`: a call to the deprecated
+// documents.get or documents.distribute throws here, so a regression reddens.
 jest.mock("@documenso/sdk-typescript", () => {
   return {
     Documenso: jest.fn().mockImplementation(() => ({
       documents: {
         create: mockCreate,
-        distribute: mockDistribute,
+      },
+      envelopes: {
         get: mockGet,
+        distribute: mockDistribute,
+      },
+      envelope: {
+        envelopeGetMany: mockGetMany,
       },
     })),
   };
@@ -181,7 +189,8 @@ describe("DocumensoService", () => {
       it("creates a document successfully and falls back to signerEmail for name", async () => {
         mockCreate.mockResolvedValueOnce({ id: 1, envelopeId: "env_1" });
         mockGet.mockResolvedValueOnce({
-          id: 1,
+          id: "env_1",
+          secondaryId: "document_1",
           recipients: [{ id: 11, token: "synthetic-recipient-token" }],
         });
         const result = await DocumensoService.createDocument({
@@ -189,7 +198,13 @@ describe("DocumensoService", () => {
           signerEmail: "test@test.com",
         });
 
-        expect(result.recipients[0].token).toBe("synthetic-recipient-token");
+        // The numeric id callers persist, the envelope id they distribute by,
+        // and the recipient token the signing URL is built from.
+        expect(result).toEqual({
+          id: 1,
+          envelopeId: "env_1",
+          recipients: [{ id: 11, token: "synthetic-recipient-token" }],
+        });
         expect(mockCreate).toHaveBeenCalledWith(
           expect.objectContaining({
             payload: expect.objectContaining({
@@ -203,12 +218,12 @@ describe("DocumensoService", () => {
             },
           }),
         );
-        expect(mockGet).toHaveBeenCalledWith({ documentId: 1 });
+        expect(mockGet).toHaveBeenCalledWith({ envelopeId: "env_1" });
       });
 
       it("uses provided signerName and caches Documenso Client", async () => {
         mockCreate.mockResolvedValue({ id: 2, envelopeId: "env_2" });
-        mockGet.mockResolvedValue({ id: 2, recipients: [] });
+        mockGet.mockResolvedValue({ id: "env_2", recipients: [] });
 
         // 1st Call - Misses cache, sets cache
         await DocumensoService.createDocument({
@@ -226,7 +241,7 @@ describe("DocumensoService", () => {
           apiKey: "cache_key_1",
         });
 
-        expect(result).toEqual({ id: 2, recipients: [] });
+        expect(result).toEqual({ id: 2, envelopeId: "env_2", recipients: [] });
         expect(mockCreate).toHaveBeenCalledWith(
           expect.objectContaining({
             payload: expect.objectContaining({
@@ -240,7 +255,7 @@ describe("DocumensoService", () => {
 
       it("sends the signature field on-page so the signer can reach it", async () => {
         mockCreate.mockResolvedValueOnce({ id: 3, envelopeId: "env_3" });
-        mockGet.mockResolvedValueOnce({ id: 3, recipients: [] });
+        mockGet.mockResolvedValueOnce({ id: "env_3", recipients: [] });
 
         await DocumensoService.createDocument({
           pdf: Buffer.from("test"),
@@ -287,7 +302,7 @@ describe("DocumensoService", () => {
 
       it("falls back to an on-page default placement when none is provided", async () => {
         mockCreate.mockResolvedValueOnce({ id: 4, envelopeId: "env_4" });
-        mockGet.mockResolvedValueOnce({ id: 4, recipients: [] });
+        mockGet.mockResolvedValueOnce({ id: "env_4", recipients: [] });
 
         await DocumensoService.createDocument({
           pdf: Buffer.from("test"),
@@ -333,7 +348,7 @@ describe("DocumensoService", () => {
         });
 
         expect(result).toBeUndefined();
-        expect(mockGet).toHaveBeenCalledWith({ documentId: 5 });
+        expect(mockGet).toHaveBeenCalledWith({ envelopeId: "env_5" });
         expect(logger.error).toHaveBeenCalledWith(
           "API error:",
           "Lookup failed",
@@ -344,20 +359,56 @@ describe("DocumensoService", () => {
     });
 
     describe("distributeDocument", () => {
-      it("distributes successfully", async () => {
-        mockDistribute.mockResolvedValueOnce({ success: true });
+      it("distributes the envelope and returns Documenso's response", async () => {
+        const response = { success: true, id: "env_1", recipients: [] };
+        mockDistribute.mockResolvedValueOnce(response);
         const result = await DocumensoService.distributeDocument({
-          documentId: 1,
+          envelopeId: "env_1",
         });
-        expect(result).toEqual({ success: true });
-        expect(console.log).toHaveBeenCalledWith("Distribute Response:", {
+        expect(result).toEqual(response);
+        expect(mockDistribute).toHaveBeenCalledWith({ envelopeId: "env_1" });
+        expect(logger.info).toHaveBeenCalledWith(
+          "Documenso envelope distributed",
+          { envelopeId: "env_1" },
+        );
+      });
+
+      /*
+       * The envelope distribute response lists every recipient with the token
+       * and signing URL that let anyone holding them sign. Assert on everything
+       * logged, however it is logged, so a later "just dump the response"
+       * reddens here.
+       */
+      it("never writes a recipient's signing token into the log", async () => {
+        const token = "recipient-signing-token-placeholder";
+        mockDistribute.mockResolvedValueOnce({
           success: true,
+          id: "env_1",
+          recipients: [
+            {
+              id: 1,
+              token,
+              signingUrl: `http://app.documenso.local/sign/${token}`,
+            },
+          ],
         });
+
+        await DocumensoService.distributeDocument({ envelopeId: "env_1" });
+
+        const logged = [
+          (console.log as jest.Mock).mock.calls,
+          (logger.info as jest.Mock).mock.calls,
+          (logger.error as jest.Mock).mock.calls,
+        ];
+        expect(JSON.stringify(logged)).not.toContain(token);
       });
 
       it("handles generic Error", async () => {
         mockDistribute.mockRejectedValueOnce(new Error("Network disconnect"));
-        await DocumensoService.distributeDocument({ documentId: 1 });
+        const result = await DocumensoService.distributeDocument({
+          envelopeId: "env_1",
+        });
+        expect(result).toBeUndefined();
         expect(logger.error).toHaveBeenCalledWith(
           "An unexpected error occurred:",
           expect.any(Error),
@@ -372,7 +423,7 @@ describe("DocumensoService", () => {
             "Too many requests",
           ),
         );
-        await DocumensoService.distributeDocument({ documentId: 1 });
+        await DocumensoService.distributeDocument({ envelopeId: "env_1" });
         expect(logger.error).toHaveBeenCalledWith(
           "API error:",
           "Limit reached",
@@ -382,7 +433,11 @@ describe("DocumensoService", () => {
 
     describe("getDocumentStatus", () => {
       it("returns the document status reported by Documenso", async () => {
-        mockGet.mockResolvedValueOnce({ id: 1, status: "COMPLETED" });
+        mockGetMany.mockResolvedValueOnce({
+          data: [
+            { id: "env_1", secondaryId: "document_1", status: "COMPLETED" },
+          ],
+        });
 
         const status = await DocumensoService.getDocumentStatus({
           documentId: 1,
@@ -390,19 +445,43 @@ describe("DocumensoService", () => {
         });
 
         expect(status).toBe("COMPLETED");
-        expect(mockGet).toHaveBeenCalledWith({ documentId: 1 });
+        // Looked up by the numeric id callers persist, not by an envelope id.
+        expect(mockGetMany).toHaveBeenCalledWith({
+          ids: { type: "documentId", ids: [1] },
+        });
       });
 
       it("returns a non-completed status verbatim rather than coercing it", async () => {
-        mockGet.mockResolvedValueOnce({ id: 1, status: "PENDING" });
+        mockGetMany.mockResolvedValueOnce({
+          data: [{ id: "env_1", status: "PENDING" }],
+        });
 
         await expect(
           DocumensoService.getDocumentStatus({ documentId: 1 }),
         ).resolves.toBe("PENDING");
       });
 
+      /*
+       * The legacy lookup answered an unknown id with a 404. The envelope
+       * lookup answers with an empty list instead, which must still be an
+       * error: an absent document is not a status.
+       */
+      it("throws when Documenso has no document with that id", async () => {
+        mockGetMany.mockResolvedValueOnce({ data: [] });
+
+        await expect(
+          DocumensoService.getDocumentStatus({ documentId: 404 }),
+        ).rejects.toThrow("Documenso document 404 not found");
+        expect(logger.error).toHaveBeenCalledWith(
+          "An unexpected error occurred:",
+          expect.objectContaining({
+            message: "Documenso document 404 not found",
+          }),
+        );
+      });
+
       it("rethrows a DocumensoError so callers cannot mistake an outage for a signature", async () => {
-        mockGet.mockRejectedValueOnce(
+        mockGetMany.mockRejectedValueOnce(
           new (DocumensoError as any)("Not found", 404, "No document"),
         );
 
@@ -415,7 +494,7 @@ describe("DocumensoService", () => {
       });
 
       it("rethrows an unexpected error", async () => {
-        mockGet.mockRejectedValueOnce(new Error("Network disconnect"));
+        mockGetMany.mockRejectedValueOnce(new Error("Network disconnect"));
 
         await expect(
           DocumensoService.getDocumentStatus({ documentId: 1 }),

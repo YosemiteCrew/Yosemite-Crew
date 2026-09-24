@@ -875,6 +875,7 @@ describe("rendered-document service", () => {
     );
     mockedDocumensoService.createDocument.mockResolvedValueOnce({
       id: 42,
+      envelopeId: "envelope_42",
       recipients: [{ token: "token-123" }],
     });
     mockedDocumensoService.distributeDocument.mockResolvedValueOnce({
@@ -976,7 +977,10 @@ describe("rendered-document service", () => {
       }),
     );
     expect(mockedDocumensoService.distributeDocument).toHaveBeenCalledWith(
-      expect.objectContaining({ documentId: 42, apiKey: "api-key-1" }),
+      expect.objectContaining({
+        envelopeId: "envelope_42",
+        apiKey: "api-key-1",
+      }),
     );
     expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
       expect.objectContaining({

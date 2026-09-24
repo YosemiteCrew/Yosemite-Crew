@@ -1,6 +1,6 @@
 import { Documenso } from "@documenso/sdk-typescript";
 import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
-import type { DocumentGetStatus } from "@documenso/sdk-typescript/models/operations/index.js";
+import type { EnvelopeGetManyStatus } from "@documenso/sdk-typescript/models/operations/index.js";
 import axios from "axios";
 import type { ClinicalPdfSignaturePlacement } from "@yosemite-crew/lib";
 import { prisma } from "src/config/prisma";
@@ -166,6 +166,9 @@ export class DocumensoService {
           },
         ],
       };
+      // Still the legacy create: envelopes.create makes an internalVersion 2
+      // envelope, which Documenso signs through a different page and seals
+      // differently, so it is not a like-for-like swap for this flow.
       const created = await documenso.documents.create({
         payload,
         file: {
@@ -173,8 +176,17 @@ export class DocumensoService {
           content: new Uint8Array(pdf),
         },
       });
+      const envelope = await documenso.envelopes.get({
+        envelopeId: created.envelopeId,
+      });
 
-      return await documenso.documents.get({ documentId: created.id });
+      // Callers persist the numeric document id (webhooks carry it) and hand
+      // the envelope id straight back to distributeDocument.
+      return {
+        id: created.id,
+        envelopeId: created.envelopeId,
+        recipients: envelope.recipients,
+      };
     } catch (error) {
       if (error instanceof errors.DocumensoError) {
         logger.error("API error:", error.message);
@@ -187,18 +199,19 @@ export class DocumensoService {
   }
 
   static async distributeDocument({
-    documentId,
+    envelopeId,
     apiKey,
   }: {
-    documentId: number;
+    envelopeId: string;
     apiKey?: string;
   }) {
     try {
       const documenso = getDocumensoClient(apiKey);
-      const distributeResponse = await documenso.documents.distribute({
-        documentId: documentId,
+      const distributeResponse = await documenso.envelopes.distribute({
+        envelopeId,
       });
-      console.log("Distribute Response:", distributeResponse);
+      // Not the response itself: it carries each recipient's signing token.
+      logger.info("Documenso envelope distributed", { envelopeId });
       return distributeResponse;
     } catch (error) {
       if (error instanceof errors.DocumensoError) {
@@ -226,11 +239,18 @@ export class DocumensoService {
   }: {
     documentId: number;
     apiKey?: string;
-  }): Promise<DocumentGetStatus> {
+  }): Promise<EnvelopeGetManyStatus> {
     try {
       const documenso = getDocumensoClient(apiKey);
-      const document = await documenso.documents.get({ documentId });
-      return document.status;
+      // The only lookup the envelope API offers by the numeric id we persist.
+      const { data } = await documenso.envelope.envelopeGetMany({
+        ids: { type: "documentId", ids: [documentId] },
+      });
+      const [envelope] = data;
+      if (!envelope) {
+        throw new Error(`Documenso document ${documentId} not found`);
+      }
+      return envelope.status;
     } catch (error) {
       if (error instanceof errors.DocumensoError) {
         logger.error("API error:", error.message);
