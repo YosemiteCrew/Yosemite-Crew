@@ -5,7 +5,7 @@ import TableHead from '@/app/ui/tables/TableHead';
 
 type InvoiceBilledItemsProps = {
   items: InvoiceItem[];
-  currency: string;
+  currency: string | undefined;
 };
 
 const gridTemplate = 'minmax(0,1.9fr) 50px 90px 90px';

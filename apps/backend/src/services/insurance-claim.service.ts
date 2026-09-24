@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
+import { requireCurrency, resolveOrgDocumentCurrency } from "src/utils/billing";
 import type { Prisma } from "@prisma/client";
 
 export class InsuranceClaimError extends Error {
@@ -178,6 +179,40 @@ const assertClaimAmountsCoherent = (
   }
 };
 
+const rejectCurrency = (message: string): never => {
+  throw new InsuranceClaimError(message, 400);
+};
+
+/**
+ * The currency a new claim is written in. A claim that reclaims an invoice is
+ * in that invoice's currency: invoices keep the currency they were raised in
+ * (an estimate converted before #3607 carries GBP whatever the clinic bills
+ * in), and the insurer reimburses what the invoice charged. Only a claim with
+ * no invoice takes the organisation's billing currency. The invoice is looked
+ * up inside the organisation, so another tenant's invoice id is treated as no
+ * invoice; the id stays free text, because a claim may be filed first.
+ */
+const resolveClaimCurrency = async (
+  organisationId: string,
+  invoiceId: string | undefined,
+  requested: string | undefined,
+): Promise<string> => {
+  const invoice = invoiceId
+    ? await prisma.invoice.findFirst({
+        where: { id: invoiceId, organisationId },
+        select: { currency: true },
+      })
+    : null;
+  return invoice
+    ? requireCurrency(
+        invoice.currency,
+        requested,
+        rejectCurrency,
+        "the invoice's",
+      )
+    : resolveOrgDocumentCurrency(organisationId, requested, rejectCurrency);
+};
+
 export const InsuranceClaimService = {
   async create(params: CreateInsuranceClaimParams) {
     const {
@@ -200,6 +235,11 @@ export const InsuranceClaimService = {
     await assertPatientOrgMembership(patientId, organisationId, () => {
       throw new InsuranceClaimError("Companion not found.", 404);
     });
+    const claimCurrency = await resolveClaimCurrency(
+      organisationId,
+      invoiceId,
+      currency,
+    );
 
     const claim = await prisma.insuranceClaim.create({
       data: {
@@ -210,7 +250,7 @@ export const InsuranceClaimService = {
         insurerName,
         policyNumber,
         submittedAmount,
-        currency: currency ?? "GBP",
+        currency: claimCurrency,
         notes: notes ?? null,
         status: "DRAFT",
       },

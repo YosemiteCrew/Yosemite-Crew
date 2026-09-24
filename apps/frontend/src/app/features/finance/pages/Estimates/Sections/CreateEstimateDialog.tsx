@@ -18,7 +18,8 @@ type CreateEstimateDialogProps = {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   companions: CompanionChoice[];
-  currency: string;
+  /** The organisation's billing currency, or undefined while it is not known. */
+  currency: string | undefined;
   saving: boolean;
   error: string | null;
   onSubmit: (input: CreateEstimateInput) => void;
@@ -106,7 +107,7 @@ const CreateEstimateDialog = ({
           <Primary
             text={saving ? 'Creating...' : 'Create estimate'}
             isDisabled={saving}
-            onClick={() => draft.submit(onSubmit)}
+            onClick={() => draft.submit(currency, onSubmit)}
             ariaLabel="Create this estimate"
           />
         </div>

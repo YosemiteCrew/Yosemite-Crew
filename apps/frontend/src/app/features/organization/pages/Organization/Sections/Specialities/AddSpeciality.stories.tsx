@@ -9,6 +9,7 @@ import api from '@/app/services/axios';
 import type { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useSpecialityStore } from '@/app/stores/specialityStore';
+import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
 import ToastProvider from '@/app/ui/layout/ToastProvider';
 import AddSpeciality from './AddSpeciality';
 
@@ -48,13 +49,20 @@ const CURRENT_SPECIALITIES: SpecialityWeb[] = [
  */
 const seed = (org: Organisation | null) => () => {
   const snapshot = useOrgStore.getState();
+  const subscriptionSnapshot = useSubscriptionStore.getState();
   useOrgStore.setState({
     orgsById: org ? { [ORG_ID]: org } : {},
     orgIds: org ? [ORG_ID] : [],
     primaryOrgId: ORG_ID,
     status: 'loaded',
   });
+  // A USD-billed organisation: the charge labels name the billing currency,
+  // and with no billing data the hook no longer guesses USD (#3607).
+  useSubscriptionStore.setState({
+    subscriptionByOrgId: { [ORG_ID]: { orgId: ORG_ID, currency: 'USD' } },
+  });
   return () => {
+    useSubscriptionStore.setState(subscriptionSnapshot);
     useOrgStore.setState(snapshot);
     // A successful save writes the created specialities into this store on its
     // way through the service layer, so it has to go back too.

@@ -391,6 +391,9 @@ describe('Finance > Estimates page', () => {
     await waitFor(() =>
       expect(mockEstimateService.createEstimate).toHaveBeenCalledWith('org-1', {
         patientId: 'c2',
+        // The currency the dialog previewed in, so the server can refuse a
+        // stale one rather than save in a currency the user never saw (#3607).
+        currency: 'USD',
         notes: undefined,
         validUntil: undefined,
         items: [{ description: 'Dental clean', quantity: 1, unitPrice: 50, taxRate: 0 }],

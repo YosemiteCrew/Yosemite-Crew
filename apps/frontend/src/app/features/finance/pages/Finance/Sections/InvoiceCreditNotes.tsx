@@ -20,7 +20,7 @@ type InvoiceCreditNotesProps = {
   totalAmount: number;
   /** The invoice's status: CANCELLED and REFUNDED cannot take a credit note. */
   status: string | undefined;
-  currency: string;
+  currency: string | undefined;
   /** True while a credit note is being issued or voided, so actions lock. */
   busy: boolean;
   error: string | null;

@@ -3,6 +3,7 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
+import { resolveOrgDocumentCurrency } from "src/utils/billing";
 
 export class EstimateError extends Error {
   constructor(
@@ -94,6 +95,10 @@ const estimateSelect = {
   },
 } satisfies Prisma.EstimateSelect;
 
+const rejectCurrency = (message: string): never => {
+  throw new EstimateError(message, 400);
+};
+
 const assertEstimate = async (id: string, organisationId: string) => {
   const estimate = await prisma.estimate.findFirst({
     where: { id, organisationId },
@@ -180,6 +185,11 @@ export const EstimateService = {
       throw new EstimateError("Companion not found.", 404);
     });
     const { subtotal, taxAmount, total } = computeTotals(items);
+    const currency = await resolveOrgDocumentCurrency(
+      organisationId,
+      rest.currency,
+      rejectCurrency,
+    );
 
     const estimate = await prisma.estimate.create({
       data: {
@@ -187,7 +197,7 @@ export const EstimateService = {
         patientId,
         encounterId: rest.encounterId ?? null,
         validUntil: rest.validUntil ?? null,
-        currency: rest.currency ?? "GBP",
+        currency,
         notes: rest.notes ?? null,
         subtotal,
         taxAmount,
@@ -253,7 +263,13 @@ export const EstimateService = {
 
     const data: Prisma.EstimateUpdateInput = {};
     if (params.validUntil !== undefined) data.validUntil = params.validUntil;
-    if (params.currency !== undefined) data.currency = params.currency;
+    if (params.currency !== undefined) {
+      data.currency = await resolveOrgDocumentCurrency(
+        organisationId,
+        params.currency,
+        rejectCurrency,
+      );
+    }
     if (params.notes !== undefined) data.notes = params.notes;
 
     if (params.items) {
@@ -363,7 +379,10 @@ export const EstimateService = {
           taxTotal: existing.taxAmount,
           taxPercent: figures.taxPercent,
           totalAmount: existing.total,
-          currency: existing.currency,
+          // Invoices and payments carry Stripe's lower-case codes; estimates
+          // carry upper-case ones. Copying the case across made a converted
+          // invoice differ from every other, and from its Stripe receipts.
+          currency: existing.currency.toLowerCase(),
           metadata: figures.metadata,
         },
         select: { id: true },

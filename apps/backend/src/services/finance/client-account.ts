@@ -10,6 +10,14 @@ import {
 import { getInvoiceFinancialSummaries } from "src/services/finance/payment";
 import { roundMoney } from "src/services/finance/pricing";
 
+/*
+ * The key a currency is bucketed under. Invoices converted from an estimate
+ * before #3607 carry an upper-case code while receipts carry Stripe's
+ * lower-case one; keyed as stored, such an invoice's debt sat in a bucket no
+ * receipt could reach.
+ */
+const currencyKey = (currency: string): string => currency.trim().toLowerCase();
+
 /**
  * A client's account credit: the money this organisation has taken from them
  * that no invoice of theirs has claimed (#3163).
@@ -572,9 +580,10 @@ export const ClientAccountService = {
         dueAt: invoice.finalizedAt ?? invoice.createdAt,
         balance: summaries.get(invoice.id)?.balance ?? 0,
       };
-      const bucket = debtsByCurrency.get(invoice.currency);
+      const key = currencyKey(invoice.currency);
+      const bucket = debtsByCurrency.get(key);
       if (bucket) bucket.push(debt);
-      else debtsByCurrency.set(invoice.currency, [debt]);
+      else debtsByCurrency.set(key, [debt]);
     }
 
     const creditsByCurrency = new Map<string, ProposalCredit[]>();
@@ -585,9 +594,10 @@ export const ClientAccountService = {
         capturedAt: receipt.capturedAt,
         availableCredit: allocatableResidual(receipt),
       };
-      const bucket = creditsByCurrency.get(receipt.currency);
+      const key = currencyKey(receipt.currency);
+      const bucket = creditsByCurrency.get(key);
       if (bucket) bucket.push(credit);
-      else creditsByCurrency.set(receipt.currency, [credit]);
+      else creditsByCurrency.set(key, [credit]);
     }
 
     return [...creditsByCurrency.entries()]

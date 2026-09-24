@@ -6,6 +6,7 @@ import type { Appointment, OrganisationRoom, RoomUnit, Service } from '@yosemite
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { useServiceStore } from '@/app/stores/serviceStore';
+import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
 import ViewAppointmentOverviewModal from './index';
 
 const ORG_ID = 'org-storybook-overview';
@@ -86,11 +87,17 @@ const seed = (rooms: OrganisationRoom[], units: RoomUnit[] = []) => {
     const orgSnapshot = useOrgStore.getState();
     const roomSnapshot = useOrganisationRoomStore.getState();
     const serviceSnapshot = useServiceStore.getState();
+    const subscriptionSnapshot = useSubscriptionStore.getState();
 
     useOrgStore.setState({
       primaryOrgId: ORG_ID,
       orgsById: { [ORG_ID]: { _id: ORG_ID, type: 'HOSPITAL' } as never },
       status: 'loaded',
+    });
+    // A USD-billed organisation: with no billing data the currency hook no
+    // longer guesses USD (#3607), so the estimate's currency is seeded.
+    useSubscriptionStore.setState({
+      subscriptionByOrgId: { [ORG_ID]: { orgId: ORG_ID, currency: 'USD' } },
     });
     useOrganisationRoomStore.setState({
       roomsById: Object.fromEntries(rooms.map((item) => [item.id, item])),
@@ -105,6 +112,7 @@ const seed = (rooms: OrganisationRoom[], units: RoomUnit[] = []) => {
     });
 
     return () => {
+      useSubscriptionStore.setState(subscriptionSnapshot);
       useOrgStore.setState(orgSnapshot);
       useOrganisationRoomStore.setState(roomSnapshot);
       useServiceStore.setState(serviceSnapshot);

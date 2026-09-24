@@ -3,6 +3,8 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import type { PackageRevamp } from '@/app/features/organization/types/revamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
 import {
   closeGlassTooltip,
   openGlassTooltip,
@@ -15,8 +17,9 @@ const SPECIALITY_ID = 'spec-dentistry';
 /**
  * Dental care package: 72 + (310 - 10%) + (120 x 2) = 591 after item discounts,
  * less the 5% package discount = 561.45, printed as `$561` (formatMoney rounds to
- * whole units). The org has no subscription seeded, so `useCurrencyForPrimaryOrg`
- * falls back to USD - which is what every amount below is asserted in.
+ * whole units). `useCurrencyForPrimaryOrg` no longer guesses USD for an org with
+ * no billing data (#3607), so a USD organisation is seeded - which is what every
+ * amount below is asserted in.
  */
 const DENTAL: PackageRevamp = {
   id: 'pkg-dental-care',
@@ -123,6 +126,20 @@ const seed = (packages: PackageRevamp[] = [DENTAL, SENIOR]) => {
   });
 };
 
+/** A USD-billed primary organisation, restored on unmount. */
+const seedUsdOrganisation = () => {
+  const orgSnapshot = useOrgStore.getState();
+  const subscriptionSnapshot = useSubscriptionStore.getState();
+  useOrgStore.setState({ primaryOrgId: ORG_ID, status: 'loaded' });
+  useSubscriptionStore.setState({
+    subscriptionByOrgId: { [ORG_ID]: { orgId: ORG_ID, currency: 'USD' } },
+  });
+  return () => {
+    useSubscriptionStore.setState(subscriptionSnapshot);
+    useOrgStore.setState(orgSnapshot);
+  };
+};
+
 const wideGrids = (canvasElement: HTMLElement) =>
   [...canvasElement.querySelectorAll('[style*="grid-template-columns"]')] as HTMLElement[];
 
@@ -168,6 +185,7 @@ const meta = {
   ],
   beforeEach: () => {
     seed();
+    return seedUsdOrganisation();
   },
 } satisfies Meta<typeof PackagesTab>;
 

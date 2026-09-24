@@ -14,6 +14,7 @@ import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { pruneUndefined } from "src/utils/prune-undefined";
+import { orgBillingCurrency } from "src/utils/billing";
 import { prisma } from "src/config/prisma";
 import {
   markFreeLimitReachedAt,
@@ -993,7 +994,19 @@ export const UserOrganizationService = {
         organization: organization
           ? mapOrganizationFromPrisma(organization)
           : null,
-        orgBilling: orgBilling ? { ...orgBilling, _id: orgBilling.id } : null,
+        // `currency` is replaced with the resolved billing currency: the raw
+        // column is a schema default until Stripe Connect writes it, and the
+        // client must label and send the same currency the server stores.
+        orgBilling: orgBilling
+          ? {
+              ...orgBilling,
+              _id: orgBilling.id,
+              currency: orgBillingCurrency(
+                orgBilling,
+                organization?.address?.country,
+              ),
+            }
+          : null,
         orgUsage: orgUsage ? { ...orgUsage, _id: orgUsage.id } : null,
       });
     }

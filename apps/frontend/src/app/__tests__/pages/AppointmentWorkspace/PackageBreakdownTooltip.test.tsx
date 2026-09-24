@@ -39,4 +39,16 @@ describe('PackageBreakdownTooltip', () => {
     });
     expect(screen.getByText('General anaesthesia (first 30 min)')).toBeInTheDocument();
   });
+
+  // #3607: an unknown currency printed as USD through a default parameter.
+  it('prints bare amounts while the currency is not known', async () => {
+    render(<PackageBreakdownTooltip item={PACKAGE_ITEM} currency={undefined} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'View Dental package (grade 2) package breakdown' })
+    );
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent('120');
+    expect(tooltip).not.toHaveTextContent('$');
+  });
 });

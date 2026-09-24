@@ -10,7 +10,7 @@ import { isIssued } from '@/app/features/finance/services/creditNoteService';
 
 type CreditNoteLedgerProps = {
   notes: CreditNote[];
-  currency: string;
+  currency: string | undefined;
   busy: boolean;
   onVoid: (creditNoteId: string) => void;
 };

@@ -57,9 +57,9 @@ const OBSERVATIONAL_TOOLS = speciality('Observational tools', [
  * `useCurrencyForPrimaryOrg` reaches through the org store into the subscription
  * store, so the currency in the "Service charge" label needs both seeded: the
  * primary org id to look the subscription up with, and the subscription to read
- * `currency` off. With no subscription at all the hook falls back to USD, which
- * is what a free organisation sees - so that is the default here rather than a
- * seeded USD record.
+ * `currency` off. With no subscription at all the currency is not known and the
+ * label names none - the hook no longer guesses USD (#3607) - so that is the
+ * default here, and a seeded currency is the named case.
  */
 const withCurrency = (currency?: string) => () => {
   const orgSnapshot = useOrgStore.getState();
@@ -136,8 +136,9 @@ const meta = {
           'checked against a name or an id, so a write that lands on the wrong row produces a ' +
           'perfectly ordinary-looking card.\n\n' +
           'Everything it renders is uncontrolled by any store except one word: the currency in the ' +
-          "**Service charge** label comes from the primary organisation's subscription and falls " +
-          'back to USD, so the same card reads differently for a euro-billed practice.\n\n' +
+          "**Service charge** label comes from the primary organisation's billing currency, and " +
+          'names none while that is not known, so the same card reads differently for a ' +
+          'euro-billed practice.\n\n' +
           '`removeService` is wired to each accordion but cannot be reached: the accordions are ' +
           'rendered with `isEditing`, and `Accordion` gates its trash on `showDeleteIcon && ' +
           '!isEditing`. The stories assert that absence rather than pretending the affordance is ' +
@@ -212,7 +213,7 @@ export const WithServices: Story = {
       'Feline Grimace Scale for observational tools workflows in your hospital organization.'
     );
     await expect(canvas.getAllByLabelText('Duration (mins)')[0]).toHaveValue(20);
-    await expect(canvas.getAllByLabelText('Service charge (USD)')[0]).toHaveValue(65);
+    await expect(canvas.getAllByLabelText('Service charge')[0]).toHaveValue(65);
     await expect(canvas.getAllByLabelText('Max discount (%)')[0]).toHaveValue(15);
 
     /* And no way to take a service back out. `removeService` is passed to every
@@ -269,6 +270,27 @@ export const EuroCurrency: Story = {
   },
 };
 
+export const CurrencyNotYetKnown: Story = {
+  name: 'Currency not known yet',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // No billing data: the label names no currency rather than a guessed USD,
+    // and never "Service charge (undefined)".
+    await expect(canvas.getAllByLabelText('Service charge')).toHaveLength(3);
+    await expect(canvas.queryByLabelText(/Service charge \(/)).not.toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Before the organisation's billing currency has loaded, or for a member who cannot " +
+          'read billing, the charge field is labelled without a currency instead of the USD the ' +
+          'hook used to guess.',
+      },
+    },
+  },
+};
+
 export const EditingScopesToOneService: Story = {
   name: 'Editing writes to one row only',
   render: () => <DraftPair />,
@@ -303,7 +325,7 @@ export const EditingScopesToOneService: Story = {
     ]);
     // The neighbouring fields of the same service are untouched too - the update
     // replaces one key, not the whole service.
-    await expect(canvas.getAllByLabelText('Service charge (USD)')[3]).toHaveValue(85);
+    await expect(canvas.getAllByLabelText('Service charge')[3]).toHaveValue(85);
   },
   parameters: {
     docs: {

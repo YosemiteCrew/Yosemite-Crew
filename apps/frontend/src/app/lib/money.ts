@@ -1,16 +1,23 @@
-export const formatMoney = (amount: number, currency: string) =>
+/**
+ * Every formatter here takes `undefined` for a currency that is not known yet
+ * (`useCurrencyForPrimaryOrg` before billing has loaded) and prints the bare
+ * amount: a figure with no symbol is honest, one labelled in a guessed
+ * currency is not (#3607).
+ */
+export const formatMoney = (amount: number, currency: string | undefined) =>
   new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
+    ...(currency ? { style: 'currency', currency } : {}),
     maximumFractionDigits: 0,
   }).format(amount);
 
 /**
  * The bare currency symbol for an ISO-4217 code (e.g. USD → "$", GBP → "£", INR → "₹"),
  * used for input adornments and hints so the bill builder never hardcodes "$" for non-USD orgs.
- * Falls back to the code itself for unknown/invalid currencies.
+ * Falls back to the code itself for unknown/invalid currencies, and to nothing
+ * when the currency is not known.
  */
-export const currencySymbol = (currency: string): string => {
+export const currencySymbol = (currency: string | undefined): string => {
+  if (!currency) return '';
   try {
     const parts = new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -22,6 +29,10 @@ export const currencySymbol = (currency: string): string => {
   }
 };
 
+/** A field label naming the currency when it is known: "Price (GBP)", else "Price". */
+export const labelWithCurrency = (label: string, currency: string | undefined): string =>
+  currency ? `${label} (${currency})` : label;
+
 /**
  * Money with its minor units kept, e.g. 45.5 GBP -> "£45.50".
  *
@@ -30,7 +41,13 @@ export const currencySymbol = (currency: string): string => {
  * another figure - an estimate line against its total, or an estimate against
  * the invoice it converts into.
  */
-export const formatMoneyPrecise = (amount: number, currency: string) => {
+export const formatMoneyPrecise = (amount: number, currency: string | undefined) => {
+  if (!currency) {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  }
   try {
     // No explicit fraction digits: Intl already knows each currency's minor
     // unit, so JPY prints no decimals and KWD prints three. Pinning two would
@@ -49,15 +66,14 @@ export const formatMoneyPrecise = (amount: number, currency: string) => {
  * The currency a money figure actually belongs to.
  *
  * Prefer the record's own `currency` over any ambient organisation value.
- * `useCurrencyForPrimaryOrg` reads `subscription.currency`, which
- * `normalizeSubscription` never populates, so it always answers USD - see
- * #2597. Invoices and estimates each carry the currency they were written in,
- * and that is the only value that can be trusted to match the stored amount.
+ * Invoices and estimates each carry the currency they were written in, and
+ * that is the only value that can be trusted to match the stored amount - the
+ * organisation's currency can have changed since (#2597).
  */
 export const recordCurrency = (
   record: { currency?: string | null } | null | undefined,
-  fallback: string
-): string => {
+  fallback: string | undefined
+): string | undefined => {
   const own = record?.currency;
   return typeof own === 'string' && own.trim() ? own.trim() : fallback;
 };
@@ -74,8 +90,8 @@ export const recordCurrency = (
  */
 export const sharedCurrency = (
   records: ReadonlyArray<{ currency?: string | null }>,
-  fallback: string
-): string => {
+  fallback: string | undefined
+): string | undefined => {
   let shared: string | null = null;
   for (const record of records) {
     const own = record.currency;

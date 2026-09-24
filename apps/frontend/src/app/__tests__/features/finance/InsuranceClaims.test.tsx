@@ -373,6 +373,53 @@ describe('InsuranceClaims create form', () => {
     expect(typeof input.submittedAmount).toBe('number');
   });
 
+  // #3607: the form sent useCurrencyForPrimaryOrg()'s USD guess, so every
+  // claim was saved in dollars. An unknown currency is now left to the server.
+  it('sends no currency and labels no symbol while the organisation currency is not known', async () => {
+    const onCreate = jest.fn();
+    setup({ createOpen: true, claims: [], onCreate, currency: undefined });
+
+    await userEvent.click(screen.getByRole('button', { name: /Companion/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Marnie Whitlock'));
+    await userEvent.type(screen.getByLabelText('Insurer'), 'Petsure');
+    await userEvent.type(screen.getByLabelText('Policy number'), 'PS-1');
+    await userEvent.type(screen.getByLabelText('Submitted amount'), '250');
+    await userEvent.click(screen.getByRole('button', { name: 'Create this insurance claim' }));
+
+    const [input] = onCreate.mock.calls[0] as [Record<string, unknown>];
+    expect(input).not.toHaveProperty('currency');
+    expect(input).toMatchObject({ submittedAmount: 250 });
+  });
+
+  // A claim against an invoice is saved in that invoice's currency, which can
+  // differ from the clinic's (an estimate converted before #3607 carries GBP),
+  // so the form neither sends nor labels the clinic's currency then.
+  it('sends no currency and labels no symbol for a claim against an invoice', async () => {
+    const onCreate = jest.fn();
+    setup({ createOpen: true, claims: [], onCreate, currency: 'EUR' });
+
+    await userEvent.click(screen.getByRole('button', { name: /Companion/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Marnie Whitlock'));
+    await userEvent.type(screen.getByLabelText('Insurer'), 'Petsure');
+    await userEvent.type(screen.getByLabelText('Policy number'), 'PS-1');
+    expect(screen.getByLabelText('Submitted amount (€)')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Invoice ID (optional)'), ' inv-7 ');
+    await userEvent.type(screen.getByLabelText('Submitted amount'), '250');
+    await userEvent.type(screen.getByLabelText('Encounter ID (optional)'), 'enc-3');
+    await userEvent.type(screen.getByLabelText('Notes (optional)'), 'Dental');
+    await userEvent.click(screen.getByRole('button', { name: 'Create this insurance claim' }));
+
+    expect(onCreate).toHaveBeenCalledWith({
+      patientId: 'pat-1',
+      insurerName: 'Petsure',
+      policyNumber: 'PS-1',
+      submittedAmount: 250,
+      invoiceId: 'inv-7',
+      encounterId: 'enc-3',
+      notes: 'Dental',
+    });
+  });
+
   it('rejects a zero submitted amount', async () => {
     const onCreate = jest.fn();
     setup({ createOpen: true, claims: [], onCreate });

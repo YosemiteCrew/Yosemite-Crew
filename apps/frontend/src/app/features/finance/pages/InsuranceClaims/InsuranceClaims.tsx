@@ -29,7 +29,7 @@ export type InsuranceClaimsProps = {
   onStatusChange: (status: string) => void;
   companionName: (patientId: string) => string;
   companions: CompanionChoice[];
-  currency: string;
+  currency: string | undefined;
   activeClaimId: string | null;
   onSelect: (claim: InsuranceClaim) => void;
   pendingAction: ClaimAction | null;
