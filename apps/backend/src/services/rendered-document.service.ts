@@ -632,6 +632,66 @@ export const rerenderPersistedClinicalRenderedDocumentPdf = async (
   return rerenderAndPersistClinicalRenderedDocumentPdf(document, client);
 };
 
+type ClinicalRecordLinkage = {
+  appointmentId: string | null;
+  caseId: string | null;
+  encounterId: string | null;
+};
+
+type LinkedRecord = ClinicalRecordLinkage & {
+  status: string;
+  authorId: string | null;
+};
+
+const LINKED_RECORD_SELECT = {
+  status: true,
+  authorId: true,
+  appointmentId: true,
+  caseId: true,
+  encounterId: true,
+} as const;
+
+/**
+ * The TemplateInstance or ClinicalArtifact a rendered document was produced
+ * from (at most one of the two - the FKs are mutually exclusive by
+ * construction). `null` for a document with neither link
+ * (FORM_SUBMISSION/TASK_SCHEDULE/INVOICE-sourced).
+ */
+const findLinkedRecord = async (
+  client: RenderedDocumentWriteClient,
+  document: Pick<
+    PersistedRenderedDocument,
+    "templateInstanceId" | "clinicalArtifactId"
+  >,
+): Promise<LinkedRecord | null> => {
+  if (document.templateInstanceId) {
+    return client.templateInstance.findUnique({
+      where: { id: document.templateInstanceId },
+      select: LINKED_RECORD_SELECT,
+    });
+  }
+  if (document.clinicalArtifactId) {
+    return client.clinicalArtifact.findUnique({
+      where: { id: document.clinicalArtifactId },
+      select: LINKED_RECORD_SELECT,
+    });
+  }
+  return null;
+};
+
+/**
+ * Who wrote the record a rendered document was produced from, so a route can
+ * apply the same own-scope rule that record's own routes apply. `null` when the
+ * document has no linked record or the record has no author.
+ */
+export const getRenderedDocumentSourceAuthorId = async (
+  document: Pick<
+    PersistedRenderedDocument,
+    "templateInstanceId" | "clinicalArtifactId"
+  >,
+): Promise<string | null> =>
+  (await findLinkedRecord(renderedDocumentClient, document))?.authorId ?? null;
+
 export const signPersistedRenderedDocument = async (
   input: PersistRenderedDocumentSignatureInput,
   client: RenderedDocumentWriteClient = renderedDocumentClient,
@@ -665,6 +725,17 @@ export const signPersistedRenderedDocument = async (
   ) {
     throw new RenderedDocumentServiceError(
       "Document signing is already in progress",
+      409,
+    );
+  }
+
+  // Signing attests the record, so it starts from a finalised one: never a
+  // draft, a reopened record, one already signed, or a VOID (cancelled or
+  // superseded) one. COMPLETED is also the only status completion moves on.
+  const linked = await findLinkedRecord(client, existing);
+  if (linked && linked.status !== "COMPLETED") {
+    throw new RenderedDocumentServiceError(
+      "Only a finalised record that is not yet signed can be sent for signing",
       409,
     );
   }
@@ -769,12 +840,6 @@ const extractAppointmentPatientId = (patient: unknown): string | null => {
   return null;
 };
 
-type ClinicalRecordLinkage = {
-  appointmentId: string | null;
-  caseId: string | null;
-  encounterId: string | null;
-};
-
 /**
  * A RenderedDocument carries no patientId of its own - only the TemplateInstance
  * or ClinicalArtifact it is linked to does, and even then only via
@@ -814,35 +879,33 @@ const resolvePatientIdForSignedDocument = async (
 };
 
 /**
- * Marks the TemplateInstance/ClinicalArtifact a just-signed RenderedDocument is
- * linked to (at most one of the two - the FKs are mutually exclusive by
- * construction) as SIGNED too, and returns its clinical linkage in the same
- * round trip so the caller can resolve a patient for the audit event without a
- * second read. A document with neither link (FORM_SUBMISSION/TASK_SCHEDULE/
- * INVOICE-sourced) has nothing to propagate to and no linkage to resolve.
+ * Moves the TemplateInstance/ClinicalArtifact a just-signed RenderedDocument is
+ * linked to on to SIGNED, and returns the record as it then stands (its clinical
+ * linkage lets the caller resolve a patient for the audit event). COMPLETED is
+ * the only status that moves: it is what $finalize and a template instance
+ * submit leave behind, and the only one signing starts from. The status is in
+ * the WHERE, so a record reopened, voided or superseded while the signature was
+ * outstanding keeps its status even when that change commits concurrently.
  */
 const propagateSigningCompletionToLinkedRecord = async (
   client: RenderedDocumentWriteClient,
   existing: PersistedRenderedDocument,
   signedBy: string | undefined,
   signedAt: Date,
-): Promise<ClinicalRecordLinkage | null> => {
+): Promise<LinkedRecord | null> => {
   if (existing.templateInstanceId) {
-    return client.templateInstance.update({
-      where: { id: existing.templateInstanceId },
+    await client.templateInstance.updateMany({
+      where: { id: String(existing.templateInstanceId), status: "COMPLETED" },
       data: { status: "SIGNED", signedBy, signedAt },
-      select: { appointmentId: true, caseId: true, encounterId: true },
     });
-  }
-  if (existing.clinicalArtifactId) {
-    return client.clinicalArtifact.update({
-      where: { id: existing.clinicalArtifactId },
+  } else if (existing.clinicalArtifactId) {
+    await client.clinicalArtifact.updateMany({
+      where: { id: String(existing.clinicalArtifactId), status: "COMPLETED" },
       // See the artifact's `version` column (#3144): signing is a generation.
       data: { status: "SIGNED", signedBy, signedAt, version: { increment: 1 } },
-      select: { appointmentId: true, caseId: true, encounterId: true },
     });
   }
-  return null;
+  return findLinkedRecord(client, existing);
 };
 
 const recordRenderedDocumentSignedAuditSafely = async (
@@ -866,15 +929,17 @@ const recordRenderedDocumentSignedAuditSafely = async (
   });
 };
 
+/** Rolls the completion transaction back when there is nothing to complete. */
+class SigningCompletionSkipped extends Error {}
+
+const isRecordNotFoundError = (error: unknown): boolean =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2025";
+
 export const completePersistedRenderedDocumentSigning = async (
   renderedDocumentId: string,
-  client: RenderedDocumentWriteClient = renderedDocumentClient,
 ): Promise<PersistedRenderedDocument> => {
-  const existing = await getPersistedRenderedDocument(
-    renderedDocumentId,
-    null,
-    client,
-  );
+  const existing = await getPersistedRenderedDocument(renderedDocumentId, null);
 
   if (!existing.signing) {
     throw new RenderedDocumentServiceError("Document signing not started", 409);
@@ -929,42 +994,83 @@ export const completePersistedRenderedDocumentSigning = async (
     signatureText: signing.signatureText,
     signedAt,
   });
+  const signatureData = {
+    signerId: signature.signerId,
+    signerType: signature.signerType,
+    signatureText: signature.signatureText,
+    signedAt: signature.signedAt,
+  };
 
-  await client.documentSignature.create({
-    data: {
-      renderedDocumentId: existing.id,
-      signerId: signature.signerId,
-      signerType: signature.signerType,
-      signatureText: signature.signatureText,
-      signedAt: signature.signedAt,
-    },
-  });
+  // One transaction: the linked record, the document and its signature row
+  // commit together or not at all, so a failure part-way leaves nothing for a
+  // retry to trip over.
+  let completed: {
+    document: PersistedRenderedDocument;
+    linked: LinkedRecord | null;
+  };
+  try {
+    completed = await prisma.$transaction(async (tx) => {
+      const linked = await propagateSigningCompletionToLinkedRecord(
+        tx,
+        existing,
+        signedBy,
+        signedAt,
+      );
+      // Anything but SIGNED is a record reopened, voided or superseded while
+      // the signature was outstanding. It keeps its status, and no signed copy
+      // of content it no longer stands for is recorded against it.
+      if (linked && linked.status !== "SIGNED") {
+        throw new SigningCompletionSkipped();
+      }
 
-  const updated = await client.renderedDocument.update({
-    where: { id: existing.id },
-    data: {
-      status: "SIGNED",
-      signedBy,
-      signedAt,
-      pdfUrl: signedPdf.downloadUrl ?? existing.pdfUrl ?? undefined,
-      signing: {
-        ...signing,
-        status: "SIGNED",
-        pdf: {
-          url: signedPdf.downloadUrl ?? null,
-        },
-      },
-    },
-    include: { signature: true },
-  });
+      // Claimed on the status, so of two deliveries that both read the
+      // document unsigned, the second matches nothing once the first commits.
+      let document: Omit<PersistedRenderedDocument, "signature">;
+      try {
+        document = await tx.renderedDocument.update({
+          where: { id: existing.id, status: { not: "SIGNED" } },
+          data: {
+            status: "SIGNED",
+            signedBy,
+            signedAt,
+            pdfUrl: signedPdf.downloadUrl ?? existing.pdfUrl ?? undefined,
+            signing: {
+              ...signing,
+              status: "SIGNED",
+              pdf: {
+                url: signedPdf.downloadUrl ?? null,
+              },
+            },
+          },
+        });
+      } catch (error) {
+        throw isRecordNotFoundError(error)
+          ? new SigningCompletionSkipped()
+          : error;
+      }
 
-  const linkage = await propagateSigningCompletionToLinkedRecord(
-    client,
+      // An upsert, so a signature row left by an earlier partial completion
+      // is taken over rather than failing every retry on the unique key.
+      const signatureRow = await tx.documentSignature.upsert({
+        where: { renderedDocumentId: existing.id },
+        create: { renderedDocumentId: existing.id, ...signatureData },
+        update: signatureData,
+      });
+
+      return { document: { ...document, signature: signatureRow }, linked };
+    });
+  } catch (error) {
+    if (error instanceof SigningCompletionSkipped) {
+      return existing;
+    }
+    throw error;
+  }
+
+  await recordRenderedDocumentSignedAuditSafely(
+    renderedDocumentClient,
     existing,
-    signedBy,
-    signedAt,
+    completed.linked,
   );
-  await recordRenderedDocumentSignedAuditSafely(client, existing, linkage);
 
-  return normalizePersistedRenderedDocument(updated);
+  return normalizePersistedRenderedDocument(completed.document);
 };

@@ -90,17 +90,28 @@ describe("rendered-document.fhir.router", () => {
     expect(route?.stack.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("protects the rerender route with auth and RBAC", () => {
-    const route = findRoute(
-      "/organisation/:organisationId/:renderedDocumentId/rerender-pdf",
-      "post",
-    );
+  it.each(["rerender-pdf", "sign"])(
+    "protects the %s route with auth and RBAC",
+    (action) => {
+      const route = findRoute(
+        `/organisation/:organisationId/:renderedDocumentId/${action}`,
+        "post",
+      );
+      const permissionGate = requirePermission.mock.results.find(
+        (result) => result.value === route?.stack[2]?.handle,
+      );
 
-    expect(route?.stack.map((layer) => layer.handle)).toContain(requireWebAuth);
-    expect(requirePermission).toHaveBeenCalledWith([
-      "forms:edit:any",
-      "prescription:edit:any",
-    ]);
-    expect(route?.stack.length).toBeGreaterThanOrEqual(4);
-  });
+      expect(route?.stack[0]?.handle).toBe(requireWebAuth);
+      // Admits every edit permission a document kind can take; the controller
+      // narrows it to the one the document's own kind needs.
+      expect(
+        requirePermission.mock.calls[
+          requirePermission.mock.results.indexOf(permissionGate!)
+        ],
+      ).toEqual([
+        ["forms:edit:any", "prescription:edit:any", "prescription:edit:own"],
+      ]);
+      expect(route?.stack.length).toBe(4);
+    },
+  );
 });

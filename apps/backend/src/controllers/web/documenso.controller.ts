@@ -142,6 +142,13 @@ async function handlePacketEvent(eventType: string, packet: { id: string }) {
   }
 }
 
+// The only events a rendered document acts on. Every other event skips the
+// lookup below, an unindexed JSON-path scan.
+const RENDERED_DOCUMENT_EVENTS = new Set([
+  "DOCUMENT_COMPLETED",
+  "DOCUMENT_DELETED",
+]);
+
 // Every rendered-document signing (standalone, or on behalf of a form
 // submission) stores the Documenso document id on the rendered document.
 async function findWebhookRenderedDocument(documentId: string) {
@@ -384,10 +391,12 @@ export const DocumensoWebhookController = {
 
       // Completion is idempotent: a redelivered DOCUMENT_COMPLETED finds the
       // document already SIGNED and returns without writing or auditing again.
-      const renderedDocument = await findWebhookRenderedDocument(
-        event.documentId,
-      );
-      await handleRenderedDocumentEvent(event.eventType, renderedDocument);
+      if (RENDERED_DOCUMENT_EVENTS.has(event.eventType)) {
+        const renderedDocument = await findWebhookRenderedDocument(
+          event.documentId,
+        );
+        await handleRenderedDocumentEvent(event.eventType, renderedDocument);
+      }
       // case "DOCUMENT_EXPIRED":
       //   await handleDocumentExpired(submission);
       //   break;

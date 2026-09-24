@@ -18,6 +18,7 @@ import { WorkspaceDocumentPacketService } from "../../../src/services/workspace-
 import { notifyOwnerOfPassportUpdate } from "../../../src/services/pet-clinical-records.service";
 import { AuditTrailService } from "../../../src/services/audit-trail.service";
 import logger from "../../../src/utils/logger";
+import { Prisma } from "@prisma/client";
 
 jest.mock("../../../src/utils/logger");
 jest.mock("../../../src/services/form-assignment.service", () => ({
@@ -37,8 +38,8 @@ jest.mock("../../../src/services/workspace-document-packet.service", () => ({
     resetSigning: jest.fn(),
   },
 }));
-jest.mock("../../../src/config/prisma", () => ({
-  prisma: {
+jest.mock("../../../src/config/prisma", () => {
+  const prisma: Record<string, unknown> = {
     formSubmission: {
       findFirst: jest.fn(),
       update: jest.fn(),
@@ -52,10 +53,11 @@ jest.mock("../../../src/config/prisma", () => ({
       update: jest.fn(),
     },
     documentSignature: {
-      create: jest.fn(),
+      upsert: jest.fn(),
     },
     templateInstance: {
-      update: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
     },
     case: {
       findUnique: jest.fn(),
@@ -73,8 +75,10 @@ jest.mock("../../../src/config/prisma", () => ({
     encounter: {
       findUnique: jest.fn(),
     },
-  },
-}));
+  };
+  prisma.$transaction = jest.fn((fn: (tx: unknown) => unknown) => fn(prisma));
+  return { prisma };
+});
 jest.mock("../../../src/services/pet-clinical-records.service", () => ({
   notifyOwnerOfPassportUpdate: jest.fn(),
 }));
@@ -713,7 +717,7 @@ describe("DocumensoWebhookController", () => {
       select: { id: true },
     });
     expect(mockedPrisma.renderedDocument.findUnique).not.toHaveBeenCalled();
-    expect(mockedPrisma.documentSignature.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
     expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(jsonMock).toHaveBeenCalledWith({ received: true });
@@ -748,7 +752,7 @@ describe("DocumensoWebhookController", () => {
       version: 1,
       title: "Surgical consent",
       mimeType: "application/pdf",
-      status: "FINAL",
+      status: "DRAFT",
       signable: true,
       pdfUrl: "https://files.example/unsigned.pdf",
       pdf: null,
@@ -778,8 +782,15 @@ describe("DocumensoWebhookController", () => {
       };
     };
 
+    const recordNotFound = () =>
+      new Prisma.PrismaClientKnownRequestError("No record was found.", {
+        code: "P2025",
+        clientVersion: "6.19.3",
+      });
+
     // The stored row, as each delivery reads it: the first completion writes
-    // SIGNED back, so a redelivery reads what a real database would return.
+    // SIGNED back, so a redelivery reads what a real database would return,
+    // and a claim on a row already SIGNED matches nothing, as its WHERE would.
     const storeRenderedDocument = () => {
       let stored: Record<string, unknown> = inProgressConsent();
       mockedPrisma.renderedDocument.findFirst.mockResolvedValue({ id: "rd-1" });
@@ -788,11 +799,24 @@ describe("DocumensoWebhookController", () => {
       );
       mockedPrisma.renderedDocument.update.mockImplementation(
         async ({ data }: { data: Record<string, unknown> }) => {
-          stored = { ...stored, ...data, signature: { id: "sig-1" } };
+          if (stored.status === "SIGNED") {
+            throw recordNotFound();
+          }
+          stored = { ...stored, ...data };
           return stored;
         },
       );
     };
+
+    // The linked template instance as it reads after the guarded move.
+    const linkedInstanceIs = (status: string) =>
+      mockedPrisma.templateInstance.findUnique.mockResolvedValue({
+        status,
+        authorId: "user-1",
+        appointmentId: null,
+        caseId: "case-1",
+        encounterId: null,
+      });
 
     const signedPdfAvailable = () => {
       mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
@@ -809,12 +833,9 @@ describe("DocumensoWebhookController", () => {
       );
       mockedPrisma.formSubmission.findFirst.mockResolvedValue(null);
       mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
-      mockedPrisma.documentSignature.create.mockResolvedValue({ id: "sig-1" });
-      mockedPrisma.templateInstance.update.mockResolvedValue({
-        appointmentId: null,
-        caseId: "case-1",
-        encounterId: null,
-      });
+      mockedPrisma.documentSignature.upsert.mockResolvedValue({ id: "sig-1" });
+      mockedPrisma.templateInstance.updateMany.mockResolvedValue({ count: 1 });
+      linkedInstanceIs("SIGNED");
       mockedPrisma.case.findUnique.mockResolvedValue({ patientId: "pat-1" });
     });
 
@@ -826,8 +847,9 @@ describe("DocumensoWebhookController", () => {
       mockedPrisma.renderedDocument.findFirst.mockReset();
       mockedPrisma.renderedDocument.findUnique.mockReset();
       mockedPrisma.renderedDocument.update.mockReset();
-      mockedPrisma.documentSignature.create.mockReset();
-      mockedPrisma.templateInstance.update.mockReset();
+      mockedPrisma.documentSignature.upsert.mockReset();
+      mockedPrisma.templateInstance.updateMany.mockReset();
+      mockedPrisma.templateInstance.findUnique.mockReset();
       mockedPrisma.case.findUnique.mockReset();
     });
 
@@ -845,16 +867,19 @@ describe("DocumensoWebhookController", () => {
       expect(
         mockedDocumensoService.downloadSignedDocument,
       ).toHaveBeenCalledWith({ documentId: 777, apiKey: "api-key-1" });
-      expect(mockedPrisma.documentSignature.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          renderedDocumentId: "rd-1",
-          signerId: "user-1",
-          signatureText: "Vet One",
+      expect(mockedPrisma.documentSignature.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { renderedDocumentId: "rd-1" },
+          create: expect.objectContaining({
+            renderedDocumentId: "rd-1",
+            signerId: "user-1",
+            signatureText: "Vet One",
+          }),
         }),
-      });
+      );
       expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "rd-1" },
+          where: { id: "rd-1", status: { not: "SIGNED" } },
           data: expect.objectContaining({
             status: "SIGNED",
             pdfUrl: "https://files.example/signed.pdf",
@@ -865,12 +890,10 @@ describe("DocumensoWebhookController", () => {
           }),
         }),
       );
-      expect(mockedPrisma.templateInstance.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: "instance-1" },
-          data: expect.objectContaining({ status: "SIGNED" }),
-        }),
-      );
+      expect(mockedPrisma.templateInstance.updateMany).toHaveBeenCalledWith({
+        where: { id: "instance-1", status: "COMPLETED" },
+        data: expect.objectContaining({ status: "SIGNED" }),
+      });
       expect(AuditTrailService.recordSafely).toHaveBeenCalledTimes(1);
       expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -899,9 +922,9 @@ describe("DocumensoWebhookController", () => {
       expect(
         mockedDocumensoService.downloadSignedDocument,
       ).toHaveBeenCalledTimes(1);
-      expect(mockedPrisma.documentSignature.create).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.documentSignature.upsert).toHaveBeenCalledTimes(1);
       expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledTimes(1);
-      expect(mockedPrisma.templateInstance.update).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.templateInstance.updateMany).toHaveBeenCalledTimes(1);
       expect(AuditTrailService.recordSafely).toHaveBeenCalledTimes(1);
       expect(statusMock.mock.calls).toEqual([[200], [200]]);
       expect(jsonMock.mock.calls).toEqual([
@@ -910,24 +933,57 @@ describe("DocumensoWebhookController", () => {
       ]);
     });
 
-    it("writes and audits nothing more when a concurrent delivery loses the signature insert", async () => {
-      // Two deliveries that both read IN_PROGRESS race to the one-per-document
-      // signature row (renderedDocumentId is unique). The loser must stop there.
+    it("acks, writing and auditing nothing, the delivery that loses a concurrent completion", async () => {
+      // Two deliveries both read IN_PROGRESS; the winner commits SIGNED before
+      // this one claims the row, so its status-guarded claim matches nothing.
       storeRenderedDocument();
       signedPdfAvailable();
-      mockedPrisma.documentSignature.create.mockRejectedValueOnce(
-        Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+      mockedPrisma.renderedDocument.update.mockRejectedValueOnce(
+        recordNotFound(),
       );
       webhookFor("DOCUMENT_COMPLETED", 777);
 
       await handle();
 
-      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
-      expect(mockedPrisma.templateInstance.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
       expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
-      // Not acked, so the provider retries and the retry reads SIGNED.
-      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ received: true });
     });
+
+    it("never signs a linked record voided while its signature was outstanding", async () => {
+      storeRenderedDocument();
+      signedPdfAvailable();
+      mockedPrisma.templateInstance.updateMany.mockResolvedValue({ count: 0 });
+      linkedInstanceIs("VOID");
+      webhookFor("DOCUMENT_COMPLETED", 777);
+
+      await handle();
+
+      expect(mockedPrisma.templateInstance.updateMany).toHaveBeenCalledWith({
+        where: { id: "instance-1", status: "COMPLETED" },
+        data: expect.objectContaining({ status: "SIGNED" }),
+      });
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+      // Acked: nothing is wrong with the delivery, so a retry changes nothing.
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it.each(["DOCUMENT_OPENED", "DOCUMENT_SIGNED", "RECIPIENT_SIGNED"])(
+      "skips the rendered-document lookup for %s",
+      async (eventType) => {
+        webhookFor(eventType, 777);
+
+        await handle();
+
+        expect(mockedPrisma.renderedDocument.findFirst).not.toHaveBeenCalled();
+        expect(mockedPrisma.renderedDocument.findUnique).not.toHaveBeenCalled();
+        expect(statusMock).toHaveBeenCalledWith(200);
+        expect(jsonMock).toHaveBeenCalledWith({ received: true });
+      },
+    );
 
     it("resets the signing state when the rendered document is deleted", async () => {
       mockedPrisma.renderedDocument.findFirst.mockResolvedValue({ id: "rd-1" });
@@ -943,7 +999,7 @@ describe("DocumensoWebhookController", () => {
         data: { signing: { status: "NOT_STARTED", documentId: "777" } },
       });
       expect(mockedPacketService.resetSigning).not.toHaveBeenCalled();
-      expect(mockedPrisma.documentSignature.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
     });
   });
