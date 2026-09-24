@@ -25,7 +25,10 @@ const ONE_COMPONENT = { components: [{ id: 'api', name: 'API', status: 'operatio
 // What the live page returned when #2743 was filed: green, with nothing behind it.
 const NOTHING_CONFIGURED = {
   status: { indicator: 'none', description: 'All Systems Operational' },
-  components: [],
+  monitors: null,
+  pageComponents: null,
+  pageComponentGroups: null,
+  trackers: null,
   incidents: [],
 };
 
@@ -56,6 +59,18 @@ describe('GET /api/platform-status', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ['monitors', { ...NOTHING_CONFIGURED, monitors: [{ id: 1, name: 'API' }] }],
+    ['pageComponents', { ...NOTHING_CONFIGURED, pageComponents: [{ id: 1, name: 'API' }] }],
+  ])('reports operational when the summary lists %s', async (_field, summary) => {
+    mockUpstream(
+      () => Promise.resolve(ok({ status: 'operational' })),
+      () => Promise.resolve(ok(summary))
+    );
+
+    expect((await callRoute()).body).toEqual({ status: 'operational' });
+  });
+
   it('reports unknown, not operational, when the page monitors nothing', async () => {
     mockUpstream(
       () => Promise.resolve(ok({ status: 'operational' })),
@@ -72,6 +87,7 @@ describe('GET /api/platform-status', () => {
   it.each([
     ['a missing components field', {}],
     ['a non-array components field', { components: 'api' }],
+    ['empty monitor and component lists', { monitors: [], pageComponents: [], components: [] }],
     ['a non-object summary', 'components'],
   ])('treats %s as nothing monitored', async (_label, summary) => {
     mockUpstream(

@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
  * live platform health, that is a claim nobody verified (#2743).
  *
  * So `operational` is only passed through when the page's summary lists at
- * least one component that could have gone red. Any other status (an incident,
+ * least one monitor or component that could have gone red. Any other status (an incident,
  * maintenance, an outage) is a positive report someone or something raised,
  * and is passed through as is. Everything else resolves to `unknown`, which the
  * UI renders as "Status unavailable".
@@ -48,10 +48,18 @@ const readStatus = (data: unknown): string | null => {
   return typeof status === 'string' ? status : null;
 };
 
+// The summary lists what the page measures under `monitors` and
+// `pageComponents` (both `null` when nothing is configured); `components` is
+// the Statuspage-style name, kept in case the provider answers in that shape.
+const MEASURED_FIELDS = ['monitors', 'pageComponents', 'components'] as const;
+
 const hasMonitoredComponents = (summary: unknown): boolean => {
   if (!summary || typeof summary !== 'object') return false;
-  const { components } = summary as { components?: unknown };
-  return Array.isArray(components) && components.length > 0;
+  const fields = summary as Partial<Record<(typeof MEASURED_FIELDS)[number], unknown>>;
+  return MEASURED_FIELDS.some((field) => {
+    const value = fields[field];
+    return Array.isArray(value) && value.length > 0;
+  });
 };
 
 const uncachedUnknown = () =>
