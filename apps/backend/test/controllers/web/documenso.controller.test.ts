@@ -75,6 +75,8 @@ jest.mock("../../../src/services/audit-trail.service", () => ({
 
 const mockedLogger = jest.mocked(logger);
 
+const WEBHOOK_SECRET = "synthetic webhook secret for tests";
+
 describe("DocumensoWebhookController", () => {
   const originalSecret = process.env.DOCUMENSO_WEBHOOK_SECRET;
 
@@ -85,7 +87,7 @@ describe("DocumensoWebhookController", () => {
   let endMock: jest.Mock;
 
   beforeAll(() => {
-    delete process.env.DOCUMENSO_WEBHOOK_SECRET;
+    process.env.DOCUMENSO_WEBHOOK_SECRET = WEBHOOK_SECRET;
   });
 
   afterAll(() => {
@@ -119,11 +121,28 @@ describe("DocumensoWebhookController", () => {
     } as unknown as Response;
 
     jest.clearAllMocks();
-    delete process.env.DOCUMENSO_WEBHOOK_SECRET;
+    process.env.DOCUMENSO_WEBHOOK_SECRET = WEBHOOK_SECRET;
   });
 
+  // Signs the current body the way Documenso does (HMAC-SHA256 hex over the raw
+  // payload), unless the test has already chosen its own signature header.
+  const handle = () => {
+    const headers = req.headers ?? {};
+    if (!("x-documenso-signature" in headers)) {
+      const signature = crypto
+        .createHmac("sha256", process.env.DOCUMENSO_WEBHOOK_SECRET ?? "")
+        .update(req.body as Buffer)
+        .digest("hex");
+      req = {
+        ...req,
+        headers: { ...headers, "x-documenso-signature": signature },
+      };
+    }
+    return DocumensoWebhookController.handle(req as Request, res as Response);
+  };
+
   it("logs a static message for invalid payloads without including request data", async () => {
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedLogger.error).toHaveBeenCalledWith(
       "[DocumensoWebhook] Invalid payload",
@@ -144,7 +163,7 @@ describe("DocumensoWebhookController", () => {
         body: Buffer.from(body),
       };
 
-      await DocumensoWebhookController.handle(req as Request, res as Response);
+      await handle();
 
       expect(mockedLogger.error).toHaveBeenCalledWith(
         "[DocumensoWebhook] Invalid payload",
@@ -173,7 +192,7 @@ describe("DocumensoWebhookController", () => {
 
       const mockedPrisma = prisma as any;
 
-      await DocumensoWebhookController.handle(req as Request, res as Response);
+      await handle();
 
       expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
       expect(mockedLogger.error).toHaveBeenCalledWith(
@@ -237,7 +256,7 @@ describe("DocumensoWebhookController", () => {
       patientId: "pat-1",
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     // The completion is an atomic claim that re-asserts the IN_PROGRESS
     // preconditions, not an unguarded update after a separate read.
@@ -322,7 +341,7 @@ describe("DocumensoWebhookController", () => {
       encounterId: null,
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -351,7 +370,7 @@ describe("DocumensoWebhookController", () => {
       null,
     );
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(
       mockedPrisma.clinicalArtifactAttestation.findFirst,
@@ -386,7 +405,7 @@ describe("DocumensoWebhookController", () => {
       count: 0,
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
     expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
@@ -409,22 +428,22 @@ describe("DocumensoWebhookController", () => {
       count: 0,
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
     expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
   });
 
-  it("refuses to attest a passport record when the webhook is unverified", async () => {
-    // No DOCUMENSO_WEBHOOK_SECRET: the document id is the only credential, and
-    // it is an external identifier, so it must not create a clinical signature.
+  it("refuses every callback when the webhook secret is not configured", async () => {
+    // Without the secret the document id would be the only credential, and it
+    // is an external identifier, so nothing downstream may run.
     delete process.env.DOCUMENSO_WEBHOOK_SECRET;
     req = {
       ...req,
       body: Buffer.from(
         JSON.stringify({
           event: "DOCUMENT_COMPLETED",
-          payload: { id: "doc-pass-forged" },
+          payload: { id: "doc-unsigned" },
         }),
       ),
       headers: {},
@@ -433,13 +452,33 @@ describe("DocumensoWebhookController", () => {
 
     await DocumensoWebhookController.handle(req as Request, res as Response);
 
+    expect(statusMock).toHaveBeenCalledWith(503);
     expect(
       mockedPrisma.clinicalArtifactAttestation.findFirst,
     ).not.toHaveBeenCalled();
-    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
-    expect(mockedLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("webhook signature not verified"),
-    );
+    expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
+    expect(
+      mockedPrisma.workspaceDocumentPacket.findFirst,
+    ).not.toHaveBeenCalled();
+    expect(mockedPrisma.renderedDocument.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects a callback with no signature when the secret is configured", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-123" },
+        }),
+      ),
+      headers: {},
+    };
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(statusMock).toHaveBeenCalledWith(401);
+    expect((prisma as any).formSubmission.findFirst).not.toHaveBeenCalled();
   });
 
   it("rejects a passport completion carrying a bad signature", async () => {
@@ -457,7 +496,7 @@ describe("DocumensoWebhookController", () => {
       headers: { "x-documenso-signature": "deadbeef" },
     };
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(statusMock).toHaveBeenCalledWith(401);
   });
@@ -480,7 +519,7 @@ describe("DocumensoWebhookController", () => {
       encounterId: null,
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.encounter.findUnique).not.toHaveBeenCalled();
     expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
@@ -499,7 +538,7 @@ describe("DocumensoWebhookController", () => {
     };
     const mockedPrisma = prisma as any;
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
   });
@@ -553,7 +592,7 @@ describe("DocumensoWebhookController", () => {
       mockedAssignmentService.markSignedFromSubmission as any
     ).mockResolvedValueOnce(null);
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(
       mockedAssignmentService.markSignedFromSubmission,
@@ -592,7 +631,7 @@ describe("DocumensoWebhookController", () => {
       resetSigning: jest.Mock;
     };
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.workspaceDocumentPacket.findFirst).toHaveBeenCalled();
     expect(mockedPacketService.completeSigning).toHaveBeenCalledWith(
@@ -626,7 +665,7 @@ describe("DocumensoWebhookController", () => {
       resetSigning: jest.Mock;
     };
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPacketService.resetSigning).toHaveBeenCalledWith("packet-2");
     expect(mockedPacketService.completeSigning).not.toHaveBeenCalled();
@@ -653,7 +692,7 @@ describe("DocumensoWebhookController", () => {
       resetSigning: jest.Mock;
     };
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPacketService.completeSigning).not.toHaveBeenCalled();
     expect(mockedPacketService.resetSigning).not.toHaveBeenCalled();
@@ -677,7 +716,7 @@ describe("DocumensoWebhookController", () => {
       new Error("db down"),
     );
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedLogger.error).toHaveBeenCalledWith(
       "[DocumensoWebhook] Error",
@@ -710,7 +749,7 @@ describe("DocumensoWebhookController", () => {
     });
     mockedPrisma.form.findUnique.mockResolvedValue(null);
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.form.findUnique).toHaveBeenCalledWith({
       where: { id: "form-nf" },
@@ -756,7 +795,7 @@ describe("DocumensoWebhookController", () => {
       null,
     );
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(
       mockedDocumensoService.downloadSignedDocument,
@@ -797,7 +836,7 @@ describe("DocumensoWebhookController", () => {
       "some-key",
     );
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(
       mockedDocumensoService.downloadSignedDocument,
@@ -849,7 +888,7 @@ describe("DocumensoWebhookController", () => {
       new Error("assignment sync failed"),
     );
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.formSubmission.update).toHaveBeenCalled();
     expect(mockedLogger.warn).toHaveBeenCalledWith(
@@ -901,7 +940,7 @@ describe("DocumensoWebhookController", () => {
       undefined,
     );
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     const updateArg = mockedPrisma.formSubmission.update.mock.calls[0][0];
     expect(updateArg.where).toEqual({ id: "submission-nopdf" });
@@ -932,7 +971,7 @@ describe("DocumensoWebhookController", () => {
       signing: { status: "SIGNED", documentId: "doc-signed" },
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.form.findUnique).not.toHaveBeenCalled();
     expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
@@ -962,7 +1001,7 @@ describe("DocumensoWebhookController", () => {
       signing: null,
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.form.findUnique).not.toHaveBeenCalled();
     expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
@@ -987,7 +1026,7 @@ describe("DocumensoWebhookController", () => {
       signing: { status: "SIGNED", documentId: "888" },
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
     expect(statusMock).toHaveBeenCalledWith(200);
@@ -1011,7 +1050,7 @@ describe("DocumensoWebhookController", () => {
       signing: null,
     });
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+    await handle();
 
     expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
     expect(statusMock).toHaveBeenCalledWith(200);
