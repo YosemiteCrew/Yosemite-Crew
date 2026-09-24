@@ -82,6 +82,21 @@ jest.mock("supertokens-node/recipe/totp", () => {
   };
 });
 
+const mockAccountLinkingInit = jest.fn((config: unknown) => ({
+  name: "accountlinking",
+  config,
+}));
+
+jest.mock("supertokens-node/recipe/accountlinking", () => {
+  const actual = jest.requireActual("supertokens-node/recipe/accountlinking");
+
+  return {
+    ...actual,
+    __esModule: true,
+    default: { ...actual.default, init: mockAccountLinkingInit },
+  };
+});
+
 const ORIGINAL_ENV = {
   AUTH_API_DOMAIN: process.env.AUTH_API_DOMAIN,
   AUTH_WEBSITE_DOMAIN: process.env.AUTH_WEBSITE_DOMAIN,
@@ -143,6 +158,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
     mockPasswordlessInit.mockClear();
     mockThirdPartyInit.mockClear();
     mockTotpInit.mockClear();
+    mockAccountLinkingInit.mockClear();
     mockGetRolesForUser.mockReset();
     mockGetRolesForUser.mockResolvedValue({ status: "OK", roles: [] });
     mockListUsersByAccountInfo.mockReset();
@@ -1085,6 +1101,45 @@ describe("@yosemite-crew/auth supertokens config", () => {
       await expect(reset(input)).resolves.toEqual({ status: "OK" });
       expect(originalReset).toHaveBeenCalledWith(input);
       expect(mockGetRolesForUser).toHaveBeenCalledTimes(2);
+    });
+
+    const linkingDecision = (primaryUserId: string | undefined) => {
+      const config = mockAccountLinkingInit.mock.calls[0]?.[0] as any;
+      return config.shouldDoAutomaticAccountLinking(
+        { recipeId: "passwordless", email: ADMIN_EMAIL },
+        primaryUserId === undefined ? undefined : { id: primaryUserId },
+        undefined,
+        "public",
+        {},
+      );
+    };
+
+    it("does not link a new sign-in method onto an admin console account", async () => {
+      buildConfig();
+
+      await expect(linkingDecision(ADMIN_ID)).resolves.toEqual({
+        shouldAutomaticallyLink: false,
+      });
+      expect(mockGetRolesForUser).toHaveBeenCalledWith("public", ADMIN_ID, {});
+    });
+
+    it("still links a verified sign-in method onto every other account", async () => {
+      buildConfig();
+
+      await expect(linkingDecision("clinic-member")).resolves.toEqual({
+        shouldAutomaticallyLink: true,
+        shouldRequireVerification: true,
+      });
+    });
+
+    it("still lets a new account become the primary account", async () => {
+      buildConfig();
+
+      await expect(linkingDecision(undefined)).resolves.toEqual({
+        shouldAutomaticallyLink: true,
+        shouldRequireVerification: true,
+      });
+      expect(mockGetRolesForUser).not.toHaveBeenCalled();
     });
 
     // Runs the validators against the session's factor claim, as the SDK does.
