@@ -521,7 +521,7 @@ describe("TemplateFhirController", () => {
   });
 
   describe("questionnaire instances", () => {
-    it("creates an instance carrying the context extensions and response author", async () => {
+    it("creates an instance carrying the context extensions and the session author", async () => {
       req.params = { templateId: "template-1", organisationId: "org-1" };
       req.userId = "fallback-user";
       req.body = responseBody({
@@ -548,7 +548,9 @@ describe("TemplateFhirController", () => {
         appointmentId: "appt-1",
         caseId: "case-1",
         encounterId: "enc-1",
-        authorId: "author-1",
+        // The response's submitted-by extension names someone else; the
+        // verified session user is the author.
+        authorId: "fallback-user",
         data: { weight: 12 },
       });
       expect(mockedService.submitInstance).not.toHaveBeenCalled();
@@ -607,6 +609,36 @@ describe("TemplateFhirController", () => {
       expect(mockedService.createInstance).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
     });
+
+    it.each(["completed", "amended"])(
+      "does not complete an instance through a plain %s write",
+      async (status) => {
+        req.params = {
+          templateId: "template-1",
+          organisationId: "org-1",
+          instanceId: "instance-1",
+        };
+        req.body = responseBody({ status });
+        mockedService.getById.mockResolvedValue(templateRow());
+        mockedService.updateInstance.mockResolvedValue(instanceRow());
+
+        await TemplateFhirController.updateQuestionnaireInstance(
+          req as Request,
+          res,
+        );
+
+        const expected =
+          status === "completed"
+            ? { data: { weight: 12 } }
+            : { data: { weight: 12 }, status: "IN_PROGRESS" };
+        expect(mockedService.updateInstance).toHaveBeenCalledWith(
+          "instance-1",
+          expected,
+          "org-1",
+        );
+        expect(mockedService.submitInstance).not.toHaveBeenCalled();
+      },
+    );
 
     it("submits an instance without overwriting its status and reports it completed", async () => {
       req.params = {
@@ -1067,7 +1099,7 @@ describe("TemplateFhirController", () => {
       expect(emitted().resourceType).toBe("QuestionnaireResponse");
     });
 
-    it("creates a workflow instance with an empty author when the request carries no identity", async () => {
+    it("creates a workflow instance without an author when the request carries no identity", async () => {
       req.params = { templateId: "plan-1", organisationId: "org-1" };
       req.body = responseBody();
       mockedService.getById.mockResolvedValue(
@@ -1083,7 +1115,7 @@ describe("TemplateFhirController", () => {
       );
 
       expect(mockedService.createInstance).toHaveBeenCalledWith(
-        expect.objectContaining({ authorId: "" }),
+        expect.objectContaining({ authorId: undefined }),
       );
       expect(statusMock).toHaveBeenCalledWith(201);
     });

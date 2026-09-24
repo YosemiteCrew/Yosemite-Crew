@@ -104,7 +104,7 @@ Plain JSON CRUD for templates — the reusable definitions behind form-style doc
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `instanceId`
 - Body: `updateTemplateInstanceSchema`
-- Body fields: `data`, `status`, `signedBy`, `signedAt`, `generatedPdfUrl`, `generatedPdf`
+- Body fields: `data`, `status` (`DRAFT`, `IN_PROGRESS` or `VOID`; completed or signed instances cannot be edited, and signature fields are set by the signing flow only)
 - Controller: `TemplateController.updateInstance`
 
 ### POST /pms/template-instances/organisation/:organisationId/:instanceId/submit
