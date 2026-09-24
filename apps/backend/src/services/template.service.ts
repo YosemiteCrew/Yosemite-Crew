@@ -216,14 +216,38 @@ export const createTemplateInstanceSchema = z.object({
   data: z.record(z.string(), z.unknown()).default({}),
 });
 
+// Statuses a caller may set directly. COMPLETED is reached through the submit
+// path and SIGNED only through signing completion, so neither is accepted here.
+const CLIENT_SETTABLE_INSTANCE_STATUSES = [
+  TemplateInstanceStatus.DRAFT,
+  TemplateInstanceStatus.IN_PROGRESS,
+  TemplateInstanceStatus.VOID,
+] as const;
+
+// Once an instance is final its data and status no longer change here.
+const FINAL_INSTANCE_STATUSES = new Set<TemplateInstanceStatus>([
+  TemplateInstanceStatus.COMPLETED,
+  TemplateInstanceStatus.SIGNED,
+  TemplateInstanceStatus.VOID,
+]);
+
+// Signature and rendered-PDF fields are absent on purpose: they are written by
+// the signing and rendering flows only. Unknown keys are stripped by zod.
 export const updateTemplateInstanceSchema = z.object({
   data: z.record(z.string(), z.unknown()).optional(),
-  status: z.enum(TemplateInstanceStatus).optional(),
-  signedBy: z.string().trim().min(1).optional().nullable(),
-  signedAt: z.coerce.date().optional().nullable(),
-  generatedPdfUrl: z.string().trim().min(1).optional().nullable(),
-  generatedPdf: z.record(z.string(), z.unknown()).optional().nullable(),
+  status: z.enum(CLIENT_SETTABLE_INSTANCE_STATUSES).optional(),
 });
+
+// Server-side form submission also completes an instance in one step.
+const internalUpdateTemplateInstanceSchema =
+  updateTemplateInstanceSchema.extend({
+    status: z
+      .enum([
+        ...CLIENT_SETTABLE_INSTANCE_STATUSES,
+        TemplateInstanceStatus.COMPLETED,
+      ])
+      .optional(),
+  });
 
 export const updateTemplateCatalogLinksSchema = z.object({
   catalogItemIds: z.array(z.string().trim().min(1)).default([]),
@@ -245,7 +269,9 @@ export const resolveTemplateSchema = z.object({
 type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
 type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>;
 type CreateTemplateInstanceInput = z.infer<typeof createTemplateInstanceSchema>;
-type UpdateTemplateInstanceInput = z.infer<typeof updateTemplateInstanceSchema>;
+type UpdateTemplateInstanceInput = z.infer<
+  typeof internalUpdateTemplateInstanceSchema
+>;
 type UpdateTemplateCatalogLinksInput = z.infer<
   typeof updateTemplateCatalogLinksSchema
 >;
@@ -1499,7 +1525,7 @@ export const TemplateService = {
     input: UpdateTemplateInstanceInput,
     organisationId: string,
   ) {
-    const parsed = updateTemplateInstanceSchema.parse(input);
+    const parsed = internalUpdateTemplateInstanceSchema.parse(input);
     const orgScope = ensureId(organisationId, "organisationId");
     const instance = await prisma.templateInstance.findUnique({
       where: { id: ensureId(instanceId, "instanceId") },
@@ -1516,32 +1542,38 @@ export const TemplateService = {
       );
     }
 
-    return prisma.templateInstance.update({
-      where: { id: instance.id },
-      data: {
-        data:
-          parsed.data === undefined
-            ? toJsonInput(instance.data)
-            : toJsonInput(mergeJsonObject(instance.data, parsed.data)),
-        status: parsed.status ?? instance.status,
-        signedBy:
-          parsed.signedBy === undefined
-            ? instance.signedBy
-            : (parsed.signedBy ?? undefined),
-        signedAt:
-          parsed.signedAt === undefined
-            ? instance.signedAt
-            : (parsed.signedAt ?? undefined),
-        generatedPdfUrl:
-          parsed.generatedPdfUrl === undefined
-            ? instance.generatedPdfUrl
-            : (parsed.generatedPdfUrl ?? undefined),
-        generatedPdf:
-          parsed.generatedPdf === undefined
-            ? toNullableJsonInput(instance.generatedPdf)
-            : toNullableJsonInput(parsed.generatedPdf),
-      },
-    });
+    if (FINAL_INSTANCE_STATUSES.has(instance.status)) {
+      throw new TemplateServiceError(
+        "Template instance is final and can no longer be edited",
+        409,
+      );
+    }
+
+    try {
+      // The status the instance was read with is part of the WHERE, so a
+      // concurrent submit or signing between the read and this write wins.
+      return await prisma.templateInstance.update({
+        where: { id: instance.id, status: instance.status },
+        data: {
+          data:
+            parsed.data === undefined
+              ? undefined
+              : toJsonInput(mergeJsonObject(instance.data, parsed.data)),
+          status: parsed.status ?? instance.status,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        throw new TemplateServiceError(
+          "Template instance changed since it was loaded",
+          409,
+        );
+      }
+      throw error;
+    }
   },
 
   async submitInstance(
