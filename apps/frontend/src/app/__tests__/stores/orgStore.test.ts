@@ -1,4 +1,5 @@
 import { useOrgStore } from '@/app/stores/orgStore';
+import { LAST_ACTIVE_ORG_ID_KEY } from '@/app/stores/orgStorageKeys';
 import { Organisation, UserOrganization } from '@yosemite-crew/types';
 
 // --- Mock Data ---
@@ -274,6 +275,17 @@ describe('Organization Store', () => {
       store.setOrgs([mockOrg1], { keepPrimaryIfPresent: true });
 
       expect(useOrgStore.getState().primaryOrgId).toBe('org-1');
+    });
+
+    it('honours a last-active org written straight to storage under the shared key', () => {
+      // The authenticated e2e specs pin their fixture org by writing this key before
+      // sign-in, without going through setPrimaryOrg, so the store must read exactly it.
+      localStorage.clear();
+      localStorage.setItem(LAST_ACTIVE_ORG_ID_KEY, 'org-2');
+
+      useOrgStore.getState().setOrgs([mockOrg1, mockOrg2], { keepPrimaryIfPresent: true });
+
+      expect(useOrgStore.getState().primaryOrgId).toBe('org-2');
     });
 
     it('falls back to the first org when there is no stored last-active org at all', () => {
