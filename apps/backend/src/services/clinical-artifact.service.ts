@@ -2742,6 +2742,44 @@ export const ClinicalArtifactService = {
     return hydrateVitalRecords(records);
   },
 
+  /**
+   * Every vital record taken at any of the given visits, newest first. A patient's
+   * vitals span visits, and an artifact carries the appointment or encounter it was
+   * recorded against rather than the patient, so the caller resolves the patient's
+   * visits first. Voided records are left out: they were withdrawn as wrong.
+   */
+  async listVitalRecordsForVisits(
+    organisationId: string,
+    visits: { appointmentIds: string[]; encounterIds: string[] },
+    take: number,
+  ): Promise<VitalRecordRecord[]> {
+    const visitFilters = [
+      ...(visits.appointmentIds.length
+        ? [{ appointmentId: { in: visits.appointmentIds } }]
+        : []),
+      ...(visits.encounterIds.length
+        ? [{ encounterId: { in: visits.encounterIds } }]
+        : []),
+    ];
+    if (visitFilters.length === 0) return [];
+
+    const records = await clinicalPrisma.vitalRecord.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          kind: "VITAL_RECORD",
+          status: { not: "VOID" },
+          OR: visitFilters,
+        },
+      },
+      include: { artifact: true },
+      orderBy: { measuredAt: "desc" },
+      take,
+    });
+
+    return hydrateVitalRecords(records);
+  },
+
   // Passport clinical-record kinds (immunization, rabies titration, parasite
   // treatment, pre-travel exam). Read-only over FHIR: these are captured through
   // the dedicated passport flow and signed via Documenso, so there is no FHIR
