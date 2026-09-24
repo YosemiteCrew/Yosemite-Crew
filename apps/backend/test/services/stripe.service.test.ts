@@ -428,7 +428,7 @@ describe("StripeService", () => {
         prisma.organizationBilling.findUnique as jest.Mock
       ).mockResolvedValueOnce({
         currency: "jpy",
-        connectAccountId: "acct_jpy",
+        connectChargesEnabled: true,
       });
       mStripe.paymentIntents.create.mockResolvedValueOnce({
         id: "pi_jpy",

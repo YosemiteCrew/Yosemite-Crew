@@ -85,14 +85,15 @@ beforeEach(() => {
   (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
     id: "patient-org-1",
   });
-  // A US clinic without Stripe Connect, so the stored currency cannot pass
-  // for the old hardcoded "GBP" default.
+  // An Indian clinic whose Connect account cannot take charges yet, with its
+  // country stored as the web app writes it (the name). INR can pass neither
+  // for the old hardcoded "GBP" default nor for the "usd" fallback.
   (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
     currency: "usd",
-    connectAccountId: null,
+    connectChargesEnabled: false,
   });
   (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
-    country: "US",
+    country: "India",
   });
 });
 
@@ -140,7 +141,7 @@ describe("EstimateService.create", () => {
 
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ currency: "USD" }),
+        data: expect.objectContaining({ currency: "INR" }),
       }),
     );
   });
@@ -148,11 +149,11 @@ describe("EstimateService.create", () => {
   it("accepts the organisation's own currency when it is sent", async () => {
     mockCreate.mockResolvedValue(baseEstimate);
 
-    await EstimateService.create({ ...createInput, currency: "usd" });
+    await EstimateService.create({ ...createInput, currency: "inr" });
 
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ currency: "USD" }),
+        data: expect.objectContaining({ currency: "INR" }),
       }),
     );
   });
@@ -162,7 +163,7 @@ describe("EstimateService.create", () => {
       EstimateService.create({ ...createInput, currency: "GBP" }),
     ).rejects.toMatchObject({
       statusCode: 400,
-      message: "Currency must be the organisation's billing currency, USD.",
+      message: "Currency must be the organisation's billing currency, INR.",
     });
     expect(mockCreate).not.toHaveBeenCalled();
   });
@@ -251,9 +252,9 @@ describe("EstimateService.update", () => {
     mockFindFirst.mockResolvedValue(baseEstimate);
     mockUpdate.mockResolvedValue(baseEstimate);
 
-    await EstimateService.update("est-1", "org-1", { currency: "usd" });
+    await EstimateService.update("est-1", "org-1", { currency: "inr" });
 
-    expect(mockUpdate.mock.calls[0][0].data.currency).toBe("USD");
+    expect(mockUpdate.mock.calls[0][0].data.currency).toBe("INR");
   });
 
   it("refuses to re-label an estimate in another currency", async () => {

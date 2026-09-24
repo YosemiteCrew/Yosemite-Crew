@@ -5,9 +5,9 @@ type OrgId = string | { toString(): string } | null | undefined;
 const DEFAULT_CURRENCY = "usd";
 
 // ISO-3166 alpha-2 country -> ISO-4217 currency (lowercased, matching Stripe's
-// lowercase convention used throughout billing). Used as a fallback when an
-// OrganizationBilling row hasn't been created yet (e.g. before Stripe Connect
-// onboarding) so invoices default to the org's local currency instead of USD.
+// lowercase convention used throughout billing). Used until Stripe Connect
+// confirms the account's currency (see `orgBillingCurrency`), so documents
+// default to the org's local currency instead of USD.
 const COUNTRY_TO_CURRENCY: Record<string, string> = {
   US: "usd",
   GB: "gbp",
@@ -38,33 +38,58 @@ const COUNTRY_TO_CURRENCY: Record<string, string> = {
   SK: "eur",
 };
 
+// The web app stores `OrganizationAddress.country` as the English country
+// name (onboarding, the address search and the profile all write the `name` of
+// the same country list), not the ISO code the map above is keyed by. The
+// names are taken from the runtime's own CLDR region names for exactly those
+// codes, so no second hand-kept list can drift from the first; a test pins
+// them to the names the web app writes.
+const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+const COUNTRY_CODE_BY_NAME = new Map(
+  Object.keys(COUNTRY_TO_CURRENCY).map((code) => [
+    (regionNames.of(code) ?? code).toUpperCase(),
+    code,
+  ]),
+);
+
+/** The currency for a stored country, given as an ISO alpha-2 code or a name. */
 export const currencyForCountry = (
   country: string | null | undefined,
 ): string | undefined => {
   if (!country) return undefined;
-  return COUNTRY_TO_CURRENCY[country.trim().toUpperCase()];
+  const key = country.trim().toUpperCase();
+  return COUNTRY_TO_CURRENCY[COUNTRY_CODE_BY_NAME.get(key) ?? key];
 };
 
 type BillingCurrencySource = {
   currency: string;
-  connectAccountId: string | null;
+  connectChargesEnabled: boolean;
 };
 
 /**
  * The organisation's billing currency from rows already in hand.
  *
- * `OrganizationBilling.currency` is written only by the Stripe Connect
- * `account.updated` webhook. Until an organisation has a Connect account the
- * column holds its schema default, "usd", which states nothing about the
- * clinic; reading it then labelled every clinic without Connect as billing in
- * dollars (#3607). So the column counts only once a Connect account exists,
- * and the organisation's country decides before that.
+ * `OrganizationBilling.currency` holds its schema default, "usd", until the
+ * Stripe Connect `account.updated` webhook writes the account's
+ * `default_currency`. Neither a billing row nor a Connect account id proves
+ * that happened: every organisation gets the row at creation, and
+ * `createOrGetConnectedAccount` stores the account id before onboarding
+ * starts, while the account's details, and so its currency, are not settled.
+ * The honest signal is `connectChargesEnabled`: the same webhook update writes
+ * it alongside the currency, and it is true only once the account can take
+ * charges, so its currency is the one Stripe settles in. Until then the
+ * organisation's country decides, then "usd" (#3607).
+ *
+ * ponytail: if Stripe later disables charges, new documents fall back to the
+ * country's currency until they are re-enabled; that is the same currency
+ * unless the Stripe account is registered in another country. Add a
+ * "Connect currency confirmed" column if that case matters.
  */
 export const orgBillingCurrency = (
   billing: BillingCurrencySource | null | undefined,
   country: string | null | undefined,
 ): string =>
-  billing?.connectAccountId
+  billing?.connectChargesEnabled
     ? billing.currency
     : (currencyForCountry(country) ?? DEFAULT_CURRENCY);
 
@@ -75,10 +100,10 @@ export const getOrgBillingCurrency = async (orgId: OrgId) => {
 
   const billing = await prisma.organizationBilling.findUnique({
     where: { orgId: id },
-    select: { currency: true, connectAccountId: true },
+    select: { currency: true, connectChargesEnabled: true },
   });
   // The address is only read when the billing row cannot answer.
-  const address = billing?.connectAccountId
+  const address = billing?.connectChargesEnabled
     ? null
     : await prisma.organizationAddress.findUnique({
         where: { organizationId: id },
@@ -88,27 +113,40 @@ export const getOrgBillingCurrency = async (orgId: OrgId) => {
 };
 
 /**
- * The currency an estimate or insurance claim is written in: the
- * organisation's billing currency, as an upper-case ISO 4217 code.
- *
- * A caller may send a currency, but only the organisation's own. An estimate
- * converts into an invoice and a claim reclaims one, and invoices are always
- * raised in the billing currency, so a different code can only be a stale or
- * guessed client value - the one that stamped USD on every claim (#3607).
+ * The currency a document is written in when it must match one already
+ * fixed, as an upper-case ISO 4217 code. A caller may send a currency, but
+ * only that same one (any case or padding); anything else is refused with the
+ * code expected, because it can only be a stale or guessed client value.
+ */
+export const requireCurrency = (
+  expected: string,
+  requested: string | undefined,
+  reject: (message: string) => never,
+  owner: string,
+): string => {
+  const code = expected.toUpperCase();
+  if (requested !== undefined && requested.trim().toUpperCase() !== code) {
+    reject(`Currency must be ${owner} currency, ${code}.`);
+  }
+  return code;
+};
+
+/**
+ * The currency a document that starts in the organisation's billing
+ * currency is written in: a new estimate, which converts into an invoice in
+ * that currency, and an insurance claim that reclaims no invoice. A claim
+ * against an invoice follows that invoice instead, because invoices keep the
+ * currency they were raised in. Sending another currency is refused; that
+ * guessed client value stamped USD on every claim (#3607).
  */
 export const resolveOrgDocumentCurrency = async (
   orgId: string,
   requested: string | undefined,
   reject: (message: string) => never,
-): Promise<string> => {
-  const billingCurrency = (await getOrgBillingCurrency(orgId)).toUpperCase();
-  if (
-    requested !== undefined &&
-    requested.trim().toUpperCase() !== billingCurrency
-  ) {
-    reject(
-      `Currency must be the organisation's billing currency, ${billingCurrency}.`,
-    );
-  }
-  return billingCurrency;
-};
+): Promise<string> =>
+  requireCurrency(
+    await getOrgBillingCurrency(orgId),
+    requested,
+    reject,
+    "the organisation's billing",
+  );

@@ -87,11 +87,11 @@ describe("Inventory service", () => {
       async (callback: unknown) =>
         typeof callback === "function" ? callback(prisma) : undefined,
     );
-    // A Connect-written billing currency; before Connect the column is only
-    // its schema default and the country decides (#3607).
+    // A Connect-written billing currency; until the account can take charges
+    // the column is not trusted and the country decides (#3607).
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
       currency: "usd",
-      connectAccountId: "acct_1",
+      connectChargesEnabled: true,
     });
     (prisma.inventoryCategory.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.inventorySubcategory.findMany as jest.Mock).mockResolvedValue([]);
@@ -1348,7 +1348,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
 
     mockOf(prisma.organizationBilling.findUnique).mockResolvedValue({
       currency: "gbp",
-      connectAccountId: "acct_1",
+      connectChargesEnabled: true,
     });
     mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(null);
     mockOf(prisma.inventoryItem.findMany).mockResolvedValue([]);

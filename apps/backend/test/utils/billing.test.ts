@@ -2,9 +2,12 @@ import {
   currencyForCountry,
   getOrgBillingCurrency,
   orgBillingCurrency,
+  requireCurrency,
   resolveOrgDocumentCurrency,
 } from "../../src/utils/billing";
 import { prisma } from "src/config/prisma";
+import fs from "node:fs";
+import path from "node:path";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -38,6 +41,45 @@ describe("currencyForCountry", () => {
     expect(currencyForCountry("de")).toBe("eur");
   });
 
+  // OrganizationAddress.country holds the English name on every web write
+  // path (onboarding, the address search, the profile), so an ISO-only lookup
+  // never matched and every clinic without Connect fell through to usd.
+  it("maps the country names the web app stores", () => {
+    expect(currencyForCountry("United Kingdom")).toBe("gbp");
+    expect(currencyForCountry("Germany")).toBe("eur");
+    expect(currencyForCountry("India")).toBe("inr");
+    expect(currencyForCountry("United States")).toBe("usd");
+    expect(currencyForCountry(" united kingdom ")).toBe("gbp");
+  });
+
+  it("returns undefined for a name it has no currency for", () => {
+    expect(currencyForCountry("Switzerland")).toBeUndefined();
+    expect(currencyForCountry("Narnia")).toBeUndefined();
+  });
+
+  // The names are derived from the runtime's region names, not typed by hand,
+  // so pin them to the list the web app actually writes from: every entry must
+  // resolve by name exactly as it does by code.
+  it("resolves every country in the web app's list by name as by code", () => {
+    const countries = JSON.parse(
+      fs.readFileSync(
+        path.resolve(
+          __dirname,
+          "../../../frontend/src/app/lib/data/countryList.json",
+        ),
+        "utf8",
+      ),
+    ) as { name: string; code: string }[];
+
+    const mismatches = countries.filter(
+      ({ name, code }) => currencyForCountry(name) !== currencyForCountry(code),
+    );
+    const priced = countries.filter(({ name }) => currencyForCountry(name));
+
+    expect(mismatches).toEqual([]);
+    expect(priced).toHaveLength(26);
+  });
+
   it("returns undefined for unknown or missing countries", () => {
     expect(currencyForCountry("ZZ")).toBeUndefined();
     expect(currencyForCountry("")).toBeUndefined();
@@ -56,30 +98,31 @@ describe("getOrgBillingCurrency", () => {
     expect(prisma.organizationBilling.findUnique).not.toHaveBeenCalled();
   });
 
-  it("prefers the Connect-written OrganizationBilling currency over the country", async () => {
+  it("prefers the Connect currency once the account can take charges", async () => {
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
       currency: "gbp",
-      connectAccountId: "acct_1",
+      connectChargesEnabled: true,
     });
 
     await expect(getOrgBillingCurrency("org_1")).resolves.toBe("gbp");
     expect(prisma.organizationBilling.findUnique).toHaveBeenCalledWith({
       where: { orgId: "org_1" },
-      select: { currency: true, connectAccountId: true },
+      select: { currency: true, connectChargesEnabled: true },
     });
     expect(prisma.organizationAddress.findUnique).not.toHaveBeenCalled();
   });
 
-  // Every organisation gets a billing row at creation, so its currency column
-  // holds the schema default "usd" until Stripe Connect writes a real one.
-  // Reading that default labelled a UK clinic without Connect as USD (#3607).
-  it("ignores the schema-default billing currency until a Connect account exists", async () => {
+  // Every organisation gets a billing row at creation, and a Connect account
+  // id is stored before onboarding, so the column can still hold its schema
+  // default "usd" with an account attached. Reading it labelled a UK clinic
+  // as USD (#3607); the stored country name decides until charges are on.
+  it("ignores the billing currency until the Connect account can take charges", async () => {
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
       currency: "usd",
-      connectAccountId: null,
+      connectChargesEnabled: false,
     });
     (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
-      country: "GB",
+      country: "United Kingdom",
     });
 
     await expect(getOrgBillingCurrency("org_1")).resolves.toBe("gbp");
@@ -90,7 +133,7 @@ describe("getOrgBillingCurrency", () => {
       null,
     );
     (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
-      country: "IN",
+      country: "India",
     });
 
     await expect(getOrgBillingCurrency("org_1")).resolves.toBe("inr");
@@ -124,17 +167,23 @@ describe("getOrgBillingCurrency", () => {
 });
 
 describe("orgBillingCurrency", () => {
-  it("uses the billing row's currency once a Connect account exists", () => {
+  it("uses the billing row's currency once Connect can take charges", () => {
     expect(
-      orgBillingCurrency({ currency: "eur", connectAccountId: "acct_1" }, "GB"),
+      orgBillingCurrency(
+        { currency: "eur", connectChargesEnabled: true },
+        "United Kingdom",
+      ),
     ).toBe("eur");
   });
 
-  it("uses the country's currency before Connect, whatever the column says", () => {
+  it("uses the country's currency until then, whatever the column says", () => {
     expect(
-      orgBillingCurrency({ currency: "usd", connectAccountId: null }, "IN"),
+      orgBillingCurrency(
+        { currency: "usd", connectChargesEnabled: false },
+        "IN",
+      ),
     ).toBe("inr");
-    expect(orgBillingCurrency(null, "AU")).toBe("aud");
+    expect(orgBillingCurrency(null, "Australia")).toBe("aud");
   });
 
   it("defaults to usd when neither source can answer", () => {
@@ -153,7 +202,7 @@ describe("resolveOrgDocumentCurrency", () => {
       null,
     );
     (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue({
-      country: "DE",
+      country: "Germany",
     });
   });
 
@@ -175,5 +224,29 @@ describe("resolveOrgDocumentCurrency", () => {
     ).rejects.toThrow(
       "Currency must be the organisation's billing currency, EUR.",
     );
+  });
+});
+
+describe("requireCurrency", () => {
+  const reject = (message: string): never => {
+    throw new Error(message);
+  };
+
+  it("answers the fixed currency in upper case when none is sent", () => {
+    expect(requireCurrency("gbp", undefined, reject, "the invoice's")).toBe(
+      "GBP",
+    );
+  });
+
+  it("accepts the same currency whatever its case or padding", () => {
+    expect(requireCurrency("GBP", " gbp ", reject, "the invoice's")).toBe(
+      "GBP",
+    );
+  });
+
+  it("refuses any other currency and names whose it expects", () => {
+    expect(() =>
+      requireCurrency("gbp", "EUR", reject, "the invoice's"),
+    ).toThrow("Currency must be the invoice's currency, GBP.");
   });
 });

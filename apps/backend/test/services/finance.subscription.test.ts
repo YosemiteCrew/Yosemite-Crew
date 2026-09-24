@@ -163,14 +163,14 @@ describe("FinanceSubscriptionService", () => {
     (prisma.usageSnapshot.findFirst as jest.Mock).mockResolvedValueOnce(null);
     (prisma.usageEvent.findMany as jest.Mock).mockResolvedValueOnce([]);
 
-    // No Connect account, so the billing row's "usd" is its schema default
-    // and the country decides (#3607).
+    // No Connect account that can take charges, so the billing row's "usd"
+    // is its schema default and the stored country name decides (#3607).
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValueOnce({
       currency: "usd",
-      connectAccountId: null,
+      connectChargesEnabled: false,
     });
     (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValueOnce({
-      country: "IE",
+      country: "Ireland",
     });
 
     const result =

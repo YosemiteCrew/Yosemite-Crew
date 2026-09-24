@@ -48,23 +48,36 @@ export const validateClaimDraft = (draft: ClaimDraft): Validation => {
 };
 
 /**
+ * The currency the draft's amount is in, as far as the form knows. A claim
+ * against an invoice is saved in that invoice's currency, which the form cannot
+ * see, so it is unknown then, as the organisation's is before it loads (#3607).
+ */
+export const draftClaimCurrency = (
+  draft: ClaimDraft,
+  currency: string | undefined
+): string | undefined => (draft.invoiceId.trim() ? undefined : currency);
+
+/**
  * Build the create payload, trimming strings and omitting the empty optionals.
- * The currency is omitted too while the organisation's is not known, so the
- * server stores its own rather than a client guess (#3607).
+ * The currency is omitted too while it is not known, so the server stores the
+ * invoice's or the organisation's own rather than a client guess (#3607).
  */
 export const buildClaimInput = (
   draft: ClaimDraft,
   currency: string | undefined
-): CreateInsuranceClaimInput => ({
-  patientId: draft.patientId,
-  insurerName: draft.insurerName.trim(),
-  policyNumber: draft.policyNumber.trim(),
-  submittedAmount: Number(draft.submittedAmount.trim()),
-  ...(currency ? { currency } : {}),
-  ...(draft.invoiceId.trim() ? { invoiceId: draft.invoiceId.trim() } : {}),
-  ...(draft.encounterId.trim() ? { encounterId: draft.encounterId.trim() } : {}),
-  ...(draft.notes.trim() ? { notes: draft.notes.trim() } : {}),
-});
+): CreateInsuranceClaimInput => {
+  const claimCurrency = draftClaimCurrency(draft, currency);
+  return {
+    patientId: draft.patientId,
+    insurerName: draft.insurerName.trim(),
+    policyNumber: draft.policyNumber.trim(),
+    submittedAmount: Number(draft.submittedAmount.trim()),
+    ...(claimCurrency ? { currency: claimCurrency } : {}),
+    ...(draft.invoiceId.trim() ? { invoiceId: draft.invoiceId.trim() } : {}),
+    ...(draft.encounterId.trim() ? { encounterId: draft.encounterId.trim() } : {}),
+    ...(draft.notes.trim() ? { notes: draft.notes.trim() } : {}),
+  };
+};
 
 export type UseInsuranceClaimDraft = {
   draft: ClaimDraft;
