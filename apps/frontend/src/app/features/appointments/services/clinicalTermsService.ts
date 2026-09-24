@@ -23,12 +23,6 @@ export type ClinicalTermSuggestion = {
   codings?: ClinicalTermCoding[];
 };
 
-/**
- * Ranked term suggestions from the Yosemite clinical vocabulary
- * (`GET /v1/codes/terms/suggest`). Matches display text and multilingual
- * synonyms; `domain` narrows to one clinical bucket (e.g. Diagnosis for the
- * Assessment section) and is omitted to search everything.
- */
 /** A practice can narrow the list to terms it can code in one vocabulary. */
 export type VocabularyFilter = 'VENOM' | 'SNOMED';
 
@@ -61,6 +55,12 @@ export const resolveClinicalTermSpecies = (
 ): ClinicalTermSpecies | undefined =>
   SPECIES_BY_COMPANION.get(companionSpecies?.trim().toLowerCase() ?? '');
 
+/**
+ * Ranked term suggestions from the Yosemite clinical vocabulary
+ * (`GET /v1/codes/terms/suggest`). Matches display text and multilingual
+ * synonyms; `domain` narrows to one clinical bucket (e.g. Diagnosis for the
+ * Assessment section) and is omitted to search everything.
+ */
 export const suggestClinicalTerms = async (params: {
   q: string;
   domain?: ClinicalTermDomain;

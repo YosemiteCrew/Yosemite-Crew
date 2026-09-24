@@ -36,11 +36,6 @@ const withAuth = (user: AuthUser | null, role: string | null) => () => {
   };
 };
 
-/**
- * The mobile story has to be snapshotted at a real narrow viewport: everything that
- * collapses the route list into the drawer is a `lg:` media query, so a merely narrow
- * container still renders the desktop bar.
- */
 /** Reproduces the sticky glass shell `Header` wraps the guest bar in. */
 const HeaderShell = ({ children }: { children: ReactNode }) => (
   <div style={{ background: 'var(--page)', minHeight: 220 }}>
@@ -133,6 +128,11 @@ export const SignedIn: Story = {
   },
 };
 
+/**
+ * The mobile story has to be snapshotted at a real narrow viewport: everything that
+ * collapses the route list into the drawer is a `lg:` media query, so a merely narrow
+ * container still renders the desktop bar.
+ */
 export const Mobile: Story = {
   name: 'Mobile (menu closed)',
   globals: { viewport: { value: 'mobile', isRotated: false } },

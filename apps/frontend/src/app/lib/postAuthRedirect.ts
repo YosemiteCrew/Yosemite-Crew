@@ -39,16 +39,6 @@ export const hasDeveloperRole = (roles?: readonly (string | null | undefined)[] 
   (roles ?? []).some((role) => isDeveloperRole(role));
 
 /**
- * The role set to reason about, given both what the API sent and the single
- * role callers already had.
- *
- * `roles` is empty for a session stored before the API served it, and for a
- * sign-up whose provisioning call has not landed yet. Treating that emptiness
- * as "holds nothing" told real developers they were not developers, so an
- * empty list always falls back to the one role that is known rather than
- * answering no.
- */
-/**
  * True when the developer role is the ONLY role this account holds.
  *
  * `hasDeveloperRole` answers "does this account have developer access", which
@@ -60,6 +50,16 @@ export const hasDeveloperRole = (roles?: readonly (string | null | undefined)[] 
 const holdsOnlyDeveloperRole = (roles: readonly string[]) =>
   roles.length > 0 && roles.every(isDeveloperRole);
 
+/**
+ * The role set to reason about, given both what the API sent and the single
+ * role callers already had.
+ *
+ * `roles` is empty for a session stored before the API served it, and for a
+ * sign-up whose provisioning call has not landed yet. Treating that emptiness
+ * as "holds nothing" told real developers they were not developers, so an
+ * empty list always falls back to the one role that is known rather than
+ * answering no.
+ */
 export const resolveHeldRoles = (
   roles?: readonly (string | null | undefined)[] | null,
   singleRole?: string | null

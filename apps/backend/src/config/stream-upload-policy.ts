@@ -112,11 +112,6 @@ export const BLOCKED_UPLOAD_MIME_TYPES = [
 export const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
 
 /**
- * Apply the chat upload policy to the Stream application. Idempotent and
- * best-effort: a failure is logged but never blocks server startup, since the
- * app can still run (uploads simply fall back to Stream's default policy).
- */
-/**
  * Stream requires each blocked extension to carry a leading dot.
  *
  * Its API validates `blocked_file_extensions` with a `startswith` tag, so a
@@ -135,6 +130,11 @@ export const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
  */
 const toStreamExtension = (extension: string): string => `.${extension}`;
 
+/**
+ * Apply the chat upload policy to the Stream application. Idempotent and
+ * best-effort: a failure is logged but never blocks server startup, since the
+ * app can still run (uploads simply fall back to Stream's default policy).
+ */
 export const configureStreamUploadPolicy = async (): Promise<void> => {
   const key = process.env.STREAM_API_KEY;
   const secret = process.env.STREAM_API_SECRET;

@@ -111,12 +111,6 @@ const movePointerOffPlot = (wrapper: HTMLElement) => {
   );
 };
 
-/**
- * A flat pause, for the one assertion shape `waitFor` cannot express: that
- * something STAYS shut. recharts answers a mousemove within a single animation
- * frame (its mousemove handling is `requestAnimationFrame`-throttled by default),
- * so a quarter of a second is generous.
- */
 /** The label line of the open bubble. */
 const bubbleLabel = (canvasElement: HTMLElement): string =>
   bubbleOf(canvasElement).querySelector('.recharts-tooltip-label')?.textContent?.trim() ?? '';
