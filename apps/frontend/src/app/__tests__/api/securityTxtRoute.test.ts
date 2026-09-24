@@ -43,9 +43,10 @@ describe('GET /security.txt', () => {
 
     expect(init.headers['Content-Type']).toBe('text/plain; charset=utf-8');
     expect(body.endsWith('\n')).toBe(true);
+    // RFC 9116: the first Contact is the preferred one.
     expect(fields.get('Contact')).toEqual([
-      'https://github.com/YosemiteCrew/Yosemite-Crew/security/advisories/new',
       'mailto:security@yosemitecrew.com',
+      'https://github.com/YosemiteCrew/Yosemite-Crew/security/advisories/new',
     ]);
     expect(fields.get('Policy')).toEqual([
       'https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/SECURITY.md',

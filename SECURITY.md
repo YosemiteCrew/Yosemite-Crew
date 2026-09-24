@@ -6,8 +6,8 @@ This policy explains how to report a security vulnerability in Yosemite Crew and
 
 Please report a suspected vulnerability privately. Do not open a public issue, discussion or pull request for it.
 
-- **Preferred:** use private vulnerability reporting on this repository. Open the **Security** tab and choose **Report a vulnerability**, or go straight to the [private report form](https://github.com/YosemiteCrew/Yosemite-Crew/security/advisories/new).
-- **Email:** `security at yosemitecrew.com`, if you cannot use the form.
+- **Email:** [security@yosemitecrew.com](mailto:security@yosemitecrew.com) is our security contact.
+- **GitHub:** you can also use private vulnerability reporting on this repository. Open the **Security** tab and choose **Report a vulnerability**, or go straight to the [private report form](https://github.com/YosemiteCrew/Yosemite-Crew/security/advisories/new).
 
 Include what you can: the affected app and version, a description of the issue, and steps to reproduce it. A partial report is welcome.
 

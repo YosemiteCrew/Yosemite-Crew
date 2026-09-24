@@ -3,6 +3,9 @@
  * in next.config.ts, at /.well-known/security.txt. It lives here rather than
  * under an `app/.well-known` folder because the type-checker skips dot folders.
  *
+ * RFC 9116 lists `Contact` in order of preference, so the security mailbox
+ * comes first.
+ *
  * Built per request so `Expires` is always a year ahead: a fixed date in a
  * static file would lapse unless someone remembered to renew it.
  */
@@ -16,8 +19,8 @@ const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 export function GET() {
   const expires = new Date(Date.now() + ONE_YEAR_MS).toISOString();
   const body = [
-    `Contact: ${REPOSITORY}/security/advisories/new`,
     'Contact: mailto:security@yosemitecrew.com',
+    `Contact: ${REPOSITORY}/security/advisories/new`,
     `Expires: ${expires}`,
     `Policy: ${REPOSITORY}/blob/main/SECURITY.md`,
     'Preferred-Languages: en',
