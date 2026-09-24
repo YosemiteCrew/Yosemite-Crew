@@ -25,7 +25,7 @@ check() { # check <name> <expected> <actual>
 }
 
 # The permission string, e.g. -rw-------. `ls` rather than `stat`, whose flags
-# differ between the Linux hosts and a macOS laptop.
+# differ between GNU and BSD.
 mode_of() { ls -ld -- "$1" | cut -c1-10; }
 
 # The names of the files that exist among <path>..., space-separated.
@@ -65,6 +65,23 @@ if [ -e "$WORK/api-env-before-20260101-000001" ]; then
 else
   ok "a missing .env writes no copy"
 fi
+
+# A name that is already taken is left alone: an existing file is not written
+# into, and a link is not followed.
+printf 'OLD\n' > "$WORK/api-env-before-20260101-000002"
+deploy_backup_env "$WORK/.env" "$WORK/api-env-before-20260101-000002"
+check "a file already at the backup path is not written into" "OLD" \
+  "$(cat "$WORK/api-env-before-20260101-000002")"
+
+ln -s "$WORK/link-target" "$WORK/api-env-before-20260101-000003"
+deploy_backup_env "$WORK/.env" "$WORK/api-env-before-20260101-000003"
+if [ -e "$WORK/link-target" ]; then
+  no "a link at the backup path is not followed" "the copy was written through the link"
+else
+  ok "a link at the backup path is not followed"
+fi
+
+check "no working copies are left behind" "" "$(names "$WORK"/api-env-before-*.*)"
 
 echo "deploy_prune_backups"
 

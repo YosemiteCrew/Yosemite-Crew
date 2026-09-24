@@ -11,13 +11,19 @@
 # Copies <env-file> to <backup-path>, readable by the owner only. Never fails:
 # a box with no .env still deploys, exactly as it did before this existed.
 #
-# The umask rather than a chmod afterwards, so the copy is created owner-only
-# instead of being tightened once it already exists.
+# The copy is always a new file made here: mktemp creates it owner-only, and ln
+# gives it <backup-path> only if that name is still free. Whatever is already
+# at <backup-path> is left as it is, and no copy is written.
 deploy_backup_env() {
   local src="${1:?env file required}"
   local dest="${2:?backup path required}"
+  local tmp
 
-  ( umask 077 && cp -- "$src" "$dest" ) 2>/dev/null || true
+  tmp="$(mktemp "$dest.XXXXXX" 2>/dev/null)" || return 0
+  if cp -- "$src" "$tmp" 2>/dev/null; then
+    ln -- "$tmp" "$dest" 2>/dev/null || true
+  fi
+  rm -f -- "$tmp"
 }
 
 # deploy_prune_backups <path-prefix> <keep>
