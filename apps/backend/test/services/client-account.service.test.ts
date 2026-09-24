@@ -652,6 +652,33 @@ describe("ClientAccountService.proposeAllocation", () => {
     ]);
   });
 
+  it("plans an upper-case invoice against a lower-case capture of the same currency", async () => {
+    // An estimate converted before #3607 left "GBP" on its invoice while
+    // Stripe journals "gbp"; the plan must still see the debt.
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      dbInvoice({ currency: "GBP" }),
+    ]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ amount: 40 }),
+    ]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 100 }));
+
+    const proposals = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]).toMatchObject({
+      currency: "gbp",
+      outstandingBefore: 100,
+      proposedAmount: 40,
+    });
+    expect(proposals[0].lines).toEqual([
+      { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 40 },
+    ]);
+  });
+
   /*
    * The allocation call refuses a capture held in a merchant account that is
    * not this organisation's, so the preview must not offer to spend it.
