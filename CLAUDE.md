@@ -8,7 +8,6 @@ Modular skills in `.claude/skills/` provide deep, app-specific guidance. Load th
 
 | Skill                             | When to use                                                       |
 | --------------------------------- | ----------------------------------------------------------------- |
-| `.claude/skills/agent-loop`       | Start of any multi-step task, fan-out, or recurring run           |
 | `.claude/skills/frontend-design`  | UI work, new components, styling in apps/frontend                 |
 | `.claude/skills/frontend-sonar`   | SonarQube fixes or writing Sonar-clean code in apps/frontend      |
 | `.claude/skills/frontend-testing` | Writing/fixing/running tests in apps/frontend                     |
@@ -97,18 +96,6 @@ Additional commit rules:
 - Allowed scopes are exactly: `backend`, `frontend`, `mobile`, `desktop`, `dev-docs`, `types`, `fhir`, `repo`, `ci`, `docs`, `lib`, `auth`, `database`.
 - If changes span multiple workspaces, use `repo`.
 
-Issue + PR draft workflow (only on explicit user request):
-
-- Compute base SHA using `git merge-base HEAD upstream/dev`.
-- Analyze commits and changed files from `<base>..HEAD`.
-- Build draft content from actual file diffs; never infer scope from commit title alone.
-- Group changed files by domain/workstream and ensure all material domains are reflected in Issue and PR body.
-- If Merck paths changed (`apps/mobileAppYC/src/features/merck/` or backend Merck integration paths), explicitly include Merck integration updates.
-- Use `.github/ISSUE_TEMPLATE/feature_request.md` and `.github/PULL_REQUEST_TEMPLATE.md` as the exact template source.
-- Generate or overwrite a single latest file: `.tmp/agent-output/latest-issue-pr.md`.
-- Do not auto-generate this file unless asked.
-- Treat `.tmp/agent-output/` as temporary local output (gitignored, deletable anytime).
-
 ---
 
 ## Code Quality
@@ -125,7 +112,6 @@ Identify and fix Sonar findings **locally before pushing** — never let issues 
 
 - Before pushing ANY change, run the local Sonar workflow for the touched app (lint → type-check → tests+coverage → build → a SonarCloud scan) and review **every** reported issue **and security hotspot** — not just gate-failing ones — and fix all of them.
 - Re-run until the scan is clean (zero new issues, zero hotspots). Only then push / open the PR.
-- The local Sonar tooling is machine-specific and intentionally untracked — set it up from your local, gitignored instructions (`CLAUDE.local.md`). Never commit, print, echo, or `git add` local Sonar scripts, scan outputs, or tokens.
 
 ---
 
@@ -163,30 +149,3 @@ Examples:
 ```
 
 PR title must match the same pattern, and a scope is required — a scopeless title passes local commitlint but fails the "Validate PR title" CI check. PR body must include: what changed, why, impact area, validation performed.
-
----
-
-## Context Management (Token Hygiene)
-
-- Run `/compact Focus on code changes and errors only` before switching tasks or files mid-session.
-- Run `/clear` between completely unrelated tasks to reset context.
-- Run `/cost` after the first message of a new session — if `cache_read_input_tokens` is 0, update Claude Code (`claude update`) to fix the prompt-cache bug.
-- **Disk space:** Keep `/` above 2 GB free. Claude Code writes session state to `/tmp` — if disk is full, tool calls fail silently and burn extra tokens on retries. Check with `df -h /`.
-
-## How to Give Me a Task Efficiently
-
-Use this pattern when prompting:
-
-```
-[SCOPE: frontend | backend | mobile | types | all]
-[FILES: optional list of files to focus on]
-
-<your task description>
-```
-
-Example prompts that work well:
-
-- `[SCOPE: frontend] Fix the nested ternary sonar issues in AppointmentCalendar.tsx`
-- `[SCOPE: frontend] [FILES: TaskBoard.tsx] Add keyboard accessibility to the drag handles`
-- `[SCOPE: frontend] Run targeted tests for the Availability component and fix any failures`
-- `[SCOPE: frontend] Fix the open Sonar issues reported by the local scan`

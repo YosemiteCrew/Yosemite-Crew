@@ -28,9 +28,6 @@ the nightly type-aware backstop. The rule mix changes over time, so **check the 
 project for the current list** rather than trusting any static dump. This skill documents the
 _categories_ and _fix patterns_ that recur on this codebase, not a frozen issue count.
 
-Do not reference the gitignored local-only Sonar tooling in any tracked file — that workflow lives
-in the gitignored `CLAUDE.local.md`.
-
 ---
 
 ## Mandatory Checks — run from `apps/desktop/` after every change
