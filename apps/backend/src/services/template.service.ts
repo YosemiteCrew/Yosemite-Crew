@@ -335,13 +335,24 @@ const buildRenderedDocumentSummary = (
   signedBy: renderedDocument.signedBy ?? null,
 });
 
+// CONSENT is here because the patient's Consents panel lists only CONSENT
+// rendered documents (DocumentService.listConsentDocumentsForPms): a consent
+// template left out renders nothing for that list to find.
 const DOCUMENT_BACKED_TEMPLATE_KINDS = new Set<TemplateKind>([
   "FORM",
+  "CONSENT",
   "SOAP_NOTE",
   "PRESCRIPTION",
   "DISCHARGE_SUMMARY",
   "VITAL_RECORD",
 ]);
+
+// The consent title is what the Consents panel lists the document under.
+const RENDERED_DOCUMENT_TITLES: Partial<Record<TemplateContractKind, string>> =
+  {
+    FORM: "Form submission",
+    CONSENT: "Consent form",
+  };
 
 const resolveVersionPayload = (template: {
   latestVersion: number;
@@ -1637,9 +1648,8 @@ export const TemplateService = {
         );
         const renderedDocumentInput: PersistRenderedDocumentInput = {
           title:
-            normalizedTemplateKind === "FORM"
-              ? "Form submission"
-              : normalizedTemplateKind.replaceAll("_", " "),
+            RENDERED_DOCUMENT_TITLES[normalizedTemplateKind] ??
+            normalizedTemplateKind.replaceAll("_", " "),
           source: {
             sourceKind: "TEMPLATE_INSTANCE",
             sourceId: instance.id,

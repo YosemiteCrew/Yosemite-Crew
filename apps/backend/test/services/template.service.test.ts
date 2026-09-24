@@ -1623,6 +1623,68 @@ describe("TemplateService.submitInstance", () => {
     });
   });
 
+  // #3600: CONSENT was missing from the document-backed kinds, so a submitted
+  // consent template rendered nothing and the Consents panel stayed empty.
+  it("records a CONSENT rendered document for CONSENT templates", async () => {
+    const { update } = runTransaction({
+      id: "inst-1",
+      organisationId: "org-1",
+      status: "DRAFT",
+      authorId: "author-1",
+      signedBy: null,
+      templateId: "tpl-consent",
+      templateVersion: 3,
+      generatedPdf: null,
+      template: {
+        id: "tpl-consent",
+        kind: "CONSENT",
+        ownership: "ORG_TEMPLATE",
+      },
+    });
+    renderMock.mockResolvedValue({
+      id: "rd-consent",
+      sourceKind: "TEMPLATE_INSTANCE",
+      sourceId: "inst-1",
+      kind: "CONSENT",
+      version: 1,
+      status: "DRAFT",
+      signable: true,
+      mimeType: "application/pdf",
+      signedAt: null,
+      signedBy: null,
+      pdfUrl: null,
+    });
+
+    await TemplateService.submitInstance("inst-1", "org-1");
+
+    expect(renderMock).toHaveBeenCalledWith(
+      {
+        title: "Consent form",
+        source: {
+          sourceKind: "TEMPLATE_INSTANCE",
+          sourceId: "inst-1",
+          organisationId: "org-1",
+          templateKind: "CONSENT",
+          templateId: "tpl-consent",
+          templateVersion: 3,
+        },
+        templateInstanceId: "inst-1",
+      },
+      expect.anything(),
+    );
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "inst-1" },
+      data: {
+        status: "COMPLETED",
+        generatedPdf: expect.objectContaining({
+          renderedDocumentId: "rd-consent",
+          kind: "CONSENT",
+        }),
+        generatedPdfUrl: undefined,
+      },
+    });
+  });
+
   it("skips rendered documents for non-document template kinds", async () => {
     const { update } = runTransaction({
       id: "inst-1",

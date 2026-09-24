@@ -392,7 +392,11 @@ const ConsentListBody = ({
   );
 };
 
-/** A single signed consent PDF from the e-signing portal - opens in a new tab. */
+/**
+ * A single consent PDF from the e-signing portal - opens in a new tab. A
+ * submitted consent is listed before it is signed, so no signing date means
+ * it is not signed yet.
+ */
 const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
   const signedDate = formatDisplayDate(document.signedAt ?? undefined, '');
   return (
@@ -400,7 +404,7 @@ const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
       <span className="min-w-0">
         <span className={clsx(titleClass, 'block truncate')}>{document.title}</span>
         <span className={clsx(metaClass, 'mt-0.5 block text-[var(--ink-muted)]')}>
-          {signedDate ? `Signed ${signedDate}` : 'Signed'}
+          {signedDate ? `Signed ${signedDate}` : 'Not signed yet'}
         </span>
       </span>
       {document.pdfUrl ? (

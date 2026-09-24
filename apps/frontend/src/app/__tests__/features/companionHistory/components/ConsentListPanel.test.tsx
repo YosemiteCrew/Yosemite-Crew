@@ -334,6 +334,31 @@ describe('ConsentListPanel', () => {
     openSpy.mockRestore();
   });
 
+  // #3600: a submitted consent template is listed before anyone signs it, so a
+  // CONSENT document with no signing date must not be labelled as signed.
+  it('lists a submitted consent document that is not signed yet', async () => {
+    const submittedDoc: CompanionRecord = {
+      id: 'doc-2',
+      title: 'Consent form',
+      category: 'HEALTH',
+      subcategory: 'SURGERY_OR_PROCEDURE',
+      attachments: [],
+      signedAt: null,
+      pdfUrl: null,
+      sourceKind: 'TEMPLATE_INSTANCE',
+    };
+    loadSignedDocumentsMock.mockResolvedValue([submittedDoc]);
+
+    render(<ConsentListPanel companionId="comp-1" />);
+
+    expect(await screen.findByText('Consent form')).toBeInTheDocument();
+    expect(screen.getByText('Not signed yet')).toBeInTheDocument();
+    expect(screen.queryByText('Signed')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'View signed document: Consent form' })
+    ).not.toBeInTheDocument();
+  });
+
   it('does not load signed documents when the member cannot view consents', () => {
     permissionsMock = [];
     render(<ConsentListPanel companionId="comp-1" />);
