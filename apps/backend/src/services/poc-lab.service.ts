@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import type { Prisma } from "@prisma/client";
 
 export class PocLabError extends Error {
@@ -101,6 +102,12 @@ const assertRecord = async (id: string, organisationId: string) => {
 export const PocLabService = {
   async create(params: CreatePocLabParams) {
     const { organisationId, patientId, conductedBy, results, ...rest } = params;
+
+    // PointOfCareLab carries a bare patientId with no relation to Patient, so
+    // without this a body naming another tenant's companion was stored as-is.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new PocLabError("Companion not found.", 404);
+    });
 
     const record = await prisma.pointOfCareLab.create({
       data: {

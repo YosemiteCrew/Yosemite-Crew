@@ -19,6 +19,7 @@ import AllergyListPanel from '@/app/features/companionHistory/components/Allergy
 import ConsentListPanel from '@/app/features/companionHistory/components/ConsentListPanel';
 import FlagListPanel from '@/app/features/companionHistory/components/FlagListPanel';
 import VitalsHistoryPanel from '@/app/features/companionHistory/components/VitalsHistoryPanel';
+import PocLabListPanel from '@/app/features/companionHistory/components/PocLabListPanel';
 import PermissionGate from '@/app/ui/layout/guards/PermissionGate';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
 import type { CompanionAlert } from '@/app/features/appointments/types/workspace';
@@ -427,6 +428,10 @@ const PhoneCompanionRecord = ({
 
         <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]}>
           <FlagListPanel companionId={companionId} />
+        </PermissionGate>
+
+        <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}>
+          <PocLabListPanel companionId={companionId} />
         </PermissionGate>
 
         <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY, PERMISSIONS.FORMS_VIEW_ANY]}>

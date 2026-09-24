@@ -42,6 +42,13 @@ jest.mock('@/app/features/companionHistory/components/VitalsHistoryPanel', () =>
   ),
 }));
 
+jest.mock('@/app/features/companionHistory/components/PocLabListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => (
+    <div data-testid="poc-lab-list-panel" data-companion-id={companionId} />
+  ),
+}));
+
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   __esModule: true,
   default: ({ children }: any) => children,
@@ -135,6 +142,13 @@ describe('PhoneCompanionRecord', () => {
       'AC-0092'
     );
     expect(screen.getByTestId('flag-list-panel')).toHaveAttribute('data-companion-id', 'AC-0092');
+    // In-house lab results follow the flags, as on the desktop record.
+    const labPanel = screen.getByTestId('poc-lab-list-panel');
+    expect(labPanel).toHaveAttribute('data-companion-id', 'AC-0092');
+    expect(
+      screen.getByTestId('flag-list-panel').compareDocumentPosition(labPanel) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(screen.getByTestId('vitals-history-panel')).toHaveAttribute(
       'data-companion-id',
       'AC-0092'

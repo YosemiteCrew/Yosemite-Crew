@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import {
   ClinicalListEmpty,
@@ -75,7 +75,10 @@ describe('ClinicalListHeader', () => {
 
   it('shows the active count once loaded', () => {
     render(<ClinicalListHeader {...headerProps} activeCount={3} />);
-    expect(screen.getByText('3 active')).toBeInTheDocument();
+    expect(screen.getByText('3 active')).toHaveAttribute(
+      'style',
+      expect.stringContaining('pill-warning-bg')
+    );
   });
 
   it('hides the add control without edit permission', () => {
@@ -94,5 +97,42 @@ describe('ClinicalListHeader', () => {
     expect(onToggle).toHaveBeenCalled();
     rerender(<ClinicalListHeader {...headerProps} canEdit showForm onToggle={onToggle} />);
     expect(screen.getByRole('button', { name: /Close/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('keeps the button label for screen readers when it collapses to an icon on phones', () => {
+    const { rerender } = render(<ClinicalListHeader {...headerProps} canEdit />);
+    const button = screen.getByRole('button', { name: 'Add allergy' });
+    expect(button).toHaveClass('max-md:size-11');
+    expect(within(button).getByText('Add allergy')).toHaveClass('max-md:sr-only');
+    expect(screen.getByRole('banner')).toHaveClass('max-md:py-2', 'max-md:pr-2');
+
+    rerender(<ClinicalListHeader {...headerProps} canEdit={false} />);
+    expect(screen.getByRole('banner')).not.toHaveClass('max-md:py-2');
+  });
+
+  it('swaps the plus icon for a close icon while the form is open', () => {
+    const { container, rerender } = render(<ClinicalListHeader {...headerProps} canEdit />);
+    const plus = container.querySelector('button svg')?.innerHTML;
+    rerender(<ClinicalListHeader {...headerProps} canEdit showForm />);
+    const close = container.querySelector('button svg')?.innerHTML;
+    expect(plus).toBeTruthy();
+    expect(close).toBeTruthy();
+    expect(close).not.toBe(plus);
+  });
+
+  it('names the count and tone when a list counts something other than active records', () => {
+    render(
+      <ClinicalListHeader
+        {...headerProps}
+        activeCount={4}
+        countLabel="recorded"
+        countTone="neutral"
+      />
+    );
+    expect(screen.getByText('4 recorded')).toHaveAttribute(
+      'style',
+      expect.stringContaining('pill-neutral-bg')
+    );
+    expect(screen.queryByText(/active/)).not.toBeInTheDocument();
   });
 });
