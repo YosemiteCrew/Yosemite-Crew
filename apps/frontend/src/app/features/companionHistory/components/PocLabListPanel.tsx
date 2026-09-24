@@ -1,44 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import clsx from 'clsx';
 import { IoChevronDownOutline, IoChevronUpOutline, IoFlaskOutline } from 'react-icons/io5';
-import { usePermissions } from '@/app/hooks/usePermissions';
-import { PERMISSIONS } from '@/app/lib/permissions';
-import { isAuthRedirectError } from '@/app/services/axios';
 import {
   ClinicalListEmpty,
   ClinicalListError,
+  ClinicalListHeader,
   ClinicalListLoadingRows,
   cardClass,
-  formatDate,
   metaClass,
   titleClass,
 } from '@/app/features/companionHistory/components/ClinicalListChrome';
+import PocLabResultForm from '@/app/features/companionHistory/components/PocLabResultForm';
 import {
-  fetchPocLabResults,
-  type LabResultParameter,
-  type PocTestType,
-  type PointOfCareLabResult,
+  TEST_TYPE_LABEL,
+  type PocLabFormValues,
+} from '@/app/features/companionHistory/components/pocLabForm';
+import { usePocLabList } from '@/app/features/companionHistory/components/usePocLabList';
+import type {
+  LabResultParameter,
+  PointOfCareLabResult,
 } from '@/app/features/companionHistory/services/pocLabService';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
-
-const LOAD_ERROR = 'Could not load in-house lab results. Please try again.';
-
-const TEST_TYPE_LABEL: Record<PocTestType, string> = {
-  CBC: 'Complete blood count',
-  BLOOD_CHEMISTRY: 'Blood chemistry',
-  URINALYSIS: 'Urinalysis',
-  FECAL_FLOAT: 'Faecal float',
-  CYTOLOGY: 'Cytology',
-  COAGULATION: 'Coagulation',
-  ELECTROLYTES: 'Electrolytes',
-  THYROID_PANEL: 'Thyroid panel',
-  CORTISOL: 'Cortisol',
-  GLUCOSE_CURVE: 'Glucose curve',
-  BLOOD_GAS: 'Blood gas',
-  OTHER: 'Other test',
-};
 
 const RESULT_FLAG_TONE: Record<NonNullable<LabResultParameter['flag']>, StatusTone> = {
   H: 'warning',
@@ -101,6 +85,22 @@ const LabResultDetails = ({ record }: { record: PointOfCareLabResult }) => (
   </div>
 );
 
+/**
+ * Local date and time. Not the shared `formatDate`: that one reads the UTC day
+ * and drops the time, so a test run late in the evening showed on the next day.
+ */
+export const formatConductedAt = (value: string): string | null => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
 const LabResultRow = ({
   record,
   expanded,
@@ -110,54 +110,92 @@ const LabResultRow = ({
   expanded: boolean;
   onToggle: () => void;
 }) => {
-  const conductedAt = formatDate(record.conductedAt);
+  const conductedAt = formatConductedAt(record.conductedAt);
   const hasCritical = record.criticalFlags.length > 0;
   const hasAbnormal = record.abnormalFlags.length > 0;
+  const hasPills = hasCritical || hasAbnormal || Boolean(record.followUpRecommended);
+  const Chevron = expanded ? IoChevronUpOutline : IoChevronDownOutline;
+  // Phone: the pills drop onto their own line under the meta and the chevron
+  // stays top-right. From 768px they sit in one row beside the chevron.
   return (
     <li className="border-t border-[var(--divider)] first:border-t-0">
       <button
         type="button"
-        className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--blue)]"
+        className={clsx(
+          'grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 px-4 py-3 text-left transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--blue)] md:gap-x-1.5 md:gap-y-0',
+          hasPills && 'md:grid-cols-[minmax(0,1fr)_auto_auto]'
+        )}
         aria-expanded={expanded}
         onClick={onToggle}
       >
-        <span className="min-w-0">
+        <span className="col-start-1 row-start-1 min-w-0 md:mr-1.5">
           <span className={clsx(titleClass, 'block')}>{TEST_TYPE_LABEL[record.testType]}</span>
-          <span className={clsx(metaClass, 'mt-0.5 block')}>
+          <span
+            className={clsx(
+              metaClass,
+              'mt-1.5 block max-md:text-[12px] max-md:leading-4 md:mt-0.5'
+            )}
+          >
             {[conductedAt, record.sampleType, record.analyzerName].filter(Boolean).join(' · ')}
           </span>
         </span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          {hasCritical ? <StatusPill label="Critical" tone="danger" /> : null}
-          {!hasCritical && hasAbnormal ? <StatusPill label="Abnormal" tone="warning" /> : null}
-          {record.followUpRecommended ? <StatusPill label="Follow-up" tone="info" /> : null}
-          {expanded ? (
-            <IoChevronUpOutline size={16} aria-hidden="true" />
-          ) : (
-            <IoChevronDownOutline size={16} aria-hidden="true" />
+        {hasPills ? (
+          <span className="col-start-1 row-start-2 flex flex-wrap items-center gap-1.5 md:col-start-2 md:row-start-1 md:flex-nowrap">
+            {hasCritical ? <StatusPill label="Critical" tone="danger" /> : null}
+            {!hasCritical && hasAbnormal ? <StatusPill label="Abnormal" tone="warning" /> : null}
+            {record.followUpRecommended ? <StatusPill label="Follow-up" tone="info" /> : null}
+          </span>
+        ) : null}
+        <Chevron
+          size={16}
+          aria-hidden="true"
+          className={clsx(
+            'col-start-2 row-start-1 mt-0.5 text-[var(--ink-muted)] md:mt-[3px]',
+            hasPills && 'md:col-start-3'
           )}
-        </span>
+        />
       </button>
       {expanded ? <LabResultDetails record={record} /> : null}
     </li>
   );
 };
 
+export type PocLabListProps = {
+  records: PointOfCareLabResult[];
+  loading: boolean;
+  error: string | null;
+  /** Shows the add control and form. Mirrors the backend `appointments:edit:any` gate. */
+  canEdit?: boolean;
+  /** Fired with validated form values. Resolves true once the record is saved. */
+  onCreate?: (values: PocLabFormValues) => Promise<boolean> | boolean;
+  /** Disables Save while a create is in flight. */
+  creating?: boolean;
+  /** A record this member just saved; it opens expanded. */
+  createdId?: string | null;
+};
+
 export const PocLabList = ({
   records,
   loading,
   error,
-}: {
-  records: PointOfCareLabResult[];
-  loading: boolean;
-  error: string | null;
-}) => {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  canEdit = false,
+  onCreate,
+  creating = false,
+  createdId = null,
+}: PocLabListProps) => {
+  const [showForm, setShowForm] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(createdId);
+  const [openedCreatedId, setOpenedCreatedId] = useState(createdId);
+  if (createdId !== openedCreatedId) {
+    setOpenedCreatedId(createdId);
+    if (createdId) setExpandedId(createdId);
+  }
+
   let body;
   if (loading) body = <ClinicalListLoadingRows />;
   else if (error) body = <ClinicalListError error={error} />;
   else if (records.length === 0)
-    body = <ClinicalListEmpty message="No in-house lab results recorded." />;
+    body = <ClinicalListEmpty message="No in-house lab results recorded for this patient yet." />;
   else {
     body = (
       <ul>
@@ -175,59 +213,54 @@ export const PocLabList = ({
 
   return (
     <section className={cardClass} aria-labelledby="poc-lab-heading">
-      <header className="flex items-center gap-2 border-b border-[var(--divider)] px-4 py-3">
-        <span className="text-[var(--ink-muted)]" aria-hidden="true">
-          <IoFlaskOutline size={17} />
-        </span>
-        <h2 id="poc-lab-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
-          In-house lab results
-        </h2>
-        {!loading && !error && records.length > 0 ? (
-          <StatusPill
-            label={`${records.length} recorded`}
-            tone="neutral"
-            className="ml-2 tabular-nums"
-          />
-        ) : null}
-      </header>
+      <ClinicalListHeader
+        icon={<IoFlaskOutline size={17} />}
+        headingId="poc-lab-heading"
+        title="In-house lab results"
+        activeCount={records.length}
+        countLabel="recorded"
+        countTone="neutral"
+        loading={loading}
+        error={error}
+        canEdit={canEdit}
+        showForm={showForm}
+        onToggle={() => setShowForm((open) => !open)}
+        addLabel="Add lab result"
+      />
+      {showForm && canEdit ? (
+        <PocLabResultForm
+          creating={creating}
+          onCreate={onCreate}
+          onClose={() => setShowForm(false)}
+        />
+      ) : null}
       {body}
     </section>
   );
 };
 
-const PocLabListPanelContent = ({ companionId }: { companionId: string }) => {
-  const [state, setState] = useState<{
-    records: PointOfCareLabResult[];
-    loading: boolean;
-    error: string | null;
-  }>({ records: [], loading: true, error: null });
-
-  useEffect(() => {
-    if (!companionId) return;
-    let active = true;
-    fetchPocLabResults({ patientId: companionId })
-      .then((result) => {
-        if (active) setState({ records: result, loading: false, error: null });
-      })
-      .catch((requestError) => {
-        if (!active) return;
-        const error = isAuthRedirectError(requestError) ? null : LOAD_ERROR;
-        setState({ records: [], loading: false, error });
-      });
-    return () => {
-      active = false;
-    };
-  }, [companionId]);
-
-  return <PocLabList {...state} />;
-};
-
+/**
+ * Data container for {@link PocLabList}. State lives in {@link usePocLabList};
+ * this renders nothing when the member cannot view appointments. Keyed by
+ * companion so an open form never carries one patient's entries to the next.
+ */
 const PocLabListPanel = ({ companionId }: { companionId: string }) => {
-  const permissions = usePermissions();
-  const canView = permissions.can(PERMISSIONS.APPOINTMENTS_VIEW_ANY);
+  const { canView, canEdit, records, loading, error, createdId, creating, create } =
+    usePocLabList(companionId);
 
   if (!canView) return null;
-  return <PocLabListPanelContent key={companionId} companionId={companionId} />;
+  return (
+    <PocLabList
+      key={companionId}
+      records={records}
+      loading={loading}
+      error={error}
+      canEdit={canEdit}
+      onCreate={create}
+      creating={creating}
+      createdId={createdId}
+    />
+  );
 };
 
 export default PocLabListPanel;
