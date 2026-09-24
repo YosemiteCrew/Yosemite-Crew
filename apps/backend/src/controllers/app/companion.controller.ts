@@ -249,6 +249,44 @@ export const CompanionController = {
     }
   },
 
+  updateCompanionPMS: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      if (!requireParam(res, id, "Companion ID is required.")) {
+        return;
+      }
+
+      const organisationId = resolveVerifiedOrganisationId(req);
+      if (!organisationId) {
+        return res
+          .status(400)
+          .json({ message: "Organisation context is required." });
+      }
+
+      const payload = extractFHIRPayload(req);
+      const result = await CompanionService.updateForOrg(
+        id,
+        organisationId,
+        payload,
+        { authUserId: resolveVerifiedUserId(req) },
+      );
+
+      if (!result) {
+        return res.status(404).json({ message: "Companion not found." });
+      }
+
+      return res.status(200).json(result.response);
+    } catch (error) {
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to update companion",
+        "Unable to update companion.",
+      );
+    }
+  },
+
   deleteCompanion: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
