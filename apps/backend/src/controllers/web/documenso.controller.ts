@@ -6,7 +6,10 @@ import {
 } from "src/services/documenso.service";
 import { AuditTrailService } from "src/services/audit-trail.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
-import { completePersistedRenderedDocumentSigning } from "src/services/rendered-document.service";
+import {
+  completePersistedRenderedDocumentSigning,
+  withdrawPersistedRenderedDocumentSigning,
+} from "src/services/rendered-document.service";
 import { notifyOwnerOfPassportUpdate } from "src/services/pet-clinical-records.service";
 import { OrganizationService } from "src/services/organization.service";
 import { WorkspaceDocumentPacketService } from "src/services/workspace-document-packet.service";
@@ -681,12 +684,7 @@ async function handleRenderedDocumentCompletedPrisma(
   await completePersistedRenderedDocumentSigning(renderedDocumentId);
 }
 
-/**
- * Withdraws the signing request this event is about. The write is conditional
- * on the document still awaiting that same Documenso document, so an event
- * that arrives late (after completion, or after a newer request was sent)
- * changes nothing.
- */
+/** Withdraws the signing request this event is about, if it is still open. */
 async function handleRenderedDocumentDeletedPrisma(
   renderedDocumentId: string,
   documentId: string,
@@ -704,15 +702,8 @@ async function handleRenderedDocumentDeletedPrisma(
     return;
   }
 
-  await prisma.renderedDocument.updateMany({
-    where: {
-      id: renderedDocumentId,
-      status: { not: "SIGNED" },
-      AND: [
-        { signing: { path: ["documentId"], equals: documentId } },
-        { signing: { path: ["status"], equals: "IN_PROGRESS" } },
-      ],
-    },
-    data: { signing: { ...signing, status: "NOT_STARTED" } },
-  });
+  await withdrawPersistedRenderedDocumentSigning(
+    renderedDocumentId,
+    documentId,
+  );
 }

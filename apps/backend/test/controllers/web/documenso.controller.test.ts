@@ -1043,7 +1043,14 @@ describe("DocumensoWebhookController", () => {
             { signing: { path: ["status"], equals: "IN_PROGRESS" } },
           ],
         },
-        data: { signing: { status: "NOT_STARTED", documentId: "777" } },
+        data: {
+          signing: {
+            required: true,
+            provider: "DOCUMENSO",
+            status: "NOT_STARTED",
+            documentId: "777",
+          },
+        },
       });
       expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
       expect(mockedPacketService.resetSigning).not.toHaveBeenCalled();

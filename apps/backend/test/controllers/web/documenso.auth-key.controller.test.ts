@@ -20,7 +20,10 @@ import {
 } from "../../../src/services/documenso.service";
 import { OrganizationService } from "../../../src/services/organization.service";
 import { FormAssignmentService } from "../../../src/services/form-assignment.service";
-import { completePersistedRenderedDocumentSigning } from "../../../src/services/rendered-document.service";
+import {
+  completePersistedRenderedDocumentSigning,
+  withdrawPersistedRenderedDocumentSigning,
+} from "../../../src/services/rendered-document.service";
 import { prisma } from "../../../src/config/prisma";
 import logger from "../../../src/utils/logger";
 
@@ -44,7 +47,6 @@ jest.mock("../../../src/config/prisma", () => ({
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
-      updateMany: jest.fn(),
     },
     workspaceDocumentPacket: {
       findFirst: jest.fn(),
@@ -76,6 +78,7 @@ jest.mock("../../../src/services/form-assignment.service", () => ({
 
 jest.mock("../../../src/services/rendered-document.service", () => ({
   completePersistedRenderedDocumentSigning: jest.fn(),
+  withdrawPersistedRenderedDocumentSigning: jest.fn(),
 }));
 
 jest.mock("../../../src/utils/logger");
@@ -315,7 +318,6 @@ describe("Documenso controllers", () => {
       mockedPrisma.renderedDocument.findUnique.mockResolvedValue({
         signing: { status: "IN_PROGRESS", documentId: "123" },
       });
-      mockedPrisma.renderedDocument.updateMany.mockResolvedValue({ count: 1 });
 
       await handleSigned();
 
@@ -323,13 +325,9 @@ describe("Documenso controllers", () => {
         where: { id: "rendered-del-1" },
         select: { signing: true },
       });
-      expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ id: "rendered-del-1" }),
-          data: expect.objectContaining({
-            signing: expect.objectContaining({ status: "NOT_STARTED" }),
-          }),
-        }),
+      expect(withdrawPersistedRenderedDocumentSigning).toHaveBeenCalledWith(
+        "rendered-del-1",
+        "123",
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
@@ -351,7 +349,7 @@ describe("Documenso controllers", () => {
 
       await handleSigned();
 
-      expect(mockedPrisma.renderedDocument.updateMany).not.toHaveBeenCalled();
+      expect(withdrawPersistedRenderedDocumentSigning).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
@@ -370,7 +368,7 @@ describe("Documenso controllers", () => {
 
       await handleSigned();
 
-      expect(mockedPrisma.renderedDocument.updateMany).not.toHaveBeenCalled();
+      expect(withdrawPersistedRenderedDocumentSigning).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
     });
   });

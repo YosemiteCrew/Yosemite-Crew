@@ -973,16 +973,47 @@ const recordRenderedDocumentAuditSafely = async (
 
 /** The claim on a document still awaiting this very Documenso document. */
 const awaitingSignatureWhere = (
-  existing: PersistedRenderedDocument,
+  renderedDocumentId: string,
   documentId: string,
 ): Prisma.RenderedDocumentWhereUniqueInput => ({
-  id: existing.id,
+  id: String(renderedDocumentId),
   status: { not: "SIGNED" },
   AND: [
-    { signing: { path: ["documentId"], equals: documentId } },
+    { signing: { path: ["documentId"], equals: String(documentId) } },
     { signing: { path: ["status"], equals: "IN_PROGRESS" } },
   ],
 });
+
+/**
+ * Returns a signing request to not started, so the document can be sent for
+ * signing again. Only while the document still awaits that same Documenso
+ * document, so a late or out-of-order event for it changes nothing once it is
+ * signed, withdrawn or replaced. Reports whether anything was withdrawn.
+ */
+export const withdrawPersistedRenderedDocumentSigning = async (
+  renderedDocumentId: string,
+  documentId: string,
+): Promise<boolean> => {
+  const withdrawn = await renderedDocumentClient.renderedDocument.updateMany({
+    where: {
+      id: String(renderedDocumentId),
+      status: { not: "SIGNED" },
+      AND: [
+        { signing: { path: ["documentId"], equals: String(documentId) } },
+        { signing: { path: ["status"], equals: "IN_PROGRESS" } },
+      ],
+    },
+    data: {
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "NOT_STARTED",
+        documentId: String(documentId),
+      },
+    },
+  });
+  return withdrawn.count > 0;
+};
 
 /**
  * A signed copy whose record changed while the signature was outstanding is
@@ -993,14 +1024,13 @@ const awaitingSignatureWhere = (
  */
 const releaseDiscardedSigning = async (
   existing: PersistedRenderedDocument,
-  signing: PinnedRenderedDocumentSigning,
   documentId: string,
 ): Promise<void> => {
-  const released = await renderedDocumentClient.renderedDocument.updateMany({
-    where: awaitingSignatureWhere(existing, documentId),
-    data: { signing: { ...signing, status: "NOT_STARTED" } },
-  });
-  if (released.count === 0) return;
+  if (
+    !(await withdrawPersistedRenderedDocumentSigning(existing.id, documentId))
+  ) {
+    return;
+  }
 
   logger.warn(
     "[RenderedDocument] Signed copy discarded: the record changed while the signature was outstanding",
@@ -1131,7 +1161,7 @@ export const completePersistedRenderedDocumentSigning = async (
       let document: Omit<PersistedRenderedDocument, "signature">;
       try {
         document = await tx.renderedDocument.update({
-          where: awaitingSignatureWhere(existing, documentId),
+          where: awaitingSignatureWhere(existing.id, documentId),
           data: {
             status: "SIGNED",
             signedBy,
@@ -1170,7 +1200,7 @@ export const completePersistedRenderedDocumentSigning = async (
       throw error;
     }
     if (error.recordChanged) {
-      await releaseDiscardedSigning(existing, signing, documentId);
+      await releaseDiscardedSigning(existing, documentId);
     }
     return existing;
   }

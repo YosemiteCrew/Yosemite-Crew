@@ -1627,7 +1627,15 @@ describe("rendered-document service", () => {
             { signing: { path: ["status"], equals: "IN_PROGRESS" } },
           ],
         },
-        data: { signing: { ...inProgressSigning, status: "NOT_STARTED" } },
+        // Only what identifies the withdrawn request is kept.
+        data: {
+          signing: {
+            required: true,
+            provider: "DOCUMENSO",
+            status: "NOT_STARTED",
+            documentId: "99",
+          },
+        },
       };
 
       it.each(["VOID", "IN_PROGRESS", "DRAFT"])(
