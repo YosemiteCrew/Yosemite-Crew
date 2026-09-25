@@ -35,6 +35,7 @@ jest.mock("src/config/prisma", () => ({
       findFirst: jest.fn(),
       findMany: jest.fn(),
       deleteMany: jest.fn(),
+      updateMany: jest.fn(),
     },
     organization: {
       findMany: jest.fn(),
@@ -303,12 +304,13 @@ describe("ServiceService", () => {
       expect(res).toBe(true);
     });
 
-    it("deleteAllBySpecialityId: should call deleteMany", async () => {
-      (prisma.service.deleteMany as jest.Mock).mockResolvedValue({ count: 2 });
+    it("deleteAllBySpecialityId: should call updateMany", async () => {
+      (prisma.service.updateMany as jest.Mock).mockResolvedValue({ count: 2 });
 
       await ServiceService.deleteAllBySpecialityId(validIdStr);
-      expect(prisma.service.deleteMany).toHaveBeenCalledWith({
+      expect(prisma.service.updateMany).toHaveBeenCalledWith({
         where: { specialityId: validIdStr },
+        data: { isActive: false },
       });
     });
   });
