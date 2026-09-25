@@ -3,16 +3,16 @@ import { expect, waitFor } from 'storybook/test';
 
 import { GITHUB_REPO_URL } from './assets';
 import { ReleaseLanes } from './ReleaseLanes';
+import { LANES_CACHE_KEY } from './useGithubStats';
 
 /** Mirrors the module-private endpoint in `useGithubStats`. Lanes only ever use `?list=1`. */
 const RELEASES_ENDPOINT = '/api/community/github-releases';
-/** The one session-cache key the lanes hook owns. */
-const LANES_CACHE_KEY = 'yc_marketing_release_lanes_v1';
 
 const RELEASES_INDEX_URL = `${GITHUB_REPO_URL}/releases`;
 
 interface RawRelease {
   tag_name: string;
+  created_at?: string;
   published_at: string;
   html_url: string;
 }
@@ -40,11 +40,25 @@ const PIMS_RELEASE = release('pims-v2.3.0-beta', THIS_YEAR, 7, 19);
 const MOBILE_RELEASE = release('mobile-v1.4.2', THIS_YEAR, 7, 11);
 const BACKEND_RELEASE = release('backend-v3.1.0', THIS_YEAR, 7, 5);
 const DESKTOP_RELEASE = release('v0.9.4', THIS_YEAR - 2, 6, 28);
+/*
+  Tagged on 23 Sep, published to GitHub two days later. The lane shows the day it shipped,
+  so the face must read `23 Sep`, not the publish date.
+*/
+const MCP_RELEASE: RawRelease = {
+  ...release('mcp-v0.1.0', THIS_YEAR, 8, 25),
+  created_at: new Date(THIS_YEAR, 8, 23, 12, 0).toISOString(),
+};
 
 /** Newest first, the order the API returns and the order `toLanes` relies on. */
-const FULL_LIST: RawRelease[] = [PIMS_RELEASE, MOBILE_RELEASE, BACKEND_RELEASE, DESKTOP_RELEASE];
+const FULL_LIST: RawRelease[] = [
+  MCP_RELEASE,
+  PIMS_RELEASE,
+  MOBILE_RELEASE,
+  BACKEND_RELEASE,
+  DESKTOP_RELEASE,
+];
 
-/** Nothing tagged `mobile-` or `desktop-`/bare-semver, so two lanes cannot resolve. */
+/** Nothing tagged `mobile-`, `mcp-` or `desktop-`/bare-semver, so three lanes cannot resolve. */
 const PARTIAL_LIST: RawRelease[] = [PIMS_RELEASE, BACKEND_RELEASE];
 
 /**
@@ -83,8 +97,8 @@ const withReleases = (list: RawRelease[] | null) => () => {
   };
 };
 
-/** The four lanes, in the order the bar must always render them. */
-const LANE_LABELS = ['PIMS', 'Desktop', 'Mobile', 'Backend'] as const;
+/** The five lanes, in the order the bar must always render them. */
+const LANE_LABELS = ['PIMS', 'Desktop', 'Mobile', 'Backend', 'MCP'] as const;
 
 /** U+00B7, the stand-in shown while a lane has no version to show. */
 const PLACEHOLDER = '·';
@@ -113,11 +127,11 @@ const meta = {
     docs: {
       description: {
         component:
-          'The home hero status strip: one glass bar, four linked lanes (PIMS, Desktop, Mobile, ' +
-          'Backend), each showing that component\'s newest release. It replaced a single "Latest ' +
+          'The home hero status strip: one glass bar, five linked lanes (PIMS, Desktop, Mobile, ' +
+          'Backend, MCP), each showing that component\'s newest release. It replaced a single "Latest ' +
           'release" pill that always showed a desktop build, because desktop is the only lane tagged ' +
           'as bare semver and so the only one GitHub gives the Latest badge to.\n\n' +
-          'All four lanes come out of ONE `?list=1` request that the hook buckets by tag prefix, so ' +
+          'All five lanes come out of ONE `?list=1` request that the hook buckets by tag prefix, so ' +
           'the interesting states are not "loading" and "loaded" but which lanes the response ' +
           'happened to contain. A lane with no match keeps its nulls and shows a `·`: it must ' +
           "never borrow another lane's version or fall back to a literal, and it must not vanish - " +
@@ -157,7 +171,7 @@ export const AllLanes: Story = {
     });
 
     const segments = segmentsOf(canvasElement);
-    await expect(segments).toHaveLength(4);
+    await expect(segments).toHaveLength(5);
     await expect(segments.map((segment) => partsOf(segment).label)).toEqual([...LANE_LABELS]);
 
     /* Each lane took the newest release carrying ITS prefix, and the prefix is stripped
@@ -169,11 +183,15 @@ export const AllLanes: Story = {
       'v0.9.4',
       'v1.4.2',
       'v3.1.0',
+      'v0.1.0',
     ]);
     await expect(segments[0]).toHaveAttribute('href', PIMS_RELEASE.html_url);
     await expect(segments[1]).toHaveAttribute('href', DESKTOP_RELEASE.html_url);
     await expect(segments[2]).toHaveAttribute('href', MOBILE_RELEASE.html_url);
     await expect(segments[3]).toHaveAttribute('href', BACKEND_RELEASE.html_url);
+    await expect(segments[4]).toHaveAttribute('href', MCP_RELEASE.html_url);
+    // Dated by when the tag shipped (created_at), not when the release was published.
+    await expect(partsOf(segments[4]).date).toBe('23 Sep');
 
     /* The compact date drops the year for anything shipped this year and keeps two digits
        of it for anything older. Both halves are asserted together: a formatter that always
@@ -191,8 +209,8 @@ export const AllLanes: Story = {
     // Same string in the tooltip, so a mouse gets the date the tag face abbreviated away.
     await expect(segments[0].getAttribute('title')).toBe(segments[0].getAttribute('aria-label'));
 
-    /* One row, given the ~690px the four lanes need and the desktop canvas they get here.
-       The bar is a wrapping flex container, so "four lanes" and "one strip" are separate
+    /* One row, given the ~800px the five lanes need and the desktop canvas they get here.
+       The bar is a wrapping flex container, so "five lanes" and "one strip" are separate
        claims: comparing the tops is what keeps a segment that has grown too wide from
        dropping onto a second line unnoticed. The Phone story asserts the opposite. */
     const tops = segments.map((segment) => segment.getBoundingClientRect().top);
@@ -206,10 +224,10 @@ export const Unresolved: Story = {
   play: async ({ canvasElement }) => {
     const segments = segmentsOf(canvasElement);
 
-    /* Four lanes, still, and in the same order. The absent state is the one where a bar
+    /* Five lanes, still, and in the same order. The absent state is the one where a bar
        that dropped its empty segments would look fine and quietly under-report what the
        project ships. */
-    await expect(segments).toHaveLength(4);
+    await expect(segments).toHaveLength(5);
     await expect(segments.map((segment) => partsOf(segment).label)).toEqual([...LANE_LABELS]);
 
     for (const segment of segments) {
@@ -236,7 +254,7 @@ export const Unresolved: Story = {
 };
 
 export const Mixed: Story = {
-  name: 'Two lanes with no release on the page',
+  name: 'Three lanes with no release on the page',
   beforeEach: withReleases(PARTIAL_LIST),
   play: async ({ canvasElement }) => {
     await waitFor(() => {
@@ -244,8 +262,8 @@ export const Mixed: Story = {
     });
 
     const segments = segmentsOf(canvasElement);
-    /* Order is fixed by the lane definitions, NOT by what came back, so the two lanes with
-       no match hold their places between the two that resolved. A bar that filtered the
+    /* Order is fixed by the lane definitions, NOT by what came back, so the lanes with no
+       match hold their places around the two that resolved. A bar that filtered the
        empties out would put Backend where Desktop belongs. */
     await expect(segments.map((segment) => partsOf(segment).label)).toEqual([...LANE_LABELS]);
     await expect(segments.map((segment) => partsOf(segment).version)).toEqual([
@@ -253,6 +271,7 @@ export const Mixed: Story = {
       PLACEHOLDER,
       PLACEHOLDER,
       'v3.1.0',
+      PLACEHOLDER,
     ]);
 
     // Resolved lanes deep-link their release; unresolved ones fall back to the index.
@@ -260,6 +279,7 @@ export const Mixed: Story = {
     await expect(segments[1]).toHaveAttribute('href', RELEASES_INDEX_URL);
     await expect(segments[2]).toHaveAttribute('href', RELEASES_INDEX_URL);
     await expect(segments[3]).toHaveAttribute('href', BACKEND_RELEASE.html_url);
+    await expect(segments[4]).toHaveAttribute('href', RELEASES_INDEX_URL);
 
     /* An empty lane has no date span at all, rather than an empty one - otherwise the
        6px gap would show up as a ragged segment width next to its neighbours. */
@@ -276,7 +296,7 @@ export const Phone: Story = {
       The width is pinned HERE as well as through the viewport global, and that is not
       belt-and-braces. The viewport addon resizes the iframe from the MANAGER, so a story
       opened on its own - which is how the story runner opens every one of them - renders
-      at the full panel width no matter what the global says. At 1248px all four lanes fit
+      at the full panel width no matter what the global says. At 1248px all five lanes fit
       on one line, so the wrap assertion below would have been measuring a desktop bar and
       failing for the right reason on a correct component.
     */
@@ -295,16 +315,16 @@ export const Phone: Story = {
     const bar = canvasElement.querySelector('[data-yc-lanes]') as HTMLElement;
     const tops = segments.map((segment) => segment.getBoundingClientRect().top);
 
-    /* Every segment is `white-space: nowrap`, so the only thing standing between four tags
+    /* Every segment is `white-space: nowrap`, so the only thing standing between five tags
        and a sideways-scrolling hero is `flex-wrap: wrap` on the bar. Both halves are
        measured: more than one row, and nothing sticking out of the glass. A bar that lost
        the wrap would still satisfy either one on its own. */
     await expect(new Set(tops).size).toBeGreaterThan(1);
     await expect(bar.scrollWidth).toBeLessThanOrEqual(bar.clientWidth);
 
-    /* All four survive the wrap. The separators do not: they stay attached to the segment
+    /* All five survive the wrap. The separators do not: they stay attached to the segment
        that follows them, so a wrapped row can begin with a hairline. Worth looking at
        rather than asserting - it is a judgement call, not a defect. */
-    await expect(segments).toHaveLength(4);
+    await expect(segments).toHaveLength(5);
   },
 };

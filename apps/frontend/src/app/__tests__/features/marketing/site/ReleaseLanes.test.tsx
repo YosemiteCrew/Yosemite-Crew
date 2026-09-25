@@ -37,6 +37,14 @@ const RESOLVED: ReleaseLane[] = [
     dateCompact: null,
     url: null,
   },
+  {
+    key: 'mcp',
+    label: 'MCP',
+    tag: 'v0.1.0',
+    date: 'Sep 23, 2026',
+    dateCompact: '23 Sep',
+    url: 'https://github.com/YosemiteCrew/Yosemite-Crew/releases/tag/mcp-v0.1.0',
+  },
 ];
 
 let lanesValue: ReleaseLane[] = RESOLVED;
@@ -58,8 +66,8 @@ beforeEach(() => {
 describe('ReleaseLanes', () => {
   it('renders one link per shipped component', () => {
     render(<ReleaseLanes />);
-    expect(screen.getAllByRole('link')).toHaveLength(4);
-    for (const label of ['PIMS', 'Desktop', 'Mobile', 'Backend']) {
+    expect(screen.getAllByRole('link')).toHaveLength(5);
+    for (const label of ['PIMS', 'Desktop', 'Mobile', 'Backend', 'MCP']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -72,6 +80,15 @@ describe('ReleaseLanes', () => {
     expect(desktop).toHaveAttribute('rel', expect.stringContaining('noopener'));
     expect(screen.getByText('v0.1.0-beta.4')).toBeInTheDocument();
     expect(screen.getAllByText('19 Aug').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows the MCP lane last, with its version and ship date', () => {
+    render(<ReleaseLanes />);
+    const mcp = screen.getByRole('link', { name: 'MCP v0.1.0, released Sep 23, 2026' });
+    expect(mcp).toHaveAttribute('href', RESOLVED[4].url);
+    expect(mcp).toHaveTextContent('MCPv0.1.023 Sep');
+    const links = screen.getAllByRole('link');
+    expect(links[links.length - 1]).toBe(mcp);
   });
 
   it('names the full date for assistive tech, not the abbreviated one', () => {
@@ -102,7 +119,7 @@ describe('ReleaseLanes', () => {
     }));
     render(<ReleaseLanes />);
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(4);
+    expect(links).toHaveLength(5);
     for (const link of links) {
       expect(link).toHaveAttribute('href', RELEASES_INDEX);
       expect(link).not.toHaveTextContent(/v\d/);
@@ -121,14 +138,14 @@ describe('ReleaseLanes', () => {
   });
 
   it('reaches every lane by keyboard, in the order they are read', async () => {
-    // Four links in a row is the whole interaction surface. Tab order has to
+    // Five links in a row is the whole interaction surface. Tab order has to
     // match reading order, and each lane has to take focus - the hairlines and
     // the dot between them are decorative and must not be stops.
     const user = userEvent.setup();
     render(<ReleaseLanes />);
 
     const seen: string[] = [];
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       await user.tab();
       const active = document.activeElement as HTMLElement;
       expect(active.tagName).toBe('A');
@@ -139,6 +156,7 @@ describe('ReleaseLanes', () => {
       'Desktop',
       'Mobile',
       'Backend',
+      'MCP',
     ]);
   });
 
@@ -159,9 +177,9 @@ describe('ReleaseLanes', () => {
 
   it('separates the lanes without adding them to the accessible names', () => {
     const { container } = render(<ReleaseLanes />);
-    // Three hairlines between four lanes, all hidden from the accessibility tree.
+    // Four hairlines between five lanes, all hidden from the accessibility tree.
     const hidden = container.querySelectorAll('span[aria-hidden="true"]');
-    expect(hidden.length).toBeGreaterThanOrEqual(3);
+    expect(hidden.length).toBeGreaterThanOrEqual(4);
     expect(screen.getByRole('link', { name: /^PIMS/ })).toBeInTheDocument();
   });
 });

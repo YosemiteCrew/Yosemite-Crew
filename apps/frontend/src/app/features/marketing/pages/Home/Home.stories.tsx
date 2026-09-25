@@ -13,12 +13,13 @@ import '@/app/features/marketing/site/marketing.css';
 import { GITHUB_REPO_URL, HERO_VIDEOS } from '@/app/features/marketing/site';
 
 import { Home } from './Home';
-import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
+import {
+  LANES_CACHE_KEY,
+  STATS_CACHE_KEY,
+  STATS_TS_KEY,
+} from '@/app/features/marketing/site/useGithubStats';
 
 /* ------------------------------------------------------------------ fixtures */
-
-/** The one session-cache key `useReleaseLanes` owns. */
-const LANES_CACHE_KEY = 'yc_marketing_release_lanes_v1';
 
 /** U+00B7 middle dot: what a lane with no release and a stat with no number both show. */
 const PLACEHOLDER = '·';
@@ -51,8 +52,16 @@ const BACKEND_RELEASE = release('backend-v3.1.0', THIS_YEAR, 7, 5);
    if the lane order is ever rearranged. */
 const DESKTOP_RELEASE = release('v0.9.4', THIS_YEAR, 6, 28);
 
+const MCP_RELEASE = release('mcp-v0.1.0', THIS_YEAR, 7, 1);
+
 /** Newest first, the order the API returns and the order the lane bucketing relies on. */
-const RELEASE_FEED: RawRelease[] = [PIMS_RELEASE, MOBILE_RELEASE, BACKEND_RELEASE, DESKTOP_RELEASE];
+const RELEASE_FEED: RawRelease[] = [
+  PIMS_RELEASE,
+  MOBILE_RELEASE,
+  BACKEND_RELEASE,
+  MCP_RELEASE,
+  DESKTOP_RELEASE,
+];
 
 /**
  * A full stats payload, including the compact `stars` the page must NOT use. Both it and
@@ -190,8 +199,8 @@ const PRINCIPLES = [
 
 const STAT_LABELS = ['Repository clones', 'Contributors', 'Discord members', 'Repo stars'];
 
-/** Every link the page owns, plus the four release lanes in the hero. */
-const TOTAL_LINKS = 13;
+/** Every link the page owns, plus the five release lanes in the hero. */
+const TOTAL_LINKS = 14;
 
 const flatten = (node: Element | null): string =>
   (node?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -263,7 +272,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The site front door: hero with the four-lane release strip, an ambient loop and live ' +
+          'The site front door: hero with the five-lane release strip, an ambient loop and live ' +
           'clone count, the companion trio, the dark manifesto band, the three pillars (pet ' +
           'businesses, pet parents, developers), the four structural principles, the ' +
           '"building in public" metric row and the closing CTA.\n\n' +
@@ -356,7 +365,7 @@ export const Default: Story = {
     const revealed = canvasElement.querySelector('[data-reveal]') as HTMLElement;
     await expect(getComputedStyle(revealed).filter).not.toBe('none');
 
-    /* Four lanes, and the one lane matched by SHAPE rather than prefix resolves too.
+    /* Five lanes, and the one lane matched by SHAPE rather than prefix resolves too.
        Desktop's tag is bare semver, so it is the lane that breaks first if the matching
        order is rearranged - and a bar that quietly rendered three segments would read as
        "Mobile has no releases" to anyone who does not know it should be there. Polled
@@ -367,12 +376,13 @@ export const Default: Story = {
         'v0.9.4',
         'v1.4.2',
         'v3.1.0',
+        'v0.1.0',
       ]);
     });
     const lanes = laneSegmentsOf(canvasElement);
     await expect(lanes[0]).toHaveAttribute('href', PIMS_RELEASE.html_url);
     await expect(lanes[1]).toHaveAttribute('href', DESKTOP_RELEASE.html_url);
-    /* One row. The bar is a wrapping flex container, so "four lanes" and "one strip" are
+    /* One row. The bar is a wrapping flex container, so "five lanes" and "one strip" are
        separate claims: comparing the tops is what keeps a segment that has grown too wide
        from dropping onto a second line unnoticed on the widest surface on the site. */
     await expect(new Set(lanes.map((lane) => lane.getBoundingClientRect().top)).size).toBe(1);
@@ -513,14 +523,14 @@ export const NothingResolved: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    /* Four lanes, still, and each one still goes somewhere useful. The absent state is
+    /* Five lanes, still, and each one still goes somewhere useful. The absent state is
        where a bar that dropped its empty segments would look completely fine and quietly
        under-report what the project ships. A placeholder rather than a hard-coded literal:
        a stale version presented as live is worse than an empty slot, and it would poison
        the shared session cache for every other page too. */
     const lanes = laneSegmentsOf(canvasElement);
-    await expect(lanes).toHaveLength(4);
-    await expect(laneVersionsOf(canvasElement)).toEqual(Array(4).fill(PLACEHOLDER));
+    await expect(lanes).toHaveLength(5);
+    await expect(laneVersionsOf(canvasElement)).toEqual(Array(5).fill(PLACEHOLDER));
     for (const lane of lanes) {
       await expect(lane).toHaveAttribute('href', `${GITHUB_REPO_URL}/releases`);
       // Announces what it does, rather than reading out a bare middle dot.
@@ -550,7 +560,7 @@ export const NothingResolved: Story = {
         story:
           'Both endpoints answer 503 and both session caches are cold, which is also the first ' +
           'paint of a perfectly healthy load and the state every unstubbed story is quietly ' +
-          'in. Four lanes and five numbers, all showing the middle-dot placeholder.',
+          'in. Five lanes and five numbers, all showing the middle-dot placeholder.',
       },
     },
   },

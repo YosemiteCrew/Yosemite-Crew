@@ -402,7 +402,7 @@ function HeroAppointmentCard() {
     <div
       style={{
         position: 'absolute',
-        left: '5%',
+        left: '4%',
         top: '23%',
         animation: 'ycFloatA 7s ease-in-out 1.2s infinite',
         zIndex: 2,
@@ -443,7 +443,7 @@ function HeroMessageCard() {
     <div
       style={{
         position: 'absolute',
-        right: '4.5%',
+        right: '2%',
         top: '27%',
         animation: 'ycFloatB 9s ease-in-out 0.6s infinite',
         zIndex: 2,
