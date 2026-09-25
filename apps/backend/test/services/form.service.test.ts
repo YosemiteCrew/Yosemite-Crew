@@ -934,7 +934,13 @@ describe("FormService", () => {
     describe("template-backed submissions for an appointment that already has an instance", () => {
       const templateId = "ced99b20-fde8-4122-bab9-a947ad562a36";
 
-      const arrange = (existing: Array<{ id: string; status: string }>) => {
+      const arrange = (
+        existing: Array<{
+          id: string;
+          status: string;
+          templateVersion?: number;
+        }>,
+      ) => {
         (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue(null);
         (prisma.templateVersion.findFirst as jest.Mock).mockResolvedValue({
           schemaSnapshot: { sections: [] },
