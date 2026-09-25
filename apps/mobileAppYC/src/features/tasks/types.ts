@@ -155,6 +155,11 @@ export interface Task {
   recurrenceEndDate?: string; // ISO date (YYYY-MM-DD) — end of recurrence series, local timezone
   time?: string; // ISO time string
   frequency: TaskFrequency;
+  /**
+   * Cadence of the series the task belongs to. Differs from `frequency` on a
+   * materialized occurrence, which is 'once' itself but part of a series.
+   */
+  seriesFrequency?: TaskFrequency;
   assignedTo?: string; // User ID
   assignedBy?: string;
   createdBy?: string;

@@ -144,14 +144,12 @@ const mapBackendCategoryToUi = (category?: string): Task['category'] => {
   }
 };
 
-// Materialized children explicitly set `isMaster: false` and must not project.
-// Older recurring tasks can omit the flag, so only `false` collapses to once.
-const mapRecurrenceToFrequency = (recurrence?: {
-  type?: RecurrenceType;
-  isMaster?: boolean;
-}): Task['frequency'] => {
-  if (recurrence?.isMaster === false) return 'once';
-  switch (recurrence?.type) {
+// The series cadence, kept even on a materialized child, whose own frequency
+// is 'once' but whose recurrence still carries the master's type.
+const mapRecurrenceTypeToFrequency = (
+  type?: RecurrenceType,
+): Task['frequency'] => {
+  switch (type) {
     case 'DAILY':
       return 'daily';
     case 'WEEKLY':
@@ -164,6 +162,16 @@ const mapRecurrenceToFrequency = (recurrence?: {
       return 'once';
   }
 };
+
+// Materialized children explicitly set `isMaster: false` and must not project.
+// Older recurring tasks can omit the flag, so only `false` collapses to once.
+const mapRecurrenceToFrequency = (recurrence?: {
+  type?: RecurrenceType;
+  isMaster?: boolean;
+}): Task['frequency'] =>
+  recurrence?.isMaster === false
+    ? 'once'
+    : mapRecurrenceTypeToFrequency(recurrence?.type);
 
 const mapFrequencyToRecurrence = (
   frequency?: TaskFormData['frequency'] | TaskFormData['medicationFrequency'],
@@ -278,6 +286,7 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
       : undefined,
     time,
     frequency,
+    seriesFrequency: mapRecurrenceTypeToFrequency(recurrence?.type),
     assignedTo: apiTask?.assignedTo ?? apiTask?.assigned_to,
     assignedBy: apiTask?.assignedBy,
     createdBy: apiTask?.createdBy,

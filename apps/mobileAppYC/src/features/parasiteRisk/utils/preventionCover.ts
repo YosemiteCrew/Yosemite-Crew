@@ -106,10 +106,13 @@ export function resolvePreventionCover(
     };
   }
 
-  if (latest && latest.task.frequency !== 'once') {
+  // A completed occurrence of a series is 'once' on its own, so its cover
+  // comes from the series cadence. The next occurrence may not exist yet.
+  const cadence = latest?.task.seriesFrequency ?? latest?.task.frequency;
+
+  if (latest && cadence && cadence !== 'once') {
     const coveredUntil =
-      latest.completedAt +
-      COVER_DAYS_BY_FREQUENCY[latest.task.frequency] * MS_PER_DAY;
+      latest.completedAt + COVER_DAYS_BY_FREQUENCY[cadence] * MS_PER_DAY;
 
     if (coveredUntil >= now) {
       return {
