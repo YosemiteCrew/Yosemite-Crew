@@ -226,6 +226,12 @@ const laneSegmentsOf = (canvasElement: HTMLElement) =>
 const laneVersionsOf = (canvasElement: HTMLElement) =>
   laneSegmentsOf(canvasElement).map((segment) => segment.children[1]?.textContent ?? '');
 
+/** The four floating glass cards, found by the float animation they all run. */
+const floatingCardsOf = (canvasElement: HTMLElement) =>
+  Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-hero] div')).filter((node) =>
+    /ycFloat/.test(node.style.animation)
+  );
+
 /** Every ambient glow layer `useParallax` drives; all three live in the hero. */
 const depthLayersOf = (canvasElement: HTMLElement) =>
   Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-depth]'));
@@ -386,6 +392,22 @@ export const Default: Story = {
        separate claims: comparing the tops is what keeps a segment that has grown too wide
        from dropping onto a second line unnoticed on the widest surface on the site. */
     await expect(new Set(lanes.map((lane) => lane.getBoundingClientRect().top)).size).toBe(1);
+
+    /* No floating card may sit on the strip. The upper pair hangs from its bottom edge, so a
+       strip that grows (a sixth lane, a longer version) pushes them down rather than under. */
+    const strip = (
+      canvasElement.querySelector('[data-yc-lanes]') as HTMLElement
+    ).getBoundingClientRect();
+    for (const card of floatingCardsOf(canvasElement)) {
+      const box = card.getBoundingClientRect();
+      if (box.width === 0) continue;
+      const apart =
+        box.top >= strip.bottom ||
+        box.bottom <= strip.top ||
+        box.left >= strip.right ||
+        box.right <= strip.left;
+      await expect(apart).toBe(true);
+    }
 
     // The section spine. Level 2 skips the sr-only h1 the preview decorator injects.
     await expect(headingsOf(canvasElement)).toEqual(SECTION_SPINE);
@@ -645,8 +667,9 @@ export const Phone: Story = {
        them: misspell one and the section keeps its desktop grid on a 375px screen, with no
        error anywhere. The five single-column grids are the companion row, the three
        pillars and the principles wall; the wide one is the metric band; the two stacks are
-       the hero CTA row and the closing CTA pair; the hidden layer is the four floating
-       hero cards. */
+       the hero CTA row and the closing CTA pair; the two hidden layers hold the four
+       floating hero cards (the upper two hang from the release strip, the lower two from
+       the section). */
     const oneColumn = all('[data-grid-1-m]');
     const twoColumn = all('[data-grid-2-m]');
     const stacks = all('[data-stack-m]');
@@ -654,7 +677,7 @@ export const Phone: Story = {
     await expect(oneColumn).toHaveLength(5);
     await expect(twoColumn).toHaveLength(1);
     await expect(stacks).toHaveLength(2);
-    await expect(hidden).toHaveLength(1);
+    await expect(hidden).toHaveLength(2);
     await expect(all('[data-order-first-m]')).toHaveLength(1);
 
     /* Each helper silently depends on the box it lands on. `grid-template-columns: 1fr`
@@ -681,7 +704,13 @@ export const Phone: Story = {
     /* The four floating glass cards are absolutely positioned against the hero at
        percentage offsets, so on a phone they land on top of the headline. `display: none`
        is the only thing keeping them off it. */
-    await expect(getComputedStyle(hidden[0]).display).toBe(phoneHelpers ? 'none' : 'block');
+    /* The upper pair also drops out wherever the side gutter cannot hold it beside the
+       headline, so it is only shown on wide screens. */
+    const narrowHero = globalThis.matchMedia('(max-width: 1559px)').matches;
+    for (const layer of hidden) {
+      const dropped = phoneHelpers || (layer.hasAttribute('data-hero-upper-cards') && narrowHero);
+      await expect(getComputedStyle(layer).display).toBe(dropped ? 'none' : 'block');
+    }
 
     /* `order: -1` only means anything to a flex/grid child, and it is doing real work
        here: the pet-parents copy is SECOND in the DOM so the phone mockup takes the left

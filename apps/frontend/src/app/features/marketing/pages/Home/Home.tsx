@@ -397,15 +397,24 @@ function PillarCopy({ eyebrow, eyebrowAs, heading, body, linkHref, linkText }: P
 
 /* ─────────────────────────── HERO ─────────────────────────── */
 
+/*
+  The two upper cards hang from the bottom edge of the release strip (see HeroUpperCards), so
+  they clear it however tall it renders and wherever the centred hero copy lands. The offset is
+  the larger float amplitude (ycFloatB rises 22px) plus a 14px gap, so neither card touches the
+  strip even at the top of its float. Horizontally they still sit a fixed share of the viewport
+  in from each edge: `50% - 50vw` is the viewport edge, measured from the centred column.
+  marketing.css drops them where the side gutter is too narrow to hold them beside the headline.
+*/
+const HERO_UPPER_CARD_CLEARANCE = 22 + 14;
+
 function HeroAppointmentCard() {
   return (
     <div
       style={{
         position: 'absolute',
-        left: '4%',
-        top: '23%',
+        left: 'calc(50% - 50vw + 5vw)',
+        top: HERO_UPPER_CARD_CLEARANCE,
         animation: 'ycFloatA 7s ease-in-out 1.2s infinite',
-        zIndex: 2,
       }}
     >
       <div style={HERO_GLASS_CARD_STYLE}>
@@ -443,10 +452,9 @@ function HeroMessageCard() {
     <div
       style={{
         position: 'absolute',
-        right: '2%',
-        top: '27%',
+        right: 'calc(50% - 50vw + 4.5vw)',
+        top: HERO_UPPER_CARD_CLEARANCE + 24,
         animation: 'ycFloatB 9s ease-in-out 0.6s infinite',
-        zIndex: 2,
       }}
     >
       <div style={HERO_GLASS_CARD_WIDE_STYLE}>
@@ -572,11 +580,28 @@ function HeroRecoveryCard() {
   );
 }
 
+/**
+ * A zero-height anchor placed right after the release strip in the hero column, so its top IS the
+ * strip's bottom edge. `zIndex: -1` keeps the cards behind the headline, as the section-level
+ * cards are, while still inside the column's stacking context.
+ */
+function HeroUpperCards() {
+  return (
+    <div
+      data-hide-m="true"
+      data-hero-upper-cards="true"
+      aria-hidden="true"
+      style={{ position: 'relative', alignSelf: 'stretch', height: 0, zIndex: -1 }}
+    >
+      <HeroAppointmentCard />
+      <HeroMessageCard />
+    </div>
+  );
+}
+
 function HeroFloatingCards() {
   return (
     <div data-hide-m="true" aria-hidden="true">
-      <HeroAppointmentCard />
-      <HeroMessageCard />
       <HeroExportCard />
       <HeroRecoveryCard />
     </div>
@@ -802,6 +827,7 @@ function Hero() {
         >
           <ReleaseLanes />
         </div>
+        <HeroUpperCards />
 
         <HeroHeading />
 

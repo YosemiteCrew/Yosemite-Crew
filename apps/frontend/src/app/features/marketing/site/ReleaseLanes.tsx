@@ -24,8 +24,8 @@ const BAR_STYLE: CSSProperties = {
 const SEGMENT_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'baseline',
-  gap: 5,
-  padding: '4px 8px',
+  gap: 6,
+  padding: '4px 11px',
   borderRadius: 9999,
   fontSize: 12.5,
   fontWeight: 500,
@@ -68,7 +68,7 @@ const Dot = () => (
       borderRadius: 9999,
       background: 'var(--success)',
       flex: 'none',
-      margin: '0 6px 0 7px',
+      margin: '0 7px 0 8px',
     }}
     aria-hidden="true"
   />
@@ -123,7 +123,7 @@ export function ReleaseLanes() {
         </span>
       ))}
       <IoLogoGithub
-        style={{ fontSize: 14, color: 'var(--ink-faint)', flex: 'none', margin: '0 7px 0 5px' }}
+        style={{ fontSize: 14, color: 'var(--ink-faint)', flex: 'none', margin: '0 8px 0 6px' }}
         aria-hidden="true"
       />
     </div>
