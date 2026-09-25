@@ -76,6 +76,7 @@ const buildEntry = ({
   formVersion,
   signingUrl,
   assignmentStatus,
+  signingRequested = false,
 }: {
   form: Form;
   submission?: FormSubmission | null;
@@ -83,6 +84,8 @@ const buildEntry = ({
   formVersion?: number;
   signingUrl?: string | null;
   assignmentStatus?: string | null;
+  // The practice asked the client to sign it, e.g. a consent it filled in.
+  signingRequested?: boolean;
 }): AppointmentFormEntry => {
   const normalizedForm = normalizeFormForState(form);
   const normalizedSubmission = submission
@@ -94,10 +97,9 @@ const buildEntry = ({
         submittedBy: submission.submittedBy,
       })
     : null;
-  const signingRequired = shouldRequireSignature(
-    normalizedForm,
-    normalizedSubmission ?? undefined,
-  );
+  const signingRequired =
+    signingRequested ||
+    shouldRequireSignature(normalizedForm, normalizedSubmission ?? undefined);
   const status = resolveEntryStatus(
     deriveFormStatus(normalizedSubmission, signingRequired),
     assignmentStatus,
@@ -196,6 +198,7 @@ const fetchAppointmentFormsData = async ({
         formVersion: mapped.formVersion,
         source: 'appointment',
         assignmentStatus: mapped.assignmentStatus,
+        signingRequested: mapped.signingRequested,
       });
       entries.push(entry);
       cache.set(entry.form._id, normalizeFormForState(entry.form));

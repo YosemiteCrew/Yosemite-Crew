@@ -15,6 +15,8 @@ export interface AppointmentFormsApiItem {
   questionnaireResponse?: QuestionnaireResponse;
   status?: string;
   assignmentStatus?: string;
+  /** Whether the practice asked the client to sign this form. */
+  signingRequired?: boolean;
 }
 
 export interface AppointmentFormsApiResponse {
@@ -144,6 +146,7 @@ export const mapAppointmentFormItem = (
   submission: FormSubmission | null;
   formVersion?: number;
   assignmentStatus: string | null;
+  signingRequested: boolean;
 } => {
   const form = toForm(item.questionnaire);
   const submission = item.questionnaireResponse
@@ -165,5 +168,6 @@ export const mapAppointmentFormItem = (
     submission: normalizedSubmission,
     formVersion: normalizedSubmission?.formVersion,
     assignmentStatus: item.assignmentStatus?.toLowerCase() ?? null,
+    signingRequested: item.signingRequired === true,
   };
 };

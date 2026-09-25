@@ -730,6 +730,62 @@ describe('formsSlice', () => {
     });
   });
 
+  // A consent the practice filled in for the client to sign: nothing in the
+  // form itself says it needs a signature, the practice's request does.
+  describe('a form the practice asked the client to sign', () => {
+    const load = async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f1'}),
+            submission: mockSubmission({_id: 'instance-1', formId: 'f1'}),
+            signingRequested: true,
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+    };
+    const entry = () =>
+      selectFormsForAppointment(store.getState() as any, mockAppointmentId)[0];
+
+    it('needs signing', async () => {
+      await load();
+      expect(entry().signingRequired).toBe(true);
+      expect(Utils.deriveFormStatus).toHaveBeenCalledWith(
+        expect.objectContaining({_id: 'instance-1'}),
+        true,
+      );
+    });
+
+    it('still needs signing once signing has started', async () => {
+      await load();
+      (formApi.startSigning as jest.Mock).mockResolvedValue({
+        signingUrl: 'https://sign',
+      });
+
+      await store.dispatch(
+        startFormSigning({
+          appointmentId: mockAppointmentId,
+          submissionId: 'instance-1',
+        }),
+      );
+
+      expect(entry().signingRequired).toBe(true);
+    });
+
+    it('does not need signing when nothing asks for it', async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [{form: mockForm({_id: 'f1'}), submission: null}],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+      expect(entry().signingRequired).toBe(false);
+    });
+  });
+
   describe('startFormSigning', () => {
     beforeEach(async () => {
       (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({

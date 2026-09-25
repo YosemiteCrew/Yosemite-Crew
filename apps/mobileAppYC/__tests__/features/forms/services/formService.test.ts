@@ -230,6 +230,25 @@ describe('formService', () => {
       (fromFormRequestDTO as jest.Mock).mockReturnValue(mockForm);
     });
 
+    it('carries whether the practice asked for a signature', () => {
+      expect(
+        mapAppointmentFormItem({
+          questionnaire: mockQuestionnaire,
+          signingRequired: true,
+        } as any).signingRequested,
+      ).toBe(true);
+      expect(
+        mapAppointmentFormItem({
+          questionnaire: mockQuestionnaire,
+          signingRequired: false,
+        } as any).signingRequested,
+      ).toBe(false);
+      expect(
+        mapAppointmentFormItem({questionnaire: mockQuestionnaire} as any)
+          .signingRequested,
+      ).toBe(false);
+    });
+
     it('carries the request status in lower case', () => {
       expect(
         mapAppointmentFormItem({
