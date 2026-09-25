@@ -622,42 +622,55 @@ export const WorkspaceDocumentPacketService = {
       },
     })) as PacketRecord;
 
+    // The packet carries the staff member's signature. A consent in it is the
+    // client's to sign, so the packet never marks one signed.
+    const clientSigned = new Set(
+      (
+        await prisma.renderedDocument.findMany({
+          where: { id: { in: signing.documentIds }, kind: "CONSENT" },
+          select: { id: true },
+        })
+      ).map(({ id }) => id),
+    );
+
     await Promise.all(
-      signing.documentIds.map(async (documentId) => {
-        try {
-          await prisma.renderedDocument.update({
-            where: { id: documentId },
-            data: {
-              status: "SIGNED",
-              signedBy: signing.signerId,
-              signedAt,
-              pdfUrl: signedUrl ?? undefined,
-              signing: {
-                required: true,
-                provider: "DOCUMENSO",
+      signing.documentIds
+        .filter((documentId) => !clientSigned.has(documentId))
+        .map(async (documentId) => {
+          try {
+            await prisma.renderedDocument.update({
+              where: { id: documentId },
+              data: {
                 status: "SIGNED",
-                viaPacketId: packet.id,
-                pdf: { url: signedUrl },
+                signedBy: signing.signerId,
+                signedAt,
+                pdfUrl: signedUrl ?? undefined,
+                signing: {
+                  required: true,
+                  provider: "DOCUMENSO",
+                  status: "SIGNED",
+                  viaPacketId: packet.id,
+                  pdf: { url: signedUrl },
+                },
               },
-            },
-          });
-          await prisma.documentSignature.upsert({
-            where: { renderedDocumentId: documentId },
-            update: { signedAt },
-            create: {
-              renderedDocumentId: documentId,
-              signerId: signing.signerId,
-              signerType: "PMS_USER",
-              signedAt,
-            },
-          });
-        } catch (error) {
-          logger.warn("[Packet] Failed to mark child document signed", {
-            documentId,
-            error,
-          });
-        }
-      }),
+            });
+            await prisma.documentSignature.upsert({
+              where: { renderedDocumentId: documentId },
+              update: { signedAt },
+              create: {
+                renderedDocumentId: documentId,
+                signerId: signing.signerId,
+                signerType: "PMS_USER",
+                signedAt,
+              },
+            });
+          } catch (error) {
+            logger.warn("[Packet] Failed to mark child document signed", {
+              documentId,
+              error,
+            });
+          }
+        }),
     );
 
     return mapPacket(updated);

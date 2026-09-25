@@ -393,12 +393,16 @@ const findAssignmentForSubmission = async (params: {
   companionId?: string | null;
   parentId?: string | null;
 }) => {
-  const assignments = await prisma.formAssignment.findMany({
+  // With an appointment the template identifies the assignment on its own. A
+  // template published again after it was sent submits at the newer version,
+  // and matching on the version as well left that assignment open for good.
+  const found = await prisma.formAssignment.findMany({
     where: {
       organisationId: params.organisationId,
       templateId: params.templateId,
-      templateVersion: params.templateVersion,
-      ...(params.appointmentId ? { appointmentId: params.appointmentId } : {}),
+      ...(params.appointmentId
+        ? { appointmentId: params.appointmentId }
+        : { templateVersion: params.templateVersion }),
       ...(params.companionId ? { companionId: params.companionId } : {}),
     },
     include: {
@@ -410,9 +414,15 @@ const findAssignmentForSubmission = async (params: {
     },
   });
 
-  if (!assignments.length) {
+  if (!found.length) {
     return null;
   }
+
+  // The assignment sent at the submitted version first.
+  const assignments = [
+    ...found.filter((row) => row.templateVersion === params.templateVersion),
+    ...found.filter((row) => row.templateVersion !== params.templateVersion),
+  ];
 
   if (!params.parentId) {
     return assignments[0] ?? null;

@@ -18,7 +18,7 @@ jest.mock("src/config/prisma", () => ({
     },
     user: { findFirst: jest.fn() },
     encounter: { findFirst: jest.fn() },
-    renderedDocument: { update: jest.fn() },
+    renderedDocument: { update: jest.fn(), findMany: jest.fn() },
     documentSignature: { upsert: jest.fn() },
   },
 }));
@@ -80,7 +80,7 @@ const mockedPrisma = prisma as unknown as {
   };
   user: { findFirst: jest.Mock };
   encounter: { findFirst: jest.Mock };
-  renderedDocument: { update: jest.Mock };
+  renderedDocument: { update: jest.Mock; findMany: jest.Mock };
   documentSignature: { upsert: jest.Mock };
 };
 const mockedWorkspaceService = WorkspaceService as unknown as {
@@ -158,6 +158,8 @@ const pdfBytes = (marker: string): Buffer =>
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // No consent among a packet's documents unless a case says so.
+  mockedPrisma.renderedDocument.findMany.mockResolvedValue([]);
   process.env.DOCUMENSO_URL = "https://sign.example";
   // The signed-packet link is checked before it is used, which resolves the
   // host. Keep that resolution deterministic and offline: the placeholder hosts
@@ -883,6 +885,55 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
     );
     expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledTimes(2);
     expect(mockedPrisma.documentSignature.upsert).toHaveBeenCalledTimes(2);
+    expect(result?.status).toBe("FINAL");
+  });
+
+  // The packet carries the staff member's signature; the client never signed
+  // the consent in it, so it must not read as signed.
+  it("leaves a consent in the packet unsigned", async () => {
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: {
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          signerName: "Dr Jane",
+          documentIds: ["soap-1", "consent-1"],
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.getDocumentStatus.mockResolvedValue("COMPLETED");
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
+    });
+    mockedPrisma.workspaceDocumentPacket.update.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) =>
+        basePacket({ status: data.status, signing: data.signing }),
+    );
+    mockedPrisma.renderedDocument.findMany.mockResolvedValue([
+      { id: "consent-1" },
+    ]);
+    mockedPrisma.renderedDocument.update.mockResolvedValue({});
+    mockedPrisma.documentSignature.upsert.mockResolvedValue({});
+
+    const result =
+      await WorkspaceDocumentPacketService.completeSigning("pkt-1");
+
+    expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ["soap-1", "consent-1"] }, kind: "CONSENT" },
+      select: { id: true },
+    });
+    expect(
+      mockedPrisma.renderedDocument.update.mock.calls.map(
+        ([arg]) => arg.where.id,
+      ),
+    ).toEqual(["soap-1"]);
+    expect(
+      mockedPrisma.documentSignature.upsert.mock.calls.map(
+        ([arg]) => arg.where.renderedDocumentId,
+      ),
+    ).toEqual(["soap-1"]);
     expect(result?.status).toBe("FINAL");
   });
 

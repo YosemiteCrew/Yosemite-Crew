@@ -604,6 +604,91 @@ describe("FormAssignmentService", () => {
     expect(row?.status).toBe("SUBMITTED");
   });
 
+  // A template published again after it was sent submits at the newer
+  // version; matching on the version too left the assignment open for good.
+  describe("matching a submission to its assignment", () => {
+    const assignment = (id: string, templateVersion: number) => ({
+      id,
+      templateVersion,
+      status: "SENT",
+      appointment: { patient: { parent: { id: "parent-1" } } },
+    });
+
+    it("finds the appointment's assignment whatever version was submitted", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        assignment("assignment-v1", 1),
+      ]);
+      mockedPrisma.formAssignment.update.mockResolvedValueOnce({
+        id: "assignment-v1",
+      });
+
+      await FormAssignmentService.markSubmittedFromSubmission({
+        organisationId: "org-1",
+        templateId: "template-1",
+        templateVersion: 3,
+        appointmentId: "appt-1",
+        parentId: "parent-1",
+      });
+
+      expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organisationId: "org-1",
+            templateId: "template-1",
+            appointmentId: "appt-1",
+          },
+        }),
+      );
+      expect(mockedPrisma.formAssignment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "assignment-v1" } }),
+      );
+    });
+
+    it("prefers the assignment sent at the submitted version", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        assignment("assignment-v1", 1),
+        assignment("assignment-v3", 3),
+      ]);
+      mockedPrisma.formAssignment.update.mockResolvedValueOnce({
+        id: "assignment-v3",
+      });
+
+      await FormAssignmentService.markSubmittedFromSubmission({
+        organisationId: "org-1",
+        templateId: "template-1",
+        templateVersion: 3,
+        appointmentId: "appt-1",
+        parentId: "parent-1",
+      });
+
+      expect(mockedPrisma.formAssignment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "assignment-v3" } }),
+      );
+    });
+
+    it("still matches on the version without an appointment", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([]);
+
+      await expect(
+        FormAssignmentService.markSubmittedFromSubmission({
+          organisationId: "org-1",
+          templateId: "template-1",
+          templateVersion: 3,
+        }),
+      ).resolves.toBeNull();
+
+      expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organisationId: "org-1",
+            templateId: "template-1",
+            templateVersion: 3,
+          },
+        }),
+      );
+    });
+  });
+
   it("marks a signed assignment when the signed document arrives", async () => {
     mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
       {

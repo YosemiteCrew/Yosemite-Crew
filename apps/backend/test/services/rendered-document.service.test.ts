@@ -51,6 +51,9 @@ jest.mock("src/config/prisma", () => {
     appointment: {
       findUnique: jest.fn(),
     },
+    formAssignment: {
+      updateMany: jest.fn(),
+    },
   };
   // Runs the callback on the same mocks by default; a test that needs to tell
   // transactional writes apart passes its own client.
@@ -98,6 +101,7 @@ describe("rendered-document service", () => {
     case: { findUnique: jest.Mock };
     encounter: { findUnique: jest.Mock };
     appointment: { findUnique: jest.Mock };
+    formAssignment: { updateMany: jest.Mock };
     $transaction: jest.Mock;
   };
   const mockedDocumensoService = DocumensoService as unknown as {
@@ -1553,6 +1557,163 @@ describe("rendered-document service", () => {
             }),
           }),
         );
+      });
+    });
+
+    describe("who signs a consent", () => {
+      const consentRow = () =>
+        documentRow({
+          sourceKind: "TEMPLATE_INSTANCE",
+          sourceId: "instance-9",
+          templateInstanceId: "instance-9",
+          clinicalArtifactId: null,
+          kind: "CONSENT",
+        });
+
+      it.each(["PMS_USER", "SYSTEM"] as const)(
+        "refuses a %s signer",
+        async (signerType) => {
+          mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+            consentRow(),
+          );
+
+          await expect(
+            signPersistedRenderedDocument({ ...signInput, signerType }),
+          ).rejects.toMatchObject({
+            statusCode: 409,
+            message: "A consent is signed by the client",
+          });
+          expect(mockedDocumensoService.createDocument).not.toHaveBeenCalled();
+          expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+        },
+      );
+
+      it("sends it to the client for signing", async () => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          consentRow(),
+        );
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          linkedRecord("COMPLETED"),
+        );
+        mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
+          "api-key-1",
+        );
+        mockedRenderedDocumentRenderer.mockResolvedValueOnce({
+          pdf: pdfBytes("consent"),
+          pageCount: 1,
+        });
+        mockedDocumensoService.createDocument.mockResolvedValueOnce({
+          id: 99,
+          recipients: [],
+        });
+        mockedPrisma.renderedDocument.update.mockResolvedValueOnce(
+          consentRow(),
+        );
+
+        await signPersistedRenderedDocument({
+          ...signInput,
+          signerId: "parent-1",
+          signerType: "PARENT",
+          signerEmail: "owner@example.com",
+        });
+
+        expect(mockedDocumensoService.createDocument).toHaveBeenCalledWith(
+          expect.objectContaining({ signerEmail: "owner@example.com" }),
+        );
+      });
+    });
+
+    describe("the assignment behind a client's signature", () => {
+      const storeTemplateSigning = (signing: Record<string, unknown>) => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          documentRow({
+            sourceKind: "TEMPLATE_INSTANCE",
+            sourceId: "instance-9",
+            templateInstanceId: "instance-9",
+            clinicalArtifactId: null,
+            templateId: "tpl-consent",
+            kind: "CONSENT",
+            signing: { ...inProgressSigning, ...signing },
+          }),
+        );
+        mockedPrisma.renderedDocument.update.mockResolvedValueOnce(
+          documentRow({ status: "SIGNED" }),
+        );
+        mockedPrisma.documentSignature.upsert.mockResolvedValueOnce({
+          id: "sig-9",
+        });
+      };
+      const onAppointment = (appointmentId: string | null) => ({
+        ...linkedRecord("SIGNED"),
+        appointmentId,
+      });
+
+      beforeEach(() => {
+        mockedPrisma.formAssignment.updateMany.mockReset();
+      });
+
+      it("is marked signed with the document when the client signs", async () => {
+        storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          onAppointment("appt-9"),
+        );
+
+        const result = await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(result.status).toBe("SIGNED");
+        expect(mockedPrisma.formAssignment.updateMany).toHaveBeenCalledWith({
+          where: {
+            organisationId: "org-123",
+            templateId: "tpl-consent",
+            appointmentId: "appt-9",
+            status: { in: ["SENT", "VIEWED", "SUBMITTED"] },
+          },
+          data: { status: "SIGNED", signedAt: expect.any(Date) },
+        });
+      });
+
+      it("is left as it is when practice staff signed", async () => {
+        storeTemplateSigning({ signerType: "PMS_USER" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          onAppointment("appt-9"),
+        );
+
+        await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(mockedPrisma.formAssignment.updateMany).not.toHaveBeenCalled();
+      });
+
+      it("is not looked for without an appointment", async () => {
+        storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          onAppointment(null),
+        );
+
+        await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(mockedPrisma.formAssignment.updateMany).not.toHaveBeenCalled();
+      });
+
+      // Written in the completion transaction, so a failure rolls the
+      // signature back for the retry instead of leaving the assignment open
+      // behind a signed document.
+      it("fails the completion when it cannot be written", async () => {
+        storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          onAppointment("appt-9"),
+        );
+        mockedPrisma.formAssignment.updateMany.mockRejectedValueOnce(
+          new Error("write failed"),
+        );
+
+        await expect(
+          completePersistedRenderedDocumentSigning("doc-9"),
+        ).rejects.toThrow("write failed");
+        expect(mockedAuditTrailService.recordSafely).not.toHaveBeenCalled();
       });
     });
 

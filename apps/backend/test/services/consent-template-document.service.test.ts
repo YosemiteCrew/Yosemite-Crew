@@ -23,6 +23,8 @@ import {
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
 import { TemplateService } from "src/services/template.service";
+import { FormAssignmentService } from "src/services/form-assignment.service";
+import { FormSigningService } from "src/services/formSigning.service";
 
 type Row = Record<string, unknown>;
 type Store = {
@@ -94,6 +96,52 @@ jest.mock("src/config/prisma", () => {
     if (typeof kind === "string") return doc.kind === kind;
     return doc.kind !== (kind as { not: string }).not;
   };
+  // The where shapes the services under test use: equality, in / notIn / not,
+  // a JSON path, a timestamp, OR and AND.
+  const matches = (row: Row, where: Row = {}): boolean =>
+    Object.entries(where).every(([key, condition]) => {
+      if (condition === undefined) return true;
+      if (key === "OR") {
+        return (condition as Row[]).some((clause) => matches(row, clause));
+      }
+      if (key === "AND") {
+        return (condition as Row[]).every((clause) => matches(row, clause));
+      }
+      const value = row[key];
+      if (condition instanceof Date) {
+        return value instanceof Date && value.getTime() === condition.getTime();
+      }
+      if (condition && typeof condition === "object") {
+        const clause = condition as Record<string, unknown>;
+        if ("in" in clause) return (clause.in as unknown[]).includes(value);
+        if ("notIn" in clause) {
+          return !(clause.notIn as unknown[]).includes(value);
+        }
+        if ("not" in clause) return value !== clause.not;
+        if ("path" in clause) {
+          const found = (clause.path as string[]).reduce<unknown>(
+            (node, part) => (node as Row | null | undefined)?.[part],
+            value,
+          );
+          return found === clause.equals;
+        }
+      }
+      return value === condition;
+    });
+  const notFound = () => {
+    const { Prisma } = jest.requireActual("@prisma/client");
+    return new Prisma.PrismaClientKnownRequestError("No record was found.", {
+      code: "P2025",
+      clientVersion: "test",
+    });
+  };
+  const withAppointment = (assignment: Row) => ({
+    ...assignment,
+    appointment:
+      store.appointments.find(
+        (appointment) => appointment.id === assignment.appointmentId,
+      ) ?? null,
+  });
   const findVersion = (templateId: unknown, version: unknown) =>
     store.templateVersions.find(
       (row) => row.templateId === templateId && row.version === version,
@@ -130,6 +178,7 @@ jest.mock("src/config/prisma", () => {
     // No concrete form ever exists here, so every submission resolves to a
     // template, the way a template-backed form does in production.
     form: { findUnique: async () => null },
+    formSubmission: { findUnique: async () => null },
     formVersion: { findFirst: async () => null },
     templateInstance: {
       create: async ({ data }: { data: Row }) => {
@@ -146,6 +195,8 @@ jest.mock("src/config/prisma", () => {
           generatedPdfUrl: null,
           status: "DRAFT",
           ...defined(data),
+          createdAt: tick(),
+          updatedAt: tick(),
         };
         store.templateInstances.set(id, instance);
         return { ...instance };
@@ -153,15 +204,18 @@ jest.mock("src/config/prisma", () => {
       findUnique: async ({
         where,
         include,
+        select,
       }: {
         where: { id: string };
         include?: {
           template?: { select: Record<string, boolean> };
           taskSchedule?: boolean;
         };
+        select?: Record<string, boolean>;
       }) => {
         const instance = store.templateInstances.get(where.id);
         if (!instance) return null;
+        if (select) return pick(instance, select);
         const template = store.templates.get(instance.templateId as string);
         return {
           ...instance,
@@ -176,34 +230,34 @@ jest.mock("src/config/prisma", () => {
         data,
         select,
       }: {
-        where: { id: string };
+        where: Row & { id: string };
         data: Row;
         select?: Record<string, boolean>;
       }) => {
-        const next = {
-          ...store.templateInstances.get(where.id),
-          ...defined(data),
-        };
+        const current = store.templateInstances.get(where.id);
+        if (!current || !matches(current, where)) throw notFound();
+        const next = { ...current, ...defined(data), updatedAt: tick() };
         store.templateInstances.set(where.id, next);
         return pick(next, select);
       },
-      // The only shape the submit claim uses. Nothing awaits between the read
-      // and the write, so it is as atomic here as a row-locked UPDATE is in
-      // Postgres.
+      // The submit claim and the signing completion's guarded move. Nothing
+      // awaits between the read and the write, so it is as atomic here as a
+      // row-locked UPDATE is in Postgres.
       updateMany: async ({
         where,
         data,
       }: {
-        where: { id: string; status: { in: string[] } };
+        where: Row & { id: string };
         data: Row;
       }) => {
         const instance = store.templateInstances.get(where.id);
-        if (!instance || !where.status.in.includes(instance.status as string)) {
+        if (!instance || !matches(instance, where)) {
           return { count: 0 };
         }
         store.templateInstances.set(where.id, {
           ...instance,
           ...defined(data),
+          updatedAt: tick(),
         });
         return { count: 1 };
       },
@@ -217,17 +271,11 @@ jest.mock("src/config/prisma", () => {
         where,
         select,
       }: {
-        where: Row & { status?: { not: string } };
+        where: Row;
         select?: Record<string, boolean>;
       }) =>
         [...store.templateInstances.values()]
-          .filter(
-            (instance) =>
-              instance.organisationId === where.organisationId &&
-              instance.templateId === where.templateId &&
-              instance.appointmentId === where.appointmentId &&
-              instance.status !== where.status?.not,
-          )
+          .filter((instance) => matches(instance, where))
           .map((instance) => pick(instance, select)),
     },
     renderedDocument: {
@@ -259,16 +307,29 @@ jest.mock("src/config/prisma", () => {
         store.renderedDocuments.set(doc.id as string, doc);
         return withSignature(doc);
       },
-      findUnique: async ({ where }: { where: { id: string } }) => {
-        const doc = store.renderedDocuments.get(where.id);
-        return doc ? withSignature(doc) : null;
+      findUnique: async ({
+        where,
+        select,
+      }: {
+        where: { id?: string; templateInstanceId?: string };
+        select?: Record<string, boolean>;
+      }) => {
+        const doc = [...store.renderedDocuments.values()].find((row) =>
+          matches(row, where),
+        );
+        if (!doc) return null;
+        return select ? pick(doc, select) : withSignature(doc);
       },
-      update: async ({ where, data }: { where: { id: string }; data: Row }) => {
-        const next = {
-          ...store.renderedDocuments.get(where.id),
-          ...defined(data),
-          updatedAt: tick(),
-        };
+      update: async ({
+        where,
+        data,
+      }: {
+        where: Row & { id: string };
+        data: Row;
+      }) => {
+        const current = store.renderedDocuments.get(where.id);
+        if (!current || !matches(current, where)) throw notFound();
+        const next = { ...current, ...defined(data), updatedAt: tick() };
         store.renderedDocuments.set(where.id, next);
         return withSignature(next);
       },
@@ -298,9 +359,9 @@ jest.mock("src/config/prisma", () => {
           }),
     },
     documentSignature: {
-      create: async ({ data }: { data: Row }) => {
-        store.documentSignatures.push(data);
-        return data;
+      upsert: async ({ create }: { create: Row }) => {
+        store.documentSignatures.push(create);
+        return create;
       },
     },
     patientOrganisation: {
@@ -325,16 +386,38 @@ jest.mock("src/config/prisma", () => {
     document: { findMany: async () => [] },
     formAssignment: {
       findMany: async ({ where }: { where: Row }) =>
-        store.formAssignments.filter(
-          (assignment) =>
-            assignment.organisationId === where.organisationId &&
-            (where.templateId === undefined ||
-              assignment.templateId === where.templateId) &&
-            assignment.appointmentId === where.appointmentId &&
-            !(
-              where.status as { notIn?: unknown[] } | undefined
-            )?.notIn?.includes(assignment.status),
-        ),
+        store.formAssignments
+          .filter((assignment) => matches(assignment, where))
+          .map(withAppointment),
+      findFirst: async ({ where }: { where: Row }) =>
+        store.formAssignments.find((assignment) =>
+          matches(assignment, where),
+        ) ?? null,
+      update: async ({ where, data }: { where: { id: string }; data: Row }) => {
+        const index = store.formAssignments.findIndex(
+          (assignment) => assignment.id === where.id,
+        );
+        store.formAssignments[index] = {
+          ...store.formAssignments[index],
+          ...defined(data),
+        };
+        return store.formAssignments[index];
+      },
+      updateMany: async ({ where, data }: { where: Row; data: Row }) => {
+        let count = 0;
+        store.formAssignments.forEach((assignment, index) => {
+          if (!matches(assignment, where)) return;
+          store.formAssignments[index] = { ...assignment, ...defined(data) };
+          count += 1;
+        });
+        return { count };
+      },
+    },
+    parent: {
+      findUnique: async ({ where }: { where: { id: string } }) =>
+        where.id === "parent-1"
+          ? { email: "owner@example.com", firstName: "Jane", lastName: "Owner" }
+          : null,
     },
     appointment: {
       findMany: async ({
@@ -356,6 +439,8 @@ jest.mock("src/config/prisma", () => {
             appointment.id === where.id &&
             appointment.organisationId === where.organisationId,
         ) ?? null,
+      // Attaching the form id to the appointment is not under test.
+      updateMany: async () => ({ count: 1 }),
       findUnique: async ({ where }: { where: { id: string } }) =>
         store.appointments.find((appointment) => appointment.id === where.id) ??
         null,
@@ -373,12 +458,6 @@ jest.mock("src/config/prisma", () => {
     },
   };
 });
-
-// Assignment status bookkeeping runs after the instance is submitted and is
-// best-effort (a failure is only logged), so it is not part of this flow.
-jest.mock("src/services/form-assignment.service", () => ({
-  FormAssignmentService: { markSubmittedFromSubmission: jest.fn() },
-}));
 
 jest.mock("src/services/formPDF.service", () => ({
   buildPdfViewModel: jest.fn(),
@@ -467,18 +546,28 @@ const seedTemplate = (
     id: `assignment-${id}`,
     organisationId: ORG,
     templateId: id,
+    templateVersion: 2,
     appointmentId: APPOINTMENT,
+    companionId: PATIENT,
+    signingRequired: true,
     status: "SENT",
   });
 };
 
 // The instance the PMS template-instance routes create before submitting it.
-const seedTemplateInstance = (id: string, templateId: string) => {
+const seedTemplateInstance = (
+  id: string,
+  templateId: string,
+  authorId: string | null = "vet-1",
+) => {
+  const at = new Date("2026-09-24T08:30:00.000Z");
   store.templateInstances.set(id, {
     id,
     organisationId: ORG,
     status: "DRAFT",
-    authorId: "vet-1",
+    authorId,
+    createdAt: at,
+    updatedAt: at,
     signedBy: null,
     templateId,
     templateVersion: 2,
@@ -524,7 +613,7 @@ const listConsentDocuments = () =>
     organisationId: ORG,
   });
 
-const signAndComplete = async (renderedDocumentId: string) => {
+const armDocumenso = () => {
   documenso.resolveOrganisationApiKey.mockResolvedValue("documenso-key");
   renderPdfMock.mockResolvedValue({
     pdf: Buffer.from("%PDF-1.4 consent"),
@@ -544,14 +633,31 @@ const signAndComplete = async (renderedDocumentId: string) => {
   documenso.downloadSignedDocument.mockResolvedValue({
     downloadUrl: "https://files.example/signed-consent.pdf",
   } as never);
+};
 
+// Practice staff sign clinical documents; only the client signs a consent.
+const VET_SIGNER = {
+  signerId: "vet-1",
+  signerType: "PMS_USER" as const,
+  signerEmail: "vet@example.com",
+  signerName: "Vet One",
+};
+const CLIENT_SIGNER = {
+  signerId: PARENT,
+  signerType: "PARENT" as const,
+  signerEmail: "owner@example.com",
+  signerName: "Jane Owner",
+};
+
+const signAndComplete = async (
+  renderedDocumentId: string,
+  signer: typeof VET_SIGNER | typeof CLIENT_SIGNER = VET_SIGNER,
+) => {
+  armDocumenso();
   await signPersistedRenderedDocument({
     renderedDocumentId,
     organisationId: ORG,
-    signerId: "vet-1",
-    signerType: "PMS_USER",
-    signerEmail: "vet@example.com",
-    signerName: "Vet One",
+    ...signer,
   });
   await completePersistedRenderedDocumentSigning(renderedDocumentId);
 };
@@ -620,7 +726,7 @@ describe("consent template documents (#3600)", () => {
       await TemplateService.submitInstance("inst-consent", ORG, "vet-1");
       const [submitted] = await listConsentDocuments();
 
-      await signAndComplete(submitted.id as string);
+      await signAndComplete(submitted.id as string, CLIENT_SIGNER);
 
       expect(renderPdfMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -750,7 +856,7 @@ describe("consent template documents (#3600)", () => {
 
     await TemplateService.submitInstance(submission._id, ORG, "vet-1");
     const [document] = await listConsentDocuments();
-    await signAndComplete(document.id as string);
+    await signAndComplete(document.id as string, CLIENT_SIGNER);
     await TemplateService.submitInstance(submission._id, ORG, "vet-1");
 
     expect(store.renderedDocuments.size).toBe(1);
@@ -792,17 +898,12 @@ describe("consent template documents (#3600)", () => {
     expect(store.templateInstances.get("inst-void")?.status).toBe("VOID");
   });
 
-  // Each POST to a form submit route used to create a new instance, and with it
-  // a new document, however often the same form was submitted.
-  describe.each([
-    ["mobile (pet parent)", submitFromMobile],
-    ["PMS form submit", submitFromPms],
-  ])("resubmitting on the %s route", (_route, submit) => {
+  describe("resubmitting on the mobile (pet parent) route", () => {
     it("is refused and renders no second document", async () => {
       seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
-      const first = await submit("tpl-consent");
+      const first = await submitFromMobile("tpl-consent");
 
-      await expect(submit("tpl-consent")).rejects.toMatchObject({
+      await expect(submitFromMobile("tpl-consent")).rejects.toMatchObject({
         statusCode: 409,
       });
 
@@ -812,23 +913,22 @@ describe("consent template documents (#3600)", () => {
 
     it("is refused once the submitted consent is signed", async () => {
       seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
-      await submit("tpl-consent");
+      await submitFromMobile("tpl-consent");
       const [document] = await listConsentDocuments();
-      await signAndComplete(document.id as string);
+      await signAndComplete(document.id as string, CLIENT_SIGNER);
 
-      await expect(submit("tpl-consent")).rejects.toMatchObject({
+      await expect(submitFromMobile("tpl-consent")).rejects.toMatchObject({
         statusCode: 409,
       });
 
       expect(store.renderedDocuments.size).toBe(1);
     });
 
-    it("submits the instance already open for the appointment", async () => {
+    it("submits the parent's own instance a failed submit left open", async () => {
       seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
-      // What a package expansion leaves for the appointment.
-      seedTemplateInstance("inst-open", "tpl-consent");
+      seedTemplateInstance("inst-open", "tpl-consent", PARENT);
 
-      const submission = await submit("tpl-consent");
+      const submission = await submitFromMobile("tpl-consent");
 
       expect(submission._id).toBe("inst-open");
       expect([...store.templateInstances.keys()]).toEqual(["inst-open"]);
@@ -839,7 +939,100 @@ describe("consent template documents (#3600)", () => {
       expect(store.renderedDocuments.size).toBe(1);
     });
 
-    it("leaves a void instance alone and submits a new one", async () => {
+    // The practice's draft is theirs: a parent's answers never merge into it.
+    it.each([
+      ["a practice draft", "vet-1"],
+      ["an unowned draft a package expansion left", null],
+    ])("leaves %s alone", async (_label, authorId) => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      seedTemplateInstance("inst-staff", "tpl-consent", authorId);
+
+      const submission = await submitFromMobile("tpl-consent");
+
+      expect(submission._id).not.toBe("inst-staff");
+      expect(store.templateInstances.get("inst-staff")).toMatchObject({
+        status: "DRAFT",
+        authorId,
+      });
+      expect(store.templateInstances.get(submission._id)).toMatchObject({
+        status: "COMPLETED",
+        authorId: PARENT,
+        data: { agree: "yes" },
+      });
+    });
+
+    // The submission was recorded but its assignment was not updated; the
+    // parent used to be refused for good while the practice saw the consent as
+    // still outstanding.
+    it("finishes the assignment of a recorded submission on retry", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const first = await submitFromMobile("tpl-consent");
+      store.formAssignments[0].status = "SENT";
+
+      const retry = await submitFromMobile("tpl-consent");
+
+      expect(retry._id).toBe(first._id);
+      expect(store.templateInstances.size).toBe(1);
+      expect(store.renderedDocuments.size).toBe(1);
+      expect(store.formAssignments[0].status).toBe("SUBMITTED");
+    });
+  });
+
+  describe("saving again on the PMS form submit route", () => {
+    // A practice may fill the same template twice on one visit.
+    it.each(["COMPLETED", "SIGNED"])(
+      "creates another instance once the first is %s",
+      async (status) => {
+        seedTemplate("tpl-form", "FORM", { category: "Custom" });
+        const first = await submitFromPms("tpl-form");
+        store.templateInstances.get(first._id)!.status = status;
+
+        const second = await submitFromPms("tpl-form");
+
+        expect(second._id).not.toBe(first._id);
+        expect(store.templateInstances.get(first._id)?.status).toBe(status);
+        expect(store.templateInstances.get(second._id)?.status).toBe(
+          "COMPLETED",
+        );
+        expect(store.renderedDocuments.size).toBe(2);
+      },
+    );
+
+    it.each([
+      ["the staff member's own", "vet-1"],
+      ["an unowned package expansion", null],
+    ])("submits %s open instance", async (_label, authorId) => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      seedTemplateInstance("inst-open", "tpl-consent", authorId);
+
+      const submission = await submitFromPms("tpl-consent");
+
+      expect(submission._id).toBe("inst-open");
+      expect([...store.templateInstances.keys()]).toEqual(["inst-open"]);
+      expect(store.templateInstances.get("inst-open")).toMatchObject({
+        status: "COMPLETED",
+        data: { agree: "yes" },
+      });
+      expect(store.renderedDocuments.size).toBe(1);
+    });
+
+    it("never takes over the parent's submission", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      seedTemplateInstance("inst-parent", "tpl-consent", PARENT);
+
+      const submission = await submitFromPms("tpl-consent");
+
+      expect(submission._id).not.toBe("inst-parent");
+      expect(store.templateInstances.get("inst-parent")?.status).toBe("DRAFT");
+    });
+  });
+
+  it.each([
+    ["mobile (pet parent)", submitFromMobile],
+    ["PMS form submit", submitFromPms],
+  ])(
+    "leaves a void instance alone on the %s route and submits a new one",
+    async (_route, submit) => {
       seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
       seedTemplateInstance("inst-void", "tpl-consent");
       store.templateInstances.get("inst-void")!.status = "VOID";
@@ -852,6 +1045,83 @@ describe("consent template documents (#3600)", () => {
         "COMPLETED",
       );
       expect(store.renderedDocuments.size).toBe(1);
+    },
+  );
+
+  // What the finalisation gate reads: an assignment still pending blocks it.
+  describe("the client's signature on a consent they were sent", () => {
+    const formSummaries = () =>
+      FormAssignmentService.listAppointmentFormSummaries(ORG, APPOINTMENT);
+
+    const documensoUrl = process.env.DOCUMENSO_URL;
+    beforeEach(() => {
+      process.env.DOCUMENSO_URL = "https://sign.example";
+    });
+    afterEach(() => {
+      if (documensoUrl === undefined) delete process.env.DOCUMENSO_URL;
+      else process.env.DOCUMENSO_URL = documensoUrl;
+    });
+
+    it("is started from the app and lets the visit be finalised", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const submission = await submitFromMobile("tpl-consent");
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({
+          status: "pending",
+          assignmentStatus: "submitted",
+        }),
+      ]);
+      armDocumenso();
+
+      const started = await FormSigningService.startSigning({
+        isParent: true,
+        submissionId: submission._id,
+        initiatedBy: PARENT,
+      });
+
+      expect(started).toEqual({
+        documentId: "4242",
+        signingUrl: "https://sign.example/sign/recipient-token",
+      });
+      expect(documenso.createDocument).toHaveBeenLastCalledWith(
+        expect.objectContaining({ signerEmail: "owner@example.com" }),
+      );
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({ status: "pending" }),
+      ]);
+
+      const [document] = [...store.renderedDocuments.values()];
+      await completePersistedRenderedDocumentSigning(document.id as string);
+
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({
+          status: "completed",
+          assignmentStatus: "signed",
+        }),
+      ]);
+      expect(store.templateInstances.get(submission._id)?.status).toBe(
+        "SIGNED",
+      );
+      await expect(listConsentDocuments()).resolves.toEqual([
+        expect.objectContaining({ signingStatus: "SIGNED" }),
+      ]);
+    });
+
+    it("cannot be given by practice staff, so the visit stays blocked", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      await submitFromMobile("tpl-consent");
+      const [document] = await listConsentDocuments();
+
+      await expect(
+        signAndComplete(document.id as string, VET_SIGNER),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({ status: "pending" }),
+      ]);
+      await expect(listConsentDocuments()).resolves.toEqual([
+        expect.objectContaining({ signingStatus: "NOT_STARTED" }),
+      ]);
     });
   });
 

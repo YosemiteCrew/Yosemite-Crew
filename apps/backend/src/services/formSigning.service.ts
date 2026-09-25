@@ -6,6 +6,7 @@ import {
   createRenderedDocumentRecord,
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
+import { assertParentCanViewAppointment } from "src/services/form.service";
 
 type PrismaFormSubmissionRecord = {
   id: string;
@@ -243,6 +244,106 @@ export class FormSigningService {
     }
   }
 
+  /**
+   * A template-backed form or consent submitted from the app is a template
+   * instance with a rendered document, not a form submission, so the parent
+   * signs that document. Only their own submission, on an appointment of a
+   * companion they may act for, that the practice sent them to sign. A
+   * signing already started for them is handed back, so it can be reopened.
+   */
+  private static async startTemplateInstanceSigning(
+    instanceId: string,
+    parentId: string,
+  ) {
+    const instance = await prisma.templateInstance.findUnique({
+      where: { id: instanceId },
+      select: {
+        id: true,
+        organisationId: true,
+        templateId: true,
+        appointmentId: true,
+        authorId: true,
+      },
+    });
+    if (!instance?.appointmentId || instance.authorId !== parentId) {
+      throw new Error("Form submission not found");
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: instance.appointmentId,
+        organisationId: instance.organisationId,
+      },
+      select: { patient: true },
+    });
+    if (!appointment) {
+      throw new Error("Unauthorized to sign this submission");
+    }
+    await assertParentCanViewAppointment(appointment, parentId);
+
+    const assignment = await prisma.formAssignment.findFirst({
+      where: {
+        organisationId: instance.organisationId,
+        templateId: instance.templateId,
+        appointmentId: instance.appointmentId,
+        signingRequired: true,
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
+      },
+      select: { id: true },
+    });
+    if (!assignment) {
+      throw new Error("Unauthorized to sign this submission");
+    }
+
+    const document = await prisma.renderedDocument.findUnique({
+      where: { templateInstanceId: instance.id },
+      select: { id: true, signing: true },
+    });
+    if (!document) {
+      throw new Error("Submission has no document to sign yet");
+    }
+
+    const open = document.signing as {
+      status?: string;
+      signerId?: string;
+      documentId?: string;
+      signingUrl?: string | null;
+    } | null;
+    if (open?.status === "IN_PROGRESS" && open.signerId === parentId) {
+      return {
+        documentId: open.documentId ?? document.id,
+        signingUrl: open.signingUrl ?? null,
+      };
+    }
+
+    const { signerEmail, signerName } =
+      await FormSigningService.resolveSignerInfo({
+        isParent: true,
+        initiatedBy: parentId,
+      });
+    if (!signerEmail) {
+      throw new Error("Signer email is required for signing");
+    }
+
+    const signed = await signPersistedRenderedDocument({
+      renderedDocumentId: document.id,
+      organisationId: instance.organisationId,
+      signerId: parentId,
+      signerType: "PARENT",
+      signerEmail,
+      signerName,
+    });
+    const signing = signed.signing as {
+      documentId?: string;
+      signingUrl?: string | null;
+    } | null;
+
+    return {
+      documentId: signing?.documentId ?? document.id,
+      signingUrl: signing?.signingUrl ?? null,
+    };
+  }
+
   static async startSigning({
     isParent,
     submissionId,
@@ -254,7 +355,18 @@ export class FormSigningService {
     initiatedBy?: string;
     organisationId?: string;
   }) {
-    const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
+    const submission = await prisma.formSubmission.findUnique({
+      where: { id: submissionId },
+    });
+    if (!submission) {
+      if (isParent && initiatedBy) {
+        return FormSigningService.startTemplateInstanceSigning(
+          submissionId,
+          initiatedBy,
+        );
+      }
+      throw new Error("Form submission not found");
+    }
 
     if (isParent) {
       FormSigningService.ensureParentOwnsSubmission(

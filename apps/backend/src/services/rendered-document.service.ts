@@ -726,6 +726,14 @@ export const signPersistedRenderedDocument = async (
     throw new RenderedDocumentServiceError("Document is already signed", 409);
   }
 
+  // A consent records the client's agreement, so only the client signs it.
+  if (kind === "CONSENT" && input.signerType !== "PARENT") {
+    throw new RenderedDocumentServiceError(
+      "A consent is signed by the client",
+      409,
+    );
+  }
+
   if (
     parseRenderedDocumentSigning(existing.signing)?.status === "IN_PROGRESS"
   ) {
@@ -1045,6 +1053,37 @@ const releaseDiscardedSigning = async (
   );
 };
 
+/**
+ * A client's signature on a form or consent completes what the practice sent
+ * them for that appointment, so the assignment reads signed and no longer
+ * holds up finalising the visit. Only the client's own signature does this: a
+ * signature by practice staff, or the discharge packet's, never does.
+ */
+const markClientAssignmentsSigned = async (
+  tx: Pick<Prisma.TransactionClient, "formAssignment">,
+  existing: PersistedRenderedDocument,
+  signing: PinnedRenderedDocumentSigning,
+  linked: LinkedRecord | null,
+  signedAt: Date,
+): Promise<void> => {
+  if (
+    signing.signerType !== "PARENT" ||
+    !existing.templateId ||
+    !linked?.appointmentId
+  ) {
+    return;
+  }
+  await tx.formAssignment.updateMany({
+    where: {
+      organisationId: existing.organisationId,
+      templateId: existing.templateId,
+      appointmentId: linked.appointmentId,
+      status: { in: ["SENT", "VIEWED", "SUBMITTED"] },
+    },
+    data: { status: "SIGNED", signedAt },
+  });
+};
+
 /** Rolls the completion transaction back when there is nothing to complete. */
 class SigningCompletionSkipped extends Error {
   /** `true` when the linked record no longer matches what was signed. */
@@ -1223,9 +1262,18 @@ const commitSigningCompletion = async (
         update: signatureData,
       });
 
+      const linked = await findLinkedRecord(tx, existing);
+      await markClientAssignmentsSigned(
+        tx,
+        existing,
+        signing,
+        linked,
+        signed.at,
+      );
+
       return {
         document: { ...document, signature: signatureRow },
-        linked: await findLinkedRecord(tx, existing),
+        linked,
       };
     });
   } catch (error) {

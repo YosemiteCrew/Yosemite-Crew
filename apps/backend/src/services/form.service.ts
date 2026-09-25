@@ -541,40 +541,55 @@ const assertTemplateSubmittableByParent = async (params: {
   }
 };
 
+const isOpenInstanceStatus = (status: string) =>
+  status === "DRAFT" || status === "IN_PROGRESS";
+
 /**
- * A form is submitted once per appointment. An instance already open for it (a
- * package expansion, or a submit that failed part-way, leaves one DRAFT) takes
- * the answers, and one already submitted refuses the resubmission, so a
- * repeated POST never renders a second document for the same form. Without an
- * appointment there is nothing to anchor on, so a new instance is created.
+ * Each submitter works on their own instance for an appointment, so a parent's
+ * answers never land in a practice draft and a practice save never reopens a
+ * parent's submission. An open instance of the submitter's (or, for practice
+ * staff, an unowned one a package expansion left) takes the answers.
+ *
+ * A parent submits once: their submitted instance is returned as it is, so a
+ * retry after the submission was recorded but before its assignment was
+ * updated finishes that assignment instead of being refused for good. Practice
+ * staff may save the same template again; a submitted instance is never
+ * edited, so that creates a new one. Without an appointment or a submitter
+ * there is nothing to anchor on, so a new instance is created.
  */
 const resolveInstanceForSubmission = async (params: {
   organisationId: string;
   templateId: string;
   appointmentId?: string;
   authorId?: string;
+  byParent: boolean;
   answers: FormSubmission["answers"];
 }) => {
-  const existing = params.appointmentId
-    ? await prisma.templateInstance.findMany({
-        where: {
-          organisationId: params.organisationId,
-          templateId: params.templateId,
-          appointmentId: params.appointmentId,
-          status: { not: "VOID" },
-        },
-        select: { id: true, status: true },
-        orderBy: { createdAt: "asc" },
-      })
-    : [];
+  const existing =
+    params.appointmentId && params.authorId
+      ? await prisma.templateInstance.findMany({
+          where: {
+            organisationId: params.organisationId,
+            templateId: params.templateId,
+            appointmentId: params.appointmentId,
+            status: { not: "VOID" },
+            ...(params.byParent
+              ? { authorId: params.authorId }
+              : { OR: [{ authorId: params.authorId }, { authorId: null }] }),
+          },
+          select: { id: true, status: true, templateVersion: true },
+          orderBy: { createdAt: "asc" },
+        })
+      : [];
 
-  if (
-    existing.some(({ status }) => status === "COMPLETED" || status === "SIGNED")
-  ) {
-    throw new FormServiceError("Form already submitted", 409);
+  const submitted = existing.find(
+    ({ status }) => !isOpenInstanceStatus(status),
+  );
+  if (params.byParent && submitted) {
+    return submitted;
   }
 
-  const [open] = existing;
+  const open = existing.find(({ status }) => isOpenInstanceStatus(status));
   if (open) {
     return TemplateService.updateInstance(
       open.id,
@@ -820,6 +835,7 @@ const buildTemplateAppointmentFormItems = async (params: {
   organisationId: string;
   isPMS?: boolean;
   canManageForms?: boolean;
+  viewerParentId?: string;
 }) => {
   // Only a caller who may EDIT forms materialises linked-template assignments;
   // for everyone else this listing is read-only.
@@ -852,17 +868,26 @@ const buildTemplateAppointmentFormItems = async (params: {
   );
   const templateMap = new Map(templates);
 
+  // A parent sees their own submission, never a practice draft, and sees it
+  // whatever version of the template it was submitted at.
+  const viewerParentId = params.viewerParentId;
   const instances = await prisma.templateInstance.findMany({
     where: {
       organisationId: params.organisationId,
       appointmentId: params.appointmentId,
       templateId: { in: uniqueTemplateIds },
+      ...(viewerParentId
+        ? { authorId: viewerParentId, status: { not: "VOID" } }
+        : {}),
     },
+    ...(viewerParentId ? { orderBy: { createdAt: "asc" } } : {}),
   });
 
+  const instanceKey = (templateId: string, templateVersion: number) =>
+    viewerParentId ? templateId : `${templateId}:${templateVersion}`;
   const instanceMap = new Map(
     instances.map((instance) => [
-      `${instance.templateId}:${instance.templateVersion}`,
+      instanceKey(instance.templateId, instance.templateVersion),
       instance,
     ]),
   );
@@ -877,7 +902,7 @@ const buildTemplateAppointmentFormItems = async (params: {
         ? templateMapper.templateToQuestionnaire(template)
         : undefined;
       const instance = instanceMap.get(
-        `${assignment.templateId}:${assignment.templateVersion}`,
+        instanceKey(assignment.templateId, assignment.templateVersion),
       );
       const questionnaireResponse = instance
         ? templateMapper.templateInstanceToQuestionnaireResponse(
@@ -889,6 +914,9 @@ const buildTemplateAppointmentFormItems = async (params: {
       return {
         ...assignment,
         status: questionnaireResponse ? "completed" : "pending",
+        // Where the practice's request stands, so the app can show a form as
+        // submitted or signed rather than offer it again.
+        assignmentStatus: assignment.status,
         questionnaire,
         questionnaireResponse,
       };
@@ -923,7 +951,7 @@ const resolveAppointmentPatientId = (
   return typeof patientId === "string" ? patientId : undefined;
 };
 
-const assertParentCanViewAppointment = async (
+export const assertParentCanViewAppointment = async (
   appointment: { patient?: unknown },
   parentId: string,
 ) => {
@@ -1100,6 +1128,7 @@ const submitViaTemplateInstance = async (
     organisationId: template.organisationId,
     appointmentId: submission.appointmentId ?? undefined,
     authorId: submittedBy ?? undefined,
+    byParent: Boolean(actor && "parentId" in actor),
     answers: submission.answers,
   });
 
@@ -1809,6 +1838,7 @@ export const FormService = {
       organisationId: appointment.organisationId,
       isPMS: params.isPMS,
       canManageForms: params.canManageForms,
+      viewerParentId: params.viewerParentId,
     });
 
     if (templateBackedForms) {
