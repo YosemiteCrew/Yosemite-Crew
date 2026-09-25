@@ -317,6 +317,38 @@ describe('parseUtterance rule order', () => {
     ).toBe('bookAppointment');
   });
 
+  it.each([
+    'Add an appointment for Bruno on Friday',
+    'Create a vet appointment tomorrow',
+    'new appointment for Bruno',
+    'set up a vet appointment',
+    'I need an appointment for Bruno',
+    'Necesito una cita para Bruno',
+    'Nueva cita para Bruno',
+  ])(
+    'routes %p to bookAppointment, not the read-only nextAppointment',
+    text => {
+      const intent = parseUtterance(text, {petNames: ['Bruno'], now: NOW});
+      expect(intent?.actionId).toBe('bookAppointment');
+      expect(intent?.confidence).toBeGreaterThanOrEqual(
+        RULES_CONFIDENCE_THRESHOLD,
+      );
+    },
+  );
+
+  it('keeps "add a reminder for the appointment" a reminder', () => {
+    expect(
+      parseUtterance('Add a reminder for the vet appointment', {now: NOW})
+        ?.actionId,
+    ).toBe('addCareTask');
+  });
+
+  it('still answers "when is the next appointment" with nextAppointment', () => {
+    expect(
+      parseUtterance('When is the next appointment?', {now: NOW})?.actionId,
+    ).toBe('nextAppointment');
+  });
+
   it('routes "add a task" to addCareTask, not upcomingTasks', () => {
     expect(
       parseUtterance('add a task for the groomer', {now: NOW})?.actionId,
@@ -338,6 +370,16 @@ describe('parseUtterance rule order', () => {
       confidence: 0.996,
       source: 'rules',
     });
+  });
+
+  it.each([
+    'How much did I spend on Bruno this month?',
+    'What did I spend last month',
+    '¿Cuánto gasté este mes?',
+  ])('routes the present-tense %p to expenseSummary', text => {
+    expect(
+      parseUtterance(text, {petNames: ['Bruno'], now: NOW})?.actionId,
+    ).toBe('expenseSummary');
   });
 
   it.each([
