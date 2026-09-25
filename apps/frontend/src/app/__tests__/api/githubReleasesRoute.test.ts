@@ -62,9 +62,6 @@ describe('github-releases route handler', () => {
       tag_name: 'v9.9.9',
       html_url: RELEASE.html_url,
       name: 'Ninth',
-      // Kept: the release strip dates a lane by when its tag shipped, which can be days before
-      // the release was published.
-      created_at: '2026-07-30T22:14:37Z',
       published_at: '2026-08-01T00:00:00Z',
     });
     // The raw GitHub payload is large and its shape is not ours to depend on.
