@@ -14,6 +14,7 @@ export interface AppointmentFormsApiItem {
   questionnaire: Questionnaire;
   questionnaireResponse?: QuestionnaireResponse;
   status?: string;
+  assignmentStatus?: string;
 }
 
 export interface AppointmentFormsApiResponse {
@@ -138,7 +139,12 @@ export const formApi = {
 
 export const mapAppointmentFormItem = (
   item: AppointmentFormsApiItem,
-): {form: Form; submission: FormSubmission | null; formVersion?: number} => {
+): {
+  form: Form;
+  submission: FormSubmission | null;
+  formVersion?: number;
+  assignmentStatus: string | null;
+} => {
   const form = toForm(item.questionnaire);
   const submission = item.questionnaireResponse
     ? fromFormSubmissionRequestDTO(item.questionnaireResponse, form.schema)
@@ -158,5 +164,8 @@ export const mapAppointmentFormItem = (
     form,
     submission: normalizedSubmission,
     formVersion: normalizedSubmission?.formVersion,
+    assignmentStatus: item.assignmentStatus
+      ? item.assignmentStatus.toLowerCase()
+      : null,
   };
 };

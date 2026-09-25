@@ -138,6 +138,52 @@ describe('formsSlice', () => {
     });
   });
 
+  // The practice's request is what the server goes by: a submitted form is
+  // not offered again, and a signed one reads signed.
+  describe('the request status the server reports', () => {
+    const loadWith = async (
+      assignmentStatus: string | null,
+      derived: string,
+      submission: Record<string, any> | null = null,
+    ) => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [{form: mockForm(), submission, assignmentStatus}],
+      });
+      (Utils.deriveFormStatus as jest.Mock).mockReturnValue(derived);
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+      return selectFormsForAppointment(
+        store.getState() as any,
+        mockAppointmentId,
+      )[0];
+    };
+
+    it('shows a form submitted elsewhere as submitted', async () => {
+      const entry = await loadWith('submitted', 'not_started');
+      expect(entry.status).toBe('submitted');
+      expect(entry.assignmentStatus).toBe('submitted');
+    });
+
+    it('shows a form the client signed as signed', async () => {
+      const entry = await loadWith('signed', 'signing', mockSubmission());
+      expect(entry.status).toBe('signed');
+    });
+
+    it('keeps the submission state for a submitted form this device has', async () => {
+      const entry = await loadWith('submitted', 'signing', mockSubmission());
+      expect(entry.status).toBe('signing');
+    });
+
+    it.each([['sent'], [null]])(
+      'leaves a form still to fill (%s) as it is',
+      async assignmentStatus => {
+        const entry = await loadWith(assignmentStatus, 'not_started');
+        expect(entry.status).toBe('not_started');
+      },
+    );
+  });
+
   describe('fetchAppointmentForms', () => {
     it('fetches appointment forms, normalizes submissions, updates loading, and caches forms', async () => {
       const form = mockForm();

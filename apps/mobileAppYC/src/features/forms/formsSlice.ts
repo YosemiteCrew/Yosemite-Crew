@@ -8,6 +8,7 @@ import type {Form, FormSubmission} from '@yosemite-crew/types';
 import {formApi, mapAppointmentFormItem} from './services/formService';
 import type {
   AppointmentFormEntry,
+  AppointmentFormStatus,
   AppointmentFormsState,
   FormSource,
 } from './types';
@@ -50,18 +51,38 @@ const shouldRequireSignature = (
   return hasSignatureField(form.schema);
 };
 
+/**
+ * The practice's request is the record of what the server accepts: once it is
+ * submitted the form is not offered again, and once the client signed it the
+ * form reads signed, even before this device has the submission itself.
+ */
+const resolveEntryStatus = (
+  derived: AppointmentFormStatus,
+  assignmentStatus?: string | null,
+): AppointmentFormStatus => {
+  if (assignmentStatus === 'signed') {
+    return 'signed';
+  }
+  if (assignmentStatus === 'submitted' && derived === 'not_started') {
+    return 'submitted';
+  }
+  return derived;
+};
+
 const buildEntry = ({
   form,
   submission,
   source,
   formVersion,
   signingUrl,
+  assignmentStatus,
 }: {
   form: Form;
   submission?: FormSubmission | null;
   source: FormSource;
   formVersion?: number;
   signingUrl?: string | null;
+  assignmentStatus?: string | null;
 }): AppointmentFormEntry => {
   const normalizedForm = normalizeFormForState(form);
   const normalizedSubmission = submission
@@ -77,7 +98,10 @@ const buildEntry = ({
     normalizedForm,
     normalizedSubmission ?? undefined,
   );
-  const status = deriveFormStatus(normalizedSubmission, signingRequired);
+  const status = resolveEntryStatus(
+    deriveFormStatus(normalizedSubmission, signingRequired),
+    assignmentStatus,
+  );
 
   return {
     form: normalizedForm,
@@ -88,6 +112,7 @@ const buildEntry = ({
     source,
     formVersion:
       formVersion ?? resolveFormVersion(form, submission ?? undefined),
+    assignmentStatus: assignmentStatus ?? null,
   };
 };
 
@@ -170,6 +195,7 @@ const fetchAppointmentFormsData = async ({
         submission: mapped.submission,
         formVersion: mapped.formVersion,
         source: 'appointment',
+        assignmentStatus: mapped.assignmentStatus,
       });
       entries.push(entry);
       cache.set(entry.form._id, normalizeFormForState(entry.form));
@@ -417,6 +443,7 @@ const formsSlice = createSlice({
             source: entry.source,
             formVersion: entry.formVersion,
             signingUrl: signingUrl ?? entry.signingUrl ?? null,
+            assignmentStatus: entry.assignmentStatus,
           });
         });
         state.byAppointmentId[appointmentId] = updated;

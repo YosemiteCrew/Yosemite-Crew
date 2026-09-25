@@ -230,6 +230,19 @@ describe('formService', () => {
       (fromFormRequestDTO as jest.Mock).mockReturnValue(mockForm);
     });
 
+    it('carries the request status in lower case', () => {
+      expect(
+        mapAppointmentFormItem({
+          questionnaire: mockQuestionnaire,
+          assignmentStatus: 'SUBMITTED',
+        } as any).assignmentStatus,
+      ).toBe('submitted');
+      expect(
+        mapAppointmentFormItem({questionnaire: mockQuestionnaire} as any)
+          .assignmentStatus,
+      ).toBeNull();
+    });
+
     it('maps item with only questionnaire (no response)', () => {
       const item: any = {questionnaire: mockQuestionnaire};
 

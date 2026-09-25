@@ -769,6 +769,16 @@ describe('ViewAppointmentScreen', () => {
         } as any),
       ).toEqual({label: 'Fill & Sign', mode: 'fill', allowSign: true});
 
+      // Submitted already by the practice's request, before this device has
+      // the submission: shown, never offered to fill again.
+      expect(
+        getAppointmentFormAction({
+          status: 'submitted',
+          submission: null,
+          signingRequired: true,
+        } as any),
+      ).toEqual({label: 'View form', mode: 'view', allowSign: false});
+
       expect(
         getAppointmentFormAction({
           status: 'pending',

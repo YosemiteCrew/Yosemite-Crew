@@ -1905,8 +1905,56 @@ describe('AppointmentFormScreen — final coverage push', () => {
 
   describe('isReadOnly logic — Submit visible for pending fill mode', () => {
     it('shows Submit button in fill mode with no prior submission', () => {
-      const {getByTestId} = render(<AppointmentFormScreen />);
+      const {getByTestId, queryByTestId} = render(<AppointmentFormScreen />);
       expect(getByTestId('btn-Submit')).toBeTruthy();
+      expect(queryByTestId('form-submitted-badge')).toBeNull();
+    });
+  });
+
+  // The server takes a form once. Opened to fill and sign, a form already
+  // submitted must offer signing, not a second Submit the server refuses.
+  describe('a form already submitted, opened to fill', () => {
+    const route = (allowSign: boolean) =>
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, mode: 'fill', allowSign},
+      });
+
+    it('offers signing instead of Submit while the signature is outstanding', () => {
+      route(true);
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {
+          ...baseFormEntry,
+          status: 'signing',
+          signingRequired: true,
+          submission: {
+            _id: 'instance-1',
+            answers: {f1: 'Jane'},
+            submittedAt: new Date('2026-09-24T10:00:00.000Z'),
+          },
+        },
+      ]);
+
+      const {queryByTestId, getByTestId, getByText} = render(
+        <AppointmentFormScreen />,
+      );
+
+      expect(queryByTestId('btn-Submit')).toBeNull();
+      expect(queryByTestId('btn-Submit & Continue')).toBeNull();
+      expect(getByTestId('btn-View & Sign')).toBeTruthy();
+      expect(getByTestId('form-submitted-badge')).toBeTruthy();
+      expect(getByText(/Waiting for your signature/)).toBeTruthy();
+    });
+
+    it('shows a form the practice has as submitted, without Submit', () => {
+      route(false);
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {...baseFormEntry, status: 'submitted', submission: null},
+      ]);
+
+      const {queryByTestId, getByText} = render(<AppointmentFormScreen />);
+
+      expect(queryByTestId('btn-Submit')).toBeNull();
+      expect(getByText('Submitted')).toBeTruthy();
     });
   });
 
@@ -1968,19 +2016,13 @@ describe('AppointmentFormScreen — final coverage push', () => {
         {id: 'story', type: 'richtext', label: 'Story'},
         {id: 'notes', type: 'textarea', label: 'Notes'},
       ];
-      const entry = {
-        ...baseFormEntry,
-        form: {...baseFormEntry.form, schema},
-        submission: {
-          ...baseFormEntry.submission,
-          answers: {story: 'Once upon a time'},
-        },
-      };
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
       (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
         entry,
       ]);
 
-      const {getByText} = render(<AppointmentFormScreen />);
+      const {getByTestId, getByText} = render(<AppointmentFormScreen />);
+      fireEvent.changeText(getByTestId('input-Story'), 'Once upon a time');
       expect(getByText('50%')).toBeTruthy();
     });
 
@@ -2137,15 +2179,15 @@ describe('AppointmentFormScreen — final coverage push', () => {
       );
     });
 
-    it('rejects a required richtext field whose stored answer is a blank paragraph', () => {
+    // A stored answer belongs to a submission, which is shown read-only and
+    // never offered for submitting again.
+    it('shows a submitted blank-paragraph answer read-only without Submit', () => {
       const schema = [
         {id: 'story', type: 'richtext', label: 'Story', required: true},
       ];
       const entry = {
         ...baseFormEntry,
         form: {...baseFormEntry.form, schema},
-        // Legacy/pre-fix data (or a value produced before the blank-guard):
-        // HTML with no real content, which is a non-empty string.
         submission: {
           ...baseFormEntry.submission,
           answers: {story: '<p></p>'},
@@ -2155,10 +2197,10 @@ describe('AppointmentFormScreen — final coverage push', () => {
         entry,
       ]);
 
-      const {getByTestId} = render(<AppointmentFormScreen />);
-      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+      const {queryByTestId} = render(<AppointmentFormScreen />);
 
-      expect(getByTestId('error-Story')).toBeTruthy();
+      expect(queryByTestId('btn-Submit')).toBeNull();
+      expect(queryByTestId('error-Story')).toBeNull();
     });
 
     it('does not count a blank-paragraph richtext answer toward form progress', () => {
@@ -2166,19 +2208,14 @@ describe('AppointmentFormScreen — final coverage push', () => {
         {id: 'story', type: 'richtext', label: 'Story'},
         {id: 'notes', type: 'textarea', label: 'Notes'},
       ];
-      const entry = {
-        ...baseFormEntry,
-        form: {...baseFormEntry.form, schema},
-        submission: {
-          ...baseFormEntry.submission,
-          answers: {story: '<p></p>', notes: 'Filled'},
-        },
-      };
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
       (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
         entry,
       ]);
 
-      const {getByText} = render(<AppointmentFormScreen />);
+      const {getByTestId, getByText} = render(<AppointmentFormScreen />);
+      fireEvent.changeText(getByTestId('input-Story'), '   ');
+      fireEvent.changeText(getByTestId('input-Notes'), 'Filled');
       // Only "notes" counts as filled: 1 of 2 fields = 50%, not 100%.
       expect(getByText('50%')).toBeTruthy();
     });

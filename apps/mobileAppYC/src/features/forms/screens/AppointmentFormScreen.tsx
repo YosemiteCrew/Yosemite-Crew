@@ -43,9 +43,17 @@ import {createScreenHeaderStyles} from '@/shared/styles/screenHeaderStyles';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import type {Appointment} from '@/features/appointments/types';
+import type {AppointmentFormStatus} from '@/features/forms/types';
 
 import i18next from 'i18next';
 type Route = RouteProp<AppointmentStackParamList, 'AppointmentForm'>;
+
+const SUBMITTED_FORM_STATUSES = new Set<AppointmentFormStatus>([
+  'submitted',
+  'signing',
+  'signed',
+  'completed',
+]);
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const getDisplayDate = (value?: Date | string | null): string => {
@@ -202,7 +210,7 @@ export const AppointmentFormScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
-  const {appointmentId, formId, mode, allowSign} = route.params;
+  const {appointmentId, formId, allowSign} = route.params;
   const isFocused = useIsFocused();
   const appointment: Appointment | undefined = useSelector((state: RootState) =>
     state.appointments.items.find(a => a.id === appointmentId),
@@ -242,12 +250,16 @@ export const AppointmentFormScreen: React.FC = () => {
   const {values, richTextDrafts, isDirty} = formEditState;
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // A form is submitted once: the server refuses a second submission, so once
+  // there is one (or the practice's request reads submitted) it is shown, not
+  // offered again, whichever mode the screen was opened in.
   const isReadOnly = Boolean(
-    entry?.submission &&
-    (mode !== 'fill' ||
-      entry.status === 'signed' ||
-      entry.status === 'completed'),
+    entry?.submission || (entry && SUBMITTED_FORM_STATUSES.has(entry.status)),
   );
+  const showSubmittedBadge =
+    entry?.status === 'submitted' ||
+    entry?.status === 'signing' ||
+    entry?.status === 'completed';
   const canStartSigning =
     allowSign &&
     entry?.signingRequired &&
@@ -965,6 +977,21 @@ export const AppointmentFormScreen: React.FC = () => {
                       </Text>
                     </View>
                   )}
+
+                  {showSubmittedBadge ? (
+                    <View
+                      style={styles.signedBadge}
+                      testID="form-submitted-badge">
+                      <Text style={styles.signedBadgeText}>
+                        {entry.submission?.submittedAt
+                          ? `Submitted on ${getDisplayDate(entry.submission.submittedAt)}`
+                          : 'Submitted'}
+                        {entry.signingRequired
+                          ? '. Waiting for your signature.'
+                          : ''}
+                      </Text>
+                    </View>
+                  ) : null}
 
                   {entry.status === 'signed' &&
                   entry.submission?.submittedAt ? (
