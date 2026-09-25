@@ -3765,6 +3765,100 @@ model InventoryVendor {
   @@index([organisationId, vendorItemCode])
 }
 
+enum PurchaseOrderStatus {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id                String    @id @default(uuid())
+  organisationId    String
+  vendorId          String
+  status            PurchaseOrderStatus @default(DRAFT)
+  orderNumber       String    @unique
+  orderDate         DateTime  @default(now())
+  expectedDate      DateTime?
+  totalAmount       Float     @default(0)
+  currency          String    @default("USD")
+  notes             String?
+  createdBy         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  lines             PurchaseOrderLine[]
+  deliveries        PurchaseOrderDelivery[]
+
+  @@index([organisationId])
+  @@index([organisationId, status])
+  @@index([vendorId])
+}
+
+model PurchaseOrderLine {
+  id                    String   @id @default(uuid())
+  purchaseOrderId       String
+  itemId                String
+  vendorId              String
+  quantityOrdered       Int
+  quantityReceived      Int      @default(0)
+  quantityReturned      Int      @default(0)
+  unitCost              Float
+  totalCost             Float
+  packSize              Int      @default(1)
+  batchNumber           String?
+  lotNumber             String?
+  expiryDate            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  purchaseOrder         PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  deliveryLines         PurchaseOrderDeliveryLine[]
+
+  @@index([purchaseOrderId])
+  @@index([itemId])
+  @@index([vendorId])
+}
+
+model PurchaseOrderDelivery {
+  id                    String   @id @default(uuid())
+  purchaseOrderId       String
+  vendorId              String
+  deliveryDate          DateTime @default(now())
+  receivedBy            String?
+  notes                 String?
+  status                String   @default("RECEIVED")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  purchaseOrder         PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  lines                 PurchaseOrderDeliveryLine[]
+
+  @@index([purchaseOrderId])
+  @@index([vendorId])
+}
+
+model PurchaseOrderDeliveryLine {
+  id                    String   @id @default(uuid())
+  deliveryId            String
+  purchaseOrderLineId   String
+  itemId                String
+  quantityReceived      Int
+  quantityReturned      Int      @default(0)
+  batchId               String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  delivery              PurchaseOrderDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  purchaseOrderLine     PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@index([purchaseOrderLineId])
+  @@index([itemId])
+  @@index([batchId])
+}
+
 model InventoryCategory {
   id        String   @id @default(uuid())
   code      String   @unique

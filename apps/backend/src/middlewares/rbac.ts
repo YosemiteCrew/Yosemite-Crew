@@ -149,7 +149,7 @@ export function withOrgPermissions() {
       if (samePermissions(effectivePermissions, computed)) {
         typedReq.userPermissions = effectivePermissions;
       } else {
-        await prisma.userOrganization.updateMany({
+        await prisma.userOrganization.update({
           where: { id: mapping.id },
           data: { effectivePermissions: computed },
         });
@@ -298,6 +298,34 @@ export function withInventoryItemOrgPermissions() {
         select: { organisationId: true },
       });
       return item?.organisationId ?? null;
+    },
+  );
+}
+
+export function withPurchaseOrderOrgPermissions() {
+  return withResourceOrgPermissions(
+    "purchaseOrderId",
+    "Purchase order not found",
+    async (purchaseOrderId) => {
+      const order = await prisma.purchaseOrder.findUnique({
+        where: { id: purchaseOrderId },
+        select: { organisationId: true },
+      });
+      return order?.organisationId ?? null;
+    },
+  );
+}
+
+export function withPurchaseOrderDeliveryOrgPermissions() {
+  return withResourceOrgPermissions(
+    "deliveryId",
+    "Delivery not found",
+    async (deliveryId) => {
+      const delivery = await prisma.purchaseOrderDelivery.findUnique({
+        where: { id: deliveryId },
+        select: { purchaseOrder: { select: { organisationId: true } } },
+      });
+      return delivery?.purchaseOrder.organisationId ?? null;
     },
   );
 }
