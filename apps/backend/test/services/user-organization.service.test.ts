@@ -47,6 +47,7 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       delete: jest.fn(),
       deleteMany: jest.fn(),
+      updateMany: jest.fn(),
     },
     organization: {
       findFirst: jest.fn(),
@@ -437,8 +438,9 @@ describe("UserOrganizationService", () => {
 
     it("removes mappings by organization id", async () => {
       await UserOrganizationService.deleteAllByOrganizationId(orgId);
-      expect(prisma.userOrganization.deleteMany).toHaveBeenCalledWith({
+      expect(prisma.userOrganization.updateMany).toHaveBeenCalledWith({
         where: { organizationReference: orgId },
+        data: { active: false },
       });
     });
   });

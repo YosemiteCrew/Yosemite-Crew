@@ -933,8 +933,9 @@ export const UserOrganizationService = {
   async deleteAllByOrganizationId(organisationId: string) {
     const orgId = requireSafeString(organisationId, "Organization Identifier");
 
-    await prisma.userOrganization.deleteMany({
+    await prisma.userOrganization.updateMany({
       where: { organizationReference: orgId },
+      data: { active: false },
     });
   },
 

@@ -331,8 +331,9 @@ export const ServiceService = {
   },
 
   async deleteAllBySpecialityId(specialityId: string) {
-    await prisma.service.deleteMany({
+    await prisma.service.updateMany({
       where: { specialityId },
+      data: { isActive: false },
     });
   },
 

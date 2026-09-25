@@ -43,6 +43,7 @@ export type OrganisationRoomRecord = {
   availabilityStartTime?: string;
   availabilityEndTime?: string;
   capabilities: string[];
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -106,6 +107,7 @@ type RoomRow = {
   availabilityStartTime: string | null;
   availabilityEndTime: string | null;
   capabilities: string[];
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -288,6 +290,7 @@ const toRecord = (
   availabilityStartTime: row.availabilityStartTime ?? undefined,
   availabilityEndTime: row.availabilityEndTime ?? undefined,
   capabilities: row.capabilities ?? [],
+  isActive: row.isActive,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -320,6 +323,12 @@ const getOrganisationRoomDelegate = () =>
             Omit<RoomRow, "id" | "organisationId" | "createdAt" | "updatedAt">
           >;
         }): Promise<RoomRow>;
+        updateMany(args: {
+          where: Record<string, unknown>;
+          data: Partial<
+            Omit<RoomRow, "id" | "organisationId" | "createdAt" | "updatedAt">
+          >;
+        }): Promise<{ count: number }>;
         delete(args: { where: { id: string } }): Promise<RoomRow>;
         deleteMany(args: { where: { organisationId: string } }): Promise<{
           count: number;
@@ -539,6 +548,7 @@ const buildRoomInput = async (
           input.capabilities,
           "capabilities",
         ),
+        isActive: true,
       },
       assignedSpecialiteis: normalizeReferenceMappings(
         input.assignedSpecialiteis,
@@ -1155,8 +1165,9 @@ export const OrganisationRoomService = {
 
   async deleteAllByOrganizationId(organisationId: string) {
     const orgId = requireNonEmptyString(organisationId, "organisationId");
-    await getOrganisationRoomDelegate().deleteMany({
+    await getOrganisationRoomDelegate().updateMany({
       where: { organisationId: orgId },
+      data: { isActive: false },
     });
   },
 };
