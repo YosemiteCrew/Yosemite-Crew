@@ -3,6 +3,7 @@ import { prisma } from "../../src/config/prisma";
 import { DocumensoService } from "../../src/services/documenso.service";
 import {
   createRenderedDocumentRecord,
+  hasNewerSubmissionForSigner,
   signPersistedRenderedDocument,
 } from "../../src/services/rendered-document.service";
 import logger from "../../src/utils/logger";
@@ -53,6 +54,7 @@ jest.mock("../../src/services/form.service", () => ({
 
 jest.mock("../../src/services/rendered-document.service", () => ({
   createRenderedDocumentRecord: jest.fn(),
+  hasNewerSubmissionForSigner: jest.fn(),
   signPersistedRenderedDocument: jest.fn(),
 }));
 
@@ -1024,6 +1026,7 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
     } = {},
   ) => {
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+    (hasNewerSubmissionForSigner as jest.Mock).mockResolvedValueOnce(false);
     mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
       overrides.instance === undefined
         ? {
@@ -1138,6 +1141,38 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
     expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledWith(
       expect.objectContaining({ signerId: "parent-1", signerType: "PARENT" }),
     );
+  });
+
+  // The practice corrected the form after this version: the client signs the
+  // corrected one, never this.
+  it("refuses a version the practice has since corrected", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        createdAt: new Date("2026-09-25T09:00:00.000Z"),
+      },
+    });
+    (hasNewerSubmissionForSigner as jest.Mock).mockReset();
+    (hasNewerSubmissionForSigner as jest.Mock).mockResolvedValueOnce(true);
+
+    await expect(startAsParent()).rejects.toThrow(
+      "A newer version of this form is waiting for your signature",
+    );
+    expect(hasNewerSubmissionForSigner).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        id: "instance-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+      }),
+      "parent-1",
+    );
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
   });
 
   it("refuses a submission with no appointment", async () => {

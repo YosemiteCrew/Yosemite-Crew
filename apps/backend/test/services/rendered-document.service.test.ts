@@ -10,6 +10,7 @@ import {
   getPersistedRenderedDocument,
   getPersistedRenderedDocumentPdf,
   getRenderedDocumentSourceAuthorId,
+  hasNewerSubmissionForSigner,
   isSignableRenderedDocumentKind,
   RenderedDocumentServiceError,
   completePersistedRenderedDocumentSigning,
@@ -37,6 +38,7 @@ jest.mock("src/config/prisma", () => {
     templateInstance: {
       findUnique: jest.fn(),
       updateMany: jest.fn(),
+      count: jest.fn(),
     },
     clinicalArtifact: {
       findUnique: jest.fn(),
@@ -96,7 +98,11 @@ describe("rendered-document service", () => {
     documentSignature: {
       upsert: jest.Mock;
     };
-    templateInstance: { findUnique: jest.Mock; updateMany: jest.Mock };
+    templateInstance: {
+      findUnique: jest.Mock;
+      updateMany: jest.Mock;
+      count: jest.Mock;
+    };
     clinicalArtifact: { findUnique: jest.Mock; updateMany: jest.Mock };
     case: { findUnique: jest.Mock };
     encounter: { findUnique: jest.Mock };
@@ -1770,6 +1776,83 @@ describe("rendered-document service", () => {
         },
       );
 
+      // Slower than the claim lasts: another request took the document over,
+      // so this one records nothing and never sends its Documenso document.
+      it("sends nothing when its claim was taken over", async () => {
+        readyToSend();
+        mockedDocumensoService.createDocument.mockResolvedValueOnce({
+          id: 99,
+          recipients: [],
+        });
+        mockedPrisma.renderedDocument.update.mockRejectedValueOnce(
+          recordNotFound(),
+        );
+
+        await expect(
+          signPersistedRenderedDocument(signInput),
+        ).rejects.toMatchObject({
+          statusCode: 409,
+          message: "Document signing is already in progress",
+        });
+        expect(
+          mockedDocumensoService.distributeDocument,
+        ).not.toHaveBeenCalled();
+      });
+
+      it("records the signing before sending it, and releases it if the send fails", async () => {
+        readyToSend();
+        mockedDocumensoService.createDocument.mockResolvedValueOnce({
+          id: 99,
+          recipients: [],
+        });
+        mockedPrisma.renderedDocument.update.mockResolvedValueOnce(
+          documentRow({ signing: inProgressSigning }),
+        );
+        mockedDocumensoService.distributeDocument.mockRejectedValueOnce(
+          new Error("send failed"),
+        );
+
+        await expect(signPersistedRenderedDocument(signInput)).rejects.toThrow(
+          "send failed",
+        );
+
+        const claimId =
+          mockedPrisma.renderedDocument.updateMany.mock.calls[0][0].data.signing
+            .claimId;
+        const recorded = mockedPrisma.renderedDocument.update.mock.calls[0][0];
+        expect(recorded.data.signing).toMatchObject({
+          documentId: "99",
+          claimId,
+        });
+        expect(
+          mockedPrisma.renderedDocument.updateMany,
+        ).toHaveBeenLastCalledWith({
+          where: {
+            id: "doc-9",
+            signing: { path: ["claimId"], equals: claimId },
+          },
+          data: { signing: Prisma.DbNull },
+        });
+      });
+
+      it("surfaces a failed record that is not a lost claim", async () => {
+        readyToSend();
+        mockedDocumensoService.createDocument.mockResolvedValueOnce({
+          id: 99,
+          recipients: [],
+        });
+        mockedPrisma.renderedDocument.update.mockRejectedValueOnce(
+          new Error("db down"),
+        );
+
+        await expect(signPersistedRenderedDocument(signInput)).rejects.toThrow(
+          "db down",
+        );
+        expect(
+          mockedDocumensoService.distributeDocument,
+        ).not.toHaveBeenCalled();
+      });
+
       it("refuses while another request has just claimed it", async () => {
         mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
           finalisedTemplateRow({
@@ -1841,6 +1924,26 @@ describe("rendered-document service", () => {
 
       beforeEach(() => {
         mockedPrisma.formAssignment.updateMany.mockReset();
+        // No correction saved since, unless a case says so.
+        mockedPrisma.templateInstance.count.mockReset().mockResolvedValue(0);
+      });
+
+      // The client signed a version the practice then corrected: the
+      // signature is kept on that version, but the request waits for the
+      // corrected one.
+      it("stays open when the signed version has since been corrected", async () => {
+        storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+          ...onAppointment("appt-9"),
+          authorId: "vet-1",
+        });
+        mockedPrisma.templateInstance.count.mockResolvedValueOnce(1);
+
+        const result = await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(result.status).toBe("SIGNED");
+        expect(mockedPrisma.formAssignment.updateMany).not.toHaveBeenCalled();
       });
 
       it("is marked signed with the document when the client signs", async () => {
@@ -1905,6 +2008,65 @@ describe("rendered-document service", () => {
           completePersistedRenderedDocumentSigning("doc-9"),
         ).rejects.toThrow("write failed");
         expect(mockedAuditTrailService.recordSafely).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("a newer version waiting for the signer", () => {
+      const instance = {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        createdAt: new Date("2026-09-25T09:00:00.000Z"),
+      };
+
+      it("looks for a later completed version by anyone but the signer", async () => {
+        mockedPrisma.templateInstance.count.mockResolvedValueOnce(1);
+
+        await expect(
+          hasNewerSubmissionForSigner(
+            mockedPrisma as never,
+            instance,
+            "parent-1",
+          ),
+        ).resolves.toBe(true);
+        expect(mockedPrisma.templateInstance.count).toHaveBeenCalledWith({
+          where: {
+            id: { not: "instance-1" },
+            organisationId: "org-1",
+            templateId: "tpl-consent",
+            appointmentId: "appt-1",
+            status: { in: ["COMPLETED", "SIGNED"] },
+            createdAt: { gt: instance.createdAt },
+            OR: [{ authorId: null }, { authorId: { not: "parent-1" } }],
+          },
+        });
+      });
+
+      it("finds none when nothing later was completed", async () => {
+        mockedPrisma.templateInstance.count.mockResolvedValueOnce(0);
+
+        await expect(
+          hasNewerSubmissionForSigner(
+            mockedPrisma as never,
+            instance,
+            "parent-1",
+          ),
+        ).resolves.toBe(false);
+      });
+
+      it("never supersedes the signer's own submission", async () => {
+        mockedPrisma.templateInstance.count.mockReset();
+
+        await expect(
+          hasNewerSubmissionForSigner(
+            mockedPrisma as never,
+            { ...instance, authorId: "parent-1" },
+            "parent-1",
+          ),
+        ).resolves.toBe(false);
+        expect(mockedPrisma.templateInstance.count).not.toHaveBeenCalled();
       });
     });
 

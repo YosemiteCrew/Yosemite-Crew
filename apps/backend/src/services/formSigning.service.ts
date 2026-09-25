@@ -4,6 +4,7 @@ import { prisma } from "src/config/prisma";
 import { Prisma } from "@prisma/client";
 import {
   createRenderedDocumentRecord,
+  hasNewerSubmissionForSigner,
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
 import { assertParentCanViewAppointment } from "src/services/form.service";
@@ -263,6 +264,8 @@ export class FormSigningService {
         organisationId: true,
         templateId: true,
         appointmentId: true,
+        authorId: true,
+        createdAt: true,
       },
     });
     if (!instance?.appointmentId) {
@@ -293,6 +296,18 @@ export class FormSigningService {
     });
     if (!assignment) {
       throw new Error("Unauthorized to sign this submission");
+    }
+
+    if (
+      await hasNewerSubmissionForSigner(
+        prisma,
+        { ...instance, appointmentId: instance.appointmentId },
+        parentId,
+      )
+    ) {
+      throw new Error(
+        "A newer version of this form is waiting for your signature",
+      );
     }
 
     const document = await prisma.renderedDocument.findUnique({

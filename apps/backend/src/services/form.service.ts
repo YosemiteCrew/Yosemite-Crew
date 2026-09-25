@@ -568,12 +568,9 @@ type InstanceSubmissionParams = {
  */
 const resolveInstanceForSubmission = async (
   params: InstanceSubmissionParams,
-  client: Pick<Prisma.TransactionClient, "templateInstance">,
+  client: Prisma.TransactionClient,
 ) => {
   const { appointmentId, authorId } = params;
-  if (!appointmentId || !authorId) {
-    return createInstanceForSubmission(params);
-  }
 
   const existing = await client.templateInstance.findMany({
     where: {
@@ -602,10 +599,11 @@ const resolveInstanceForSubmission = async (
       open.id,
       { data: params.answers },
       params.organisationId,
+      client,
     );
   }
 
-  return createInstanceForSubmission(params);
+  return createInstanceForSubmission(params, client);
 };
 
 /**
@@ -617,22 +615,15 @@ const resolveInstanceForSubmission = async (
 const submitInstanceForSubmission = async (
   params: InstanceSubmissionParams,
 ) => {
-  const run = async (
-    client: Pick<Prisma.TransactionClient, "templateInstance">,
-  ) => {
-    const instance = await resolveInstanceForSubmission(params, client);
-    // Submitting through TemplateService renders the document a consent (or
-    // any other document-backed template) owes.
+  if (!params.appointmentId || !params.authorId) {
+    // Nothing to anchor on: a new instance, submitted in its own transaction.
+    const instance = await createInstanceForSubmission(params);
     const completed = await TemplateService.submitInstance(
       instance.id,
       params.organisationId,
       params.authorId,
     );
     return { instance, completed };
-  };
-
-  if (!params.appointmentId || !params.authorId) {
-    return run(prisma);
   }
 
   const lockKey = [
@@ -643,29 +634,41 @@ const submitInstanceForSubmission = async (
     params.authorId,
   ].join(":");
 
+  // Everything runs on the one connection the transaction holds: lock, lookup,
+  // create or update, and the submit (which joins this transaction), so a
+  // submit never waits on the pool for a second connection.
   return prisma.$transaction(
     async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-      return run(tx);
+      const instance = await resolveInstanceForSubmission(params, tx);
+      // Submitting through TemplateService renders the document a consent (or
+      // any other document-backed template) owes.
+      const completed = await TemplateService.submitInstance(
+        instance.id,
+        params.organisationId,
+        params.authorId,
+        tx,
+      );
+      return { instance, completed };
     },
     { timeout: 15_000 },
   );
 };
 
-const createInstanceForSubmission = (params: {
-  organisationId: string;
-  templateId: string;
-  appointmentId?: string;
-  authorId?: string;
-  answers: FormSubmission["answers"];
-}) =>
-  TemplateService.createInstance({
-    templateId: params.templateId,
-    organisationId: params.organisationId,
-    appointmentId: params.appointmentId,
-    authorId: params.authorId,
-    data: params.answers,
-  });
+const createInstanceForSubmission = (
+  params: InstanceSubmissionParams,
+  client?: Prisma.TransactionClient,
+) =>
+  TemplateService.createInstance(
+    {
+      templateId: params.templateId,
+      organisationId: params.organisationId,
+      appointmentId: params.appointmentId,
+      authorId: params.authorId,
+      data: params.answers,
+    },
+    client,
+  );
 
 /**
  * Attach the submitted form to its appointment.
@@ -891,9 +894,10 @@ const buildAppointmentFormItems = async (params: {
 };
 
 /**
- * The instance a parent sees for each template: their own if they have one,
- * else one the practice submitted for them. The oldest of each, which is also
- * the one a repeated submit of theirs goes on with.
+ * The instance a parent sees for each template: their own if they have one
+ * (the oldest, the one a repeated submit of theirs goes on with), else the
+ * latest the practice submitted for them, so a correction replaces the
+ * version it corrects. Signing checks the same rule.
  */
 const pickParentInstances = <
   T extends { templateId: string; authorId: string | null },
@@ -904,8 +908,8 @@ const pickParentInstances = <
   const picked = new Map<string, T>();
   for (const instance of instances) {
     const current = picked.get(instance.templateId);
-    const isOwn = instance.authorId === viewerParentId;
-    if (!current || (isOwn && current.authorId !== viewerParentId)) {
+    const currentIsOwn = current?.authorId === viewerParentId;
+    if (!currentIsOwn) {
       picked.set(instance.templateId, instance);
     }
   }

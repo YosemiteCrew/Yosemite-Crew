@@ -108,6 +108,14 @@ jest.mock("src/config/prisma", () => {
         return (condition as Row[]).every((clause) => matches(row, clause));
       }
       const value = row[key];
+      if (
+        condition &&
+        typeof condition === "object" &&
+        "gt" in (condition as Record<string, unknown>)
+      ) {
+        const bound = (condition as { gt: Date }).gt;
+        return value instanceof Date && value.getTime() > bound.getTime();
+      }
       if (condition instanceof Date) {
         return value instanceof Date && value.getTime() === condition.getTime();
       }
@@ -261,6 +269,10 @@ jest.mock("src/config/prisma", () => {
         });
         return { count: 1 };
       },
+      count: async ({ where }: { where: Row }) =>
+        [...store.templateInstances.values()].filter((instance) =>
+          matches(instance, where),
+        ).length,
       findUniqueOrThrow: async ({ where }: { where: { id: string } }) => {
         const instance = store.templateInstances.get(where.id);
         if (!instance) throw new Error("No TemplateInstance found");
@@ -1215,6 +1227,50 @@ describe("consent template documents (#3600)", () => {
         }),
       ]);
       expect(store.templateInstances.get(staffSave._id)?.status).toBe("SIGNED");
+    });
+
+    // The practice corrects a pre-filled consent by saving it again. The
+    // client signs the corrected version; a signature on the first no longer
+    // answers the request.
+    it("is given on the practice's corrected version, not the first", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const first = await submitFromPms("tpl-consent");
+      armDocumenso();
+      // Sent to the client before the correction.
+      await startClientSigning(first._id);
+      const corrected = await submitFromPms("tpl-consent");
+      expect(corrected._id).not.toBe(first._id);
+
+      // The client finishes signing the first version after all.
+      const firstDocument = [...store.renderedDocuments.values()].find(
+        (doc) => doc.templateInstanceId === first._id,
+      );
+      await completePersistedRenderedDocumentSigning(
+        firstDocument?.id as string,
+      );
+      expect(store.formAssignments[0].status).toBe("SENT");
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({ status: "pending" }),
+      ]);
+      // Nor can it be sent for signing again.
+      await expect(startClientSigning(first._id)).rejects.toThrow(
+        "A newer version of this form is waiting for your signature",
+      );
+
+      await startClientSigning(corrected._id);
+      const correctedDocument = [...store.renderedDocuments.values()].find(
+        (doc) => doc.templateInstanceId === corrected._id,
+      );
+      await completePersistedRenderedDocumentSigning(
+        correctedDocument?.id as string,
+      );
+
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({
+          status: "completed",
+          assignmentStatus: "signed",
+        }),
+      ]);
     });
 
     it("stays the client's after a staff save that follows it", async () => {

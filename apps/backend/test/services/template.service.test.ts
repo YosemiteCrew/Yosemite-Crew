@@ -512,6 +512,34 @@ describe("TemplateService ownership persistence", () => {
       expect(prisma.templateInstance.create).not.toHaveBeenCalled();
     });
 
+    it("creates the instance on the caller's transaction client", async () => {
+      const tx = {
+        template: {
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ ...orgTemplate, organisationId: "org-1" }),
+        },
+        templateVersion: {
+          findUnique: jest.fn().mockResolvedValue({ id: "ver-1", version: 1 }),
+        },
+        templateInstance: {
+          create: jest.fn().mockResolvedValue({ id: "inst-1" }),
+        },
+      };
+
+      await TemplateService.createInstance(
+        { templateId: "tpl-1", organisationId: "org-1", data: {} },
+        tx as never,
+      );
+
+      expect(tx.template.findUnique).toHaveBeenCalled();
+      expect(tx.templateVersion.findUnique).toHaveBeenCalled();
+      expect(tx.templateInstance.create).toHaveBeenCalled();
+      expect(prisma.template.findUnique).not.toHaveBeenCalled();
+      expect(prisma.templateVersion.findUnique).not.toHaveBeenCalled();
+      expect(prisma.templateInstance.create).not.toHaveBeenCalled();
+    });
+
     it("writes the instance under the authorized organisation, not the payload", async () => {
       (prisma.template.findUnique as jest.Mock).mockResolvedValue({
         ...orgTemplate,
@@ -1269,6 +1297,27 @@ describe("TemplateService.updateInstance", () => {
     });
   });
 
+  it("reads and writes on the caller's transaction client", async () => {
+    const tx = {
+      templateInstance: {
+        findUnique: jest.fn().mockResolvedValue(openInstance()),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+
+    await TemplateService.updateInstance(
+      "inst-1",
+      { data: { added: 2 } },
+      "org-1",
+      tx as never,
+    );
+
+    expect(tx.templateInstance.findUnique).toHaveBeenCalled();
+    expect(tx.templateInstance.update).toHaveBeenCalled();
+    expect(prisma.templateInstance.findUnique).not.toHaveBeenCalled();
+    expect(prisma.templateInstance.update).not.toHaveBeenCalled();
+  });
+
   it("lets server-side form submission complete an open instance", async () => {
     (prisma.templateInstance.findUnique as jest.Mock).mockResolvedValue(
       openInstance({ status: "IN_PROGRESS" }),
@@ -1443,18 +1492,13 @@ describe("TemplateService.submitInstance", () => {
     const update = jest.fn().mockResolvedValue(updateResult);
     const updateMany = jest.fn().mockResolvedValue({ count: claimed });
     const findUniqueOrThrow = jest.fn().mockResolvedValue(updateResult);
+    const tx = {
+      templateInstance: { findUnique, update, updateMany, findUniqueOrThrow },
+    };
     (prisma.$transaction as jest.Mock).mockImplementation(
-      async (callback: any) =>
-        callback({
-          templateInstance: {
-            findUnique,
-            update,
-            updateMany,
-            findUniqueOrThrow,
-          },
-        }),
+      async (callback: any) => callback(tx),
     );
-    return { findUnique, update, updateMany, findUniqueOrThrow };
+    return { findUnique, update, updateMany, findUniqueOrThrow, tx };
   };
 
   it("rejects submitting an instance that does not exist", async () => {
@@ -1680,6 +1724,51 @@ describe("TemplateService.submitInstance", () => {
         generatedPdfUrl: "https://pdf",
       },
     });
+  });
+
+  // A form submission holds a transaction (and its lock) while it submits;
+  // the submit joins it rather than wait on the pool for a second connection.
+  it("joins the caller's transaction instead of opening one", async () => {
+    const { update, tx: callerTx } = runTransaction({
+      id: "inst-1",
+      organisationId: "org-1",
+      status: "DRAFT",
+      authorId: null,
+      signedBy: null,
+      templateId: "tpl-1",
+      templateVersion: 1,
+      generatedPdf: null,
+      template: {
+        id: "tpl-1",
+        kind: "FORM",
+        ownership: "ORG_TEMPLATE",
+        name: "Intake questionnaire",
+        rules: null,
+      },
+    });
+    renderMock.mockResolvedValue({
+      id: "rd-1",
+      kind: "FORM",
+      signedAt: null,
+      signedBy: null,
+      pdfUrl: null,
+    });
+    (prisma.$transaction as jest.Mock).mockClear();
+
+    await TemplateService.submitInstance(
+      "inst-1",
+      "org-1",
+      undefined,
+      callerTx as never,
+    );
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+    expect(renderMock).toHaveBeenCalledWith(expect.anything(), callerTx);
   });
 
   it("submits a document-backed instance that names no submitter", async () => {

@@ -646,12 +646,14 @@ type ClinicalRecordLinkage = {
 type LinkedRecord = ClinicalRecordLinkage & {
   status: string;
   authorId: string | null;
+  createdAt: Date;
   updatedAt: Date;
 };
 
 const LINKED_RECORD_SELECT = {
   status: true,
   authorId: true,
+  createdAt: true,
   updatedAt: true,
   appointmentId: true,
   caseId: true,
@@ -916,14 +918,11 @@ const sendClaimedDocumentForSigning = async (
       ? `${documensoPublicBaseUrl}/sign/${doc.recipients[0].token}`
       : null;
 
-  await DocumensoService.distributeDocument({
-    envelopeId: doc.envelopeId,
-    apiKey,
-  });
-
-  return normalizePersistedRenderedDocument(
-    await client.renderedDocument.update({
-      // Still this request's claim, so nothing else started meanwhile.
+  // Recorded before the document is sent to the signer, and only while this
+  // request still holds the claim. A request slow enough for its claim to be
+  // taken over stops here: its Documenso document is never sent.
+  const recorded = await client.renderedDocument
+    .update({
       where: {
         id: existing.id,
         signing: { path: ["claimId"], equals: claimId },
@@ -944,11 +943,22 @@ const sendClaimedDocumentForSigning = async (
           // The revision of the record the signer is shown. Completion only
           // marks the record signed while it still stands at this revision.
           sourceRevision: linked ? linked.updatedAt.toISOString() : null,
+          // Kept so a failed send can still be released.
+          claimId,
         } satisfies PinnedRenderedDocumentSigning,
       },
       include: { signature: true },
-    }),
-  );
+    })
+    .catch((error: unknown) => {
+      throw isRecordNotFoundError(error) ? signingInProgress() : error;
+    });
+
+  await DocumensoService.distributeDocument({
+    envelopeId: doc.envelopeId,
+    apiKey,
+  });
+
+  return normalizePersistedRenderedDocument(recorded);
 };
 
 /** The RenderedDocumentKind-shaped audit event for the (rare) kinds that have one; every
@@ -1009,6 +1019,7 @@ const resolvePatientIdForSignedDocument = async (
 /** `signing` as stored on a rendered document, with the pinned revision. */
 type PinnedRenderedDocumentSigning = RenderedDocumentSigning & {
   sourceRevision?: string | null;
+  claimId?: string;
 };
 
 /**
@@ -1170,8 +1181,42 @@ const releaseDiscardedSigning = async (
  * holds up finalising the visit. Only the client's own signature does this: a
  * signature by practice staff, or the discharge packet's, never does.
  */
+/**
+ * Whether a newer submission of the same form for the same appointment, by
+ * someone other than the signer, is the one waiting for their signature. The
+ * client signs their own submission, or else the latest the practice
+ * completed for them: a practice correction saved after a first version
+ * supersedes that version for the request.
+ */
+export const hasNewerSubmissionForSigner = async (
+  client: Pick<Prisma.TransactionClient, "templateInstance">,
+  instance: {
+    id: string;
+    organisationId: string;
+    templateId: string;
+    appointmentId: string;
+    authorId: string | null;
+    createdAt: Date;
+  },
+  signerId: string,
+): Promise<boolean> => {
+  if (instance.authorId === signerId) return false;
+  const newer = await client.templateInstance.count({
+    where: {
+      id: { not: instance.id },
+      organisationId: instance.organisationId,
+      templateId: instance.templateId,
+      appointmentId: instance.appointmentId,
+      status: { in: ["COMPLETED", "SIGNED"] },
+      createdAt: { gt: instance.createdAt },
+      OR: [{ authorId: null }, { authorId: { not: signerId } }],
+    },
+  });
+  return newer > 0;
+};
+
 const markClientAssignmentsSigned = async (
-  tx: Pick<Prisma.TransactionClient, "formAssignment">,
+  tx: Pick<Prisma.TransactionClient, "formAssignment" | "templateInstance">,
   existing: PersistedRenderedDocument,
   signing: PinnedRenderedDocumentSigning,
   linked: LinkedRecord | null,
@@ -1179,8 +1224,27 @@ const markClientAssignmentsSigned = async (
 ): Promise<void> => {
   if (
     signing.signerType !== "PARENT" ||
+    !signing.signerId ||
     !existing.templateId ||
+    !existing.templateInstanceId ||
     !linked?.appointmentId
+  ) {
+    return;
+  }
+  // A version the practice has since corrected no longer answers the request.
+  if (
+    await hasNewerSubmissionForSigner(
+      tx,
+      {
+        id: existing.templateInstanceId,
+        organisationId: existing.organisationId,
+        templateId: existing.templateId,
+        appointmentId: linked.appointmentId,
+        authorId: linked.authorId,
+        createdAt: linked.createdAt,
+      },
+      signing.signerId,
+    )
   ) {
     return;
   }

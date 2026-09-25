@@ -816,8 +816,9 @@ const assertWritableOwnership = (ownership: unknown) => {
 const loadTemplateForReadOrThrow = async (
   templateId: string,
   organisationId?: string,
+  client: Pick<Prisma.TransactionClient, "template"> = prisma,
 ) => {
-  const template = await prisma.template.findUnique({
+  const template = await client.template.findUnique({
     where: { id: ensureId(templateId, "templateId") },
   });
 
@@ -853,8 +854,9 @@ const loadTemplateForWriteOrThrow = async (
 const loadTemplateVersionOrThrow = async (
   templateId: string,
   version: number,
+  client: Pick<Prisma.TransactionClient, "templateVersion"> = prisma,
 ) => {
-  const templateVersion = await prisma.templateVersion.findUnique({
+  const templateVersion = await client.templateVersion.findUnique({
     where: { templateId_version: { templateId, version } },
   });
 
@@ -1526,6 +1528,9 @@ export const TemplateService = {
       organisationId: string;
       authorId?: string;
     },
+    // A caller already inside a transaction passes it, so the work runs on
+    // the connection it holds.
+    client: Prisma.TransactionClient = prisma,
   ) {
     const parsed = createTemplateInstanceSchema.parse(input);
     const organisationId = ensureId(input.organisationId, "organisationId");
@@ -1535,14 +1540,16 @@ export const TemplateService = {
     const template = await loadTemplateForReadOrThrow(
       input.templateId,
       organisationId,
+      client,
     );
     const versionNumber = template.publishedVersion ?? template.latestVersion;
     const version = await loadTemplateVersionOrThrow(
       template.id,
       versionNumber,
+      client,
     );
 
-    return prisma.templateInstance.create({
+    return client.templateInstance.create({
       data: {
         templateId: template.id,
         templateVersion: version.version,
@@ -1561,10 +1568,11 @@ export const TemplateService = {
     instanceId: string,
     input: UpdateTemplateInstanceInput,
     organisationId: string,
+    client: Prisma.TransactionClient = prisma,
   ) {
     const parsed = internalUpdateTemplateInstanceSchema.parse(input);
     const orgScope = ensureId(organisationId, "organisationId");
-    const instance = await prisma.templateInstance.findUnique({
+    const instance = await client.templateInstance.findUnique({
       where: { id: ensureId(instanceId, "instanceId") },
     });
 
@@ -1589,7 +1597,7 @@ export const TemplateService = {
     try {
       // The status the instance was read with is part of the WHERE, so a
       // concurrent submit or signing between the read and this write wins.
-      return await prisma.templateInstance.update({
+      return await client.templateInstance.update({
         where: { id: instance.id, status: instance.status },
         data: {
           data:
@@ -1617,9 +1625,12 @@ export const TemplateService = {
     instanceId: string,
     organisationId: string,
     submittedBy?: string,
+    // Inside a caller's transaction the submit joins it rather than opening
+    // a second one on another connection.
+    client?: Prisma.TransactionClient,
   ) {
     const orgScope = ensureId(organisationId, "organisationId");
-    return prisma.$transaction(async (tx) => {
+    const submit = async (tx: Prisma.TransactionClient) => {
       const instance = await tx.templateInstance.findUnique({
         where: { id: ensureId(instanceId, "instanceId") },
         include: {
@@ -1730,6 +1741,7 @@ export const TemplateService = {
           generatedPdfUrl: renderedDocumentSummary?.pdfUrl ?? undefined,
         },
       });
-    });
+    };
+    return client ? submit(client) : prisma.$transaction(submit);
   },
 };

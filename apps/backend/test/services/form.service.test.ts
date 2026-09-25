@@ -108,7 +108,9 @@ jest.mock("src/config/prisma", () => {
       findMany: jest.fn(),
     },
   };
-  prisma.$transaction = jest.fn((fn: (tx: unknown) => unknown) => fn(prisma));
+  // A client of its own, so a test can tell work done inside the transaction.
+  const tx = { ...prisma, __isTransaction: true };
+  prisma.$transaction = jest.fn((fn: (client: unknown) => unknown) => fn(tx));
   return { prisma };
 });
 
@@ -120,6 +122,9 @@ jest.mock("@yosemite-crew/types", () => ({
   toFHIRQuestionnaire: jest.fn((x) => x),
   templateSchemaToFormFields: jest.fn(() => []),
 }));
+
+/** The transaction client the submission lock runs its work on. */
+const TX = expect.objectContaining({ __isTransaction: true });
 
 beforeAll(() => {
   ({
@@ -881,11 +886,13 @@ describe("FormService", () => {
             templateId,
             organisationId: "org-template",
           }),
+          TX,
         );
         expect(TemplateService.submitInstance).toHaveBeenCalledWith(
           "instance-1",
           "org-template",
           "parent-1",
+          TX,
         );
       });
 
@@ -1041,11 +1048,13 @@ describe("FormService", () => {
               authorId: "vet-1",
               appointmentId: "appt-1",
             }),
+            TX,
           );
           expect(TemplateService.submitInstance).toHaveBeenCalledWith(
             "instance-new",
             "org-1",
             "vet-1",
+            TX,
           );
           expect(result._id).toBe("instance-new");
         },
@@ -1107,6 +1116,7 @@ describe("FormService", () => {
         ).not.toHaveProperty("OR");
         expect(TemplateService.createInstance).toHaveBeenCalledWith(
           expect.objectContaining({ authorId: "parent-1" }),
+          TX,
         );
       });
 
@@ -1127,6 +1137,7 @@ describe("FormService", () => {
             "instance-done",
             "org-1",
             "parent-1",
+            TX,
           );
           expect(
             FormAssignmentService.markSubmittedFromSubmission,
@@ -1150,12 +1161,14 @@ describe("FormService", () => {
           "instance-open",
           { data: { agree: "yes" } },
           "org-1",
+          TX,
         );
         expect(TemplateService.createInstance).not.toHaveBeenCalled();
         expect(TemplateService.submitInstance).toHaveBeenCalledWith(
           "instance-open",
           "org-1",
           "vet-1",
+          TX,
         );
         expect(result._id).toBe("instance-open");
       });
@@ -1168,13 +1181,16 @@ describe("FormService", () => {
         expect(prisma.$executeRaw).not.toHaveBeenCalled();
         expect(prisma.templateInstance.findMany).not.toHaveBeenCalled();
         expect(TemplateService.updateInstance).not.toHaveBeenCalled();
-        expect(TemplateService.createInstance).toHaveBeenCalledWith({
-          templateId,
-          organisationId: "org-1",
-          appointmentId: undefined,
-          authorId: "vet-1",
-          data: { agree: "yes" },
-        });
+        expect(TemplateService.createInstance).toHaveBeenCalledWith(
+          {
+            templateId,
+            organisationId: "org-1",
+            appointmentId: undefined,
+            authorId: "vet-1",
+            data: { agree: "yes" },
+          },
+          undefined,
+        );
         expect(result._id).toBe("instance-new");
       });
     });
@@ -1250,19 +1266,23 @@ describe("FormService", () => {
         submittedAt: new Date("2026-06-25T00:00:00.000Z"),
       } as any);
 
-      expect(TemplateService.createInstance).toHaveBeenCalledWith({
-        templateId,
-        organisationId: "org-template",
-        appointmentId: "appt-1",
-        authorId: "parent-1",
-        data: { field1: "value" },
-      });
+      expect(TemplateService.createInstance).toHaveBeenCalledWith(
+        {
+          templateId,
+          organisationId: "org-template",
+          appointmentId: "appt-1",
+          authorId: "parent-1",
+          data: { field1: "value" },
+        },
+        TX,
+      );
       // Submitted through TemplateService, which renders the instance's
       // document, rather than set COMPLETED directly (#3600).
       expect(TemplateService.submitInstance).toHaveBeenCalledWith(
         "instance-1",
         "org-template",
         "parent-1",
+        TX,
       );
       expect(prisma.formSubmission.create).not.toHaveBeenCalled();
       // Not a parent's submission, so the client's request stays open.
@@ -1951,13 +1971,15 @@ describe("FormService", () => {
         ).resolves.toEqual({ id: "own-1" });
       });
 
-      it("shows the oldest when the practice submitted twice", async () => {
+      // A correction: the practice saved the form again after the first
+      // version, and the client signs the corrected one.
+      it("shows the latest when the practice submitted twice", async () => {
         await expect(
           listWith([
             { id: "staff-1", templateId: "template-1", authorId: "vet-1" },
             { id: "staff-2", templateId: "template-1", authorId: "vet-2" },
           ]),
-        ).resolves.toEqual({ id: "staff-1" });
+        ).resolves.toEqual({ id: "staff-2" });
       });
     });
 
