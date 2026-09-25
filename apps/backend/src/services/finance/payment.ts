@@ -13,11 +13,11 @@ import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
 import { getNetPaymentAmount, roundMoney } from "./pricing";
-import { sameCurrency } from "./currency";
 import {
   isLedgerCurrencySupported,
   quantizeMoney,
   resolveLedgerExponent,
+  sameCurrency,
 } from "./currency";
 import {
   fromStripeMinorUnits,
