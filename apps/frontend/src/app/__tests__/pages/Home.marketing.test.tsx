@@ -51,7 +51,7 @@ jest.mock('@/app/features/marketing/site', () => {
     // A div, matching what the real component renders. A span here would hide a
     // div-inside-span nesting error in the hero, which jest.setup turns into a
     // test failure via console.error.
-    ReleaseLanes: () => React_.createElement('div', null, 'PIMS Desktop Mobile Backend'),
+    ReleaseLanes: () => React_.createElement('div', null, 'PIMS Desktop Mobile Backend MCP'),
     CountUp: ({ value }: { value: string }) => React_.createElement('span', null, value),
     useMagnet: () => React_.createRef(),
     useParallax: () => React_.createRef(),
@@ -151,7 +151,7 @@ describe('Home marketing page', () => {
     render(<Home />);
     // The wrapper matches this text too, since it holds nothing else. Document
     // order puts it first, so the innermost match is the component itself.
-    const matches = screen.getAllByText('PIMS Desktop Mobile Backend');
+    const matches = screen.getAllByText('PIMS Desktop Mobile Backend MCP');
     const lanes = matches[matches.length - 1];
     expect(lanes.tagName).toBe('DIV');
     expect(lanes.parentElement?.tagName).not.toBe('SPAN');

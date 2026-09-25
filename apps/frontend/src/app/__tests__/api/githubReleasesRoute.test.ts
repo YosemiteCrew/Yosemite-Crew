@@ -14,7 +14,13 @@ jest.mock('next/server', () => ({
 
 import { GET } from '@/app/api/community/github-releases/route';
 
-type Release = { tag_name?: string; html_url?: string; name?: string; published_at?: string };
+type Release = {
+  tag_name?: string;
+  html_url?: string;
+  name?: string;
+  created_at?: string;
+  published_at?: string;
+};
 
 type MockedResponse = {
   body: Release | Release[] | null | { error?: string };
@@ -35,6 +41,7 @@ const RELEASE: Release & { extra?: string } = {
   tag_name: 'v9.9.9',
   html_url: 'https://github.com/YosemiteCrew/Yosemite-Crew/releases/tag/v9.9.9',
   name: 'Ninth',
+  created_at: '2026-07-30T22:14:37Z',
   published_at: '2026-08-01T00:00:00Z',
   extra: 'should not be forwarded',
 };
@@ -55,6 +62,9 @@ describe('github-releases route handler', () => {
       tag_name: 'v9.9.9',
       html_url: RELEASE.html_url,
       name: 'Ninth',
+      // Kept: the release strip dates a lane by when its tag shipped, which can be days before
+      // the release was published.
+      created_at: '2026-07-30T22:14:37Z',
       published_at: '2026-08-01T00:00:00Z',
     });
     // The raw GitHub payload is large and its shape is not ours to depend on.
@@ -81,11 +91,12 @@ describe('github-releases route handler', () => {
 
     // 100, GitHub's maximum here, not a smaller default. The home page reads this
     // list to show a lane per shipped component, and a component whose latest
-    // release has fallen off the page renders as an empty lane. At four
-    // components on a monthly cadence, 30 covered about seven months.
+    // release has fallen off the page renders as an empty lane. At five
+    // components on a monthly cadence, 30 covered about six months.
     expect(String(fetchMock.mock.calls[0][0])).toContain('/releases?per_page=100');
     expect(res.body).toHaveLength(2);
     expect((res.body as Release[])[0]).not.toHaveProperty('extra');
+    expect((res.body as Release[])[0].created_at).toBe('2026-07-30T22:14:37Z');
     expect(res.init?.headers?.['Cache-Control']).toContain('s-maxage=300');
   });
 
