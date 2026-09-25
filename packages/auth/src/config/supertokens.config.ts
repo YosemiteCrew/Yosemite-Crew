@@ -15,6 +15,7 @@ import ThirdParty from 'supertokens-node/recipe/thirdparty';
 import UserMetadata from 'supertokens-node/recipe/usermetadata';
 import AccountLinking from 'supertokens-node/recipe/accountlinking';
 import UserRoles from 'supertokens-node/recipe/userroles';
+import Multitenancy from 'supertokens-node/recipe/multitenancy';
 import { SMTPService as PasswordlessSMTPService } from 'supertokens-node/recipe/passwordless/emaildelivery';
 import { getAuthHooks } from '../hooks.js';
 import type { AuthProfile, LoginMethod } from '../types.js';
@@ -31,6 +32,8 @@ function requireEnv(name: string): string {
 }
 
 const SUPERTOKENS_API_KEY_FIELD = 'apiKey' as const;
+const DEFAULT_TENANT_ID = 'public';
+const UNKNOWN_TENANT_ERROR = 'Invalid request.';
 const TURNSTILE_ACTION = 'business_signup';
 const TURNSTILE_TOKEN_FIELD = 'turnstileToken';
 const TURNSTILE_FIELD_ERROR = 'Complete bot verification before creating an account.';
@@ -777,6 +780,27 @@ export function getSuperTokensConfig(): TypeInput {
       }),
       UserMetadata.init(),
       UserRoles.init(),
+      // Only the default tenant exists. SuperTokens reads a tenant id from the
+      // first path segment of every recipe route and resolves it here, before
+      // any auth core call, so any other value is answered with a plain 400
+      // instead of being forwarded to the core.
+      Multitenancy.init({
+        override: {
+          functions: (original) => ({
+            ...original,
+            getTenantId: async ({ tenantIdFromFrontend }) => {
+              if (tenantIdFromFrontend !== DEFAULT_TENANT_ID) {
+                throw new SuperTokens.Error({
+                  type: SuperTokens.Error.BAD_INPUT_ERROR,
+                  message: UNKNOWN_TENANT_ERROR,
+                  payload: undefined,
+                });
+              }
+              return tenantIdFromFrontend;
+            },
+          }),
+        },
+      }),
       Session.init({
         override: {
           functions: (original) => ({
