@@ -164,8 +164,6 @@ export const mapAppointmentFormItem = (
     form,
     submission: normalizedSubmission,
     formVersion: normalizedSubmission?.formVersion,
-    assignmentStatus: item.assignmentStatus
-      ? item.assignmentStatus.toLowerCase()
-      : null,
+    assignmentStatus: item.assignmentStatus?.toLowerCase() ?? null,
   };
 };
