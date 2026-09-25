@@ -43,7 +43,7 @@ const release = (tag: string, monthIndex: number, day: number): RawRelease => ({
 });
 
 /*
-  Tags follow RELEASING.md: the three prefixed lanes, plus desktop on bare semver. The
+  Tags follow RELEASING.md: the four prefixed lanes, plus desktop on bare semver. The
   prefix is what each hook matches on, and `toReleaseInfo` strips it before display - so
   `pims-v2.3.0-beta` has to arrive as `v2.3.0-beta` on the pill.
 */
@@ -53,8 +53,17 @@ const BACKEND_RELEASE = release('backend-v3.1.0', 7, 5);
 /** What GitHub's own `/releases/latest` answers for this repo: always a desktop build. */
 const DESKTOP_RELEASE = release('v0.9.4', 6, 28);
 
+/** The MCP server's own lane. Newest in the list, so a pill that claimed it would show it. */
+const MCP_RELEASE = release('mcp-v0.1.0', 7, 23);
+
 /** Newest first, the order the API returns and the order the hooks depend on. */
-const RELEASE_LIST: RawRelease[] = [PIMS_RELEASE, MOBILE_RELEASE, BACKEND_RELEASE, DESKTOP_RELEASE];
+const RELEASE_LIST: RawRelease[] = [
+  MCP_RELEASE,
+  PIMS_RELEASE,
+  MOBILE_RELEASE,
+  BACKEND_RELEASE,
+  DESKTOP_RELEASE,
+];
 
 /** Counted per story so a variant can prove which endpoint it did NOT call. */
 let listRequests = 0;

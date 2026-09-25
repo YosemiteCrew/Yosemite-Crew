@@ -409,6 +409,16 @@
   }
 }
 
+/* Home hero: the two upper floating cards sit beside the headline, below the release strip.
+   They only fit there once the side gutter holds them: the headline tops out at ~892px wide
+   (104px type), and the wider card is 260px plus a 4.5vw inset, which clears it from ~1552px.
+   Below that they would slice through the headline, so they are left out. */
+@media (max-width: 1559px) {
+  [data-hero-upper-cards] {
+    display: none !important;
+  }
+}
+
 /* ---- Responsive helper attributes (names match the prototypes) ---- */
 @media (max-width: 900px) {
   [data-hide-m] {

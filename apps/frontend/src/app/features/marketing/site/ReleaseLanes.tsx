@@ -107,8 +107,8 @@ function LaneSegment({ lane }: Readonly<{ lane: ReleaseLane }>) {
  * only one GitHub gives the Latest badge to. That undersold three of the four release lines and
  * mislabelled the fourth.
  *
- * One glass bar with hairline-separated segments rather than four separate pills: four bordered
- * pills read as four competing objects, where this reads as one status strip.
+ * One glass bar with hairline-separated segments rather than five separate pills: five bordered
+ * pills read as five competing objects, where this reads as one status strip.
  */
 export function ReleaseLanes() {
   const lanes = useReleaseLanes();

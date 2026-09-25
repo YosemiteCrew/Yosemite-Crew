@@ -7,6 +7,7 @@ import {
   useMobileRelease,
   usePlatformRelease,
   useReleaseLanes,
+  LANES_CACHE_KEY,
   type GithubStats,
   type ReleaseInfo,
 } from '@/app/features/marketing/site/useGithubStats';
@@ -451,6 +452,14 @@ describe('useReleaseLanes', () => {
   /** Mirrors the real tag shapes documented in RELEASING.md, newest-first as GitHub returns them. */
   const RELEASES = [
     {
+      // Tagged and shipped on the 23rd, published to GitHub two days later. Leads the list, so a
+      // desktop matcher that stopped anchoring on a bare `v` would claim it first.
+      tag_name: 'mcp-v0.1.0',
+      created_at: `${THIS_YEAR}-09-23T22:14:37Z`,
+      published_at: `${THIS_YEAR}-09-25T09:22:21Z`,
+      html_url: 'https://x/mcp',
+    },
+    {
       tag_name: 'mobile-v1.6.1',
       published_at: `${THIS_YEAR}-08-21T10:00:00Z`,
       html_url: 'https://x/mobile',
@@ -495,7 +504,7 @@ describe('useReleaseLanes', () => {
   const byKey = (lanes: ReturnType<typeof useReleaseLanes>, key: string) =>
     lanes.find((lane) => lane.key === key)!;
 
-  it('buckets one releases response into the four shipped lanes', async () => {
+  it('buckets one releases response into the five shipped lanes', async () => {
     globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
 
     const { result } = renderHook(() => useReleaseLanes());
@@ -509,7 +518,49 @@ describe('useReleaseLanes', () => {
       'desktop',
       'mobile',
       'backend',
+      'mcp',
     ]);
+  });
+
+  it('puts the mcp- tag in the MCP lane, prefix stripped, and in no other lane', async () => {
+    globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'mcp').tag).toBe('v0.1.0'));
+
+    expect(byKey(result.current, 'mcp').label).toBe('MCP');
+    expect(byKey(result.current, 'mcp').url).toBe('https://x/mcp');
+    // Desktop keeps its own bare-semver release even though the mcp tag comes first.
+    expect(byKey(result.current, 'desktop').url).toBe('https://x/desktop');
+    for (const key of ['pims', 'desktop', 'mobile', 'backend']) {
+      expect(byKey(result.current, key).url).not.toBe('https://x/mcp');
+    }
+  });
+
+  it('dates a lane from created_at, not the later published_at', async () => {
+    globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'mcp').tag).toBe('v0.1.0'));
+
+    // 22:14 UTC on the 23rd. Formatted in UTC, so it stays the 23rd east of Greenwich too.
+    expect(byKey(result.current, 'mcp').dateCompact).toBe('23 Sep');
+    expect(byKey(result.current, 'mcp').date).toBe(`Sep 23, ${THIS_YEAR}`);
+  });
+
+  it('falls back to published_at when a release has no created_at', async () => {
+    globalThis.fetch = lanesFetch([
+      {
+        tag_name: 'mcp-v0.2.0',
+        published_at: `${THIS_YEAR}-10-02T09:00:00Z`,
+        html_url: 'https://x/mcp2',
+      },
+    ]) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'mcp').tag).toBe('v0.2.0'));
+    expect(byKey(result.current, 'mcp').dateCompact).toBe('2 Oct');
+    expect(byKey(result.current, 'mcp').date).toBe(`Oct 2, ${THIS_YEAR}`);
   });
 
   it('claims the unprefixed tag for desktop', async () => {
@@ -556,12 +607,12 @@ describe('useReleaseLanes', () => {
   it('leaves a lane null rather than inventing a version for it', async () => {
     // A lane with nothing on the fetched page must show its placeholder. Falling back to a
     // hard-coded version would present a stale literal as a live release.
-    globalThis.fetch = lanesFetch([RELEASES[0]]) as unknown as FetchLike;
+    globalThis.fetch = lanesFetch([RELEASES[1]]) as unknown as FetchLike;
 
     const { result } = renderHook(() => useReleaseLanes());
     await waitFor(() => expect(byKey(result.current, 'mobile').tag).toBe('v1.6.1'));
 
-    for (const key of ['pims', 'desktop', 'backend']) {
+    for (const key of ['pims', 'desktop', 'backend', 'mcp']) {
       expect(byKey(result.current, key).tag).toBeNull();
       expect(byKey(result.current, key).url).toBeNull();
       expect(byKey(result.current, key).dateCompact).toBeNull();
@@ -611,7 +662,7 @@ describe('useReleaseLanes', () => {
       const lanes = useReleaseLanes();
       return createElement('span', null, lanes.map((l) => l.tag ?? '-').join(','));
     };
-    expect(renderToString(createElement(Probe))).toContain('-,-,-,-');
+    expect(renderToString(createElement(Probe))).toContain('-,-,-,-,-');
   });
 
   it('still renders the lanes when session storage cannot be written', async () => {
@@ -625,7 +676,7 @@ describe('useReleaseLanes', () => {
       const { result } = renderHook(() => useReleaseLanes());
       await waitFor(() => expect(byKey(result.current, 'pims').tag).toBe('v2.3.0-beta'));
       expect(byKey(result.current, 'desktop').tag).toBe('v0.1.0-beta.4');
-      expect(sessionStorage.getItem('yc_marketing_release_lanes_v1')).toBeNull();
+      expect(sessionStorage.getItem(LANES_CACHE_KEY)).toBeNull();
     } finally {
       setItem.mockRestore();
     }
@@ -636,7 +687,7 @@ describe('useReleaseLanes', () => {
     // and the refresh write failing, returning the store meant the fresh result
     // was discarded on every render and the hero showed old releases forever.
     sessionStorage.setItem(
-      'yc_marketing_release_lanes_v1',
+      LANES_CACHE_KEY,
       JSON.stringify([
         {
           key: 'pims',
@@ -649,6 +700,7 @@ describe('useReleaseLanes', () => {
         { key: 'desktop', label: 'Desktop', tag: null, date: null, dateCompact: null, url: null },
         { key: 'mobile', label: 'Mobile', tag: null, date: null, dateCompact: null, url: null },
         { key: 'backend', label: 'Backend', tag: null, date: null, dateCompact: null, url: null },
+        { key: 'mcp', label: 'MCP', tag: null, date: null, dateCompact: null, url: null },
       ])
     );
     const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -665,7 +717,37 @@ describe('useReleaseLanes', () => {
     }
   });
 
-  it('fetches the releases list once for all four lanes', async () => {
+  it('ignores a four-lane array cached before the MCP lane existed', async () => {
+    // Same tab, cache written by the previous build. Painting it would drop the MCP lane until
+    // the refresh landed, or for good if the refresh failed.
+    sessionStorage.setItem(
+      'yc_marketing_release_lanes_v1',
+      JSON.stringify(
+        ['pims', 'desktop', 'mobile', 'backend'].map((key) => ({
+          key,
+          label: key,
+          tag: 'v0.0.1-stale',
+          date: null,
+          dateCompact: null,
+          url: 'https://x/old',
+        }))
+      )
+    );
+    globalThis.fetch = jest.fn(() => Promise.reject(new Error('network'))) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.map((lane) => lane.key)).toEqual([
+      'pims',
+      'desktop',
+      'mobile',
+      'backend',
+      'mcp',
+    ]);
+    expect(result.current.every((lane) => lane.tag === null)).toBe(true);
+  });
+
+  it('fetches the releases list once for all five lanes', async () => {
     const spy = lanesFetch(RELEASES);
     globalThis.fetch = spy as unknown as FetchLike;
 

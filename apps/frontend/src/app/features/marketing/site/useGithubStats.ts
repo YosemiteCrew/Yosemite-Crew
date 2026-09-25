@@ -239,6 +239,11 @@ const getReleaseSnapshot = (cacheKey: string): ReleaseInfo => {
 /** SSR (and the hydrating first client render) always shows the loading placeholder. */
 const getServerRelease = (): ReleaseInfo => EMPTY_RELEASE;
 
+/**
+ * Release dates are formatted in UTC, the zone GitHub records them in. In the visitor's zone a
+ * release tagged late in the evening UTC reads as the next day east of Greenwich, so the same
+ * release showed different dates to different visitors.
+ */
 const formatReleaseDate = (iso?: string): string | null => {
   if (!iso) return null;
   try {
@@ -246,13 +251,20 @@ const formatReleaseDate = (iso?: string): string | null => {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+      timeZone: 'UTC',
     });
   } catch {
     return null;
   }
 };
 
-type RawRelease = { tag_name?: string; published_at?: string; html_url?: string };
+type RawRelease = {
+  tag_name?: string;
+  /** When the tagged commit was created - the day the component actually shipped. */
+  created_at?: string;
+  published_at?: string;
+  html_url?: string;
+};
 
 /**
  * Shape a raw GitHub release into ReleaseInfo. The version comes from tag_name (the git tag),
@@ -271,12 +283,13 @@ const matchesMobileTag = (tag: string): boolean => /mobile|ios|android|app-v|exp
 const matchesPlatformTag = (tag: string): boolean => /^(pims|pms)[-_]/.test(tag);
 
 /**
- * The four shipped components, and the tag each one releases under. Both the shapes and the
+ * The five shipped components, and the tag each one releases under. Both the shapes and the
  * `desktop` exception are documented in RELEASING.md; this mirrors it rather than guessing:
  *
  *   pims-v* (older releases used pms-v*)  apps/frontend, tagged manually
  *   backend-v*                            apps/backend, tagged manually
  *   mobile-v*                             apps/mobileAppYC, tagged manually
+ *   mcp-v*                                packages/mcp-server, tagged manually (its README)
  *   v*  - NO prefix                       apps/desktop, tagged on main, built by desktop-release.yml
  *
  * Desktop is the odd one out on purpose: electron-updater ignores any release whose tag is not
@@ -288,8 +301,9 @@ const matchesPlatformTag = (tag: string): boolean => /^(pims|pms)[-_]/.test(tag)
 const matchesBackendTag = (tag: string): boolean => /^backend[-_]/.test(tag);
 const matchesLaneMobileTag = (tag: string): boolean => /^mobile[-_]/.test(tag);
 const matchesDesktopTag = (tag: string): boolean => /^desktop[-_]/.test(tag) || /^v\d/.test(tag);
+const matchesMcpTag = (tag: string): boolean => /^mcp[-_]/.test(tag);
 
-export type ReleaseLaneKey = 'pims' | 'desktop' | 'mobile' | 'backend';
+export type ReleaseLaneKey = 'pims' | 'desktop' | 'mobile' | 'backend' | 'mcp';
 
 export interface ReleaseLane {
   key: ReleaseLaneKey;
@@ -313,9 +327,14 @@ const LANE_DEFINITIONS: ReadonlyArray<{
   { key: 'desktop', label: 'Desktop', matches: matchesDesktopTag },
   { key: 'mobile', label: 'Mobile', matches: matchesLaneMobileTag },
   { key: 'backend', label: 'Backend', matches: matchesBackendTag },
+  { key: 'mcp', label: 'MCP', matches: matchesMcpTag },
 ];
 
-const LANES_CACHE_KEY = 'yc_marketing_release_lanes_v1';
+/**
+ * Exported so stories and tests seed and read the key this hook actually uses. Bumped whenever
+ * the lane set changes, so a lane array cached under the old shape is never painted.
+ */
+export const LANES_CACHE_KEY = 'yc_marketing_release_lanes_v2';
 
 const EMPTY_LANES: ReleaseLane[] = LANE_DEFINITIONS.map(({ key, label }) => ({
   key,
@@ -337,9 +356,12 @@ const formatCompactReleaseDate = (iso?: string): string | null => {
   try {
     const parsed = new Date(iso);
     if (Number.isNaN(parsed.getTime())) return null;
-    const day = parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    const year = parsed.getFullYear();
-    return year === new Date().getFullYear() ? day : `${day} ${String(year).slice(-2)}`;
+    // Day first, but the month from en-US: en-GB abbreviates September to 'Sept', the one
+    // four-letter month on an otherwise three-letter face.
+    const month = parsed.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+    const day = `${parsed.getUTCDate()} ${month}`;
+    const year = parsed.getUTCFullYear();
+    return year === new Date().getUTCFullYear() ? day : `${day} ${String(year).slice(-2)}`;
   } catch {
     return null;
   }
@@ -365,12 +387,15 @@ const toLanes = (list: RawRelease[]): ReleaseLane[] =>
     if (!match?.html_url)
       return { key, label, tag: null, date: null, dateCompact: null, url: null };
     const info = toReleaseInfo(match);
+    // A release can be published on GitHub days after its tag shipped; the lane shows the ship
+    // date. created_at is when the tagged commit was made, published_at the fallback.
+    const shippedAt = match.created_at ?? match.published_at;
     return {
       key,
       label,
       tag: info.tag,
-      date: info.date,
-      dateCompact: formatCompactReleaseDate(match.published_at),
+      date: formatReleaseDate(shippedAt),
+      dateCompact: formatCompactReleaseDate(shippedAt),
       url: info.url,
     };
   });
@@ -379,7 +404,7 @@ const toLanes = (list: RawRelease[]): ReleaseLane[] =>
  * Latest release per shipped component, from a SINGLE releases request.
  *
  * The per-variant pills each mount their own hook so a page only fetches what it shows; a row of
- * four lanes would turn that into four identical `?list=1` calls against the same unauthenticated
+ * five lanes would turn that into five identical `?list=1` calls against the same unauthenticated
  * quota, so this buckets one response instead.
  *
  * A lane with no match keeps its nulls - the row renders that lane in its loading/absent state and

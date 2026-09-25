@@ -59,14 +59,34 @@ const KEYWORD_RULES: readonly KeywordRule[] = [
     ],
   },
   {
+    // Asking for a new appointment without the word "book". Left to fall
+    // through, "add an appointment for Bruno" reached `nextAppointment` on the
+    // bare "appointment" and confidently answered with an existing booking.
+    // Kept below `addCareTask` so "add a reminder for the appointment" is
+    // still a reminder.
+    actionId: 'bookAppointment',
+    groups: [
+      ['add', 'appointment'],
+      ['create', 'appointment'],
+      ['new', 'appointment'],
+      ['need', 'appointment'],
+      ['set', 'appointment'],
+      ['necesito', 'cita'],
+      ['nueva', 'cita'],
+    ],
+  },
+  {
     actionId: 'expenseSummary',
     groups: [
       ['how', 'much', 'spent'],
+      ['how', 'much', 'spend'],
+      ['what', 'spend'],
       ['total', 'expenses'],
       ['expenses'],
       ['spending'],
       ['gastos'],
       ['cuanto', 'gastado'],
+      ['cuanto', 'gaste'],
     ],
   },
   {

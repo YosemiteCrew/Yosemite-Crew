@@ -227,6 +227,64 @@ describe('prevention cover after hydration from the API', () => {
     expect(cover).toMatchObject({status: 'covered'});
     expect(shouldWarnAboutCover(cover)).toBe(false);
   });
+
+  it('keeps a monthly series covered after a dose when the next one is not generated yet', async () => {
+    // Occurrences after the first arrive with isMaster false; the next one is
+    // only generated once it falls inside the 30 day horizon.
+    (apiClient.get as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          _id: 'master',
+          patientId: 'companion-1',
+          category: 'CUSTOM',
+          subcategory: 'parasite-prevention',
+          name: 'Flea and tick prevention',
+          status: 'COMPLETED',
+          dueAt: daysAgo(34),
+          completedAt: daysAgo(34),
+          recurrence: {type: 'MONTHLY', isMaster: true},
+        },
+        {
+          _id: 'occurrence-2',
+          patientId: 'companion-1',
+          category: 'CUSTOM',
+          subcategory: 'parasite-prevention',
+          name: 'Flea and tick prevention',
+          status: 'COMPLETED',
+          dueAt: daysAgo(3),
+          completedAt: daysAgo(3),
+          recurrence: {
+            type: 'MONTHLY',
+            isMaster: false,
+            masterTaskId: 'master',
+          },
+        },
+      ],
+    });
+
+    const fetched = await taskApi.list({companionId: 'companion-1'});
+    expect(fetched[1].frequency).toBe('once');
+    expect(fetched[1].seriesFrequency).toBe('monthly');
+
+    const cover = resolvePreventionCover(fetched, NOW);
+    expect(cover).toEqual({status: 'covered', lastCompletedAt: daysAgo(3)});
+    expect(shouldWarnAboutCover(cover)).toBe(false);
+  });
+
+  it('lapses a completed series occurrence after the series interval', () => {
+    const done = task({
+      dueAt: daysAgo(40),
+      status: 'completed',
+      completedAt: daysAgo(40),
+      frequency: 'once',
+      seriesFrequency: 'monthly',
+    });
+
+    expect(resolvePreventionCover([done], NOW)).toEqual({
+      status: 'lapsed',
+      daysOverdue: 9,
+    });
+  });
 });
 
 describe('shouldWarnAboutCover', () => {
