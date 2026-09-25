@@ -96,7 +96,7 @@ describe('github-releases route handler', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('/releases?per_page=100');
     expect(res.body).toHaveLength(2);
     expect((res.body as Release[])[0]).not.toHaveProperty('extra');
-    expect((res.body as Release[])[0].created_at).toBe('2026-07-30T22:14:37Z');
+    expect((res.body as Release[])[0]).not.toHaveProperty('created_at');
     expect(res.init?.headers?.['Cache-Control']).toContain('s-maxage=300');
   });
 

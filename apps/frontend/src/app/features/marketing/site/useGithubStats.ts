@@ -261,7 +261,6 @@ const formatReleaseDate = (iso?: string): string | null => {
 type RawRelease = {
   tag_name?: string;
   /** When the tagged commit was created - the day the component actually shipped. */
-  created_at?: string;
   published_at?: string;
   html_url?: string;
 };
@@ -387,9 +386,8 @@ const toLanes = (list: RawRelease[]): ReleaseLane[] =>
     if (!match?.html_url)
       return { key, label, tag: null, date: null, dateCompact: null, url: null };
     const info = toReleaseInfo(match);
-    // A release can be published on GitHub days after its tag shipped; the lane shows the ship
-    // date. created_at is when the tagged commit was made, published_at the fallback.
-    const shippedAt = match.created_at ?? match.published_at;
+    // Each lane shows the day its GitHub release was published, for every component alike.
+    const shippedAt = match.published_at;
     return {
       key,
       label,

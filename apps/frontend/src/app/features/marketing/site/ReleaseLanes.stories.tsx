@@ -12,7 +12,6 @@ const RELEASES_INDEX_URL = `${GITHUB_REPO_URL}/releases`;
 
 interface RawRelease {
   tag_name: string;
-  created_at?: string;
   published_at: string;
   html_url: string;
 }
@@ -41,13 +40,9 @@ const MOBILE_RELEASE = release('mobile-v1.4.2', THIS_YEAR, 7, 11);
 const BACKEND_RELEASE = release('backend-v3.1.0', THIS_YEAR, 7, 5);
 const DESKTOP_RELEASE = release('v0.9.4', THIS_YEAR - 2, 6, 28);
 /*
-  Tagged on 23 Sep, published to GitHub two days later. The lane shows the day it shipped,
-  so the face must read `23 Sep`, not the publish date.
+  Published to GitHub on 25 Sep. Every lane shows the day its GitHub release was published.
 */
-const MCP_RELEASE: RawRelease = {
-  ...release('mcp-v0.1.0', THIS_YEAR, 8, 25),
-  created_at: new Date(THIS_YEAR, 8, 23, 12, 0).toISOString(),
-};
+const MCP_RELEASE: RawRelease = release('mcp-v0.1.0', THIS_YEAR, 8, 25);
 
 /** Newest first, the order the API returns and the order `toLanes` relies on. */
 const FULL_LIST: RawRelease[] = [
@@ -190,8 +185,8 @@ export const AllLanes: Story = {
     await expect(segments[2]).toHaveAttribute('href', MOBILE_RELEASE.html_url);
     await expect(segments[3]).toHaveAttribute('href', BACKEND_RELEASE.html_url);
     await expect(segments[4]).toHaveAttribute('href', MCP_RELEASE.html_url);
-    // Dated by when the tag shipped (created_at), not when the release was published.
-    await expect(partsOf(segments[4]).date).toBe('23 Sep');
+    // Dated by the day its GitHub release was published.
+    await expect(partsOf(segments[4]).date).toBe('25 Sep');
 
     /* The compact date drops the year for anything shipped this year and keeps two digits
        of it for anything older. Both halves are asserted together: a formatter that always

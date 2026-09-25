@@ -537,22 +537,22 @@ describe('useReleaseLanes', () => {
     }
   });
 
-  it('dates a lane from created_at, not the later published_at', async () => {
+  it('dates a lane from the day its GitHub release was published, not an older tag date', async () => {
     globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
 
     const { result } = renderHook(() => useReleaseLanes());
     await waitFor(() => expect(byKey(result.current, 'mcp').tag).toBe('v0.1.0'));
 
-    // 22:14 UTC on the 23rd. Formatted in UTC, so it stays the 23rd east of Greenwich too.
-    expect(byKey(result.current, 'mcp').dateCompact).toBe('23 Sep');
-    expect(byKey(result.current, 'mcp').date).toBe(`Sep 23, ${THIS_YEAR}`);
+    // Published 09:22 UTC on the 25th; the tag's own date (the 23rd) is ignored.
+    expect(byKey(result.current, 'mcp').dateCompact).toBe('25 Sep');
+    expect(byKey(result.current, 'mcp').date).toBe(`Sep 25, ${THIS_YEAR}`);
   });
 
-  it('falls back to published_at when a release has no created_at', async () => {
+  it('formats the publish date in UTC so it does not shift a day east of Greenwich', async () => {
     globalThis.fetch = lanesFetch([
       {
         tag_name: 'mcp-v0.2.0',
-        published_at: `${THIS_YEAR}-10-02T09:00:00Z`,
+        published_at: `${THIS_YEAR}-10-02T23:30:00Z`,
         html_url: 'https://x/mcp2',
       },
     ]) as unknown as FetchLike;

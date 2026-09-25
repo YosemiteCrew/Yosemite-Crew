@@ -34,7 +34,6 @@ export interface GithubRelease {
   tag_name?: string;
   html_url?: string;
   name?: string;
-  created_at?: string;
   published_at?: string;
 }
 
@@ -51,7 +50,6 @@ const pickReleaseFields = (release: GithubRelease): GithubRelease => ({
   tag_name: release.tag_name,
   html_url: release.html_url,
   name: release.name,
-  created_at: release.created_at,
   published_at: release.published_at,
 });
 
