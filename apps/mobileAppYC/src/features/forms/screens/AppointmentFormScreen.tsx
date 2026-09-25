@@ -43,10 +43,31 @@ import {createScreenHeaderStyles} from '@/shared/styles/screenHeaderStyles';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import type {Appointment} from '@/features/appointments/types';
-import type {AppointmentFormStatus} from '@/features/forms/types';
+import type {
+  AppointmentFormEntry,
+  AppointmentFormStatus,
+} from '@/features/forms/types';
 
 import i18next from 'i18next';
 type Route = RouteProp<AppointmentStackParamList, 'AppointmentForm'>;
+
+/** The note a submitted form shows, or `null` while it is not submitted. */
+const describeSubmission = (
+  entry: AppointmentFormEntry | undefined,
+): string | null => {
+  if (
+    entry?.status !== 'submitted' &&
+    entry?.status !== 'signing' &&
+    entry?.status !== 'completed'
+  ) {
+    return null;
+  }
+  const submittedAt = entry.submission?.submittedAt;
+  const note = submittedAt
+    ? `Submitted on ${getDisplayDate(submittedAt)}`
+    : 'Submitted';
+  return entry.signingRequired ? `${note}. Waiting for your signature.` : note;
+};
 
 const SUBMITTED_FORM_STATUSES = new Set<AppointmentFormStatus>([
   'submitted',
@@ -256,10 +277,7 @@ export const AppointmentFormScreen: React.FC = () => {
   const isReadOnly = Boolean(
     entry?.submission || (entry && SUBMITTED_FORM_STATUSES.has(entry.status)),
   );
-  const showSubmittedBadge =
-    entry?.status === 'submitted' ||
-    entry?.status === 'signing' ||
-    entry?.status === 'completed';
+  const submittedNote = describeSubmission(entry);
   const canStartSigning =
     allowSign &&
     entry?.signingRequired &&
@@ -978,17 +996,12 @@ export const AppointmentFormScreen: React.FC = () => {
                     </View>
                   )}
 
-                  {showSubmittedBadge ? (
+                  {submittedNote ? (
                     <View
                       style={styles.signedBadge}
                       testID="form-submitted-badge">
                       <Text style={styles.signedBadgeText}>
-                        {entry.submission?.submittedAt
-                          ? `Submitted on ${getDisplayDate(entry.submission.submittedAt)}`
-                          : 'Submitted'}
-                        {entry.signingRequired
-                          ? '. Waiting for your signature.'
-                          : ''}
+                        {submittedNote}
                       </Text>
                     </View>
                   ) : null}
