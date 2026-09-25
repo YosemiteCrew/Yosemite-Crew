@@ -56,8 +56,11 @@ jest.mock("../../src/services/formPDF.service", () => ({
   renderPdf: jest.fn(),
 }));
 
-jest.mock("src/config/prisma", () => ({
-  prisma: {
+jest.mock("src/config/prisma", () => {
+  const prisma: Record<string, unknown> = {
+    // The advisory lock a template submission takes; the callback runs on the
+    // same mocks.
+    $executeRaw: jest.fn(),
     form: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -104,8 +107,10 @@ jest.mock("src/config/prisma", () => ({
     user: {
       findMany: jest.fn(),
     },
-  },
-}));
+  };
+  prisma.$transaction = jest.fn((fn: (tx: unknown) => unknown) => fn(prisma));
+  return { prisma };
+});
 
 jest.mock("@yosemite-crew/types", () => ({
   fromFormRequestDTO: jest.fn((x) => x),
@@ -1046,6 +1051,46 @@ describe("FormService", () => {
         },
       );
 
+      // A clinic pre-fill: the request was sent to the client, who still
+      // has to sign it.
+      it("leaves the client's request open on a staff save", async () => {
+        arrange([]);
+
+        await submitFromPms();
+
+        expect(TemplateService.submitInstance).toHaveBeenCalled();
+        expect(
+          FormAssignmentService.markSubmittedFromSubmission,
+        ).not.toHaveBeenCalled();
+      });
+
+      it("takes turns with a concurrent submit of the same form", async () => {
+        arrange([]);
+        // The turn lasts until the instance is submitted: a second submit let
+        // in before that would try to edit an instance being completed.
+        let submittedInTurn = false;
+        (prisma.$transaction as jest.Mock).mockImplementationOnce(
+          async (fn: (tx: unknown) => unknown) => {
+            const result = await fn(prisma);
+            submittedInTurn =
+              (TemplateService.submitInstance as jest.Mock).mock.calls.length >
+              0;
+            return result;
+          },
+        );
+
+        await submitFromPms();
+
+        expect(submittedInTurn).toBe(true);
+
+        expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+        const [sql, key] = (prisma.$executeRaw as jest.Mock).mock.calls[0];
+        expect(sql.join("?")).toBe("SELECT pg_advisory_xact_lock(hashtext(?))");
+        expect(key).toBe(
+          `template-instance-submission:org-1:${templateId}:appt-1:vet-1`,
+        );
+      });
+
       it("looks only at the parent's own instances", async () => {
         arrange([]);
 
@@ -1120,6 +1165,7 @@ describe("FormService", () => {
 
         const result = await submitFromPms(null);
 
+        expect(prisma.$executeRaw).not.toHaveBeenCalled();
         expect(prisma.templateInstance.findMany).not.toHaveBeenCalled();
         expect(TemplateService.updateInstance).not.toHaveBeenCalled();
         expect(TemplateService.createInstance).toHaveBeenCalledWith({
@@ -1219,15 +1265,10 @@ describe("FormService", () => {
         "parent-1",
       );
       expect(prisma.formSubmission.create).not.toHaveBeenCalled();
+      // Not a parent's submission, so the client's request stays open.
       expect(
         FormAssignmentService.markSubmittedFromSubmission,
-      ).toHaveBeenCalledWith(
-        expect.objectContaining({
-          organisationId: "org-template",
-          templateId,
-          parentId: "parent-1",
-        }),
-      );
+      ).not.toHaveBeenCalled();
       expect(result._id).toBe("instance-1");
     });
   });
@@ -1829,8 +1870,10 @@ describe("FormService", () => {
           organisationId: "org-template",
           appointmentId: validId,
           templateId: { in: ["template-1"] },
-          authorId: "parent-a",
-          status: { not: "VOID" },
+          OR: [
+            { authorId: "parent-a", status: { not: "VOID" } },
+            { status: { in: ["COMPLETED", "SIGNED"] } },
+          ],
         },
         orderBy: { createdAt: "asc" },
       });
@@ -1841,6 +1884,80 @@ describe("FormService", () => {
         status: "completed",
         assignmentStatus: "submitted",
         questionnaireResponse: { id: "instance-parent" },
+      });
+    });
+
+    describe("a parent's view of a form the practice filled in", () => {
+      const listWith = async (instances: Array<Record<string, unknown>>) => {
+        (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+          organisationId: "org-template",
+          patient: { id: "companion-a", parent: { id: "parent-a" } },
+        });
+        (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+          role: "PRIMARY",
+          permissions: {},
+        });
+        (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+          type: "HOSPITAL",
+        });
+        (
+          FormAssignmentService.listForAppointment as jest.Mock
+        ).mockResolvedValue([
+          {
+            id: "assignment-1",
+            templateId: "template-1",
+            templateVersion: 1,
+            status: "sent",
+          },
+        ] as any);
+        (TemplateService.getById as jest.Mock).mockResolvedValue({
+          id: "template-1",
+          organisationId: "org-template",
+          kind: "CONSENT",
+          name: "Consent",
+          status: "PUBLISHED",
+          versions: [],
+        } as any);
+        (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue(
+          instances,
+        );
+        (
+          templateMapper.templateInstanceToQuestionnaireResponse as jest.Mock
+        ).mockImplementation((instance: { id: string }) => ({
+          id: instance.id,
+        }));
+        const res = await FormService.getFormsForAppointment({
+          appointmentId: validId,
+          viewerParentId: "parent-a",
+        });
+        return res.items[0]?.questionnaireResponse;
+      };
+
+      it("shows it to the parent to sign", async () => {
+        await expect(
+          listWith([
+            { id: "staff-1", templateId: "template-1", authorId: "vet-1" },
+          ]),
+        ).resolves.toEqual({ id: "staff-1" });
+      });
+
+      it("prefers the parent's own submission", async () => {
+        await expect(
+          listWith([
+            { id: "staff-1", templateId: "template-1", authorId: "vet-1" },
+            { id: "own-1", templateId: "template-1", authorId: "parent-a" },
+            { id: "own-2", templateId: "template-1", authorId: "parent-a" },
+          ]),
+        ).resolves.toEqual({ id: "own-1" });
+      });
+
+      it("shows the oldest when the practice submitted twice", async () => {
+        await expect(
+          listWith([
+            { id: "staff-1", templateId: "template-1", authorId: "vet-1" },
+            { id: "staff-2", templateId: "template-1", authorId: "vet-2" },
+          ]),
+        ).resolves.toEqual({ id: "staff-1" });
       });
     });
 

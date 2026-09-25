@@ -1122,19 +1122,31 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
     });
   });
 
-  it.each([
-    ["another parent's submission", { authorId: "parent-2" }],
-    ["a practice draft", { authorId: "vet-1" }],
-    ["a submission with no appointment", { appointmentId: null }],
-  ])("refuses %s", async (_label, change) => {
+  // A clinic pre-fill: the practice filled it in, the client signs it.
+  it("sends a consent the practice filled in to the parent", async () => {
     arrange({
       instance: {
         id: "instance-1",
         organisationId: "org-1",
         templateId: "tpl-consent",
         appointmentId: "appt-1",
-        authorId: "parent-1",
-        ...change,
+        authorId: "vet-1",
+      },
+    });
+
+    await expect(startAsParent()).resolves.toMatchObject({ documentId: "77" });
+    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ signerId: "parent-1", signerType: "PARENT" }),
+    );
+  });
+
+  it("refuses a submission with no appointment", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: null,
       },
     });
 
@@ -1211,7 +1223,9 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
     expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
   });
 
-  it("falls back when the open signing records no document or link", async () => {
+  // Still being sent, so there is no link to hand back: signing itself
+  // decides (it refuses while the first request is sending).
+  it("does not hand back a signing that has not been sent yet", async () => {
     arrange({
       document: {
         id: "doc-1",
@@ -1219,10 +1233,28 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
       },
     });
 
+    await startAsParent();
+
+    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands back a sent signing that records no link", async () => {
+    arrange({
+      document: {
+        id: "doc-1",
+        signing: {
+          status: "IN_PROGRESS",
+          signerId: "parent-1",
+          documentId: "76",
+        },
+      },
+    });
+
     await expect(startAsParent()).resolves.toEqual({
-      documentId: "doc-1",
+      documentId: "76",
       signingUrl: null,
     });
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
   });
 
   it("does not hand another signer's open signing to the parent", async () => {

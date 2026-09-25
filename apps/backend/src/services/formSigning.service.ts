@@ -245,10 +245,11 @@ export class FormSigningService {
   }
 
   /**
-   * A template-backed form or consent submitted from the app is a template
-   * instance with a rendered document, not a form submission, so the parent
-   * signs that document. Only their own submission, on an appointment of a
-   * companion they may act for, that the practice sent them to sign. A
+   * A template-backed form or consent is a template instance with a rendered
+   * document, not a form submission, so the parent signs that document:
+   * whether they submitted it from the app or the practice filled it in for
+   * them. Only on an appointment of a companion they may act for (the same
+   * rule as submitting it), for a template the practice asked them to sign. A
    * signing already started for them is handed back, so it can be reopened.
    */
   private static async startTemplateInstanceSigning(
@@ -262,10 +263,9 @@ export class FormSigningService {
         organisationId: true,
         templateId: true,
         appointmentId: true,
-        authorId: true,
       },
     });
-    if (!instance?.appointmentId || instance.authorId !== parentId) {
+    if (!instance?.appointmentId) {
       throw new Error("Form submission not found");
     }
 
@@ -309,9 +309,13 @@ export class FormSigningService {
       documentId?: string;
       signingUrl?: string | null;
     } | null;
-    if (open?.status === "IN_PROGRESS" && open.signerId === parentId) {
+    if (
+      open?.status === "IN_PROGRESS" &&
+      open.documentId &&
+      open.signerId === parentId
+    ) {
       return {
-        documentId: open.documentId ?? document.id,
+        documentId: open.documentId,
         signingUrl: open.signingUrl ?? null,
       };
     }

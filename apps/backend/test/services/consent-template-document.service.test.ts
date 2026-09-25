@@ -320,6 +320,22 @@ jest.mock("src/config/prisma", () => {
         if (!doc) return null;
         return select ? pick(doc, select) : withSignature(doc);
       },
+      // The signing claim and its release.
+      updateMany: async ({ where, data }: { where: Row; data: Row }) => {
+        const { Prisma } = jest.requireActual("@prisma/client");
+        let count = 0;
+        for (const [id, doc] of store.renderedDocuments) {
+          if (!matches(doc, where)) continue;
+          store.renderedDocuments.set(id, {
+            ...doc,
+            ...defined(data),
+            ...(data.signing === Prisma.DbNull ? { signing: null } : {}),
+            updatedAt: tick(),
+          });
+          count += 1;
+        }
+        return { count };
+      },
       update: async ({
         where,
         data,
@@ -449,11 +465,39 @@ jest.mock("src/config/prisma", () => {
     encounter: { findMany: async () => [], findUnique: async () => null },
   };
 
+  // pg_advisory_xact_lock: a second holder of the same key waits until the
+  // first transaction ends.
+  const locks = new Map<string, Promise<void>>();
+  const $transaction = async (callback: (tx: unknown) => unknown) => {
+    const releases: Array<() => void> = [];
+    const tx = {
+      ...client,
+      $executeRaw: async (_sql: TemplateStringsArray, key: string) => {
+        const previous = locks.get(key) ?? Promise.resolve();
+        let release: () => void = () => undefined;
+        const held = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        locks.set(
+          key,
+          previous.then(() => held),
+        );
+        await previous;
+        releases.push(release);
+        return 1;
+      },
+    };
+    try {
+      return await callback(tx);
+    } finally {
+      releases.forEach((release) => release());
+    }
+  };
+
   return {
     prisma: {
       ...client,
-      $transaction: async (callback: (tx: typeof client) => unknown) =>
-        callback(client),
+      $transaction,
       __store: store,
     },
   };
@@ -978,6 +1022,39 @@ describe("consent template documents (#3600)", () => {
     });
   });
 
+  // A double tap on Submit: the second waits for the first and goes on with
+  // its submission, so one instance and one document exist.
+  it("records one submission when a parent submits twice at once", async () => {
+    seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+
+    const [first, second] = await Promise.all([
+      submitFromMobile("tpl-consent"),
+      submitFromMobile("tpl-consent"),
+    ]);
+
+    expect(second._id).toBe(first._id);
+    expect(store.templateInstances.size).toBe(1);
+    expect(store.renderedDocuments.size).toBe(1);
+  });
+
+  // Staff may save a template again, so the second of two saves at once is a
+  // second save: it waits its turn and records its own instance, never a
+  // failure part-way.
+  it("records each of two staff saves made at once in full", async () => {
+    seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+
+    const [first, second] = await Promise.all([
+      submitFromPms("tpl-consent"),
+      submitFromPms("tpl-consent"),
+    ]);
+
+    expect(second._id).not.toBe(first._id);
+    expect(
+      [...store.templateInstances.values()].map(({ status }) => status),
+    ).toEqual(["COMPLETED", "COMPLETED"]);
+    expect(store.renderedDocuments.size).toBe(2);
+  });
+
   describe("saving again on the PMS form submit route", () => {
     // A practice may fill the same template twice on one visit.
     it.each(["COMPLETED", "SIGNED"])(
@@ -1105,6 +1182,95 @@ describe("consent template documents (#3600)", () => {
       await expect(listConsentDocuments()).resolves.toEqual([
         expect.objectContaining({ signingStatus: "SIGNED" }),
       ]);
+    });
+
+    const startClientSigning = (instanceId: string) =>
+      FormSigningService.startSigning({
+        isParent: true,
+        submissionId: instanceId,
+        initiatedBy: PARENT,
+      });
+
+    // Clinic pre-fill: the practice fills the consent in, the client signs it.
+    it("is given on a consent the practice filled in first", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const staffSave = await submitFromPms("tpl-consent");
+      // The practice's save does not answer the request sent to the client.
+      expect(store.formAssignments[0].status).toBe("SENT");
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({ status: "pending" }),
+      ]);
+
+      armDocumenso();
+      await expect(startClientSigning(staffSave._id)).resolves.toMatchObject({
+        signingUrl: "https://sign.example/sign/recipient-token",
+      });
+      const [document] = [...store.renderedDocuments.values()];
+      await completePersistedRenderedDocumentSigning(document.id as string);
+
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({
+          status: "completed",
+          assignmentStatus: "signed",
+        }),
+      ]);
+      expect(store.templateInstances.get(staffSave._id)?.status).toBe("SIGNED");
+    });
+
+    it("stays the client's after a staff save that follows it", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const parentSubmit = await submitFromMobile("tpl-consent");
+      const staffSave = await submitFromPms("tpl-consent");
+
+      expect(staffSave._id).not.toBe(parentSubmit._id);
+      expect(store.templateInstances.get(parentSubmit._id)).toMatchObject({
+        status: "COMPLETED",
+        authorId: PARENT,
+      });
+      expect(store.formAssignments[0].status).toBe("SUBMITTED");
+
+      armDocumenso();
+      await startClientSigning(parentSubmit._id);
+      const parentDocument = [...store.renderedDocuments.values()].find(
+        (doc) => doc.templateInstanceId === parentSubmit._id,
+      );
+      await completePersistedRenderedDocumentSigning(
+        parentDocument?.id as string,
+      );
+
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({ status: "completed" }),
+      ]);
+    });
+
+    // A double tap on View & Sign: one Documenso document, one link.
+    it("sends one document when it is started twice at once", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const submission = await submitFromMobile("tpl-consent");
+      armDocumenso();
+
+      const results = await Promise.allSettled([
+        startClientSigning(submission._id),
+        startClientSigning(submission._id),
+      ]);
+
+      expect(documenso.createDocument).toHaveBeenCalledTimes(1);
+      expect(results.map(({ status }) => status).sort()).toEqual([
+        "fulfilled",
+        "rejected",
+      ]);
+      expect(
+        results.find(
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected",
+        )?.reason,
+      ).toMatchObject({ statusCode: 409 });
+      // Tapping again once it is sent reopens the same signing.
+      await expect(startClientSigning(submission._id)).resolves.toEqual({
+        documentId: "4242",
+        signingUrl: "https://sign.example/sign/recipient-token",
+      });
+      expect(documenso.createDocument).toHaveBeenCalledTimes(1);
     });
 
     it("cannot be given by practice staff, so the visit stays blocked", async () => {

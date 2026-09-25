@@ -1014,7 +1014,10 @@ describe("rendered-document service", () => {
     );
     expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "doc-1" },
+        where: {
+          id: "doc-1",
+          signing: { path: ["claimId"], equals: expect.any(String) },
+        },
         data: expect.objectContaining({
           pdf: expect.objectContaining({
             renderer: "rendered-document-renderer.service",
@@ -1620,6 +1623,194 @@ describe("rendered-document service", () => {
         expect(mockedDocumensoService.createDocument).toHaveBeenCalledWith(
           expect.objectContaining({ signerEmail: "owner@example.com" }),
         );
+      });
+    });
+
+    // Two requests that both read the document unsigned: one claims it before
+    // Documenso is called, the other sends nothing.
+    describe("claiming the document before it is sent", () => {
+      const finalisedTemplateRow = (overrides: Record<string, unknown> = {}) =>
+        documentRow({
+          sourceKind: "TEMPLATE_INSTANCE",
+          sourceId: "instance-9",
+          templateInstanceId: "instance-9",
+          clinicalArtifactId: null,
+          kind: "FORM",
+          ...overrides,
+        });
+      // `sends` is false for a request that loses the claim and so never
+      // renders, which must leave no queued render for the next case.
+      const readyToSend = (row = finalisedTemplateRow(), sends = true) => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(row);
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          linkedRecord("COMPLETED"),
+        );
+        mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
+          "api-key-1",
+        );
+        if (sends) {
+          mockedRenderedDocumentRenderer.mockResolvedValueOnce({
+            pdf: pdfBytes("form"),
+            pageCount: 1,
+          });
+        }
+        return row;
+      };
+      const sentBy = (signerId: string, documentId?: string) =>
+        finalisedTemplateRow({
+          signing: {
+            status: "IN_PROGRESS",
+            signerId,
+            ...(documentId
+              ? { documentId, signingUrl: "https://x/sign/t" }
+              : {}),
+          },
+        });
+
+      it("claims the document at the revision it read, before calling Documenso", async () => {
+        const row = readyToSend();
+        mockedDocumensoService.createDocument.mockImplementationOnce(
+          async () => {
+            expect(
+              mockedPrisma.renderedDocument.updateMany,
+            ).toHaveBeenCalledTimes(1);
+            return { id: 99, recipients: [] };
+          },
+        );
+        mockedPrisma.renderedDocument.update.mockResolvedValueOnce(
+          documentRow({ signing: inProgressSigning }),
+        );
+
+        await signPersistedRenderedDocument(signInput);
+
+        const claim = mockedPrisma.renderedDocument.updateMany.mock.calls[0][0];
+        expect(claim.where).toEqual({ id: "doc-9", updatedAt: row.updatedAt });
+        expect(claim.data.signing).toMatchObject({
+          status: "IN_PROGRESS",
+          signerId: "vet-1",
+          claimId: expect.any(String),
+          claimedAt: expect.any(String),
+        });
+        expect(
+          mockedPrisma.renderedDocument.update.mock.calls[0][0].where,
+        ).toEqual({
+          id: "doc-9",
+          signing: { path: ["claimId"], equals: claim.data.signing.claimId },
+        });
+      });
+
+      it("hands the same signer the signing the other request sent", async () => {
+        readyToSend(finalisedTemplateRow(), false);
+        mockedPrisma.renderedDocument.updateMany.mockResolvedValueOnce({
+          count: 0,
+        });
+        const sent = sentBy("vet-1", "98");
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(sent);
+
+        const result = await signPersistedRenderedDocument(signInput);
+
+        expect(result.signing).toMatchObject({ documentId: "98" });
+        expect(mockedDocumensoService.createDocument).not.toHaveBeenCalled();
+        expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ["still being sent", sentBy("vet-1")],
+        ["sent to someone else", sentBy("vet-2", "98")],
+        ["gone", null],
+      ])("refuses when the other request's signing is %s", async (_l, row) => {
+        readyToSend(finalisedTemplateRow(), false);
+        mockedPrisma.renderedDocument.updateMany.mockResolvedValueOnce({
+          count: 0,
+        });
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(row);
+
+        await expect(
+          signPersistedRenderedDocument(signInput),
+        ).rejects.toMatchObject({
+          statusCode: 409,
+          message: "Document signing is already in progress",
+        });
+        expect(mockedDocumensoService.createDocument).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ["no signing", null, Prisma.DbNull],
+        [
+          "a withdrawn signing",
+          { status: "NOT_STARTED", documentId: "97" },
+          { status: "NOT_STARTED", documentId: "97" },
+        ],
+      ])(
+        "releases the claim when Documenso fails, restoring %s",
+        async (_label, previous, restored) => {
+          readyToSend(finalisedTemplateRow({ signing: previous }));
+          mockedDocumensoService.createDocument.mockRejectedValueOnce(
+            new Error("Documenso down"),
+          );
+
+          await expect(
+            signPersistedRenderedDocument(signInput),
+          ).rejects.toThrow("Documenso down");
+
+          const [claim, release] =
+            mockedPrisma.renderedDocument.updateMany.mock.calls.map(
+              ([arg]) => arg,
+            );
+          expect(release).toEqual({
+            where: {
+              id: "doc-9",
+              signing: {
+                path: ["claimId"],
+                equals: claim.data.signing.claimId,
+              },
+            },
+            data: { signing: restored },
+          });
+        },
+      );
+
+      it("refuses while another request has just claimed it", async () => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          finalisedTemplateRow({
+            signing: {
+              status: "IN_PROGRESS",
+              claimedAt: new Date().toISOString(),
+            },
+          }),
+        );
+
+        await expect(
+          signPersistedRenderedDocument(signInput),
+        ).rejects.toMatchObject({ statusCode: 409 });
+        expect(mockedPrisma.renderedDocument.updateMany).not.toHaveBeenCalled();
+      });
+
+      // The request that claimed it stopped before sending anything.
+      it.each([
+        [
+          "an abandoned claim",
+          new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        ],
+        ["a claim with an unreadable time", "not a date"],
+        ["a claim with no time", undefined],
+      ])("sends a document held by %s", async (_label, claimedAt) => {
+        readyToSend(
+          finalisedTemplateRow({
+            signing: { status: "IN_PROGRESS", claimedAt },
+          }),
+        );
+        mockedDocumensoService.createDocument.mockResolvedValueOnce({
+          id: 99,
+          recipients: [],
+        });
+        mockedPrisma.renderedDocument.update.mockResolvedValueOnce(
+          documentRow({ signing: inProgressSigning }),
+        );
+
+        await signPersistedRenderedDocument(signInput);
+
+        expect(mockedDocumensoService.createDocument).toHaveBeenCalledTimes(1);
       });
     });
 

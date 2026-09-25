@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import AWS from "aws-sdk";
+import { randomUUID } from "node:crypto";
 import axios from "axios";
 import {
   buildDocumentSignature as buildDocumentSignatureContract,
@@ -734,13 +735,8 @@ export const signPersistedRenderedDocument = async (
     );
   }
 
-  if (
-    parseRenderedDocumentSigning(existing.signing)?.status === "IN_PROGRESS"
-  ) {
-    throw new RenderedDocumentServiceError(
-      "Document signing is already in progress",
-      409,
-    );
+  if (isOpenSigning(existing.signing)) {
+    throw signingInProgress();
   }
 
   // Signing attests the record, so it starts from a finalised one: never a
@@ -765,6 +761,115 @@ export const signPersistedRenderedDocument = async (
     );
   }
 
+  // Claimed before Documenso is called: of two requests that both read the
+  // document unsigned, the second matches nothing once the first has claimed
+  // it, so one document is sent and one signing link exists.
+  const claimId = randomUUID();
+  const claimed = await client.renderedDocument.updateMany({
+    where: { id: existing.id, updatedAt: existing.updatedAt },
+    data: {
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "IN_PROGRESS",
+        signerId: input.signerId,
+        signerType: input.signerType,
+        claimId,
+        claimedAt: new Date().toISOString(),
+      },
+    },
+  });
+  if (claimed.count === 0) {
+    return openSigningFor(existing.id, input.signerId, client);
+  }
+
+  try {
+    return await sendClaimedDocumentForSigning(
+      existing,
+      input,
+      linked,
+      apiKey,
+      claimId,
+      client,
+    );
+  } catch (error) {
+    // Nothing was sent, or the send did not complete: let it be tried again.
+    await client.renderedDocument.updateMany({
+      where: {
+        id: existing.id,
+        signing: { path: ["claimId"], equals: claimId },
+      },
+      data: {
+        signing:
+          existing.signing === null
+            ? Prisma.DbNull
+            : (existing.signing as Prisma.InputJsonValue),
+      },
+    });
+    throw error;
+  }
+};
+
+const signingInProgress = () =>
+  new RenderedDocumentServiceError(
+    "Document signing is already in progress",
+    409,
+  );
+
+// A claim whose request never finished (the process stopped between claiming
+// and sending) stops blocking the document after this long.
+const SIGNING_CLAIM_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Whether a signing is under way: one sent to Documenso, or claimed moments
+ * ago by a request that is sending it now.
+ */
+const isOpenSigning = (value: unknown): boolean => {
+  const signing = parseRenderedDocumentSigning(value);
+  if (signing?.status !== "IN_PROGRESS") return false;
+  if (signing.documentId) return true;
+  const { claimedAt: claimedAtValue } = value as { claimedAt?: unknown };
+  const claimedAt =
+    typeof claimedAtValue === "string" ? Date.parse(claimedAtValue) : NaN;
+  return (
+    Number.isFinite(claimedAt) && Date.now() - claimedAt < SIGNING_CLAIM_TTL_MS
+  );
+};
+
+/**
+ * The request that lost the claim. The signing the winner sent is handed to
+ * the same signer; anyone else, or a signing still being sent, is refused.
+ */
+const openSigningFor = async (
+  renderedDocumentId: string,
+  signerId: string,
+  client: RenderedDocumentWriteClient,
+): Promise<PersistedRenderedDocument> => {
+  const current = await client.renderedDocument.findUnique({
+    where: { id: renderedDocumentId },
+    include: { signature: true },
+  });
+  const signing = parseRenderedDocumentSigning(current?.signing);
+  if (
+    current &&
+    signing?.status === "IN_PROGRESS" &&
+    signing.documentId &&
+    signing.signerId === signerId
+  ) {
+    return normalizePersistedRenderedDocument(current);
+  }
+  throw signingInProgress();
+};
+
+const sendClaimedDocumentForSigning = async (
+  existing: PersistedRenderedDocument,
+  input: PersistRenderedDocumentSignatureInput,
+  linked: LinkedRecord | null,
+  apiKey: string,
+  claimId: string,
+  client: RenderedDocumentWriteClient,
+): Promise<PersistedRenderedDocument> => {
+  const kind = existing.kind as RenderedDocumentKind;
   const renderedPdf = await resolvePersistedRenderedDocumentPdf(existing);
   const renderedPdfSnapshot = {
     ...buildRenderedDocumentPdfSnapshot({
@@ -816,7 +921,11 @@ export const signPersistedRenderedDocument = async (
 
   return normalizePersistedRenderedDocument(
     await client.renderedDocument.update({
-      where: { id: existing.id },
+      // Still this request's claim, so nothing else started meanwhile.
+      where: {
+        id: existing.id,
+        signing: { path: ["claimId"], equals: claimId },
+      },
       data: {
         pdf: renderedPdfSnapshot,
         signing: {
