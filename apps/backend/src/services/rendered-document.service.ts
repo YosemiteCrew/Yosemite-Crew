@@ -830,7 +830,9 @@ const isOpenSigning = (value: unknown): boolean => {
   if (signing.documentId) return true;
   const { claimedAt: claimedAtValue } = value as { claimedAt?: unknown };
   const claimedAt =
-    typeof claimedAtValue === "string" ? Date.parse(claimedAtValue) : NaN;
+    typeof claimedAtValue === "string"
+      ? Date.parse(claimedAtValue)
+      : Number.NaN;
   return (
     Number.isFinite(claimedAt) && Date.now() - claimedAt < SIGNING_CLAIM_TTL_MS
   );
