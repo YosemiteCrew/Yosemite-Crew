@@ -28,8 +28,7 @@ src/
 ```
 
 Deeper context lives in the app's own docs - read these instead of duplicating them here:
-`docs/desktop-architecture.md`, `docs/desktop-perf.md`, `docs/update-feed-threat-model.md`,
-and `docs/RELEASE-TESTING.md`.
+`docs/desktop-architecture.md`, `docs/desktop-perf.md`, and `docs/RELEASE-TESTING.md`.
 
 ---
 
