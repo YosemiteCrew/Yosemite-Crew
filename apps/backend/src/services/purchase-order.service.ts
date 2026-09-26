@@ -293,19 +293,11 @@ const applyReceiptLine = async (
   );
 };
 
-const receiveDeliveryInTransaction = async (
-  input: ReceiveDeliveryInput,
+const validatePurchaseOrderForReceipt = async (
+  purchaseOrderId: string,
+  organisationId: string,
   client: PrismaClientOrTx,
 ) => {
-  const {
-    organisationId,
-    purchaseOrderId,
-    deliveryDate,
-    receivedBy,
-    notes,
-    lines,
-  } = input;
-
   const purchaseOrder = await client.purchaseOrder.findFirst({
     where: { id: purchaseOrderId, organisationId },
   });
@@ -325,27 +317,40 @@ const receiveDeliveryInTransaction = async (
     throw new PurchaseOrderServiceError("Order already fully received", 400);
   }
 
-  const orderLineById = await validateReceiptLines(
-    purchaseOrderId,
-    organisationId,
-    lines,
-    client,
-  );
+  return purchaseOrder;
+};
 
-  const delivery = await client.purchaseOrderDelivery.create({
+const createDeliveryRecord = async (
+  purchaseOrderId: string,
+  vendorId: string,
+  deliveryDate: Date | undefined,
+  receivedBy: string | undefined,
+  notes: string | undefined,
+  client: PrismaClientOrTx,
+) => {
+  return client.purchaseOrderDelivery.create({
     data: {
       purchaseOrderId,
-      vendorId: purchaseOrder.vendorId,
+      vendorId,
       deliveryDate: deliveryDate ?? new Date(),
       receivedBy,
       notes,
       status: "RECEIVED",
     },
   });
+};
 
+const processReceiptLines = async (
+  deliveryId: string,
+  organisationId: string,
+  receivedBy: string | undefined,
+  lines: ReceiveDeliveryLineInput[],
+  orderLineById: Map<string, Prisma.PurchaseOrderLineGetPayload<object>>,
+  client: PrismaClientOrTx,
+) => {
   for (const line of lines) {
     await applyReceiptLine(
-      delivery.id,
+      deliveryId,
       organisationId,
       receivedBy,
       line,
@@ -353,6 +358,51 @@ const receiveDeliveryInTransaction = async (
       client,
     );
   }
+};
+
+const receiveDeliveryInTransaction = async (
+  input: ReceiveDeliveryInput,
+  client: PrismaClientOrTx,
+) => {
+  const {
+    organisationId,
+    purchaseOrderId,
+    deliveryDate,
+    receivedBy,
+    notes,
+    lines,
+  } = input;
+
+  const purchaseOrder = await validatePurchaseOrderForReceipt(
+    purchaseOrderId,
+    organisationId,
+    client,
+  );
+
+  const orderLineById = await validateReceiptLines(
+    purchaseOrderId,
+    organisationId,
+    lines,
+    client,
+  );
+
+  const delivery = await createDeliveryRecord(
+    purchaseOrderId,
+    purchaseOrder.vendorId,
+    deliveryDate,
+    receivedBy,
+    notes,
+    client,
+  );
+
+  await processReceiptLines(
+    delivery.id,
+    organisationId,
+    receivedBy,
+    lines,
+    orderLineById,
+    client,
+  );
 
   await updatePurchaseOrderStatusFromLines(purchaseOrderId, client);
   await recalculatePurchaseOrderTotals(purchaseOrderId, client);
@@ -364,19 +414,10 @@ type DeliveryLineWithOrderLine = Prisma.PurchaseOrderDeliveryLineGetPayload<{
   include: { purchaseOrderLine: true };
 }>;
 
-const applyDeliveryReturnLine = async (
-  deliveryId: string,
-  organisationId: string,
+const validateReturnQuantity = (
   deliveryLine: DeliveryLineWithOrderLine,
   quantityReturned: number,
-  client: PrismaClientOrTx,
 ) => {
-  const {
-    id: deliveryLineId,
-    itemId,
-    batchId,
-    purchaseOrderLineId,
-  } = deliveryLine;
   if (
     quantityReturned >
     deliveryLine.quantityReceived - deliveryLine.quantityReturned
@@ -394,6 +435,14 @@ const applyDeliveryReturnLine = async (
       400,
     );
   }
+};
+
+const updateDeliveryLineForReturn = async (
+  deliveryLineId: string,
+  deliveryLine: DeliveryLineWithOrderLine,
+  quantityReturned: number,
+  client: PrismaClientOrTx,
+) => {
   await updateOrThrow(
     () =>
       client.purchaseOrderDeliveryLine.update({
@@ -408,6 +457,13 @@ const applyDeliveryReturnLine = async (
     "Return exceeds the remaining delivered quantity",
     400,
   );
+};
+
+const updatePurchaseOrderLineForReturn = async (
+  purchaseOrderLineId: string,
+  quantityReturned: number,
+  client: PrismaClientOrTx,
+) => {
   await updateOrThrow(
     () =>
       client.purchaseOrderLine.update({
@@ -423,7 +479,15 @@ const applyDeliveryReturnLine = async (
     "Return exceeds received quantity",
     400,
   );
+};
 
+const selectBatchForReturn = async (
+  itemId: string,
+  organisationId: string,
+  batchId: string | undefined,
+  quantityReturned: number,
+  client: PrismaClientOrTx,
+) => {
   const batches = batchId
     ? []
     : await client.inventoryBatch.findMany({
@@ -450,7 +514,18 @@ const applyDeliveryReturnLine = async (
       400,
     );
   }
+  return batch;
+};
 
+const updateBatchForReturn = async (
+  batchId: string,
+  itemId: string,
+  organisationId: string,
+  quantityReturned: number,
+  batch: { id: string; quantity: number; allocated: number },
+  deliveryId: string,
+  client: PrismaClientOrTx,
+) => {
   await updateOrThrow(
     () =>
       client.inventoryBatch.update({
@@ -475,7 +550,14 @@ const applyDeliveryReturnLine = async (
       referenceId: deliveryId,
     },
   });
+};
 
+const updateInventoryItemForReturn = async (
+  itemId: string,
+  organisationId: string,
+  quantityReturned: number,
+  client: PrismaClientOrTx,
+) => {
   const inventoryItem = await client.inventoryItem.findFirst({
     where: { id: itemId, organisationId },
     select: { onHand: true, allocated: true },
@@ -499,6 +581,60 @@ const applyDeliveryReturnLine = async (
       }),
     "Insufficient inventory stock",
     400,
+  );
+};
+
+const applyDeliveryReturnLine = async (
+  deliveryId: string,
+  organisationId: string,
+  deliveryLine: DeliveryLineWithOrderLine,
+  quantityReturned: number,
+  client: PrismaClientOrTx,
+) => {
+  validateReturnQuantity(deliveryLine, quantityReturned);
+
+  const {
+    id: deliveryLineId,
+    itemId,
+    batchId,
+    purchaseOrderLineId,
+  } = deliveryLine;
+
+  await updateDeliveryLineForReturn(
+    deliveryLineId,
+    deliveryLine,
+    quantityReturned,
+    client,
+  );
+  await updatePurchaseOrderLineForReturn(
+    purchaseOrderLineId,
+    quantityReturned,
+    client,
+  );
+
+  const batch = await selectBatchForReturn(
+    itemId,
+    organisationId,
+    batchId,
+    quantityReturned,
+    client,
+  );
+
+  await updateBatchForReturn(
+    batchId,
+    itemId,
+    organisationId,
+    quantityReturned,
+    batch,
+    deliveryId,
+    client,
+  );
+
+  await updateInventoryItemForReturn(
+    itemId,
+    organisationId,
+    quantityReturned,
+    client,
   );
 };
 
@@ -733,6 +869,15 @@ export const PurchaseOrderService = {
     const where: Prisma.PurchaseOrderWhereInput = { organisationId };
     if (vendorId) where.vendorId = vendorId;
     if (status) where.status = status;
+
+    // Defense in depth: ensure pageSize is valid to prevent division by zero
+    // (schema validation should already catch this, but guard here as well)
+    if (!Number.isInteger(pageSize) || pageSize < 1) {
+      throw new PurchaseOrderServiceError(
+        "Page size must be a positive integer",
+        400,
+      );
+    }
 
     const [items, total] = await Promise.all([
       prisma.purchaseOrder.findMany({
