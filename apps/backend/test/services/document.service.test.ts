@@ -45,7 +45,14 @@ jest.mock("src/config/prisma", () => ({
     documentAttachment: {
       createMany: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       deleteMany: jest.fn(),
+    },
+    patient: {
+      findUnique: jest.fn(),
+    },
+    userOrganization: {
+      findMany: jest.fn(),
     },
     renderedDocument: {
       findMany: jest.fn(),
@@ -110,7 +117,10 @@ const resetPrisma = () => {
   mockedPrisma.document.deleteMany.mockReset();
   mockedPrisma.documentAttachment.createMany.mockReset();
   mockedPrisma.documentAttachment.findFirst.mockReset();
+  mockedPrisma.documentAttachment.findMany.mockReset();
   mockedPrisma.documentAttachment.deleteMany.mockReset();
+  mockedPrisma.patient.findUnique.mockReset();
+  mockedPrisma.userOrganization.findMany.mockReset();
   mockedPrisma.renderedDocument.findMany.mockReset();
   mockedPrisma.appointment.findUnique.mockReset();
   mockedPrisma.appointment.findMany.mockReset();
@@ -147,6 +157,11 @@ describe("DocumentService", () => {
     mockedPrisma.documentAttachment.findFirst.mockResolvedValue({
       documentId: uuidDocumentId,
     } as any);
+    mockedPrisma.documentAttachment.findMany.mockResolvedValue([]);
+    mockedPrisma.patient.findUnique.mockResolvedValue(null);
+    mockedPrisma.userOrganization.findMany.mockResolvedValue([
+      { practitionerReference: "pms-1" },
+    ] as any);
     mockedPrisma.document.findMany.mockResolvedValue([
       {
         ...baseRow,

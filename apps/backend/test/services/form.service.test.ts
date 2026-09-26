@@ -98,6 +98,9 @@ jest.mock("src/config/prisma", () => ({
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
+    patientOrganisation: {
+      findFirst: jest.fn(),
+    },
     organization: {
       findUnique: jest.fn(),
     },
@@ -628,6 +631,14 @@ describe("FormService", () => {
         name: "Form",
       });
 
+      (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+        patient: { id: validId },
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        role: "PRIMARY",
+        permissions: {},
+      });
+
       await FormService.submitFHIR(
         {
           formId: validId,
@@ -636,6 +647,8 @@ describe("FormService", () => {
           parentId: validId,
         } as any,
         [],
+        validId,
+        { parentId: validId },
       );
 
       expect(prisma.formSubmission.create).toHaveBeenCalled();
@@ -663,12 +676,18 @@ describe("FormService", () => {
         name: "Form",
       });
 
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-sys",
+      });
+
       await FormService.submitFHIR(
         {
           formId: validId,
           patientId: validId,
         } as any,
         [],
+        "pms-user",
+        { organisationId: "org-sys" },
       );
 
       expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
@@ -689,17 +708,26 @@ describe("FormService", () => {
         id: "sub-sign",
       });
 
-      await FormService.submitFHIR({
-        formId: validId,
-        formVersion: 1,
-        patientId: validId,
-        signing: {
-          required: true,
-          status: "SIGNED",
-          provider: "DOCUMENSO",
-          documentId: "9999",
-        },
-      } as any);
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-sign",
+      });
+
+      await FormService.submitFHIR(
+        {
+          formId: validId,
+          formVersion: 1,
+          patientId: validId,
+          signing: {
+            required: true,
+            status: "SIGNED",
+            provider: "DOCUMENSO",
+            documentId: "9999",
+          },
+        } as any,
+        undefined,
+        "pms-user",
+        { organisationId: "org-sign" },
+      );
 
       expect(prisma.formSubmission.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -728,15 +756,31 @@ describe("FormService", () => {
         name: "Postgres form",
       });
 
-      await FormService.submitFHIR({
-        formId: uuid,
-        formVersion: 1,
-        appointmentId: "appt-1",
-        patientId: "patient-1",
-        parentId: "parent-1",
-        answers: {},
-        submittedAt: new Date("2026-06-25T00:00:00.000Z"),
-      } as any);
+      (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+        patient: { id: "patient-1" },
+      });
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-uuid",
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        role: "PRIMARY",
+        permissions: {},
+      });
+
+      await FormService.submitFHIR(
+        {
+          formId: uuid,
+          formVersion: 1,
+          appointmentId: "appt-1",
+          patientId: "patient-1",
+          parentId: "parent-1",
+          answers: {},
+          submittedAt: new Date("2026-06-25T00:00:00.000Z"),
+        } as any,
+        undefined,
+        "pms-user",
+        { organisationId: "org-uuid" },
+      );
 
       expect(prisma.formVersion.findFirst).toHaveBeenCalledWith({
         where: {
@@ -935,15 +979,25 @@ describe("FormService", () => {
         templateVersion: 1,
       });
 
-      const result = await FormService.submitFHIR({
-        formId: templateId,
-        formVersion: 1,
-        appointmentId: "appt-1",
-        patientId: "patient-1",
-        parentId: "parent-1",
-        answers: { field1: "value" },
-        submittedAt: new Date("2026-06-25T00:00:00.000Z"),
-      } as any);
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        role: "PRIMARY",
+        permissions: {},
+      });
+
+      const result = await FormService.submitFHIR(
+        {
+          formId: templateId,
+          formVersion: 1,
+          appointmentId: "appt-1",
+          patientId: "patient-1",
+          parentId: "parent-1",
+          answers: { field1: "value" },
+          submittedAt: new Date("2026-06-25T00:00:00.000Z"),
+        } as any,
+        undefined,
+        undefined,
+        { organisationId: "org-template" },
+      );
 
       expect(TemplateService.createInstance).toHaveBeenCalledWith({
         templateId,
