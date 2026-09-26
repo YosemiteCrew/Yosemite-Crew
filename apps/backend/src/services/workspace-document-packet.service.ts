@@ -10,8 +10,8 @@ import { buildMergedClinicalPacketPdf } from "src/services/clinical-packet-pdf.s
 import { renderCombinedClinicalPacketPdf } from "src/services/rendered-document-renderer.service";
 import { rerenderPersistedClinicalRenderedDocumentPdf } from "src/services/rendered-document.service";
 import {
-  awaitsClientSignature,
   hasActiveOrCompletedSigning as documentHasOpenOrCompletedSigning,
+  loadDocumentsAwaitingClientSignature,
 } from "src/services/client-signature.helpers";
 import logger from "src/utils/logger";
 import {
@@ -645,12 +645,14 @@ export const WorkspaceDocumentPacketService = {
       },
     });
 
+    const clientSigns = await loadDocumentsAwaitingClientSignature(children);
+
     await Promise.all(
       children.map(async (child) => {
         try {
           if (
             documentHasOpenOrCompletedSigning(child) ||
-            (await awaitsClientSignature(child))
+            clientSigns.has(child.id)
           ) {
             return;
           }

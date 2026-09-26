@@ -4,20 +4,21 @@ import {
   hasActiveOrCompletedSigning,
   isConsentTemplate,
   isOpenSigning,
+  loadDocumentsAwaitingClientSignature,
   lockClientRequest,
   templateNeedsClientSignature,
 } from "../../src/services/client-signature.helpers";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    templateInstance: { findUnique: jest.fn() },
-    formAssignment: { count: jest.fn() },
+    templateInstance: { findMany: jest.fn() },
+    formAssignment: { findMany: jest.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  templateInstance: { findUnique: jest.Mock };
-  formAssignment: { count: jest.Mock };
+  templateInstance: { findMany: jest.Mock };
+  formAssignment: { findMany: jest.Mock };
 };
 
 beforeEach(() => {
@@ -67,80 +68,107 @@ describe("lockClientRequest", () => {
   });
 });
 
-describe("awaitsClientSignature", () => {
-  const formDocument = {
+describe("documents awaiting the client's signature", () => {
+  const form = (id: string, overrides: Record<string, unknown> = {}) => ({
+    id,
     kind: "FORM",
     organisationId: "org-1",
-    templateId: "tpl-1",
-    templateInstanceId: "inst-1",
-  };
+    templateId: `tpl-${id}`,
+    templateInstanceId: `inst-${id}`,
+    ...overrides,
+  });
+  const clientSigned = { kind: "FORM", rules: { requiredSigner: "CLIENT" } };
 
-  it("holds every consent for the client", async () => {
+  it("holds every consent for the client without a lookup", async () => {
     await expect(
-      awaitsClientSignature({
-        ...formDocument,
-        kind: "CONSENT",
-        templateId: null,
-        templateInstanceId: null,
-      }),
+      awaitsClientSignature(
+        form("c", {
+          kind: "CONSENT",
+          templateId: null,
+          templateInstanceId: null,
+        }),
+      ),
     ).resolves.toBe(true);
-    expect(mockedPrisma.templateInstance.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.templateInstance.findMany).not.toHaveBeenCalled();
   });
 
   it.each([
     ["no template", { templateId: null }],
     ["no template instance", { templateInstanceId: null }],
-  ])("is false for a form with %s", async (_label, change) => {
-    await expect(
-      awaitsClientSignature({ ...formDocument, ...change }),
-    ).resolves.toBe(false);
-    expect(mockedPrisma.templateInstance.findUnique).not.toHaveBeenCalled();
+  ])("leaves out a form with %s without a lookup", async (_label, change) => {
+    await expect(awaitsClientSignature(form("a", change))).resolves.toBe(false);
+    expect(mockedPrisma.templateInstance.findMany).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["missing", null],
-    [
-      "not on an appointment",
-      { appointmentId: null, template: { kind: "FORM", rules: null } },
-    ],
-    [
-      "from a template the practice signs",
+  it("looks up a whole set in two queries", async () => {
+    mockedPrisma.templateInstance.findMany.mockResolvedValueOnce([
+      { id: "inst-a", appointmentId: "appt-1", template: clientSigned },
+      { id: "inst-b", appointmentId: "appt-1", template: clientSigned },
+      // Signed by the practice, so never the client's.
       {
+        id: "inst-v",
         appointmentId: "appt-1",
         template: { kind: "FORM", rules: { requiredSigner: "VET" } },
       },
-    ],
-  ])("is false when its record is %s", async (_label, instance) => {
-    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(instance);
+      // Not on an appointment, so nothing asks the client for it.
+      { id: "inst-n", appointmentId: null, template: clientSigned },
+    ]);
+    mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+      { organisationId: "org-1", templateId: "tpl-a", appointmentId: "appt-1" },
+      // A request for another form on the same appointment answers nothing.
+      { organisationId: "org-1", templateId: "tpl-x", appointmentId: "appt-1" },
+    ]);
 
-    await expect(awaitsClientSignature(formDocument)).resolves.toBe(false);
-    expect(mockedPrisma.formAssignment.count).not.toHaveBeenCalled();
+    const awaiting = await loadDocumentsAwaitingClientSignature([
+      form("a"),
+      form("b"),
+      form("v"),
+      form("n"),
+      form("k", { kind: "CONSENT" }),
+    ]);
+
+    expect([...awaiting].sort()).toEqual(["a", "k"]);
+    expect(mockedPrisma.templateInstance.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ["inst-a", "inst-b", "inst-v", "inst-n"] } },
+      select: {
+        id: true,
+        appointmentId: true,
+        template: { select: { kind: true, rules: true } },
+      },
+    });
+    expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith({
+      where: {
+        organisationId: { in: ["org-1"] },
+        templateId: { in: ["tpl-a", "tpl-b"] },
+        appointmentId: { in: ["appt-1"] },
+        signingRequired: true,
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
+      },
+      select: { organisationId: true, templateId: true, appointmentId: true },
+    });
   });
 
-  it.each([
-    [1, true],
-    [0, false],
-  ])(
-    "for a client-signed form, follows the requests asking for it (%i)",
-    async (requests, expected) => {
-      mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+  it("asks for no requests when no form is the client's to sign", async () => {
+    mockedPrisma.templateInstance.findMany.mockResolvedValueOnce([
+      {
+        id: "inst-v",
         appointmentId: "appt-1",
-        template: { kind: "FORM", rules: { requiredSigner: "CLIENT" } },
-      });
-      mockedPrisma.formAssignment.count.mockResolvedValueOnce(requests);
+        template: { kind: "FORM", rules: { requiredSigner: "VET" } },
+      },
+    ]);
 
-      await expect(awaitsClientSignature(formDocument)).resolves.toBe(expected);
-      expect(mockedPrisma.formAssignment.count).toHaveBeenCalledWith({
-        where: {
-          organisationId: "org-1",
-          templateId: "tpl-1",
-          appointmentId: "appt-1",
-          signingRequired: true,
-          status: { notIn: ["CANCELLED", "EXPIRED"] },
-        },
-      });
-    },
-  );
+    await expect(awaitsClientSignature(form("v"))).resolves.toBe(false);
+    expect(mockedPrisma.formAssignment.findMany).not.toHaveBeenCalled();
+  });
+
+  it("leaves out a client-signed form nobody asked the client to sign", async () => {
+    mockedPrisma.templateInstance.findMany.mockResolvedValueOnce([
+      { id: "inst-a", appointmentId: "appt-1", template: clientSigned },
+    ]);
+    mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([]);
+
+    await expect(awaitsClientSignature(form("a"))).resolves.toBe(false);
+  });
 });
 
 describe("open and completed signings", () => {

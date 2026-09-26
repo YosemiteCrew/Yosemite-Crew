@@ -37,6 +37,7 @@ jest.mock("src/config/prisma", () => {
     },
     templateInstance: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       updateMany: jest.fn(),
       count: jest.fn(),
     },
@@ -55,7 +56,7 @@ jest.mock("src/config/prisma", () => {
     },
     formAssignment: {
       updateMany: jest.fn(),
-      count: jest.fn(),
+      findMany: jest.fn(),
     },
     // The lock a signature completing on a client's form takes.
     $executeRaw: jest.fn(),
@@ -103,6 +104,7 @@ describe("rendered-document service", () => {
     };
     templateInstance: {
       findUnique: jest.Mock;
+      findMany: jest.Mock;
       updateMany: jest.Mock;
       count: jest.Mock;
     };
@@ -110,7 +112,7 @@ describe("rendered-document service", () => {
     case: { findUnique: jest.Mock };
     encounter: { findUnique: jest.Mock };
     appointment: { findUnique: jest.Mock };
-    formAssignment: { updateMany: jest.Mock; count: jest.Mock };
+    formAssignment: { updateMany: jest.Mock; findMany: jest.Mock };
     $executeRaw: jest.Mock;
     $transaction: jest.Mock;
   };
@@ -151,6 +153,9 @@ describe("rendered-document service", () => {
     // `not.toHaveBeenCalled()` false-fail on a call left over from an
     // earlier test.
     mockedPrisma.templateInstance.findUnique.mockReset();
+    // No form here was sent to the client to sign unless a case says so.
+    mockedPrisma.templateInstance.findMany.mockReset().mockResolvedValue([]);
+    mockedPrisma.formAssignment.findMany.mockReset().mockResolvedValue([]);
     // A guarded move matches its row unless a test says otherwise.
     mockedPrisma.templateInstance.updateMany
       .mockReset()
@@ -1659,11 +1664,20 @@ describe("rendered-document service", () => {
         mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
           formRow(),
         );
-        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
-          appointmentId: "appt-9",
-          template: { kind: "FORM", rules: { requiredSigner: "CLIENT" } },
-        });
-        mockedPrisma.formAssignment.count.mockResolvedValueOnce(1);
+        mockedPrisma.templateInstance.findMany.mockResolvedValueOnce([
+          {
+            id: "instance-9",
+            appointmentId: "appt-9",
+            template: { kind: "FORM", rules: { requiredSigner: "CLIENT" } },
+          },
+        ]);
+        mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+          {
+            organisationId: "org-123",
+            templateId: "tpl-intake",
+            appointmentId: "appt-9",
+          },
+        ]);
 
         await expect(
           signPersistedRenderedDocument(signInput),
@@ -1678,12 +1692,16 @@ describe("rendered-document service", () => {
         mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
           formRow(),
         );
-        mockedPrisma.templateInstance.findUnique
-          .mockResolvedValueOnce({
+        mockedPrisma.templateInstance.findMany.mockResolvedValueOnce([
+          {
+            id: "instance-9",
             appointmentId: "appt-9",
             template: { kind: "FORM", rules: { requiredSigner: "VET" } },
-          })
-          .mockResolvedValueOnce(linkedRecord("COMPLETED"));
+          },
+        ]);
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          linkedRecord("COMPLETED"),
+        );
         mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
           "api-key-1",
         );

@@ -150,6 +150,20 @@ jest.mock("src/config/prisma", () => {
         (appointment) => appointment.id === assignment.appointmentId,
       ) ?? null,
   });
+  // A select that names the instance's template relation reads it too.
+  const withTemplate = (instance: Row, select?: Record<string, unknown>) => {
+    if (!select) return instance;
+    const templateSelect = (
+      select as { template?: { select: Record<string, boolean> } }
+    ).template;
+    const template = store.templates.get(instance.templateId as string);
+    return {
+      ...pick(instance, select as Record<string, boolean>),
+      ...(templateSelect
+        ? { template: template ? pick(template, templateSelect.select) : null }
+        : {}),
+    };
+  };
   const findVersion = (templateId: unknown, version: unknown) =>
     store.templateVersions.find(
       (row) => row.templateId === templateId && row.version === version,
@@ -230,22 +244,7 @@ jest.mock("src/config/prisma", () => {
       }) => {
         const instance = store.templateInstances.get(where.id);
         if (!instance) return null;
-        if (select) {
-          const template = store.templates.get(instance.templateId as string);
-          const templateSelect = (
-            select as { template?: { select: Record<string, boolean> } }
-          ).template;
-          return {
-            ...pick(instance, select),
-            ...(templateSelect
-              ? {
-                  template: template
-                    ? pick(template, templateSelect.select)
-                    : null,
-                }
-              : {}),
-          };
-        }
+        if (select) return withTemplate(instance, select);
         const template = store.templates.get(instance.templateId as string);
         return {
           ...instance,
@@ -310,7 +309,7 @@ jest.mock("src/config/prisma", () => {
       }) =>
         [...store.templateInstances.values()]
           .filter((instance) => matches(instance, where))
-          .map((instance) => pick(instance, select)),
+          .map((instance) => withTemplate(instance, select)),
     },
     renderedDocument: {
       // RenderedDocument.templateInstanceId is @unique, so a second document

@@ -55,44 +55,106 @@ export const lockClientRequest = async (
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
 };
 
-/**
- * Whether this document waits for the client's own signature: a consent, or
- * a form from a template the client signs that the practice asked them to
- * sign on its appointment. Practice staff never sign it, and the discharge
- * packet never marks it signed.
- */
-export const awaitsClientSignature = async (document: {
+type ClientSignableDocument = {
+  id: string;
   kind: string;
   organisationId: string;
   templateId: string | null;
   templateInstanceId: string | null;
-}): Promise<boolean> => {
-  if (document.kind === "CONSENT") return true;
-  if (!document.templateId || !document.templateInstanceId) return false;
-  const instance = await prisma.templateInstance.findUnique({
-    where: { id: document.templateInstanceId },
+};
+
+const requestKey = (
+  organisationId: string,
+  templateId: string,
+  appointmentId: string,
+) => [organisationId, templateId, appointmentId].join(":");
+
+/**
+ * The documents among these that wait for the client's own signature: a
+ * consent, or a form from a template the client signs that the practice asked
+ * them to sign on its appointment. Practice staff never sign them, and the
+ * discharge packet never marks them signed. Two queries however many
+ * documents there are.
+ */
+export const loadDocumentsAwaitingClientSignature = async (
+  documents: ClientSignableDocument[],
+): Promise<Set<string>> => {
+  const awaiting = new Set(
+    documents.filter(({ kind }) => kind === "CONSENT").map(({ id }) => id),
+  );
+  const forms = documents.filter(
+    (document) =>
+      !awaiting.has(document.id) &&
+      document.templateId &&
+      document.templateInstanceId,
+  );
+  if (!forms.length) return awaiting;
+
+  const instances = await prisma.templateInstance.findMany({
+    where: { id: { in: forms.map((form) => String(form.templateInstanceId)) } },
     select: {
+      id: true,
       appointmentId: true,
       template: { select: { kind: true, rules: true } },
     },
   });
-  if (
-    !instance?.appointmentId ||
-    !templateNeedsClientSignature(instance.template)
-  ) {
-    return false;
-  }
-  const requests = await prisma.formAssignment.count({
+  const clientSigned = new Map(
+    instances
+      .filter(
+        (instance) =>
+          instance.appointmentId &&
+          templateNeedsClientSignature(instance.template),
+      )
+      .map((instance) => [instance.id, String(instance.appointmentId)]),
+  );
+  const candidates = forms.filter((form) =>
+    clientSigned.has(String(form.templateInstanceId)),
+  );
+  if (!candidates.length) return awaiting;
+
+  const requests = await prisma.formAssignment.findMany({
     where: {
-      organisationId: document.organisationId,
-      templateId: document.templateId,
-      appointmentId: instance.appointmentId,
+      organisationId: {
+        in: [...new Set(candidates.map((c) => c.organisationId))],
+      },
+      templateId: {
+        in: [...new Set(candidates.map((c) => String(c.templateId)))],
+      },
+      appointmentId: { in: [...new Set(clientSigned.values())] },
       signingRequired: true,
       status: { notIn: ["CANCELLED", "EXPIRED"] },
     },
+    select: { organisationId: true, templateId: true, appointmentId: true },
   });
-  return requests > 0;
+  const requested = new Set(
+    requests.map((request) =>
+      requestKey(
+        request.organisationId,
+        request.templateId,
+        String(request.appointmentId),
+      ),
+    ),
+  );
+  for (const form of candidates) {
+    const appointmentId = String(
+      clientSigned.get(String(form.templateInstanceId)),
+    );
+    if (
+      requested.has(
+        requestKey(form.organisationId, String(form.templateId), appointmentId),
+      )
+    ) {
+      awaiting.add(form.id);
+    }
+  }
+  return awaiting;
 };
+
+/** Whether this one document waits for the client's own signature. */
+export const awaitsClientSignature = async (
+  document: ClientSignableDocument,
+): Promise<boolean> =>
+  (await loadDocumentsAwaitingClientSignature([document])).has(document.id);
 
 // A claim whose request never finished (the process stopped between claiming
 // and sending) stops blocking the document after this long.

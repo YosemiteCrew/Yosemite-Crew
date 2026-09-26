@@ -7,7 +7,7 @@ import { buildMergedClinicalPacketPdf } from "../../src/services/clinical-packet
 import { renderCombinedClinicalPacketPdf } from "../../src/services/rendered-document-renderer.service";
 import { rerenderPersistedClinicalRenderedDocumentPdf } from "../../src/services/rendered-document.service";
 import { WorkspaceDocumentPacketService } from "../../src/services/workspace-document-packet.service";
-import { awaitsClientSignature } from "../../src/services/client-signature.helpers";
+import { loadDocumentsAwaitingClientSignature } from "../../src/services/client-signature.helpers";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -74,7 +74,7 @@ jest.mock("../../src/services/rendered-document.service", () => ({
 // Whether a child waits for the client is its own lookup, answered per case.
 jest.mock("../../src/services/client-signature.helpers", () => ({
   ...jest.requireActual("../../src/services/client-signature.helpers"),
-  awaitsClientSignature: jest.fn(),
+  loadDocumentsAwaitingClientSignature: jest.fn(),
 }));
 
 jest.mock("src/utils/logger", () => ({
@@ -98,7 +98,8 @@ const mockedPrisma = prisma as unknown as {
   };
   documentSignature: { upsert: jest.Mock };
 };
-const mockedAwaitsClientSignature = awaitsClientSignature as jest.Mock;
+const mockedAwaitingClientSignature =
+  loadDocumentsAwaitingClientSignature as jest.Mock;
 const PACKET_CHILD_REVISION = new Date("2026-09-25T08:00:00.000Z");
 const packetChild = (id: string, overrides: Record<string, unknown> = {}) => ({
   id,
@@ -193,7 +194,7 @@ beforeEach(() => {
       where.id.in.map((id) => packetChild(id)),
   );
   mockedPrisma.renderedDocument.updateMany.mockResolvedValue({ count: 1 });
-  mockedAwaitsClientSignature.mockResolvedValue(false);
+  mockedAwaitingClientSignature.mockResolvedValue(new Set());
   process.env.DOCUMENSO_URL = "https://sign.example";
   // The signed-packet link is checked before it is used, which resolves the
   // host. Keep that resolution deterministic and offline: the placeholder hosts
@@ -980,8 +981,8 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
         templateId: "tpl-intake",
         templateInstanceId: "inst-1",
       });
-      mockedAwaitsClientSignature.mockImplementation(
-        async ({ id }: { id: string }) => id !== "soap-1",
+      mockedAwaitingClientSignature.mockResolvedValue(
+        new Set(["consent-1", "form-1"]),
       );
 
       const { stamped, signatures } = await completeWith([
@@ -1003,7 +1004,13 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
           templateInstanceId: true,
         },
       });
-      expect(mockedAwaitsClientSignature).toHaveBeenCalledWith(clientForm);
+      // One lookup for the whole packet.
+      expect(mockedAwaitingClientSignature).toHaveBeenCalledTimes(1);
+      expect(mockedAwaitingClientSignature).toHaveBeenCalledWith([
+        packetChild("soap-1"),
+        consent,
+        clientForm,
+      ]);
       expect(stamped).toEqual(["soap-1"]);
       expect(signatures).toEqual(["soap-1"]);
     });
