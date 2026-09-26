@@ -15,6 +15,8 @@ CREATE UNIQUE INDEX "ClientPaymentTerm_organisationId_parentId_key"
 CREATE INDEX "ClientPaymentTerm_organisationId_idx"
     ON "ClientPaymentTerm"("organisationId");
 
+ALTER TABLE "ClientPaymentTerm" ENABLE ROW LEVEL SECURITY;
+
 ALTER TABLE "Invoice"
     ADD COLUMN "dueAt" TIMESTAMP(3),
     ADD COLUMN "collectionsReviewedAt" TIMESTAMP(3),
