@@ -4067,6 +4067,9 @@ model Invoice {
   metadata                Json?
   paidAt                  DateTime?
   finalizedAt             DateTime?
+  dueAt                   DateTime?
+  collectionsReviewedAt   DateTime?
+  collectionsReviewedBy   String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
@@ -4078,6 +4081,7 @@ model Invoice {
   @@unique([appointmentId])
   @@index([parentId])
   @@index([organisationId])
+  @@index([organisationId, dueAt])
   @@index([appointmentId])
   @@index([status])
   @@index([paymentCollectionMethod])
@@ -4085,6 +4089,19 @@ model Invoice {
   @@index([visitBillingStage])
   @@index([readyForBillingAt])
   @@index([taxProvider])
+}
+
+model ClientPaymentTerm {
+  id             String   @id @default(uuid())
+  organisationId String
+  parentId       String
+  netDays        Int      @default(0)
+  updatedBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organisationId, parentId])
+  @@index([organisationId])
 }
 
 model InvoiceTaxSnapshot {

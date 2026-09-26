@@ -103,6 +103,13 @@ const FinanceController = {
   reverseAppointmentReadyForBilling: jest.fn(),
 };
 
+const ClientCollectionsController = {
+  getPaymentTerms: jest.fn(),
+  setPaymentTerms: jest.fn(),
+  listOverdue: jest.fn(),
+  markReviewed: jest.fn(),
+};
+
 const rateLimit = jest.fn(() => financeAppointmentLimiter);
 
 jest.mock("../../src/middlewares/auth", () => ({
@@ -123,6 +130,10 @@ jest.mock("../../src/middlewares/rbac", () => ({
 
 jest.mock("../../src/controllers/app/finance.controller", () => ({
   FinanceController,
+}));
+
+jest.mock("../../src/controllers/app/client-collections.controller", () => ({
+  ClientCollectionsController,
 }));
 
 const financeRouter = jest.requireActual("../../src/routers/finance.router")
@@ -244,6 +255,62 @@ describe("finance.router", () => {
     expect(handlers).toContain(withOrgPermissionsMiddleware);
     expect(handlers).toContain(permissionGuard("billing:edit:any"));
     expect(handlers).not.toContain(permissionGuard("billing:view:any"));
+  });
+
+  it("protects client payment terms with billing read and edit permissions", () => {
+    const readRoute = findRoute(
+      "/organisation/:organisationId/clients/:parentId/payment-terms",
+      "get",
+    );
+    const writeRoute = findRoute(
+      "/organisation/:organisationId/clients/:parentId/payment-terms",
+      "put",
+    );
+
+    expect(readRoute?.stack.map((layer) => layer.handle)).toEqual(
+      expect.arrayContaining([
+        requireWebAuth,
+        withOrgPermissionsMiddleware,
+        permissionGuard("billing:view:any"),
+        ClientCollectionsController.getPaymentTerms,
+      ]),
+    );
+    expect(writeRoute?.stack.map((layer) => layer.handle)).toEqual(
+      expect.arrayContaining([
+        requireWebAuth,
+        withOrgPermissionsMiddleware,
+        permissionGuard("billing:edit:any"),
+        ClientCollectionsController.setPaymentTerms,
+      ]),
+    );
+  });
+
+  it("limits overdue account review to authorized billing staff", () => {
+    const readRoute = findRoute(
+      "/organisation/:organisationId/collections/overdue",
+      "get",
+    );
+    const reviewRoute = findRoute(
+      "/organisation/:organisationId/collections/overdue/:invoiceId/review",
+      "post",
+    );
+
+    expect(readRoute?.stack.map((layer) => layer.handle)).toEqual(
+      expect.arrayContaining([
+        requireWebAuth,
+        withOrgPermissionsMiddleware,
+        permissionGuard("billing:view:any"),
+        ClientCollectionsController.listOverdue,
+      ]),
+    );
+    expect(reviewRoute?.stack.map((layer) => layer.handle)).toEqual(
+      expect.arrayContaining([
+        requireWebAuth,
+        withOrgPermissionsMiddleware,
+        permissionGuard("billing:edit:any"),
+        ClientCollectionsController.markReviewed,
+      ]),
+    );
   });
 
   it("mounts exactly one write route on a client's account credit", () => {
