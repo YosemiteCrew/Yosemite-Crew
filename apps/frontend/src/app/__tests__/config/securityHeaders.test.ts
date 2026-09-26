@@ -100,7 +100,12 @@ describe('security headers', () => {
    */
   test('allows the viewer its inline script by hash, and nothing wider', async () => {
     const html = readFileSync(join(process.cwd(), 'public/static/openapi/viewer.html'), 'utf8');
-    const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
+    // Parsed rather than matched: the browser hashes the script element's text
+    // exactly as its HTML parser reads it.
+    const viewerDocument = new DOMParser().parseFromString(html, 'text/html');
+    const inline = [...viewerDocument.querySelectorAll('script:not([src])')].map(
+      (script) => script.textContent ?? ''
+    );
     expect(inline).toHaveLength(1);
     const hash = createHash('sha256').update(inline[0], 'utf8').digest('base64');
 
