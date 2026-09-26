@@ -100,6 +100,10 @@ export type Appointment = {
   seriesCompletedCount?: number;
   /** BACKEND WORK REQUIRED — free-text note on the booked series (design's "Series note"). */
   seriesNote?: string;
+  recurrenceSeriesId?: string;
+  recurrenceSeriesIndex?: number;
+  recurrenceSeriesTotal?: number;
+  recurrenceTimeZone?: string;
   paymentStatus?: AppointmentPaymentStatus;
   bookingPaymentStatus?: AppointmentBookingPaymentStatus;
   isEmergency?: boolean;
@@ -135,6 +139,14 @@ const EXT_APPOINTMENT_ENCOUNTER_ID =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-encounter-id';
 const EXT_APPOINTMENT_TEMPLATE_DEFAULTS =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-template-defaults';
+const EXT_APPOINTMENT_RECURRENCE_SERIES_ID =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-recurrence-series-id';
+const EXT_APPOINTMENT_RECURRENCE_SERIES_INDEX =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-recurrence-series-index';
+const EXT_APPOINTMENT_RECURRENCE_SERIES_TOTAL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-recurrence-series-total';
+const EXT_APPOINTMENT_RECURRENCE_TIME_ZONE =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-recurrence-time-zone';
 
 const EXT_TEMPLATE_DEFAULT_KIND = 'templateKind';
 const EXT_TEMPLATE_DEFAULT_ID = 'templateId';
@@ -366,6 +378,36 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
     });
   }
 
+  if (appointment.recurrenceSeriesId) {
+    extension.push(
+      { url: EXT_APPOINTMENT_RECURRENCE_SERIES_ID, valueString: appointment.recurrenceSeriesId },
+      ...(appointment.recurrenceSeriesIndex
+        ? [
+            {
+              url: EXT_APPOINTMENT_RECURRENCE_SERIES_INDEX,
+              valueInteger: appointment.recurrenceSeriesIndex,
+            },
+          ]
+        : []),
+      ...(appointment.recurrenceSeriesTotal
+        ? [
+            {
+              url: EXT_APPOINTMENT_RECURRENCE_SERIES_TOTAL,
+              valueInteger: appointment.recurrenceSeriesTotal,
+            },
+          ]
+        : []),
+      ...(appointment.recurrenceTimeZone
+        ? [
+            {
+              url: EXT_APPOINTMENT_RECURRENCE_TIME_ZONE,
+              valueString: appointment.recurrenceTimeZone,
+            },
+          ]
+        : [])
+    );
+  }
+
   if (appointment.templateDefaults?.length) {
     appointment.templateDefaults.forEach((templateDefault) => {
       extension.push({
@@ -498,6 +540,18 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const encounterId = FHIRappointment.extension?.find(
     (ext) => ext.url === EXT_APPOINTMENT_ENCOUNTER_ID
   )?.valueString;
+  const recurrenceSeriesId = FHIRappointment.extension?.find(
+    (ext) => ext.url === EXT_APPOINTMENT_RECURRENCE_SERIES_ID
+  )?.valueString;
+  const recurrenceSeriesIndex = FHIRappointment.extension?.find(
+    (ext) => ext.url === EXT_APPOINTMENT_RECURRENCE_SERIES_INDEX
+  )?.valueInteger;
+  const recurrenceSeriesTotal = FHIRappointment.extension?.find(
+    (ext) => ext.url === EXT_APPOINTMENT_RECURRENCE_SERIES_TOTAL
+  )?.valueInteger;
+  const recurrenceTimeZone = FHIRappointment.extension?.find(
+    (ext) => ext.url === EXT_APPOINTMENT_RECURRENCE_TIME_ZONE
+  )?.valueString;
 
   const templateDefaults =
     FHIRappointment.extension
@@ -538,6 +592,10 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     id: FHIRappointment.id ?? '',
     caseId: caseId || undefined,
     encounterId: encounterId || undefined,
+    recurrenceSeriesId,
+    recurrenceSeriesIndex,
+    recurrenceSeriesTotal,
+    recurrenceTimeZone,
     organisationId: orgParticipant?.actor?.reference?.split('/')[1] ?? 'unknown-org',
     patient: {
       id: companionParticipant?.actor?.reference?.split('/')[1] ?? 'unknown-pet',

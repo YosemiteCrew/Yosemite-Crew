@@ -15,11 +15,13 @@ const OPTIONS: AppointmentStatus[] = ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'];
 const Harness = ({
   statusOptions,
   savingKey,
+  cancelSeriesOnly,
   onSelectStatus,
 }: {
   statusOptions: AppointmentStatus[];
   savingKey: string | null;
-  onSelectStatus: (status: AppointmentStatus) => void;
+  cancelSeriesOnly?: boolean;
+  onSelectStatus: (status: AppointmentStatus, scope?: 'this' | 'following') => void;
 }) => {
   const submenuRef = useRef<HTMLDivElement | null>(null);
   return (
@@ -29,6 +31,7 @@ const Harness = ({
         submenuStyle={{ position: 'static' }}
         statusOptions={statusOptions}
         savingKey={savingKey}
+        cancelSeriesOnly={cancelSeriesOnly}
         onSelectStatus={onSelectStatus}
       />
     </div>
@@ -115,4 +118,9 @@ export const LongLabels: Story = {
       },
     },
   },
+};
+
+export const CancelSeries: Story = {
+  name: 'Cancel a recurring series',
+  args: { statusOptions: [], cancelSeriesOnly: true },
 };

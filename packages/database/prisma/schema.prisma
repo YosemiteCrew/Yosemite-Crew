@@ -857,31 +857,35 @@ model PassportShareConsent {
 }
 
 model Appointment {
-  id              String            @id @default(uuid())
-  patient         Json
-  lead            Json?
-  supportStaff    Json?
-  room            Json?
-  appointmentType Json?
-  caseId          String?
-  encounterId     String?
-  productItemId   String?
-  appointmentKind AppointmentKind   @default(OUTPATIENT)
-  idempotencyKey  String?
-  organisationId  String
-  appointmentDate DateTime
-  startTime       DateTime
-  endTime         DateTime
-  timeSlot        String
-  durationMinutes Int
-  status          AppointmentStatus @default(REQUESTED)
-  isEmergency     Boolean           @default(false)
-  concern         String?
-  attachments     Json?
-  formIds         String[]
-  expiresAt       DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id                    String            @id @default(uuid())
+  patient               Json
+  lead                  Json?
+  supportStaff          Json?
+  room                  Json?
+  appointmentType       Json?
+  caseId                String?
+  encounterId           String?
+  productItemId         String?
+  recurrenceSeriesId    String?
+  recurrenceSeriesIndex Int?
+  recurrenceSeriesTotal Int?
+  recurrenceTimeZone    String?
+  appointmentKind       AppointmentKind   @default(OUTPATIENT)
+  idempotencyKey        String?
+  organisationId        String
+  appointmentDate       DateTime
+  startTime             DateTime
+  endTime               DateTime
+  timeSlot              String
+  durationMinutes       Int
+  status                AppointmentStatus @default(REQUESTED)
+  isEmergency           Boolean           @default(false)
+  concern               String?
+  attachments           Json?
+  formIds               String[]
+  expiresAt             DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   caseRecord      Case?            @relation("CaseAppointments", fields: [caseId], references: [id], onDelete: SetNull)
   encounter       Encounter?       @relation("EncounterAppointments", fields: [encounterId], references: [id], onDelete: SetNull)
@@ -891,6 +895,7 @@ model Appointment {
   @@index([organisationId, appointmentDate])
   @@index([organisationId])
   @@index([organisationId, productItemId])
+  @@index([organisationId, recurrenceSeriesId, recurrenceSeriesIndex])
   @@index([caseId])
   @@index([encounterId])
   @@index([status])

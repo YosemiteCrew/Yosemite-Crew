@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
 import dayjs from "dayjs";
+import moment from "moment-timezone";
 import { Prisma } from "@prisma/client";
+import { z } from "zod";
 import {
   Appointment as AppointmentDomain,
   AppointmentBookingPaymentStatus,
@@ -43,6 +46,10 @@ type AppointmentRow = {
   caseId: string | null;
   encounterId: string | null;
   productItemId: string | null;
+  recurrenceSeriesId: string | null;
+  recurrenceSeriesIndex: number | null;
+  recurrenceSeriesTotal: number | null;
+  recurrenceTimeZone: string | null;
   organisationId: string;
   appointmentDate: Date;
   startTime: Date;
@@ -1369,6 +1376,10 @@ const toDomain = (
     id: row.id,
     caseId: row.caseId ?? undefined,
     encounterId: row.encounterId ?? undefined,
+    recurrenceSeriesId: row.recurrenceSeriesId ?? undefined,
+    recurrenceSeriesIndex: row.recurrenceSeriesIndex ?? undefined,
+    recurrenceSeriesTotal: row.recurrenceSeriesTotal ?? undefined,
+    recurrenceTimeZone: row.recurrenceTimeZone ?? undefined,
     patient: row.patient as AppointmentDomain["patient"],
     companion: row.patient as AppointmentDomain["patient"],
     lead: (row.lead as AppointmentDomain["lead"]) ?? undefined,
@@ -1435,6 +1446,159 @@ const toResponseList = async (
 const getLeadIdFromRow = (row: AppointmentRow): string | undefined => {
   const lead = row.lead as { id?: string } | null;
   return typeof lead?.id === "string" && lead.id.trim() ? lead.id : undefined;
+};
+
+type SeriesRescheduleOccurrence = {
+  row: AppointmentRow;
+  startTime: Date;
+  endTime: Date;
+};
+
+const buildSeriesReschedulePlan = async (
+  tx: TransactionClient,
+  appointmentId: string,
+  organisationId: string,
+  dto: AppointmentRequestDTO,
+) => {
+  const selected = await tx.appointment.findFirst({
+    where: { id: appointmentId, organisationId },
+  });
+  const selectedRow = selected as AppointmentRow | null;
+  if (!selectedRow) {
+    throw new AppointmentPrismaServiceError("Appointment not found", 404);
+  }
+  const { recurrenceSeriesId, recurrenceSeriesIndex, recurrenceTimeZone } =
+    selectedRow;
+  if (!recurrenceSeriesId || !recurrenceSeriesIndex || !recurrenceTimeZone) {
+    throw new AppointmentPrismaServiceError(
+      "This appointment does not have a reschedulable series.",
+      400,
+    );
+  }
+  if (!moment.tz.zone(recurrenceTimeZone)) {
+    throw new AppointmentPrismaServiceError(
+      "The appointment series time zone is invalid.",
+      409,
+    );
+  }
+
+  const rows = (await tx.appointment.findMany({
+    where: {
+      organisationId,
+      recurrenceSeriesId,
+      recurrenceSeriesIndex: { gte: recurrenceSeriesIndex },
+    },
+    orderBy: { recurrenceSeriesIndex: "asc" },
+  })) as AppointmentRow[];
+  const input = fromAppointmentRequestDTO(dto);
+  const selectedTime = moment.tz(input.startTime, recurrenceTimeZone);
+  const previousSelectedTime = moment.tz(
+    selectedRow.startTime,
+    recurrenceTimeZone,
+  );
+  const dayDelta = selectedTime
+    .clone()
+    .startOf("day")
+    .diff(previousSelectedTime.clone().startOf("day"), "days");
+  assertValidTimeRange(input.startTime, input.endTime);
+  const durationMs = input.endTime.getTime() - input.startTime.getTime();
+  const durationMinutes = Math.round(durationMs / 60_000);
+  if (durationMs !== durationMinutes * 60_000 || durationMinutes < 1) {
+    throw new AppointmentPrismaServiceError(
+      "Choose a valid appointment duration.",
+      400,
+    );
+  }
+
+  const occurrences: SeriesRescheduleOccurrence[] = rows
+    .filter((row) => row.status === "REQUESTED" || row.status === "UPCOMING")
+    .map((row) => {
+      const localStart = moment
+        .tz(row.startTime, recurrenceTimeZone)
+        .add(dayDelta, "days")
+        .set({
+          hour: selectedTime.hour(),
+          minute: selectedTime.minute(),
+          second: selectedTime.second(),
+          millisecond: selectedTime.millisecond(),
+        });
+      const startTime =
+        row.id === selectedRow.id ? input.startTime : localStart.toDate();
+      const endTime = new Date(startTime.getTime() + durationMinutes * 60_000);
+      assertValidTimeRange(startTime, endTime);
+      return { row, startTime, endTime };
+    });
+
+  if (!occurrences.some(({ row }) => row.id === selectedRow.id)) {
+    throw new AppointmentPrismaServiceError(
+      "Only requested or upcoming appointments can be rescheduled.",
+      409,
+    );
+  }
+
+  return {
+    input,
+    recurrenceTimeZone,
+    durationMinutes,
+    leadId: input.lead?.id ?? getLeadIdFromRow(selectedRow),
+    occurrences,
+  };
+};
+
+const previewSeriesReschedule = async (
+  tx: TransactionClient,
+  plan: Awaited<ReturnType<typeof buildSeriesReschedulePlan>>,
+  organisationId: string,
+) => {
+  if (!plan.leadId || !plan.occurrences.length) {
+    return plan.occurrences.map(({ row, startTime, endTime }) => ({
+      appointmentId: row.id,
+      recurrenceSeriesIndex: row.recurrenceSeriesIndex,
+      startTime,
+      endTime,
+      hasConflict: false,
+    }));
+  }
+  const startTime = new Date(
+    Math.min(
+      ...plan.occurrences.map((occurrence) => occurrence.startTime.getTime()),
+    ),
+  );
+  const endTime = new Date(
+    Math.max(
+      ...plan.occurrences.map((occurrence) => occurrence.endTime.getTime()),
+    ),
+  );
+  const occupied = await tx.occupancy.findMany({
+    where: {
+      organisationId,
+      userId: plan.leadId,
+      startTime: { lt: endTime },
+      endTime: { gt: startTime },
+    },
+    select: {
+      startTime: true,
+      endTime: true,
+      sourceType: true,
+      referenceId: true,
+    },
+  });
+  const appointmentIds = new Set(plan.occurrences.map(({ row }) => row.id));
+  return plan.occurrences.map((occurrence) => ({
+    appointmentId: occurrence.row.id,
+    recurrenceSeriesIndex: occurrence.row.recurrenceSeriesIndex,
+    startTime: occurrence.startTime,
+    endTime: occurrence.endTime,
+    hasConflict: occupied.some(
+      (item) =>
+        !(
+          item.sourceType === "APPOINTMENT" &&
+          appointmentIds.has(item.referenceId ?? "")
+        ) &&
+        item.startTime < occurrence.endTime &&
+        item.endTime > occurrence.startTime,
+    ),
+  }));
 };
 
 const getSupportStaffIdsFromRow = (row: AppointmentRow): string[] => {
@@ -1521,16 +1685,158 @@ const getParentOwnedAppointment = async (
  */
 type BookedBy = { kind: "parent" } | { kind: "practice"; actorId?: string };
 
-const createAppointment = async (
+type AppointmentOccurrence = { startTime: Date; endTime: Date };
+const MIN_SERIES_INTERVAL_MS = 6 * 24 * 60 * 60 * 1000 + 22 * 60 * 60 * 1000;
+const MAX_SERIES_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000;
+const MAX_APPOINTMENT_SERIES_SIZE = 52;
+
+const createAppointmentOccurrence = async (
+  tx: TransactionClient,
+  input: ReturnType<typeof fromAppointmentRequestDTO>,
+  status: AppointmentStatus,
+  occurrence: AppointmentOccurrence,
+  index: number,
+  total: number,
+  recurrenceSeriesId: string | undefined,
+  recurrenceTimeZone: string | undefined,
+  appointmentKind: ReturnType<typeof normalizeAppointmentKind>,
+  resolvedCaseId: string | undefined,
+  encounterId: string | undefined,
+  appointmentType: ReturnType<typeof attachTemplateDefaults>,
+  productItemId: string | null,
+) => {
+  const appointment = await tx.appointment.create({
+    data: {
+      patient: toJsonValue(input.patient),
+      lead: input.lead ? toJsonValue(input.lead) : Prisma.JsonNull,
+      supportStaff: input.supportStaff ? toJsonValue(input.supportStaff) : [],
+      room: input.room ? toJsonValue(input.room) : Prisma.JsonNull,
+      appointmentType: appointmentType
+        ? toJsonValue(appointmentType)
+        : Prisma.JsonNull,
+      appointmentKind,
+      organisationId: input.organisationId,
+      appointmentDate: occurrence.startTime,
+      startTime: occurrence.startTime,
+      endTime: occurrence.endTime,
+      timeSlot: input.timeSlot,
+      durationMinutes: input.durationMinutes,
+      status,
+      isEmergency: input.isEmergency ?? false,
+      concern: input.concern ?? null,
+      attachments: input.attachments
+        ? toJsonValue(input.attachments)
+        : Prisma.JsonNull,
+      formIds: input.formIds ?? [],
+      caseId: resolvedCaseId ?? null,
+      encounterId: encounterId ?? null,
+      productItemId,
+      recurrenceSeriesId,
+      recurrenceSeriesIndex: recurrenceSeriesId ? index + 1 : null,
+      recurrenceSeriesTotal: recurrenceSeriesId ? total : null,
+      recurrenceTimeZone: recurrenceSeriesId ? recurrenceTimeZone : null,
+      expiresAt: null,
+    },
+  });
+
+  if (status === "UPCOMING") {
+    await upsertAppointmentOccupancy({
+      tx,
+      appointmentId: appointment.id,
+      organisationId: appointment.organisationId,
+      leadId: input.lead?.id,
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+    });
+  }
+
+  return appointment;
+};
+
+const validateWeeklyOccurrences = (occurrences: AppointmentOccurrence[]) => {
+  if (
+    occurrences.length < 2 ||
+    occurrences.length > MAX_APPOINTMENT_SERIES_SIZE
+  ) {
+    throw new AppointmentPrismaServiceError(
+      `Choose between 2 and ${MAX_APPOINTMENT_SERIES_SIZE} appointments.`,
+      400,
+    );
+  }
+  const duration =
+    occurrences[0].endTime.getTime() - occurrences[0].startTime.getTime();
+  if (duration <= 0) {
+    throw new AppointmentPrismaServiceError(
+      "The appointment end must be after its start.",
+      400,
+    );
+  }
+  for (let index = 0; index < occurrences.length; index += 1) {
+    const current = occurrences[index];
+    if (current.endTime.getTime() - current.startTime.getTime() !== duration) {
+      throw new AppointmentPrismaServiceError(
+        "Every appointment in the series must have the same duration.",
+        400,
+      );
+    }
+    if (index > 0) {
+      const interval =
+        current.startTime.getTime() -
+        occurrences[index - 1].startTime.getTime();
+      if (
+        interval < MIN_SERIES_INTERVAL_MS ||
+        interval > MAX_SERIES_INTERVAL_MS
+      ) {
+        throw new AppointmentPrismaServiceError(
+          "Appointments in a weekly series must be one week apart.",
+          400,
+        );
+      }
+    }
+  }
+};
+
+const createAppointments = async (
   dto: AppointmentRequestDTO,
   status: AppointmentStatus,
-  bookedBy: BookedBy,
-): Promise<AppointmentResponseDTO> => {
+  occurrences: AppointmentOccurrence[],
+  recurrenceSeriesId?: string,
+  recurrenceTimeZone?: string,
+  bookedBy: BookedBy = { kind: "parent" },
+): Promise<AppointmentResponseDTO[]> => {
   const input = fromAppointmentRequestDTO(dto);
   const appointmentKind = normalizeAppointmentKind(input.appointmentKind);
   const caseId = normalizeOptionalString(input.caseId);
   const encounterId = normalizeOptionalString(input.encounterId);
-  assertValidTimeRange(input.startTime, input.endTime);
+  if (recurrenceSeriesId) validateWeeklyOccurrences(occurrences);
+  else if (occurrences.length !== 1) {
+    throw new AppointmentPrismaServiceError(
+      "Only one appointment is allowed.",
+      400,
+    );
+  }
+  if (
+    recurrenceSeriesId &&
+    (!recurrenceTimeZone || !moment.tz.zone(recurrenceTimeZone))
+  ) {
+    throw new AppointmentPrismaServiceError(
+      "Choose a valid time zone for the appointment series.",
+      400,
+    );
+  }
+  const expectedDuration = input.endTime.getTime() - input.startTime.getTime();
+  for (const occurrence of occurrences) {
+    assertValidTimeRange(occurrence.startTime, occurrence.endTime);
+    if (
+      occurrence.endTime.getTime() - occurrence.startTime.getTime() !==
+      expectedDuration
+    ) {
+      throw new AppointmentPrismaServiceError(
+        "Every appointment in the series must have the same duration.",
+        400,
+      );
+    }
+  }
   assertCaseEncounterConsistency({ appointmentKind, caseId, encounterId });
 
   const selection = await resolveCatalogSelectionForAppointment({
@@ -1598,50 +1904,26 @@ const createAppointment = async (
         templateDefaults,
       );
 
-      const appointment = await tx.appointment.create({
-        data: {
-          patient: toJsonValue(input.patient),
-          lead: input.lead ? toJsonValue(input.lead) : Prisma.JsonNull,
-          supportStaff: input.supportStaff
-            ? toJsonValue(input.supportStaff)
-            : [],
-          room: input.room ? toJsonValue(input.room) : Prisma.JsonNull,
-          appointmentType: appointmentType
-            ? toJsonValue(appointmentType)
-            : Prisma.JsonNull,
-          appointmentKind,
-          organisationId: input.organisationId,
-          appointmentDate: input.appointmentDate,
-          startTime: input.startTime,
-          endTime: input.endTime,
-          timeSlot: input.timeSlot,
-          durationMinutes: input.durationMinutes,
-          status,
-          isEmergency: input.isEmergency ?? false,
-          concern: input.concern ?? null,
-          attachments: input.attachments
-            ? toJsonValue(input.attachments)
-            : Prisma.JsonNull,
-          formIds: input.formIds ?? [],
-          caseId: resolvedCaseId ?? null,
-          encounterId: encounterId ?? null,
-          productItemId: selection.productItemId,
-          expiresAt: null,
-        },
-      });
-
-      if (status === "UPCOMING") {
-        await upsertAppointmentOccupancy({
+      const appointments = [];
+      for (const [index, occurrence] of occurrences.entries()) {
+        const appointment = await createAppointmentOccurrence(
           tx,
-          appointmentId: appointment.id,
-          organisationId: appointment.organisationId,
-          leadId: input.lead?.id,
-          startTime: appointment.startTime,
-          endTime: appointment.endTime,
-        });
+          input,
+          status,
+          occurrence,
+          index,
+          occurrences.length,
+          recurrenceSeriesId,
+          recurrenceTimeZone,
+          appointmentKind,
+          resolvedCaseId,
+          encounterId,
+          appointmentType,
+          selection.productItemId,
+        );
+        appointments.push(appointment);
       }
-
-      return appointment;
+      return appointments;
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
@@ -1668,7 +1950,19 @@ const createAppointment = async (
     });
   }
 
-  return toResponse(created);
+  return toResponseList(created);
+};
+
+const createAppointment = async (
+  dto: AppointmentRequestDTO,
+  status: AppointmentStatus,
+  bookedBy: BookedBy,
+): Promise<AppointmentResponseDTO> => {
+  const input = fromAppointmentRequestDTO(dto);
+  const [created] = await createAppointments(dto, status, [
+    { startTime: input.startTime, endTime: input.endTime },
+  ], undefined, undefined, bookedBy);
+  return created;
 };
 
 const applyDtoPatch = (
@@ -1888,6 +2182,119 @@ export const AppointmentPrismaService = {
     return AppointmentPrismaService.getById(appointmentId, {
       organisationId: fromAppointmentRequestDTO(dto).organisationId,
     });
+  },
+
+  async previewWeeklyAppointmentSeries(
+    organisationId: string,
+    leadId: string,
+    occurrences: AppointmentOccurrence[],
+    recurrenceTimeZone: string,
+  ) {
+    if (!organisationId.trim() || !leadId.trim()) {
+      throw new AppointmentPrismaServiceError(
+        "An organisation and lead are required to preview a series.",
+        400,
+      );
+    }
+    if (!moment.tz.zone(recurrenceTimeZone)) {
+      throw new AppointmentPrismaServiceError(
+        "Choose a valid time zone for the appointment series.",
+        400,
+      );
+    }
+    validateWeeklyOccurrences(occurrences);
+    const occupied = await prisma.occupancy.findMany({
+      where: {
+        organisationId,
+        userId: leadId,
+        startTime: { lt: occurrences.at(-1)!.endTime },
+        endTime: { gt: occurrences[0].startTime },
+      },
+      select: { startTime: true, endTime: true },
+    });
+    return occurrences.map((occurrence, index) => ({
+      index: index + 1,
+      startTime: occurrence.startTime,
+      endTime: occurrence.endTime,
+      hasConflict: occupied.some(
+        (item) =>
+          item.startTime < occurrence.endTime &&
+          item.endTime > occurrence.startTime,
+      ),
+    }));
+  },
+
+  async previewAppointmentSeriesReschedule(
+    appointmentId: string,
+    organisationId: string,
+    dto: AppointmentRequestDTO,
+  ) {
+    if (!appointmentId || !organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "An appointment and organisation are required.",
+        400,
+      );
+    }
+    return prisma.$transaction(async (tx) => {
+      const plan = await buildSeriesReschedulePlan(
+        tx,
+        appointmentId,
+        organisationId,
+        dto,
+      );
+      return previewSeriesReschedule(tx, plan, organisationId);
+    });
+  },
+
+  async createWeeklyAppointmentSeriesFromPms(
+    dto: AppointmentRequestDTO,
+    occurrences: AppointmentOccurrence[],
+    recurrenceTimeZone: string,
+    paymentCollectionMethod?: string,
+    actorId?: string,
+  ) {
+    validateWeeklyOccurrences(occurrences);
+    const input = fromAppointmentRequestDTO(dto);
+    if (
+      occurrences[0].startTime.getTime() !== input.startTime.getTime() ||
+      occurrences[0].endTime.getTime() !== input.endTime.getTime()
+    ) {
+      throw new AppointmentPrismaServiceError(
+        "The preview must include the selected appointment first.",
+        400,
+      );
+    }
+    const resolvedPaymentCollectionMethod =
+      resolvePaymentCollectionMethod(paymentCollectionMethod, (message) => {
+        return new AppointmentPrismaServiceError(message, 400);
+      }) ?? "PAYMENT_LINK";
+    const appointments = await createAppointments(
+      dto,
+      "UPCOMING",
+      occurrences,
+      randomUUID(),
+      recurrenceTimeZone,
+      { kind: "practice", actorId },
+    );
+    const appointmentIds = appointments
+      .map((appointment) => appointment.id)
+      .filter(Boolean);
+    await Promise.all(
+      appointmentIds.map((appointmentId) =>
+        InvoiceService.bootstrapForAppointment(
+          appointmentId!,
+          resolvedPaymentCollectionMethod,
+          input.organisationId,
+        ),
+      ),
+    );
+    return Promise.all(
+      appointmentIds.map((appointmentId) =>
+        AppointmentPrismaService.getById(appointmentId!, {
+          organisationId: input.organisationId,
+        }),
+      ),
+    );
   },
 
   async approveRequestedFromPms(
@@ -2473,6 +2880,71 @@ export const AppointmentPrismaService = {
     return toResponse(updated);
   },
 
+  async rescheduleAppointmentSeriesFromPms(
+    appointmentId: string,
+    organisationId: string,
+    dto: AppointmentRequestDTO,
+  ) {
+    if (!appointmentId || !organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "An appointment and organisation are required.",
+        400,
+      );
+    }
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        const plan = await buildSeriesReschedulePlan(
+          tx,
+          appointmentId,
+          organisationId,
+          dto,
+        );
+        for (const { row } of plan.occurrences) {
+          await upsertAppointmentOccupancy({
+            tx,
+            appointmentId: row.id,
+            organisationId,
+            startTime: row.startTime,
+            endTime: row.endTime,
+          });
+        }
+        const rows: AppointmentRow[] = [];
+        for (const occurrence of plan.occurrences) {
+          if (occurrence.row.status === "UPCOMING") {
+            await upsertAppointmentOccupancy({
+              tx,
+              appointmentId: occurrence.row.id,
+              organisationId,
+              leadId: plan.leadId,
+              startTime: occurrence.startTime,
+              endTime: occurrence.endTime,
+            });
+          }
+          const row = await tx.appointment.update({
+            where: { id: occurrence.row.id },
+            data: {
+              startTime: occurrence.startTime,
+              endTime: occurrence.endTime,
+              appointmentDate: occurrence.startTime,
+              timeSlot: moment
+                .tz(occurrence.startTime, plan.recurrenceTimeZone)
+                .format("HH:mm"),
+              durationMinutes: plan.durationMinutes,
+              ...(plan.input.lead
+                ? { lead: toJsonValue(plan.input.lead) }
+                : {}),
+              updatedAt: new Date(),
+            },
+          });
+          rows.push(row);
+        }
+        return rows;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    return toResponseList(updated);
+  },
+
   async cancelAppointmentFromParent(appointmentId: string, parentId: string) {
     const row = await getParentOwnedAppointment(appointmentId, parentId);
 
@@ -2536,6 +3008,81 @@ export const AppointmentPrismaService = {
     });
 
     return toResponse(updated);
+  },
+
+  async cancelAppointmentSeriesFromPms(
+    appointmentId: string,
+    organisationId: string,
+  ) {
+    if (!appointmentId || !organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "An appointment and organisation are required.",
+        400,
+      );
+    }
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        const selected = await tx.appointment.findFirst({
+          where: { id: appointmentId, organisationId },
+        });
+        const selectedRow = selected as AppointmentRow | null;
+        if (!selectedRow) {
+          throw new AppointmentPrismaServiceError("Appointment not found", 404);
+        }
+        if (
+          !selectedRow.recurrenceSeriesId ||
+          !selectedRow.recurrenceSeriesIndex
+        ) {
+          throw new AppointmentPrismaServiceError(
+            "This appointment does not have a cancellable series.",
+            400,
+          );
+        }
+        const rows = (await tx.appointment.findMany({
+          where: {
+            organisationId,
+            recurrenceSeriesId: selectedRow.recurrenceSeriesId,
+            recurrenceSeriesIndex: { gte: selectedRow.recurrenceSeriesIndex },
+            status: { not: "CANCELLED" },
+          },
+          orderBy: { recurrenceSeriesIndex: "asc" },
+        })) as AppointmentRow[];
+        const activeRows = rows.filter(
+          (row) => row.status === "REQUESTED" || row.status === "UPCOMING",
+        );
+        if (!activeRows.some((row) => row.id === selectedRow.id)) {
+          throw new AppointmentPrismaServiceError(
+            "Only requested or upcoming appointments can be cancelled.",
+            409,
+          );
+        }
+        activeRows.forEach((row) =>
+          assertAppointmentTransition(
+            row.status,
+            "CANCELLED",
+            "cancelAppointmentSeriesFromPms",
+          ),
+        );
+        const cancelled: AppointmentRow[] = [];
+        for (const row of activeRows) {
+          await upsertAppointmentOccupancy({
+            tx,
+            appointmentId: row.id,
+            organisationId,
+            startTime: row.startTime,
+            endTime: row.endTime,
+          });
+          const updatedRow = await tx.appointment.update({
+            where: { id: row.id },
+            data: { status: "CANCELLED", updatedAt: new Date() },
+          });
+          cancelled.push(updatedRow);
+        }
+        return cancelled;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    return toResponseList(updated);
   },
 
   /**

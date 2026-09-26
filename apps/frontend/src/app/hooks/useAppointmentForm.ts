@@ -10,10 +10,12 @@ import { Slot, AppointmentWithCompanion } from '@/app/features/appointments/type
 import {
   CalendarPrefillSlotMatch,
   createAppointment,
+  createWeeklyAppointmentSeries,
   getCalendarPrefillMatchesForPrimaryOrg,
   loadAppointmentsForPrimaryOrg,
   getSlotsForServiceAndDateForPrimaryOrg,
 } from '@/app/features/appointments/services/appointmentService';
+import type { AppointmentSeriesOccurrence } from '@/app/features/appointments/lib/appointmentSeries';
 import { buildUtcDateFromDateAndTime, getDurationMinutes } from '@/app/lib/date';
 import {
   buildDateInPreferredTimeZone,
@@ -1273,7 +1275,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   );
 
   const handleCreate = useCallback(
-    async (requireCompanion: boolean = true) => {
+    async (requireCompanion: boolean = true, seriesOccurrences?: AppointmentSeriesOccurrence[]) => {
       const errors = validateForm(requireCompanion);
       setFormDataErrors(errors);
       if (Object.keys(errors).length > 0) {
@@ -1281,7 +1283,12 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       }
       setIsLoading(true);
       try {
-        const createdAppointment = await createAppointment(formData);
+        const createdAppointments = seriesOccurrences
+          ? await createWeeklyAppointmentSeries(formData, seriesOccurrences)
+          : [await createAppointment(formData)].filter((appointment): appointment is Appointment =>
+              Boolean(appointment)
+            );
+        const createdAppointment = createdAppointments[0];
         const syncResults = await Promise.allSettled([
           loadAppointmentsForPrimaryOrg({ force: true, silent: true }),
           refetchData(),
@@ -1293,9 +1300,9 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         if (rejectedSync) {
           console.error('Appointment created but follow-up refresh failed:', rejectedSync.reason);
         }
-        if (createdAppointment?.id) {
-          useAppointmentStore.getState().upsertAppointment(createdAppointment);
-        }
+        createdAppointments.forEach((appointment) => {
+          if (appointment.id) useAppointmentStore.getState().upsertAppointment(appointment);
+        });
         if (onSuccess) {
           await onSuccess(createdAppointment);
         } else {

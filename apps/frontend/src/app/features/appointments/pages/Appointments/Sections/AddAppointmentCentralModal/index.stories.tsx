@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import type { Slot } from '@/app/features/appointments/types/appointments';
+import type { WeeklySeriesPreview } from '@/app/features/appointments/services/appointmentService';
 import { AppointmentFormContent } from './index';
 
 const TODAY = new Date('2026-03-12T00:00:00');
@@ -83,6 +84,8 @@ const noFieldErrors: FormProps['showError'] = () => undefined;
 const FormHarness = (args: FormProps) => {
   const [patientQuery, setPatientQuery] = useState(args.patientQuery);
   const [clientQuery, setClientQuery] = useState(args.clientQuery);
+  const [weeklySeriesEnabled, setWeeklySeriesEnabled] = useState(args.weeklySeriesEnabled ?? false);
+  const [weeklySeriesCount, setWeeklySeriesCount] = useState(args.weeklySeriesCount ?? 4);
 
   return (
     <AppointmentFormContent
@@ -97,6 +100,10 @@ const FormHarness = (args: FormProps) => {
         setClientQuery(value);
         args.setClientQuery(value);
       }}
+      weeklySeriesEnabled={weeklySeriesEnabled}
+      setWeeklySeriesEnabled={setWeeklySeriesEnabled}
+      weeklySeriesCount={weeklySeriesCount}
+      setWeeklySeriesCount={setWeeklySeriesCount}
     />
   );
 };
@@ -556,6 +563,53 @@ export const TimeSlotBlocked: Story = {
           'menu is the only place any of them are shown.',
       },
     },
+  },
+};
+
+export const WeeklySeriesPreview: Story = {
+  name: 'Weekly series with one conflict',
+  args: {
+    weeklySeriesEnabled: true,
+    weeklySeriesCount: 4,
+    weeklySeriesPreview: [
+      {
+        index: 1,
+        startTime: '2026-10-05T09:00:00.000Z',
+        endTime: '2026-10-05T09:30:00.000Z',
+        hasConflict: false,
+      },
+      {
+        index: 2,
+        startTime: '2026-10-12T09:00:00.000Z',
+        endTime: '2026-10-12T09:30:00.000Z',
+        hasConflict: true,
+      },
+      {
+        index: 3,
+        startTime: '2026-10-19T09:00:00.000Z',
+        endTime: '2026-10-19T09:30:00.000Z',
+        hasConflict: false,
+      },
+      {
+        index: 4,
+        startTime: '2026-10-26T09:00:00.000Z',
+        endTime: '2026-10-26T09:30:00.000Z',
+        hasConflict: false,
+      },
+    ] satisfies WeeklySeriesPreview,
+    weeklySeriesError: 'Resolve the conflicts before booking this series.',
+    weeklySeriesSubmitLabel: 'Book series',
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByLabelText('Repeat this appointment weekly')).toBeChecked();
+    await expect(canvas.getByLabelText('Number of appointments')).toHaveValue(4);
+    await expect(canvas.getAllByText('Available')).toHaveLength(3);
+    await expect(canvas.getByText('Conflict')).toBeVisible();
+    await expect(canvas.getByRole('alert')).toHaveTextContent(
+      'Resolve the conflicts before booking this series.'
+    );
+    await expect(canvas.getByRole('button', { name: 'Book series' })).toBeDisabled();
   },
 };
 

@@ -301,6 +301,16 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getByRole('button', { name: /book appointment/i })).toBeInTheDocument();
   });
 
+  it('reveals the bounded weekly-series controls and changes the first action to preview', () => {
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    fireEvent.click(screen.getByLabelText('Repeat this appointment weekly'));
+
+    expect(screen.getByLabelText('Number of appointments')).toHaveValue(4);
+    expect(screen.getByRole('button', { name: 'Preview dates' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Preview series' })).toBeInTheDocument();
+  });
+
   it('renders a Cancel button that closes the modal when there are no unsaved changes', () => {
     const setShowModal = jest.fn();
     render(<AddAppointmentCentralModal {...defaultProps} setShowModal={setShowModal} />);

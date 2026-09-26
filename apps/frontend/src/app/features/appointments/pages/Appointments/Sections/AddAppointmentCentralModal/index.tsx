@@ -22,6 +22,14 @@ import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminology
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getUtcTimeValue } from '@/app/lib/date';
 import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
+import {
+  buildWeeklyAppointmentOccurrences,
+  MAX_WEEKLY_APPOINTMENTS,
+} from '@/app/features/appointments/lib/appointmentSeries';
+import {
+  previewWeeklyAppointmentSeries,
+  type WeeklySeriesPreview,
+} from '@/app/features/appointments/services/appointmentService';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import BottomSheet from '@/app/ui/layout/PhoneShell/BottomSheet';
@@ -47,6 +55,7 @@ const FONT = 'var(--font-satoshi), sans-serif';
 const NEUTRAL_900 = 'var(--color-neutral-900)';
 const INPUT_PLACEHOLDER = 'var(--color-input-text-placeholder)';
 const INPUT_PLACEHOLDER_ACTIVE = 'var(--color-input-text-placeholder-active)';
+const SERIES_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 
 // 16-R: values / selected text / input content
 const text16R: CSSProperties = {
@@ -745,6 +754,15 @@ type AppointmentFormContentProps = {
   ServiceInfoData: any;
   showError: (field: string) => string | undefined;
   handleSubmit: () => void;
+  weeklySeriesEnabled?: boolean;
+  setWeeklySeriesEnabled?: (value: boolean) => void;
+  weeklySeriesCount?: number;
+  setWeeklySeriesCount?: (value: number) => void;
+  weeklySeriesPreview?: WeeklySeriesPreview | null;
+  weeklySeriesError?: string;
+  isPreviewingWeeklySeries?: boolean;
+  onPreviewWeeklySeries?: () => void;
+  weeklySeriesSubmitLabel?: string;
   onCancel: () => void;
   /**
    * `modal` (default) is the desktop CenterModal layout: a 2-column field grid
@@ -798,6 +816,15 @@ export const AppointmentFormContent = ({
   ServiceInfoData,
   showError,
   handleSubmit,
+  weeklySeriesEnabled = false,
+  setWeeklySeriesEnabled = () => undefined,
+  weeklySeriesCount = 4,
+  setWeeklySeriesCount = () => undefined,
+  weeklySeriesPreview,
+  weeklySeriesError,
+  isPreviewingWeeklySeries = false,
+  onPreviewWeeklySeries = () => undefined,
+  weeklySeriesSubmitLabel = 'Book appointment',
   onCancel,
   variant = 'modal',
 }: AppointmentFormContentProps) => (
@@ -982,6 +1009,71 @@ export const AppointmentFormContent = ({
       </div>
     </div>
 
+    <fieldset className="mt-5 rounded-2xl border border-card-border p-4">
+      <legend className="px-1 text-[13px] font-semibold text-[var(--ink-body)]">
+        Appointment series
+      </legend>
+      <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] text-[var(--ink-body)]">
+        <input
+          type="checkbox"
+          checked={weeklySeriesEnabled}
+          onChange={(event) => setWeeklySeriesEnabled(event.target.checked)}
+          className="size-4 accent-text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand"
+        />
+        Repeat this appointment weekly
+      </label>
+      {weeklySeriesEnabled && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-end">
+          <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[var(--ink-soft)]">
+            Number of appointments
+            <input
+              type="number"
+              min={2}
+              max={MAX_WEEKLY_APPOINTMENTS}
+              value={weeklySeriesCount}
+              onChange={(event) => setWeeklySeriesCount(Number(event.target.value))}
+              className="h-11 rounded-xl border border-[var(--hairline)] bg-[var(--color-neutral-0)] px-3 text-[14px] font-normal text-[var(--ink-body)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand"
+            />
+          </label>
+          <div className="flex flex-col gap-2">
+            <p className="text-[12px] text-[var(--ink-soft)]">
+              Review every date and any availability conflicts before booking.
+            </p>
+            <button
+              type="button"
+              onClick={onPreviewWeeklySeries}
+              disabled={isPreviewingWeeklySeries || formState.loading}
+              className="w-fit rounded-full border border-[var(--hairline)] px-4 py-2 text-[13px] font-semibold text-[var(--ink-body)] hover:bg-[var(--screen-2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isPreviewingWeeklySeries ? 'Checking dates…' : 'Preview dates'}
+            </button>
+          </div>
+        </div>
+      )}
+      {weeklySeriesError && (
+        <p role="alert" className="mt-3 text-[13px] text-text-error">
+          {weeklySeriesError}
+        </p>
+      )}
+      {weeklySeriesPreview && (
+        <ol className="mt-3 grid gap-2 sm:grid-cols-2">
+          {weeklySeriesPreview.map((occurrence) => (
+            <li
+              key={occurrence.index}
+              className="flex items-center justify-between gap-3 rounded-xl bg-[var(--screen-2)] px-3 py-2 text-[12px] text-[var(--ink-body)]"
+            >
+              <span>{SERIES_DATE_FORMATTER.format(new Date(occurrence.startTime))}</span>
+              <span
+                className={occurrence.hasConflict ? 'text-text-error' : 'text-[var(--ink-soft)]'}
+              >
+                {occurrence.hasConflict ? 'Conflict' : 'Available'}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </fieldset>
+
     {formState.submitted && formDataErrors.booking && (
       <div className="mt-4 flex items-center gap-2 rounded-2xl border border-input-border-error px-4 py-3">
         <IoIosWarning className="shrink-0 text-text-error" size={16} aria-hidden="true" />
@@ -996,13 +1088,17 @@ export const AppointmentFormContent = ({
         <Secondary
           text="Cancel"
           onClick={onCancel}
-          isDisabled={formState.loading}
+          isDisabled={formState.loading || isPreviewingWeeklySeries}
           className="h-10 justify-center px-5 py-0 text-[13.5px] font-semibold"
         />
         <Primary
-          text="Book appointment"
+          text={weeklySeriesSubmitLabel}
           onClick={handleSubmit}
-          isDisabled={formState.loading}
+          isDisabled={
+            formState.loading ||
+            isPreviewingWeeklySeries ||
+            Boolean(weeklySeriesPreview?.some(({ hasConflict }) => hasConflict))
+          }
           icon={<IoArrowForward aria-hidden="true" />}
           iconPosition="right"
           className="h-10 justify-center gap-[7px] px-5 py-0 text-[13.5px] font-semibold hover:scale-100"
@@ -1086,6 +1182,127 @@ const computePrefillKey = (prefill: AppointmentDraftPrefill | null | undefined):
   });
 };
 
+const getWeeklySeriesButtonLabel = (enabled: boolean, ready: boolean, defaultLabel: string) => {
+  if (!enabled) return defaultLabel;
+  if (ready) return 'Book series';
+  return 'Preview series';
+};
+
+const getWeeklySeriesDraft = (
+  selectedSlot: Slot | null,
+  leadId: string | undefined,
+  count: number
+) => {
+  if (!selectedSlot || !leadId) {
+    throw new Error('Choose an appointment time and lead before previewing the series.');
+  }
+  const occurrences = buildWeeklyAppointmentOccurrences(
+    new Date(selectedSlot.startTime),
+    new Date(selectedSlot.endTime),
+    count
+  );
+  return {
+    occurrences,
+    leadId,
+    key: JSON.stringify([
+      leadId,
+      ...occurrences.map(({ startTime, endTime }) => [
+        startTime.toISOString(),
+        endTime.toISOString(),
+      ]),
+    ]),
+  };
+};
+
+const previewWeeklySeries = async ({
+  dispatchUi,
+  validateForm,
+  setFormDataErrors,
+  getDraft,
+  setPreview,
+  setPreviewKey,
+  setError,
+  setIsPreviewing,
+}: {
+  dispatchUi: Dispatch<ModalUiAction>;
+  validateForm: ReturnType<typeof useAppointmentForm>['validateForm'];
+  setFormDataErrors: ReturnType<typeof useAppointmentForm>['setFormDataErrors'];
+  getDraft: () => ReturnType<typeof getWeeklySeriesDraft>;
+  setPreview: Dispatch<SetStateAction<WeeklySeriesPreview | null>>;
+  setPreviewKey: Dispatch<SetStateAction<string | null>>;
+  setError: Dispatch<SetStateAction<string | undefined>>;
+  setIsPreviewing: Dispatch<SetStateAction<boolean>>;
+}) => {
+  dispatchUi({ type: 'setSubmitAttempted', value: true });
+  const errors = validateForm(true);
+  setFormDataErrors(errors);
+  if (Object.values(errors).some(Boolean)) return;
+  setError(undefined);
+  setPreview(null);
+  setPreviewKey(null);
+  setIsPreviewing(true);
+  try {
+    const draft = getDraft();
+    const preview = await previewWeeklyAppointmentSeries(draft.leadId, draft.occurrences);
+    setPreview(preview);
+    setPreviewKey(draft.key);
+    if (preview.some(({ hasConflict }) => hasConflict)) {
+      setError('Resolve the conflicts before booking this series.');
+    }
+  } catch (error) {
+    setError(error instanceof Error ? error.message : 'Unable to preview these dates.');
+  } finally {
+    setIsPreviewing(false);
+  }
+};
+
+const submitAppointment = async ({
+  dispatchUi,
+  validateForm,
+  setFormDataErrors,
+  weeklySeriesEnabled,
+  getDraft,
+  weeklySeriesPreview,
+  weeklySeriesPreviewKey,
+  setWeeklySeriesError,
+  handlePreviewWeeklySeries,
+  handleCreate,
+}: {
+  dispatchUi: Dispatch<ModalUiAction>;
+  validateForm: ReturnType<typeof useAppointmentForm>['validateForm'];
+  setFormDataErrors: ReturnType<typeof useAppointmentForm>['setFormDataErrors'];
+  weeklySeriesEnabled: boolean;
+  getDraft: () => ReturnType<typeof getWeeklySeriesDraft>;
+  weeklySeriesPreview: WeeklySeriesPreview | null;
+  weeklySeriesPreviewKey: string | null;
+  setWeeklySeriesError: Dispatch<SetStateAction<string | undefined>>;
+  handlePreviewWeeklySeries: () => Promise<void>;
+  handleCreate: ReturnType<typeof useAppointmentForm>['handleCreate'];
+}) => {
+  dispatchUi({ type: 'setSubmitAttempted', value: true });
+  const errors = validateForm(true);
+  setFormDataErrors(errors);
+  if (Object.values(errors).some(Boolean)) return;
+  if (!weeklySeriesEnabled) {
+    await handleCreate(true);
+    return;
+  }
+  try {
+    const draft = getDraft();
+    if (draft.key !== weeklySeriesPreviewKey || !weeklySeriesPreview) {
+      await handlePreviewWeeklySeries();
+      return;
+    }
+    if (weeklySeriesPreview.some(({ hasConflict }) => hasConflict)) {
+      setWeeklySeriesError('Resolve the conflicts before booking this series.');
+      return;
+    }
+    await handleCreate(true, draft.occurrences);
+  } catch (error) {
+    setWeeklySeriesError(error instanceof Error ? error.message : 'Unable to book this series.');
+  }
+};
+
 const useAddAppointmentCentralModalView = ({
   showModal,
   setShowModal,
@@ -1142,6 +1359,12 @@ const useAddAppointmentCentralModalView = ({
     resetForm,
     validateForm,
   } = appointmentForm;
+  const [weeklySeriesEnabled, setWeeklySeriesEnabled] = useState(false);
+  const [weeklySeriesCount, setWeeklySeriesCount] = useState(4);
+  const [weeklySeriesPreview, setWeeklySeriesPreview] = useState<WeeklySeriesPreview | null>(null);
+  const [weeklySeriesPreviewKey, setWeeklySeriesPreviewKey] = useState<string | null>(null);
+  const [weeklySeriesError, setWeeklySeriesError] = useState<string | undefined>();
+  const [isPreviewingWeeklySeries, setIsPreviewingWeeklySeries] = useState(false);
   const syncedVisitType = appointmentKindToVisitType(formData.appointmentKind);
   if (visitType !== syncedVisitType) {
     setVisitType(syncedVisitType);
@@ -1161,6 +1384,11 @@ const useAddAppointmentCentralModalView = ({
     if (!showModal && prevShowModalRef.current) {
       dispatchUi({ type: 'reset' });
       resetForm();
+      setWeeklySeriesEnabled(false);
+      setWeeklySeriesCount(4);
+      setWeeklySeriesPreview(null);
+      setWeeklySeriesPreviewKey(null);
+      setWeeklySeriesError(undefined);
     }
     prevShowModalRef.current = showModal;
   }, [resetForm, showModal]);
@@ -1334,13 +1562,31 @@ const useAddAppointmentCentralModalView = ({
     closeModal();
   }, [canCloseModal, closeModal]);
 
-  const handleSubmit = async () => {
-    dispatchUi({ type: 'setSubmitAttempted', value: true });
-    const errors = validateForm(true);
-    setFormDataErrors(errors);
-    if (Object.values(errors).some(Boolean)) return;
-    await handleCreate(true);
-  };
+  const getDraft = () => getWeeklySeriesDraft(selectedSlot, formData.lead?.id, weeklySeriesCount);
+  const handlePreviewWeeklySeries = () =>
+    previewWeeklySeries({
+      dispatchUi,
+      validateForm,
+      setFormDataErrors,
+      getDraft,
+      setPreview: setWeeklySeriesPreview,
+      setPreviewKey: setWeeklySeriesPreviewKey,
+      setError: setWeeklySeriesError,
+      setIsPreviewing: setIsPreviewingWeeklySeries,
+    });
+  const handleSubmit = () =>
+    submitAppointment({
+      dispatchUi,
+      validateForm,
+      setFormDataErrors,
+      weeklySeriesEnabled,
+      getDraft,
+      weeklySeriesPreview,
+      weeklySeriesPreviewKey,
+      setWeeklySeriesError,
+      handlePreviewWeeklySeries,
+      handleCreate,
+    });
 
   const handleAddCompanionClose = (value: SetStateAction<boolean>) => {
     const nextOpen = typeof value === 'function' ? value(showAddCompanionModal) : value;
@@ -1374,6 +1620,8 @@ const useAddAppointmentCentralModalView = ({
     (date: SetStateAction<Date>) => {
       exitPrefillMode();
       setSelectedDate(date);
+      setWeeklySeriesPreview(null);
+      setWeeklySeriesPreviewKey(null);
     },
     [exitPrefillMode, setSelectedDate]
   );
@@ -1465,6 +1713,8 @@ const useAddAppointmentCentralModalView = ({
     onSlotSelect: (slot) => {
       dispatchUi({ type: 'dismissPrefill' });
       setSelectedSlot(slot);
+      setWeeklySeriesPreview(null);
+      setWeeklySeriesPreviewKey(null);
     },
     formState: {
       loadingTimeSlots: uiState.isLoadingTimeSlots,
@@ -1481,7 +1731,11 @@ const useAddAppointmentCentralModalView = ({
     LeadOptions,
     formData,
     formDataErrors,
-    handleLeadSelectWithReset,
+    handleLeadSelectWithReset: (option) => {
+      handleLeadSelectWithReset(option);
+      setWeeklySeriesPreview(null);
+      setWeeklySeriesPreviewKey(null);
+    },
     leadEmptyStateMessage,
     supportOptions,
     handleSupportStaffChange,
@@ -1493,6 +1747,29 @@ const useAddAppointmentCentralModalView = ({
     ServiceInfoData,
     showError: (field) => showError(field as keyof typeof formDataErrors),
     handleSubmit,
+    weeklySeriesEnabled,
+    setWeeklySeriesEnabled: (value) => {
+      setWeeklySeriesEnabled(value);
+      setWeeklySeriesPreview(null);
+      setWeeklySeriesPreviewKey(null);
+      setWeeklySeriesError(undefined);
+    },
+    weeklySeriesCount,
+    setWeeklySeriesCount: (value) => {
+      setWeeklySeriesCount(value);
+      setWeeklySeriesPreview(null);
+      setWeeklySeriesPreviewKey(null);
+      setWeeklySeriesError(undefined);
+    },
+    weeklySeriesPreview,
+    weeklySeriesError,
+    isPreviewingWeeklySeries,
+    onPreviewWeeklySeries: handlePreviewWeeklySeries,
+    weeklySeriesSubmitLabel: getWeeklySeriesButtonLabel(
+      weeklySeriesEnabled,
+      Boolean(weeklySeriesPreview && weeklySeriesPreviewKey),
+      'Book appointment'
+    ),
     onCancel: handleCancel,
   };
 
@@ -1506,9 +1783,17 @@ const useAddAppointmentCentralModalView = ({
           className="yc-appointment-sheet"
           footer={
             <Primary
-              text={buildBookButtonLabel(selectedClientName)}
+              text={getWeeklySeriesButtonLabel(
+                weeklySeriesEnabled,
+                Boolean(weeklySeriesPreviewKey),
+                buildBookButtonLabel(selectedClientName)
+              )}
               onClick={handleSubmit}
-              isDisabled={isLoading}
+              isDisabled={
+                isLoading ||
+                isPreviewingWeeklySeries ||
+                Boolean(weeklySeriesPreview?.some(({ hasConflict }) => hasConflict))
+              }
               size="large"
               style={{ minHeight: 48, fontSize: 14, fontWeight: 700 }}
             />

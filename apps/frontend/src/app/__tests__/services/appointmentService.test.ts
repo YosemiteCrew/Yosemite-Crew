@@ -2,9 +2,14 @@
 import {
   loadAppointmentsForPrimaryOrg,
   createAppointment,
+  createWeeklyAppointmentSeries,
   updateAppointment,
   getCalendarPrefillMatchesForPrimaryOrg,
   getSlotsForServiceAndDateForPrimaryOrg,
+  previewWeeklyAppointmentSeries,
+  previewAppointmentSeriesReschedule,
+  rescheduleAppointmentSeries,
+  cancelAppointmentSeriesFromPms,
   toSlotsArray,
   acceptAppointment,
   cancelAppointment,
@@ -24,7 +29,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { formatDateLocal } from '@/app/lib/date';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
-import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
+import { getDateKeyInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
 
 import { fromAppointmentRequestDTO, toAppointmentResponseDTO } from '@yosemite-crew/types';
 import type { Appointment, AppointmentResponseDTO } from '@yosemite-crew/types';
@@ -77,8 +82,10 @@ const mockedFormatDateLocal = formatDateLocal as jest.Mock;
 
 jest.mock('@/app/lib/timezone', () => ({
   getDateKeyInPreferredTimeZone: jest.fn(),
+  getPreferredTimeZone: jest.fn().mockReturnValue('Europe/Madrid'),
 }));
 const mockedGetDateKeyInPreferredTimeZone = getDateKeyInPreferredTimeZone as jest.Mock;
+const mockedGetPreferredTimeZone = getPreferredTimeZone as jest.Mock;
 
 // 4. Mock External DTO mappers
 jest.mock('@yosemite-crew/types', () => ({
@@ -109,6 +116,7 @@ describe('Appointment Service', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    mockedGetPreferredTimeZone.mockReturnValue('Europe/Madrid');
 
     // Default Store State Setup
     (useAppointmentStore.getState as jest.Mock).mockReturnValue({
@@ -1130,6 +1138,109 @@ describe('Appointment Service', () => {
       await expect(consumeBulkInventory(mockInventoryList)).rejects.toThrow('Bulk consume error');
       expect(consoleSpy).toHaveBeenCalledWith('Failed to consume Inventory:', error);
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('weekly appointment series', () => {
+    const occurrences = [
+      {
+        startTime: new Date('2026-10-05T09:00:00.000Z'),
+        endTime: new Date('2026-10-05T09:30:00.000Z'),
+      },
+      {
+        startTime: new Date('2026-10-12T09:00:00.000Z'),
+        endTime: new Date('2026-10-12T09:30:00.000Z'),
+      },
+    ];
+
+    it('posts a preview request with normalized ISO dates', async () => {
+      const preview = [
+        {
+          index: 1,
+          startTime: occurrences[0].startTime.toISOString(),
+          endTime: occurrences[0].endTime.toISOString(),
+          hasConflict: false,
+        },
+      ];
+      mockedPostData.mockResolvedValue({ data: { data: preview } });
+
+      await expect(previewWeeklyAppointmentSeries('vet-1', occurrences)).resolves.toEqual(preview);
+      expect(mockedPostData).toHaveBeenCalledWith('/fhir/v1/appointment/pms/series/preview', {
+        leadId: 'vet-1',
+        timeZone: 'Europe/Madrid',
+        occurrences: occurrences.map(({ startTime, endTime }) => ({
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+        })),
+      });
+    });
+
+    it('refuses a preview without a primary organisation', async () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+
+      await expect(previewWeeklyAppointmentSeries('vet-1', occurrences)).rejects.toThrow(
+        'No organisation selected. Cannot preview a series.'
+      );
+      expect(mockedPostData).not.toHaveBeenCalled();
+    });
+
+    it('creates a series and maps returned appointments', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-1' });
+      const dto = { resourceType: 'Appointment', id: 'appt-created' };
+      const mapped = makeBaseAppointment({ id: 'appt-created' });
+      mockedToAppointmentDTO.mockReturnValue({ resourceType: 'Appointment', id: 'appt-1' });
+      mockedPostData.mockResolvedValue({ data: { data: [dto] } });
+      mockedFromAppointmentDTO.mockReturnValue(mapped);
+
+      await expect(createWeeklyAppointmentSeries(appointment, occurrences)).resolves.toEqual([
+        mapped,
+      ]);
+      expect(mockedPostData).toHaveBeenCalledWith('/fhir/v1/appointment/pms/series', {
+        appointment: { resourceType: 'Appointment', id: 'appt-1' },
+        timeZone: 'Europe/Madrid',
+        occurrences: occurrences.map(({ startTime, endTime }) => ({
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+        })),
+      });
+      expect(mockedFromAppointmentDTO).toHaveBeenCalledWith(dto);
+    });
+
+    it('previews and reschedules the selected appointment plus following occurrences', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-1', organisationId: 'org-1' });
+      const mapped = makeBaseAppointment({ id: 'appt-2' });
+      mockedToAppointmentDTO.mockReturnValue({ resourceType: 'Appointment', id: 'appt-1' });
+      mockedPostData.mockResolvedValue({ data: { data: [{ appointmentId: 'appt-1' }] } });
+      await previewAppointmentSeriesReschedule(appointment);
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/appointment/pms/org-123/appt-1/series/reschedule-preview',
+        expect.objectContaining({ resourceType: 'Appointment' })
+      );
+
+      mockedPatchData.mockResolvedValue({ data: { data: [{ id: 'appt-2' }] } });
+      mockedFromAppointmentDTO.mockReturnValue(mapped);
+      await expect(rescheduleAppointmentSeries(appointment)).resolves.toEqual([mapped]);
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        '/fhir/v1/appointment/pms/org-123/appt-1?scope=following',
+        expect.objectContaining({ resourceType: 'Appointment' })
+      );
+      expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(mapped);
+      expect(mockedGetPreferredTimeZone).not.toHaveBeenCalled();
+    });
+
+    it('cancels following occurrences and updates the appointment store', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-1', organisationId: 'org-1' });
+      const mapped = makeBaseAppointment({ id: 'appt-2', status: 'CANCELLED' });
+      mockedPatchData.mockResolvedValue({ data: { data: [{ id: 'appt-2' }] } });
+      mockedFromAppointmentDTO.mockReturnValue(mapped);
+
+      await expect(cancelAppointmentSeriesFromPms(appointment)).resolves.toEqual([mapped]);
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        '/fhir/v1/appointment/pms/org-123/appt-1/cancel',
+        { scope: 'following' }
+      );
+      expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(mapped);
     });
   });
 });

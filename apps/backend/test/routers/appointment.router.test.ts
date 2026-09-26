@@ -18,6 +18,9 @@ const AppointmentController = {
   rescheduleFromMobile: jest.fn(),
   getDocumentUplaodURL: jest.fn(),
   createFromPms: jest.fn(),
+  previewWeeklySeries: jest.fn(),
+  previewAppointmentSeriesReschedule: jest.fn(),
+  createWeeklySeriesFromPms: jest.fn(),
   acceptRequested: jest.fn(),
   rejectRequested: jest.fn(),
   cancelFromMobile: jest.fn(),
@@ -101,6 +104,23 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("appointment.router", () => {
+  it("registers the series reschedule preview as an appointment-scoped route", () => {
+    const route = findRoute(
+      "/pms/:organisationId/:appointmentId/series/reschedule-preview",
+      "post",
+    );
+    expect(route).toBeDefined();
+    expect(route?.stack.map((layer) => layer.handle)).toContain(
+      appointmentOrgPermissionsMiddleware,
+    );
+    expect(route?.stack.map((layer) => layer.handle)).toContain(
+      permissionMiddleware,
+    );
+    expect(
+      AppointmentController.previewAppointmentSeriesReschedule,
+    ).toHaveBeenCalledTimes(0);
+  });
+
   it("registers the inpatient admit PMS route with org permissions", () => {
     const admitRoute = findRoute(
       "/pms/:organisationId/:appointmentId/admit",

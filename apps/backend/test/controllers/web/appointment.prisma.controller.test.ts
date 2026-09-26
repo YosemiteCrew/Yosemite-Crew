@@ -42,6 +42,164 @@ describe("AppointmentPrismaController", () => {
     res = buildResponse();
   });
 
+  describe("recurring appointment management", () => {
+    it("previews a scoped reschedule against the authorized organisation", async () => {
+      (req as any).organisationId = "org_1";
+      req.params = {
+        organisationId: "org_1",
+        appointmentId: "series-1",
+      } as any;
+      req.body = {
+        participant: [{ actor: { reference: "Organization/org_1" } }],
+      };
+      mockedService.previewAppointmentSeriesReschedule.mockResolvedValue(
+        [] as any,
+      );
+
+      await AppointmentController.previewAppointmentSeriesReschedule(
+        req as any,
+        res as any,
+      );
+
+      expect(
+        mockedService.previewAppointmentSeriesReschedule,
+      ).toHaveBeenCalledWith("series-1", "org_1", req.body);
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("rejects a preview whose body names a different organisation", async () => {
+      (req as any).organisationId = "org_1";
+      req.params = {
+        organisationId: "org_1",
+        appointmentId: "series-1",
+      } as any;
+      req.body = {
+        participant: [{ actor: { reference: "Organization/org_2" } }],
+      };
+
+      await AppointmentController.previewAppointmentSeriesReschedule(
+        req as any,
+        res as any,
+      );
+
+      expect(
+        mockedService.previewAppointmentSeriesReschedule,
+      ).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("routes a following-series update through the series service", async () => {
+      (req as any).organisationId = "org_1";
+      req.params = {
+        organisationId: "org_1",
+        appointmentId: "series-1",
+      } as any;
+      req.query = { scope: "following" } as any;
+      req.body = { resourceType: "Appointment" };
+      mockedService.rescheduleAppointmentSeriesFromPms.mockResolvedValue(
+        [] as any,
+      );
+
+      await AppointmentController.updateFromPms(req as any, res as any);
+
+      expect(
+        mockedService.rescheduleAppointmentSeriesFromPms,
+      ).toHaveBeenCalledWith("series-1", "org_1", req.body);
+      expect(mockedService.updateAppointmentPMS).not.toHaveBeenCalled();
+    });
+
+    it("routes following cancellation through the series service", async () => {
+      (req as any).organisationId = "org_1";
+      req.params = {
+        organisationId: "org_1",
+        appointmentId: "series-1",
+      } as any;
+      req.body = { scope: "following" };
+      mockedService.cancelAppointmentSeriesFromPms.mockResolvedValue([] as any);
+
+      await AppointmentController.cancelFromPMS(req as any, res as any);
+
+      expect(mockedService.cancelAppointmentSeriesFromPms).toHaveBeenCalledWith(
+        "series-1",
+        "org_1",
+      );
+      expect(mockedService.cancelAppointment).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("weekly appointment series", () => {
+    const occurrences = [
+      {
+        startTime: "2026-10-05T09:00:00.000Z",
+        endTime: "2026-10-05T09:30:00.000Z",
+      },
+      {
+        startTime: "2026-10-12T09:00:00.000Z",
+        endTime: "2026-10-12T09:30:00.000Z",
+      },
+    ];
+
+    it("previews only for the organisation authorized on the request", async () => {
+      (req as any).organisationId = "org_1";
+      req.body = {
+        leadId: "vet_1",
+        timeZone: "Europe/Madrid",
+        occurrences,
+      };
+      mockedService.previewWeeklyAppointmentSeries.mockResolvedValue([] as any);
+
+      await AppointmentController.previewWeeklySeries(req as any, res as any);
+
+      expect(mockedService.previewWeeklyAppointmentSeries).toHaveBeenCalledWith(
+        "org_1",
+        "vet_1",
+        occurrences.map(({ startTime, endTime }) => ({
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+        })),
+        "Europe/Madrid",
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("rejects previews outside the supported series size", async () => {
+      (req as any).organisationId = "org_1";
+      req.body = {
+        leadId: "vet_1",
+        timeZone: "Europe/Madrid",
+        occurrences: [occurrences[0]],
+      };
+
+      await AppointmentController.previewWeeklySeries(req as any, res as any);
+
+      expect(
+        mockedService.previewWeeklyAppointmentSeries,
+      ).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it("rejects a series creation that names a different organisation", async () => {
+      (req as any).organisationId = "org_1";
+      req.body = {
+        appointment: {
+          participant: [{ actor: { reference: "Organization/org_2" } }],
+        },
+        timeZone: "Europe/Madrid",
+        occurrences,
+      };
+
+      await AppointmentController.createWeeklySeriesFromPms(
+        req as any,
+        res as any,
+      );
+
+      expect(
+        mockedService.createWeeklyAppointmentSeriesFromPms,
+      ).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+  });
+
   it("creates a requested appointment for the authenticated parent", async () => {
     (req as any).userId = "user_1";
     mockedAuth.getByProviderUserId.mockResolvedValue({
