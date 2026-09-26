@@ -54,11 +54,7 @@ const requireOrganisationId = (
 const isOptionalString = (value: unknown): value is string | undefined =>
   value === undefined || typeof value === "string";
 
-const linkSubmission = async (
-  req: Request,
-  res: Response,
-  organisationId: string | null,
-) => {
+const linkSubmission = async (req: Request, organisationId: string | null) => {
   const submissionId = req.params.submissionId;
   const { appointmentId, enforceSingle } = req.body as {
     appointmentId: string;
@@ -82,7 +78,7 @@ const linkSubmission = async (
     });
   }
 
-  res.json(updated);
+  return updated;
 };
 
 const CreateAppointmentSubmissionSchema = z.object({
@@ -262,7 +258,7 @@ export const ObservationToolSubmissionController = {
       const organisationId = requireOrganisationId(req, res);
       if (!organisationId) return;
 
-      await linkSubmission(req, res, organisationId);
+      res.json(await linkSubmission(req, organisationId));
     } catch (error) {
       handleError(error, res);
     }
@@ -271,7 +267,12 @@ export const ObservationToolSubmissionController = {
   // MOBILE — parent links a submission to their companion's appointment
   linkAppointmentFromMobile: async (req: Request, res: Response) => {
     try {
-      await linkSubmission(req, res, null);
+      // The app only needs to know which appointment the submission is on.
+      const { id, taskId, evaluationAppointmentId } = await linkSubmission(
+        req,
+        null,
+      );
+      res.json({ id, taskId, evaluationAppointmentId });
     } catch (error) {
       handleError(error, res);
     }

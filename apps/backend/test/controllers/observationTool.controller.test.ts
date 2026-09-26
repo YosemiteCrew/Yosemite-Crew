@@ -554,6 +554,12 @@ describe("ObservationTool Controllers", () => {
         (mockedSubService.linkToAppointment as any).mockResolvedValue({
           id: "s1",
           taskId: "tsk1",
+          evaluationAppointmentId: "apt1",
+          patientId: "pat1",
+          filledBy: "par1",
+          answers: { q1: "yes" },
+          score: 3,
+          summary: "Settled",
         });
 
         await ObservationToolSubmissionController.linkAppointmentFromMobile(
@@ -571,7 +577,12 @@ describe("ObservationTool Controllers", () => {
           taskId: "tsk1",
           appointmentId: "apt1",
         });
-        expect(jsonMock).toHaveBeenCalledWith({ id: "s1", taskId: "tsk1" });
+        // Only the link itself goes back to the app.
+        expect(jsonMock).toHaveBeenCalledWith({
+          id: "s1",
+          taskId: "tsk1",
+          evaluationAppointmentId: "apt1",
+        });
       });
 
       it("maps a hidden submission to 404 and links no task", async () => {

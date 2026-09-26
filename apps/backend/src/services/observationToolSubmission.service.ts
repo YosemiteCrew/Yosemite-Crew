@@ -5,7 +5,7 @@ import {
   ObservationToolAnswers,
 } from "src/models/observationToolDefinition";
 import { prisma } from "src/config/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, type ObservationToolSubmission } from "@prisma/client";
 
 export class ObservationToolSubmissionServiceError extends Error {
   constructor(
@@ -190,6 +190,82 @@ const ensureCompanionInOrganisation = async (
   }
 };
 
+type SubmissionLinks = {
+  taskId?: string | null;
+  evaluationAppointmentId?: string | null;
+};
+
+/**
+ * The submissions an organisation may read: the task, when there is one, is
+ * the organisation's or the parent's own (no organisation), and the linked
+ * appointment, when there is one, is the organisation's. A task or appointment
+ * that cannot be found is treated as another organisation's.
+ */
+const keepOrganisationSubmissions = async <T extends SubmissionLinks>(
+  docs: T[],
+  organisationId: string,
+): Promise<T[]> => {
+  const linkedIds = (key: keyof SubmissionLinks) =>
+    Array.from(
+      new Set(docs.map((doc) => doc[key]).filter((id): id is string => !!id)),
+    );
+  const taskIds = linkedIds("taskId");
+  const appointmentIds = linkedIds("evaluationAppointmentId");
+
+  const [tasks, appointments] = await Promise.all([
+    taskIds.length
+      ? prisma.task.findMany({
+          where: {
+            id: { in: taskIds },
+            OR: [{ organisationId }, { organisationId: null }],
+          },
+          select: { id: true },
+        })
+      : [],
+    appointmentIds.length
+      ? prisma.appointment.findMany({
+          where: { id: { in: appointmentIds }, organisationId },
+          select: { id: true },
+        })
+      : [],
+  ]);
+  const readableTaskIds = new Set(tasks.map((task) => task.id));
+  const readableAppointmentIds = new Set(
+    appointments.map((appointment) => appointment.id),
+  );
+
+  return docs.filter(
+    (doc) =>
+      (!doc.taskId || readableTaskIds.has(doc.taskId)) &&
+      (!doc.evaluationAppointmentId ||
+        readableAppointmentIds.has(doc.evaluationAppointmentId)),
+  );
+};
+
+const isSubmissionAtOrganisation = async (
+  doc: SubmissionLinks & { patientId: string },
+  organisationId: string,
+): Promise<boolean> =>
+  (await isCompanionInOrganisation(doc.patientId, organisationId)) &&
+  (await keepOrganisationSubmissions([doc], organisationId)).length > 0;
+
+/**
+ * PMS: a submission the organisation cannot read answers like a missing one.
+ * A pet parent may link a submission that has no appointment yet, or repeat
+ * its current link.
+ */
+const canLinkSubmission = (
+  doc: SubmissionLinks & { patientId: string },
+  organisationId: string | null,
+  appointmentId: string,
+): Promise<boolean> =>
+  organisationId
+    ? isSubmissionAtOrganisation(doc, organisationId)
+    : Promise.resolve(
+        !doc.evaluationAppointmentId ||
+          doc.evaluationAppointmentId === appointmentId,
+      );
+
 const appointmentPatientIdOf = (patient: unknown): string | undefined =>
   asNonEmptyString((patient as { id?: unknown } | null)?.id);
 
@@ -230,12 +306,17 @@ const loadAppointmentPatientId = async (
 
 /**
  * A submission may only be linked to an appointment of its own companion, at
- * the caller's organisation (PMS) and at the organisation of the submission's
- * task when it has one. Any other appointment answers like a missing one.
+ * the caller's organisation (PMS), at the organisation of the submission's task
+ * when it has one, and at the organisation of the appointment it is linked to
+ * now. Any other appointment answers like a missing one.
  */
 const ensureAppointmentForSubmission = async (
   appointmentId: string,
-  submission: { patientId: string; taskId: string | null },
+  submission: {
+    patientId: string;
+    taskId: string | null;
+    evaluationAppointmentId: string | null;
+  },
   organisationId: string | null,
 ): Promise<void> => {
   const appointment = await prisma.appointment.findFirst({
@@ -248,8 +329,18 @@ const ensureAppointmentForSubmission = async (
         select: { organisationId: true },
       })
     : null;
+  const linkedAppointment = submission.evaluationAppointmentId
+    ? await prisma.appointment.findFirst({
+        where: { id: submission.evaluationAppointmentId },
+        select: { organisationId: true },
+      })
+    : null;
 
-  const requiredOrganisationIds = [organisationId, task?.organisationId];
+  const requiredOrganisationIds = [
+    organisationId,
+    task?.organisationId,
+    linkedAppointment?.organisationId,
+  ];
   if (
     !appointment ||
     appointmentPatientIdOf(appointment.patient) !== submission.patientId ||
@@ -482,7 +573,7 @@ export const ObservationToolSubmissionService = {
 
   async linkToAppointment(
     input: LinkSubmissionToAppointmentInput,
-  ): Promise<ObservationToolSubmissionDocument> {
+  ): Promise<ObservationToolSubmission> {
     const organisationId =
       input.organisationId === null
         ? null
@@ -496,8 +587,7 @@ export const ObservationToolSubmissionService = {
 
     if (
       !doc ||
-      (organisationId &&
-        !(await isCompanionInOrganisation(doc.patientId, organisationId)))
+      !(await canLinkSubmission(doc, organisationId, appointmentId))
     ) {
       throw new ObservationToolSubmissionServiceError(
         "Submission not found",
@@ -520,15 +610,13 @@ export const ObservationToolSubmissionService = {
       }
     }
 
-    const updated = await prisma.observationToolSubmission.update({
+    return prisma.observationToolSubmission.update({
       where: { id: submissionId },
       data: { evaluationAppointmentId: appointmentId },
     });
-
-    return updated as unknown as ObservationToolSubmissionDocument;
   },
 
-  /** One submission, or null when it is missing or not for a companion of the organisation. */
+  /** One submission, or null when it is missing or the organisation cannot read it. */
   async getById(
     id: string,
     organisationId: string,
@@ -538,10 +626,7 @@ export const ObservationToolSubmissionService = {
     const doc = await prisma.observationToolSubmission.findFirst({
       where: { id: safeId },
     });
-    if (
-      !doc ||
-      !(await isCompanionInOrganisation(doc.patientId, safeOrganisationId))
-    ) {
+    if (!doc || !(await isSubmissionAtOrganisation(doc, safeOrganisationId))) {
       return null;
     }
     return doc as unknown as ObservationToolSubmissionDocument;
@@ -580,7 +665,10 @@ export const ObservationToolSubmissionService = {
       where,
       orderBy: { createdAt: "desc" },
     });
-    return docs as unknown as ObservationToolSubmissionDocument[];
+    return (await keepOrganisationSubmissions(
+      docs,
+      organisationId,
+    )) as unknown as ObservationToolSubmissionDocument[];
   },
 
   /** Submissions linked to an appointment of the organisation, for its companion. */
@@ -600,7 +688,10 @@ export const ObservationToolSubmissionService = {
       where: { evaluationAppointmentId: safeAppointmentId, patientId },
       orderBy: { createdAt: "desc" },
     });
-    return docs as unknown as ObservationToolSubmissionDocument[];
+    return (await keepOrganisationSubmissions(
+      docs,
+      safeOrganisationId,
+    )) as unknown as ObservationToolSubmissionDocument[];
   },
 
   async getByTaskId(taskId: string) {

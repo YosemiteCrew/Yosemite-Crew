@@ -1,4 +1,11 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals";
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+} from "@jest/globals";
 import { ObservationToolSubmissionService } from "../../src/services/observationToolSubmission.service";
 import { TaskService } from "../../src/services/task.service";
 import { prisma } from "src/config/prisma";
@@ -29,6 +36,7 @@ jest.mock("src/config/prisma", () => ({
     },
     appointment: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     patientOrganisation: {
       findFirst: jest.fn(),
@@ -40,6 +48,47 @@ jest.mock("src/config/prisma", () => ({
 // Simple id helpers — assertObjectId only requires a non-empty string.
 let idCounter = 0;
 const newId = () => `id-${(idCounter += 1)}`;
+
+type Row = { id: string; organisationId: string | null };
+type FindManyArgs = {
+  where: {
+    id: { in: string[] };
+    organisationId?: string;
+    OR?: { organisationId: string | null }[];
+  };
+};
+
+// Tasks and appointments of two organisations, read the way Prisma applies
+// the `where` the service builds.
+const ORG_TASKS: Row[] = [
+  { id: "task-org-a", organisationId: "org-a" },
+  { id: "task-parent", organisationId: null },
+  { id: "task-org-b", organisationId: "org-b" },
+];
+const ORG_APPOINTMENTS: Row[] = [
+  { id: "appt-org-a", organisationId: "org-a" },
+  { id: "appt-org-b", organisationId: "org-b" },
+];
+const useOrganisationTables = () => {
+  (prismaMock.task.findMany as any).mockImplementation(
+    async ({ where }: FindManyArgs) =>
+      ORG_TASKS.filter(
+        (row) =>
+          where.id.in.includes(row.id) &&
+          (where.OR ?? []).some(
+            (option) => option.organisationId === row.organisationId,
+          ),
+      ),
+  );
+  (prismaMock.appointment.findMany as any).mockImplementation(
+    async ({ where }: FindManyArgs) =>
+      ORG_APPOINTMENTS.filter(
+        (row) =>
+          where.id.in.includes(row.id) &&
+          row.organisationId === where.organisationId,
+      ),
+  );
+};
 
 describe("ObservationToolSubmissionService", () => {
   const toolId = newId();
@@ -479,6 +528,138 @@ describe("ObservationToolSubmissionService", () => {
       });
     });
 
+    describe("a submission the organisation cannot read", () => {
+      beforeEach(() => {
+        useOrganisationTables();
+        (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
+          id: "co1",
+        });
+      });
+
+      afterEach(() => {
+        (prismaMock.task.findMany as any).mockReset();
+        (prismaMock.appointment.findMany as any).mockReset();
+        (prismaMock.appointment.findFirst as any).mockReset();
+      });
+
+      it.each([
+        ["linked to another organisation's appointment", null, "appt-org-b"],
+        [
+          "of a parent task linked to another organisation's appointment",
+          "task-parent",
+          "appt-org-b",
+        ],
+        ["of another organisation's task", "task-org-b", null],
+        ["of a task that does not exist", "no-such-task", null],
+      ])(
+        "answers a submission %s like a missing one on a PMS link",
+        async (_label, linkedTaskId, evaluationAppointmentId) => {
+          (
+            prismaMock.observationToolSubmission.findFirst as any
+          ).mockResolvedValue({
+            ...submission,
+            taskId: linkedTaskId,
+            evaluationAppointmentId,
+          });
+          (prismaMock.appointment.findFirst as any).mockResolvedValue(
+            appointmentOf(companionId, orgA),
+          );
+
+          await expectNotFound(
+            { organisationId: orgA, submissionId, appointmentId },
+            "Submission not found",
+          );
+        },
+      );
+
+      it("links a parent task's submission at the caller's organisation", async () => {
+        (
+          prismaMock.observationToolSubmission.findFirst as any
+        ).mockResolvedValue({
+          ...submission,
+          taskId: "task-parent",
+          evaluationAppointmentId: "appt-org-a",
+        });
+        (prismaMock.task.findFirst as any).mockResolvedValue({
+          organisationId: null,
+        });
+        (prismaMock.appointment.findFirst as any).mockResolvedValue(
+          appointmentOf(companionId, orgA),
+        );
+
+        await ObservationToolSubmissionService.linkToAppointment({
+          organisationId: orgA,
+          submissionId,
+          appointmentId,
+        });
+
+        expect(prisma.observationToolSubmission.update).toHaveBeenCalledWith({
+          where: { id: submissionId },
+          data: { evaluationAppointmentId: appointmentId },
+        });
+      });
+
+      it("checks the organisation of the appointment the submission is on before moving it", async () => {
+        // Checked on its own: with the read check satisfied, a current
+        // appointment at another organisation than the target still refuses.
+        (
+          prismaMock.observationToolSubmission.findFirst as any
+        ).mockResolvedValue({
+          ...submission,
+          evaluationAppointmentId: "appt-org-a",
+        });
+        (prismaMock.appointment.findFirst as any).mockImplementation(
+          async ({ where }: { where: { id: string } }) =>
+            where.id === appointmentId
+              ? appointmentOf(companionId, orgA)
+              : { organisationId: orgB },
+        );
+
+        await expectNotFound(
+          { organisationId: orgA, submissionId, appointmentId },
+          "Appointment not found",
+        );
+        expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
+          where: { id: "appt-org-a" },
+          select: { organisationId: true },
+        });
+      });
+    });
+
+    it("does not move a submission that is on another appointment for a pet parent", async () => {
+      (prismaMock.observationToolSubmission.findFirst as any).mockResolvedValue(
+        { ...submission, evaluationAppointmentId: "appt-earlier" },
+      );
+      (prismaMock.appointment.findFirst as any).mockResolvedValue(
+        appointmentOf(companionId, orgA),
+      );
+
+      await expectNotFound(
+        { organisationId: null, submissionId, appointmentId },
+        "Submission not found",
+      );
+    });
+
+    it("repeats a pet parent's current link", async () => {
+      (prismaMock.observationToolSubmission.findFirst as any).mockResolvedValue(
+        { ...submission, evaluationAppointmentId: appointmentId },
+      );
+      (prismaMock.appointment.findFirst as any).mockResolvedValue(
+        appointmentOf(companionId, orgA),
+      );
+
+      await ObservationToolSubmissionService.linkToAppointment({
+        organisationId: null,
+        submissionId,
+        appointmentId,
+      });
+
+      expect(prisma.observationToolSubmission.update).toHaveBeenCalledWith({
+        where: { id: submissionId },
+        data: { evaluationAppointmentId: appointmentId },
+      });
+    });
+
     it.each(["", "  "])(
       "rejects a blank organisation (%j) instead of treating it as a parent link",
       async (blank) => {
@@ -869,6 +1050,149 @@ describe("ObservationToolSubmissionService", () => {
         ),
       ).rejects.toThrow("Forbidden");
       expect(prisma.observationToolSubmission.findMany).not.toHaveBeenCalled();
+    });
+
+    describe("rows the organisation cannot read", () => {
+      // One submission per case, all for a companion of both organisations.
+      const rows = [
+        { id: "no-links", taskId: null, evaluationAppointmentId: null },
+        { id: "own-task", taskId: "task-org-a", evaluationAppointmentId: null },
+        {
+          id: "parent-task",
+          taskId: "task-parent",
+          evaluationAppointmentId: null,
+        },
+        {
+          id: "own-appointment",
+          taskId: null,
+          evaluationAppointmentId: "appt-org-a",
+        },
+        {
+          id: "other-task",
+          taskId: "task-org-b",
+          evaluationAppointmentId: null,
+        },
+        {
+          id: "other-appointment",
+          taskId: null,
+          evaluationAppointmentId: "appt-org-b",
+        },
+        {
+          id: "parent-task-other-appointment",
+          taskId: "task-parent",
+          evaluationAppointmentId: "appt-org-b",
+        },
+        {
+          id: "missing-task",
+          taskId: "no-such-task",
+          evaluationAppointmentId: null,
+        },
+        {
+          id: "missing-appointment",
+          taskId: null,
+          evaluationAppointmentId: "no-such-appointment",
+        },
+      ].map((row) => ({ ...row, patientId: companionId }));
+      const readable = [
+        "no-links",
+        "own-task",
+        "parent-task",
+        "own-appointment",
+      ];
+
+      beforeEach(() => {
+        useOrganisationTables();
+        (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
+          id: "co1",
+        });
+        (prismaMock.patientOrganisation.findMany as any).mockResolvedValue([
+          { patientId: companionId },
+        ]);
+      });
+
+      afterEach(() => {
+        (prismaMock.task.findMany as any).mockReset();
+        (prismaMock.appointment.findMany as any).mockReset();
+      });
+
+      it("listSubmissions leaves out another organisation's task or appointment", async () => {
+        (
+          prismaMock.observationToolSubmission.findMany as any
+        ).mockResolvedValue(rows);
+
+        const res = await ObservationToolSubmissionService.listSubmissions({
+          organisationId: "org-a",
+        });
+
+        expect(res.map((row: any) => row.id)).toEqual(readable);
+      });
+
+      it("listSubmissions for one companion applies the same rule", async () => {
+        (
+          prismaMock.observationToolSubmission.findMany as any
+        ).mockResolvedValue(rows);
+
+        const res = await ObservationToolSubmissionService.listSubmissions({
+          organisationId: "org-a",
+          patientId: companionId,
+        });
+
+        expect(res.map((row: any) => row.id)).toEqual(readable);
+      });
+
+      it("listSubmissions reads no tasks or appointments for rows without links", async () => {
+        (
+          prismaMock.observationToolSubmission.findMany as any
+        ).mockResolvedValue([rows[0]]);
+
+        await ObservationToolSubmissionService.listSubmissions({
+          organisationId: "org-a",
+        });
+
+        expect(prisma.task.findMany).not.toHaveBeenCalled();
+        expect(prisma.appointment.findMany).not.toHaveBeenCalled();
+      });
+
+      it.each(rows.map((row) => [row.id, readable.includes(row.id)] as const))(
+        "getById for %s returns the row only when the organisation can read it (%s)",
+        async (id, visible) => {
+          const row = rows.find((candidate) => candidate.id === id);
+          (
+            prismaMock.observationToolSubmission.findFirst as any
+          ).mockResolvedValue(row);
+
+          await expect(
+            ObservationToolSubmissionService.getById(id, "org-a"),
+          ).resolves.toEqual(visible ? row : null);
+        },
+      );
+
+      it("listForAppointment leaves out a submission of another organisation's task", async () => {
+        (prismaMock.appointment.findFirst as any).mockResolvedValue({
+          patient: { id: companionId },
+        });
+        (
+          prismaMock.observationToolSubmission.findMany as any
+        ).mockResolvedValue([
+          {
+            id: "own",
+            taskId: "task-org-a",
+            evaluationAppointmentId: "appt-org-a",
+          },
+          {
+            id: "other-task",
+            taskId: "task-org-b",
+            evaluationAppointmentId: "appt-org-a",
+          },
+        ]);
+
+        const res = await ObservationToolSubmissionService.listForAppointment(
+          "appt-org-a",
+          "org-a",
+        );
+
+        expect(res.map((row: any) => row.id)).toEqual(["own"]);
+      });
     });
 
     it("getByTaskId queries by taskId", async () => {

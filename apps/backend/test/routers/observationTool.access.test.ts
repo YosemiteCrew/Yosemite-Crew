@@ -12,9 +12,11 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 
 /**
- * The mobile observation-tool routes end to end: the real router, companion
+ * The observation-tool submission routes end to end: the real router, companion
  * access middleware, controller and service over an in-memory database whose
  * `where` matching follows Prisma's rules (an `undefined` field is dropped).
+ * PMS routes take the organisation from a test header in place of the staff
+ * permission middleware.
  */
 
 type Row = Record<string, unknown>;
@@ -24,6 +26,9 @@ const mockDb: Record<string, Row[]> = {};
 const mockMatches = (row: Row, where: Row = {}): boolean =>
   Object.entries(where).every(([key, condition]) => {
     if (condition === undefined) return true;
+    if (key === "OR") {
+      return (condition as Row[]).some((option) => mockMatches(row, option));
+    }
     if (condition && typeof condition === "object") {
       const filter = condition as { in?: unknown[]; not?: unknown };
       if (Array.isArray(filter.in)) return filter.in.includes(row[key]);
@@ -40,6 +45,9 @@ const mockTable = (name: string) => {
   return {
     findFirst: find,
     findUnique: find,
+    findMany: jest.fn(async ({ where }: { where?: Row } = {}) =>
+      mockDb[name].filter((row) => mockMatches(row, where)),
+    ),
     create: jest.fn(async ({ data }: { data: Row }) => {
       const row = {
         id: `${name}-${mockDb[name].length + 1}`,
@@ -98,6 +106,32 @@ jest.mock("src/middlewares/auth", () => {
     next();
   };
   return { requireMobileAuth: signIn, requireWebAuth: signIn };
+});
+jest.mock("src/middlewares/rbac", () => {
+  const withTestOrganisation =
+    () =>
+    (
+      req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction,
+    ) => {
+      (req as express.Request & { organisationId?: unknown }).organisationId =
+        req.headers["x-test-org"];
+      next();
+    };
+  return {
+    withOrgPermissions: withTestOrganisation,
+    withAppointmentOrgPermissions: withTestOrganisation,
+    withTaskOrgPermissions: withTestOrganisation,
+    requirePermission:
+      () =>
+      (
+        _req: express.Request,
+        _res: express.Response,
+        next: express.NextFunction,
+      ) =>
+        next(),
+  };
 });
 
 const ALL_OFF = {
@@ -208,6 +242,29 @@ const seed = () => {
       observationToolId: "tool-1",
       assignedTo: PARENTS.owner,
     },
+    // pat-1 is also a patient at org-b.
+    {
+      id: "task-org-b",
+      patientId: "pat-1",
+      organisationId: "org-b",
+      observationToolId: "tool-1",
+      assignedTo: "staff-b",
+    },
+    // Tasks a parent set themselves carry no organisation.
+    {
+      id: "task-parent",
+      patientId: "pat-1",
+      organisationId: null,
+      observationToolId: "tool-1",
+      assignedTo: PARENTS.owner,
+    },
+    {
+      id: "task-parent-2",
+      patientId: "pat-1",
+      organisationId: null,
+      observationToolId: "tool-1",
+      assignedTo: PARENTS.owner,
+    },
   ];
   mockDb.observationToolSubmission = [
     {
@@ -223,6 +280,19 @@ const seed = () => {
       createdAt: new Date("2026-09-01T10:00:00Z"),
       updatedAt: new Date("2026-09-01T10:00:00Z"),
     },
+    // Recorded by org-b staff on org-b's appointment.
+    {
+      ...recorded("sub-org-b-appointment"),
+      filledBy: "staff-b",
+      evaluationAppointmentId: "appt-other-org",
+    },
+    {
+      ...recorded("sub-parent-task-org-b-appointment"),
+      taskId: "task-parent",
+      evaluationAppointmentId: "appt-other-org",
+    },
+    { ...recorded("sub-org-b-task"), taskId: "task-org-b" },
+    { ...recorded("sub-parent-task"), taskId: "task-parent-2" },
   ];
   mockDb.appointment = [
     { id: "appt-1", organisationId: "org-a", patient: { id: "pat-1" } },
@@ -232,9 +302,28 @@ const seed = () => {
       patient: { id: "pat-2" },
     },
     { id: "appt-other-org", organisationId: "org-b", patient: { id: "pat-1" } },
+    { id: "appt-org-b-2", organisationId: "org-b", patient: { id: "pat-1" } },
   ];
-  mockDb.patientOrganisation = [];
+  mockDb.patientOrganisation = ["org-a", "org-b"].map((organisationId) => ({
+    patientId: "pat-1",
+    organisationId,
+    status: "ACTIVE",
+  }));
 };
+
+const recorded = (id: string): Row => ({
+  id,
+  toolId: "tool-1",
+  taskId: null,
+  patientId: "pat-1",
+  filledBy: PARENTS.owner,
+  answers: { q1: "no" },
+  score: 0,
+  summary: `Summary of ${id}`,
+  evaluationAppointmentId: null,
+  createdAt: new Date("2026-09-02T10:00:00Z"),
+  updatedAt: new Date("2026-09-02T10:00:00Z"),
+});
 
 let server: http.Server;
 let baseUrl = "";
@@ -263,14 +352,16 @@ beforeEach(() => {
 const call = async (
   method: "GET" | "POST",
   path: string,
-  caller?: Caller,
+  caller?: Caller | "staff",
   body?: unknown,
+  organisationId?: string,
 ) => {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
       "content-type": "application/json",
       ...(caller ? { "x-test-user": caller } : {}),
+      ...(organisationId ? { "x-test-org": organisationId } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -363,8 +454,9 @@ describe("POST /mobile/submissions/:submissionId/link-appointment", () => {
       const { status, body } = await link(caller, "appt-1");
 
       expect(status).toBe(200);
-      expect(body).toMatchObject({
+      expect(body).toEqual({
         id: "sub-1",
+        taskId: "task-1",
         evaluationAppointmentId: "appt-1",
       });
       expect(submission("sub-1")?.evaluationAppointmentId).toBe("appt-1");
@@ -421,12 +513,143 @@ describe("POST /mobile/submissions/:submissionId/link-appointment", () => {
       expect(mockTaskService.linkToAppointment).not.toHaveBeenCalled();
     },
   );
+
+  it("does not move a submission that is already on another appointment", async () => {
+    const moved = await link("owner", "appt-1", "sub-org-b-appointment");
+
+    expect(moved.status).toBe(404);
+    expect(moved.body).toEqual({ message: "Submission not found" });
+    expect(submission("sub-org-b-appointment")?.evaluationAppointmentId).toBe(
+      "appt-other-org",
+    );
+    expect(mockPrisma.observationToolSubmission.update).not.toHaveBeenCalled();
+  });
+
+  it("repeats the current link and returns only the link", async () => {
+    const { status, body } = await link(
+      "owner",
+      "appt-other-org",
+      "sub-org-b-appointment",
+    );
+
+    expect(status).toBe(200);
+    expect(body).toEqual({
+      id: "sub-org-b-appointment",
+      taskId: null,
+      evaluationAppointmentId: "appt-other-org",
+    });
+  });
+});
+
+describe("PMS submission routes", () => {
+  const pms = (
+    organisationId: string,
+    method: "GET" | "POST",
+    path: string,
+    body?: unknown,
+  ) => call(method, `/pms${path}`, "staff", body, organisationId);
+  const HIDDEN_FROM_ORG_A = [
+    "sub-org-b-appointment",
+    "sub-parent-task-org-b-appointment",
+    "sub-org-b-task",
+  ];
+  const ids = (body: unknown) =>
+    (body as Row[]).map((row) => row.id as string).sort();
+
+  it.each([
+    ["org-a", ["sub-1", "sub-parent-task"]],
+    ["org-b", [...HIDDEN_FROM_ORG_A, "sub-parent-task"].sort()],
+  ])(
+    "lists only the submissions %s can read",
+    async (organisationId, expected) => {
+      const { status, body } = await pms(organisationId, "GET", "/submissions");
+
+      expect(status).toBe(200);
+      expect(ids(body)).toEqual(expected);
+    },
+  );
+
+  it("lists only readable submissions for one companion", async () => {
+    const { status, body } = await pms(
+      "org-a",
+      "GET",
+      "/submissions?patientId=pat-1",
+    );
+
+    expect(status).toBe(200);
+    expect(ids(body)).toEqual(["sub-1", "sub-parent-task"]);
+  });
+
+  it.each(HIDDEN_FROM_ORG_A)(
+    "answers GET %s like a missing submission",
+    async (submissionId) => {
+      const hidden = await pms("org-a", "GET", `/submissions/${submissionId}`);
+      const missing = await pms("org-a", "GET", "/submissions/no-such-sub");
+
+      expect(hidden.status).toBe(404);
+      expect(hidden.body).toEqual(missing.body);
+    },
+  );
+
+  it.each([
+    ["org-a", "sub-parent-task"],
+    ["org-b", "sub-org-b-appointment"],
+  ])("returns %s a submission it can read (%s)", async (org, submissionId) => {
+    const { status, body } = await pms(
+      org,
+      "GET",
+      `/submissions/${submissionId}`,
+    );
+
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ id: submissionId });
+  });
+
+  it.each(HIDDEN_FROM_ORG_A)(
+    "does not link %s to the organisation's appointment",
+    async (submissionId) => {
+      const before = { ...submission(submissionId) };
+
+      const { status, body } = await pms(
+        "org-a",
+        "POST",
+        `/submissions/${submissionId}/link-appointment`,
+        { appointmentId: "appt-1" },
+      );
+
+      expect(status).toBe(404);
+      expect(body).toEqual({ message: "Submission not found" });
+      expect(submission(submissionId)).toEqual(before);
+      expect(
+        mockPrisma.observationToolSubmission.update,
+      ).not.toHaveBeenCalled();
+      expect(mockTaskService.linkToAppointment).not.toHaveBeenCalled();
+    },
+  );
+
+  it("links a submission within the organisation that recorded it", async () => {
+    const { status, body } = await pms(
+      "org-b",
+      "POST",
+      "/submissions/sub-org-b-appointment/link-appointment",
+      { appointmentId: "appt-org-b-2" },
+    );
+
+    expect(status).toBe(200);
+    expect(body).toMatchObject({
+      id: "sub-org-b-appointment",
+      evaluationAppointmentId: "appt-org-b-2",
+    });
+  });
 });
 
 describe("POST /mobile/tools/:toolId/submissions", () => {
   const create = (caller: Caller, body: Row) =>
     call("POST", "/mobile/tools/tool-1/submissions", caller, body);
-  const created = () => mockDb.observationToolSubmission.slice(1);
+  const created = () =>
+    mockDb.observationToolSubmission.filter((row) =>
+      String(row.id).startsWith("observationToolSubmission-"),
+    );
 
   it.each<Caller>(["owner", "coParent"])(
     "records a submission for the companion (%s)",
