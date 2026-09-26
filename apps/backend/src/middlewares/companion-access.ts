@@ -223,3 +223,51 @@ export const resolveExpenseCompanion: CompanionResourceResolver = async (
 
   return invoice.parentId === parentId ? { kind: "allow" } : { kind: "deny" };
 };
+
+const readIdParam = (req: Request, name: string): string | undefined =>
+  (req.params as Record<string, string | undefined>)[name]?.trim();
+
+/** Observation-tool task routes: the companion recorded on the task. */
+export const resolveObservationTaskCompanion: CompanionResourceResolver =
+  async (req) => {
+    const taskId = readIdParam(req, "taskId");
+    if (!taskId) return { kind: "deny" };
+
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { patientId: true },
+    });
+    return task?.patientId
+      ? { kind: "patient", patientId: task.patientId }
+      : { kind: "deny" };
+  };
+
+/** Observation-tool submission routes: the companion the submission is for. */
+export const resolveObservationSubmissionCompanion: CompanionResourceResolver =
+  async (req) => {
+    const submissionId = readIdParam(req, "submissionId");
+    if (!submissionId) return { kind: "deny" };
+
+    const submission = await prisma.observationToolSubmission.findUnique({
+      where: { id: submissionId },
+      select: { patientId: true },
+    });
+    return submission
+      ? { kind: "patient", patientId: submission.patientId }
+      : { kind: "deny" };
+  };
+
+/**
+ * Routes that create a record for the companion named in the body
+ * (`patientId`). Only a non-empty string names a companion; any other value is
+ * refused.
+ */
+export const resolveBodyPatientCompanion: CompanionResourceResolver = async (
+  req,
+) => {
+  const patientId = (req.body as Record<string, unknown> | undefined)
+    ?.patientId;
+  return typeof patientId === "string" && patientId
+    ? { kind: "patient", patientId }
+    : { kind: "deny" };
+};

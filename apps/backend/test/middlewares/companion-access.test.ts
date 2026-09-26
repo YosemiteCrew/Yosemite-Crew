@@ -5,6 +5,8 @@ jest.mock("src/config/prisma", () => ({
     parentPatient: { findFirst: jest.fn() },
     externalExpense: { findUnique: jest.fn() },
     invoice: { findUnique: jest.fn() },
+    task: { findUnique: jest.fn() },
+    observationToolSubmission: { findUnique: jest.fn() },
   },
 }));
 jest.mock("src/services/shared/parent-identity", () => ({
@@ -16,7 +18,10 @@ import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
 import {
   requireCompanionPermission,
   requireCompanionPermissionForResource,
+  resolveBodyPatientCompanion,
   resolveExpenseCompanion,
+  resolveObservationSubmissionCompanion,
+  resolveObservationTaskCompanion,
 } from "src/middlewares/companion-access";
 
 const findFirst = (
@@ -324,5 +329,96 @@ describe("requireCompanionPermissionForResource (expenses)", () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(404);
     expect(expenseFindUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("observation-tool resolvers", () => {
+  const taskFindUnique = (
+    prisma as unknown as { task: { findUnique: jest.Mock } }
+  ).task.findUnique;
+  const submissionFindUnique = (
+    prisma as unknown as {
+      observationToolSubmission: { findUnique: jest.Mock };
+    }
+  ).observationToolSubmission.findUnique;
+  const reqWith = (params: Record<string, string>, body?: unknown) =>
+    ({ params, body }) as unknown as Request;
+
+  it("reads the companion off the task", async () => {
+    taskFindUnique.mockResolvedValue({ patientId: "pat-1" });
+
+    await expect(
+      resolveObservationTaskCompanion(reqWith({ taskId: " task-1 " }), "par-1"),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-1" });
+    expect(taskFindUnique).toHaveBeenCalledWith({
+      where: { id: "task-1" },
+      select: { patientId: true },
+    });
+  });
+
+  it.each([null, { patientId: null }])(
+    "denies a task that is missing or has no companion (%j)",
+    async (task) => {
+      taskFindUnique.mockResolvedValue(task);
+
+      await expect(
+        resolveObservationTaskCompanion(reqWith({ taskId: "task-1" }), "par-1"),
+      ).resolves.toEqual({ kind: "deny" });
+    },
+  );
+
+  it("reads the companion off the submission", async () => {
+    submissionFindUnique.mockResolvedValue({ patientId: "pat-2" });
+
+    await expect(
+      resolveObservationSubmissionCompanion(
+        reqWith({ submissionId: "sub-1" }),
+        "par-1",
+      ),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-2" });
+    expect(submissionFindUnique).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      select: { patientId: true },
+    });
+  });
+
+  it("denies a submission that does not exist", async () => {
+    submissionFindUnique.mockResolvedValue(null);
+
+    await expect(
+      resolveObservationSubmissionCompanion(
+        reqWith({ submissionId: "sub-1" }),
+        "par-1",
+      ),
+    ).resolves.toEqual({ kind: "deny" });
+  });
+
+  it("denies blank ids without a query", async () => {
+    await expect(
+      resolveObservationTaskCompanion(reqWith({ taskId: "  " }), "par-1"),
+    ).resolves.toEqual({ kind: "deny" });
+    await expect(
+      resolveObservationSubmissionCompanion(reqWith({}), "par-1"),
+    ).resolves.toEqual({ kind: "deny" });
+    expect(taskFindUnique).not.toHaveBeenCalled();
+    expect(submissionFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("names the companion from the body patientId", async () => {
+    await expect(
+      resolveBodyPatientCompanion(reqWith({}, { patientId: "pat-3" }), "par-1"),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-3" });
+  });
+
+  it.each([
+    undefined,
+    {},
+    { patientId: "" },
+    { patientId: { not: "" } },
+    { patientId: ["pat-3"] },
+  ])("denies a body without a plain patientId (%j)", async (body) => {
+    await expect(
+      resolveBodyPatientCompanion(reqWith({}, body), "par-1"),
+    ).resolves.toEqual({ kind: "deny" });
   });
 });

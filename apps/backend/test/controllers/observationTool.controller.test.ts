@@ -61,12 +61,14 @@ describe("ObservationTool Controllers", () => {
     sendMock = jest.fn();
     statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
 
+    // PMS handlers read the organisation withOrgPermissions() authorised.
     req = {
       headers: {},
       params: {},
       body: {},
       query: {},
-    };
+      organisationId: "org1",
+    } as Partial<Request>;
 
     res = {
       status: statusMock,
@@ -437,6 +439,22 @@ describe("ObservationTool Controllers", () => {
         });
       });
 
+      it.each([
+        { patientId: { not: "p1" } },
+        { patientId: ["p1", "p2"] },
+        { toolId: { in: ["t1"] } },
+      ])("returns 400 for a structured filter %j", async (query) => {
+        req.query = query as any;
+
+        await ObservationToolSubmissionController.listForPms(
+          req as any,
+          res as Response,
+        );
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(mockedSubService.listSubmissions).not.toHaveBeenCalled();
+      });
+
       it("should handle error", async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         mockGenericError(mockedSubService.listSubmissions as any);
@@ -524,6 +542,85 @@ describe("ObservationTool Controllers", () => {
           req as any,
           res as Response,
         );
+      });
+    });
+
+    describe("linkAppointmentFromMobile", () => {
+      it("links without an organisation, whatever the request carries", async () => {
+        (req as any).organisationId = "org-from-request";
+        req.params = { submissionId: "s1" };
+        req.body = { appointmentId: "apt1" };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedSubService.linkToAppointment as any).mockResolvedValue({
+          id: "s1",
+          taskId: "tsk1",
+        });
+
+        await ObservationToolSubmissionController.linkAppointmentFromMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedSubService.linkToAppointment).toHaveBeenCalledWith({
+          organisationId: null,
+          submissionId: "s1",
+          appointmentId: "apt1",
+          enforceSingleSubmissionPerAppointment: false,
+        });
+        expect(mockedTaskService.linkToAppointment).toHaveBeenCalledWith({
+          taskId: "tsk1",
+          appointmentId: "apt1",
+        });
+        expect(jsonMock).toHaveBeenCalledWith({ id: "s1", taskId: "tsk1" });
+      });
+
+      it("maps a hidden submission to 404 and links no task", async () => {
+        req.params = { submissionId: "s1" };
+        req.body = { appointmentId: "apt1" };
+        // An instance of the (auto-mocked) class the controller checks against.
+        const hidden = Object.assign(
+          new (ObservationToolSubmissionServiceError as any)(),
+          { message: "Submission not found", statusCode: 404 },
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedSubService.linkToAppointment as any).mockRejectedValue(hidden);
+
+        await ObservationToolSubmissionController.linkAppointmentFromMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(statusMock).toHaveBeenCalledWith(404);
+        expect(jsonMock).toHaveBeenCalledWith({
+          message: "Submission not found",
+        });
+        expect(mockedTaskService.linkToAppointment).not.toHaveBeenCalled();
+      });
+    });
+
+    describe.each([
+      ["listForPms", "listSubmissions"],
+      ["getById", "getById"],
+      ["linkAppointment", "linkToAppointment"],
+      ["listForAppointment", "listForAppointment"],
+      ["createForAppointment", "createForAppointment"],
+      ["listTaskPreviewsForAppointment", "listTaskPreviewsForAppointment"],
+    ] as const)("%s without an organisation", (handler, service) => {
+      it("returns 400 and reads nothing", async () => {
+        (req as any).organisationId = undefined;
+        (req as any).userId = "vet1";
+        req.params = { submissionId: "s1", appointmentId: "apt1" };
+
+        await ObservationToolSubmissionController[handler](
+          req as any,
+          res as Response,
+        );
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(jsonMock).toHaveBeenCalledWith({
+          message: "Missing organisation context",
+        });
+        expect(mockedSubService[service]).not.toHaveBeenCalled();
       });
     });
 
@@ -756,6 +853,9 @@ describe("ObservationTool Controllers", () => {
           req as any,
           res as Response,
         );
+        expect(
+          mockedSubService.listTaskPreviewsForAppointment,
+        ).toHaveBeenCalledWith("apt1", "org1");
         expect(jsonMock).toHaveBeenCalledWith([]);
       });
 

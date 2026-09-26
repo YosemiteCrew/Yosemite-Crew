@@ -10,6 +10,22 @@ const withTaskOrgPermissions = jest.fn(() =>
   jest.fn((_req, _res, next) => next()),
 );
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
+const requireSuperAdmin = jest.fn((_req, _res, next) => next());
+const resolveBodyPatientCompanion = jest.fn();
+const resolveObservationSubmissionCompanion = jest.fn();
+const resolveObservationTaskCompanion = jest.fn();
+const companionGuards: Array<{
+  feature: string;
+  resolver: unknown;
+  guard: jest.Mock;
+}> = [];
+const requireCompanionPermissionForResource = jest.fn(
+  (feature: string, resolver: unknown) => {
+    const guard = jest.fn((_req, _res, next) => next());
+    companionGuards.push({ feature, resolver, guard });
+    return guard;
+  },
+);
 
 const ObservationToolDefinitionController = {
   list: jest.fn(),
@@ -22,6 +38,7 @@ const ObservationToolDefinitionController = {
 const ObservationToolSubmissionController = {
   createFromMobile: jest.fn(),
   linkAppointment: jest.fn(),
+  linkAppointmentFromMobile: jest.fn(),
   getPreviewByTaskId: jest.fn(),
   listForPms: jest.fn(),
   getById: jest.fn(),
@@ -41,6 +58,17 @@ jest.mock("../../src/middlewares/rbac", () => ({
   withAppointmentOrgPermissions,
   withTaskOrgPermissions,
   requirePermission,
+}));
+
+jest.mock("../../src/middlewares/super-admin", () => ({
+  requireSuperAdmin,
+}));
+
+jest.mock("../../src/middlewares/companion-access", () => ({
+  requireCompanionPermissionForResource,
+  resolveBodyPatientCompanion,
+  resolveObservationSubmissionCompanion,
+  resolveObservationTaskCompanion,
 }));
 
 jest.mock("../../src/controllers/web/observationTool.controller", () => ({
@@ -71,7 +99,55 @@ const findRoute = (path: string, method: string) => {
   return layer?.route;
 };
 
+const handlesOf = (path: string, method: string) =>
+  findRoute(path, method)?.stack.map((layer) => layer.handle) ?? [];
+
+const companionGuardFor = (resolver: unknown) =>
+  companionGuards.find((entry) => entry.resolver === resolver);
+
 describe("observationTool.routes", () => {
+  it.each([
+    {
+      path: "/mobile/tools/:toolId/submissions",
+      method: "post",
+      feature: "medicalRecords",
+      resolver: resolveBodyPatientCompanion,
+      handler: ObservationToolSubmissionController.createFromMobile,
+    },
+    {
+      path: "/mobile/submissions/:submissionId/link-appointment",
+      method: "post",
+      feature: "appointments",
+      resolver: resolveObservationSubmissionCompanion,
+      handler: ObservationToolSubmissionController.linkAppointmentFromMobile,
+    },
+    {
+      path: "/mobile/tasks/:taskId/preview",
+      method: "get",
+      feature: "medicalRecords",
+      resolver: resolveObservationTaskCompanion,
+      handler: ObservationToolSubmissionController.getPreviewByTaskId,
+    },
+  ])(
+    "checks the companion before $method $path",
+    ({ path, method, feature, resolver, handler }) => {
+      const handles = handlesOf(path, method);
+      const entry = companionGuardFor(resolver);
+
+      expect(entry?.feature).toBe(feature);
+      expect(handles).toEqual([requireMobileAuth, entry?.guard, handler]);
+    },
+  );
+
+  it.each([
+    ["/pms/tools", "post"],
+    ["/pms/tools/:toolId", "patch"],
+    ["/pms/tools/:toolId/archive", "post"],
+  ])("limits %s %s to platform administrators", (path, method) => {
+    const handles = handlesOf(path, method);
+    expect(handles.slice(0, 2)).toEqual([requireWebAuth, requireSuperAdmin]);
+  });
+
   it("protects mobile list and submission routes plus PMS create with auth", () => {
     const mobileListRoute = findRoute("/mobile/tools", "get");
     const mobileSubmitRoute = findRoute(
