@@ -2,27 +2,23 @@
 
 **Status:** Proposed
 
-> **Nothing described here is implemented on `dev` as of 2026-09-02.** The ADR is
-> recorded ahead of the build on purpose - the Context says the model must be
-> decided before the surface exists - so it is a constraint on future work, not a
-> description of a shipped feature. `authorizeApiKey` and `requireScope` exist in
-> the tree but are mounted on no route; the Developer Data API this design reads
-> through is not deployed; there is no agent surface in the product. The
-> "Definition of done" section lists what would have to be true for that to
-> change. This ADR keeps the status `Proposed` past its merge, against the
-> convention in [README](README.md), for exactly that reason.
+> The read-only Developer Data API and its MCP client are implemented in the current product build.
+> This ADR still describes proposed work: the in-browser editing agent, draft
+> configuration writes, and inference-key vault are not shipped. The existing
+> read surface is documented in [Current capabilities](../current-capabilities.md);
+> the rules below constrain the future write surface.
 > **Date:** 2026-07-07
 
 ## Context
 
-Epic #1582 Phase 2 puts an AI editing agent inside `/developers`: a developer chats with a model in the browser and the agent edits their PIMS configuration (Forms, Templates, ObservationTool, FHIR mappings) through an MCP toolset over the planned Developer Data API contract (designed on the `feat/dev-portal-phase2-foundations` branch, not in this repo). The developer brings their own inference key (Claude or OpenAI); Yosemite Crew does not proxy or meter inference in Tier 1.
+Epic #1582 Phase 2 puts an AI editing agent inside `/developers`: a developer chats with a model in the browser and the agent edits their PIMS configuration (Forms, Templates, ObservationTool, FHIR mappings) through a future write-capable MCP toolset. The current read-only Developer Data API is already available and is the boundary that future agent reads must use. The developer brings their own inference key; Yosemite Crew does not proxy or meter inference in Tier 1.
 
 This is the highest-risk surface in the developer platform, and its security model must be decided **before** it is built:
 
 - The agent operates inside a system holding veterinary health data. Model output is probabilistic; a hallucinated or prompt-injected tool call must not be able to change what clinicians see in production, alter the database schema, or exfiltrate patient data.
 - Data the agent reads back from the PIMS (patient names, form field contents, template bodies) can itself contain adversarial text. Any security model that assumes the model "follows instructions" fails here.
 - The BYO inference key is a valuable credential belonging to the developer. Custody, logging, and revocation need explicit rules, or the key leaks into logs and error reports by default.
-- The building blocks are already built and constrain the design: versioned form/template models with a draft-then-publish lifecycle in the config engine, `DeveloperApiKey` with hashed keys and scoped auth (`authorizeApiKey` + `requireScope` in `apps/backend/src/middlewares/api-key-auth.ts`, which are on `dev` but mounted on no route, so they are a written contract rather than a live boundary), `DeveloperApiUsage` metering (same PR) with per-key rate limiting specified in the data API contract, and the read-only data-plane pattern prototyped in closed PR #1726 (`developer-data.router.ts`, `packages/mcp-server`) and superseded by the planned Developer Data API contract.
+- The building blocks are already built and constrain the design: versioned form/template models with a draft-then-publish lifecycle in the config engine, `DeveloperApiKey` with hashed keys and scoped auth, the live `/v1/developer` read routes, `DeveloperApiUsage` metering, and the read-only MCP client. Future write routes must preserve the same membership and scope checks.
 
 ## Decision
 
@@ -30,7 +26,7 @@ The Tier 1 agent is a **config-scoped, draft-only, human-promoted** editor. Five
 
 ### 1. Capability boundary: config tools only
 
-- The MCP toolset exposes exactly: CRUD on Forms, Templates, and ObservationTool definitions **in draft state**, plus read-only access to data the developer's account can already see (the read endpoints of the planned Developer Data API contract (designed on the `feat/dev-portal-phase2-foundations` branch, not in this repo), e.g. `GET /v1/developer/appointments` and `GET /v1/developer/patients`, and config reads).
+- The future MCP toolset exposes exactly: CRUD on Forms, Templates, and ObservationTool definitions **in draft state**, plus the read-only data already exposed by `/v1/developer` (organisations, usage, appointments, and appointment details).
 - The agent never gets schema or migration tools - Prisma Migrate stays the human-only source of truth (ADR 0001).
 - No arbitrary HTTP fetch tool. No code-commit rights: code changes are Tier 2, a human path through the Yosemite GitHub App (see the planned Tier 2 GitHub App design, not in this repo).
 - The tool list is a static allowlist compiled into the client. There is no "register a new tool at runtime" surface. Later config surfaces extend the allowlist only by code change reviewed against this ADR (the Phase 3b planned website builder, not in this repo registers its site-config tools this way).
@@ -38,7 +34,7 @@ The Tier 1 agent is a **config-scoped, draft-only, human-promoted** editor. Five
 ### 2. Draft/promote gate: no agent-initiated publish
 
 - Every agent write creates or updates a **draft version** using the existing versioned form/template models - the same versioning and publish machinery clinicians already use, not a parallel one.
-- Publishing (promoting a draft to the active version) is a separate endpoint requiring an interactive human session (`requireWebAuth`, ADR 0003 / PR #1763, unmerged as of this ADR's date). It is deliberately absent from the MCP toolset.
+- Publishing (promoting a draft to the active version) is a separate endpoint requiring an interactive human session (`requireWebAuth`). It is deliberately absent from the MCP toolset.
 - The `/developers` UI shows a diff between the draft and the published version before the publish button.
 - A prompt-injected agent can therefore at worst litter the draft space; it cannot change what renders in a clinic.
 
