@@ -18,6 +18,7 @@ jest.mock("src/config/prisma", () => ({
     },
     user: { findFirst: jest.fn() },
     encounter: { findFirst: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
     renderedDocument: { update: jest.fn() },
     documentSignature: { upsert: jest.fn() },
   },
@@ -80,6 +81,7 @@ const mockedPrisma = prisma as unknown as {
   };
   user: { findFirst: jest.Mock };
   encounter: { findFirst: jest.Mock };
+  parentPatient: { findFirst: jest.Mock };
   renderedDocument: { update: jest.Mock };
   documentSignature: { upsert: jest.Mock };
 };
@@ -1463,10 +1465,38 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
 });
 
 describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () => {
-  it("serves the signed packet after verifying parent ownership", async () => {
-    mockedPrisma.encounter.findFirst.mockResolvedValue({
-      organisationId: "org-1",
-    });
+  type Link = {
+    parentId: string;
+    patientId: string;
+    role: string;
+    status: string;
+    permissions: unknown;
+  };
+
+  const link = (overrides: Partial<Link> = {}): Link => ({
+    parentId: "parent-1",
+    patientId: "companion-1",
+    role: "PRIMARY",
+    status: "ACTIVE",
+    permissions: {},
+    ...overrides,
+  });
+
+  // Answers the link lookup the way the database would, so a lookup that
+  // drops the status, role or pair filter lets the wrong link through.
+  const useLinks = (links: Link[]) =>
+    mockedPrisma.parentPatient.findFirst.mockImplementation(
+      async ({ where }) =>
+        links.find(
+          (row) =>
+            row.parentId === where.parentId &&
+            row.patientId === where.patientId &&
+            row.status === where.status &&
+            where.role.in.includes(row.role),
+        ) ?? null,
+    );
+
+  const useSignedPacket = () => {
     mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
       basePacket({
         status: "FINAL",
@@ -1482,45 +1512,77 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () =
       downloadUrl: "https://signed.example/packet.pdf",
     });
     mockedAxios.get.mockResolvedValue({ data: pdfBytes("signed") });
+  };
 
-    const pdf =
-      await WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent(
-        "parent-1",
-        "enc-1",
-      );
+  const build = () =>
+    WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent(
+      "parent-1",
+      "enc-1",
+    );
 
-    expect(pdf).toBeInstanceOf(Buffer);
-    expect(mockedPrisma.encounter.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "enc-1",
-        parentId: "parent-1",
-      },
-      select: {
-        organisationId: true,
-      },
+  beforeEach(() => {
+    // The encounter still names the caller as the parent it was opened for.
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      organisationId: "org-1",
+      patientId: "companion-1",
     });
+    useSignedPacket();
+  });
+
+  it.each([
+    ["the primary parent", link()],
+    [
+      "a co-parent with the documents permission",
+      link({ role: "CO_PARENT", permissions: { documents: true } }),
+    ],
+  ])("serves the signed packet to %s", async (_label, companionLink) => {
+    useLinks([companionLink]);
+
+    await expect(build()).resolves.toBeInstanceOf(Buffer);
+    expect(mockedPrisma.encounter.findFirst).toHaveBeenCalledWith({
+      where: { id: "enc-1" },
+      select: { organisationId: true, patientId: true },
+    });
+  });
+
+  it.each([
+    ["a REVOKED link", link({ status: "REVOKED" })],
+    ["a PENDING link", link({ status: "PENDING" })],
+    [
+      "a co-parent without the documents permission",
+      link({
+        role: "CO_PARENT",
+        permissions: { documents: false, medicalRecords: true },
+      }),
+    ],
+    ["a link to another companion", link({ patientId: "companion-2" })],
+  ])("returns 404 through %s", async (_label, companionLink) => {
+    useLinks([companionLink]);
+
+    await expect(build()).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Encounter not found",
+    });
+    expect(
+      mockedPrisma.workspaceDocumentPacket.findFirst,
+    ).not.toHaveBeenCalled();
+    expect(mockedAxios.get).not.toHaveBeenCalled();
   });
 
   // The staff builder merges whatever documents exist right now when nothing is
   // signed. That working copy must never reach the owner.
   it("refuses to assemble an unsigned packet for the parent", async () => {
-    mockedPrisma.encounter.findFirst.mockResolvedValue({
-      organisationId: "org-1",
-    });
+    useLinks([link()]);
     mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
 
-    await expect(
-      WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent(
-        "parent-1",
-        "enc-1",
-      ),
-    ).rejects.toMatchObject({ statusCode: 404 });
+    await expect(build()).rejects.toMatchObject({ statusCode: 404 });
 
     expect(mockedWorkspaceService.getEncounterBootstrap).not.toHaveBeenCalled();
     expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
   });
 
-  it("rejects when the encounter does not belong to the parent", async () => {
+  it("returns 404 for an encounter that does not exist", async () => {
+    useLinks([link()]);
     mockedPrisma.encounter.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -1528,8 +1590,12 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () =
         "parent-1",
         "enc-other",
       ),
-    ).rejects.toMatchObject({ statusCode: 404 });
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Encounter not found",
+    });
 
     expect(mockedWorkspaceService.getEncounterBootstrap).not.toHaveBeenCalled();
+    expect(mockedPrisma.parentPatient.findFirst).not.toHaveBeenCalled();
   });
 });
