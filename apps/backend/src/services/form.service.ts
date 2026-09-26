@@ -1068,18 +1068,46 @@ const throwForbidden = (): never => {
 // Ids read from a client payload reach a query only as plain strings.
 const isIdOrAbsent = (value: unknown) => !value || typeof value === "string";
 
+type SubmissionActor = { parentId: string } | { organisationId: string };
+
+// A parent submits for the companion on an appointment at the form's
+// organisation or, with no appointment, for a companion linked to that
+// organisation.
+const assertParentMaySubmitFor = async (
+  parentId: string,
+  appointment: { patient?: unknown } | null,
+  patientId: string | undefined,
+  formOrgId: string,
+) => {
+  if (appointment) {
+    await assertParentCanViewAppointment(appointment, parentId);
+    if (patientId && patientId !== resolveAppointmentPatientId(appointment)) {
+      throwForbidden();
+    }
+    return;
+  }
+  if (!patientId) {
+    throw new FormServiceError("Forbidden", 403);
+  }
+  await assertParentCanViewAppointment(
+    { patient: { id: patientId } },
+    parentId,
+  );
+  await assertPatientOrgMembership(patientId, formOrgId, throwForbidden);
+};
+
 /**
  * A concrete form's submission is written into the form's own organisation.
- * Practice staff submit only their organisation's forms; a parent submits for a
- * companion they may act for. An appointment or companion the caller may not
- * use is answered the same way as one that does not exist.
+ * Practice staff submit only their organisation's forms, for its own
+ * appointments and companions; a parent submits for a companion they may act
+ * for. An appointment or companion the caller may not use is answered the same
+ * way as one that does not exist.
  */
 const assertFormSubmittableBy = async (
   submission: FormSubmission,
   formOrgId: string,
-  actor?: { parentId: string } | { organisationId: string },
+  actor: SubmissionActor,
 ) => {
-  if (!actor) return;
   if ("organisationId" in actor && formOrgId !== actor.organisationId) {
     throw new FormServiceError("Form not found", 404);
   }
@@ -1089,27 +1117,45 @@ const assertFormSubmittableBy = async (
     throwForbidden();
   }
 
-  if (appointmentId) {
-    const appointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId, organisationId: formOrgId },
-      select: { patient: true },
-    });
-    if (!appointment) {
-      throw new FormServiceError("Forbidden", 403);
-    }
-    if ("parentId" in actor) {
-      await assertParentCanViewAppointment(appointment, actor.parentId);
-    }
+  const appointment = appointmentId
+    ? await prisma.appointment.findFirst({
+        where: { id: appointmentId, organisationId: formOrgId },
+        select: { patient: true },
+      })
+    : null;
+  if (appointmentId && !appointment) {
+    throwForbidden();
   }
 
-  if (patientId) {
-    await ("parentId" in actor
-      ? assertParentCanViewAppointment(
-          { patient: { id: patientId } },
-          actor.parentId,
-        )
-      : assertPatientOrgMembership(patientId, formOrgId, throwForbidden));
+  if ("parentId" in actor) {
+    await assertParentMaySubmitFor(
+      actor.parentId,
+      appointment,
+      patientId,
+      formOrgId,
+    );
+  } else if (patientId) {
+    await assertPatientOrgMembership(patientId, formOrgId, throwForbidden);
   }
+};
+
+// A practice may name the companion's parent on a submission it writes. The
+// name is kept only for a parent who may see that submission.
+const parentNamedByPractice = async (
+  submission: FormSubmission,
+): Promise<string | undefined> => {
+  const { parentId, patientId, submittedBy } = submission;
+  if (typeof parentId !== "string" || typeof patientId !== "string") {
+    return undefined;
+  }
+  const feature = submissionFeature({
+    parentId,
+    patientId,
+    submittedBy: submittedBy ?? null,
+  });
+  return (await parentHasCompanionFeature(parentId, patientId, feature))
+    ? parentId
+    : undefined;
 };
 
 const syncFormFields = async (formId: string, schema: FormField[]) => {
@@ -1144,14 +1190,14 @@ const syncFormFields = async (formId: string, schema: FormField[]) => {
 const submitViaTemplateInstance = async (
   formIdString: string,
   submission: FormSubmission,
-  actor?: { parentId: string } | { organisationId: string },
+  actor: SubmissionActor,
 ): Promise<FormSubmission> => {
   const template = await getTemplateOrUndefined(formIdString);
   if (!template?.organisationId) {
     throw new FormServiceError("Form not found", 404);
   }
 
-  if (actor && "parentId" in actor) {
+  if ("parentId" in actor) {
     await assertTemplateSubmittableByParent({
       organisationId: template.organisationId,
       templateId: formIdString,
@@ -1164,7 +1210,6 @@ const submitViaTemplateInstance = async (
   // named, but the instance below is written into the template's own
   // organisation. Without this they can diverge.
   if (
-    actor &&
     "organisationId" in actor &&
     template.organisationId !== actor.organisationId
   ) {
@@ -1399,9 +1444,9 @@ export const FormService = {
 
   async submitFHIR(
     response: FormSubmissionRequestDTO,
-    schema?: FormField[],
-    submittedByOverride?: string,
-    actor?: { parentId: string } | { organisationId: string },
+    schema: FormField[] | undefined,
+    submittedByOverride: string | undefined,
+    actor: SubmissionActor,
   ): Promise<FormSubmission> {
     const initialSubmission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
@@ -1422,6 +1467,9 @@ export const FormService = {
     // submitted-by extension so the signing guard can match initiator===submitter.
     if (submittedByOverride) {
       submission.submittedBy = submittedByOverride;
+    }
+    if ("organisationId" in actor) {
+      submission.parentId = await parentNamedByPractice(submission);
     }
 
     // Never trust signing metadata from client-submitted FHIR extensions.

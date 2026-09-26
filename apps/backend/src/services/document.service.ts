@@ -7,6 +7,7 @@ import {
 } from "src/middlewares/upload";
 import { assertSafeString } from "src/utils/sanitize";
 import { documentWhereForOrg } from "./document-scope";
+import { filterUserIdsInOrganisation } from "./shared/organisation-membership";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 
@@ -609,6 +610,48 @@ export const assertCompanionAttachmentKeys = (
   }
 };
 
+/**
+ * The keys among `keys` that another record still points at: an attachment of
+ * a document other than `documentId`, or the companion's profile photo.
+ */
+const findKeysInUse = async (
+  keys: string[],
+  patientId: string,
+  documentId?: string,
+): Promise<Set<string>> => {
+  if (keys.length === 0) return new Set();
+  const [attachments, patient] = await Promise.all([
+    prisma.documentAttachment.findMany({
+      where: {
+        key: { in: keys },
+        ...(documentId ? { documentId: { not: documentId } } : {}),
+      },
+      select: { key: true },
+    }),
+    prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { photoUrl: true },
+    }),
+  ]);
+  const photoUrl = patient?.photoUrl;
+  const inUse = new Set(attachments.map(({ key }) => key));
+  for (const key of keys) {
+    if (photoUrl === key || photoUrl?.endsWith(`/${key}`)) inUse.add(key);
+  }
+  return inUse;
+};
+
+// A file added to a document is not one another record already uses.
+const assertAttachmentKeysUnused = async (
+  keys: string[],
+  patientId: string,
+  documentId?: string,
+): Promise<void> => {
+  if ((await findKeysInUse(keys, patientId, documentId)).size > 0) {
+    throw new DocumentServiceError("Invalid attachment key.", 400);
+  }
+};
+
 // A document linked to an appointment belongs to that appointment's companion,
 // and a practice links only its own appointments.
 const assertAppointmentForCompanion = async (
@@ -667,6 +710,10 @@ const createDocumentRecord = async (
     mimeType: String(att.mimeType),
     size: typeof att.size === "number" ? att.size : undefined,
   }));
+  await assertAttachmentKeysUnused(
+    attachments.map(({ key }) => key),
+    patientId,
+  );
 
   const created = await prisma.$transaction(async (tx) => {
     const document = await tx.document.create({
@@ -775,19 +822,42 @@ const assertParentCanUpdateDocument = async (
   }
 };
 
+// A practice updates the documents its own active staff uploaded for a
+// companion it holds an ACTIVE link to.
 const assertPmsCanUpdateDocument = async (
   context: DocumentCreateContext,
-  doc: { patientId: string; syncedFromPms: boolean },
+  doc: {
+    patientId: string;
+    syncedFromPms: boolean;
+    uploadedByPmsUserId: string | null;
+  },
 ): Promise<void> => {
-  if (!context.organisationId) {
+  const { organisationId } = context;
+  if (!organisationId) {
     throw new DocumentServiceError("organisationId is required.", 400);
   }
-  await assertPmsCanAccessCompanion(context.organisationId, doc.patientId);
+  const throwNotFound = (): never => {
+    throw new DocumentServiceError("Document not found.", 404);
+  };
+  await assertPatientOrgMembership(
+    doc.patientId,
+    organisationId,
+    throwNotFound,
+  );
   if (!doc.syncedFromPms) {
     throw new DocumentServiceError(
       "PMS cannot update documents uploaded by parent.",
       403,
     );
+  }
+  const uploader = doc.uploadedByPmsUserId;
+  if (
+    !uploader ||
+    !(await filterUserIdsInOrganisation([uploader], organisationId)).has(
+      uploader,
+    )
+  ) {
+    throwNotFound();
   }
 };
 
@@ -1060,8 +1130,10 @@ export const DocumentService = {
     }
     await assertParentCanAccessCompanion(parentId, doc.patientId);
 
-    for (const attachment of doc.attachments) {
-      await deleteFromS3(attachment.key);
+    const keys = doc.attachments.map(({ key }) => key);
+    const inUse = await findKeysInUse(keys, doc.patientId, doc.id);
+    for (const key of keys) {
+      if (!inUse.has(key)) await deleteFromS3(key);
     }
 
     await prisma.$transaction(async (tx) => {
@@ -1198,10 +1270,18 @@ export const DocumentService = {
 
     if (Array.isArray(updates.attachments)) {
       // Attachments the document already has are kept as they are.
-      const existingKeys = new Set(doc.attachments.map(({ key }) => key));
-      assertCompanionAttachmentKeys(
+      const existingKeys = new Set<unknown>(
+        doc.attachments.map(({ key }) => key),
+      );
+      const added = updates.attachments.filter(
+        (attachment) =>
+          !existingKeys.has((attachment as { key?: unknown } | null)?.key),
+      );
+      assertCompanionAttachmentKeys(doc.patientId, added);
+      await assertAttachmentKeysUnused(
+        added.map(({ key }) => key),
         doc.patientId,
-        updates.attachments.filter(({ key }) => !existingKeys.has(key)),
+        documentId,
       );
     }
 
