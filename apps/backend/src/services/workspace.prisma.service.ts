@@ -10,7 +10,6 @@ import { InvoiceService, InvoiceServiceError } from "./invoice.service";
 import { documentWhereForOrg } from "./document-scope";
 import logger from "src/utils/logger";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
-import { roundMoney } from "./finance/pricing";
 import type {
   Case,
   Encounter,
@@ -1011,14 +1010,14 @@ const buildInvoiceLineFromTreatmentItem = (row: TreatmentItemRow) => {
   const snapshotUnitPrice = readNumber(priceSnapshot.unitPrice);
   let unitPrice = 0;
   if (grossAmount != null) {
-    unitPrice = roundMoney(grossAmount / quantity);
+    unitPrice = grossAmount / quantity;
   } else if (snapshotUnitPrice != null) {
     unitPrice = snapshotUnitPrice;
   } else if (finalAmount != null) {
-    unitPrice = roundMoney(finalAmount / quantity);
+    unitPrice = finalAmount / quantity;
   }
   const discountPercent = readNumber(priceSnapshot.discountPercent);
-  const total = finalAmount ?? roundMoney(unitPrice * quantity);
+  const total = finalAmount ?? unitPrice * quantity;
   const name = readText(
     priceSnapshot.name,
     productSnapshot.name,

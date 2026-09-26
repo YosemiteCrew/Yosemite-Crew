@@ -57,7 +57,7 @@ const InvoiceCreditNotes = ({
     () => issuedNotes.reduce((sum, note) => sum + note.amount, 0),
     [issuedNotes]
   );
-  const remaining = remainingCreditable(totalAmount, notes);
+  const remaining = remainingCreditable(totalAmount, notes, currency);
   const creditable = acceptsCreditNotes(status);
   const message = formError ?? error;
 

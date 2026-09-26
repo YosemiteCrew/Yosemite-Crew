@@ -121,6 +121,7 @@ export const summariseClientCredit = (
       currency,
       availableCredit: roundMoney(
         lines.reduce((sum, line) => sum + line.availableCredit, 0),
+        currency,
       ),
       // Newest capture first, id breaking the tie so two captures recorded in
       // the same instant do not swap places between two reads of the same data.
@@ -273,6 +274,7 @@ export const planClientAllocation = (input: {
   credits: readonly ProposalCredit[];
   debts: readonly ProposalDebt[];
   allocatedPairs: ReadonlySet<string>;
+  currency?: string;
 }): AllocationProposalLine[] => {
   const remaining = new Map(
     input.credits.map((credit) => [credit.receiptId, credit.availableCredit]),
@@ -301,7 +303,7 @@ export const planClientAllocation = (input: {
         continue;
       }
       const available = remaining.get(credit.receiptId) ?? 0;
-      const amount = roundMoney(Math.min(available, owed));
+      const amount = roundMoney(Math.min(available, owed), input.currency);
       if (amount <= 0) continue;
 
       lines.push({
@@ -309,8 +311,11 @@ export const planClientAllocation = (input: {
         invoiceId: debt.invoiceId,
         amount,
       });
-      remaining.set(credit.receiptId, roundMoney(available - amount));
-      owed = roundMoney(owed - amount);
+      remaining.set(
+        credit.receiptId,
+        roundMoney(available - amount, input.currency),
+      );
+      owed = roundMoney(owed - amount, input.currency);
     }
   }
   return lines;
@@ -603,23 +608,37 @@ export const ClientAccountService = {
     return [...creditsByCurrency.entries()]
       .map(([currency, credits]) => {
         const debts = debtsByCurrency.get(currency) ?? [];
-        const lines = planClientAllocation({ credits, debts, allocatedPairs });
+        const lines = planClientAllocation({
+          credits,
+          debts,
+          allocatedPairs,
+          currency,
+        });
         const availableCredit = roundMoney(
           credits.reduce((sum, credit) => sum + credit.availableCredit, 0),
+          currency,
         );
         const outstandingBefore = roundMoney(
           debts.reduce((sum, debt) => sum + debt.balance, 0),
+          currency,
         );
         const proposedAmount = roundMoney(
           lines.reduce((sum, line) => sum + line.amount, 0),
+          currency,
         );
         return {
           currency,
           availableCredit,
           proposedAmount,
-          residualCredit: roundMoney(availableCredit - proposedAmount),
+          residualCredit: roundMoney(
+            availableCredit - proposedAmount,
+            currency,
+          ),
           outstandingBefore,
-          outstandingAfter: roundMoney(outstandingBefore - proposedAmount),
+          outstandingAfter: roundMoney(
+            outstandingBefore - proposedAmount,
+            currency,
+          ),
           lines,
           /*
            * Every capture in this currency, not only the ones a line drew on.

@@ -45,19 +45,11 @@ describe("toStripeMinorUnits", () => {
     expect(Number.isInteger(toStripeMinorUnits(1000.5, "jpy"))).toBe(true);
   });
 
-  // KNOWN DRIFT, pinned as it behaves rather than as it should. 8.165 * 100 is
-  // 816.4999999999999 in binary floating point, so the multiply-then-round loses
-  // the cent that a decimal reading of 8.165 would keep. Deliberately NOT fixed
-  // here: this promotion moves a function between files without changing what any
-  // caller is charged, and correcting the drift changes money at all six call
-  // sites, which deserves its own change and its own review. The value below is
-  // the current answer, so a future fix will redden this test and be forced to
-  // say so rather than sliding through.
-  it("loses a cent on a half-cent float (known, unfixed)", () => {
-    expect(toStripeMinorUnits(8.165, "usd")).toBe(816);
+  it("rounds a half-cent amount to the exact minor unit", () => {
+    expect(toStripeMinorUnits(8.165, "usd")).toBe(817);
   });
 
-  it("treats an unknown currency as two-decimal", () => {
+  it("uses the two-decimal scale for a currency not in the special-case sets", () => {
     expect(toStripeMinorUnits(1, "zzz")).toBe(100);
   });
 });

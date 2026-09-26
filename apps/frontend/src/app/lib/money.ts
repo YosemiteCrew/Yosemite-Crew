@@ -62,6 +62,49 @@ export const formatMoneyPrecise = (amount: number, currency: string | undefined)
   }
 };
 
+export const currencyFractionDigits = (currency?: string): number => {
+  const code = currency?.trim().toUpperCase();
+  if (!code) return 2;
+  try {
+    return (
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).resolvedOptions()
+        .maximumFractionDigits ?? 2
+    );
+  } catch {
+    return 2;
+  }
+};
+
+export const roundMoney = (value: number, currency?: string): number => {
+  if (!Number.isFinite(value)) throw new RangeError(`Cannot round a non-finite amount: ${value}`);
+  const exponent = currencyFractionDigits(currency);
+  const negative = value < 0;
+  const absoluteValue = Math.abs(value);
+  const normalized = absoluteValue < 1e21 ? absoluteValue.toFixed(12) : String(absoluteValue);
+  const [rawCoefficient, power = '0'] = normalized.split('e');
+  let coefficient = rawCoefficient;
+  if (coefficient.includes('.')) {
+    while (coefficient.endsWith('0')) coefficient = coefficient.slice(0, -1);
+    if (coefficient.endsWith('.')) coefficient = coefficient.slice(0, -1);
+  }
+  const decimalIndex = coefficient.indexOf('.');
+  const scale = (decimalIndex < 0 ? 0 : coefficient.length - decimalIndex - 1) - Number(power);
+  const digits = coefficient.replace('.', '');
+  let units = Number(digits);
+  if (!Number.isSafeInteger(units)) {
+    throw new RangeError(`Amount exceeds exact integer range: ${value}`);
+  }
+  if (scale > exponent) {
+    const divisor = 10 ** (scale - exponent);
+    const remainder = units % divisor;
+    units = Math.floor(units / divisor);
+    if (remainder * 2 >= divisor) units += 1;
+  } else {
+    units *= 10 ** (exponent - scale);
+  }
+  return ((negative ? -1 : 1) * Number(units)) / 10 ** exponent;
+};
+
 /**
  * The currency a money figure actually belongs to.
  *

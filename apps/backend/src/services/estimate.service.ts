@@ -4,6 +4,7 @@ import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { resolveOrgDocumentCurrency } from "src/utils/billing";
+import { roundMoney } from "./finance/pricing";
 
 export class EstimateError extends Error {
   constructor(
@@ -50,16 +51,29 @@ export interface ListEstimateParams {
   status?: EstimateStatus;
 }
 
-const computeTotals = (items: EstimateItemInput[]) => {
-  let subtotal = 0;
-  let taxAmount = 0;
-  for (const item of items) {
-    const lineTotal = item.quantity * item.unitPrice;
-    const lineTax = lineTotal * ((item.taxRate ?? 0) / 100);
-    subtotal += lineTotal;
-    taxAmount += lineTax;
-  }
-  return { subtotal, taxAmount, total: subtotal + taxAmount };
+const computeTotals = (items: EstimateItemInput[], currency: string) => {
+  const lines = items.map((item) => {
+    const lineTotal = roundMoney(item.quantity * item.unitPrice, currency);
+    const taxAmount = roundMoney(
+      lineTotal * ((item.taxRate ?? 0) / 100),
+      currency,
+    );
+    return { lineTotal, taxAmount };
+  });
+  const subtotal = roundMoney(
+    lines.reduce((sum, line) => sum + line.lineTotal, 0),
+    currency,
+  );
+  const taxAmount = roundMoney(
+    lines.reduce((sum, line) => sum + line.taxAmount, 0),
+    currency,
+  );
+  return {
+    subtotal,
+    taxAmount,
+    total: roundMoney(subtotal + taxAmount, currency),
+    lineTotals: lines.map((line) => line.lineTotal),
+  };
 };
 
 const estimateSelect = {
@@ -184,11 +198,14 @@ export const EstimateService = {
     await assertPatientOrgMembership(patientId, organisationId, () => {
       throw new EstimateError("Companion not found.", 404);
     });
-    const { subtotal, taxAmount, total } = computeTotals(items);
     const currency = await resolveOrgDocumentCurrency(
       organisationId,
       rest.currency,
       rejectCurrency,
+    );
+    const { subtotal, taxAmount, total, lineTotals } = computeTotals(
+      items,
+      currency,
     );
 
     const estimate = await prisma.estimate.create({
@@ -204,12 +221,12 @@ export const EstimateService = {
         total,
         createdBy: createdBy ?? null,
         items: {
-          create: items.map((item) => ({
+          create: items.map((item, index) => ({
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             taxRate: item.taxRate ?? 0,
-            lineTotal: item.quantity * item.unitPrice,
+            lineTotal: lineTotals[index],
             notes: item.notes ?? null,
           })),
         },
@@ -262,29 +279,34 @@ export const EstimateService = {
     }
 
     const data: Prisma.EstimateUpdateInput = {};
+    let currency = existing.currency;
     if (params.validUntil !== undefined) data.validUntil = params.validUntil;
     if (params.currency !== undefined) {
-      data.currency = await resolveOrgDocumentCurrency(
+      currency = await resolveOrgDocumentCurrency(
         organisationId,
         params.currency,
         rejectCurrency,
       );
+      data.currency = currency;
     }
     if (params.notes !== undefined) data.notes = params.notes;
 
     if (params.items) {
-      const { subtotal, taxAmount, total } = computeTotals(params.items);
+      const { subtotal, taxAmount, total, lineTotals } = computeTotals(
+        params.items,
+        currency,
+      );
       data.subtotal = subtotal;
       data.taxAmount = taxAmount;
       data.total = total;
       data.items = {
         deleteMany: {},
-        create: params.items.map((item) => ({
+        create: params.items.map((item, index) => ({
           description: item.description,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           taxRate: item.taxRate ?? 0,
-          lineTotal: item.quantity * item.unitPrice,
+          lineTotal: lineTotals[index],
           notes: item.notes ?? null,
         })),
       };

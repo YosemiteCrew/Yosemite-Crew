@@ -87,6 +87,7 @@ type AllocatableBill = {
   id: string;
   version: number;
   totalAmount: number;
+  currency: string;
   externalReference: string;
 };
 
@@ -102,9 +103,12 @@ const conflict = (message: string) =>
  * rules change later. `lineTotal` is net of tax; the bill's `totalAmount` is
  * the gross payable (net plus tax), because that is what the supplier is owed.
  */
-const buildBillLineSnapshots = (lines: DraftSupplierBillLineInput[]) =>
+const buildBillLineSnapshots = (
+  lines: DraftSupplierBillLineInput[],
+  currency?: string,
+) =>
   lines.map((line) => {
-    const lineTotal = roundMoney(line.quantityBilled * line.unitCost);
+    const lineTotal = roundMoney(line.quantityBilled * line.unitCost, currency);
     const taxPercent = line.taxPercent ?? 0;
     return {
       lineType: line.lineType,
@@ -115,7 +119,7 @@ const buildBillLineSnapshots = (lines: DraftSupplierBillLineInput[]) =>
       unitCost: line.unitCost,
       lineTotal,
       taxPercent,
-      taxAmount: roundMoney(lineTotal * (taxPercent / 100)),
+      taxAmount: roundMoney(lineTotal * (taxPercent / 100), currency),
       purchaseOrderId: line.purchaseOrderId ?? null,
       purchaseOrderLineId: line.purchaseOrderLineId ?? null,
       receiptId: line.receiptId ?? null,
@@ -126,12 +130,17 @@ const buildBillLineSnapshots = (lines: DraftSupplierBillLineInput[]) =>
 
 export const computeBillTotals = (
   lines: ReturnType<typeof buildBillLineSnapshots>,
+  currency?: string,
 ) => {
   const netTotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   const taxTotal = roundMoney(
     lines.reduce((sum, line) => sum + line.taxAmount, 0),
+    currency,
   );
-  return { totalAmount: roundMoney(netTotal + taxTotal), taxTotal };
+  return {
+    totalAmount: roundMoney(netTotal + taxTotal, currency),
+    taxTotal,
+  };
 };
 
 /**
@@ -205,13 +214,16 @@ const loadBill = async (billId: string, organisationId: string) => {
  */
 const outstandingOn = async (
   tx: PrismaTransactionClient,
-  bill: Pick<AllocatableBill, "id" | "totalAmount">,
+  bill: Pick<AllocatableBill, "id" | "totalAmount" | "currency">,
 ) => {
   const allocated = await tx.supplierAllocation.aggregate({
     where: { billId: bill.id },
     _sum: { amount: true },
   });
-  return roundMoney(bill.totalAmount - (allocated._sum.amount ?? 0));
+  return roundMoney(
+    bill.totalAmount - (allocated._sum.amount ?? 0),
+    bill.currency,
+  );
 };
 
 /**
@@ -260,8 +272,9 @@ const validatePaymentInput = (input: CreateSupplierPaymentInput) => {
   }
   const totalAllocated = roundMoney(
     input.allocations.reduce((sum, a) => sum + a.amount, 0),
+    input.currency,
   );
-  if (totalAllocated > roundMoney(input.amount)) {
+  if (totalAllocated > roundMoney(input.amount, input.currency)) {
     throw new SupplierBillServiceError(
       "Total allocated amount exceeds payment amount",
       400,
@@ -312,7 +325,7 @@ const writePayment = (
   billsById: Map<string, AllocatableBill>,
 ) =>
   prisma.$transaction(async (tx: PrismaTransactionClient) => {
-    const amount = roundMoney(input.amount);
+    const amount = roundMoney(input.amount, input.currency);
     const payment = await tx.supplierPayment.create({
       data: {
         organisationId: input.organisationId,
@@ -328,7 +341,7 @@ const writePayment = (
     });
 
     for (const alloc of input.allocations) {
-      const allocationAmount = roundMoney(alloc.amount);
+      const allocationAmount = roundMoney(alloc.amount, input.currency);
       await claimBillForAllocation(
         tx,
         billsById.get(alloc.billId)!,
@@ -430,8 +443,11 @@ export const SupplierBillService = {
       vendorId,
       currency,
     );
-    const lineSnapshots = buildBillLineSnapshots(lines);
-    const { totalAmount, taxTotal } = computeBillTotals(lineSnapshots);
+    const lineSnapshots = buildBillLineSnapshots(lines, currency);
+    const { totalAmount, taxTotal } = computeBillTotals(
+      lineSnapshots,
+      currency,
+    );
 
     // A draft is not a liability yet, so it writes no ledger entry and does
     // not move the account balance. Only posting does.
@@ -652,7 +668,7 @@ export const SupplierBillService = {
     if (!Number.isFinite(input.amount) || input.amount <= 0) {
       throw new SupplierBillServiceError("Credit amount must be positive", 400);
     }
-    const amount = roundMoney(input.amount);
+    const amount = roundMoney(input.amount, currency);
 
     if (billId && receiptId) {
       throw new SupplierBillServiceError(

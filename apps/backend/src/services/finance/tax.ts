@@ -164,13 +164,15 @@ const allocateInvoiceDiscountAcrossLines = (
   invoiceDiscountTotal: number,
   currency: string,
 ): number[] => {
-  const lineBases = netAmounts.map((amount) => Math.max(0, roundMoney(amount)));
+  const lineBases = netAmounts.map((amount) =>
+    Math.max(0, roundMoney(amount, currency)),
+  );
   const totalBaseMinorUnits = lineBases.reduce(
     (sum, amount) => sum + toStripeMinorUnits(amount, currency),
     0,
   );
   const totalDiscountMinorUnits = Math.min(
-    toStripeMinorUnits(roundMoney(invoiceDiscountTotal), currency),
+    toStripeMinorUnits(roundMoney(invoiceDiscountTotal, currency), currency),
     totalBaseMinorUnits,
   );
 
@@ -228,6 +230,7 @@ const buildAutomaticTaxLineItems = (
   return pricing.lines.map((line, index) => {
     const discountedAmount = roundMoney(
       Math.max(0, line.netAmount - (invoiceDiscountAllocations[index] ?? 0)),
+      input.currency,
     );
 
     return {
@@ -323,6 +326,7 @@ const buildAutomaticTaxSnapshot = async (
       totalTaxes.reduce((sum, tax) => sum + tax.amount, 0),
       input.currency,
     ),
+    input.currency,
   );
   const taxableSubtotal = roundMoney(
     fromStripeMinorUnits(
@@ -330,6 +334,7 @@ const buildAutomaticTaxSnapshot = async (
         toStripeMinorUnits(pricing.totalAmount, input.currency),
       input.currency,
     ),
+    input.currency,
   );
   const jurisdictionCountry = input.customerAddress?.country ?? null;
   const jurisdictionState = input.customerAddress?.state ?? null;
@@ -348,7 +353,7 @@ const buildAutomaticTaxSnapshot = async (
       taxableSubtotal,
       taxTotal: taxAmount,
       invoiceDiscountTotal: pricing.invoiceDiscountTotal,
-      totalAmount: roundMoney(taxableSubtotal + taxAmount),
+      totalAmount: roundMoney(taxableSubtotal + taxAmount, input.currency),
       totalTaxes,
       invoicePreviewId: preview.id,
       automaticTax: preview.automatic_tax,

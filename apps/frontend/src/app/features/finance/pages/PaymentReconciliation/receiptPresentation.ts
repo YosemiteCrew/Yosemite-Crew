@@ -1,6 +1,7 @@
 import type { Invoice } from '@yosemite-crew/types';
 import { getInvoiceOutstanding } from '@/app/lib/financeMetrics';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
+import { roundMoney } from '@/app/lib/money';
 import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   PROVIDER_RECEIPT_STATUSES,
@@ -145,18 +146,7 @@ export const truncateReference = (reference: string, keep = 12): string => {
   return `${reference.slice(0, keep)}...`;
 };
 
-/*
- * Money arithmetic, at the same scale the service uses.
- *
- * `roundMoney` in `src/services/finance/pricing.ts` is what produced every
- * figure on the wire, so the screen's residual has to round the same way or a
- * form pre-filled with the remainder is refused by the endpoint as a hundredth
- * of a unit over. The epsilon is part of it: without it 0.1 + 0.2 rounds down.
- */
-const MONEY_SCALE = 100;
-
-export const roundMoney = (value: number): number =>
-  Math.round((value + Number.EPSILON) * MONEY_SCALE) / MONEY_SCALE;
+export { roundMoney } from '@/app/lib/money';
 
 /**
  * What an operator may still apply from a capture.
@@ -168,7 +158,10 @@ export const roundMoney = (value: number): number =>
  * allocation against it has a residual the status alone cannot state.
  */
 export const allocatableResidual = (receipt: ProviderReceipt): number =>
-  roundMoney(Math.max(0, receipt.amount - receipt.refundedAmount - receipt.allocatedAmount));
+  roundMoney(
+    Math.max(0, receipt.amount - receipt.refundedAmount - receipt.allocatedAmount),
+    receipt.currency
+  );
 
 /**
  * Whether this capture can be applied at all, in the terms the route refuses
@@ -261,7 +254,7 @@ export const allocatableInvoices = (
       id: invoice.id as string,
       label: getInvoiceNumberLabel(invoice) || 'Invoice',
       currency: invoice.currency,
-      balance: roundMoney(getInvoiceOutstanding(invoice)),
+      balance: roundMoney(getInvoiceOutstanding(invoice), invoice.currency),
       createdAt: new Date(invoice.createdAt).toISOString(),
     }));
 

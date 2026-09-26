@@ -933,10 +933,10 @@ describe("WorkspaceService", () => {
       quantity: 2,
       priceSnapshot: {
         name: "Procedure",
-        grossAmount: 40,
-        finalAmount: 36,
+        grossAmount: 40.25,
+        finalAmount: 36.125,
         discountPercent: 10,
-        unitPrice: 20,
+        unitPrice: 20.125,
       },
       billingStatus: "UNBILLED",
       invoiceRowId: null,
@@ -999,8 +999,8 @@ describe("WorkspaceService", () => {
         expect.objectContaining({
           id: "ti-sync",
           quantity: 2,
-          unitPrice: 20,
-          total: 36,
+          unitPrice: 20.125,
+          total: 36.125,
         }),
       ],
     );
