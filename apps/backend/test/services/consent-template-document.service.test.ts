@@ -169,6 +169,13 @@ jest.mock("src/config/prisma", () => {
             }
           : null;
       },
+      // The kind and rules a request's signing follows.
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) =>
+        [...store.templates.values()]
+          .filter((template) => where.id.in.includes(template.id as string))
+          .map((template) =>
+            pick(template, { id: true, kind: true, rules: true }),
+          ),
     },
     templateVersion: {
       findFirst: async ({ where }: { where: Row }) =>
@@ -223,7 +230,22 @@ jest.mock("src/config/prisma", () => {
       }) => {
         const instance = store.templateInstances.get(where.id);
         if (!instance) return null;
-        if (select) return pick(instance, select);
+        if (select) {
+          const template = store.templates.get(instance.templateId as string);
+          const templateSelect = (
+            select as { template?: { select: Record<string, boolean> } }
+          ).template;
+          return {
+            ...pick(instance, select),
+            ...(templateSelect
+              ? {
+                  template: template
+                    ? pick(template, templateSelect.select)
+                    : null,
+                }
+              : {}),
+          };
+        }
         const template = store.templates.get(instance.templateId as string);
         return {
           ...instance,
@@ -421,6 +443,9 @@ jest.mock("src/config/prisma", () => {
         store.formAssignments.find((assignment) =>
           matches(assignment, where),
         ) ?? null,
+      count: async ({ where }: { where: Row }) =>
+        store.formAssignments.filter((assignment) => matches(assignment, where))
+          .length,
       update: async ({ where, data }: { where: { id: string }; data: Row }) => {
         const index = store.formAssignments.findIndex(
           (assignment) => assignment.id === where.id,
@@ -446,6 +471,9 @@ jest.mock("src/config/prisma", () => {
         where.id === "parent-1"
           ? { email: "owner@example.com", firstName: "Jane", lastName: "Owner" }
           : null,
+      // The one client account here is parent-1.
+      count: async ({ where }: { where: { id: { in: string[] } } }) =>
+        where.id.in.filter((id) => id === "parent-1").length,
     },
     appointment: {
       findMany: async ({
@@ -571,6 +599,8 @@ const seedTemplate = (
     visibility?: string;
     // Whether the practice sent it to the client for the appointment.
     assigned?: boolean;
+    // Who the builder says signs it (rules.requiredSigner).
+    requiredSigner?: string;
   } = {},
 ) => {
   store.templates.set(id, {
@@ -585,8 +615,12 @@ const seedTemplate = (
     // category, which for consent was "Consent form" long before CONSENT
     // became a storage kind.
     rules:
-      options.category || options.visibility
-        ? { category: options.category, visibility: options.visibility }
+      options.category || options.visibility || options.requiredSigner
+        ? {
+            category: options.category,
+            visibility: options.visibility,
+            requiredSigner: options.requiredSigner,
+          }
         : null,
     latestVersion: 2,
     publishedVersion: 2,
@@ -1269,6 +1303,85 @@ describe("consent template documents (#3600)", () => {
         expect.objectContaining({
           status: "completed",
           assignmentStatus: "signed",
+        }),
+      ]);
+    });
+
+    // The practice corrects the consent after the client signed it: the
+    // corrected version waits for their signature again.
+    it("is asked for again on a correction saved after it was given", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const first = await submitFromPms("tpl-consent");
+      armDocumenso();
+      await startClientSigning(first._id);
+      const [firstDocument] = [...store.renderedDocuments.values()];
+      await completePersistedRenderedDocumentSigning(
+        firstDocument.id as string,
+      );
+      expect(store.formAssignments[0].status).toBe("SIGNED");
+
+      const corrected = await submitFromPms("tpl-consent");
+
+      expect(store.formAssignments[0]).toMatchObject({
+        status: "SENT",
+        signedAt: null,
+      });
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({
+          status: "pending",
+          assignmentStatus: "sent",
+        }),
+      ]);
+
+      await startClientSigning(corrected._id);
+      const correctedDocument = [...store.renderedDocuments.values()].find(
+        (doc) => doc.templateInstanceId === corrected._id,
+      );
+      await completePersistedRenderedDocumentSigning(
+        correctedDocument?.id as string,
+      );
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({ status: "completed" }),
+      ]);
+    });
+
+    it("stays given on the client's own consent after a staff save", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const own = await submitFromMobile("tpl-consent");
+      armDocumenso();
+      await startClientSigning(own._id);
+      const [ownDocument] = [...store.renderedDocuments.values()];
+      await completePersistedRenderedDocumentSigning(ownDocument.id as string);
+
+      await submitFromPms("tpl-consent");
+
+      expect(store.formAssignments[0].status).toBe("SIGNED");
+    });
+
+    it("is not taken for a form the practice signs", async () => {
+      seedTemplate("tpl-vet", "FORM", {
+        category: "Custom",
+        requiredSigner: "VET",
+      });
+      const staffSave = await submitFromPms("tpl-vet");
+
+      await expect(startClientSigning(staffSave._id)).rejects.toThrow(
+        "Form requires vet signature",
+      );
+      expect(documenso.createDocument).not.toHaveBeenCalled();
+    });
+
+    // Filled in by the practice, a form the client does not sign is done.
+    it("is not needed for a form the client does not sign", async () => {
+      seedTemplate("tpl-intake", "FORM", { category: "Custom" });
+
+      await submitFromPms("tpl-intake");
+
+      expect(store.formAssignments[0].status).toBe("SUBMITTED");
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({
+          status: "completed",
+          signingRequired: false,
         }),
       ]);
     });

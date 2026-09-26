@@ -1374,10 +1374,12 @@ describe("DocumentService", () => {
       ]);
 
       expect(ids).toEqual(["rd-consent", "rd-form"]);
+      // A withdrawn or lapsed request releases nothing.
       expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith({
         where: {
           organisationId: uuidOrganisationId,
           appointmentId: uuidAppointmentId,
+          status: { notIn: ["CANCELLED", "EXPIRED"] },
         },
         select: { templateId: true },
       });

@@ -1,6 +1,12 @@
 import { Prisma } from "@prisma/client";
 import AWS from "aws-sdk";
 import { randomUUID } from "node:crypto";
+import {
+  awaitsClientSignature,
+  hasActiveOrCompletedSigning,
+  isOpenSigning,
+  lockClientRequest,
+} from "src/services/client-signature.helpers";
 import axios from "axios";
 import {
   buildDocumentSignature as buildDocumentSignatureContract,
@@ -335,23 +341,15 @@ const resolvePersistedRenderedDocumentPdf = async (
   };
 };
 
+// Where a record's own guards (#3633) read it from.
+export { hasActiveOrCompletedSigning };
+
 const parseRenderedDocumentSigning = (
   value: unknown,
 ): RenderedDocumentSigning | null =>
   typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as RenderedDocumentSigning)
     : null;
-
-export const hasActiveOrCompletedSigning = (document: {
-  status: string;
-  signing: unknown;
-}): boolean => {
-  if (document.status === "SIGNED") {
-    return true;
-  }
-  const signing = parseRenderedDocumentSigning(document.signing);
-  return signing?.status === "IN_PROGRESS" || signing?.status === "SIGNED";
-};
 
 const rerenderAndPersistClinicalRenderedDocumentPdf = async (
   document: PersistedRenderedDocument,
@@ -729,10 +727,14 @@ export const signPersistedRenderedDocument = async (
     throw new RenderedDocumentServiceError("Document is already signed", 409);
   }
 
-  // A consent records the client's agreement, so only the client signs it.
-  if (kind === "CONSENT" && input.signerType !== "PARENT") {
+  // A consent records the client's agreement, and a form the practice asked
+  // the client to sign is theirs to sign, so only the client signs either.
+  if (
+    input.signerType !== "PARENT" &&
+    (await awaitsClientSignature(existing))
+  ) {
     throw new RenderedDocumentServiceError(
-      "A consent is signed by the client",
+      "This document is signed by the client",
       409,
     );
   }
@@ -817,28 +819,6 @@ const signingInProgress = () =>
     "Document signing is already in progress",
     409,
   );
-
-// A claim whose request never finished (the process stopped between claiming
-// and sending) stops blocking the document after this long.
-const SIGNING_CLAIM_TTL_MS = 5 * 60 * 1000;
-
-/**
- * Whether a signing is under way: one sent to Documenso, or claimed moments
- * ago by a request that is sending it now.
- */
-const isOpenSigning = (value: unknown): boolean => {
-  const signing = parseRenderedDocumentSigning(value);
-  if (signing?.status !== "IN_PROGRESS") return false;
-  if (signing.documentId) return true;
-  const { claimedAt: claimedAtValue } = value as { claimedAt?: unknown };
-  const claimedAt =
-    typeof claimedAtValue === "string"
-      ? Date.parse(claimedAtValue)
-      : Number.NaN;
-  return (
-    Number.isFinite(claimedAt) && Date.now() - claimedAt < SIGNING_CLAIM_TTL_MS
-  );
-};
 
 /**
  * The request that lost the claim. The signing the winner sent is handed to
@@ -1259,6 +1239,28 @@ const markClientAssignmentsSigned = async (
   });
 };
 
+/**
+ * Takes the lock a submission of the same form for the same appointment
+ * takes, so a practice correction saved while a signature completes is seen
+ * by it, or sees the request it answered.
+ */
+const lockRequestOfDocument = async (
+  tx: Prisma.TransactionClient,
+  existing: PersistedRenderedDocument,
+): Promise<void> => {
+  if (!existing.templateId || !existing.templateInstanceId) return;
+  const instance = await tx.templateInstance.findUnique({
+    where: { id: existing.templateInstanceId },
+    select: { appointmentId: true },
+  });
+  if (!instance?.appointmentId) return;
+  await lockClientRequest(tx, {
+    organisationId: existing.organisationId,
+    templateId: existing.templateId,
+    appointmentId: instance.appointmentId,
+  });
+};
+
 /** Rolls the completion transaction back when there is nothing to complete. */
 class SigningCompletionSkipped extends Error {
   /** `true` when the linked record no longer matches what was signed. */
@@ -1407,6 +1409,7 @@ const commitSigningCompletion = async (
 
   try {
     return await prisma.$transaction(async (tx) => {
+      await lockRequestOfDocument(tx, existing);
       // Not moved: the record was reopened, edited, voided or superseded while
       // the signature was outstanding, so no signed copy of content it no
       // longer stands for is recorded against it.

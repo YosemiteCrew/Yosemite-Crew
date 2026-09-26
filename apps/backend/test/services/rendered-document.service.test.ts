@@ -55,7 +55,10 @@ jest.mock("src/config/prisma", () => {
     },
     formAssignment: {
       updateMany: jest.fn(),
+      count: jest.fn(),
     },
+    // The lock a signature completing on a client's form takes.
+    $executeRaw: jest.fn(),
   };
   // Runs the callback on the same mocks by default; a test that needs to tell
   // transactional writes apart passes its own client.
@@ -107,7 +110,8 @@ describe("rendered-document service", () => {
     case: { findUnique: jest.Mock };
     encounter: { findUnique: jest.Mock };
     appointment: { findUnique: jest.Mock };
-    formAssignment: { updateMany: jest.Mock };
+    formAssignment: { updateMany: jest.Mock; count: jest.Mock };
+    $executeRaw: jest.Mock;
     $transaction: jest.Mock;
   };
   const mockedDocumensoService = DocumensoService as unknown as {
@@ -871,7 +875,7 @@ describe("rendered-document service", () => {
 
     it("refuses to overwrite the pdf while signing is in progress", async () => {
       mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
-        clinicalRow({ signing: { status: "IN_PROGRESS" } }),
+        clinicalRow({ signing: { status: "IN_PROGRESS", documentId: "55" } }),
       );
 
       await expect(
@@ -1108,6 +1112,10 @@ describe("rendered-document service", () => {
     });
     mockedPrisma.documentSignature.upsert.mockResolvedValueOnce({
       id: "sig-1",
+    });
+    // Read first for the request lock: on no appointment, so none is taken.
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      appointmentId: null,
     });
     // The instance as it stands after the guarded move to SIGNED.
     mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
@@ -1590,7 +1598,7 @@ describe("rendered-document service", () => {
             signPersistedRenderedDocument({ ...signInput, signerType }),
           ).rejects.toMatchObject({
             statusCode: 409,
-            message: "A consent is signed by the client",
+            message: "This document is signed by the client",
           });
           expect(mockedDocumensoService.createDocument).not.toHaveBeenCalled();
           expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
@@ -1634,6 +1642,69 @@ describe("rendered-document service", () => {
 
     // Two requests that both read the document unsigned: one claims it before
     // Documenso is called, the other sends nothing.
+    // A form the practice asked the client to sign is the client's, like a
+    // consent; a form the practice signs is still signed by staff.
+    describe("who signs a form", () => {
+      const formRow = () =>
+        documentRow({
+          sourceKind: "TEMPLATE_INSTANCE",
+          sourceId: "instance-9",
+          templateInstanceId: "instance-9",
+          clinicalArtifactId: null,
+          templateId: "tpl-intake",
+          kind: "FORM",
+        });
+
+      it("refuses staff a form the client was asked to sign", async () => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          formRow(),
+        );
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+          appointmentId: "appt-9",
+          template: { kind: "FORM", rules: { requiredSigner: "CLIENT" } },
+        });
+        mockedPrisma.formAssignment.count.mockResolvedValueOnce(1);
+
+        await expect(
+          signPersistedRenderedDocument(signInput),
+        ).rejects.toMatchObject({
+          statusCode: 409,
+          message: "This document is signed by the client",
+        });
+        expect(mockedDocumensoService.createDocument).not.toHaveBeenCalled();
+      });
+
+      it("lets staff sign a form the practice signs", async () => {
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+          formRow(),
+        );
+        mockedPrisma.templateInstance.findUnique
+          .mockResolvedValueOnce({
+            appointmentId: "appt-9",
+            template: { kind: "FORM", rules: { requiredSigner: "VET" } },
+          })
+          .mockResolvedValueOnce(linkedRecord("COMPLETED"));
+        mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
+          "api-key-1",
+        );
+        mockedRenderedDocumentRenderer.mockResolvedValueOnce({
+          pdf: pdfBytes("form"),
+          pageCount: 1,
+        });
+        mockedDocumensoService.createDocument.mockResolvedValueOnce({
+          id: 99,
+          recipients: [],
+        });
+        mockedPrisma.renderedDocument.update.mockResolvedValueOnce(
+          documentRow({ signing: inProgressSigning }),
+        );
+
+        await signPersistedRenderedDocument(signInput);
+
+        expect(mockedDocumensoService.createDocument).toHaveBeenCalledTimes(1);
+      });
+    });
+
     describe("claiming the document before it is sent", () => {
       const finalisedTemplateRow = (overrides: Record<string, unknown> = {}) =>
         documentRow({
@@ -1916,6 +1987,10 @@ describe("rendered-document service", () => {
         mockedPrisma.documentSignature.upsert.mockResolvedValueOnce({
           id: "sig-9",
         });
+        // Read first, for the lock on the client's request.
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+          appointmentId: "appt-9",
+        });
       };
       const onAppointment = (appointmentId: string | null) => ({
         ...linkedRecord("SIGNED"),
@@ -1944,6 +2019,25 @@ describe("rendered-document service", () => {
 
         expect(result.status).toBe("SIGNED");
         expect(mockedPrisma.formAssignment.updateMany).not.toHaveBeenCalled();
+      });
+
+      it("takes the lock a submission of the same form takes", async () => {
+        storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          onAppointment("appt-9"),
+        );
+
+        await completePersistedRenderedDocumentSigning("doc-9");
+
+        const [sql, key] = mockedPrisma.$executeRaw.mock.calls[0];
+        expect(sql.join("?")).toBe("SELECT pg_advisory_xact_lock(hashtext(?))");
+        expect(key).toBe("client-form-request:org-123:tpl-consent:appt-9");
+        expect(
+          mockedPrisma.$executeRaw.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          mockedPrisma.templateInstance.updateMany.mock.invocationCallOrder[0],
+        );
       });
 
       it("is marked signed with the document when the client signs", async () => {

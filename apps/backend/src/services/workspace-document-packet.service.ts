@@ -9,6 +9,10 @@ import { DocumensoService } from "src/services/documenso.service";
 import { buildMergedClinicalPacketPdf } from "src/services/clinical-packet-pdf.service";
 import { renderCombinedClinicalPacketPdf } from "src/services/rendered-document-renderer.service";
 import { rerenderPersistedClinicalRenderedDocumentPdf } from "src/services/rendered-document.service";
+import {
+  awaitsClientSignature,
+  hasActiveOrCompletedSigning as documentHasOpenOrCompletedSigning,
+} from "src/services/client-signature.helpers";
 import logger from "src/utils/logger";
 import {
   INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
@@ -622,55 +626,74 @@ export const WorkspaceDocumentPacketService = {
       },
     })) as PacketRecord;
 
-    // The packet carries the staff member's signature. A consent in it is the
-    // client's to sign, so the packet never marks one signed.
-    const clientSigned = new Set(
-      (
-        await prisma.renderedDocument.findMany({
-          where: { id: { in: signing.documentIds }, kind: "CONSENT" },
-          select: { id: true },
-        })
-      ).map(({ id }) => id),
-    );
+    // The packet carries the staff member's signature. It marks signed only
+    // what is still waiting for the practice: never a consent or a form the
+    // client was asked to sign, never a document out for signature or already
+    // signed. Each write is conditioned on the document as read, so a signing
+    // that starts meanwhile is left alone too.
+    const children = await prisma.renderedDocument.findMany({
+      where: { id: { in: signing.documentIds } },
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        signing: true,
+        updatedAt: true,
+        organisationId: true,
+        templateId: true,
+        templateInstanceId: true,
+      },
+    });
 
     await Promise.all(
-      signing.documentIds
-        .filter((documentId) => !clientSigned.has(documentId))
-        .map(async (documentId) => {
-          try {
-            await prisma.renderedDocument.update({
-              where: { id: documentId },
-              data: {
-                status: "SIGNED",
-                signedBy: signing.signerId,
-                signedAt,
-                pdfUrl: signedUrl ?? undefined,
-                signing: {
-                  required: true,
-                  provider: "DOCUMENSO",
-                  status: "SIGNED",
-                  viaPacketId: packet.id,
-                  pdf: { url: signedUrl },
-                },
-              },
-            });
-            await prisma.documentSignature.upsert({
-              where: { renderedDocumentId: documentId },
-              update: { signedAt },
-              create: {
-                renderedDocumentId: documentId,
-                signerId: signing.signerId,
-                signerType: "PMS_USER",
-                signedAt,
-              },
-            });
-          } catch (error) {
-            logger.warn("[Packet] Failed to mark child document signed", {
-              documentId,
-              error,
-            });
+      children.map(async (child) => {
+        try {
+          if (
+            documentHasOpenOrCompletedSigning(child) ||
+            (await awaitsClientSignature(child))
+          ) {
+            return;
           }
-        }),
+          const stamped = await prisma.renderedDocument.updateMany({
+            where: {
+              id: child.id,
+              updatedAt: child.updatedAt,
+              status: { not: "SIGNED" },
+            },
+            data: {
+              status: "SIGNED",
+              signedBy: signing.signerId,
+              signedAt,
+              pdfUrl: signedUrl ?? undefined,
+              signing: {
+                required: true,
+                provider: "DOCUMENSO",
+                status: "SIGNED",
+                viaPacketId: packet.id,
+                pdf: { url: signedUrl },
+              },
+            },
+          });
+          if (stamped.count === 0) {
+            return;
+          }
+          await prisma.documentSignature.upsert({
+            where: { renderedDocumentId: child.id },
+            update: { signedAt },
+            create: {
+              renderedDocumentId: child.id,
+              signerId: signing.signerId,
+              signerType: "PMS_USER",
+              signedAt,
+            },
+          });
+        } catch (error) {
+          logger.warn("[Packet] Failed to mark child document signed", {
+            documentId: child.id,
+            error,
+          });
+        }
+      }),
     );
 
     return mapPacket(updated);

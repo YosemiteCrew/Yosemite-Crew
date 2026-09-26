@@ -29,6 +29,10 @@ import {
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import {
+  lockClientRequest,
+  templateNeedsClientSignature,
+} from "src/services/client-signature.helpers";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
 
 export class FormServiceError extends Error {
@@ -550,6 +554,8 @@ type InstanceSubmissionParams = {
   appointmentId?: string;
   authorId?: string;
   byParent: boolean;
+  /** Whether the template's forms are the client's to sign. */
+  clientSigns: boolean;
   answers: FormSubmission["answers"];
 };
 
@@ -626,20 +632,20 @@ const submitInstanceForSubmission = async (
     return { instance, completed };
   }
 
-  const lockKey = [
-    "template-instance-submission",
-    params.organisationId,
-    params.templateId,
-    params.appointmentId,
-    params.authorId,
-  ].join(":");
+  const appointmentId = params.appointmentId;
 
   // Everything runs on the one connection the transaction holds: lock, lookup,
   // create or update, and the submit (which joins this transaction), so a
-  // submit never waits on the pool for a second connection.
+  // submit never waits on the pool for a second connection. The lock is the
+  // one a signature completing on this form takes, so the two never
+  // interleave.
   return prisma.$transaction(
     async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+      await lockClientRequest(tx, {
+        organisationId: params.organisationId,
+        templateId: params.templateId,
+        appointmentId,
+      });
       const instance = await resolveInstanceForSubmission(params, tx);
       // Submitting through TemplateService renders the document a consent (or
       // any other document-backed template) owes.
@@ -649,10 +655,61 @@ const submitInstanceForSubmission = async (
         params.authorId,
         tx,
       );
+      if (!params.byParent) {
+        await settleClientRequestAfterPracticeSave(tx, params, appointmentId);
+      }
       return { instance, completed };
     },
     { timeout: 15_000 },
   );
+};
+
+/**
+ * What a practice save means for the request sent to the client for this form:
+ * - one the client does not sign is answered by the practice filling it in;
+ * - one the client signs stays open for them, and a signature they gave on an
+ *   earlier practice version no longer answers it, since the new version is
+ *   the one they now sign. Their own signed submission still does.
+ */
+const settleClientRequestAfterPracticeSave = async (
+  tx: Prisma.TransactionClient,
+  params: InstanceSubmissionParams,
+  appointmentId: string,
+) => {
+  const request = {
+    organisationId: params.organisationId,
+    templateId: params.templateId,
+    appointmentId,
+  };
+
+  await tx.formAssignment.updateMany({
+    where: {
+      ...request,
+      status: { in: ["SENT", "VIEWED"] },
+      ...(params.clientSigns ? { signingRequired: false } : {}),
+    },
+    data: { status: "SUBMITTED", submittedAt: new Date() },
+  });
+
+  if (!params.clientSigns) return;
+
+  const signedAuthors = await tx.templateInstance.findMany({
+    where: { ...request, status: "SIGNED", authorId: { not: null } },
+    select: { authorId: true },
+  });
+  const clientSignedTheirOwn =
+    signedAuthors.length > 0 &&
+    (await tx.parent.count({
+      where: {
+        id: { in: signedAuthors.map(({ authorId }) => String(authorId)) },
+      },
+    })) > 0;
+  if (clientSignedTheirOwn) return;
+
+  await tx.formAssignment.updateMany({
+    where: { ...request, status: "SIGNED", signingRequired: true },
+    data: { status: "SENT", signedAt: null },
+  });
 };
 
 const createInstanceForSubmission = (
@@ -1007,6 +1064,10 @@ const buildTemplateAppointmentFormItems = async (params: {
 
       return {
         ...assignment,
+        // Asked for a signature only where the template's signer is the
+        // client, so a plain form opens to be filled in, not signed.
+        signingRequired:
+          assignment.signingRequired && templateNeedsClientSignature(template),
         status: questionnaireResponse ? "completed" : "pending",
         // Where the practice's request stands, so the app can show a form as
         // submitted or signed rather than offer it again.
@@ -1224,6 +1285,7 @@ const submitViaTemplateInstance = async (
     appointmentId: submission.appointmentId ?? undefined,
     authorId: submittedBy ?? undefined,
     byParent,
+    clientSigns: templateNeedsClientSignature(template),
     answers: submission.answers,
   });
 

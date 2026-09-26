@@ -6,6 +6,7 @@ import {
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import { templateNeedsClientSignature } from "src/services/client-signature.helpers";
 import type {
   FormAssignmentCreateInput,
   FormAssignmentLike,
@@ -456,6 +457,8 @@ const ensureTemplate = async (
     },
     select: {
       id: true,
+      kind: true,
+      rules: true,
       latestVersion: true,
       publishedVersion: true,
     },
@@ -483,7 +486,7 @@ const ensureTemplate = async (
     throw new FormAssignmentServiceError("Template version not found", 404);
   }
 
-  return version;
+  return { ...version, clientSigns: templateNeedsClientSignature(template) };
 };
 
 const loadAppointment = async (
@@ -679,7 +682,8 @@ export const FormAssignmentService = {
         signerEmail: parsed.signerIdentity?.email ?? undefined,
         signerRole: parsed.signerIdentity?.role ?? undefined,
         mobileVisible: parsed.mobileVisible ?? true,
-        signingRequired: parsed.signingRequired ?? true,
+        // The client is asked to sign only what the template says they sign.
+        signingRequired: parsed.signingRequired ?? version.clientSigns,
         status: "SENT",
         sentAt: now,
         createdBy,
@@ -958,13 +962,43 @@ export const FormAssignmentService = {
       organisationId,
       appointmentId,
     );
+    const clientSigns = await loadClientSignedTemplateIds(
+      assignments.map(({ templateId }) => templateId),
+    );
 
-    return assignments.map((assignment) => ({
-      ...assignment,
-      status: isCompleted(assignment) ? "completed" : "pending",
-      assignmentStatus: assignment.status,
-    }));
+    return assignments.map((assignment) => {
+      const effective = {
+        ...assignment,
+        signingRequired:
+          assignment.signingRequired && clientSigns.has(assignment.templateId),
+      };
+      return {
+        ...effective,
+        status: isCompleted(effective) ? "completed" : "pending",
+        assignmentStatus: assignment.status,
+      };
+    });
   },
+};
+
+/**
+ * The templates among these whose forms the client signs. A request asks for
+ * a signature only where the template does: requests saved when every one
+ * asked for a signature still complete on submission for any other form.
+ */
+export const loadClientSignedTemplateIds = async (
+  templateIds: string[],
+): Promise<Set<string>> => {
+  if (!templateIds.length) return new Set();
+  const templates = await prisma.template.findMany({
+    where: { id: { in: [...new Set(templateIds)] } },
+    select: { id: true, kind: true, rules: true },
+  });
+  return new Set(
+    templates
+      .filter((template) => templateNeedsClientSignature(template))
+      .map(({ id }) => id),
+  );
 };
 
 const isCompleted = (assignment: FormAssignmentLike) =>

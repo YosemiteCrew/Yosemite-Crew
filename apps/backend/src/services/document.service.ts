@@ -1085,10 +1085,13 @@ export const DocumentService = {
       return [];
     }
 
+    // A request the practice withdrew (or that lapsed) no longer releases
+    // its template's documents to the client.
     const assignments = await prisma.formAssignment.findMany({
       where: {
         organisationId: appointmentLookup.organisationId,
         appointmentId,
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
       },
       select: { templateId: true },
     });

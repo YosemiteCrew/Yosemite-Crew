@@ -7,6 +7,7 @@ import { buildMergedClinicalPacketPdf } from "../../src/services/clinical-packet
 import { renderCombinedClinicalPacketPdf } from "../../src/services/rendered-document-renderer.service";
 import { rerenderPersistedClinicalRenderedDocumentPdf } from "../../src/services/rendered-document.service";
 import { WorkspaceDocumentPacketService } from "../../src/services/workspace-document-packet.service";
+import { awaitsClientSignature } from "../../src/services/client-signature.helpers";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -18,7 +19,11 @@ jest.mock("src/config/prisma", () => ({
     },
     user: { findFirst: jest.fn() },
     encounter: { findFirst: jest.fn() },
-    renderedDocument: { update: jest.fn(), findMany: jest.fn() },
+    renderedDocument: {
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      findMany: jest.fn(),
+    },
     documentSignature: { upsert: jest.fn() },
   },
 }));
@@ -66,6 +71,12 @@ jest.mock("../../src/services/rendered-document.service", () => ({
   rerenderPersistedClinicalRenderedDocumentPdf: jest.fn(),
 }));
 
+// Whether a child waits for the client is its own lookup, answered per case.
+jest.mock("../../src/services/client-signature.helpers", () => ({
+  ...jest.requireActual("../../src/services/client-signature.helpers"),
+  awaitsClientSignature: jest.fn(),
+}));
+
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
   default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -80,9 +91,27 @@ const mockedPrisma = prisma as unknown as {
   };
   user: { findFirst: jest.Mock };
   encounter: { findFirst: jest.Mock };
-  renderedDocument: { update: jest.Mock; findMany: jest.Mock };
+  renderedDocument: {
+    update: jest.Mock;
+    updateMany: jest.Mock;
+    findMany: jest.Mock;
+  };
   documentSignature: { upsert: jest.Mock };
 };
+const mockedAwaitsClientSignature = awaitsClientSignature as jest.Mock;
+const PACKET_CHILD_REVISION = new Date("2026-09-25T08:00:00.000Z");
+const packetChild = (id: string, overrides: Record<string, unknown> = {}) => ({
+  id,
+  kind: "SOAP_NOTE",
+  status: "DRAFT",
+  signing: null,
+  updatedAt: PACKET_CHILD_REVISION,
+  organisationId: "org-1",
+  templateId: null,
+  templateInstanceId: null,
+  ...overrides,
+});
+
 const mockedWorkspaceService = WorkspaceService as unknown as {
   getEncounterBootstrap: jest.Mock;
 };
@@ -158,8 +187,13 @@ const pdfBytes = (marker: string): Buffer =>
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // No consent among a packet's documents unless a case says so.
-  mockedPrisma.renderedDocument.findMany.mockResolvedValue([]);
+  // Every packet document is waiting for the practice unless a case says so.
+  mockedPrisma.renderedDocument.findMany.mockImplementation(
+    async ({ where }: { where: { id: { in: string[] } } }) =>
+      where.id.in.map((id) => packetChild(id)),
+  );
+  mockedPrisma.renderedDocument.updateMany.mockResolvedValue({ count: 1 });
+  mockedAwaitsClientSignature.mockResolvedValue(false);
   process.env.DOCUMENSO_URL = "https://sign.example";
   // The signed-packet link is checked before it is used, which resolves the
   // host. Keep that resolution deterministic and offline: the placeholder hosts
@@ -883,58 +917,128 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
         pdf: { url: "https://signed.example/packet.pdf" },
       }),
     );
-    expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledTimes(2);
+    expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledTimes(2);
+    expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "d1",
+          updatedAt: PACKET_CHILD_REVISION,
+          status: { not: "SIGNED" },
+        },
+        data: expect.objectContaining({ status: "SIGNED", signedBy: "user-1" }),
+      }),
+    );
     expect(mockedPrisma.documentSignature.upsert).toHaveBeenCalledTimes(2);
     expect(result?.status).toBe("FINAL");
   });
 
   // The packet carries the staff member's signature; the client never signed
   // the consent in it, so it must not read as signed.
-  it("leaves a consent in the packet unsigned", async () => {
-    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
-      basePacket({
-        signing: {
-          status: "IN_PROGRESS",
-          documentId: "123",
-          signerId: "user-1",
-          signerName: "Dr Jane",
-          documentIds: ["soap-1", "consent-1"],
+  // The packet carries the staff member's signature. It leaves alone what
+  // the client signs and anything already out for signature or signed.
+  describe("the documents it marks signed", () => {
+    const completeWith = async (children: Array<Record<string, unknown>>) => {
+      mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+        basePacket({
+          signing: {
+            status: "IN_PROGRESS",
+            documentId: "123",
+            signerId: "user-1",
+            signerName: "Dr Jane",
+            documentIds: children.map(({ id }) => id),
+          },
+        }),
+      );
+      mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+      mockedDocumenso.getDocumentStatus.mockResolvedValue("COMPLETED");
+      mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+        downloadUrl: "https://signed.example/packet.pdf",
+      });
+      mockedPrisma.workspaceDocumentPacket.update.mockImplementation(
+        async ({ data }: { data: Record<string, unknown> }) =>
+          basePacket({ status: data.status, signing: data.signing }),
+      );
+      mockedPrisma.renderedDocument.findMany.mockResolvedValue(children);
+      mockedPrisma.documentSignature.upsert.mockResolvedValue({});
+      const result =
+        await WorkspaceDocumentPacketService.completeSigning("pkt-1");
+      expect(result?.status).toBe("FINAL");
+      return {
+        stamped: mockedPrisma.renderedDocument.updateMany.mock.calls.map(
+          ([arg]) => arg.where.id,
+        ),
+        signatures: mockedPrisma.documentSignature.upsert.mock.calls.map(
+          ([arg]) => arg.where.renderedDocumentId,
+        ),
+      };
+    };
+
+    it("leaves a document the client signs unsigned", async () => {
+      const consent = packetChild("consent-1", { kind: "CONSENT" });
+      const clientForm = packetChild("form-1", {
+        kind: "FORM",
+        templateId: "tpl-intake",
+        templateInstanceId: "inst-1",
+      });
+      mockedAwaitsClientSignature.mockImplementation(
+        async ({ id }: { id: string }) => id !== "soap-1",
+      );
+
+      const { stamped, signatures } = await completeWith([
+        packetChild("soap-1"),
+        consent,
+        clientForm,
+      ]);
+
+      expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ["soap-1", "consent-1", "form-1"] } },
+        select: {
+          id: true,
+          kind: true,
+          status: true,
+          signing: true,
+          updatedAt: true,
+          organisationId: true,
+          templateId: true,
+          templateInstanceId: true,
         },
-      }),
-    );
-    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
-    mockedDocumenso.getDocumentStatus.mockResolvedValue("COMPLETED");
-    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
-      downloadUrl: "https://signed.example/packet.pdf",
+      });
+      expect(mockedAwaitsClientSignature).toHaveBeenCalledWith(clientForm);
+      expect(stamped).toEqual(["soap-1"]);
+      expect(signatures).toEqual(["soap-1"]);
     });
-    mockedPrisma.workspaceDocumentPacket.update.mockImplementation(
-      async ({ data }: { data: Record<string, unknown> }) =>
-        basePacket({ status: data.status, signing: data.signing }),
-    );
-    mockedPrisma.renderedDocument.findMany.mockResolvedValue([
-      { id: "consent-1" },
-    ]);
-    mockedPrisma.renderedDocument.update.mockResolvedValue({});
-    mockedPrisma.documentSignature.upsert.mockResolvedValue({});
 
-    const result =
-      await WorkspaceDocumentPacketService.completeSigning("pkt-1");
+    it.each([
+      [
+        "out for signature",
+        { signing: { status: "IN_PROGRESS", documentId: "9" } },
+      ],
+      ["already signed", { status: "SIGNED" }],
+      ["signed through its own signing", { signing: { status: "SIGNED" } }],
+    ])("leaves a document %s as it is", async (_label, state) => {
+      const { stamped, signatures } = await completeWith([
+        packetChild("soap-1"),
+        packetChild("form-1", state),
+      ]);
 
-    expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith({
-      where: { id: { in: ["soap-1", "consent-1"] }, kind: "CONSENT" },
-      select: { id: true },
+      expect(stamped).toEqual(["soap-1"]);
+      expect(signatures).toEqual(["soap-1"]);
     });
-    expect(
-      mockedPrisma.renderedDocument.update.mock.calls.map(
-        ([arg]) => arg.where.id,
-      ),
-    ).toEqual(["soap-1"]);
-    expect(
-      mockedPrisma.documentSignature.upsert.mock.calls.map(
-        ([arg]) => arg.where.renderedDocumentId,
-      ),
-    ).toEqual(["soap-1"]);
-    expect(result?.status).toBe("FINAL");
+
+    // A signing that started after the packet read the document moved its
+    // revision on, so the conditional write matches nothing.
+    it("adds no signature to a document that changed since it was read", async () => {
+      mockedPrisma.renderedDocument.updateMany.mockResolvedValueOnce({
+        count: 0,
+      });
+
+      const { stamped, signatures } = await completeWith([
+        packetChild("form-1"),
+      ]);
+
+      expect(stamped).toEqual(["form-1"]);
+      expect(signatures).toEqual([]);
+    });
   });
 
   it("does NOT finalise a packet whose Documenso document is still PENDING, even though the PDF downloads", async () => {
@@ -975,7 +1079,7 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
     // Nothing may be written: no packet finalisation, no signedAt, no child
     // document stamped, no signature row.
     expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
-    expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.renderedDocument.updateMany).not.toHaveBeenCalled();
     expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
 
     // The packet is returned truthfully, as it stands.
@@ -1146,7 +1250,7 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
     );
     // The child rendered-document update throws → the catch logs and the
     // packet still finalises successfully.
-    mockedPrisma.renderedDocument.update.mockRejectedValue(
+    mockedPrisma.renderedDocument.updateMany.mockRejectedValue(
       new Error("child update failed"),
     );
 

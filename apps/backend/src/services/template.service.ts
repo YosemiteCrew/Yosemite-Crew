@@ -24,6 +24,7 @@ import {
   createRenderedDocumentRecord,
   type PersistRenderedDocumentInput,
 } from "src/services/rendered-document.service";
+import { isConsentTemplate } from "src/services/client-signature.helpers";
 import {
   isWorkflowKind,
   validateTaskWorkflowTemplateBlueprint,
@@ -357,17 +358,12 @@ const RENDERED_DOCUMENT_TITLES: Partial<Record<TemplateContractKind, string>> =
   };
 
 // Consent templates saved before CONSENT was a storage kind (1c3c790f0) are
-// still stored as FORM. The form builder has always written the author's
-// category to rules.category, so that is what still marks them as consent.
-const LEGACY_CONSENT_CATEGORY = "Consent form";
-
+// still stored as FORM, and render as the consent they are.
 const toRenderedDocumentTemplateKind = (template: {
   kind: TemplateKind;
   rules: Prisma.JsonValue;
 }): TemplateContractKind =>
-  template.kind === "FORM" &&
-  (template.rules as { category?: unknown } | null)?.category ===
-    LEGACY_CONSENT_CATEGORY
+  isConsentTemplate(template)
     ? "CONSENT"
     : normalizeTemplateKind(template.kind);
 

@@ -1017,6 +1017,7 @@ describe("FormSigningService.getSignedDocument — download failures", () => {
 // A template-backed form or consent submitted from the app has a template
 // instance and its rendered document, not a form submission.
 describe("FormSigningService.startSigning - a template-backed submission", () => {
+  const CONSENT_TEMPLATE = { kind: "CONSENT", rules: null };
   const appointment = { patient: { id: "patient-1" } };
 
   const arrange = (
@@ -1035,6 +1036,7 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
             templateId: "tpl-consent",
             appointmentId: "appt-1",
             authorId: "parent-1",
+            template: CONSENT_TEMPLATE,
           }
         : overrides.instance,
     );
@@ -1134,6 +1136,7 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
         templateId: "tpl-consent",
         appointmentId: "appt-1",
         authorId: "vet-1",
+        template: CONSENT_TEMPLATE,
       },
     });
 
@@ -1153,6 +1156,7 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
         templateId: "tpl-consent",
         appointmentId: "appt-1",
         authorId: "vet-1",
+        template: CONSENT_TEMPLATE,
         createdAt: new Date("2026-09-25T09:00:00.000Z"),
       },
     });
@@ -1175,6 +1179,50 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
     expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
   });
 
+  // Who signs is the template's to say, as for a form submission.
+  it.each([
+    [
+      "a form the practice signs",
+      { kind: "FORM", rules: { requiredSigner: "VET" } },
+    ],
+    ["a form no one signs", { kind: "FORM", rules: { requiredSigner: "" } }],
+    [
+      "a consent naming the practice",
+      { kind: "CONSENT", rules: { requiredSigner: "VET" } },
+    ],
+  ])("refuses the parent %s", async (_label, template) => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        template,
+      },
+    });
+
+    await expect(startAsParent()).rejects.toThrow(
+      "Form requires vet signature",
+    );
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("sends the parent a form whose template names the client", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        template: { kind: "FORM", rules: { requiredSigner: "client" } },
+      },
+    });
+
+    await expect(startAsParent()).resolves.toMatchObject({ documentId: "77" });
+  });
+
   it("refuses a submission with no appointment", async () => {
     arrange({
       instance: {
@@ -1182,6 +1230,7 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
         organisationId: "org-1",
         templateId: "tpl-consent",
         appointmentId: null,
+        template: CONSENT_TEMPLATE,
       },
     });
 

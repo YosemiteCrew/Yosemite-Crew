@@ -7,6 +7,7 @@ import {
   hasNewerSubmissionForSigner,
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
+import { templateNeedsClientSignature } from "src/services/client-signature.helpers";
 import { assertParentCanViewAppointment } from "src/services/form.service";
 
 type PrismaFormSubmissionRecord = {
@@ -266,10 +267,16 @@ export class FormSigningService {
         appointmentId: true,
         authorId: true,
         createdAt: true,
+        template: { select: { kind: true, rules: true } },
       },
     });
     if (!instance?.appointmentId) {
       throw new Error("Form submission not found");
+    }
+    // As for a form submission (ensureRequiredSignerMatches): the template
+    // names who signs, and a consent that names no one is the client's.
+    if (!templateNeedsClientSignature(instance.template)) {
+      throw new Error("Form requires vet signature");
     }
 
     const appointment = await prisma.appointment.findFirst({
@@ -301,7 +308,14 @@ export class FormSigningService {
     if (
       await hasNewerSubmissionForSigner(
         prisma,
-        { ...instance, appointmentId: instance.appointmentId },
+        {
+          id: instance.id,
+          organisationId: instance.organisationId,
+          templateId: instance.templateId,
+          appointmentId: instance.appointmentId,
+          authorId: instance.authorId,
+          createdAt: instance.createdAt,
+        },
         parentId,
       )
     ) {
