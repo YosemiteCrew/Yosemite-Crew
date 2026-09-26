@@ -6698,6 +6698,27 @@ model StaffShift {
   @@map("StaffShift")
 }
 
+enum CalendarBlockTargetType {
+  STAFF
+  ROOM
+}
+
+model CalendarBlock {
+  id             String                  @id @default(uuid())
+  organisationId String
+  targetType     CalendarBlockTargetType
+  targetId       String
+  startAt        DateTime
+  endAt          DateTime
+  reason         String
+  createdBy      String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([organisationId, startAt, endAt])
+  @@index([organisationId, targetType, targetId, startAt])
+}
+
 enum TreatmentOutcomeType {
   RECOVERED
   IMPROVED
