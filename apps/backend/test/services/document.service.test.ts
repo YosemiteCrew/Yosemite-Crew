@@ -123,7 +123,8 @@ describe("DocumentService", () => {
     jest.clearAllMocks();
     resetPrisma();
     mockedPrisma.parentPatient.findFirst.mockResolvedValue({
-      id: "pp-1",
+      role: "PRIMARY",
+      permissions: {},
     } as any);
     mockedPrisma.parentPatient.findMany.mockResolvedValue([
       { patientId: uuidPatientId, role: "PRIMARY", permissions: {} },
@@ -1285,5 +1286,130 @@ describe("DocumentService", () => {
     ).rejects.toThrow(
       new DocumentServiceError("Search title is required.", 400),
     );
+  });
+
+  // The document-keyed parent routes carry no patient id, so the
+  // requireCompanionPermission("documents") middleware cannot run on them; the
+  // service applies the same rule to the companion the document belongs to.
+  describe("parent reads and updates keyed by a document", () => {
+    const otherParentId = "44444444-5555-4666-8777-888888888888";
+    const otherPatientId = "66666666-7777-4888-8999-aaaaaaaaaaaa";
+
+    type LinkRow = {
+      parentId: string;
+      patientId: string;
+      role: string;
+      status: string;
+      permissions: unknown;
+    };
+
+    const link = (overrides: Partial<LinkRow> = {}): LinkRow => ({
+      parentId: uuidParentId,
+      patientId: uuidPatientId,
+      role: "PRIMARY",
+      status: "ACTIVE",
+      permissions: {},
+      ...overrides,
+    });
+
+    // Stands in for the parentPatient table and applies the `where` the way
+    // Prisma does (an omitted field matches everything), so a loosened filter
+    // lets the wrong row through instead of passing unnoticed.
+    const useLinks = (rows: LinkRow[]) => {
+      const matches = (value: string, filter: unknown) => {
+        if (filter === undefined) return true;
+        if (typeof filter === "string") return value === filter;
+        return (filter as { in: string[] }).in.includes(value);
+      };
+      mockedPrisma.parentPatient.findFirst.mockImplementation(
+        (async ({ where }: any) =>
+          rows.find(
+            (row) =>
+              matches(row.parentId, where.parentId) &&
+              matches(row.patientId, where.patientId) &&
+              matches(row.status, where.status) &&
+              matches(row.role, where.role),
+          ) ?? null) as any,
+      );
+    };
+
+    const paths: [string, () => Promise<unknown>][] = [
+      [
+        "getByIdForParent",
+        () => DocumentService.getByIdForParent(uuidDocumentId, uuidParentId),
+      ],
+      [
+        "getAllAttachmentUrls",
+        () =>
+          DocumentService.getAllAttachmentUrls({
+            documentId: uuidDocumentId,
+            parentId: uuidParentId,
+          }),
+      ],
+      [
+        "getAttachmentUrlByKey",
+        () =>
+          DocumentService.getAttachmentUrlByKey({
+            key: "k-1",
+            parentId: uuidParentId,
+          }),
+      ],
+      [
+        "update",
+        () =>
+          DocumentService.update(
+            uuidDocumentId,
+            { title: "Renamed" },
+            { parentId: uuidParentId },
+          ),
+      ],
+    ];
+
+    beforeEach(() => {
+      mockedPrisma.document.update.mockResolvedValue({
+        ...baseRow,
+        title: "Renamed",
+      } as any);
+    });
+
+    describe.each(paths)("%s", (_name, call) => {
+      it.each([
+        ["the primary parent", link()],
+        [
+          "a co-parent holding the documents permission",
+          link({ role: "CO_PARENT", permissions: { documents: true } }),
+        ],
+      ])("serves %s", async (_label, row) => {
+        useLinks([row]);
+
+        await expect(call()).resolves.toBeTruthy();
+      });
+
+      it.each([
+        ["a PENDING link", link({ status: "PENDING" })],
+        ["a REVOKED link", link({ status: "REVOKED" })],
+        [
+          "a co-parent without the documents permission",
+          link({ role: "CO_PARENT", permissions: { documents: false } }),
+        ],
+        [
+          "a co-parent with no permissions recorded",
+          link({ role: "CO_PARENT", permissions: null }),
+        ],
+        [
+          "another parent's link to the companion",
+          link({ parentId: otherParentId }),
+        ],
+        ["a link to another companion", link({ patientId: otherPatientId })],
+      ])("returns 404 through %s", async (_label, row) => {
+        useLinks([row]);
+
+        await expect(call()).rejects.toMatchObject({ statusCode: 404 });
+        expect(
+          mockedUpload.generatePresignedDownloadUrl,
+        ).not.toHaveBeenCalled();
+        expect(mockedPrisma.document.update).not.toHaveBeenCalled();
+      });
+    });
   });
 });

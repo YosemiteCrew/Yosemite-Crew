@@ -14,6 +14,7 @@ jest.mock("src/services/shared/parent-identity", () => ({
 import { prisma } from "src/config/prisma";
 import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
 import {
+  parentHasCompanionFeature,
   requireCompanionPermission,
   requireCompanionPermissionForResource,
   resolveExpenseCompanion,
@@ -324,5 +325,60 @@ describe("requireCompanionPermissionForResource (expenses)", () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(404);
     expect(expenseFindUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("parentHasCompanionFeature", () => {
+  it("looks up only an ACTIVE PRIMARY or CO_PARENT link for the pair", async () => {
+    findFirst.mockResolvedValue({ role: "PRIMARY", permissions: ALL_FALSE });
+
+    await expect(
+      parentHasCompanionFeature("par-1", "pat-1", "documents"),
+    ).resolves.toBe(true);
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        parentId: "par-1",
+        patientId: "pat-1",
+        status: "ACTIVE",
+        role: { in: ["PRIMARY", "CO_PARENT"] },
+      },
+      select: { role: true, permissions: true },
+    });
+  });
+
+  it.each([
+    ["no link", null, false],
+    [
+      "a co-parent without the feature",
+      {
+        role: "CO_PARENT",
+        permissions: { ...ALL_FALSE, medicalRecords: true },
+      },
+      false,
+    ],
+    [
+      "a co-parent with the feature",
+      { role: "CO_PARENT", permissions: { ...ALL_FALSE, documents: true } },
+      true,
+    ],
+  ])("answers %s", async (_label, link, expected) => {
+    findFirst.mockResolvedValue(link);
+
+    await expect(
+      parentHasCompanionFeature("par-1", "pat-1", "documents"),
+    ).resolves.toBe(expected);
+  });
+
+  it.each([
+    ["a blank parent id", "", "pat-1"],
+    ["a missing companion id", "par-1", undefined],
+    ["a null companion id", "par-1", null],
+  ])("refuses %s without a query", async (_label, parentId, patientId) => {
+    findFirst.mockResolvedValue({ role: "PRIMARY", permissions: {} });
+
+    await expect(
+      parentHasCompanionFeature(parentId, patientId, "documents"),
+    ).resolves.toBe(false);
+    expect(findFirst).not.toHaveBeenCalled();
   });
 });
