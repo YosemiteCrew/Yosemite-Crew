@@ -47,17 +47,133 @@ const toLocalInput = (value: string): string => {
   return local.toISOString().slice(0, 16);
 };
 
-const displayTime = (value: string): string =>
-  new Intl.DateTimeFormat(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(value));
+const timeFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+const displayTime = (value: string): string => timeFormatter.format(new Date(value));
 
 const displayTimeRange = (startAt: string, endAt: string): string =>
   `${displayTime(startAt)} – ${displayTime(endAt)}`;
+
+type CalendarBlockEditorProps = {
+  draft: Draft;
+  targetOptions: { id: string; name: string }[];
+  error: string;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onChange: (draft: Draft) => void;
+};
+
+const CalendarBlockEditor = ({
+  draft,
+  targetOptions,
+  error,
+  saving,
+  onClose,
+  onSubmit,
+  onChange,
+}: CalendarBlockEditorProps) => (
+  <Modal
+    showModal
+    setShowModal={(show) => {
+      if (!show) onClose();
+    }}
+    variant="centered"
+    size="sm"
+    aria-labelledby="calendar-block-title"
+  >
+    <form onSubmit={onSubmit} className="flex max-h-full flex-col gap-4">
+      <ModalHeader
+        title={draft.id ? 'Edit calendar block' : 'Block calendar time'}
+        titleId="calendar-block-title"
+        onClose={onClose}
+      />
+      <div className="grid gap-3">
+        <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
+          Applies to
+          <select
+            value={draft.targetType}
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                targetType: event.target.value as CalendarBlockTargetType,
+                targetId: '',
+              })
+            }
+            className="min-h-10 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] font-normal text-[var(--ink)]"
+          >
+            <option value="STAFF">Staff member</option>
+            <option value="ROOM">Room</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
+          {draft.targetType === 'ROOM' ? 'Room' : 'Staff member'}
+          <select
+            required
+            value={draft.targetId}
+            onChange={(event) => onChange({ ...draft, targetId: event.target.value })}
+            className="min-h-10 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] font-normal text-[var(--ink)]"
+          >
+            <option value="">Choose…</option>
+            {targetOptions.map((target) => (
+              <option key={target.id} value={target.id}>
+                {target.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
+            Starts
+            <input
+              required
+              type="datetime-local"
+              value={draft.startAt}
+              onChange={(event) => onChange({ ...draft, startAt: event.target.value })}
+              className="min-h-10 min-w-0 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-2 text-[12px] font-normal text-[var(--ink)]"
+            />
+          </label>
+          <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
+            Ends
+            <input
+              required
+              type="datetime-local"
+              value={draft.endAt}
+              onChange={(event) => onChange({ ...draft, endAt: event.target.value })}
+              className="min-h-10 min-w-0 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-2 text-[12px] font-normal text-[var(--ink)]"
+            />
+          </label>
+        </div>
+        <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
+          Reason
+          <input
+            required
+            maxLength={200}
+            value={draft.reason}
+            onChange={(event) => onChange({ ...draft, reason: event.target.value })}
+            placeholder="Lunch, training, closure…"
+            className="min-h-10 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] font-normal text-[var(--ink)] placeholder:text-[var(--ink-faint)]"
+          />
+        </label>
+        {error && (
+          <p role="alert" className="text-[12px] text-[var(--danger-text)]">
+            {error}
+          </p>
+        )}
+      </div>
+      <ModalFooter>
+        <Secondary text="Cancel" onClick={onClose} />
+        <Primary text={saving ? 'Saving…' : 'Save block'} type="submit" isDisabled={saving} />
+      </ModalFooter>
+    </form>
+  </Modal>
+);
 
 const CalendarBlocksPanel = ({
   blocks,
@@ -215,105 +331,17 @@ const CalendarBlocksPanel = ({
           </button>
         </div>
       )}
-      <Modal
-        showModal={draft !== null}
-        setShowModal={(show) => {
-          if (!show) setDraft(null);
-        }}
-        variant="centered"
-        size="sm"
-        aria-labelledby="calendar-block-title"
-      >
-        {draft && (
-          <form
-            onSubmit={(event) => void submit(event, draft)}
-            className="flex max-h-full flex-col gap-4"
-          >
-            <ModalHeader
-              title={draft.id ? 'Edit calendar block' : 'Block calendar time'}
-              titleId="calendar-block-title"
-              onClose={() => setDraft(null)}
-            />
-            <div className="grid gap-3">
-              <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-                Applies to
-                <select
-                  value={draft.targetType}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      targetType: event.target.value as CalendarBlockTargetType,
-                      targetId: '',
-                    })
-                  }
-                  className="min-h-10 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] font-normal text-[var(--ink)]"
-                >
-                  <option value="STAFF">Staff member</option>
-                  <option value="ROOM">Room</option>
-                </select>
-              </label>
-              <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-                {draft.targetType === 'ROOM' ? 'Room' : 'Staff member'}
-                <select
-                  required
-                  value={draft.targetId}
-                  onChange={(event) => setDraft({ ...draft, targetId: event.target.value })}
-                  className="min-h-10 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] font-normal text-[var(--ink)]"
-                >
-                  <option value="">Choose…</option>
-                  {targetOptions.map((target) => (
-                    <option key={target.id} value={target.id}>
-                      {target.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-                  Starts
-                  <input
-                    required
-                    type="datetime-local"
-                    value={draft.startAt}
-                    onChange={(event) => setDraft({ ...draft, startAt: event.target.value })}
-                    className="min-h-10 min-w-0 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-2 text-[12px] font-normal text-[var(--ink)]"
-                  />
-                </label>
-                <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-                  Ends
-                  <input
-                    required
-                    type="datetime-local"
-                    value={draft.endAt}
-                    onChange={(event) => setDraft({ ...draft, endAt: event.target.value })}
-                    className="min-h-10 min-w-0 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-2 text-[12px] font-normal text-[var(--ink)]"
-                  />
-                </label>
-              </div>
-              <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-                Reason
-                <input
-                  required
-                  maxLength={200}
-                  value={draft.reason}
-                  onChange={(event) => setDraft({ ...draft, reason: event.target.value })}
-                  placeholder="Lunch, training, closure…"
-                  className="min-h-10 rounded-xl border border-[var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] font-normal text-[var(--ink)] placeholder:text-[var(--ink-faint)]"
-                />
-              </label>
-              {error && (
-                <p role="alert" className="text-[12px] text-[var(--danger-text)]">
-                  {error}
-                </p>
-              )}
-            </div>
-            <ModalFooter>
-              <Secondary text="Cancel" onClick={() => setDraft(null)} />
-              <Primary text={saving ? 'Saving…' : 'Save block'} type="submit" isDisabled={saving} />
-            </ModalFooter>
-          </form>
-        )}
-      </Modal>
+      {draft && (
+        <CalendarBlockEditor
+          draft={draft}
+          targetOptions={targetOptions}
+          error={error}
+          saving={saving}
+          onClose={() => setDraft(null)}
+          onSubmit={(event) => void submit(event, draft)}
+          onChange={setDraft}
+        />
+      )}
     </>
   );
 };
