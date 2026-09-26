@@ -159,7 +159,7 @@ const ClientCollections = () => {
   const renderReviewAction = (invoice: OverdueClientInvoice) => {
     if (invoice.reviewedAt) {
       return (
-        <span className="rounded-full bg-success-100 px-3 py-1 text-caption-2 font-semibold text-text-success">
+        <span className="rounded-full bg-success-100 px-3 py-1 text-caption-2 font-semibold text-[var(--success-text)]">
           Reviewed {dateLabel(invoice.reviewedAt)}
         </span>
       );
