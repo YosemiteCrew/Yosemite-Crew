@@ -24,7 +24,12 @@ import {
   createRenderedDocumentRecord,
   type PersistRenderedDocumentInput,
 } from "src/services/rendered-document.service";
-import { isConsentTemplate } from "src/services/client-signature.helpers";
+import {
+  isConsentTemplate,
+  lockClientRequest,
+  settleClientRequestAfterPracticeSave,
+  templateNeedsClientSignature,
+} from "src/services/client-signature.helpers";
 import {
   isWorkflowKind,
   validateTaskWorkflowTemplateBlueprint,
@@ -349,6 +354,12 @@ const DOCUMENT_BACKED_TEMPLATE_KINDS = new Set<TemplateKind>([
   "PRESCRIPTION",
   "DISCHARGE_SUMMARY",
   "VITAL_RECORD",
+]);
+
+// The kinds a request to the client can be for (form assignments).
+const CLIENT_REQUEST_TEMPLATE_KINDS = new Set<TemplateKind>([
+  "FORM",
+  "CONSENT",
 ]);
 
 const RENDERED_DOCUMENT_TITLES: Partial<Record<TemplateContractKind, string>> =
@@ -1621,9 +1632,13 @@ export const TemplateService = {
     instanceId: string,
     organisationId: string,
     submittedBy?: string,
-    // Inside a caller's transaction the submit joins it rather than opening
-    // a second one on another connection.
-    client?: Prisma.TransactionClient,
+    options: {
+      // Inside a caller's transaction the submit joins it rather than
+      // opening a second one on another connection.
+      client?: Prisma.TransactionClient;
+      // Submitted by the client from the app, not saved by the practice.
+      submittedByParent?: boolean;
+    } = {},
   ) {
     const orgScope = ensureId(organisationId, "organisationId");
     const submit = async (tx: Prisma.TransactionClient) => {
@@ -1663,6 +1678,22 @@ export const TemplateService = {
       // becomes COMPLETED.
       if (instance.status === "VOID") {
         throw new TemplateServiceError("Template instance is void", 409);
+      }
+
+      // A form or consent on an appointment may answer a request sent to the
+      // client. The lock is the one a signature completing on it takes, so a
+      // practice save and that signature never interleave.
+      const clientRequest =
+        instance.appointmentId &&
+        CLIENT_REQUEST_TEMPLATE_KINDS.has(instance.template.kind)
+          ? {
+              organisationId: instance.organisationId,
+              templateId: instance.templateId,
+              appointmentId: instance.appointmentId,
+            }
+          : null;
+      if (clientRequest) {
+        await lockClientRequest(tx, clientRequest);
       }
 
       // Claim the instance before any side effect. The UPDATE takes the row
@@ -1727,7 +1758,7 @@ export const TemplateService = {
         );
       }
 
-      return tx.templateInstance.update({
+      const completed = await tx.templateInstance.update({
         where: { id: instance.id },
         data: {
           status: "COMPLETED",
@@ -1737,7 +1768,18 @@ export const TemplateService = {
           generatedPdfUrl: renderedDocumentSummary?.pdfUrl ?? undefined,
         },
       });
+
+      if (clientRequest && !options.submittedByParent) {
+        await settleClientRequestAfterPracticeSave(
+          tx,
+          clientRequest,
+          templateNeedsClientSignature(instance.template),
+        );
+      }
+      return completed;
     };
-    return client ? submit(client) : prisma.$transaction(submit);
+    return options.client
+      ? submit(options.client)
+      : prisma.$transaction(submit);
   },
 };

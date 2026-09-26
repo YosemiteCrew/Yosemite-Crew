@@ -263,6 +263,39 @@ export class DocumensoService {
     }
   }
 
+  /**
+   * Sends an envelope to its recipients and reports whether it went. A
+   * success reply the SDK's strict response schemas reject is still a sent
+   * envelope: the production Documenso answers without fields those schemas
+   * require (see the note above DocumentCreatedSchema). Any other failure,
+   * an error reply included, is not sent.
+   */
+  static async sendEnvelope({
+    envelopeId,
+    apiKey,
+  }: {
+    envelopeId: string;
+    apiKey?: string;
+  }): Promise<boolean> {
+    try {
+      const documenso = getDocumensoClient(apiKey);
+      await documenso.envelopes.distribute({ envelopeId });
+      logger.info("Documenso envelope distributed", { envelopeId });
+      return true;
+    } catch (error) {
+      if (
+        error instanceof errors.ResponseValidationError &&
+        error.statusCode >= 200 &&
+        error.statusCode < 300
+      ) {
+        logger.info("Documenso envelope distributed", { envelopeId });
+        return true;
+      }
+      logDocumensoFailure(error);
+      return false;
+    }
+  }
+
   static async distributeDocument({
     envelopeId,
     apiKey,

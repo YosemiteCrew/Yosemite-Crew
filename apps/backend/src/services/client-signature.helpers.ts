@@ -71,27 +71,33 @@ const requestKey = (
 
 /**
  * The documents among these that wait for the client's own signature: a
- * consent, or a form from a template the client signs that the practice asked
- * them to sign on its appointment. Practice staff never sign them, and the
- * discharge packet never marks them signed. Two queries however many
- * documents there are.
+ * consent or form whose template the client signs (a consent that names no
+ * signer included), a form only where the practice asked the client to sign
+ * it on its appointment. A consent with no template to read is the client's.
+ * Practice staff never sign these, and the discharge packet never marks them
+ * signed. Two queries however many documents there are.
  */
 export const loadDocumentsAwaitingClientSignature = async (
   documents: ClientSignableDocument[],
 ): Promise<Set<string>> => {
+  const hasTemplate = (document: ClientSignableDocument) =>
+    Boolean(document.templateId && document.templateInstanceId);
   const awaiting = new Set(
-    documents.filter(({ kind }) => kind === "CONSENT").map(({ id }) => id),
+    documents
+      .filter(
+        (document) => document.kind === "CONSENT" && !hasTemplate(document),
+      )
+      .map(({ id }) => id),
   );
-  const forms = documents.filter(
-    (document) =>
-      !awaiting.has(document.id) &&
-      document.templateId &&
-      document.templateInstanceId,
-  );
-  if (!forms.length) return awaiting;
+  const templated = documents.filter(hasTemplate);
+  if (!templated.length) return awaiting;
 
   const instances = await prisma.templateInstance.findMany({
-    where: { id: { in: forms.map((form) => String(form.templateInstanceId)) } },
+    where: {
+      id: {
+        in: templated.map((document) => String(document.templateInstanceId)),
+      },
+    },
     select: {
       id: true,
       appointmentId: true,
@@ -100,18 +106,26 @@ export const loadDocumentsAwaitingClientSignature = async (
   });
   const clientSigned = new Map(
     instances
-      .filter(
-        (instance) =>
-          instance.appointmentId &&
-          templateNeedsClientSignature(instance.template),
-      )
-      .map((instance) => [instance.id, String(instance.appointmentId)]),
+      .filter((instance) => templateNeedsClientSignature(instance.template))
+      .map((instance) => [instance.id, instance.appointmentId]),
   );
-  const candidates = forms.filter((form) =>
-    clientSigned.has(String(form.templateInstanceId)),
+  const signedByClient = templated.filter((document) =>
+    clientSigned.has(String(document.templateInstanceId)),
+  );
+  for (const document of signedByClient) {
+    if (document.kind === "CONSENT") awaiting.add(document.id);
+  }
+
+  // A form is the client's only where the practice asked them for it.
+  const candidates = signedByClient.filter(
+    (document) =>
+      document.kind !== "CONSENT" &&
+      clientSigned.get(String(document.templateInstanceId)),
   );
   if (!candidates.length) return awaiting;
 
+  const appointmentOf = (document: ClientSignableDocument) =>
+    String(clientSigned.get(String(document.templateInstanceId)));
   const requests = await prisma.formAssignment.findMany({
     where: {
       organisationId: {
@@ -120,7 +134,7 @@ export const loadDocumentsAwaitingClientSignature = async (
       templateId: {
         in: [...new Set(candidates.map((c) => String(c.templateId)))],
       },
-      appointmentId: { in: [...new Set(clientSigned.values())] },
+      appointmentId: { in: [...new Set(candidates.map(appointmentOf))] },
       signingRequired: true,
       status: { notIn: ["CANCELLED", "EXPIRED"] },
     },
@@ -136,12 +150,13 @@ export const loadDocumentsAwaitingClientSignature = async (
     ),
   );
   for (const form of candidates) {
-    const appointmentId = String(
-      clientSigned.get(String(form.templateInstanceId)),
-    );
     if (
       requested.has(
-        requestKey(form.organisationId, String(form.templateId), appointmentId),
+        requestKey(
+          form.organisationId,
+          String(form.templateId),
+          appointmentOf(form),
+        ),
       )
     ) {
       awaiting.add(form.id);
@@ -156,17 +171,73 @@ export const awaitsClientSignature = async (
 ): Promise<boolean> =>
   (await loadDocumentsAwaitingClientSignature([document])).has(document.id);
 
+/**
+ * What a practice save means for the request sent to the client for a form on
+ * an appointment, written in the save's transaction:
+ * - one the client does not sign is answered by the practice filling it in;
+ * - one the client signs stays open for them, and a signature they gave on an
+ *   earlier practice version no longer answers it, since the new version is
+ *   the one they now sign. Their own signed submission still does.
+ */
+export const settleClientRequestAfterPracticeSave = async (
+  tx: Pick<
+    Prisma.TransactionClient,
+    "formAssignment" | "templateInstance" | "parent"
+  >,
+  request: {
+    organisationId: string;
+    templateId: string;
+    appointmentId: string;
+  },
+  clientSigns: boolean,
+): Promise<void> => {
+  await tx.formAssignment.updateMany({
+    where: {
+      ...request,
+      status: { in: ["SENT", "VIEWED"] },
+      ...(clientSigns ? { signingRequired: false } : {}),
+    },
+    data: { status: "SUBMITTED", submittedAt: new Date() },
+  });
+
+  if (!clientSigns) return;
+
+  const signedAuthors = await tx.templateInstance.findMany({
+    where: { ...request, status: "SIGNED", authorId: { not: null } },
+    select: { authorId: true },
+  });
+  const clientSignedTheirOwn =
+    signedAuthors.length > 0 &&
+    (await tx.parent.count({
+      where: {
+        id: { in: signedAuthors.map(({ authorId }) => String(authorId)) },
+      },
+    })) > 0;
+  if (clientSignedTheirOwn) return;
+
+  await tx.formAssignment.updateMany({
+    where: { ...request, status: "SIGNED", signingRequired: true },
+    data: { status: "SENT", signedAt: null },
+  });
+};
+
 // A claim whose request never finished (the process stopped between claiming
 // and sending) stops blocking the document after this long.
 const SIGNING_CLAIM_TTL_MS = 5 * 60 * 1000;
 
 /**
- * Whether a signing is under way: one sent to Documenso, or claimed moments
- * ago by a request that is sending it now.
+ * Whether a signing is under way: one sent to the signer, or claimed (or
+ * recorded but not yet sent) moments ago by a request that is sending it now.
  */
 export const isOpenSigning = (value: unknown): boolean => {
   if (readRecordField(value, "status") !== "IN_PROGRESS") return false;
-  if (readRecordField(value, "documentId")) return true;
+  // Sent to the signer: open until Documenso reports it signed or withdrawn.
+  if (
+    readRecordField(value, "documentId") &&
+    readRecordField(value, "awaitingSend") !== true
+  ) {
+    return true;
+  }
   const claimedAtValue = readRecordField(value, "claimedAt");
   const claimedAt =
     typeof claimedAtValue === "string"

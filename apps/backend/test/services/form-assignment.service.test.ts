@@ -759,6 +759,45 @@ describe("FormAssignmentService", () => {
       appointment: { patient: { parent: { id: "parent-1" } } },
     });
 
+    // A co-parent answers the appointment's request as well as its primary
+    // parent does; access to the appointment was checked on submitting.
+    it("finds the appointment's assignment for a co-parent's submission", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        assignment("assignment-1", 3),
+      ]);
+      mockedPrisma.formAssignment.update.mockResolvedValueOnce({
+        id: "assignment-1",
+      });
+
+      await FormAssignmentService.markSubmittedFromSubmission({
+        organisationId: "org-1",
+        templateId: "template-1",
+        templateVersion: 3,
+        appointmentId: "appt-1",
+        parentId: "co-parent-2",
+      });
+
+      expect(mockedPrisma.formAssignment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "assignment-1" } }),
+      );
+    });
+
+    it("still matches the parent without an appointment", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        assignment("assignment-1", 3),
+      ]);
+
+      await expect(
+        FormAssignmentService.markSubmittedFromSubmission({
+          organisationId: "org-1",
+          templateId: "template-1",
+          templateVersion: 3,
+          parentId: "co-parent-2",
+        }),
+      ).resolves.toBeNull();
+      expect(mockedPrisma.formAssignment.update).not.toHaveBeenCalled();
+    });
+
     it("finds the appointment's assignment whatever version was submitted", async () => {
       mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
         assignment("assignment-v1", 1),

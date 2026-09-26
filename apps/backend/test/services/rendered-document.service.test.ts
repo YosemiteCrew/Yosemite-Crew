@@ -54,6 +54,9 @@ jest.mock("src/config/prisma", () => {
     appointment: {
       findUnique: jest.fn(),
     },
+    parentPatient: {
+      findFirst: jest.fn(),
+    },
     formAssignment: {
       updateMany: jest.fn(),
       findMany: jest.fn(),
@@ -71,6 +74,7 @@ jest.mock("../../src/services/documenso.service", () => ({
     resolveOrganisationApiKey: jest.fn(),
     createDocument: jest.fn(),
     distributeDocument: jest.fn(),
+    sendEnvelope: jest.fn(),
     downloadSignedDocument: jest.fn(),
   },
 }));
@@ -112,6 +116,7 @@ describe("rendered-document service", () => {
     case: { findUnique: jest.Mock };
     encounter: { findUnique: jest.Mock };
     appointment: { findUnique: jest.Mock };
+    parentPatient: { findFirst: jest.Mock };
     formAssignment: { updateMany: jest.Mock; findMany: jest.Mock };
     $executeRaw: jest.Mock;
     $transaction: jest.Mock;
@@ -120,6 +125,7 @@ describe("rendered-document service", () => {
     resolveOrganisationApiKey: jest.Mock;
     createDocument: jest.Mock;
     distributeDocument: jest.Mock;
+    sendEnvelope: jest.Mock;
     downloadSignedDocument: jest.Mock;
   };
   const mockedRenderedDocumentRenderer =
@@ -153,6 +159,13 @@ describe("rendered-document service", () => {
     // `not.toHaveBeenCalled()` false-fail on a call left over from an
     // earlier test.
     mockedPrisma.templateInstance.findUnique.mockReset();
+    // A client who signed may still act for the companion unless a case says
+    // otherwise.
+    mockedPrisma.parentPatient.findFirst
+      .mockReset()
+      .mockResolvedValue({ role: "PRIMARY", permissions: {} });
+    // Documenso takes the envelope unless a case says otherwise.
+    mockedDocumensoService.sendEnvelope.mockReset().mockResolvedValue(true);
     // No form here was sent to the client to sign unless a case says so.
     mockedPrisma.templateInstance.findMany.mockReset().mockResolvedValue([]);
     mockedPrisma.formAssignment.findMany.mockReset().mockResolvedValue([]);
@@ -172,7 +185,7 @@ describe("rendered-document service", () => {
     mockedPrisma.renderedDocument.update.mockReset();
     mockedPrisma.$transaction.mockClear();
     mockedPrisma.case.findUnique.mockClear();
-    mockedPrisma.encounter.findUnique.mockClear();
+    mockedPrisma.encounter.findUnique.mockReset();
     mockedPrisma.appointment.findUnique.mockClear();
     mockedAuditTrailService.recordSafely.mockClear();
   });
@@ -1021,13 +1034,14 @@ describe("rendered-document service", () => {
         }),
       }),
     );
-    expect(mockedDocumensoService.distributeDocument).toHaveBeenCalledWith(
+    expect(mockedDocumensoService.sendEnvelope).toHaveBeenCalledWith(
       expect.objectContaining({
         envelopeId: "envelope_42",
         apiKey: "api-key-1",
       }),
     );
-    expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+    // Recorded with the rendered PDF before the send, then marked sent.
+    expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           id: "doc-1",
@@ -1042,9 +1056,24 @@ describe("rendered-document service", () => {
           signing: expect.objectContaining({
             status: "IN_PROGRESS",
             documentId: "42",
-            signingUrl: "https://documenso.example/sign/token-123",
+            awaitingSend: true,
           }),
         }),
+      }),
+    );
+    expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "doc-1",
+          signing: { path: ["claimId"], equals: expect.any(String) },
+        },
+        data: {
+          signing: expect.objectContaining({
+            status: "IN_PROGRESS",
+            documentId: "42",
+            signingUrl: "https://documenso.example/sign/token-123",
+          }),
+        },
       }),
     );
     expect(result.signing).toEqual(
@@ -1298,7 +1327,8 @@ describe("rendered-document service", () => {
       caseId: null,
       encounterId: "encounter-1",
     });
-    mockedPrisma.encounter.findUnique.mockResolvedValueOnce({
+    // Read for the signer's link, then for the audit.
+    mockedPrisma.encounter.findUnique.mockResolvedValue({
       patientId: "patient-2",
     });
     mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
@@ -1873,9 +1903,9 @@ describe("rendered-document service", () => {
           id: 99,
           recipients: [],
         });
-        mockedPrisma.renderedDocument.update.mockRejectedValueOnce(
-          recordNotFound(),
-        );
+        mockedPrisma.renderedDocument.updateMany
+          .mockResolvedValueOnce({ count: 1 })
+          .mockResolvedValueOnce({ count: 0 });
 
         await expect(
           signPersistedRenderedDocument(signInput),
@@ -1883,12 +1913,12 @@ describe("rendered-document service", () => {
           statusCode: 409,
           message: "Document signing is already in progress",
         });
-        expect(
-          mockedDocumensoService.distributeDocument,
-        ).not.toHaveBeenCalled();
+        expect(mockedDocumensoService.sendEnvelope).not.toHaveBeenCalled();
       });
 
-      it("records the signing before sending it, and releases it if the send fails", async () => {
+      // Recorded as awaiting its send, so a request that stops before the send
+      // is confirmed leaves a signing that expires like a claim.
+      it("records the signing as awaiting its send, then as sent", async () => {
         readyToSend();
         mockedDocumensoService.createDocument.mockResolvedValueOnce({
           id: 99,
@@ -1897,22 +1927,56 @@ describe("rendered-document service", () => {
         mockedPrisma.renderedDocument.update.mockResolvedValueOnce(
           documentRow({ signing: inProgressSigning }),
         );
-        mockedDocumensoService.distributeDocument.mockRejectedValueOnce(
-          new Error("send failed"),
-        );
 
-        await expect(signPersistedRenderedDocument(signInput)).rejects.toThrow(
-          "send failed",
+        await signPersistedRenderedDocument(signInput);
+
+        const [claim, recorded] =
+          mockedPrisma.renderedDocument.updateMany.mock.calls.map(
+            ([arg]) => arg,
+          );
+        const claimId = claim.data.signing.claimId;
+        const stillClaimed = {
+          id: "doc-9",
+          signing: { path: ["claimId"], equals: claimId },
+        };
+        expect(recorded.where).toEqual(stillClaimed);
+        expect(recorded.data.signing).toMatchObject({
+          documentId: "99",
+          claimId,
+          awaitingSend: true,
+          claimedAt: expect.any(String),
+        });
+        const sent = mockedPrisma.renderedDocument.update.mock.calls[0][0];
+        expect(sent.where).toEqual(stillClaimed);
+        expect(sent.data.signing).toMatchObject({ documentId: "99", claimId });
+        expect(sent.data.signing).not.toHaveProperty("awaitingSend");
+        expect(
+          mockedPrisma.renderedDocument.updateMany.mock.invocationCallOrder[1],
+        ).toBeLessThan(
+          mockedDocumensoService.sendEnvelope.mock.invocationCallOrder[0],
         );
+      });
+
+      // Documenso did not take the envelope (an error reply or no answer):
+      // nothing reached the signer, so the document can be sent again.
+      it("releases the document when the send does not go through", async () => {
+        readyToSend();
+        mockedDocumensoService.createDocument.mockResolvedValueOnce({
+          id: 99,
+          recipients: [],
+        });
+        mockedDocumensoService.sendEnvelope.mockResolvedValueOnce(false);
+
+        await expect(
+          signPersistedRenderedDocument(signInput),
+        ).rejects.toMatchObject({
+          statusCode: 502,
+          message: "Unable to send the document for signing",
+        });
 
         const claimId =
           mockedPrisma.renderedDocument.updateMany.mock.calls[0][0].data.signing
             .claimId;
-        const recorded = mockedPrisma.renderedDocument.update.mock.calls[0][0];
-        expect(recorded.data.signing).toMatchObject({
-          documentId: "99",
-          claimId,
-        });
         expect(
           mockedPrisma.renderedDocument.updateMany,
         ).toHaveBeenLastCalledWith({
@@ -1922,6 +1986,7 @@ describe("rendered-document service", () => {
           },
           data: { signing: Prisma.DbNull },
         });
+        expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
       });
 
       it("surfaces a failed record that is not a lost claim", async () => {
@@ -1930,16 +1995,14 @@ describe("rendered-document service", () => {
           id: 99,
           recipients: [],
         });
-        mockedPrisma.renderedDocument.update.mockRejectedValueOnce(
-          new Error("db down"),
-        );
+        mockedPrisma.renderedDocument.updateMany
+          .mockResolvedValueOnce({ count: 1 })
+          .mockRejectedValueOnce(new Error("db down"));
 
         await expect(signPersistedRenderedDocument(signInput)).rejects.toThrow(
           "db down",
         );
-        expect(
-          mockedDocumensoService.distributeDocument,
-        ).not.toHaveBeenCalled();
+        expect(mockedDocumensoService.sendEnvelope).not.toHaveBeenCalled();
       });
 
       it("refuses while another request has just claimed it", async () => {
@@ -2020,6 +2083,9 @@ describe("rendered-document service", () => {
         // No correction saved since, unless a case says so.
         mockedPrisma.templateInstance.count.mockReset().mockResolvedValue(0);
       });
+      afterEach(() => {
+        mockedPrisma.encounter.findUnique.mockReset();
+      });
 
       // The client signed a version the practice then corrected: the
       // signature is kept on that version, but the request waits for the
@@ -2037,6 +2103,86 @@ describe("rendered-document service", () => {
 
         expect(result.status).toBe("SIGNED");
         expect(mockedPrisma.formAssignment.updateMany).not.toHaveBeenCalled();
+      });
+
+      // A client whose link was revoked, or whose permission was taken away,
+      // while the signature was outstanding no longer answers for the
+      // companion: their signature is discarded and nothing reads signed.
+      it.each([
+        ["whose link is gone", null],
+        [
+          "who may no longer act on appointments",
+          { role: "CO_PARENT", permissions: { appointments: false } },
+        ],
+      ])("discards the signature of a client %s", async (_label, link) => {
+        storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });
+        signedPdfAvailable();
+        // Read in the transaction, then again for the discard's audit.
+        mockedPrisma.templateInstance.findUnique
+          .mockResolvedValueOnce(onAppointment("appt-9"))
+          .mockResolvedValueOnce(onAppointment("appt-9"));
+        mockedPrisma.encounter.findUnique.mockResolvedValue({
+          patientId: "patient-9",
+        });
+        mockedPrisma.parentPatient.findFirst.mockResolvedValueOnce(link);
+
+        const result = await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(result.status).not.toBe("SIGNED");
+        expect(mockedPrisma.parentPatient.findFirst).toHaveBeenCalledWith({
+          where: {
+            parentId: "parent-1",
+            patientId: "patient-9",
+            status: "ACTIVE",
+            role: { in: ["PRIMARY", "CO_PARENT"] },
+          },
+          select: { role: true, permissions: true },
+        });
+        expect(mockedPrisma.formAssignment.updateMany).not.toHaveBeenCalled();
+        // Withdrawn so it can be signed again, and audited as discarded.
+        expect(mockedPrisma.renderedDocument.updateMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: {
+              signing: expect.objectContaining({ status: "NOT_STARTED" }),
+            },
+          }),
+        );
+        expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+          expect.objectContaining({
+            metadata: expect.objectContaining({
+              outcome: "SIGNATURE_DISCARDED",
+              reason: "SIGNER_NOT_PERMITTED",
+            }),
+          }),
+        );
+      });
+
+      it("keeps the signature of a client who may still act", async () => {
+        storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          onAppointment("appt-9"),
+        );
+        mockedPrisma.encounter.findUnique.mockResolvedValue({
+          patientId: "patient-9",
+        });
+
+        const result = await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(result.status).toBe("SIGNED");
+        expect(mockedPrisma.formAssignment.updateMany).toHaveBeenCalled();
+      });
+
+      it("does not ask whether practice staff may act for the companion", async () => {
+        storeTemplateSigning({ signerType: "PMS_USER" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+          onAppointment("appt-9"),
+        );
+
+        await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(mockedPrisma.parentPatient.findFirst).not.toHaveBeenCalled();
       });
 
       it("takes the lock a submission of the same form takes", async () => {
@@ -2381,6 +2527,7 @@ describe("rendered-document service", () => {
             renderedDocumentId: "doc-9",
             kind: "PRESCRIPTION",
             outcome: "SIGNATURE_DISCARDED",
+            reason: "RECORD_CHANGED",
           },
         });
       });

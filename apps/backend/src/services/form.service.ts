@@ -26,9 +26,11 @@ import {
   FormVisibilityType as PrismaFormVisibilityType,
   OrganizationType as PrismaOrganizationType,
   Prisma,
+  TemplateKind as PrismaTemplateKind,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import { isWorkflowKind } from "src/services/task-workflow-blueprints";
 import {
   lockClientRequest,
   templateNeedsClientSignature,
@@ -554,8 +556,6 @@ type InstanceSubmissionParams = {
   appointmentId?: string;
   authorId?: string;
   byParent: boolean;
-  /** Whether the template's forms are the client's to sign. */
-  clientSigns: boolean;
   answers: FormSubmission["answers"];
 };
 
@@ -613,10 +613,11 @@ const resolveInstanceForSubmission = async (
 };
 
 /**
- * Finds or creates the submitter's instance and submits it. Two submits of one
- * form for one appointment by one submitter at once (a double tap) take turns
- * under an advisory lock, so the second finds what the first submitted and
- * goes on with it instead of creating a second instance and document.
+ * Finds or creates the submitter's instance and submits it. Submits of one
+ * form for one appointment take turns under an advisory lock. A parent's
+ * second submit (a double tap) finds what the first submitted and goes on
+ * with it. A practice save always records a new version once the last one is
+ * submitted, so the PMS keeps its Save button disabled while one is running.
  */
 const submitInstanceForSubmission = async (
   params: InstanceSubmissionParams,
@@ -653,63 +654,12 @@ const submitInstanceForSubmission = async (
         instance.id,
         params.organisationId,
         params.authorId,
-        tx,
+        { client: tx, submittedByParent: params.byParent },
       );
-      if (!params.byParent) {
-        await settleClientRequestAfterPracticeSave(tx, params, appointmentId);
-      }
       return { instance, completed };
     },
     { timeout: 15_000 },
   );
-};
-
-/**
- * What a practice save means for the request sent to the client for this form:
- * - one the client does not sign is answered by the practice filling it in;
- * - one the client signs stays open for them, and a signature they gave on an
- *   earlier practice version no longer answers it, since the new version is
- *   the one they now sign. Their own signed submission still does.
- */
-const settleClientRequestAfterPracticeSave = async (
-  tx: Prisma.TransactionClient,
-  params: InstanceSubmissionParams,
-  appointmentId: string,
-) => {
-  const request = {
-    organisationId: params.organisationId,
-    templateId: params.templateId,
-    appointmentId,
-  };
-
-  await tx.formAssignment.updateMany({
-    where: {
-      ...request,
-      status: { in: ["SENT", "VIEWED"] },
-      ...(params.clientSigns ? { signingRequired: false } : {}),
-    },
-    data: { status: "SUBMITTED", submittedAt: new Date() },
-  });
-
-  if (!params.clientSigns) return;
-
-  const signedAuthors = await tx.templateInstance.findMany({
-    where: { ...request, status: "SIGNED", authorId: { not: null } },
-    select: { authorId: true },
-  });
-  const clientSignedTheirOwn =
-    signedAuthors.length > 0 &&
-    (await tx.parent.count({
-      where: {
-        id: { in: signedAuthors.map(({ authorId }) => String(authorId)) },
-      },
-    })) > 0;
-  if (clientSignedTheirOwn) return;
-
-  await tx.formAssignment.updateMany({
-    where: { ...request, status: "SIGNED", signingRequired: true },
-    data: { status: "SENT", signedAt: null },
-  });
 };
 
 const createInstanceForSubmission = (
@@ -988,9 +938,17 @@ const buildTemplateAppointmentFormItems = async (params: {
     canManageForms: params.canManageForms ?? false,
   });
 
-  const assignments = await FormAssignmentService.listForAppointment(
-    params.organisationId,
-    params.appointmentId,
+  // A request the practice withdrew, or that lapsed, is not the parent's to
+  // answer or read any more.
+  const assignments = (
+    await FormAssignmentService.listForAppointment(
+      params.organisationId,
+      params.appointmentId,
+    )
+  ).filter(
+    ({ status }) =>
+      !params.viewerParentId ||
+      (status !== "cancelled" && status !== "expired"),
   );
 
   if (!assignments.length) {
@@ -1256,6 +1214,11 @@ const submitViaTemplateInstance = async (
   if (!template?.organisationId) {
     throw new FormServiceError("Form not found", 404);
   }
+  // Task templates and care pathways launch a workflow when submitted; they
+  // are not forms and are submitted through their own template routes.
+  if (isWorkflowKind(template.kind as PrismaTemplateKind)) {
+    throw new FormServiceError("Form not found", 404);
+  }
 
   if (actor && "parentId" in actor) {
     await assertTemplateSubmittableByParent({
@@ -1285,7 +1248,6 @@ const submitViaTemplateInstance = async (
     appointmentId: submission.appointmentId ?? undefined,
     authorId: submittedBy ?? undefined,
     byParent,
-    clientSigns: templateNeedsClientSignature(template),
     answers: submission.answers,
   });
 

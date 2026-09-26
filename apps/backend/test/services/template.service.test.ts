@@ -1755,12 +1755,9 @@ describe("TemplateService.submitInstance", () => {
     });
     (prisma.$transaction as jest.Mock).mockClear();
 
-    await TemplateService.submitInstance(
-      "inst-1",
-      "org-1",
-      undefined,
-      callerTx as never,
-    );
+    await TemplateService.submitInstance("inst-1", "org-1", undefined, {
+      client: callerTx as never,
+    });
 
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(update).toHaveBeenCalledWith(
@@ -1769,6 +1766,120 @@ describe("TemplateService.submitInstance", () => {
       }),
     );
     expect(renderMock).toHaveBeenCalledWith(expect.anything(), callerTx);
+  });
+
+  // Every route that submits a form or consent on an appointment settles the
+  // request sent to the client for it, under the lock a signature completing
+  // on it takes.
+  describe("the client's request for the form", () => {
+    const onAppointment = (kind: string, rules: unknown = null) => {
+      const handles = runTransaction({
+        id: "inst-1",
+        organisationId: "org-1",
+        status: "DRAFT",
+        authorId: "vet-1",
+        signedBy: null,
+        templateId: "tpl-1",
+        templateVersion: 1,
+        appointmentId: "appt-1",
+        generatedPdf: null,
+        template: {
+          id: "tpl-1",
+          kind,
+          ownership: "ORG_TEMPLATE",
+          name: "Consent",
+          rules,
+        },
+      });
+      const tx = handles.tx as Record<string, unknown>;
+      tx.$executeRaw = jest.fn();
+      tx.formAssignment = { updateMany: jest.fn() };
+      (tx.templateInstance as Record<string, unknown>).findMany = jest
+        .fn()
+        .mockResolvedValue([]);
+      tx.parent = { count: jest.fn() };
+      renderMock.mockResolvedValue({
+        id: "rd-1",
+        kind,
+        signedAt: null,
+        signedBy: null,
+        pdfUrl: null,
+      });
+      return tx as {
+        $executeRaw: jest.Mock;
+        formAssignment: { updateMany: jest.Mock };
+        templateInstance: { updateMany: jest.Mock };
+      };
+    };
+    const request = {
+      organisationId: "org-1",
+      templateId: "tpl-1",
+      appointmentId: "appt-1",
+    };
+
+    it("is locked and settled when the practice saves a consent", async () => {
+      const tx = onAppointment("CONSENT");
+
+      await TemplateService.submitInstance("inst-1", "org-1", "vet-1");
+
+      const [sql, key] = tx.$executeRaw.mock.calls[0];
+      expect(sql.join("?")).toBe("SELECT pg_advisory_xact_lock(hashtext(?))");
+      expect(key).toBe("client-form-request:org-1:tpl-1:appt-1");
+      expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        tx.templateInstance.updateMany.mock.invocationCallOrder[0],
+      );
+      expect(
+        tx.formAssignment.updateMany.mock.calls.map(([arg]) => arg),
+      ).toEqual([
+        {
+          where: {
+            ...request,
+            status: { in: ["SENT", "VIEWED"] },
+            signingRequired: false,
+          },
+          data: { status: "SUBMITTED", submittedAt: expect.any(Date) },
+        },
+        {
+          where: { ...request, status: "SIGNED", signingRequired: true },
+          data: { status: "SENT", signedAt: null },
+        },
+      ]);
+    });
+
+    it("is answered when the practice fills in a form the client does not sign", async () => {
+      const tx = onAppointment("FORM", { requiredSigner: "VET" });
+
+      await TemplateService.submitInstance("inst-1", "org-1", "vet-1");
+
+      expect(
+        tx.formAssignment.updateMany.mock.calls.map(([arg]) => arg),
+      ).toEqual([
+        {
+          where: { ...request, status: { in: ["SENT", "VIEWED"] } },
+          data: { status: "SUBMITTED", submittedAt: expect.any(Date) },
+        },
+      ]);
+    });
+
+    it("is left to the submission when the client submits", async () => {
+      const tx = onAppointment("CONSENT");
+
+      await TemplateService.submitInstance("inst-1", "org-1", "parent-1", {
+        submittedByParent: true,
+      });
+
+      expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+      expect(tx.formAssignment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("is not looked for on a clinical record", async () => {
+      const tx = onAppointment("SOAP_NOTE");
+
+      await TemplateService.submitInstance("inst-1", "org-1", "vet-1");
+
+      expect(tx.$executeRaw).not.toHaveBeenCalled();
+      expect(tx.formAssignment.updateMany).not.toHaveBeenCalled();
+    });
   });
 
   it("submits a document-backed instance that names no submitter", async () => {

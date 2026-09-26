@@ -158,6 +158,9 @@ const TIMEOUT_MS = 30_000;
 let received: Received[] = [];
 let shape: "2.4.0" | "newer" = "2.4.0";
 let createStatus = 200;
+// What the envelope distribute answers: the full reply, a success reply the
+// SDK's schema rejects, or an error.
+let distributeReply: "full" | "short" | 500 | 403 = "full";
 let server: http.Server;
 let base = "";
 let Service: any;
@@ -191,7 +194,12 @@ beforeAll(async () => {
         return json(200, envelope("DRAFT", shape));
       }
       if (req.method === "POST" && url === "/api/v2/envelope/distribute") {
-        return json(200, distributed);
+        if (distributeReply === "full") return json(200, distributed);
+        if (distributeReply === "short") return json(200, { success: true });
+        return json(distributeReply, {
+          message: "Failed",
+          code: "INTERNAL_SERVER_ERROR",
+        });
       }
       if (req.method === "POST" && url === "/api/v2/envelope/get-many") {
         const { ids } = JSON.parse(body.toString());
@@ -215,6 +223,7 @@ beforeEach(() => {
   received = [];
   shape = "2.4.0";
   createStatus = 200;
+  distributeReply = "full";
 });
 
 const loadService = () => {
@@ -491,6 +500,62 @@ describe("DocumensoService against Documenso 2.4.0 responses", () => {
       expect(logged).not.toContain(API_KEY);
       expect(logged).not.toContain("revoked-key-placeholder");
       expect(logged).not.toContain("Bad request");
+    },
+    TIMEOUT_MS,
+  );
+});
+
+// Whether an envelope reached its signer decides whether a signing is kept or
+// released, so the answer has to hold for each reply Documenso can give.
+describe("DocumensoService.sendEnvelope against Documenso replies", () => {
+  it.each([
+    ["the full reply", "full", true],
+    ["a success reply the SDK's schema rejects", "short", true],
+    ["a server error", 500, false],
+    ["a refusal", 403, false],
+  ] as const)(
+    "reports %s as sent: %s",
+    async (_label, reply, expected) => {
+      distributeReply = reply;
+
+      await expect(
+        Service.sendEnvelope({ envelopeId: ENVELOPE_ID }),
+      ).resolves.toBe(expected);
+
+      expect(received.map((r) => `${r.method} ${r.url}`)).toEqual([
+        "POST /api/v2/envelope/distribute",
+      ]);
+      const logged = JSON.stringify([
+        (logger.info as jest.Mock).mock.calls,
+        (logger.error as jest.Mock).mock.calls,
+      ]);
+      expect(logged).not.toContain(API_KEY);
+      expect(logged).not.toContain(TOKEN);
+    },
+    TIMEOUT_MS,
+  );
+
+  it(
+    "reports an envelope it cannot reach as not sent",
+    async () => {
+      const Unreachable = (() => {
+        let mod: any;
+        jest.isolateModules(() => {
+          const original = process.env;
+          process.env = {
+            ...original,
+            DOCUMENSO_BASE_URL: `${base.replace(/:\d+\/api\/v2$/, ":9/api/v2")}`,
+            DOCUMENSO_API_KEY: API_KEY,
+          };
+          mod = require("../../src/services/documenso.service");
+          process.env = original;
+        });
+        return mod.DocumensoService;
+      })();
+
+      await expect(
+        Unreachable.sendEnvelope({ envelopeId: ENVELOPE_ID }),
+      ).resolves.toBe(false);
     },
     TIMEOUT_MS,
   );

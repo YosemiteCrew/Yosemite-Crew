@@ -425,7 +425,9 @@ const findAssignmentForSubmission = async (params: {
     ...found.filter((row) => row.templateVersion !== params.templateVersion),
   ];
 
-  if (!params.parentId) {
+  // On an appointment the request is the appointment's, whichever parent
+  // (a co-parent included) submitted it; access was checked on the way in.
+  if (!params.parentId || params.appointmentId) {
     return assignments[0] ?? null;
   }
 

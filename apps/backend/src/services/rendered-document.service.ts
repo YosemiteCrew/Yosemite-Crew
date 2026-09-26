@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import AWS from "aws-sdk";
 import { randomUUID } from "node:crypto";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 import {
   awaitsClientSignature,
   hasActiveOrCompletedSigning,
@@ -898,47 +899,66 @@ const sendClaimedDocumentForSigning = async (
       ? `${documensoPublicBaseUrl}/sign/${doc.recipients[0].token}`
       : null;
 
+  const signing = {
+    required: true,
+    provider: "DOCUMENSO",
+    status: "IN_PROGRESS",
+    documentId: doc.id.toString(),
+    signerId: input.signerId,
+    signerType: input.signerType,
+    signerEmail: input.signerEmail,
+    signerName: input.signerName,
+    signingUrl,
+    signatureText: input.signatureText ?? null,
+    // The revision of the record the signer is shown. Completion only
+    // marks the record signed while it still stands at this revision.
+    sourceRevision: linked ? linked.updatedAt.toISOString() : null,
+    // Kept so a failed send can still be released.
+    claimId,
+  } satisfies PinnedRenderedDocumentSigning;
+  const stillClaimed = {
+    id: existing.id,
+    signing: { path: ["claimId"], equals: claimId },
+  };
+
   // Recorded before the document is sent to the signer, and only while this
   // request still holds the claim. A request slow enough for its claim to be
-  // taken over stops here: its Documenso document is never sent.
-  const recorded = await client.renderedDocument
-    .update({
-      where: {
-        id: existing.id,
-        signing: { path: ["claimId"], equals: claimId },
+  // taken over stops here: its Documenso document is never sent. Until the
+  // send is confirmed the signing expires like a claim, so a request that
+  // stops between the two does not hold the document for good.
+  const recorded = await client.renderedDocument.updateMany({
+    where: stillClaimed,
+    data: {
+      pdf: renderedPdfSnapshot,
+      signing: {
+        ...signing,
+        awaitingSend: true,
+        claimedAt: new Date().toISOString(),
       },
-      data: {
-        pdf: renderedPdfSnapshot,
-        signing: {
-          required: true,
-          provider: "DOCUMENSO",
-          status: "IN_PROGRESS",
-          documentId: doc.id.toString(),
-          signerId: input.signerId,
-          signerType: input.signerType,
-          signerEmail: input.signerEmail,
-          signerName: input.signerName,
-          signingUrl,
-          signatureText: input.signatureText ?? null,
-          // The revision of the record the signer is shown. Completion only
-          // marks the record signed while it still stands at this revision.
-          sourceRevision: linked ? linked.updatedAt.toISOString() : null,
-          // Kept so a failed send can still be released.
-          claimId,
-        } satisfies PinnedRenderedDocumentSigning,
-      },
-      include: { signature: true },
-    })
-    .catch((error: unknown) => {
-      throw isRecordNotFoundError(error) ? signingInProgress() : error;
-    });
+    },
+  });
+  if (recorded.count === 0) {
+    throw signingInProgress();
+  }
 
-  await DocumensoService.distributeDocument({
+  const sent = await DocumensoService.sendEnvelope({
     envelopeId: doc.envelopeId,
     apiKey,
   });
+  if (!sent) {
+    throw new RenderedDocumentServiceError(
+      "Unable to send the document for signing",
+      502,
+    );
+  }
 
-  return normalizePersistedRenderedDocument(recorded);
+  return normalizePersistedRenderedDocument(
+    await client.renderedDocument.update({
+      where: stillClaimed,
+      data: { signing },
+      include: { signature: true },
+    }),
+  );
 };
 
 /** The RenderedDocumentKind-shaped audit event for the (rare) kinds that have one; every
@@ -1125,9 +1145,17 @@ export const withdrawPersistedRenderedDocumentSigning = async (
  * audited. Conditional on the document still awaiting this Documenso document,
  * so a concurrent completion or a newer signing request is left alone.
  */
+const DISCARD_REASONS = {
+  RECORD_CHANGED: "the record changed while the signature was outstanding",
+  SIGNER_NOT_PERMITTED:
+    "the signer may no longer act for the companion on this appointment",
+} as const;
+type DiscardReason = keyof typeof DISCARD_REASONS;
+
 const releaseDiscardedSigning = async (
   existing: PersistedRenderedDocument,
   documentId: string,
+  reason: DiscardReason,
 ): Promise<void> => {
   if (
     !(await withdrawPersistedRenderedDocumentSigning(existing.id, documentId))
@@ -1136,7 +1164,7 @@ const releaseDiscardedSigning = async (
   }
 
   logger.warn(
-    "[RenderedDocument] Signed copy discarded: the record changed while the signature was outstanding",
+    `[RenderedDocument] Signed copy discarded: ${DISCARD_REASONS[reason]}`,
     { renderedDocumentId: existing.id },
   );
   await recordRenderedDocumentAuditSafely(
@@ -1150,6 +1178,7 @@ const releaseDiscardedSigning = async (
         renderedDocumentId: existing.id,
         kind: existing.kind,
         outcome: "SIGNATURE_DISCARDED",
+        reason,
       },
     },
   );
@@ -1263,11 +1292,42 @@ const lockRequestOfDocument = async (
 
 /** Rolls the completion transaction back when there is nothing to complete. */
 class SigningCompletionSkipped extends Error {
-  /** `true` when the linked record no longer matches what was signed. */
-  constructor(readonly recordChanged: boolean) {
+  /** Why the signed copy is discarded, or `null` when there is nothing to do. */
+  constructor(readonly discard: DiscardReason | null) {
     super("Signing completion skipped");
   }
 }
+
+/**
+ * Whether a client who signed may still act for the companion on this
+ * appointment: their link is active with the appointments permission, the
+ * rule that let them start the signing. A link revoked, or the permission
+ * taken away, while the signature was outstanding discards it. Other signers,
+ * and documents with no companion to check against, are not affected.
+ */
+const signerMayStillSign = async (
+  tx: Prisma.TransactionClient,
+  linked: LinkedRecord | null,
+  signing: PinnedRenderedDocumentSigning,
+): Promise<boolean> => {
+  if (signing.signerType !== "PARENT" || !signing.signerId || !linked) {
+    return true;
+  }
+  const patientId = await resolvePatientIdForSignedDocument(tx, linked);
+  if (!patientId) return true;
+  const link = await tx.parentPatient.findFirst({
+    where: {
+      parentId: signing.signerId,
+      patientId,
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
+    },
+    select: { role: true, permissions: true },
+  });
+  return Boolean(
+    link && hasCompanionFeature(link.role, link.permissions, "appointments"),
+  );
+};
 
 const isRecordNotFoundError = (error: unknown): boolean =>
   error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -1353,7 +1413,7 @@ const claimSignedDocument = async (
     });
   } catch (error) {
     throw isRecordNotFoundError(error)
-      ? new SigningCompletionSkipped(false)
+      ? new SigningCompletionSkipped(null)
       : error;
   }
 };
@@ -1421,7 +1481,7 @@ const commitSigningCompletion = async (
         signed.at,
       );
       if (!moved) {
-        throw new SigningCompletionSkipped(true);
+        throw new SigningCompletionSkipped("RECORD_CHANGED");
       }
 
       const document = await claimSignedDocument(
@@ -1441,6 +1501,11 @@ const commitSigningCompletion = async (
       });
 
       const linked = await findLinkedRecord(tx, existing);
+      // Checked on the record as signed; a refusal rolls every write above
+      // back with it.
+      if (!(await signerMayStillSign(tx, linked, signing))) {
+        throw new SigningCompletionSkipped("SIGNER_NOT_PERMITTED");
+      }
       await markClientAssignmentsSigned(
         tx,
         existing,
@@ -1458,8 +1523,8 @@ const commitSigningCompletion = async (
     if (!(error instanceof SigningCompletionSkipped)) {
       throw error;
     }
-    if (error.recordChanged) {
-      await releaseDiscardedSigning(existing, documentId);
+    if (error.discard) {
+      await releaseDiscardedSigning(existing, documentId, error.discard);
     }
     return null;
   }

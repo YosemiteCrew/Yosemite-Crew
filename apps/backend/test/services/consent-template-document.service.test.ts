@@ -423,11 +423,7 @@ jest.mock("src/config/prisma", () => {
     },
     parentPatient: {
       findFirst: async ({ where }: { where: Row }) =>
-        store.parentLinks.find(
-          (link) =>
-            link.parentId === where.parentId &&
-            link.patientId === where.patientId,
-        ) ?? null,
+        store.parentLinks.find((link) => matches(link, where)) ?? null,
       findMany: async ({ where }: { where: Row }) =>
         store.parentLinks.filter((link) => link.parentId === where.parentId),
     },
@@ -509,9 +505,13 @@ jest.mock("src/config/prisma", () => {
   const locks = new Map<string, Promise<void>>();
   const $transaction = async (callback: (tx: unknown) => unknown) => {
     const releases: Array<() => void> = [];
+    const heldKeys = new Set<string>();
     const tx = {
       ...client,
       $executeRaw: async (_sql: TemplateStringsArray, key: string) => {
+        // Taken again by the transaction that holds it: Postgres grants it.
+        if (heldKeys.has(key)) return 1;
+        heldKeys.add(key);
         const previous = locks.get(key) ?? Promise.resolve();
         let release: () => void = () => undefined;
         const held = new Promise<void>((resolve) => {
@@ -526,8 +526,29 @@ jest.mock("src/config/prisma", () => {
         return 1;
       },
     };
+    // A transaction that throws writes nothing: its rows go back as they were.
+    const snapshot = structuredClone({
+      templateInstances: [...store.templateInstances],
+      renderedDocuments: [...store.renderedDocuments],
+      documentSignatures: store.documentSignatures,
+      formAssignments: store.formAssignments,
+    });
     try {
       return await callback(tx);
+    } catch (error) {
+      store.templateInstances = new Map(snapshot.templateInstances);
+      store.renderedDocuments = new Map(snapshot.renderedDocuments);
+      store.documentSignatures.splice(
+        0,
+        store.documentSignatures.length,
+        ...snapshot.documentSignatures,
+      );
+      store.formAssignments.splice(
+        0,
+        store.formAssignments.length,
+        ...snapshot.formAssignments,
+      );
+      throw error;
     } finally {
       releases.forEach((release) => release());
     }
@@ -552,6 +573,7 @@ jest.mock("src/services/documenso.service", () => ({
     resolveOrganisationApiKey: jest.fn(),
     createDocument: jest.fn(),
     distributeDocument: jest.fn(),
+    sendEnvelope: jest.fn(),
     downloadSignedDocument: jest.fn(),
   },
 }));
@@ -704,6 +726,7 @@ const listConsentDocuments = () =>
 
 const armDocumenso = () => {
   documenso.resolveOrganisationApiKey.mockResolvedValue("documenso-key");
+  documenso.sendEnvelope.mockResolvedValue(true);
   renderPdfMock.mockResolvedValue({
     pdf: Buffer.from("%PDF-1.4 consent"),
     pageCount: 1,
@@ -774,6 +797,7 @@ beforeEach(() => {
     parentId: PARENT,
     patientId: PATIENT,
     role: "PRIMARY",
+    status: "ACTIVE",
     permissions: {},
   });
 });
@@ -1357,6 +1381,71 @@ describe("consent template documents (#3600)", () => {
       expect(store.formAssignments[0].status).toBe("SIGNED");
     });
 
+    // A consent the practice signs is signed by staff, like any record.
+    it("is not asked for on a consent the practice signs", async () => {
+      seedTemplate("tpl-vet-consent", "CONSENT", {
+        name: "Procedure consent",
+        requiredSigner: "VET",
+      });
+      await submitFromPms("tpl-vet-consent");
+      const [document] = await listConsentDocuments();
+
+      await signAndComplete(document.id as string, VET_SIGNER);
+
+      await expect(listConsentDocuments()).resolves.toEqual([
+        expect.objectContaining({ signingStatus: "SIGNED" }),
+      ]);
+    });
+
+    // A correction saved through the template routes, not the form route,
+    // reopens the request the same way.
+    it("is asked for again on a correction saved through the template routes", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const first = await submitFromPms("tpl-consent");
+      armDocumenso();
+      await startClientSigning(first._id);
+      const [firstDocument] = [...store.renderedDocuments.values()];
+      await completePersistedRenderedDocumentSigning(
+        firstDocument.id as string,
+      );
+      expect(store.formAssignments[0].status).toBe("SIGNED");
+
+      const corrected = await TemplateService.createInstance({
+        templateId: "tpl-consent",
+        organisationId: ORG,
+        appointmentId: APPOINTMENT,
+        authorId: "vet-1",
+        data: { agree: "yes" },
+      });
+      await TemplateService.submitInstance(corrected.id, ORG, "vet-1");
+
+      expect(store.formAssignments[0]).toMatchObject({
+        status: "SENT",
+        signedAt: null,
+      });
+    });
+
+    // A co-parent whose access was removed while the signature was out no
+    // longer answers for the companion: nothing reads signed.
+    it("is not taken from a client whose access was removed meanwhile", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const submission = await submitFromPms("tpl-consent");
+      armDocumenso();
+      await startClientSigning(submission._id);
+      store.parentLinks[0].status = "REVOKED";
+
+      const [document] = [...store.renderedDocuments.values()];
+      await completePersistedRenderedDocumentSigning(document.id as string);
+
+      expect(store.formAssignments[0].status).toBe("SENT");
+      expect(store.templateInstances.get(submission._id)?.status).toBe(
+        "COMPLETED",
+      );
+      await expect(listConsentDocuments()).resolves.toEqual([
+        expect.objectContaining({ signingStatus: "NOT_STARTED" }),
+      ]);
+    });
+
     it("is not taken for a form the practice signs", async () => {
       seedTemplate("tpl-vet", "FORM", {
         category: "Custom",
@@ -1368,6 +1457,40 @@ describe("consent template documents (#3600)", () => {
         "Form requires vet signature",
       );
       expect(documenso.createDocument).not.toHaveBeenCalled();
+    });
+
+    // A co-parent answers the appointment's request as its primary parent
+    // would.
+    it("is not needed once a co-parent submits a form the client does not sign", async () => {
+      seedTemplate("tpl-intake", "FORM", { category: "Custom" });
+      store.parentLinks.push({
+        parentId: "parent-2",
+        patientId: PATIENT,
+        role: "CO_PARENT",
+        status: "ACTIVE",
+        permissions: { appointments: true },
+      });
+
+      await FormService.submitFHIR(
+        toFormSubmissionResponseDTO({
+          _id: "",
+          formId: "tpl-intake",
+          formVersion: 2,
+          appointmentId: APPOINTMENT,
+          companionId: PATIENT,
+          parentId: "parent-2",
+          answers: { agree: "yes" },
+          submittedAt: new Date("2026-09-24T08:00:00.000Z"),
+        } as FormSubmission),
+        undefined,
+        "parent-2",
+        { parentId: "parent-2" },
+      );
+
+      expect(store.formAssignments[0].status).toBe("SUBMITTED");
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({ status: "completed" }),
+      ]);
     });
 
     // Filled in by the practice, a form the client does not sign is done.

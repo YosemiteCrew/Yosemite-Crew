@@ -124,7 +124,11 @@ describe("documents awaiting the client's signature", () => {
       form("b"),
       form("v"),
       form("n"),
-      form("k", { kind: "CONSENT" }),
+      form("k", {
+        kind: "CONSENT",
+        templateId: null,
+        templateInstanceId: null,
+      }),
     ]);
 
     expect([...awaiting].sort()).toEqual(["a", "k"]);
@@ -146,6 +150,41 @@ describe("documents awaiting the client's signature", () => {
       },
       select: { organisationId: true, templateId: true, appointmentId: true },
     });
+  });
+
+  // A consent is the client's by default, but its template can name the
+  // practice as signer; then staff sign it and the packet may mark it signed.
+  it("holds a consent only when its template leaves it to the client", async () => {
+    mockedPrisma.templateInstance.findMany.mockResolvedValueOnce([
+      {
+        id: "inst-c",
+        appointmentId: null,
+        template: { kind: "CONSENT", rules: null },
+      },
+      {
+        id: "inst-v",
+        appointmentId: "appt-1",
+        template: { kind: "CONSENT", rules: { requiredSigner: "VET" } },
+      },
+      {
+        id: "inst-l",
+        appointmentId: "appt-1",
+        template: {
+          kind: "FORM",
+          rules: { category: "Consent form", requiredSigner: "VET" },
+        },
+      },
+    ]);
+
+    const awaiting = await loadDocumentsAwaitingClientSignature([
+      form("c", { kind: "CONSENT" }),
+      form("v", { kind: "CONSENT" }),
+      form("l", { kind: "CONSENT" }),
+    ]);
+
+    // A client-signed consent needs no request for the client to be the one.
+    expect([...awaiting]).toEqual(["c"]);
+    expect(mockedPrisma.formAssignment.findMany).not.toHaveBeenCalled();
   });
 
   it("asks for no requests when no form is the client's to sign", async () => {
@@ -185,6 +224,27 @@ describe("open and completed signings", () => {
     [
       "claimed and abandoned",
       { status: "IN_PROGRESS", claimedAt: minutesAgo(6) },
+      false,
+    ],
+    // Created in Documenso but not yet confirmed sent to the signer.
+    [
+      "recorded a moment ago, awaiting its send",
+      {
+        status: "IN_PROGRESS",
+        documentId: "9",
+        awaitingSend: true,
+        claimedAt: minutesAgo(1),
+      },
+      true,
+    ],
+    [
+      "recorded and never sent",
+      {
+        status: "IN_PROGRESS",
+        documentId: "9",
+        awaitingSend: true,
+        claimedAt: minutesAgo(6),
+      },
       false,
     ],
     [
