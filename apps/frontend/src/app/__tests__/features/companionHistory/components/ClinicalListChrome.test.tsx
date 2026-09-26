@@ -6,8 +6,8 @@ import {
   ClinicalListError,
   ClinicalListHeader,
   ClinicalListLoadingRows,
-  formatDate,
 } from '@/app/features/companionHistory/components/ClinicalListChrome';
+import { formatDate } from '@/app/features/companionHistory/components/clinicalListStyles';
 
 const headerProps = {
   icon: <span data-testid="icon" />,

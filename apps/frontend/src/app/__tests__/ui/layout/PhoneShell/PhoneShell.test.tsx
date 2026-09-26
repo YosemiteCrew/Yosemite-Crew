@@ -214,6 +214,20 @@ describe('PhoneShell', () => {
     expect(screen.queryByRole('button', { name: /Chat/ })).not.toBeInTheDocument();
   });
 
+  it('keeps the Connect journey reachable from developer phone navigation', () => {
+    setViewport(true);
+    setOrg();
+    mockUsePathname.mockReturnValue('/developers/connect');
+
+    render(<PhoneShell />);
+
+    const moreTab = screen.getByRole('button', { name: /More/ });
+    expect(moreTab).toHaveClass('yc-phone-tab-active');
+
+    fireEvent.click(moreTab);
+    expect(screen.getByRole('button', { name: 'Connect a coding tool' })).toBeInTheDocument();
+  });
+
   it('keeps the clinic tab bar outside the portal', () => {
     setViewport(true);
     setOrg();

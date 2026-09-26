@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import logger from "../../utils/logger";
 import {
+  assertCompanionAttachmentKeys,
   DocumentAttachmentInput,
   DocumentCreateContext,
   DocumentDto,
@@ -15,6 +16,7 @@ import {
   resolveVerifiedOrganisationId,
 } from "src/utils/request";
 import { prisma } from "src/config/prisma";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 
 type MobileUploadUrlBody = {
   patientId?: string;
@@ -71,7 +73,11 @@ export const DocumentController = {
       const { patientId, companionId, mimeType } = req.body;
       const resolvedPatientId = patientId ?? companionId;
 
-      if (!resolvedPatientId || !mimeType) {
+      if (
+        typeof resolvedPatientId !== "string" ||
+        !resolvedPatientId ||
+        !mimeType
+      ) {
         return res.status(400).json({
           message: "patientId/companionId and mimeType are required.",
         });
@@ -104,15 +110,20 @@ export const DocumentController = {
         if (!authUserMobile?.parentId) {
           return res.status(403).json({ message: "Parent account not found." });
         }
+        // The same rule as the companion's other document routes.
         const link = await prisma.parentPatient.findFirst({
           where: {
             patientId: resolvedPatientId,
             parentId: authUserMobile.parentId.toString(),
             status: "ACTIVE",
+            role: { in: ["PRIMARY", "CO_PARENT"] },
           },
-          select: { id: true },
+          select: { role: true, permissions: true },
         });
-        if (!link) {
+        if (
+          !link ||
+          !hasCompanionFeature(link.role, link.permissions, "documents")
+        ) {
           return res.status(404).json({ message: "Companion not found." });
         }
       }
@@ -157,6 +168,7 @@ export const DocumentController = {
       }
 
       const body = req.body;
+      assertCompanionAttachmentKeys(patientId, body.attachments);
 
       const created = await DocumentService.create(
         {
@@ -208,6 +220,7 @@ export const DocumentController = {
       }
 
       const body = req.body;
+      assertCompanionAttachmentKeys(patientId, body.attachments);
       const created = await DocumentService.create(
         {
           patientId,

@@ -27,6 +27,13 @@ router.get(
   DocumentController.searchDocumentMobile,
 );
 
+// Registered before "/mobile/:patientId", which would otherwise match "view".
+router.post(
+  "/mobile/view",
+  requireMobileAuth,
+  DocumentController.getSignedDownloadUrl,
+);
+
 router.post(
   "/mobile/:patientId",
   requireMobileAuth,
@@ -57,12 +64,6 @@ router.get(
   "/mobile/view/:documentId",
   requireMobileAuth,
   DocumentController.getDocumentDownloadUrl,
-);
-
-router.post(
-  "/mobile/view",
-  requireMobileAuth,
-  DocumentController.getSignedDownloadUrl,
 );
 
 router.delete(

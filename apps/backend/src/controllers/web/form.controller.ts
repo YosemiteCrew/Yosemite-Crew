@@ -54,6 +54,29 @@ const normalizeMobileSubmissionRequest = (
   return normalized as unknown as FormSubmissionRequestDTO;
 };
 
+/**
+ * The pet parent behind a mobile request, or `undefined` once a 401 or 403 has
+ * been sent. The mobile routes are only authenticated, so this parent is what
+ * their reads and writes are scoped to.
+ */
+const resolveMobileParentId = async (
+  req: Request,
+  res: Response,
+): Promise<string | undefined> => {
+  const authUserId = (req as AuthenticatedRequest).userId;
+  if (!authUserId) {
+    res.status(401).json({ message: "Unauthorized: User ID missing" });
+    return undefined;
+  }
+
+  const authUser = await AuthUserMobileService.getByProviderUserId(authUserId);
+  const parentId = authUser?.parentId?.toString();
+  if (!parentId) {
+    res.status(403).json({ message: "Parent account not found" });
+  }
+  return parentId;
+};
+
 const parseAppointmentFormQuery = (body: unknown) => {
   const { serviceId, species, isPMS } = (body as Record<string, unknown>) ?? {};
   return {
@@ -167,7 +190,11 @@ export const FormController = {
           .json({ message: "Unauthorized: User ID missing" });
       }
 
-      const form = await FormService.publish(formId, userId);
+      const form = await FormService.publish(
+        formId,
+        userId,
+        (req as OrgRequest).organisationId,
+      );
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -188,7 +215,11 @@ export const FormController = {
           .json({ message: "Unauthorized: User ID missing" });
       }
 
-      const form = await FormService.unpublish(formId, userId);
+      const form = await FormService.unpublish(
+        formId,
+        userId,
+        (req as OrgRequest).organisationId,
+      );
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -209,7 +240,11 @@ export const FormController = {
           .json({ message: "Unauthorized: User ID missing" });
       }
 
-      const form = await FormService.archive(formId, userId);
+      const form = await FormService.archive(
+        formId,
+        userId,
+        (req as OrgRequest).organisationId,
+      );
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -222,19 +257,8 @@ export const FormController = {
 
   submitForm: async (req: Request, res: Response) => {
     try {
-      const authUserId = (req as AuthenticatedRequest).userId;
-      if (!authUserId) {
-        return res
-          .status(401)
-          .json({ message: "Unauthorized: User ID missing" });
-      }
-
-      const authUser =
-        await AuthUserMobileService.getByProviderUserId(authUserId);
-      const parentId = authUser?.parentId?.toString();
-      if (!parentId) {
-        return res.status(403).json({ message: "Parent account not found" });
-      }
+      const parentId = await resolveMobileParentId(req, res);
+      if (!parentId) return;
 
       const formId = req.params.formId;
       if (!formId) {
@@ -300,9 +324,15 @@ export const FormController = {
 
   getFormSubmissions: async (req: Request, res: Response) => {
     try {
+      const parentId = await resolveMobileParentId(req, res);
+      if (!parentId) return;
+
       const submissionId = req.params.formId;
 
-      const submissions = await FormService.getSubmission(submissionId);
+      const submissions = await FormService.getSubmission(
+        submissionId,
+        parentId,
+      );
       return res.status(200).json(submissions);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -315,9 +345,12 @@ export const FormController = {
 
   listFormSubmissions: async (req: Request, res: Response) => {
     try {
+      const parentId = await resolveMobileParentId(req, res);
+      if (!parentId) return;
+
       const formId = req.params.formId;
 
-      const submissions = await FormService.listSubmissions(formId);
+      const submissions = await FormService.listSubmissions(formId, parentId);
       return res.status(200).json(submissions);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -472,18 +505,8 @@ export const FormController = {
 
       // This route is mobile-authenticated only, so the caller's own parent
       // record is the ownership boundary for the submission.
-      const authUserId = (req as AuthenticatedRequest).userId;
-      if (!authUserId) {
-        return res
-          .status(401)
-          .json({ message: "Unauthorized: User ID missing" });
-      }
-      const authUser =
-        await AuthUserMobileService.getByProviderUserId(authUserId);
-      const parentId = authUser?.parentId?.toString();
-      if (!parentId) {
-        return res.status(403).json({ message: "Parent account not found" });
-      }
+      const parentId = await resolveMobileParentId(req, res);
+      if (!parentId) return;
 
       const pdfBuffer = await FormService.generatePDFForSubmission(
         submissionId,

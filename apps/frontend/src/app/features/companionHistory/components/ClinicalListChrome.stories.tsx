@@ -8,12 +8,8 @@ import {
   ClinicalListError,
   ClinicalListHeader,
   ClinicalListLoadingRows,
-  cardClass,
-  formatDate,
-  metaClass,
-  rowClass,
-  titleClass,
 } from './ClinicalListChrome';
+import { cardClass, formatDate, metaClass, rowClass, titleClass } from './clinicalListStyles';
 
 /**
  * Sample rows for the card body under the header. `ClinicalListHeader` itself

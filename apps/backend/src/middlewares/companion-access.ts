@@ -100,6 +100,31 @@ export const hasCompanionFeature = (
   feature: CompanionFeature,
 ): boolean => role === "PRIMARY" || isGranted(permissions, feature);
 
+/**
+ * The decision `requireCompanionPermission` makes, for a service that has read
+ * the companion id off a row: an ACTIVE PRIMARY or CO_PARENT link, and the
+ * feature for a co-parent. A blank id is a refusal, never an unfiltered query.
+ */
+export const parentHasCompanionFeature = async (
+  parentId: string,
+  patientId: string | null | undefined,
+  feature: CompanionFeature,
+): Promise<boolean> => {
+  if (!parentId || !patientId) return false;
+
+  const link = await prisma.parentPatient.findFirst({
+    where: {
+      parentId,
+      patientId,
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
+    },
+    select: { role: true, permissions: true },
+  });
+
+  return !!link && hasCompanionFeature(link.role, link.permissions, feature);
+};
+
 const notFound = (res: Response) =>
   res.status(404).json({ message: "Companion not found." });
 
