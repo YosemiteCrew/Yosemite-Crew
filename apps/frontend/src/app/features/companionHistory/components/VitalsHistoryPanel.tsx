@@ -56,9 +56,11 @@ type WeightReading = { value: number; unit: string | null; measuredAt: string };
 
 const weightReadings = (entries: VitalsHistoryEntry[]): WeightReading[] =>
   entries.flatMap((entry) =>
-    entry.measurements
-      .filter((m) => WEIGHT_CODES.has(m.code) && typeof m.value === 'number')
-      .map((m) => ({ value: m.value as number, unit: m.unit, measuredAt: entry.measuredAt }))
+    entry.measurements.flatMap((m) =>
+      WEIGHT_CODES.has(m.code) && typeof m.value === 'number'
+        ? [{ value: m.value, unit: m.unit, measuredAt: entry.measuredAt }]
+        : []
+    )
   );
 
 const formatChange = (latest: WeightReading, previous: WeightReading | undefined) => {
