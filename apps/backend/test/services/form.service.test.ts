@@ -478,19 +478,15 @@ describe("FormService", () => {
   describe("update", () => {
     const validId = "form-1";
 
-    it("throws if not found or org mismatch", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    it("throws if not found in the caller's organisation", async () => {
+      (prisma.form.findFirst as jest.Mock).mockResolvedValueOnce(null);
       await expect(
         FormService.update(validId, {} as any, "u", "o"),
       ).rejects.toThrow("Form not found");
-
-      (prisma.form.findUnique as jest.Mock).mockResolvedValueOnce({
-        id: validId,
-        orgId: "other",
+      expect(prisma.form.findFirst).toHaveBeenCalledWith({
+        where: { id: validId, orgId: "o" },
       });
-      await expect(
-        FormService.update(validId, {} as any, "u", "o"),
-      ).rejects.toThrow("Form is not part of your organisation");
+      expect(prisma.form.update).not.toHaveBeenCalled();
     });
 
     it("throws if signature field exists but no requiredSigner", async () => {
@@ -504,7 +500,7 @@ describe("FormService", () => {
     });
 
     it("updates form successfully and resolves user names", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({
         id: validId,
         orgId: "o",
         name: "Old",
@@ -565,14 +561,14 @@ describe("FormService", () => {
     const validId = "form-1";
 
     it("publish: throws if not found", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(FormService.publish(validId, "u")).rejects.toThrow(
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue(null);
+      await expect(FormService.publish(validId, "u", "o")).rejects.toThrow(
         "Form not found",
       );
     });
 
     it("publish: increments version and marks published", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({
         id: validId,
         schema: [],
       });
@@ -582,7 +578,7 @@ describe("FormService", () => {
       (prisma.formVersion.create as jest.Mock).mockResolvedValue({});
       (prisma.form.update as jest.Mock).mockResolvedValue({});
 
-      const res = await FormService.publish(validId, "u");
+      const res = await FormService.publish(validId, "u", "o");
       expect(res.version).toBe(2);
       expect(prisma.formVersion.create).toHaveBeenCalled();
       expect(prisma.form.update).toHaveBeenCalledWith(
@@ -593,24 +589,24 @@ describe("FormService", () => {
     });
 
     it("unpublish: sets status to draft", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue({ id: validId });
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({ id: validId });
       (prisma.form.update as jest.Mock).mockResolvedValue({
         id: validId,
         status: "draft",
       });
 
-      const res = await FormService.unpublish(validId, "u");
+      const res = await FormService.unpublish(validId, "u", "o");
       expect((res as any).status).toBe("draft");
     });
 
     it("archive: sets status to archived", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue({ id: validId });
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({ id: validId });
       (prisma.form.update as jest.Mock).mockResolvedValue({
         id: validId,
         status: "archived",
       });
 
-      const res = await FormService.archive(validId, "u");
+      const res = await FormService.archive(validId, "u", "o");
       expect((res as any).status).toBe("archived");
     });
   });

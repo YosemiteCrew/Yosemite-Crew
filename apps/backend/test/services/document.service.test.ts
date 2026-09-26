@@ -123,7 +123,8 @@ describe("DocumentService", () => {
     jest.clearAllMocks();
     resetPrisma();
     mockedPrisma.parentPatient.findFirst.mockResolvedValue({
-      id: "pp-1",
+      role: "PRIMARY",
+      permissions: {},
     } as any);
     mockedPrisma.parentPatient.findMany.mockResolvedValue([
       { patientId: uuidPatientId, role: "PRIMARY", permissions: {} },
@@ -140,6 +141,7 @@ describe("DocumentService", () => {
     } as any);
     mockedPrisma.document.findFirst.mockResolvedValue({
       id: uuidDocumentId,
+      patientId: uuidPatientId,
       attachments: [{ key: "k-1" }],
     } as any);
     mockedPrisma.documentAttachment.findFirst.mockResolvedValue({
@@ -965,7 +967,13 @@ describe("DocumentService", () => {
       {
         category: "health",
         subcategory: "passport",
-        attachments: [{ key: "k-2", mimeType: "application/pdf", size: 5 }],
+        attachments: [
+          {
+            key: `companion/${uuidPatientId}/k-2.pdf`,
+            mimeType: "application/pdf",
+            size: 5,
+          },
+        ],
       },
       { pmsUserId: "pms-1", organisationId: uuidOrganisationId },
     );
@@ -985,7 +993,10 @@ describe("DocumentService", () => {
     expect(mockedPrisma.documentAttachment.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: [
-          expect.objectContaining({ documentId: uuidDocumentId, key: "k-2" }),
+          expect.objectContaining({
+            documentId: uuidDocumentId,
+            key: `companion/${uuidPatientId}/k-2.pdf`,
+          }),
         ],
       }),
     );
