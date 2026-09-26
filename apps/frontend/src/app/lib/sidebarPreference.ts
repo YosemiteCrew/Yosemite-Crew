@@ -6,7 +6,13 @@ export const SIDEBAR_COLLAPSED_KEY = 'yc_sidebar_collapsed';
 // default (>=1280px); tablet widths start on the collapsed 76px icon rail.
 export const SIDEBAR_DESKTOP_MIN_WIDTH = 1280;
 
+// A choice storage could not keep (blocked or full). Held only until a write
+// succeeds or the preference is reset, so the toggle still works for this page
+// while stored values stay the source of truth everywhere else.
+let unsavedPreference: boolean | null = null;
+
 export const isSidebarCollapsedByDefault = (): boolean => {
+  if (unsavedPreference !== null) return unsavedPreference;
   const stored = getStorageItem('local', SIDEBAR_COLLAPSED_KEY);
   if (stored != null) return stored === '1';
   // No stored preference: follow the viewport — expanded on desktop, collapsed
@@ -26,7 +32,10 @@ const notifySidebarPreferenceChange = () => {
 };
 
 export const setSidebarCollapsedPreference = (collapsed: boolean): void => {
-  setStorageItem('local', SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+  const value = collapsed ? '1' : '0';
+  setStorageItem('local', SIDEBAR_COLLAPSED_KEY, value);
+  // Read back rather than trusting the write: blocked storage can fail silently.
+  unsavedPreference = getStorageItem('local', SIDEBAR_COLLAPSED_KEY) === value ? null : collapsed;
   notifySidebarPreferenceChange();
 };
 
@@ -34,6 +43,7 @@ export const setSidebarCollapsedPreference = (collapsed: boolean): void => {
 // Called on auth transitions so a returning user lands on the expanded desktop
 // shell instead of a pinned collapsed rail.
 export const resetSidebarPreference = (): void => {
+  unsavedPreference = null;
   removeStorageItem('local', SIDEBAR_COLLAPSED_KEY);
   notifySidebarPreferenceChange();
 };

@@ -454,6 +454,23 @@ describe('sidebar collapse state across the server render and hydration', () => 
     expect(container.querySelector('.sidebar-collapsed')).not.toBeInTheDocument();
   });
 
+  it('still toggles when storage refuses to save the choice', () => {
+    setup({ collapsed: false });
+    const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    try {
+      render(<Sidebar />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+
+      expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
+    } finally {
+      setItem.mockRestore();
+      act(() => resetSidebarPreference());
+    }
+  });
+
   it('follows a preference changed in another tab', () => {
     setup({ collapsed: false });
     const { container } = render(<Sidebar />);
