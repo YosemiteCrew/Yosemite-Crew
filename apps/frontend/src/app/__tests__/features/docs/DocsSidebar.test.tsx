@@ -2,7 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import DocsSidebar, { DOCS_NAV_NO_JS_CSS } from '@/app/features/docs/DocsSidebar';
+import DocsSidebar from '@/app/features/docs/DocsSidebar';
+import { DOCS_NAV_NO_JS_CSS } from '@/app/features/docs/docsNavNoJsCss';
 import type { NavNode } from '@/app/features/docs/docsNav';
 
 const mockPathname = jest.fn(() => '/docs');

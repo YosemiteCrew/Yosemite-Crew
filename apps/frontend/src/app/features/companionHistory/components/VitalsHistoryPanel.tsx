@@ -10,11 +10,13 @@ import {
   ClinicalListEmpty,
   ClinicalListError,
   ClinicalListLoadingRows,
+} from '@/app/features/companionHistory/components/ClinicalListChrome';
+import {
   cardClass,
   formatDate,
   metaClass,
   titleClass,
-} from '@/app/features/companionHistory/components/ClinicalListChrome';
+} from '@/app/features/companionHistory/components/clinicalListStyles';
 import {
   fetchPatientVitalsHistory,
   type VitalMeasurement,

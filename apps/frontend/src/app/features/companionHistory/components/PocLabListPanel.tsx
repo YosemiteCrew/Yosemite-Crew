@@ -8,10 +8,12 @@ import {
   ClinicalListError,
   ClinicalListHeader,
   ClinicalListLoadingRows,
+} from '@/app/features/companionHistory/components/ClinicalListChrome';
+import {
   cardClass,
   metaClass,
   titleClass,
-} from '@/app/features/companionHistory/components/ClinicalListChrome';
+} from '@/app/features/companionHistory/components/clinicalListStyles';
 import PocLabResultForm from '@/app/features/companionHistory/components/PocLabResultForm';
 import {
   TEST_TYPE_LABEL,

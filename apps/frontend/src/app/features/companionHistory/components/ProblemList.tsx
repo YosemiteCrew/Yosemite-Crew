@@ -8,6 +8,8 @@ import {
   ClinicalListError,
   ClinicalListHeader,
   ClinicalListLoadingRows,
+} from '@/app/features/companionHistory/components/ClinicalListChrome';
+import {
   cardClass,
   controlClass,
   fieldLabelClass,
@@ -15,7 +17,7 @@ import {
   metaClass,
   rowClass,
   titleClass,
-} from '@/app/features/companionHistory/components/ClinicalListChrome';
+} from '@/app/features/companionHistory/components/clinicalListStyles';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
 import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
