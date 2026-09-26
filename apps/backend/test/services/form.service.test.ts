@@ -96,6 +96,7 @@ jest.mock("src/config/prisma", () => ({
     },
     parentPatient: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     organization: {
       findUnique: jest.fn(),
@@ -982,9 +983,9 @@ describe("FormService", () => {
 
     it("getSubmission: throws if not found", async () => {
       (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(FormService.getSubmission(validId)).rejects.toThrow(
-        "Submission not found",
-      );
+      await expect(
+        FormService.getSubmission(validId, "parent-1"),
+      ).rejects.toThrow("Submission not found");
     });
 
     it("getSubmission: returns the normalized submission", async () => {
@@ -993,14 +994,17 @@ describe("FormService", () => {
         id: "sub-1",
         formId: validId,
         formVersion: 1,
+        parentId: "parent-1",
+        submittedBy: "parent-1",
         submittedAt,
         answers: { a: 1 },
       });
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
         schemaSnapshot: [],
       });
 
-      const res = await FormService.getSubmission(validId);
+      const res = await FormService.getSubmission(validId, "parent-1");
       expect(res).toEqual(
         expect.objectContaining({
           _id: "sub-1",
@@ -1012,13 +1016,27 @@ describe("FormService", () => {
       );
     });
 
-    it("listSubmissions: returns prisma rows", async () => {
+    it("listSubmissions: maps the caller's rows like getSubmission", async () => {
       (prisma.formSubmission.findMany as jest.Mock).mockResolvedValue([
-        { id: "sub-1" },
+        {
+          id: "sub-1",
+          formId: validId,
+          formVersion: 1,
+          parentId: "parent-1",
+          submittedBy: "parent-1",
+          answers: {},
+          signing: { status: "SIGNED" },
+        },
       ]);
+      (prisma.formVersion.findMany as jest.Mock).mockResolvedValue([]);
 
-      const res = await FormService.listSubmissions(validId);
-      expect(res).toEqual([{ id: "sub-1" }]);
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res = await FormService.listSubmissions(validId, "parent-1");
+      expect(res).toEqual([
+        expect.objectContaining({ _id: "sub-1", formId: validId }),
+      ]);
+      expect(res[0]).not.toHaveProperty("signing");
     });
 
     it("getAutoSendForms: returns published forms", async () => {
@@ -1082,17 +1100,21 @@ describe("FormService", () => {
       ).rejects.toThrow("Appointment not found");
     });
 
-    it("throws forbidden when requester parent does not own appointment", async () => {
+    it("returns 404 when the requester parent has no link to the companion", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
         organisationId: "org-h",
-        patient: { parent: { id: "parent-a" } },
+        patient: { id: "companion-a", parent: { id: "parent-a" } },
       });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(
         FormService.getSOAPNotesByAppointment(validId, {
           requesterParentId: "parent-b",
         }),
-      ).rejects.toThrow("Forbidden");
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Appointment not found",
+      });
     });
 
     it("throws forbidden when requester organisation does not match appointment organisation", async () => {
@@ -1299,30 +1321,36 @@ describe("FormService", () => {
   describe("generatePDFForSubmission", () => {
     const validId = "sub-1";
 
+    const ownRow = {
+      id: validId,
+      formId: "form-1",
+      formVersion: 1,
+      parentId: "parent-1",
+      submittedBy: "parent-1",
+    };
+
+    beforeEach(() => {
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
+    });
+
     it("throws if submission missing", async () => {
       (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue(null);
       await expect(
-        FormService.generatePDFForSubmission(validId),
+        FormService.generatePDFForSubmission(validId, "parent-1"),
       ).rejects.toThrow("Submission not found");
     });
 
     it("throws if version missing", async () => {
-      (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue({
-        id: validId,
-        formId: "form-1",
-        formVersion: 1,
-      });
+      (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue(ownRow);
       (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue(null);
       await expect(
-        FormService.generatePDFForSubmission(validId),
+        FormService.generatePDFForSubmission(validId, "parent-1"),
       ).rejects.toThrow("Form version not found");
     });
 
     it("generates a pdf buffer", async () => {
       (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue({
-        id: validId,
-        formId: "form-1",
-        formVersion: 1,
+        ...ownRow,
         submittedAt: new Date(),
         answers: {},
       });
@@ -1332,7 +1360,10 @@ describe("FormService", () => {
       (buildPdfViewModel as jest.Mock).mockReturnValue({} as any);
       (renderPdf as jest.Mock).mockResolvedValue(Buffer.from("pdf"));
 
-      const res = await FormService.generatePDFForSubmission(validId);
+      const res = await FormService.generatePDFForSubmission(
+        validId,
+        "parent-1",
+      );
       expect(res).toBeInstanceOf(Buffer);
     });
   });

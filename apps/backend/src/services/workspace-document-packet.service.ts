@@ -6,6 +6,7 @@ import {
   WorkspaceServiceError,
 } from "src/services/workspace.prisma.service";
 import { DocumensoService } from "src/services/documenso.service";
+import { parentHasCompanionFeature } from "src/middlewares/companion-access";
 import { buildMergedClinicalPacketPdf } from "src/services/clinical-packet-pdf.service";
 import { renderCombinedClinicalPacketPdf } from "src/services/rendered-document-renderer.service";
 import { rerenderPersistedClinicalRenderedDocumentPdf } from "src/services/rendered-document.service";
@@ -863,16 +864,20 @@ export const WorkspaceDocumentPacketService = {
     const normalizedEncounterId = ensureRequiredId(encounterId, "encounterId");
 
     const encounter = await prisma.encounter.findFirst({
-      where: {
-        id: normalizedEncounterId,
-        parentId: normalizedParentId,
-      },
-      select: {
-        organisationId: true,
-      },
+      where: { id: normalizedEncounterId },
+      select: { organisationId: true, patientId: true },
     });
 
-    if (!encounter) {
+    // The packet is a document: the parent needs a live link to the companion,
+    // and a co-parent the documents permission.
+    if (
+      !encounter ||
+      !(await parentHasCompanionFeature(
+        normalizedParentId,
+        encounter.patientId,
+        "documents",
+      ))
+    ) {
       throw new WorkspaceServiceError("Encounter not found", 404);
     }
 

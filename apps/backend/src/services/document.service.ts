@@ -133,6 +133,10 @@ const getPatientIdFromAppointment = (patient: unknown): string | null => {
   return null;
 };
 
+// The rule `requireCompanionPermission("documents")` enforces on the
+// patient-keyed mobile document routes (an ACTIVE link, and the documents
+// permission for a co-parent), applied here because the document-keyed routes
+// carry no patient id for that middleware to read.
 const assertParentCanAccessCompanion = async (
   parentId: string,
   patientId: string,
@@ -141,12 +145,13 @@ const assertParentCanAccessCompanion = async (
     where: {
       parentId: normalizeStringId(parentId, "parentId"),
       patientId: normalizeStringId(patientId, "patientId"),
-      status: { in: ["ACTIVE", "PENDING"] },
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
     },
-    select: { id: true },
+    select: { role: true, permissions: true },
   });
 
-  if (!link) {
+  if (!link || !hasCompanionFeature(link.role, link.permissions, "documents")) {
     throw new DocumentServiceError("Document not found.", 404);
   }
 };
