@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { isAuthRedirectError } from '@/app/services/axios';
 import VitalsHistoryPanel from '@/app/features/companionHistory/components/VitalsHistoryPanel';
-import { formatDate } from '@/app/features/companionHistory/components/ClinicalListChrome';
+import { formatDate } from '@/app/features/companionHistory/components/clinicalListStyles';
 import {
   fetchPatientVitalsHistory,
   type VitalsHistoryEntry,

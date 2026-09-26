@@ -1,7 +1,7 @@
 'use client';
 
 import { IoDocumentTextOutline } from 'react-icons/io5';
-import { cardClass } from '@/app/features/companionHistory/components/ClinicalListChrome';
+import { cardClass } from '@/app/features/companionHistory/components/clinicalListStyles';
 import CompanionDocumentsSection from '@/app/features/documents/components/CompanionDocumentsSection';
 
 /**

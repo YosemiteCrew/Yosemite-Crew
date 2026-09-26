@@ -61,4 +61,49 @@ describe('sidebarPreference', () => {
     resetSidebarPreference();
     expect(globalThis.window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY)).toBeNull();
   });
+
+  describe('when storage refuses the write', () => {
+    const refuseWrites = () => {
+      const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('QuotaExceededError');
+      });
+      return () => setItem.mockRestore();
+    };
+    let restoreWrites: () => void = () => undefined;
+
+    afterEach(() => {
+      restoreWrites();
+      resetSidebarPreference();
+    });
+
+    it('keeps the choice for this page, even over an older stored value', () => {
+      globalThis.window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '0');
+      restoreWrites = refuseWrites();
+
+      setSidebarCollapsedPreference(true);
+
+      expect(isSidebarCollapsedByDefault()).toBe(true);
+    });
+
+    it('drops the unsaved choice on reset, back to the viewport default', () => {
+      restoreWrites = refuseWrites();
+      setSidebarCollapsedPreference(true);
+
+      resetSidebarPreference();
+
+      expect(isSidebarCollapsedByDefault()).toBe(false);
+    });
+
+    it('lets stored values lead again once a write succeeds', () => {
+      restoreWrites = refuseWrites();
+      setSidebarCollapsedPreference(true);
+      restoreWrites();
+
+      setSidebarCollapsedPreference(false);
+      // Another tab collapses it later; storage is the source of truth again.
+      globalThis.window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
+
+      expect(isSidebarCollapsedByDefault()).toBe(true);
+    });
+  });
 });

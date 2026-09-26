@@ -6,6 +6,7 @@ import type { NavNode } from './docsNav';
 import type { TocEntry } from './render';
 import DocsSidebar from './DocsSidebar';
 import DocsSearch from './DocsSearch';
+import OpenApiFrame from './OpenApiFrame';
 import './docs.css';
 
 interface DocsShellProps {
@@ -119,20 +120,7 @@ export default function DocsShell({
               one. This element comes from app code, not from a document, so
               the sanitiser stays strict and the page still gets its viewer.
             */}
-            {embedOpenApi && (
-              <iframe
-                className="DocsOpenApiFrame"
-                src="/static/openapi/viewer.html"
-                title="Yosemite Crew OpenAPI reference"
-                // Redoc needs to run (allow-scripts) and fetch the same-origin
-                // spec (allow-same-origin); everything else - forms, popups,
-                // top-level navigation - stays denied. The frame is our own
-                // static file, so this is defence in depth, not the primary
-                // control, but it keeps a compromised viewer from reaching past
-                // its box.
-                sandbox="allow-scripts allow-same-origin"
-              />
-            )}
+            {embedOpenApi && <OpenApiFrame />}
 
             <footer className="DocsFooter">
               <a className="DocsEditLink" href={editUrl} target="_blank" rel="noopener noreferrer">
