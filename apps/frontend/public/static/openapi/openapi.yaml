@@ -9208,6 +9208,194 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/clients/{parentId}/payment-terms':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Read a client's payment terms
+      operationId: getClientPaymentTerms
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: The client's payment terms
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, error]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientPaymentTerms'
+                  error:
+                    nullable: true
+        404:
+          description: Client account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+    put:
+      tags:
+        - 'Non-FHIR'
+      summary: Update a client's payment terms
+      operationId: setClientPaymentTerms
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [netDays]
+              properties:
+                netDays:
+                  type: integer
+                  minimum: 0
+                  maximum: 365
+      responses:
+        200:
+          description: Updated payment terms
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, error]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientPaymentTerms'
+                  error:
+                    nullable: true
+        400:
+          description: Invalid payment terms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/organisation/{organisationId}/collections/overdue':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: List overdue client invoices
+      operationId: listOverdueClientInvoices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Unpaid invoices past their due dates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, error]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OverdueClientInvoice'
+                  error:
+                    nullable: true
+  '/v1/finance/organisation/{organisationId}/collections/overdue/{invoiceId}/review':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Mark an overdue invoice reviewed
+      operationId: markClientInvoiceReviewed
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Review record
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, error]
+                properties:
+                  data:
+                    type: object
+                    required: [id, collectionsReviewedAt, collectionsReviewedBy]
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      collectionsReviewedAt:
+                        type: string
+                        format: date-time
+                      collectionsReviewedBy:
+                        type: string
+                        format: uuid
+                  error:
+                    nullable: true
+        404:
+          description: Overdue invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
   '/v1/finance/organisation/{organisationId}/provider-receipts':
     get:
       tags:
@@ -27148,6 +27336,47 @@ components:
       scheme: bearer
       bearerFormat: 'yc_<live|test>_<secret> - a developer API key, not a session JWT'
   schemas:
+    ClientPaymentTerms:
+      type: object
+      required: [netDays, updatedAt, updatedBy]
+      properties:
+        netDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedBy:
+          type: string
+          format: uuid
+          nullable: true
+    OverdueClientInvoice:
+      type: object
+      required: [invoiceId, parentId, dueAt, currency, balance, reviewedAt, reviewedBy]
+      properties:
+        invoiceId:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+        dueAt:
+          type: string
+          format: date-time
+        currency:
+          type: string
+        balance:
+          type: number
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedBy:
+          type: string
+          format: uuid
+          nullable: true
     SupplierBillError:
       type: object
       properties:

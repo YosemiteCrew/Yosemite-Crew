@@ -11,6 +11,7 @@ import {
   withPaymentIntentOrgPermissions,
 } from "src/middlewares/rbac";
 import { FinanceController } from "src/controllers/app/finance.controller";
+import { ClientCollectionsController } from "src/controllers/app/client-collections.controller";
 
 const router = Router();
 
@@ -108,6 +109,38 @@ router.post(
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.applyClientAccountAllocation,
+);
+
+router.get(
+  "/organisation/:organisationId/clients/:parentId/payment-terms",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  ClientCollectionsController.getPaymentTerms,
+);
+
+router.put(
+  "/organisation/:organisationId/clients/:parentId/payment-terms",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  ClientCollectionsController.setPaymentTerms,
+);
+
+router.get(
+  "/organisation/:organisationId/collections/overdue",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  ClientCollectionsController.listOverdue,
+);
+
+router.post(
+  "/organisation/:organisationId/collections/overdue/:invoiceId/review",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  ClientCollectionsController.markReviewed,
 );
 
 router.get(
