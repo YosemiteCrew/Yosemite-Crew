@@ -38,6 +38,53 @@ const handleError = (error: unknown, res: Response) => {
 const resolveUserId = (req: Request): string | undefined =>
   resolveVerifiedUserId(req);
 
+// The organisation withOrgPermissions() authorised, or undefined once a 400 has
+// been sent.
+const requireOrganisationId = (
+  req: Request,
+  res: Response,
+): string | undefined => {
+  const organisationId = (req as OrgRequest).organisationId;
+  if (!organisationId) {
+    res.status(400).json({ message: "Missing organisation context" });
+  }
+  return organisationId;
+};
+
+const isOptionalString = (value: unknown): value is string | undefined =>
+  value === undefined || typeof value === "string";
+
+const linkSubmission = async (
+  req: Request,
+  res: Response,
+  organisationId: string | null,
+) => {
+  const submissionId = req.params.submissionId;
+  const { appointmentId, enforceSingle } = req.body as {
+    appointmentId: string;
+    enforceSingle?: boolean;
+  };
+
+  const updated = await ObservationToolSubmissionService.linkToAppointment({
+    organisationId,
+    submissionId,
+    appointmentId,
+    enforceSingleSubmissionPerAppointment: enforceSingle === true,
+  });
+
+  // Observation-tool submissions can exist without a task - the PMS
+  // appointment flow creates them directly - so the task link only happens
+  // when there is a task to link.
+  if (updated.taskId) {
+    await TaskService.linkToAppointment({
+      taskId: updated.taskId,
+      appointmentId,
+    });
+  }
+
+  res.json(updated);
+};
+
 const CreateAppointmentSubmissionSchema = z.object({
   toolId: z.string().min(1),
   companionId: z.string().min(1),
@@ -159,21 +206,25 @@ export const ObservationToolSubmissionController = {
   // PMS — list submissions (per companion / tool)
   listForPms: async (req: Request, res: Response) => {
     try {
-      const { patientId } = req.query as { patientId?: string };
-      const toolId = req.query.toolId as string | undefined;
+      const organisationId = requireOrganisationId(req, res);
+      if (!organisationId) return;
+
+      const { patientId, toolId } = req.query;
+      if (!isOptionalString(patientId) || !isOptionalString(toolId)) {
+        return res.status(400).json({ message: "Invalid query" });
+      }
       const fromDate = req.query.fromDate
         ? new Date(req.query.fromDate as string)
         : undefined;
       const toDate = req.query.toDate
         ? new Date(req.query.toDate as string)
         : undefined;
-      const organisationId = (req as OrgRequest).organisationId;
 
       const submissions =
         await ObservationToolSubmissionService.listSubmissions({
           organisationId,
           patientId: patientId || undefined,
-          toolId,
+          toolId: toolId || undefined,
           fromDate,
           toDate,
         });
@@ -187,7 +238,9 @@ export const ObservationToolSubmissionController = {
   // PMS — get one
   getById: async (req: Request, res: Response) => {
     try {
-      const organisationId = (req as OrgRequest).organisationId;
+      const organisationId = requireOrganisationId(req, res);
+      if (!organisationId) return;
+
       const submission = await ObservationToolSubmissionService.getById(
         req.params.submissionId,
         organisationId,
@@ -206,32 +259,19 @@ export const ObservationToolSubmissionController = {
   // PMS — link submission to evaluation appointment
   linkAppointment: async (req: Request, res: Response) => {
     try {
-      const submissionId = req.params.submissionId;
-      const organisationId = (req as OrgRequest).organisationId;
-      const { appointmentId, enforceSingle } = req.body as {
-        appointmentId: string;
-        enforceSingle?: boolean;
-      };
+      const organisationId = requireOrganisationId(req, res);
+      if (!organisationId) return;
 
-      const updated = await ObservationToolSubmissionService.linkToAppointment({
-        organisationId,
-        submissionId,
-        appointmentId,
-        enforceSingleSubmissionPerAppointment: enforceSingle === true,
-      });
+      await linkSubmission(req, res, organisationId);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
 
-      // Observation-tool submissions can exist without a task - the PMS
-      // appointment flow creates them directly - so the task link only happens
-      // when there is a task to link. The `!` here asserted otherwise and made
-      // an ordinary taskless submission fail to link at all.
-      if (updated.taskId) {
-        await TaskService.linkToAppointment({
-          taskId: updated.taskId,
-          appointmentId,
-        });
-      }
-
-      res.json(updated);
+  // MOBILE — parent links a submission to their companion's appointment
+  linkAppointmentFromMobile: async (req: Request, res: Response) => {
+    try {
+      await linkSubmission(req, res, null);
     } catch (error) {
       handleError(error, res);
     }
@@ -240,8 +280,10 @@ export const ObservationToolSubmissionController = {
   // PMS — list submissions attached to one appointment
   listForAppointment: async (req: Request, res: Response) => {
     try {
+      const organisationId = requireOrganisationId(req, res);
+      if (!organisationId) return;
+
       const { appointmentId } = req.params;
-      const organisationId = (req as OrgRequest).organisationId;
       const submissions =
         await ObservationToolSubmissionService.listForAppointment(
           appointmentId,
@@ -256,13 +298,10 @@ export const ObservationToolSubmissionController = {
   // PMS — clinician creates an observation-tool submission for an appointment
   createForAppointment: async (req: Request, res: Response) => {
     try {
+      const organisationId = requireOrganisationId(req, res);
+      if (!organisationId) return;
+
       const { appointmentId } = req.params;
-      const organisationId = (req as OrgRequest).organisationId;
-      if (!organisationId) {
-        return res
-          .status(400)
-          .json({ message: "Missing organisation context" });
-      }
 
       const filledBy = (req as AuthenticatedRequest).userId;
       if (!filledBy) {
@@ -323,10 +362,14 @@ export const ObservationToolSubmissionController = {
   // PMS — appointment view previews (OT cards for all OT tasks in appointment)
   listTaskPreviewsForAppointment: async (req: Request, res: Response) => {
     try {
+      const organisationId = requireOrganisationId(req, res);
+      if (!organisationId) return;
+
       const { appointmentId } = req.params;
       const previews =
         await ObservationToolSubmissionService.listTaskPreviewsForAppointment(
           appointmentId,
+          organisationId,
         );
       res.json(previews);
     } catch (error) {

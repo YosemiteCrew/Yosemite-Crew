@@ -1,6 +1,13 @@
 import { Router } from "express";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import {
+  requireCompanionPermissionForResource,
+  resolveBodyPatientCompanion,
+  resolveObservationSubmissionCompanion,
+  resolveObservationTaskCompanion,
+} from "src/middlewares/companion-access";
+import { requireSuperAdmin } from "src/middlewares/super-admin";
+import {
   requirePermission,
   withAppointmentOrgPermissions,
   withOrgPermissions,
@@ -32,22 +39,34 @@ router.get(
   ObservationToolDefinitionController.getById,
 );
 
-// Parent submits OT
+// Parent submits OT for a companion they may record results for
 router.post(
   "/mobile/tools/:toolId/submissions",
   requireMobileAuth,
+  requireCompanionPermissionForResource(
+    "medicalRecords",
+    resolveBodyPatientCompanion,
+  ),
   ObservationToolSubmissionController.createFromMobile,
 );
 
 router.post(
   "/mobile/submissions/:submissionId/link-appointment",
   requireMobileAuth,
-  ObservationToolSubmissionController.linkAppointment,
+  requireCompanionPermissionForResource(
+    "appointments",
+    resolveObservationSubmissionCompanion,
+  ),
+  ObservationToolSubmissionController.linkAppointmentFromMobile,
 );
 
 router.get(
   "/mobile/tasks/:taskId/preview",
   requireMobileAuth,
+  requireCompanionPermissionForResource(
+    "medicalRecords",
+    resolveObservationTaskCompanion,
+  ),
   ObservationToolSubmissionController.getPreviewByTaskId,
 );
 
@@ -56,7 +75,8 @@ router.get(
  * prefix: /pms/observation-tools + /pms/observation-submissions
  */
 
-// Definitions
+// Definitions. The library is shared by every organisation, so changing it
+// is limited to platform administrators.
 router.get(
   "/pms/tools",
   requireWebAuth,
@@ -72,18 +92,21 @@ router.get(
 router.post(
   "/pms/tools",
   requireWebAuth,
+  requireSuperAdmin,
   ObservationToolDefinitionController.create,
 );
 
 router.patch(
   "/pms/tools/:toolId",
   requireWebAuth,
+  requireSuperAdmin,
   ObservationToolDefinitionController.update,
 );
 
 router.post(
   "/pms/tools/:toolId/archive",
   requireWebAuth,
+  requireSuperAdmin,
   ObservationToolDefinitionController.archive,
 );
 
