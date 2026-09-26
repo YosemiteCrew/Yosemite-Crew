@@ -28,6 +28,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/dashboard',
   '/developers/api-keys',
   '/developers/billing',
+  '/developers/connect',
   '/developers/documentation',
   '/developers/form-draft-import',
   '/developers/home',

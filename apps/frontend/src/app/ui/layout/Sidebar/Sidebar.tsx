@@ -8,6 +8,7 @@ import {
   IoBusinessOutline,
   IoCalendarOutline,
   IoChatbubbleEllipsesOutline,
+  IoCodeSlashOutline,
   IoChevronBackOutline,
   IoChevronForwardOutline,
   IoCubeOutline,
@@ -56,6 +57,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Integrations: IoGitNetworkOutline,
   Network: IoGlobeOutline,
   Templates: IoBookOutline,
+  Connect: IoCodeSlashOutline,
   'API Keys': IoKeyOutline,
   'Form Draft Import': IoBookOutline,
   Billing: IoWalletOutline,
@@ -75,7 +77,14 @@ const APP_ROUTE_GROUPS = [
 const DEV_ROUTE_GROUPS = [
   {
     label: 'Developer',
-    routeNames: ['Dashboard', 'API Keys', 'Form Draft Import', 'Billing', 'Website - Builder'],
+    routeNames: [
+      'Dashboard',
+      'Connect',
+      'API Keys',
+      'Form Draft Import',
+      'Billing',
+      'Website - Builder',
+    ],
   },
   { label: 'Platform', routeNames: ['Plugins', 'Documentation'] },
 ] as const;

@@ -141,6 +141,7 @@ const DeveloperPortalHome = () => {
                 platform, or build your own surface on top.
               </p>
               <div className="dev-hero-actions">
+                <Secondary text="Connect a coding tool" href="/developers/connect" />
                 <Secondary text="Create an API key" href="/developers/api-keys" />
                 <Secondary text="Contact support" href="/contact-us" />
               </div>
