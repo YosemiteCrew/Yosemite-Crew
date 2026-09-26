@@ -31,4 +31,6 @@ before the draft was written. Rather than merge a public document asserting a de
 capability, the number is left free for a residency ADR written against what the repo
 actually has.
 
+0005 is retired and its number is not reused.
+
 See also [SuperAdmin ADR-0001](https://github.com/YosemiteCrew/SuperAdmin/blob/main/docs/adr/0001-audit-log-on-supertokens-usermetadata.md) for the audit-log persistence decision in the SuperAdmin app (separate repo, separate ADR log — it documents SuperAdmin's own codebase).
