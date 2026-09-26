@@ -311,6 +311,7 @@ describe("FormController", () => {
 
     it("should return 200 and publish the form", async () => {
       req.params.formId = "f1";
+      req.organisationId = "org-1";
       (FormService.publish as jest.Mock).mockResolvedValue({
         id: "f1",
         status: "PUBLISHED",
@@ -318,6 +319,11 @@ describe("FormController", () => {
 
       await FormController.publishForm(req, res);
 
+      expect(FormService.publish).toHaveBeenCalledWith(
+        "f1",
+        "auth_user_123",
+        "org-1",
+      );
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
@@ -347,6 +353,7 @@ describe("FormController", () => {
 
     it("should return 200 and unpublish the form", async () => {
       req.params.formId = "f1";
+      req.organisationId = "org-1";
       (FormService.unpublish as jest.Mock).mockResolvedValue({
         id: "f1",
         status: "DRAFT",
@@ -354,7 +361,11 @@ describe("FormController", () => {
 
       await FormController.unpublishForm(req, res);
 
-      expect(FormService.unpublish).toHaveBeenCalledWith("f1", "auth_user_123");
+      expect(FormService.unpublish).toHaveBeenCalledWith(
+        "f1",
+        "auth_user_123",
+        "org-1",
+      );
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
@@ -384,6 +395,7 @@ describe("FormController", () => {
 
     it("should return 200 and archive the form", async () => {
       req.params.formId = "f1";
+      req.organisationId = "org-1";
       (FormService.archive as jest.Mock).mockResolvedValue({
         id: "f1",
         status: "ARCHIVED",
@@ -391,7 +403,11 @@ describe("FormController", () => {
 
       await FormController.archiveForm(req, res);
 
-      expect(FormService.archive).toHaveBeenCalledWith("f1", "auth_user_123");
+      expect(FormService.archive).toHaveBeenCalledWith(
+        "f1",
+        "auth_user_123",
+        "org-1",
+      );
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
