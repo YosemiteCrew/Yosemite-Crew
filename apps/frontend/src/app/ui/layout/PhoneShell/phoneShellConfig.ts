@@ -175,6 +175,7 @@ export const DEV_PHONE_TABS: PhoneTabConfig[] = [
     activeIcon: IoEllipsisHorizontalCircle,
     isMore: true,
     activePrefixes: [
+      '/developers/connect',
       '/developers/billing',
       '/developers/website-builder',
       '/developers/playground',
@@ -189,6 +190,12 @@ export const DEV_PHONE_TABS: PhoneTabConfig[] = [
  * these are the developer destinations the bottom bar has no room for.
  */
 export const DEV_PHONE_MORE_LINKS: MoreLinkConfig[] = [
+  {
+    key: 'dev-connect',
+    label: 'Connect a coding tool',
+    href: '/developers/connect',
+    icon: IoCodeSlashOutline,
+  },
   { key: 'dev-billing', label: 'Billing', href: '/developers/billing', icon: IoWalletOutline },
   {
     key: 'dev-website-builder',
