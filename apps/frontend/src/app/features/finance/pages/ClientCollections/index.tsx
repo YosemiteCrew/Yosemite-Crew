@@ -5,6 +5,7 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useParentStore } from '@/app/stores/parentStore';
 import { formatMoneyPrecise } from '@/app/lib/money';
+import { formatDisplayDate } from '@/app/lib/date';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -26,9 +27,6 @@ const clientName = (parent: { firstName?: string; lastName?: string; name?: stri
   const name = [parent?.firstName, parent?.lastName].filter(Boolean).join(' ').trim();
   return name || parent?.name?.trim() || 'Client account';
 };
-
-const dateLabel = (value: string) =>
-  new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value));
 
 const ClientCollections = () => {
   const organisationId = useOrgStore((state) => state.primaryOrgId);
@@ -160,7 +158,7 @@ const ClientCollections = () => {
     if (invoice.reviewedAt) {
       return (
         <span className="rounded-full bg-success-100 px-3 py-1 text-caption-2 font-semibold text-[var(--success-text)]">
-          Reviewed {dateLabel(invoice.reviewedAt)}
+          Reviewed {formatDisplayDate(invoice.reviewedAt)}
         </span>
       );
     }
@@ -277,7 +275,7 @@ const ClientCollections = () => {
                         {formatMoneyPrecise(invoice.balance, invoice.currency)}
                       </span>
                       <span className="text-body-4 text-text-secondary">
-                        Due {dateLabel(invoice.dueAt)}
+                        Due {formatDisplayDate(invoice.dueAt)}
                       </span>
                       <span className="text-caption-2 text-text-tertiary">
                         Invoice {invoice.invoiceId.slice(0, 8)}
