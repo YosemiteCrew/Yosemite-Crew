@@ -1,0 +1,341 @@
+.DevConnect {
+  min-height: calc(100vh - 80px);
+  color: var(--ink-body);
+  font-family: var(--font-satoshi);
+}
+
+.DevConnectHeader {
+  max-width: 760px;
+  margin-bottom: 22px;
+}
+
+.DevConnectEyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--cyan-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.DevConnectHeader h1 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-newsreader);
+  font-size: clamp(30px, 4vw, 46px);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+}
+
+.DevConnectHeader p,
+.DevConnectSectionHead p,
+.DevConnectStepLabel span,
+.DevConnectStepBody p {
+  color: var(--ink-muted);
+}
+
+.DevConnectHeader p {
+  max-width: 650px;
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.DevConnectLayout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(420px, 1.45fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.DevConnectChooser,
+.DevConnectJourney {
+  padding: 20px;
+}
+
+.DevConnectSectionHead,
+.DevConnectJourneyIntro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.DevConnectSectionHead h2,
+.DevConnectJourneyIntro h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.DevConnectSectionHead p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.DevConnectStepNumber {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: var(--color-inset);
+  color: var(--ink-body);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.DevConnectTools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.DevConnectTool {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 13px;
+  background: var(--color-surface-card);
+  color: var(--ink-muted);
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.DevConnectTool:hover {
+  border-color: var(--cyan-text);
+  transform: translateY(-1px);
+}
+
+.DevConnectTool.is-selected {
+  border-color: var(--cyan-text);
+  background: var(--nav-active-bg);
+  color: var(--cyan-text);
+}
+
+.DevConnectToolIcon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-inset);
+  color: var(--cyan-text);
+}
+
+.DevConnectToolCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.DevConnectToolCopy strong {
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.DevConnectToolCopy span {
+  color: var(--ink-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.DevConnectJourneyIntro {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 16px;
+}
+
+.DevConnectTime {
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--color-inset);
+  padding: 5px 10px;
+  color: var(--ink-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.DevConnectSteps {
+  margin: 0;
+  padding: 10px 0 0;
+  list-style: none;
+}
+
+.DevConnectSteps li {
+  position: relative;
+  padding: 0 0 0 4px;
+}
+
+.DevConnectSteps li:not(:last-child)::before {
+  position: absolute;
+  top: 40px;
+  bottom: 0;
+  left: 17px;
+  width: 1px;
+  background: var(--hairline);
+  content: '';
+}
+
+.DevConnectSteps li > button {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 12px 0;
+  text-align: left;
+}
+
+.DevConnectSteps li.is-active .DevConnectStepNumber {
+  border-color: var(--cyan-text);
+  background: var(--cyan-text);
+  color: var(--screen);
+  box-shadow: 0 0 0 4px var(--nav-active-bg);
+}
+
+.DevConnectStepLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.DevConnectStepLabel strong {
+  color: var(--ink);
+  font-size: 13.5px;
+}
+
+.DevConnectStepLabel span {
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.DevConnectStepBody {
+  margin: 0 0 8px 40px;
+  border-left: 2px solid var(--cyan-text);
+  border-radius: 0 12px 12px 0;
+  background: var(--color-inset);
+  padding: 14px 16px;
+}
+
+.DevConnectStepBody p {
+  margin: 0 0 11px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.DevConnectPrimaryLink,
+.DevConnectPrimaryButton,
+.DevConnectSecondaryLink,
+.DevConnectTextButton {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.DevConnectPrimaryLink,
+.DevConnectPrimaryButton {
+  border: 1px solid var(--cyan-text);
+  background: var(--cyan-text);
+  padding: 8px 12px;
+  color: var(--screen);
+}
+
+.DevConnectSecondaryLink {
+  border: 1px solid var(--hairline);
+  background: var(--color-surface-card);
+  padding: 8px 12px;
+  color: var(--cyan-text);
+}
+
+.DevConnectTextButton {
+  margin-left: 8px;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--cyan-text);
+}
+
+@media (max-width: 1023px) {
+  .DevConnectLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .DevConnectTools {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .DevConnect {
+    padding: 16px;
+  }
+
+  .DevConnectHeader {
+    margin-bottom: 16px;
+  }
+
+  .DevConnectHeader h1 {
+    font-size: 30px;
+  }
+
+  .DevConnectTools {
+    grid-template-columns: 1fr;
+  }
+
+  .DevConnectChooser,
+  .DevConnectJourney {
+    padding: 16px;
+  }
+
+  .DevConnectJourneyIntro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .DevConnectStepBody {
+    margin-left: 36px;
+  }
+
+  .DevConnectPrimaryLink,
+  .DevConnectPrimaryButton,
+  .DevConnectSecondaryLink {
+    width: 100%;
+  }
+
+  .DevConnectTextButton {
+    width: 100%;
+    margin: 5px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .DevConnectTool {
+    transition: none;
+  }
+}
