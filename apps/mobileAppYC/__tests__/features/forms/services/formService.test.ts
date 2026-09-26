@@ -243,10 +243,11 @@ describe('formService', () => {
           signingRequired: false,
         } as any).signingRequested,
       ).toBe(false);
+      // Said nothing: the form's own fields decide.
       expect(
         mapAppointmentFormItem({questionnaire: mockQuestionnaire} as any)
           .signingRequested,
-      ).toBe(false);
+      ).toBeNull();
     });
 
     it('carries the request status in lower case', () => {

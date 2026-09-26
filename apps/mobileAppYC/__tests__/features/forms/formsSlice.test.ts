@@ -777,6 +777,79 @@ describe('formsSlice', () => {
       expect(entry().signingRequired).toBe(true);
     });
 
+    // The server says the client does not sign it (a form or consent the
+    // practice signs): its consent category or signature field do not count.
+    it('does not need signing when the server says so', async () => {
+      (Utils.hasSignatureField as jest.Mock).mockReturnValue(true);
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f1', category: 'Consent form'}),
+            submission: mockSubmission({_id: 'instance-1', formId: 'f1'}),
+            signingRequested: false,
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      expect(entry().signingRequired).toBe(false);
+      expect(entry().signingRequested).toBe(false);
+    });
+
+    it('falls back to the form when the server says nothing', async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f1', category: 'Consent form'}),
+            submission: null,
+            signingRequested: null,
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      expect(entry().signingRequired).toBe(true);
+    });
+
+    // Submitting the form keeps what the server said of it.
+    it('keeps the server answer and request status once submitted', async () => {
+      (Utils.hasSignatureField as jest.Mock).mockReturnValue(true);
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f1'}),
+            submission: null,
+            signingRequested: false,
+            assignmentStatus: 'sent',
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+      (formApi.submitForm as jest.Mock).mockResolvedValue(
+        mockSubmission({_id: 'instance-1', formId: 'f1'}),
+      );
+
+      await store.dispatch(
+        submitAppointmentForm({
+          appointmentId: mockAppointmentId,
+          form: mockForm({_id: 'f1'}) as any,
+          answers: {},
+        }),
+      );
+
+      expect(entry()).toMatchObject({
+        signingRequired: false,
+        signingRequested: false,
+        assignmentStatus: 'sent',
+      });
+    });
+
     it('does not need signing when nothing asks for it', async () => {
       (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
         items: [{form: mockForm({_id: 'f1'}), submission: null}],

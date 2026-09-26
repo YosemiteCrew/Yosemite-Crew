@@ -146,7 +146,7 @@ export const mapAppointmentFormItem = (
   submission: FormSubmission | null;
   formVersion?: number;
   assignmentStatus: string | null;
-  signingRequested: boolean;
+  signingRequested: boolean | null;
 } => {
   const form = toForm(item.questionnaire);
   const submission = item.questionnaireResponse
@@ -168,6 +168,8 @@ export const mapAppointmentFormItem = (
     submission: normalizedSubmission,
     formVersion: normalizedSubmission?.formVersion,
     assignmentStatus: item.assignmentStatus?.toLowerCase() ?? null,
-    signingRequested: item.signingRequired === true,
+    // The server's answer when it gives one; null leaves it to the form.
+    signingRequested:
+      typeof item.signingRequired === 'boolean' ? item.signingRequired : null,
   };
 };

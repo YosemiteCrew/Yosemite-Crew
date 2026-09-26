@@ -77,7 +77,7 @@ const buildEntry = ({
   formVersion,
   signingUrl,
   assignmentStatus,
-  signingRequested = false,
+  signingRequested = null,
 }: {
   form: Form;
   submission?: FormSubmission | null;
@@ -85,8 +85,9 @@ const buildEntry = ({
   formVersion?: number;
   signingUrl?: string | null;
   assignmentStatus?: string | null;
-  // The practice asked the client to sign it, e.g. a consent it filled in.
-  signingRequested?: boolean;
+  // Whether the practice asks the client to sign it, as the server says.
+  // The server decides when it answers; the form's own fields only when not.
+  signingRequested?: boolean | null;
 }): AppointmentFormEntry => {
   const normalizedForm = normalizeFormForState(form);
   const normalizedSubmission = submission
@@ -99,8 +100,12 @@ const buildEntry = ({
       })
     : null;
   const signingRequired =
-    signingRequested ||
-    shouldRequireSignature(normalizedForm, normalizedSubmission ?? undefined);
+    typeof signingRequested === 'boolean'
+      ? signingRequested
+      : shouldRequireSignature(
+          normalizedForm,
+          normalizedSubmission ?? undefined,
+        );
   const status = resolveEntryStatus(
     deriveFormStatus(normalizedSubmission, signingRequired),
     assignmentStatus,
@@ -116,6 +121,7 @@ const buildEntry = ({
     formVersion:
       formVersion ?? resolveFormVersion(form, submission ?? undefined),
     assignmentStatus: assignmentStatus ?? null,
+    signingRequested,
   };
 };
 
@@ -394,11 +400,15 @@ const formsSlice = createSlice({
         const {appointmentId, form, submission} = action.payload;
         state.submittingByForm[form._id] = false;
         const existing = state.byAppointmentId[appointmentId] ?? [];
+        // What the server said of this form still holds after submitting it.
+        const prior = existing.find(entry => entry.form._id === form._id);
         const updatedEntry = buildEntry({
           form,
           submission,
           source: 'appointment',
           formVersion: submission.formVersion,
+          signingRequested: prior?.signingRequested,
+          assignmentStatus: prior?.assignmentStatus,
         });
         state.byAppointmentId[appointmentId] = mergeEntries(existing, [
           updatedEntry,
@@ -448,6 +458,7 @@ const formsSlice = createSlice({
             formVersion: entry.formVersion,
             signingUrl: signingUrl ?? entry.signingUrl ?? null,
             assignmentStatus: entry.assignmentStatus,
+            signingRequested: entry.signingRequested,
           });
         });
         state.byAppointmentId[appointmentId] = updated;
