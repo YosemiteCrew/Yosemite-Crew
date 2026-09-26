@@ -68,6 +68,7 @@ jest.mock("src/config/prisma", () => ({
     organization: { findUnique: jest.fn() },
     parent: { findUnique: jest.fn() },
     paymentAttempt: { updateMany: jest.fn(), findFirst: jest.fn() },
+    clientPaymentTerm: { findUnique: jest.fn() },
     workspaceTreatmentItem: { updateMany: jest.fn() },
   },
 }));
@@ -1921,6 +1922,9 @@ describe("InvoiceService", () => {
   });
 
   it("finalizes tax snapshots and re-opens a finalized-but-unpaid invoice when edited", async () => {
+    (prisma.clientPaymentTerm.findUnique as jest.Mock).mockResolvedValueOnce({
+      netDays: 30,
+    });
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_final",
       appointmentId,
@@ -1991,6 +1995,7 @@ describe("InvoiceService", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           finalizedAt: expect.any(Date),
+          dueAt: expect.any(Date),
           taxProvider: "STRIPE",
           subtotal: 100,
           totalAmount: 118,
@@ -2010,6 +2015,18 @@ describe("InvoiceService", () => {
           }),
         }),
       }),
+    );
+    expect(prisma.clientPaymentTerm.findUnique).toHaveBeenCalledWith({
+      where: { organisationId_parentId: { organisationId, parentId } },
+      select: { netDays: true },
+    });
+    const finalizedAt = (prisma.invoice.update as jest.Mock).mock.calls.at(
+      -1,
+    )![0].data.finalizedAt as Date;
+    const dueAt = (prisma.invoice.update as jest.Mock).mock.calls.at(-1)![0]
+      .data.dueAt as Date;
+    expect(dueAt).toEqual(
+      new Date(finalizedAt.getTime() + 30 * 24 * 60 * 60 * 1000),
     );
     expect(finalized.id).toBe("inv_final");
     expect(prisma.financeEvent.create).toHaveBeenCalledWith(
@@ -2120,12 +2137,22 @@ describe("InvoiceService", () => {
         data: expect.objectContaining({ finalizedAt: null }),
       }),
     );
-    expect(prisma.paymentAttempt.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ invoiceId: "inv_final" }),
+    for (const status of [
+      "REQUIRES_ACTION",
+      "REQUIRES_PAYMENT_METHOD",
+      "PROCESSING",
+      "FAILED",
+    ]) {
+      expect(prisma.paymentAttempt.updateMany).toHaveBeenCalledWith({
+        where: {
+          invoiceId: { equals: "inv_final" },
+          status: { equals: status },
+        },
         data: { status: "CANCELED" },
-      }),
-    );
+      });
+    }
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect((prisma.$transaction as jest.Mock).mock.calls[0][0]).toHaveLength(4);
   });
 
   // `mergeInvoiceLineItems` can replace a line by id or content key, and the
