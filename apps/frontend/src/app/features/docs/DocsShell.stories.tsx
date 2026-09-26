@@ -235,7 +235,7 @@ export const OpenApiReference: DocsShellStory = {
       description: {
         story:
           'The sandboxed Redoc viewer renders below the document body - allowed to run scripts ' +
-          'and fetch the same-origin spec, and nothing else.',
+          'and nothing else, in an opaque origin of its own.',
       },
     },
   },

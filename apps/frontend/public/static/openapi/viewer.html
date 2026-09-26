@@ -12,7 +12,7 @@
     </style>
   </head>
   <body>
-    <redoc spec-url="/static/openapi/openapi.yaml"></redoc>
+    <div id="redoc"></div>
     <!--
       Pinned to an exact version rather than `latest`: an unpinned CDN bundle
       changes under us with no review.
@@ -29,5 +29,34 @@
       Docusaurus.
     -->
     <script src="https://cdn.redoc.ly/redoc/v2.5.0/bundles/redoc.standalone.js"></script>
+    <!--
+      The docs frame this page with sandbox="allow-scripts", so it runs in an
+      opaque origin and cannot fetch the spec from the app itself. It asks the
+      parent page instead, over a private channel, and answers Redoc's request
+      for the spec URL with the text it gets back. Opened directly, it loads the
+      spec as a normal same-origin page.
+
+      Authorised by hash in next.config.ts (OPENAPI_VIEWER_CSP): any edit to the
+      script below, whitespace included, needs the hash there updated too. A
+      test recomputes it from this file and fails if the two drift.
+    -->
+    <script>
+      const el = document.getElementById('redoc');
+      const specUrl = new URL('openapi.yaml', location.href).href;
+      if (window.parent === window) {
+        Redoc.init(specUrl, {}, el);
+      } else {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (event) => {
+          const nativeFetch = window.fetch.bind(window);
+          window.fetch = (input, init) =>
+            String(input) === specUrl
+              ? Promise.resolve(new Response(event.data))
+              : nativeFetch(input, init);
+          Redoc.init(specUrl, {}, el);
+        };
+        window.parent.postMessage('yc-openapi-viewer-ready', location.origin, [channel.port2]);
+      }
+    </script>
   </body>
 </html>
