@@ -24,6 +24,9 @@ jest.mock("src/config/prisma", () => ({
       createMany: jest.fn(),
       upsert: jest.fn(),
     },
+    calendarBlock: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   },
 }));
 
@@ -130,7 +133,10 @@ describe("AvailabilityService", () => {
       );
 
       expect(prisma.baseAvailability.deleteMany).toHaveBeenCalledWith({
-        where: { userId: "u1", organisationId: "org1" },
+        where: {
+          userId: { equals: "u1" },
+          organisationId: { equals: "org1" },
+        },
       });
       expect(prisma.baseAvailability.createMany).toHaveBeenCalled();
       expect(res).toEqual([{ dayOfWeek: "MONDAY", slots: [] }]);
@@ -204,7 +210,10 @@ describe("AvailabilityService", () => {
     it("deleteBaseAvailability: should delete via prisma", async () => {
       await AvailabilityService.deleteBaseAvailability("org1", "u1");
       expect(prisma.baseAvailability.deleteMany).toHaveBeenCalledWith({
-        where: { organisationId: "org1", userId: "u1" },
+        where: {
+          organisationId: { equals: "org1" },
+          userId: { equals: "u1" },
+        },
       });
     });
   });
@@ -507,6 +516,45 @@ describe("AvailabilityService", () => {
       });
     });
 
+    it("removes staff calendar blocks from bookable availability", async () => {
+      const refDate = new Date("2026-03-09T00:00:00Z");
+      baseSpy.mockResolvedValue([
+        {
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "09:00", endTime: "12:00", isAvailable: true }],
+        },
+      ]);
+      overrideSpy.mockResolvedValue(null);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.calendarBlock.findMany as jest.Mock).mockResolvedValue([
+        {
+          startAt: new Date("2026-03-09T10:00:00Z"),
+          endAt: new Date("2026-03-09T11:00:00Z"),
+        },
+      ]);
+
+      const result = await AvailabilityService.getWeeklyFinalAvailability(
+        "org1",
+        "u1",
+        refDate,
+      );
+
+      expect(result.find((day) => day.dayOfWeek === "MONDAY")?.slots).toEqual([
+        { startTime: "09:00", endTime: "10:00", isAvailable: true },
+        { startTime: "11:00", endTime: "12:00", isAvailable: true },
+      ]);
+      expect(prisma.calendarBlock.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org1",
+          targetType: "STAFF",
+          targetId: "u1",
+          startAt: { lte: new Date("2026-03-15T23:59:59.999Z") },
+          endAt: { gte: new Date("2026-03-09T00:00:00.000Z") },
+        },
+        select: { startAt: true, endAt: true },
+      });
+    });
+
     it("bounds the occupancy query to this week's Sunday, not next Monday (#3141)", async () => {
       // Monday 2026-09-14 through Sunday 2026-09-20 is the queried week.
       const refDate = new Date("2026-09-14T12:00:00Z");
@@ -769,6 +817,43 @@ describe("AvailabilityService", () => {
         1,
       );
       expect(prisma.occupancy.findMany).toHaveBeenCalledTimes(2);
+      expect(prisma.calendarBlock.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("applies staff blocks to roster status without affecting other staff", async () => {
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue([
+        baseRow("u-blocked"),
+        baseRow("u-available"),
+      ]);
+      (
+        prisma.weeklyAvailabilityOverride.findMany as jest.Mock
+      ).mockResolvedValue([]);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.calendarBlock.findMany as jest.Mock).mockResolvedValue([
+        {
+          targetId: "u-blocked",
+          startAt: new Date("2026-03-11T10:00:00.000Z"),
+          endAt: new Date("2026-03-11T11:00:00.000Z"),
+        },
+      ]);
+
+      const statuses = await AvailabilityService.getCurrentStatusBulk(ORG, [
+        "u-blocked",
+        "u-available",
+      ]);
+
+      expect(statuses.get("u-blocked")).toBe("Unavailable");
+      expect(statuses.get("u-available")).toBe("Available");
+      expect(prisma.calendarBlock.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: ORG,
+          targetType: "STAFF",
+          targetId: { in: ["u-blocked", "u-available"] },
+          startAt: { lte: new Date("2026-03-15T23:59:59.999Z") },
+          endAt: { gte: new Date("2026-03-09T00:00:00.000Z") },
+        },
+        select: { targetId: true, startAt: true, endAt: true },
+      });
     });
 
     it("downgrades only the member whose availability data is malformed", async () => {

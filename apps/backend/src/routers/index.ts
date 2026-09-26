@@ -133,6 +133,7 @@ import { telemedicineSessionRouter } from "./telemedicine-session.router";
 import { patientCheckInRouter } from "./patient-check-in.router";
 import { anaesthesiaRecordRouter } from "./anaesthesia-record.router";
 import { staffShiftRouter } from "./staff-shift.router";
+import { calendarBlockRouter } from "./calendar-block.router";
 import { treatmentOutcomeRouter } from "./treatment-outcome.router";
 import { medicalCertificateRouter } from "./medical-certificate.router";
 import { patientFlagRouter } from "./patient-flag.router";
@@ -280,6 +281,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, patientCheckInRouter);
   app.use(`/v1`, anaesthesiaRecordRouter);
   app.use(`/v1`, staffShiftRouter);
+  app.use(`/v1`, calendarBlockRouter);
   app.use(`/v1`, treatmentOutcomeRouter);
   app.use(`/v1`, medicalCertificateRouter);
   app.use(`/v1`, patientFlagRouter);

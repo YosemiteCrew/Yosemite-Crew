@@ -21,6 +21,9 @@ import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import PhoneCalendar from '@/app/features/appointments/components/Calendar/responsive/PhoneCalendar';
 import useIsTabletCalendar from '@/app/features/appointments/components/Calendar/responsive/useIsTabletCalendar';
 import TabletCalendarTitleBand from '@/app/features/appointments/components/Calendar/responsive/TabletCalendarTitleBand';
+import CalendarBlocksPanel from '@/app/features/appointments/components/Calendar/CalendarBlocksPanel';
+import { useCalendarBlocks } from '@/app/features/appointments/components/Calendar/useCalendarBlocks';
+import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -84,7 +87,14 @@ const AppointmentCalendar = ({
   const isPhone = useIsPhone();
   const isTablet = useIsTabletCalendar();
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
+  const {
+    blocks: calendarBlocks,
+    saveBlock,
+    deleteBlock,
+  } = useCalendarBlocks(activeCalendar, currentDate, weekStart);
   const teams = useTeamForPrimaryOrg();
+  const rooms = useRoomsForPrimaryOrg();
+  useLoadRoomsForPrimaryOrg();
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
@@ -267,6 +277,14 @@ const AppointmentCalendar = ({
         hasEmergency={hasEmergency}
         filterOptions={filterOptions}
         statusOptions={statusOptions}
+      />
+      <CalendarBlocksPanel
+        blocks={calendarBlocks}
+        teams={teams}
+        rooms={rooms}
+        canEdit={canEditAppointments}
+        onSave={saveBlock}
+        onDelete={deleteBlock}
       />
       {dragError ? (
         <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">

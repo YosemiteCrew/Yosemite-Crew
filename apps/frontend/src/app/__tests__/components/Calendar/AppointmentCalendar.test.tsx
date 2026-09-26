@@ -18,12 +18,39 @@ import { allowCalendarDrag, canAssignAppointmentRoom } from '@/app/lib/appointme
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
+import {
+  createCalendarBlock,
+  deleteCalendarBlock,
+  fetchCalendarBlocks,
+  updateCalendarBlock,
+} from '@/app/features/appointments/services/calendarBlockService';
 
 const dayCalendarSpy = jest.fn();
 const weekCalendarSpy = jest.fn();
 const userCalendarSpy = jest.fn();
 const headerSpy = jest.fn();
+const calendarBlocksPanelSpy = jest.fn();
 const notifyMock = jest.fn();
+
+jest.mock('@/app/features/appointments/services/calendarBlockService', () => ({
+  createCalendarBlock: jest.fn(),
+  deleteCalendarBlock: jest.fn(),
+  fetchCalendarBlocks: jest.fn(),
+  updateCalendarBlock: jest.fn(),
+}));
+
+jest.mock(
+  '@/app/features/appointments/components/Calendar/CalendarBlocksPanel',
+  () => (props: any) => {
+    calendarBlocksPanelSpy(props);
+    return <div data-testid="calendar-blocks-panel" />;
+  }
+);
+
+jest.mock('@/app/hooks/useRooms', () => ({
+  useLoadRoomsForPrimaryOrg: jest.fn(),
+  useRoomsForPrimaryOrg: jest.fn(() => []),
+}));
 
 jest.mock(
   '@/app/features/appointments/components/Calendar/common/DayCalendar',
@@ -259,6 +286,10 @@ describe('AppointmentCalendar', () => {
     ]);
     (updateAppointment as jest.Mock).mockResolvedValue({});
     (loadTeamAvailability as jest.Mock).mockResolvedValue(undefined);
+    (fetchCalendarBlocks as jest.Mock).mockResolvedValue([]);
+    (createCalendarBlock as jest.Mock).mockResolvedValue({ id: 'block-1' });
+    (updateCalendarBlock as jest.Mock).mockResolvedValue({ id: 'block-1' });
+    (deleteCalendarBlock as jest.Mock).mockResolvedValue(undefined);
     Object.defineProperty(globalThis, 'scrollBy', {
       value: jest.fn(),
       configurable: true,
@@ -310,6 +341,51 @@ describe('AppointmentCalendar', () => {
     expect(headerProps.activeCalendar).toBe('day');
     expect(headerProps.onAddButtonClick).toBe(onAddAppointment);
     expect(headerProps.showAddButton).toBe(true);
+  });
+
+  it('loads, creates, edits, and removes calendar blocks', async () => {
+    const block = { id: 'block-1', reason: 'Lunch' } as any;
+    (fetchCalendarBlocks as jest.Mock).mockResolvedValueOnce([block]);
+    renderCalendar();
+    await waitFor(() =>
+      expect(fetchCalendarBlocks).toHaveBeenCalledWith('org-1', expect.any(Date), expect.any(Date))
+    );
+    await waitFor(() =>
+      expect(calendarBlocksPanelSpy.mock.calls.at(-1)?.[0].blocks).toEqual([block])
+    );
+    const input = {
+      targetType: 'STAFF' as const,
+      targetId: 'staff-1',
+      startAt: '2027-01-06T11:00:00.000Z',
+      endAt: '2027-01-06T12:00:00.000Z',
+      reason: 'Training',
+    };
+    const panel = calendarBlocksPanelSpy.mock.calls.at(-1)?.[0];
+    await act(async () => panel.onSave(null, input));
+    expect(createCalendarBlock).toHaveBeenCalledWith('org-1', input);
+    await act(async () => panel.onSave('block-1', input));
+    expect(updateCalendarBlock).toHaveBeenCalledWith('org-1', 'block-1', input);
+    await act(async () => panel.onDelete('block-1'));
+    expect(deleteCalendarBlock).toHaveBeenCalledWith('org-1', 'block-1');
+  });
+
+  it('clears blocks without an organization and reports load failures', async () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: null })
+    );
+    renderCalendar();
+    expect(fetchCalendarBlocks).not.toHaveBeenCalled();
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-1' })
+    );
+    (fetchCalendarBlocks as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    renderCalendar();
+    await waitFor(() =>
+      expect(notifyMock).toHaveBeenCalledWith(
+        'warning',
+        expect.objectContaining({ title: 'Calendar blocks unavailable' })
+      )
+    );
   });
 
   it('opens appointment view and keeps intent when child requests it', () => {
