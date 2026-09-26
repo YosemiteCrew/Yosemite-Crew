@@ -164,23 +164,23 @@ const resolveBillingCollectionMode = (
     ? "PAY_AT_VISIT_END"
     : "PREPAY_AT_BOOKING";
 
-const resolveInvoiceDepositTargetAmount = (depositTargetAmount: number) => {
-  if (depositTargetAmount < 0) {
-    throw new InvoiceServiceError(
-      "Deposit target amount must be greater than or equal to zero",
-      400,
-    );
-  }
-
-  return roundMoney(depositTargetAmount);
-};
+const resolveInvoiceDepositTargetAmount = (
+  depositTargetAmount: number,
+  currency: string,
+) =>
+  roundMoney(
+    depositTargetAmount,
+    isLedgerCurrencySupported(currency) ? currency : undefined,
+  );
 
 const resolveInvoiceDepositCollectedAmount = (
   invoice: Pick<PrismaInvoice, "depositCollectedAmount">,
   depositTargetAmount: number,
+  currency: string,
 ) =>
   roundMoney(
     Math.min(invoice.depositCollectedAmount ?? 0, depositTargetAmount),
+    isLedgerCurrencySupported(currency) ? currency : undefined,
   );
 
 const findInvoiceByIdOrThrow = async (invoiceId: string) => {
@@ -1990,8 +1990,17 @@ export const InvoiceService = {
     invoiceId: string,
     depositTargetAmount: number,
   ) {
-    const targetAmount = resolveInvoiceDepositTargetAmount(depositTargetAmount);
+    if (depositTargetAmount < 0) {
+      throw new InvoiceServiceError(
+        "Deposit target amount must be greater than or equal to zero",
+        400,
+      );
+    }
     const invoice = await findInvoiceByIdOrThrow(invoiceId);
+    const targetAmount = resolveInvoiceDepositTargetAmount(
+      depositTargetAmount,
+      invoice.currency,
+    );
 
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
@@ -2001,6 +2010,7 @@ export const InvoiceService = {
         depositCollectedAmount: resolveInvoiceDepositCollectedAmount(
           invoice,
           targetAmount,
+          invoice.currency,
         ),
       },
     });
