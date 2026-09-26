@@ -1,13 +1,16 @@
 import React from 'react';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
+import { hydrateRoot } from 'react-dom/client';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
+import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 
 const mockUsePathname = jest.fn();
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
@@ -387,29 +390,81 @@ describe('active-route focus ring stays distinct from the active-route colour', 
   });
 });
 
-describe('sidebar collapse state does not read browser globals during the initial render', () => {
-  // jsdom can't reproduce a real server-to-client hydration pass (both the
-  // render and any effect run with full localStorage/window access in the
-  // test environment), so this is a source-text guard: the initial useState
-  // must be a plain `false` seeded from nothing but a literal, and the real
-  // preference (isSidebarCollapsedByDefault, which reads localStorage and
-  // window.innerWidth) must only be read inside a useEffect. Seeding the
-  // initial state from it directly means the client's first hydration render
-  // diverges from the server-rendered markup for any returning user with a
-  // stored "collapsed" preference or a <1280px viewport.
-  const source = readFileSync(join(process.cwd(), 'src/app/ui/layout/Sidebar/Sidebar.tsx'), 'utf8');
-
-  it('seeds prefersCollapsed with a literal false, not a browser read', () => {
-    expect(source).toMatch(/const \[prefersCollapsed, setPrefersCollapsed\] = useState\(false\);/);
+describe('sidebar collapse state across the server render and hydration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    window.localStorage.clear();
+    mockUseOrgStore.mockImplementation((selector: any) => selector(orgState));
+    mockUseUserProfileStore.mockImplementation((selector: any) => selector(profileState));
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1440,
+    });
   });
 
-  it('reads the real preference only inside a post-mount effect', () => {
-    expect(source).toMatch(
-      /const update = \(\) => setPrefersCollapsed\(isSidebarCollapsedByDefault\(\)\);/
-    );
+  it('renders expanded on the server whatever is stored, since the server cannot read it', () => {
+    setup({ collapsed: true });
+
+    expect(renderToString(<Sidebar />)).not.toContain('sidebar-collapsed');
   });
 
-  it('re-checks the preference on resize, not just once at mount', () => {
-    expect(source).toMatch(/globalThis\.window\?\.addEventListener\('resize', update\)/);
+  // The markup is rendered with nothing stored, then a collapsed preference is
+  // stored before hydrating: the client now disagrees with the server HTML,
+  // which is exactly the returning-user case. Hydration has to reuse the server
+  // value and apply the stored one afterwards, with no mismatch reported.
+  it('hydrates server markup cleanly, then applies the stored preference', () => {
+    setup();
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(<Sidebar />);
+    document.body.appendChild(container);
+    window.localStorage.setItem('yc_sidebar_collapsed', '1');
+
+    const errors: unknown[] = [];
+    const recoverable: unknown[] = [];
+    const consoleError = jest.spyOn(console, 'error');
+    const previous = consoleError.getMockImplementation();
+    consoleError.mockImplementation((...args: unknown[]) => {
+      errors.push(args);
+    });
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    try {
+      act(() => {
+        root = hydrateRoot(container, <Sidebar />, {
+          onRecoverableError: (error) => recoverable.push(error),
+        });
+      });
+      expect(errors).toEqual([]);
+      expect(recoverable).toEqual([]);
+      expect(container.querySelector('.sidebar-collapsed')).toBeInTheDocument();
+    } finally {
+      consoleError.mockImplementation(previous);
+      act(() => root?.unmount());
+      container.remove();
+    }
+  });
+
+  it('follows a preference reset in this tab back to the viewport default', () => {
+    setup({ collapsed: true });
+    const { container } = render(<Sidebar />);
+    expect(container.querySelector('.sidebar-collapsed')).toBeInTheDocument();
+
+    act(() => resetSidebarPreference());
+
+    expect(container.querySelector('.sidebar-collapsed')).not.toBeInTheDocument();
+  });
+
+  it('follows a preference changed in another tab', () => {
+    setup({ collapsed: false });
+    const { container } = render(<Sidebar />);
+    expect(container.querySelector('.sidebar-collapsed')).not.toBeInTheDocument();
+
+    // Another tab's write lands in shared storage and arrives as a `storage` event.
+    window.localStorage.setItem('yc_sidebar_collapsed', '1');
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'yc_sidebar_collapsed' }));
+    });
+
+    expect(container.querySelector('.sidebar-collapsed')).toBeInTheDocument();
   });
 });

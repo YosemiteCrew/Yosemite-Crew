@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -33,6 +33,7 @@ import { hasAnyRequiredPermission, resolveMembershipPermissions } from '@/app/li
 import {
   isSidebarCollapsedByDefault,
   setSidebarCollapsedPreference,
+  subscribeSidebarPreference,
 } from '@/app/lib/sidebarPreference';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
@@ -97,22 +98,15 @@ const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  // Starts `false` during SSR and the first client render (matching
-  // useIsTabletRail below) - isSidebarCollapsedByDefault() reads
-  // localStorage/window.innerWidth, which aren't available on the server, so
-  // seeding the initial state from it directly caused the client's first
-  // hydration pass to diverge from the server-rendered markup for any
-  // returning user with a stored "collapsed" preference or a <1280px
-  // viewport. Corrected post-mount instead, same as the tablet check, and
-  // re-checked on resize so the viewport fallback in isSidebarCollapsedByDefault
-  // (used only while no explicit preference is stored) stays live.
-  const [prefersCollapsed, setPrefersCollapsed] = useState(false);
-  useEffect(() => {
-    const update = () => setPrefersCollapsed(isSidebarCollapsedByDefault());
-    update();
-    globalThis.window?.addEventListener('resize', update);
-    return () => globalThis.window?.removeEventListener('resize', update);
-  }, []);
+  // The server has no stored preference or viewport, so it renders expanded
+  // (the `() => false` server snapshot) and hydration matches that markup.
+  // Client renders read the real preference directly, and re-read it when it
+  // changes in this tab or another one, or on resize while nothing is stored.
+  const prefersCollapsed = useSyncExternalStore(
+    subscribeSidebarPreference,
+    isSidebarCollapsedByDefault,
+    () => false
+  );
   // Tablet is always the icon rail, so it overrides a stored desktop preference
   // (which would otherwise render the 224px sidebar after a desktop -> tablet resize).
   const isTabletRail = useIsTabletRail();
@@ -145,13 +139,7 @@ const Sidebar = () => {
     router.push(item.href);
   };
 
-  const handleToggleCollapse = () => {
-    setPrefersCollapsed((prev) => {
-      const next = !prev;
-      setSidebarCollapsedPreference(next);
-      return next;
-    });
-  };
+  const handleToggleCollapse = () => setSidebarCollapsedPreference(!prefersCollapsed);
 
   // Skip the org-data loading gate on localhost with NEXT_PUBLIC_DISABLE_AUTH_GUARD so
   // the nav renders for UI/styling work without a session. The shared helper
