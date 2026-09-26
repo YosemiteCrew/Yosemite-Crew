@@ -20,14 +20,79 @@ export type Cursor = { createdAt: Date; id: string };
 
 export type SelectedRow = { id: string; createdAt: Date };
 
+/** A half-open UTC range [from, to) of createdAt values to leave unqueued. */
+export type ExcludedWindow = { from: Date; to: Date };
+
+export type Args = { apply: boolean; windows: ExcludedWindow[] };
+
+export const USAGE = [
+  "usage: backfill:superadmin-contact [--apply] [--exclude <from>..<to>]...",
+  "  --apply    queue the selected submissions (default: dry run, writes nothing)",
+  "  --exclude  skip submissions created in [from, to), UTC. from and to are ISO",
+  "             dates or datetimes; a bare date is the start of that day, so",
+  "             2026-09-01..2026-09-03 skips 1 and 2 September. Repeatable.",
+].join("\n");
+
+const INSTANT = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?Z?)?$/;
+
 /**
- * Keyset on the (createdAt, id) TUPLE, not on createdAt alone.
- *
- * Millisecond ties are normal in a burst, and a single-column cursor either
- * skips the rest of a tied run or repeats it forever. `id` breaks the tie, and
- * the ordering must match the predicate for that to hold.
+ * An ISO date or datetime, always read as UTC. A bare date is midnight at the
+ * start of that day.
  */
-const pageWhere = (cursor: Cursor | null) => ({
+const parseInstant = (text: string): Date | null => {
+  if (!INSTANT.test(text)) return null;
+  const [day, time = "00:00"] = (
+    text.endsWith("Z") ? text.slice(0, -1) : text
+  ).split("T");
+  const instant = new Date(`${day}T${time}Z`);
+  // Date rolls 2026-02-30 over to 2 March rather than rejecting it, and reads
+  // 24:00 as the next midnight. A round trip catches both.
+  if (Number.isNaN(instant.getTime())) return null;
+  return instant.toISOString().startsWith(`${day}T${time}`) ? instant : null;
+};
+
+const parseWindow = (value: string): ExcludedWindow => {
+  const [fromText, toText, ...rest] = value.split("..");
+  const from = parseInstant(fromText);
+  const to = toText === undefined ? null : parseInstant(toText);
+  if (!from || !to || rest.length > 0) {
+    throw new Error(
+      `invalid --exclude window "${value}": expected <from>..<to> with ISO dates or datetimes`,
+    );
+  }
+  if (from.getTime() >= to.getTime()) {
+    throw new Error(
+      `invalid --exclude window "${value}": from must be before to`,
+    );
+  }
+  return { from, to };
+};
+
+/**
+ * Throws on anything it does not recognise. Every argument is checked before
+ * the first query, so a typo like `-apply` or a mistyped date can neither read
+ * as a dry run nor as an apply over the wrong rows.
+ */
+export const parseArgs = (argv: string[]): Args => {
+  const args: Args = { apply: false, windows: [] };
+  const unknown: string[] = [];
+  const rest = [...argv];
+  for (let arg = rest.shift(); arg !== undefined; arg = rest.shift()) {
+    if (arg === "--apply") {
+      args.apply = true;
+    } else if (arg === "--exclude") {
+      args.windows.push(parseWindow(rest.shift() ?? ""));
+    } else {
+      unknown.push(arg);
+    }
+  }
+  if (unknown.length > 0) {
+    throw new Error(`unknown argument(s): ${unknown.join(" ")}`);
+  }
+  return args;
+};
+
+const unforwarded = {
   // Only createWebRequest writes complaintContext; the authenticated mobile
   // path leaves it unset. So this selects exactly the two public forms the
   // mirror covers, and nothing from the app.
@@ -37,6 +102,26 @@ const pageWhere = (cursor: Cursor | null) => ({
   // SQL NULL. A plain `null` here does not type-check and would not mean this.
   complaintContext: { not: Prisma.DbNull },
   superadminForward: { is: null },
+};
+
+const inRange = ({ from, to }: ExcludedWindow) => ({
+  createdAt: { gte: from, lt: to },
+});
+
+/**
+ * Keyset on the (createdAt, id) TUPLE, not on createdAt alone.
+ *
+ * Millisecond ties are normal in a burst, and a single-column cursor either
+ * skips the rest of a tied run or repeats it forever. `id` breaks the tie, and
+ * the ordering must match the predicate for that to hold.
+ */
+const pageWhere = (cursor: Cursor | null, windows: ExcludedWindow[]) => ({
+  ...unforwarded,
+  // In the query, not filtered afterwards: the keyset below then walks only
+  // the rows that are kept, in the same (createdAt, id) order.
+  ...(windows.length > 0
+    ? { AND: windows.map((range) => ({ NOT: inRange(range) })) }
+    : {}),
   ...(cursor
     ? {
         OR: [
@@ -48,13 +133,15 @@ const pageWhere = (cursor: Cursor | null) => ({
 });
 
 /** Every selected row, in one ordered pass. */
-export const selectRows = async (): Promise<SelectedRow[]> => {
+export const selectRows = async (
+  windows: ExcludedWindow[] = [],
+): Promise<SelectedRow[]> => {
   const rows: SelectedRow[] = [];
   let cursor: Cursor | null = null;
 
   for (;;) {
     const page: SelectedRow[] = await prisma.contactRequest.findMany({
-      where: pageWhere(cursor),
+      where: pageWhere(cursor, windows),
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: PAGE_SIZE,
       select: { id: true, createdAt: true },
@@ -86,23 +173,32 @@ export const countPerDay = (rows: SelectedRow[]): Map<string, number> => {
 };
 
 export const main = async (argv: string[] = process.argv.slice(2)) => {
-  const apply = argv.includes("--apply");
-  // Unknown arguments exit non-zero BEFORE any query: a typo like `-apply`
-  // must not read as a dry run and must not read as an apply.
-  const unknown = argv.filter((arg) => arg !== "--apply");
-  if (unknown.length > 0) {
-    console.error(`unknown argument(s): ${unknown.join(" ")}`);
-    console.error("usage: backfill:superadmin-contact [--apply]");
+  let args: Args;
+  try {
+    args = parseArgs(argv);
+  } catch (error) {
+    console.error((error as Error).message);
+    console.error(USAGE);
     process.exitCode = 1;
     return;
   }
+  const { apply, windows } = args;
 
-  const rows = await selectRows();
-  console.log(`${rows.length} web submission(s) with no forward row`);
+  const rows = await selectRows(windows);
+  const scope = windows.length > 0 ? " outside the excluded window(s)" : "";
+  console.log(`${rows.length} web submission(s) with no forward row${scope}`);
   for (const [day, count] of [...countPerDay(rows)].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
     console.log(`  ${day}: ${count}`);
+  }
+  for (const range of windows) {
+    const excluded = await prisma.contactRequest.count({
+      where: { ...unforwarded, ...inRange(range) },
+    });
+    console.log(
+      `excluded [${range.from.toISOString()}, ${range.to.toISOString()}): ${excluded}`,
+    );
   }
 
   if (!apply) {
