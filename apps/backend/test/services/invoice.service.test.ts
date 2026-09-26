@@ -1082,9 +1082,9 @@ describe("InvoiceService", () => {
       billingCollectionMode: "PAY_AT_VISIT_END",
       visitBillingStage: "DRAFT",
       depositTargetAmount: 0,
-      depositCollectedAmount: 12,
+      depositCollectedAmount: 12.5,
       totalAmount: 100,
-      currency: "usd",
+      currency: "jpy",
       status: "AWAITING_PAYMENT",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1093,10 +1093,10 @@ describe("InvoiceService", () => {
       id: "inv_deposit",
       billingCollectionMode: "DEPOSIT_THEN_SETTLE",
       visitBillingStage: "READY_FOR_BILLING",
-      depositTargetAmount: 20,
-      depositCollectedAmount: 12,
+      depositTargetAmount: 21,
+      depositCollectedAmount: 13,
       totalAmount: 100,
-      currency: "usd",
+      currency: "jpy",
       status: "AWAITING_PAYMENT",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1104,7 +1104,7 @@ describe("InvoiceService", () => {
 
     const updated = await InvoiceService.setInvoiceDepositTarget(
       "inv_deposit",
-      20,
+      20.5,
     );
 
     expect(prisma.invoice.update).toHaveBeenCalledWith(
@@ -1112,8 +1112,8 @@ describe("InvoiceService", () => {
         where: { id: "inv_deposit" },
         data: expect.objectContaining({
           billingCollectionMode: "DEPOSIT_THEN_SETTLE",
-          depositTargetAmount: 20,
-          depositCollectedAmount: 12,
+          depositTargetAmount: 21,
+          depositCollectedAmount: 13,
         }),
       }),
     );
@@ -1121,7 +1121,7 @@ describe("InvoiceService", () => {
     expect(updateArgs.data).not.toHaveProperty("visitBillingStage");
     expect(updateArgs.data).not.toHaveProperty("readyForBillingAt");
     expect(updateArgs.data).not.toHaveProperty("readyForBillingActorId");
-    expect(updated?.depositTargetAmount).toBe(20);
+    expect(updated?.depositTargetAmount).toBe(21);
   });
 
   it("rejects negative deposit targets", async () => {
