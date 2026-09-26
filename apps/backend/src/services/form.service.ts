@@ -17,6 +17,7 @@ import {
 import { templateMapper } from "src/services/fhir-template.mapper";
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
+import { assertPatientOrgMembership } from "src/services/shared/patient-org-membership";
 import logger from "src/utils/logger";
 import { DocumensoService } from "./documenso.service";
 import { AuditTrailService } from "./audit-trail.service";
@@ -59,6 +60,21 @@ const ensureId = (id: string, label: string): string => {
   const trimmed = (id ?? "").trim();
   if (!trimmed) throw new FormServiceError(`Invalid ${label}`, 400);
   return trimmed;
+};
+
+// A form of another organisation is answered the same way as a missing one.
+const loadFormInOrganisation = async (
+  formId: string,
+  orgId: string | undefined,
+) => {
+  const form = await prisma.form.findFirst({
+    where: {
+      id: ensureId(formId, "formId"),
+      orgId: ensureId(orgId ?? "", "orgId"),
+    },
+  });
+  if (!form) throw new FormServiceError("Form not found", 404);
+  return form;
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -975,6 +991,57 @@ const toFormFromPrisma = (form: {
   updatedAt: form.updatedAt,
 });
 
+const throwForbidden = (): never => {
+  throw new FormServiceError("Forbidden", 403);
+};
+
+// Ids read from a client payload reach a query only as plain strings.
+const isIdOrAbsent = (value: unknown) => !value || typeof value === "string";
+
+/**
+ * A concrete form's submission is written into the form's own organisation.
+ * Practice staff submit only their organisation's forms; a parent submits for a
+ * companion they may act for. An appointment or companion the caller may not
+ * use is answered the same way as one that does not exist.
+ */
+const assertFormSubmittableBy = async (
+  submission: FormSubmission,
+  formOrgId: string,
+  actor?: { parentId: string } | { organisationId: string },
+) => {
+  if (!actor) return;
+  if ("organisationId" in actor && formOrgId !== actor.organisationId) {
+    throw new FormServiceError("Form not found", 404);
+  }
+
+  const { appointmentId, patientId } = submission;
+  if (!isIdOrAbsent(appointmentId) || !isIdOrAbsent(patientId)) {
+    throwForbidden();
+  }
+
+  if (appointmentId) {
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId: formOrgId },
+      select: { patient: true },
+    });
+    if (!appointment) {
+      throw new FormServiceError("Forbidden", 403);
+    }
+    if ("parentId" in actor) {
+      await assertParentCanViewAppointment(appointment, actor.parentId);
+    }
+  }
+
+  if (patientId) {
+    await ("parentId" in actor
+      ? assertParentCanViewAppointment(
+          { patient: { id: patientId } },
+          actor.parentId,
+        )
+      : assertPatientOrgMembership(patientId, formOrgId, throwForbidden));
+  }
+};
+
 const syncFormFields = async (formId: string, schema: FormField[]) => {
   const flat = flattenFields(schema);
 
@@ -1130,15 +1197,7 @@ export const FormService = {
   },
 
   async getFormForAdmin(orgId: string, formId: string) {
-    const oid = ensureId(orgId, "orgId");
-    const fid = ensureId(formId, "formId");
-
-    const doc = await prisma.form.findFirst({
-      where: { id: fid, orgId: oid },
-    });
-    if (!doc) {
-      throw new FormServiceError("Form not found", 404);
-    }
+    const doc = await loadFormInOrganisation(formId, orgId);
     const form = toFormFromPrisma(doc);
     const nameMap = await resolveUserNameMap([form.createdBy, form.updatedBy]);
     return toFormResponseDTO(applyUserNamesToForm(form, nameMap));
@@ -1188,17 +1247,8 @@ export const FormService = {
     userId: string,
     orgId: string,
   ) {
-    const fid = ensureId(formId, "formId");
     const internal = parseFormRequest(fhir);
-    const fidString = fid;
-
-    const existing = await prisma.form.findUnique({
-      where: { id: fidString },
-    });
-    if (!existing) throw new FormServiceError("Form not found", 404);
-
-    if (existing.orgId !== orgId)
-      throw new FormServiceError("Form is not part of your organisation", 400);
+    const { id: fidString } = await loadFormInOrganisation(formId, orgId);
 
     const updated = await prisma.form.update({
       where: { id: fidString },
@@ -1224,13 +1274,9 @@ export const FormService = {
     return applyUserNamesToForm(form, nameMap);
   },
 
-  async publish(formId: string, userId: string) {
-    const fid = ensureId(formId, "formId");
-
-    const form = await prisma.form.findUnique({
-      where: { id: fid },
-    });
-    if (!form) throw new FormServiceError("Form not found", 404);
+  async publish(formId: string, userId: string, orgId: string | undefined) {
+    const form = await loadFormInOrganisation(formId, orgId);
+    const fid = form.id;
 
     const lastVersion = await prisma.formVersion.findFirst({
       where: { formId: fid },
@@ -1261,13 +1307,8 @@ export const FormService = {
     return { formId, version: nextVersion };
   },
 
-  async unpublish(formId: string, userId: string) {
-    const fid = ensureId(formId, "formId");
-
-    const form = await prisma.form.findUnique({
-      where: { id: fid },
-    });
-    if (!form) throw new FormServiceError("Form not found", 404);
+  async unpublish(formId: string, userId: string, orgId: string | undefined) {
+    const { id: fid } = await loadFormInOrganisation(formId, orgId);
 
     const updated = await prisma.form.update({
       where: { id: fid },
@@ -1276,13 +1317,8 @@ export const FormService = {
     return toFormFromPrisma(updated);
   },
 
-  async archive(formId: string, userId: string) {
-    const fid = ensureId(formId, "formId");
-
-    const form = await prisma.form.findUnique({
-      where: { id: fid },
-    });
-    if (!form) throw new FormServiceError("Form not found", 404);
+  async archive(formId: string, userId: string, orgId: string | undefined) {
+    const { id: fid } = await loadFormInOrganisation(formId, orgId);
 
     const updated = await prisma.form.update({
       where: { id: fid },
@@ -1332,6 +1368,7 @@ export const FormService = {
     if (!formOrganisation) {
       return submitViaTemplateInstance(formIdString, submission, actor);
     }
+    await assertFormSubmittableBy(submission, formOrganisation.orgId, actor);
 
     const created = await prisma.formSubmission.create({
       data: {

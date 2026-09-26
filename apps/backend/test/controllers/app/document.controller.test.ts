@@ -119,7 +119,7 @@ describe("DocumentController", () => {
       } as never);
       (
         prisma.parentPatient.findFirst as unknown as jest.Mock
-      ).mockResolvedValue({ id: "parent-link-1" } as never);
+      ).mockResolvedValue({ role: "PRIMARY", permissions: {} } as never);
     };
 
     it("rejects a companion the caller's parent is not linked to", async () => {
@@ -142,6 +142,70 @@ describe("DocumentController", () => {
       req.body = { patientId: "c1" }; // missing mimeType
       await DocumentController.getUploadUrl(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("returns 400 for a companion id that is not a string", async () => {
+      req.body = { patientId: { not: "" }, mimeType: "image/png" };
+      authoriseAsParent();
+
+      await DocumentController.getUploadUrl(req as never, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(prisma.parentPatient.findFirst).not.toHaveBeenCalled();
+      expect(UploadMiddleware.generatePresignedUrl).not.toHaveBeenCalled();
+    });
+
+    it("looks up only an ACTIVE PRIMARY or CO_PARENT link", async () => {
+      req.body = { patientId: "c1", mimeType: "image/png" };
+      authoriseAsParent();
+
+      await DocumentController.getUploadUrl(req as never, res as Response);
+
+      expect(prisma.parentPatient.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            patientId: "c1",
+            parentId: "parent-1",
+            status: "ACTIVE",
+            role: { in: ["PRIMARY", "CO_PARENT"] },
+          },
+        }),
+      );
+    });
+
+    it("returns 404 for a co-parent without the documents permission", async () => {
+      req.body = { patientId: "c1", mimeType: "image/png" };
+      authoriseAsParent();
+      (
+        prisma.parentPatient.findFirst as unknown as jest.Mock
+      ).mockResolvedValue({
+        role: "CO_PARENT",
+        permissions: { documents: false },
+      } as never);
+
+      await DocumentController.getUploadUrl(req as never, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(UploadMiddleware.generatePresignedUrl).not.toHaveBeenCalled();
+    });
+
+    it("issues an upload URL to a co-parent with the documents permission", async () => {
+      req.body = { patientId: "c1", mimeType: "image/png" };
+      authoriseAsParent();
+      (
+        prisma.parentPatient.findFirst as unknown as jest.Mock
+      ).mockResolvedValue({
+        role: "CO_PARENT",
+        permissions: { documents: true },
+      } as never);
+      jest.mocked(UploadMiddleware.generatePresignedUrl).mockResolvedValue({
+        url: "http://s3",
+        key: "key",
+      });
+
+      await DocumentController.getUploadUrl(req as never, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should success (200)", async () => {
@@ -227,6 +291,60 @@ describe("DocumentController", () => {
       mockGenericError("create");
       await DocumentController.createDocument(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("attachment keys on create", () => {
+    const foreignKey = { key: "companion/c2/0f4d.pdf", mimeType: "image/png" };
+
+    it("returns 400 on the mobile route for another companion's file", async () => {
+      req.params = { patientId: "c1" };
+      (req as any).userId = "u1";
+      req.body = {
+        title: "Doc",
+        category: "Health",
+        attachments: [foreignKey],
+      };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
+
+      await DocumentController.createDocument(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedDocumentService.create).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 on the PMS route for another companion's file", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.params = { patientId: "c1" };
+      req.body = {
+        title: "Doc",
+        category: "Health",
+        attachments: [foreignKey],
+      };
+
+      await DocumentController.createDocumentPms(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedDocumentService.create).not.toHaveBeenCalled();
+    });
+
+    it("creates with the companion's own files", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.params = { patientId: "c1" };
+      req.body = {
+        title: "Doc",
+        category: "Health",
+        attachments: [{ key: "companion/c1/0f4d.pdf", mimeType: "image/png" }],
+      };
+      mockedDocumentService.create.mockResolvedValue({ id: "d1" } as any);
+
+      await DocumentController.createDocumentPms(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(201);
     });
   });
 

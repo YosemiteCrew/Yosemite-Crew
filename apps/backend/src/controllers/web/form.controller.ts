@@ -167,7 +167,11 @@ export const FormController = {
           .json({ message: "Unauthorized: User ID missing" });
       }
 
-      const form = await FormService.publish(formId, userId);
+      const form = await FormService.publish(
+        formId,
+        userId,
+        (req as OrgRequest).organisationId,
+      );
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -188,7 +192,11 @@ export const FormController = {
           .json({ message: "Unauthorized: User ID missing" });
       }
 
-      const form = await FormService.unpublish(formId, userId);
+      const form = await FormService.unpublish(
+        formId,
+        userId,
+        (req as OrgRequest).organisationId,
+      );
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -209,7 +217,11 @@ export const FormController = {
           .json({ message: "Unauthorized: User ID missing" });
       }
 
-      const form = await FormService.archive(formId, userId);
+      const form = await FormService.archive(
+        formId,
+        userId,
+        (req as OrgRequest).organisationId,
+      );
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {

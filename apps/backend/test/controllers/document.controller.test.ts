@@ -25,6 +25,7 @@ jest.mock("../../src/services/document.service", () => {
   return {
     __esModule: true,
     DocumentServiceError: MockDocumentServiceError,
+    assertCompanionAttachmentKeys: jest.fn(),
     DocumentService: {
       create: jest.fn(),
       listForParent: jest.fn(),

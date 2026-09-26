@@ -7,6 +7,7 @@ import {
 } from "src/middlewares/upload";
 import { assertSafeString } from "src/utils/sanitize";
 import { documentWhereForOrg } from "./document-scope";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 
 export class DocumentServiceError extends Error {
@@ -133,6 +134,10 @@ const getPatientIdFromAppointment = (patient: unknown): string | null => {
   return null;
 };
 
+// The rule `requireCompanionPermission("documents")` enforces on the
+// patient-keyed mobile document routes (an ACTIVE link, and the documents
+// permission for a co-parent), applied here because the document-keyed routes
+// carry no patient id for that middleware to read.
 const assertParentCanAccessCompanion = async (
   parentId: string,
   patientId: string,
@@ -141,12 +146,13 @@ const assertParentCanAccessCompanion = async (
     where: {
       parentId: normalizeStringId(parentId, "parentId"),
       patientId: normalizeStringId(patientId, "patientId"),
-      status: { in: ["ACTIVE", "PENDING"] },
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
     },
-    select: { id: true },
+    select: { role: true, permissions: true },
   });
 
-  if (!link) {
+  if (!link || !hasCompanionFeature(link.role, link.permissions, "documents")) {
     throw new DocumentServiceError("Document not found.", 404);
   }
 };
@@ -572,6 +578,53 @@ const loadCaseAndEncounterIdsForPatient = async (params: {
   };
 };
 
+// The keys the upload-url routes issue for a companion:
+// `companion/<patientId>/<file name>`.
+const isCompanionUploadKey = (key: unknown, patientId: string): boolean => {
+  if (typeof key !== "string") return false;
+  const prefix = `companion/${patientId}/`;
+  return (
+    key.startsWith(prefix) && /^[\w-][\w.-]*$/.test(key.slice(prefix.length))
+  );
+};
+
+/**
+ * Attachments added from a request must be files uploaded for the document's
+ * own companion. The shape of the list is validated where the document is
+ * written; this only looks at the keys.
+ */
+export const assertCompanionAttachmentKeys = (
+  patientId: string,
+  attachments: unknown,
+): void => {
+  const list: unknown[] = Array.isArray(attachments) ? attachments : [];
+  const allowed = list.every((attachment) =>
+    isCompanionUploadKey(
+      (attachment as { key?: unknown } | null)?.key,
+      patientId,
+    ),
+  );
+  if (!allowed) {
+    throw new DocumentServiceError("Invalid attachment key.", 400);
+  }
+};
+
+// A document linked to an appointment belongs to that appointment's companion,
+// and a practice links only its own appointments.
+const assertAppointmentForCompanion = async (
+  appointmentId: string,
+  patientId: string,
+  organisationId: string | undefined,
+): Promise<void> => {
+  const appointment = await loadAppointmentForDocumentLookup(appointmentId);
+  if (
+    appointment?.patientId !== patientId ||
+    (organisationId && appointment.organisationId !== organisationId)
+  ) {
+    throw new DocumentServiceError("Appointment not found.", 404);
+  }
+};
+
 const createDocumentRecord = async (
   input: CreateDocumentInput,
   context: DocumentCreateContext,
@@ -594,6 +647,19 @@ const createDocumentRecord = async (
     ? input.subcategory.toUpperCase()
     : null;
   validateCategoryAndSubcategory(category, subcategory);
+
+  if (context.organisationId) {
+    await assertPatientOrgMembership(patientId, context.organisationId, () => {
+      throw new DocumentServiceError("Companion not found.", 404);
+    });
+  }
+  if (appointmentId) {
+    await assertAppointmentForCompanion(
+      appointmentId,
+      patientId,
+      context.organisationId,
+    );
+  }
 
   const issueDate = parseIssueDate(input.issueDate);
   const attachments: AttachmentInput[] = input.attachments.map((att) => ({
@@ -982,15 +1048,17 @@ export const DocumentService = {
         id: normalizeStringId(id, "documentId"),
         uploadedByParentId: normalizeStringId(parentId, "parentId"),
       },
-      select: { id: true, attachments: { select: { key: true } } },
+      select: {
+        id: true,
+        patientId: true,
+        attachments: { select: { key: true } },
+      },
     });
 
     if (!doc) {
-      throw new DocumentServiceError(
-        "Document not found or not deletable.",
-        404,
-      );
+      throw new DocumentServiceError("Document not found.", 404);
     }
+    await assertParentCanAccessCompanion(parentId, doc.patientId);
 
     for (const attachment of doc.attachments) {
       await deleteFromS3(attachment.key);
@@ -1126,6 +1194,15 @@ export const DocumentService = {
 
     if (context.pmsUserId) {
       await assertPmsCanUpdateDocument(context, doc);
+    }
+
+    if (Array.isArray(updates.attachments)) {
+      // Attachments the document already has are kept as they are.
+      const existingKeys = new Set(doc.attachments.map(({ key }) => key));
+      assertCompanionAttachmentKeys(
+        doc.patientId,
+        updates.attachments.filter(({ key }) => !existingKeys.has(key)),
+      );
     }
 
     const { category, subcategory } = resolveUpdatedCategorization(
