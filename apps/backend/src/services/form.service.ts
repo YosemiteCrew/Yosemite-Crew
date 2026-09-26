@@ -423,6 +423,13 @@ const resolveSignedPdfUrl = async (
   });
 };
 
+// Signing details and the signed copy go to the parent a submission names
+// when they filled it in or signed it.
+const parentHoldsSigning = (submission: SubmissionAgg, parentId: string) =>
+  submission.parentId === parentId &&
+  (submission.submittedBy === parentId ||
+    submission.signing?.signer?.role === "CLIENT");
+
 const buildQuestionnaireResponse = async (
   submission: SubmissionAgg | undefined,
   version: VersionAgg,
@@ -430,11 +437,17 @@ const buildQuestionnaireResponse = async (
   viewerParentId?: string,
 ) => {
   if (!submission) return undefined;
-  // Signing details are shown to a parent only on a form they filled in.
-  if (viewerParentId && !isOwnSubmission(submission, viewerParentId)) {
+  // Any other parent sees only whether it needs, and has, a signature.
+  if (viewerParentId && !parentHoldsSigning(submission, viewerParentId)) {
+    const { signing } = submission;
     return toParentSubmissionResponse(
       { ...submission, id: submission._id },
       version.schemaSnapshot,
+      signing && {
+        required: signing.required,
+        status: signing.status,
+        provider: signing.provider,
+      },
     );
   }
   const signedPdfUrl = await resolveSignedPdfUrl(submission, orgId);
@@ -446,7 +459,10 @@ const buildQuestionnaireResponse = async (
       appointmentId: submission.appointmentId,
       patientId: submission.patientId,
       parentId: submission.parentId,
-      submittedBy: submission.submittedBy,
+      submittedBy:
+        viewerParentId && !isParentFilled(submission)
+          ? undefined
+          : submission.submittedBy,
       answers: submission.answers,
       submittedAt: submission.submittedAt,
       signing: submission.signing
@@ -977,11 +993,12 @@ type SubmissionRow = SubmissionAccessRow & {
   submittedAt: Date;
 };
 
-// The pet parent's view of a submission, without the signing metadata, and
-// with the submitter only when that is the parent.
+// The pet parent's view of a submission, with no signing metadata beyond
+// `signing`, and with the submitter only when that is the parent.
 const toParentSubmissionResponse = (
   sub: SubmissionRow,
   schemaSnapshot: unknown,
+  signing?: FormSubmission["signing"],
 ) =>
   toFHIRQuestionnaireResponse(
     {
@@ -996,6 +1013,7 @@ const toParentSubmissionResponse = (
         : undefined,
       answers: sub.answers as Record<string, unknown>,
       submittedAt: sub.submittedAt,
+      ...(signing ? { signing } : {}),
     },
     coerceFormFields(schemaSnapshot),
   );

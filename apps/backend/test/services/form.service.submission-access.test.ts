@@ -10,8 +10,9 @@
 // companion, and the medical records permission for a co-parent.
 //
 // Appointment forms (getFormsForAppointment): each form's latest submission
-// the caller may see by the submission rule above. Signing details are shown
-// only on the caller's own submissions.
+// the caller may see by the submission rule above. Signing details and the
+// signed copy are shown only to the parent a submission names when they filled
+// it in or signed it; any other submission shows only its signing state.
 
 jest.mock("../../src/services/documenso.service", () => ({
   DocumensoService: { downloadSignedDocument: jest.fn() },
@@ -626,13 +627,25 @@ describe("FormService appointment forms for a pet parent", () => {
     formRow(SOAP_FORM, "SOAP-Subjective"),
   ];
 
-  const signed = (documentId: string, email: string) => ({
+  const signed = (
+    documentId: string,
+    email: string,
+    role: "CLIENT" | "VET" = "CLIENT",
+  ) => ({
     required: true,
     status: "SIGNED",
     provider: "DOCUMENSO",
     documentId,
-    signer: { email, role: "CLIENT" },
+    signer: { email, role },
   });
+
+  // All a parent sees of the signing on a submission they neither filled in
+  // nor signed.
+  const SIGNING_STATE = {
+    required: true,
+    status: "SIGNED",
+    provider: "DOCUMENSO",
+  };
 
   const onAppointment = (id: string, overrides: Row): Row =>
     submission(id, {
@@ -648,12 +661,19 @@ describe("FormService appointment forms for a pet parent", () => {
     signing: signed("77", "caller@example.com"),
   });
 
-  // A signed note the practice wrote on this appointment.
+  // A note the practice wrote and signed on this appointment.
   const practiceNote = onAppointment("practice-note", {
     formId: SOAP_FORM,
     parentId: CALLER,
     submittedBy: STAFF,
-    signing: signed("88", "vet@example.com"),
+    signing: signed("88", "vet@example.com", "VET"),
+  });
+
+  // A consent the practice filled in and sent to the caller, who signed it.
+  const consentSentToCaller = onAppointment("consent-sent-to-caller", {
+    parentId: CALLER,
+    submittedBy: STAFF,
+    signing: signed("66", "caller@example.com"),
   });
 
   const readForms = async (
@@ -696,7 +716,7 @@ describe("FormService appointment forms for a pet parent", () => {
     );
   });
 
-  it("shows the primary parent the practice's note without its signing details or submitter", async () => {
+  it("shows the primary parent the practice's note with only its signing state and no submitter", async () => {
     useTables({ links: [link()], submissions: [practiceNote, ownConsent] });
 
     const note = responseOf(await readForms(), SOAP_FORM);
@@ -707,10 +727,27 @@ describe("FormService appointment forms for a pet parent", () => {
       parentId: CALLER,
       submittedBy: undefined,
     });
-    expect(note).not.toHaveProperty("signing");
+    expect(note?.signing).toEqual(SIGNING_STATE);
     expect(DocumensoService.downloadSignedDocument).not.toHaveBeenCalledWith(
       expect.objectContaining({ documentId: 88 }),
     );
+  });
+
+  it("keeps the signing state and signed copy of a practice form the caller signed, without the practice user", async () => {
+    useTables({ links: [link()], submissions: [consentSentToCaller] });
+
+    const consent = responseOf(await readForms(), FORM);
+
+    expect(consent).toMatchObject({
+      _id: "consent-sent-to-caller",
+      parentId: CALLER,
+      submittedBy: undefined,
+      signing: {
+        status: "SIGNED",
+        signer: { email: "caller@example.com", role: "CLIENT" },
+        pdf: { url: "https://signed.example/66" },
+      },
+    });
   });
 
   it("keeps the signing state and signed copy of the caller's own form", async () => {
@@ -765,10 +802,10 @@ describe("FormService appointment forms for a pet parent", () => {
       _id: "practice-note",
       submittedBy: undefined,
     });
-    expect(note).not.toHaveProperty("signing");
+    expect(note?.signing).toEqual(SIGNING_STATE);
   });
 
-  it("shows another parent's form without its signing details", async () => {
+  it("shows another parent's signed form with only its signing state", async () => {
     useTables({
       links: [coParent({ appointments: true })],
       submissions: [
@@ -784,8 +821,25 @@ describe("FormService appointment forms for a pet parent", () => {
       _id: "other-parents-consent",
       submittedBy: OTHER_PARENT,
     });
-    expect(consent).not.toHaveProperty("signing");
+    expect(consent?.signing).toEqual(SIGNING_STATE);
     expect(DocumensoService.downloadSignedDocument).not.toHaveBeenCalled();
+  });
+
+  it("shows a form with no signing recorded without a signing state", async () => {
+    useTables({
+      links: [link()],
+      submissions: [
+        onAppointment("practice-row-unsigned", {
+          parentId: CALLER,
+          submittedBy: STAFF,
+        }),
+      ],
+    });
+
+    const row = responseOf(await readForms(), FORM);
+
+    expect(row).toMatchObject({ _id: "practice-row-unsigned" });
+    expect(row).not.toHaveProperty("signing");
   });
 
   it("shows the latest submission the caller may see when a newer one is hidden", async () => {
