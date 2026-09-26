@@ -509,6 +509,25 @@ describe('AppointmentFormScreen — final coverage push', () => {
   // form has no submission → isReadOnly=false but lockNonCheckboxInputs=true)
   // -------------------------------------------------------------------------
 
+  // A form the client signs that is not a consent is filled in first, so its
+  // answers stay editable while it waits to be submitted and signed.
+  describe('a form to fill and sign that is not a consent', () => {
+    it('keeps its answer fields editable', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, allowSign: true},
+      });
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {...baseFormEntry, signingRequired: true},
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+
+      expect(getByTestId('input-Name').props.editable).not.toBe(false);
+      fireEvent.changeText(getByTestId('input-Name'), 'Jane');
+      expect(getByTestId('input-Name').props.value).toBe('Jane');
+    });
+  });
+
   describe('renderChoiceOptions radio — disableSelection when allowSign=true', () => {
     it('pressing a radio option is a no-op when lockNonCheckboxInputs=true (allowSign mode)', async () => {
       (useRoute as jest.Mock).mockReturnValue({
@@ -527,7 +546,10 @@ describe('AppointmentFormScreen — final coverage push', () => {
         },
       ];
       // No submission → isReadOnly=false; allowSign=true → lockNonCheckboxInputs=true → disableSelection=true
-      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      const entry = {
+        ...baseFormEntry,
+        form: {...baseFormEntry.form, category: 'Consent form', schema},
+      };
       (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
         entry,
       ]);
@@ -1852,6 +1874,8 @@ describe('AppointmentFormScreen — final coverage push', () => {
         ...baseFormEntry,
         form: {
           ...baseFormEntry.form,
+          // Signing mode answers only a consent's checkboxes.
+          category: 'Consent form',
           schema: [
             {
               id: 'placeholderField',
@@ -2130,7 +2154,10 @@ describe('AppointmentFormScreen — final coverage push', () => {
           placeholder: 'Describe the visit',
         },
       ];
-      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      const entry = {
+        ...baseFormEntry,
+        form: {...baseFormEntry.form, category: 'Consent form', schema},
+      };
       (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
         entry,
       ]);
@@ -2373,6 +2400,8 @@ describe('AppointmentFormScreen — final coverage push', () => {
         ...baseFormEntry,
         form: {
           ...baseFormEntry.form,
+          // Signing mode answers only a consent's checkboxes.
+          category: 'Consent form',
           schema: [
             {id: 'info', type: 'input', label: 'Info', text: 'Reserved'},
           ],

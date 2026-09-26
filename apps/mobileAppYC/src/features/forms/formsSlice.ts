@@ -15,6 +15,7 @@ import type {
 import {
   deriveFormStatus,
   hasSignatureField,
+  isConsentForm,
   normalizeFormForState,
   normalizeSubmissionFromApi,
   resolveFormVersion,
@@ -45,7 +46,7 @@ const shouldRequireSignature = (
   if (submission?.signing?.required) {
     return true;
   }
-  if ((form.category ?? '').toLowerCase().includes('consent')) {
+  if (isConsentForm(form)) {
     return true;
   }
   return hasSignatureField(form.schema);

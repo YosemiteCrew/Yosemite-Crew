@@ -36,6 +36,8 @@ jest.mock('../../../src/features/auth/sessionManager', () => ({
 jest.mock('../../../src/features/forms/utils', () => ({
   deriveFormStatus: jest.fn(),
   hasSignatureField: jest.fn(),
+  isConsentForm: jest.requireActual('../../../src/features/forms/utils')
+    .isConsentForm,
   normalizeFormForState: jest.fn(),
   normalizeSubmissionFromApi: jest.fn(),
   resolveFormVersion: jest.fn(),

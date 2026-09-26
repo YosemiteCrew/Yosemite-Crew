@@ -34,6 +34,7 @@ import {
   fetchAppointmentForms,
 } from '@/features/forms';
 import {
+  isConsentForm,
   stripHtmlToPlainText,
   wrapPlainTextAsHtml,
 } from '@/features/forms/utils';
@@ -283,7 +284,10 @@ export const AppointmentFormScreen: React.FC = () => {
     entry?.signingRequired &&
     entry.submission &&
     entry.status !== 'signed';
-  const lockNonCheckboxInputs = Boolean(allowSign);
+  // A consent is agreed to by ticking its statements, so only its checkboxes
+  // are answered. Any other form the client signs is filled in first.
+  const lockNonCheckboxInputs =
+    Boolean(allowSign) && isConsentForm(entry?.form);
 
   const headerSubtitle = useMemo(() => {
     const dateLabel = appointment?.date ? getDisplayDate(appointment.date) : '';
