@@ -12,7 +12,6 @@ import {
 import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { InvoiceService } from "./invoice.service";
-import { roundMoney } from "./finance/pricing";
 import { StripeService } from "./stripe.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
@@ -257,8 +256,8 @@ const mapCatalogSelectionToDraftItems = (selection: {
         {
           description: selection.name,
           quantity: 1,
-          unitPrice: roundMoney(selection.finalAmount),
-          total: roundMoney(selection.finalAmount),
+          unitPrice: selection.finalAmount,
+          total: selection.finalAmount,
         },
       ]
     : selection.billingItems.map((item) => ({

@@ -14,18 +14,11 @@ describe("finance/pricing", () => {
     expect(roundMoney(10.005)).toBe(10.01);
   });
 
-  it("disagrees with the exact quantizer where scaling the float loses a tie", () => {
-    // Pins the divergence rather than assuming there is none: 8.165 * 100 is
-    // 816.4999999999999 in binary and the epsilon nudge does not reach the
-    // tie, so this function posts 8.16 where invoice pricing now posts 8.17.
-    // Any caller moved onto the exact quantizer changes by this much.
-    expect(roundMoney(8.165)).toBe(8.16);
-    expect(quantizeMoney(8.165, 2)).toBe(8.17);
-    expect(roundMoney(-2.675)).toBe(-2.67);
-    expect(quantizeMoney(-2.675, 2)).toBe(-2.68);
-    // Where the nudge does reach the tie the two agree, so the divergence is
-    // a property of the amount and not of the sign.
-    expect(roundMoney(-10.005)).toBe(quantizeMoney(-10.005, 2));
+  it("rounds decimal ties exactly at the selected currency precision", () => {
+    expect(roundMoney(8.165)).toBe(8.17);
+    expect(roundMoney(-2.675)).toBe(-2.68);
+    expect(roundMoney(1.5, "JPY")).toBe(2);
+    expect(roundMoney(1.2345, "KWD")).toBe(1.235);
   });
 
   describe("calculateInvoiceDiscountPercentOfBase", () => {

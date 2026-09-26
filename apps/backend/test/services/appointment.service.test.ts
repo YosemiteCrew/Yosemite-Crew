@@ -819,7 +819,7 @@ describe("AppointmentService", () => {
         legacyServiceId: null,
         isBookable: true,
         appointmentKinds: ["OUTPATIENT"],
-        finalAmount: 317.5,
+        finalAmount: 317.125,
         billingItems: [
           {
             productItemId: "prod_bundle",
@@ -908,8 +908,8 @@ describe("AppointmentService", () => {
             {
               description: "Dental Bundle",
               quantity: 1,
-              unitPrice: 317.5,
-              total: 317.5,
+              unitPrice: 317.125,
+              total: 317.125,
             },
           ],
         }),

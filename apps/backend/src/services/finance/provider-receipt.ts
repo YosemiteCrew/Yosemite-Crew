@@ -538,10 +538,11 @@ export const allocatedReceiptStatus = (input: {
   amount: number;
   refundedAmount: number;
   allocatedAmount: number;
+  currency?: string;
 }): PrismaProviderReceiptStatus => {
   if (REVERSED_STATUSES.has(input.status)) return input.status;
   return input.allocatedAmount >=
-    roundMoney(input.amount - input.refundedAmount)
+    roundMoney(input.amount - input.refundedAmount, input.currency)
     ? "ALLOCATED"
     : "UNALLOCATED";
 };
@@ -557,9 +558,11 @@ export const allocatableResidual = (input: {
   amount: number;
   refundedAmount: number;
   allocatedAmount: number;
+  currency?: string;
 }): number =>
   roundMoney(
     Math.max(0, input.amount - input.refundedAmount - input.allocatedAmount),
+    input.currency,
   );
 
 /**
@@ -831,7 +834,7 @@ const releaseUnappliedReservation = async (
   reserved: number,
   applied: number,
 ): Promise<void> => {
-  const shortfall = roundMoney(reserved - applied);
+  const shortfall = roundMoney(reserved - applied, receipt.currency);
   if (shortfall <= 0) return;
 
   const current = await prisma.providerReceipt.update({
@@ -842,6 +845,7 @@ const releaseUnappliedReservation = async (
     },
     select: {
       status: true,
+      currency: true,
       amount: true,
       refundedAmount: true,
       allocatedAmount: true,
@@ -931,7 +935,11 @@ const reserveAllocation = async (
     status: receipt.status,
     amount: receipt.amount,
     refundedAmount: receipt.refundedAmount,
-    allocatedAmount: roundMoney(receipt.allocatedAmount + requested),
+    allocatedAmount: roundMoney(
+      receipt.allocatedAmount + requested,
+      receipt.currency,
+    ),
+    currency: receipt.currency,
   });
 
   try {
@@ -1290,20 +1298,20 @@ export const ProviderReceiptService = {
    * this applies a capture to invoices the operator named.
    */
   async allocate(input: AllocateInput): Promise<AllocateResult> {
-    const lines = input.allocations.map((line) => ({
-      invoiceId: line.invoiceId,
-      amount: roundMoney(line.amount),
-    }));
-    const requested = roundMoney(
-      lines.reduce((total, line) => total + line.amount, 0),
-    );
-
     const resolved = await resolveAllocatableReceipt(
       input.receiptId,
       input.organisationId,
     );
     if ("outcome" in resolved) return resolved;
     const receipt = resolved.receipt;
+    const lines = input.allocations.map((line) => ({
+      invoiceId: line.invoiceId,
+      amount: roundMoney(line.amount, receipt.currency),
+    }));
+    const requested = roundMoney(
+      lines.reduce((total, line) => total + line.amount, 0),
+      receipt.currency,
+    );
 
     /*
      * The idempotency read comes before every other check. A retry of a
@@ -1401,10 +1409,12 @@ export const ProviderReceiptService = {
   ): Promise<AllocatedLine[]> {
     const reserved = roundMoney(
       rows.reduce((total, row) => total + row.amount, 0),
+      receipt.currency,
     );
     const posted = await this.postAllocations(receipt, rows);
     const applied = roundMoney(
       posted.reduce((total, line) => total + line.amount, 0),
+      receipt.currency,
     );
     await releaseUnappliedReservation(receipt, reserved, applied);
     return posted;
