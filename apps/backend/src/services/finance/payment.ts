@@ -42,6 +42,7 @@ type InvoiceFinancialSummary = {
 type InvoiceFinancialSummaryInput = {
   id: string;
   totalAmount: number;
+  currency?: string | null;
   depositCollectedAmount?: number | null;
 };
 
@@ -53,20 +54,30 @@ const summariseInvoice = (
   }>,
   creditNotes: Array<{ amount: number }>,
 ): InvoiceFinancialSummary => {
+  const currency = isLedgerCurrencySupported(invoice.currency)
+    ? invoice.currency
+    : undefined;
   const paid = roundMoney(
-    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
+    payments.reduce(
+      (sum, payment) => sum + getNetPaymentAmount(payment, currency),
+      0,
+    ),
+    currency,
   );
   const credited = roundMoney(
     creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
+    currency,
   );
   const effectivePaid = roundMoney(
-    Math.max(paid, roundMoney(invoice.depositCollectedAmount ?? 0)),
+    Math.max(paid, roundMoney(invoice.depositCollectedAmount ?? 0, currency)),
+    currency,
   );
   return {
     paid: effectivePaid,
     credited,
     balance: roundMoney(
       Math.max(0, invoice.totalAmount - effectivePaid - credited),
+      currency,
     ),
   };
 };
@@ -340,6 +351,7 @@ export const getInvoiceFinancialSummary = async (
   invoiceId: string,
   totalAmount: number,
   depositCollectedAmount = 0,
+  currency?: string | null,
   client: Pick<PaymentTxClient, "payment" | "creditNote"> = prisma,
 ): Promise<InvoiceFinancialSummary> => {
   const [payments, creditNotes] = await Promise.all([
@@ -362,7 +374,7 @@ export const getInvoiceFinancialSummary = async (
     }),
   ]);
   return summariseInvoice(
-    { id: invoiceId, totalAmount, depositCollectedAmount },
+    { id: invoiceId, totalAmount, depositCollectedAmount, currency },
     payments,
     creditNotes,
   );
@@ -372,12 +384,14 @@ const getOutstandingBalance = async (
   invoiceId: string,
   totalAmount: number,
   depositCollectedAmount = 0,
+  currency?: string | null,
   client: Pick<PaymentTxClient, "payment" | "creditNote"> = prisma,
 ) => {
   const summary = await getInvoiceFinancialSummary(
     invoiceId,
     totalAmount,
     depositCollectedAmount,
+    currency,
     client,
   );
   return {
@@ -402,15 +416,25 @@ const applyCheckoutSessionTaxToInvoice = async (
     rawProviderPayload?: Prisma.InputJsonValue | null;
   },
 ) => {
-  const subtotal = roundMoney(input.amountSubtotal ?? invoice.totalAmount);
+  const subtotal = roundMoney(
+    input.amountSubtotal ?? invoice.totalAmount,
+    invoice.currency,
+  );
   const taxAmount = roundMoney(
     input.amountTax ??
       Math.max(
         0,
-        roundMoney((input.amountTotal ?? invoice.totalAmount) - subtotal),
+        roundMoney(
+          (input.amountTotal ?? invoice.totalAmount) - subtotal,
+          invoice.currency,
+        ),
       ),
+    invoice.currency,
   );
-  const totalAmount = roundMoney(input.amountTotal ?? subtotal + taxAmount);
+  const totalAmount = roundMoney(
+    input.amountTotal ?? subtotal + taxAmount,
+    invoice.currency,
+  );
   const taxPercent =
     subtotal > 0 ? roundMoney((taxAmount / subtotal) * 100) : 0;
 
@@ -518,6 +542,7 @@ const updateInvoiceAfterPayment = async (params: {
 
   let nextDepositCollectedAmount = roundMoney(
     invoice.depositCollectedAmount ?? 0,
+    invoice.currency,
   );
   if (isDepositPayment) {
     const collectedWithPayment =
@@ -526,6 +551,7 @@ const updateInvoiceAfterPayment = async (params: {
       invoice.depositTargetAmount > 0
         ? Math.min(collectedWithPayment, invoice.depositTargetAmount)
         : collectedWithPayment,
+      invoice.currency,
     );
   }
 
@@ -1014,12 +1040,13 @@ const buildCheckoutSessionLineItems = (params: {
 const resolveRequestedDepositAmount = (
   requested: number | null | undefined,
   balance: number,
+  currency: string,
 ): number | null => {
   if (requested === null || requested === undefined) return null;
   if (typeof requested !== "number" || !Number.isFinite(requested)) {
     throw new FinancePaymentError("Invalid deposit amount", 400);
   }
-  const rounded = roundMoney(requested);
+  const rounded = roundMoney(requested, currency);
   if (rounded <= 0) {
     throw new FinancePaymentError("Deposit amount must be positive", 400);
   }
@@ -1158,10 +1185,13 @@ const reuseOrCancelExistingPaymentIntentAttempt = async (
     invoiceId,
     invoice.totalAmount,
     invoice.depositCollectedAmount ?? 0,
+    invoice.currency,
   );
   if (
-    roundMoney(existingPaymentIntentAttempt.amountRequested ?? 0) ===
-    summary.balance
+    roundMoney(
+      existingPaymentIntentAttempt.amountRequested ?? 0,
+      invoice.currency,
+    ) === summary.balance
   ) {
     const rawProviderPayload = readJsonRecord(
       existingPaymentIntentAttempt.rawProviderPayload,
@@ -1403,6 +1433,7 @@ const executeProviderRefund = async (params: {
     refundStatus = refund.status;
     amountRefunded = roundMoney(
       fromStripeMinorUnits(refund.amount, refund.currency),
+      refund.currency,
     );
   }
 
@@ -1557,6 +1588,7 @@ export const FinancePaymentService = {
       invoiceId,
       invoice.totalAmount,
       invoice.depositCollectedAmount ?? 0,
+      invoice.currency,
     );
     if (summary.balance <= 0) {
       throw new FinancePaymentError("Invoice has no outstanding balance", 409);
@@ -1565,6 +1597,7 @@ export const FinancePaymentService = {
     const depositAmount = resolveRequestedDepositAmount(
       requestedDepositAmount,
       summary.balance,
+      invoice.currency,
     );
     // What this session will actually charge: the deposit when one was asked
     // for, the whole balance otherwise.
@@ -1573,6 +1606,7 @@ export const FinancePaymentService = {
     if (existingCheckoutAttempt?.providerCheckoutSessionId) {
       const requestedAmount = roundMoney(
         existingCheckoutAttempt.amountRequested ?? 0,
+        invoice.currency,
       );
       if (requestedAmount === amountToCharge) {
         return {
@@ -1743,6 +1777,7 @@ export const FinancePaymentService = {
       invoiceId,
       invoice.totalAmount,
       invoice.depositCollectedAmount ?? 0,
+      invoice.currency,
     );
     if (summary.balance <= 0) {
       throw new FinancePaymentError("Invoice has no outstanding balance", 409);
@@ -1911,6 +1946,7 @@ export const FinancePaymentService = {
       refunds,
       totalRefunded: roundMoney(
         refunds.reduce((sum, refund) => sum + refund.amountRefunded, 0),
+        invoice.currency,
       ),
     };
   },
@@ -1950,6 +1986,7 @@ export const FinancePaymentService = {
 
     const refundAmount = roundMoney(
       Math.min(input.amount ?? payment.amount, payment.amount),
+      payment.invoice.currency,
     );
 
     if (refundAmount <= 0) {
@@ -2079,6 +2116,7 @@ export const FinancePaymentService = {
       invoiceId,
       invoice.totalAmount,
       invoice.depositCollectedAmount ?? 0,
+      invoice.currency,
     );
     const amount = balance;
     return this.recordInvoicePayment(invoiceId, {
@@ -2092,14 +2130,6 @@ export const FinancePaymentService = {
   },
 
   async recordInvoicePayment(invoiceId: string, input: InvoicePaymentInput) {
-    const requestedAmount = roundMoney(input.amount);
-    if (requestedAmount <= 0) {
-      throw new FinancePaymentError(
-        "Payment amount must be greater than zero",
-        400,
-      );
-    }
-
     const receivedAt = input.receivedAt ?? new Date();
 
     // The balance read, attempt write, Payment insert and invoice update move
@@ -2135,6 +2165,13 @@ export const FinancePaymentService = {
           throw new FinancePaymentError("Invoice cannot accept payment", 409);
         }
         const currency = resolvePaymentCurrency(invoice.currency, input);
+        const requestedAmount = roundMoney(input.amount, currency);
+        if (requestedAmount <= 0) {
+          throw new FinancePaymentError(
+            "Payment amount must be greater than zero",
+            400,
+          );
+        }
 
         const isDepositPayment =
           input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
@@ -2154,6 +2191,7 @@ export const FinancePaymentService = {
           invoiceId,
           invoice.totalAmount,
           invoice.depositCollectedAmount ?? 0,
+          invoice.currency,
           tx,
         );
         if (balance <= 0) {
@@ -2171,7 +2209,10 @@ export const FinancePaymentService = {
           };
         }
 
-        const appliedAmount = roundMoney(Math.min(requestedAmount, balance));
+        const appliedAmount = roundMoney(
+          Math.min(requestedAmount, balance),
+          currency,
+        );
         const isPartial = appliedAmount < balance || paid > 0;
         const paymentAttempt = input.paymentAttemptId
           ? await tx.paymentAttempt.update({
@@ -2268,6 +2309,7 @@ export const FinancePaymentService = {
         invoiceId,
         currentInvoice.totalAmount,
         currentInvoice.depositCollectedAmount ?? 0,
+        currentInvoice.currency,
       );
 
       logger.info(
@@ -2321,6 +2363,7 @@ export const FinancePaymentService = {
       invoiceId,
       updatedInvoice.totalAmount,
       updatedInvoice.depositCollectedAmount ?? 0,
+      updatedInvoice.currency,
     );
 
     return {
@@ -2392,7 +2435,7 @@ export const FinancePaymentService = {
       return { action: "REFUNDED" as const, invoice };
     }
 
-    const capturedAmount = roundMoney(input.amount ?? 0);
+    const capturedAmount = roundMoney(input.amount ?? 0, invoice.currency);
     if (capturedAmount <= 0) {
       logger.error("Stripe payment intent reported no captured amount", {
         invoiceId: invoice.id,
@@ -2490,7 +2533,7 @@ export const FinancePaymentService = {
       );
     }
 
-    const capturedAmount = roundMoney(input.amountTotal ?? 0);
+    const capturedAmount = roundMoney(input.amountTotal ?? 0, invoice.currency);
     if (capturedAmount <= 0) {
       logger.error("Stripe checkout session reported no captured total", {
         invoiceId: invoice.id,

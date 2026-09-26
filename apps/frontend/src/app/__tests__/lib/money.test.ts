@@ -2,6 +2,7 @@ import {
   currencySymbol,
   formatMoney,
   formatMoneyPrecise,
+  roundMoney,
   labelWithCurrency,
   recordCurrency,
   sharedCurrency,
@@ -35,6 +36,26 @@ describe('formatMoney', () => {
   it('formats negative amounts', () => {
     const result = formatMoney(-200, 'USD');
     expect(result).toContain('200');
+  });
+});
+
+describe('roundMoney', () => {
+  it('rounds decimal ties exactly at each currency precision', () => {
+    expect(roundMoney(8.165, 'USD')).toBe(8.17);
+    expect(roundMoney(100.5, 'JPY')).toBe(101);
+    expect(roundMoney(1.2345, 'KWD')).toBe(1.235);
+  });
+
+  it('rounds negative ties away from zero', () => {
+    expect(roundMoney(-8.165, 'USD')).toBe(-8.17);
+  });
+
+  it('uses the legacy two-decimal default when currency is unknown', () => {
+    expect(roundMoney(8.165, 'ZZ')).toBe(8.17);
+  });
+
+  it('rejects non-finite amounts', () => {
+    expect(() => roundMoney(Number.NaN, 'USD')).toThrow(RangeError);
   });
 });
 

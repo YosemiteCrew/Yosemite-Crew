@@ -1,8 +1,7 @@
-import { formatMoneyPrecise } from '@/app/lib/money';
+import { currencyFractionDigits, formatMoneyPrecise, roundMoney } from '@/app/lib/money';
 import type { ProviderReceipt } from '@/app/features/finance/types/providerReceipt';
 import {
   allocatableResidual,
-  roundMoney,
   type AllocatableInvoice,
 } from '@/app/features/finance/pages/PaymentReconciliation/receiptPresentation';
 
@@ -33,11 +32,13 @@ export const MAX_ALLOCATION_LINES = 20;
  * rounded to - and answers null for anything else, so "0.005" is a question the
  * form asks rather than a hundredth of a unit that silently disappears.
  */
-const DECIMAL = /^\d+(\.\d{1,2})?$/;
+const DECIMAL = /^\d+(?:\.\d+)?$/;
 
-export const parseAmount = (text: string): number | null => {
+export const parseAmount = (text: string, currency?: string): number | null => {
   const trimmed = text.trim();
   if (!DECIMAL.test(trimmed)) return null;
+  const fraction = trimmed.split('.')[1];
+  if (fraction && fraction.length > currencyFractionDigits(currency)) return null;
   const value = Number(trimmed);
   return Number.isFinite(value) ? value : null;
 };
@@ -65,7 +66,9 @@ export type AllocationReview = {
 };
 
 const lineError = (line: AllocatableInvoice, amount: number | null): string | null => {
-  if (amount === null) return 'Enter an amount in this currency, to at most two decimal places.';
+  if (amount === null) {
+    return `Enter an amount in this currency, to at most ${currencyFractionDigits(line.currency)} decimal places.`;
+  }
   if (amount <= 0) return 'Enter an amount greater than zero.';
   if (amount > line.balance) {
     return `More than this invoice still owes (${formatMoneyPrecise(line.balance, line.currency)}).`;
@@ -92,7 +95,7 @@ const formError = (
     return `Apply this payment to at most ${MAX_ALLOCATION_LINES} invoices at a time.`;
   }
   if (total > residual) {
-    return `That is ${formatMoneyPrecise(roundMoney(total - residual), currency)} more than this capture has left to apply.`;
+    return `That is ${formatMoneyPrecise(roundMoney(total - residual, currency), currency)} more than this capture has left to apply.`;
   }
   return null;
 };
@@ -117,7 +120,7 @@ export const reviewAllocationDraft = (
   const lines: ReviewedLine[] = selected.flatMap((id) => {
     const invoice = byId.get(id);
     if (!invoice) return [];
-    const amount = parseAmount(draft[id] ?? '');
+    const amount = parseAmount(draft[id] ?? '', receipt.currency);
     return [{ invoice, amount, error: lineError(invoice, amount) }];
   });
 
@@ -125,7 +128,8 @@ export const reviewAllocationDraft = (
     lines.reduce(
       (sum, line) => (line.error === null && line.amount !== null ? sum + line.amount : sum),
       0
-    )
+    ),
+    receipt.currency
   );
   const problem = formError(lines.length, total, residual, receipt.currency);
 
@@ -133,7 +137,7 @@ export const reviewAllocationDraft = (
     lines,
     total,
     residual,
-    residualAfter: roundMoney(Math.max(0, residual - total)),
+    residualAfter: roundMoney(Math.max(0, residual - total), receipt.currency),
     formError: problem,
     canSubmit: problem === null && lines.every((line) => line.error === null),
   };
@@ -148,6 +152,9 @@ export const reviewAllocationDraft = (
  * decision: every line is editable and the review above judges what they leave.
  */
 export const suggestedAmount = (invoice: AllocatableInvoice, remainingResidual: number): string => {
-  const value = roundMoney(Math.min(invoice.balance, Math.max(0, remainingResidual)));
-  return value > 0 ? value.toFixed(2) : '';
+  const value = roundMoney(
+    Math.min(invoice.balance, Math.max(0, remainingResidual)),
+    invoice.currency
+  );
+  return value > 0 ? value.toFixed(currencyFractionDigits(invoice.currency)) : '';
 };

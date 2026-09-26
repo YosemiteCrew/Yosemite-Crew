@@ -308,6 +308,10 @@ describe('remainingCreditable', () => {
     expect(remainingCreditable(100, notes)).toBe(45);
   });
 
+  it('calculates the remaining cap at the invoice currency precision', () => {
+    expect(remainingCreditable(101, [noteWith(0.5, 'ISSUED', 'cn-jpy')], 'JPY')).toBe(100);
+  });
+
   it('excludes VOIDED notes so voiding restores the cap', () => {
     const notes = [noteWith(30, 'ISSUED', 'cn-1'), noteWith(40, 'VOIDED', 'cn-2')];
 

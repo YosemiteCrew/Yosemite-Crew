@@ -471,7 +471,7 @@ const mergeInvoiceLineItems = (
 
 type SettlementInvoice = Pick<
   PrismaInvoice,
-  "id" | "items" | "totalAmount" | "depositCollectedAmount"
+  "id" | "items" | "totalAmount" | "depositCollectedAmount" | "currency"
 >;
 
 type SettlementCreditNote = { id: string; amount: number };
@@ -488,26 +488,29 @@ const computeInvoiceFinancialDetails = (
   payments: PrismaPaymentWithRefunds[],
   creditNotes: SettlementCreditNote[],
 ) => {
+  const currency = isLedgerCurrencySupported(invoice.currency)
+    ? invoice.currency
+    : undefined;
   const buildLineAllocations = (
     amount: number,
     lines: InvoiceSettlementLineAllocation[],
     key: "cashApplied" | "creditApplied",
   ) => {
-    let remaining = roundMoney(amount);
+    let remaining = roundMoney(amount, currency);
     for (const line of lines) {
       if (remaining <= 0) {
         break;
       }
 
-      const available = roundMoney(Math.max(0, line.remaining));
+      const available = roundMoney(Math.max(0, line.remaining), currency);
       if (available <= 0) {
         continue;
       }
 
-      const applied = roundMoney(Math.min(available, remaining));
-      line[key] = roundMoney(line[key] + applied);
-      line.remaining = roundMoney(line.remaining - applied);
-      remaining = roundMoney(remaining - applied);
+      const applied = roundMoney(Math.min(available, remaining), currency);
+      line[key] = roundMoney(line[key] + applied, currency);
+      line.remaining = roundMoney(line.remaining - applied, currency);
+      remaining = roundMoney(remaining - applied, currency);
     }
 
     return remaining;
@@ -517,7 +520,10 @@ const computeInvoiceFinancialDetails = (
     invoice.items,
   )
     ? (invoice.items as InvoiceItem[]).map((item, index) => {
-        const total = roundMoney(item.total ?? item.quantity * item.unitPrice);
+        const total = roundMoney(
+          item.total ?? item.quantity * item.unitPrice,
+          currency,
+        );
         return {
           id: item.id ?? undefined,
           name: item.name || `Item ${index + 1}`,
@@ -531,14 +537,23 @@ const computeInvoiceFinancialDetails = (
     : [];
 
   const actualCashPaid = roundMoney(
-    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
+    payments.reduce(
+      (sum, payment) => sum + getNetPaymentAmount(payment, currency),
+      0,
+    ),
+    currency,
   );
-  const depositRecordedAmount = roundMoney(invoice.depositCollectedAmount ?? 0);
+  const depositRecordedAmount = roundMoney(
+    invoice.depositCollectedAmount ?? 0,
+    currency,
+  );
   const credited = roundMoney(
     creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
+    currency,
   );
   const effectivePaid = roundMoney(
     Math.max(actualCashPaid, depositRecordedAmount),
+    currency,
   );
 
   buildLineAllocations(effectivePaid, itemAllocations, "cashApplied");
@@ -546,6 +561,7 @@ const computeInvoiceFinancialDetails = (
 
   const balance = roundMoney(
     Math.max(0, invoice.totalAmount - effectivePaid - credited),
+    currency,
   );
 
   const receipts = payments
@@ -568,7 +584,7 @@ const computeInvoiceFinancialDetails = (
     payments: payments.map((payment) => toPaymentRecord(payment)),
     receipts,
     settlementSummary: {
-      invoiceTotal: roundMoney(invoice.totalAmount),
+      invoiceTotal: roundMoney(invoice.totalAmount, currency),
       cashPaid: actualCashPaid,
       depositRecordedAmount,
       credited,
@@ -1110,6 +1126,7 @@ const closeOpenInvoiceForCancellation = async (
     invoice.id,
     invoice.totalAmount,
     invoice.depositCollectedAmount ?? 0,
+    invoice.currency,
   );
 
   if (summary.paid > 0) {
@@ -1148,6 +1165,7 @@ const generateCreditNoteNumber = (invoiceId: string) =>
  */
 const assertOverallDiscountWithinOrgCap = async (
   organisationId: string,
+  currency: string,
   totals: {
     subtotal: number;
     discountTotal: number;
@@ -1166,7 +1184,10 @@ const assertOverallDiscountWithinOrgCap = async (
     return;
   }
 
-  const baseAmount = roundMoney(totals.subtotal - totals.discountTotal);
+  const baseAmount = roundMoney(
+    totals.subtotal - totals.discountTotal,
+    isLedgerCurrencySupported(currency) ? currency : undefined,
+  );
   const appliedPercent = calculateInvoiceDiscountPercentOfBase(
     totals.invoiceDiscountTotal,
     baseAmount,
@@ -1408,7 +1429,11 @@ export const InvoiceService = {
       { skipTaxCalculation: true },
     );
 
-    await assertOverallDiscountWithinOrgCap(appointment.organisationId, totals);
+    await assertOverallDiscountWithinOrgCap(
+      appointment.organisationId,
+      currency,
+      totals,
+    );
 
     const createdInvoice = await prisma.invoice
       .create({
@@ -1577,6 +1602,7 @@ export const InvoiceService = {
       doc.id,
       doc.totalAmount,
       doc.depositCollectedAmount ?? 0,
+      doc.currency,
     );
     if (summary.balance <= 0) {
       const settled = await recordInvoicePaidState(
@@ -1689,16 +1715,21 @@ export const InvoiceService = {
       throw new InvoiceServiceError("Invoice cannot accept credit notes.", 409);
     }
 
+    const ledgerCurrency = isLedgerCurrencySupported(invoice.currency)
+      ? invoice.currency
+      : undefined;
     const issuedCreditTotal = roundMoney(
       (invoice.creditNotes ?? []).reduce(
         (sum, creditNote) => sum + creditNote.amount,
         0,
       ),
+      ledgerCurrency,
     );
     const remainingCreditable = roundMoney(
       Math.max(0, invoice.totalAmount - issuedCreditTotal),
+      ledgerCurrency,
     );
-    const creditAmount = roundMoney(input.amount);
+    const creditAmount = roundMoney(input.amount, ledgerCurrency);
 
     if (creditAmount > remainingCreditable) {
       throw new InvoiceServiceError(
@@ -1926,6 +1957,7 @@ export const InvoiceService = {
       readyInvoice.id,
       readyInvoice.totalAmount,
       readyInvoice.depositCollectedAmount ?? 0,
+      readyInvoice.currency,
     );
     if (summary.paid > 0 || summary.credited > 0) {
       throw new InvoiceServiceError(
@@ -2584,6 +2616,7 @@ export const InvoiceService = {
         invoice.id,
         invoice.totalAmount,
         invoice.depositCollectedAmount ?? 0,
+        invoice.currency,
       );
       const parent = await prisma.parent.findUnique({
         where: { id: invoice.parentId },

@@ -993,6 +993,7 @@ describe("InvoiceService", () => {
       "inv_visit",
       118,
       0,
+      "usd",
     );
     expect(prisma.invoice.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -5095,7 +5096,12 @@ describe("InvoiceService", () => {
         { organisationId },
       );
 
-      expect(getInvoiceFinancialSummary).toHaveBeenCalledWith("inv_rev", 80, 0);
+      expect(getInvoiceFinancialSummary).toHaveBeenCalledWith(
+        "inv_rev",
+        80,
+        0,
+        "usd",
+      );
       expect(updated?.visitBillingStage).toBe("DRAFT");
     });
 
@@ -5326,6 +5332,7 @@ describe("InvoiceService", () => {
         "inv_cancel_null",
         50,
         0,
+        "usd",
       );
       expect(prisma.invoice.update).toHaveBeenCalledWith(
         expect.objectContaining({
