@@ -213,7 +213,9 @@ export const getAppointmentFormAction = (
   if (entry.submission && entry.signingRequired) {
     return {label: 'View & Sign', mode: 'view', allowSign: true};
   }
-  if (entry.submission) {
+  // Submitted already, as far as the practice's request says: the server
+  // refuses the form a second time, so it is only shown.
+  if (entry.submission || entry.status === 'submitted') {
     return {label: 'View form', mode: 'view', allowSign: false};
   }
   return {

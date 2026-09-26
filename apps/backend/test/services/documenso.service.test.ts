@@ -165,7 +165,13 @@ jest.mock("@documenso/sdk-typescript/models/errors/index.js", () => {
       this.body = body;
     }
   }
-  return { DocumensoError: MockDocumensoError, __esModule: true };
+  // What the SDK throws when a reply does not match its response schema.
+  class MockResponseValidationError extends MockDocumensoError {}
+  return {
+    DocumensoError: MockDocumensoError,
+    ResponseValidationError: MockResponseValidationError,
+    __esModule: true,
+  };
 });
 
 // --- HELPER TO TEST LOAD-TIME ENV VARIABLES ---
@@ -571,6 +577,65 @@ describe("DocumensoService", () => {
           }),
         );
         expect(everythingLogged()).not.toContain(token);
+      });
+    });
+
+    // Whether the envelope went: a success reply the SDK's strict schema
+    // rejects still went; an error reply of any shape did not.
+    describe("sendEnvelope", () => {
+      // The service and the SDK's error classes from one module registry, so
+      // an error made here is an instance of the class the service checks.
+      let Service: any;
+      let sdkErrors: any;
+      beforeAll(() => {
+        jest.isolateModules(() => {
+          const originalEnv = process.env;
+          process.env = {
+            ...originalEnv,
+            DOCUMENSO_BASE_URL: "https://documenso.example/api",
+            DOCUMENSO_API_KEY: "valid_api_key",
+          };
+          Service =
+            require("../../src/services/documenso.service").DocumensoService;
+          sdkErrors = require("@documenso/sdk-typescript/models/errors/index.js");
+          process.env = originalEnv;
+        });
+      });
+      const schemaRejected = (statusCode: number) =>
+        Object.assign(
+          Object.create(sdkErrors.ResponseValidationError.prototype),
+          { statusCode, message: "Response validation failed" },
+        );
+
+      it.each([
+        [
+          "an accepted reply",
+          () => mockDistribute.mockResolvedValueOnce({}),
+          true,
+        ],
+        [
+          "a success reply the schema rejects",
+          () => mockDistribute.mockRejectedValueOnce(schemaRejected(200)),
+          true,
+        ],
+        [
+          "an error reply the schema rejects",
+          () => mockDistribute.mockRejectedValueOnce(schemaRejected(500)),
+          false,
+        ],
+        [
+          "no answer",
+          () =>
+            mockDistribute.mockRejectedValueOnce(new Error("socket hang up")),
+          false,
+        ],
+      ])("reports %s as sent: %s", async (_label, arrange, expected) => {
+        arrange();
+
+        await expect(
+          Service.sendEnvelope({ envelopeId: "env_1" }),
+        ).resolves.toBe(expected);
+        expect(mockDistribute).toHaveBeenCalledWith({ envelopeId: "env_1" });
       });
     });
 

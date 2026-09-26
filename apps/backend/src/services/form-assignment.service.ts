@@ -6,6 +6,7 @@ import {
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import { templateNeedsClientSignature } from "src/services/client-signature.helpers";
 import type {
   FormAssignmentCreateInput,
   FormAssignmentLike,
@@ -393,12 +394,16 @@ const findAssignmentForSubmission = async (params: {
   companionId?: string | null;
   parentId?: string | null;
 }) => {
-  const assignments = await prisma.formAssignment.findMany({
+  // With an appointment the template identifies the assignment on its own. A
+  // template published again after it was sent submits at the newer version,
+  // and matching on the version as well left that assignment open for good.
+  const found = await prisma.formAssignment.findMany({
     where: {
       organisationId: params.organisationId,
       templateId: params.templateId,
-      templateVersion: params.templateVersion,
-      ...(params.appointmentId ? { appointmentId: params.appointmentId } : {}),
+      ...(params.appointmentId
+        ? { appointmentId: params.appointmentId }
+        : { templateVersion: params.templateVersion }),
       ...(params.companionId ? { companionId: params.companionId } : {}),
     },
     include: {
@@ -410,11 +415,19 @@ const findAssignmentForSubmission = async (params: {
     },
   });
 
-  if (!assignments.length) {
+  if (!found.length) {
     return null;
   }
 
-  if (!params.parentId) {
+  // The assignment sent at the submitted version first.
+  const assignments = [
+    ...found.filter((row) => row.templateVersion === params.templateVersion),
+    ...found.filter((row) => row.templateVersion !== params.templateVersion),
+  ];
+
+  // On an appointment the request is the appointment's, whichever parent
+  // (a co-parent included) submitted it; access was checked on the way in.
+  if (!params.parentId || params.appointmentId) {
     return assignments[0] ?? null;
   }
 
@@ -429,6 +442,10 @@ const findAssignmentForSubmission = async (params: {
   );
 };
 
+// The kinds a client can be asked to fill in. CONSENT became a storage kind of
+// its own (1c3c790f0), so a FORM-only lookup refused every consent template.
+const ASSIGNABLE_TEMPLATE_KINDS = [TemplateKind.FORM, TemplateKind.CONSENT];
+
 const ensureTemplate = async (
   organisationId: string,
   templateId: string,
@@ -438,10 +455,12 @@ const ensureTemplate = async (
     where: {
       id: templateId,
       organisationId,
-      kind: TemplateKind.FORM,
+      kind: { in: ASSIGNABLE_TEMPLATE_KINDS },
     },
     select: {
       id: true,
+      kind: true,
+      rules: true,
       latestVersion: true,
       publishedVersion: true,
     },
@@ -469,7 +488,7 @@ const ensureTemplate = async (
     throw new FormAssignmentServiceError("Template version not found", 404);
   }
 
-  return version;
+  return { ...version, clientSigns: templateNeedsClientSignature(template) };
 };
 
 const loadAppointment = async (
@@ -553,11 +572,6 @@ const isSubmittableAssignmentStatus = (status: FormAssignmentDbStatus) =>
 const isSignableAssignmentStatus = (status: FormAssignmentDbStatus) =>
   status === "SENT" || status === "VIEWED" || status === "SUBMITTED";
 
-const AUTO_ASSIGN_TEMPLATE_KINDS: Array<"FORM" | "CONSENT"> = [
-  "FORM",
-  "CONSENT",
-];
-
 /**
  * Materialise the form/consent assignments a linked template implies for an
  * appointment.
@@ -598,7 +612,7 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
     species,
   };
 
-  for (const kind of AUTO_ASSIGN_TEMPLATE_KINDS) {
+  for (const kind of ASSIGNABLE_TEMPLATE_KINDS) {
     try {
       const resolved = await TemplateService.resolve({
         ...resolveInput,
@@ -670,7 +684,8 @@ export const FormAssignmentService = {
         signerEmail: parsed.signerIdentity?.email ?? undefined,
         signerRole: parsed.signerIdentity?.role ?? undefined,
         mobileVisible: parsed.mobileVisible ?? true,
-        signingRequired: parsed.signingRequired ?? true,
+        // The client is asked to sign only what the template says they sign.
+        signingRequired: parsed.signingRequired ?? version.clientSigns,
         status: "SENT",
         sentAt: now,
         createdBy,
@@ -949,13 +964,43 @@ export const FormAssignmentService = {
       organisationId,
       appointmentId,
     );
+    const clientSigns = await loadClientSignedTemplateIds(
+      assignments.map(({ templateId }) => templateId),
+    );
 
-    return assignments.map((assignment) => ({
-      ...assignment,
-      status: isCompleted(assignment) ? "completed" : "pending",
-      assignmentStatus: assignment.status,
-    }));
+    return assignments.map((assignment) => {
+      const effective = {
+        ...assignment,
+        signingRequired:
+          assignment.signingRequired && clientSigns.has(assignment.templateId),
+      };
+      return {
+        ...effective,
+        status: isCompleted(effective) ? "completed" : "pending",
+        assignmentStatus: assignment.status,
+      };
+    });
   },
+};
+
+/**
+ * The templates among these whose forms the client signs. A request asks for
+ * a signature only where the template does: requests saved when every one
+ * asked for a signature still complete on submission for any other form.
+ */
+export const loadClientSignedTemplateIds = async (
+  templateIds: string[],
+): Promise<Set<string>> => {
+  if (!templateIds.length) return new Set();
+  const templates = await prisma.template.findMany({
+    where: { id: { in: [...new Set(templateIds)] } },
+    select: { id: true, kind: true, rules: true },
+  });
+  return new Set(
+    templates
+      .filter((template) => templateNeedsClientSignature(template))
+      .map(({ id }) => id),
+  );
 };
 
 const isCompleted = (assignment: FormAssignmentLike) =>

@@ -34,6 +34,7 @@ import {
   fetchAppointmentForms,
 } from '@/features/forms';
 import {
+  isConsentForm,
   stripHtmlToPlainText,
   wrapPlainTextAsHtml,
 } from '@/features/forms/utils';
@@ -43,9 +44,38 @@ import {createScreenHeaderStyles} from '@/shared/styles/screenHeaderStyles';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import type {Appointment} from '@/features/appointments/types';
+import type {
+  AppointmentFormEntry,
+  AppointmentFormStatus,
+} from '@/features/forms/types';
 
 import i18next from 'i18next';
 type Route = RouteProp<AppointmentStackParamList, 'AppointmentForm'>;
+
+/** The note a submitted form shows, or `null` while it is not submitted. */
+const describeSubmission = (
+  entry: AppointmentFormEntry | undefined,
+): string | null => {
+  if (
+    entry?.status !== 'submitted' &&
+    entry?.status !== 'signing' &&
+    entry?.status !== 'completed'
+  ) {
+    return null;
+  }
+  const submittedAt = entry.submission?.submittedAt;
+  const note = submittedAt
+    ? `Submitted on ${getDisplayDate(submittedAt)}`
+    : 'Submitted';
+  return entry.signingRequired ? `${note}. Waiting for your signature.` : note;
+};
+
+const SUBMITTED_FORM_STATUSES = new Set<AppointmentFormStatus>([
+  'submitted',
+  'signing',
+  'signed',
+  'completed',
+]);
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const getDisplayDate = (value?: Date | string | null): string => {
@@ -202,7 +232,7 @@ export const AppointmentFormScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
-  const {appointmentId, formId, mode, allowSign} = route.params;
+  const {appointmentId, formId, allowSign} = route.params;
   const isFocused = useIsFocused();
   const appointment: Appointment | undefined = useSelector((state: RootState) =>
     state.appointments.items.find(a => a.id === appointmentId),
@@ -242,18 +272,22 @@ export const AppointmentFormScreen: React.FC = () => {
   const {values, richTextDrafts, isDirty} = formEditState;
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // A form is submitted once: the server refuses a second submission, so once
+  // there is one (or the practice's request reads submitted) it is shown, not
+  // offered again, whichever mode the screen was opened in.
   const isReadOnly = Boolean(
-    entry?.submission &&
-    (mode !== 'fill' ||
-      entry.status === 'signed' ||
-      entry.status === 'completed'),
+    entry?.submission || (entry && SUBMITTED_FORM_STATUSES.has(entry.status)),
   );
+  const submittedNote = describeSubmission(entry);
   const canStartSigning =
     allowSign &&
     entry?.signingRequired &&
     entry.submission &&
     entry.status !== 'signed';
-  const lockNonCheckboxInputs = Boolean(allowSign);
+  // A consent is agreed to by ticking its statements, so only its checkboxes
+  // are answered. Any other form the client signs is filled in first.
+  const lockNonCheckboxInputs =
+    Boolean(allowSign) && isConsentForm(entry?.form);
 
   const headerSubtitle = useMemo(() => {
     const dateLabel = appointment?.date ? getDisplayDate(appointment.date) : '';
@@ -965,6 +999,16 @@ export const AppointmentFormScreen: React.FC = () => {
                       </Text>
                     </View>
                   )}
+
+                  {submittedNote ? (
+                    <View
+                      style={styles.signedBadge}
+                      testID="form-submitted-badge">
+                      <Text style={styles.signedBadgeText}>
+                        {submittedNote}
+                      </Text>
+                    </View>
+                  ) : null}
 
                   {entry.status === 'signed' &&
                   entry.submission?.submittedAt ? (

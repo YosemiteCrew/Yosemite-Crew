@@ -52,12 +52,12 @@ export type ConsentListProps = {
   /** Id of the consent currently being revoked, so its row shows a pending state. */
   revokingId?: string | null;
   /**
-   * Signed/generated consent PDFs from the e-signing portal (Documenso).
-   * A separate data source from `consents` above - see
-   * `useSignedConsentDocuments` - so it renders as its own sub-list rather
+   * Consent PDFs from the e-signing portal (Documenso), signed or still
+   * waiting for a signature. A separate data source from `consents` above -
+   * see `useConsentDocuments` - so it renders as its own sub-list rather
    * than being merged into rows it has no link to.
    */
-  signedDocuments?: CompanionRecord[];
+  consentDocuments?: CompanionRecord[];
 };
 
 const STATUS_LABEL: Record<ConsentStatus, string> = {
@@ -392,15 +392,19 @@ const ConsentListBody = ({
   );
 };
 
-/** A single signed consent PDF from the e-signing portal - opens in a new tab. */
-const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
+/**
+ * A single consent PDF from the e-signing portal - opens in a new tab. A
+ * submitted consent is listed before it is signed, so no signing date means
+ * it is not signed yet.
+ */
+const ConsentDocumentRow = ({ document }: { document: CompanionRecord }) => {
   const signedDate = formatDisplayDate(document.signedAt ?? undefined, '');
   return (
     <li className={rowClass}>
       <span className="min-w-0">
         <span className={clsx(titleClass, 'block truncate')}>{document.title}</span>
         <span className={clsx(metaClass, 'mt-0.5 block text-[var(--ink-muted)]')}>
-          {signedDate ? `Signed ${signedDate}` : 'Signed'}
+          {signedDate ? `Signed ${signedDate}` : 'Not signed yet'}
         </span>
       </span>
       {document.pdfUrl ? (
@@ -408,7 +412,7 @@ const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
           size="compact"
           text="View"
           onClick={() => globalThis.open(document.pdfUrl ?? '', '_blank', 'noopener')}
-          ariaLabel={`View signed document: ${document.title}`}
+          ariaLabel={`View consent document: ${document.title}`}
         />
       ) : null}
     </li>
@@ -416,18 +420,18 @@ const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
 };
 
 /**
- * The signed PDFs the e-signing portal produced, as their own sub-list -
- * distinct from the manually-recorded consents above, since nothing links a
- * given `PatientConsent` row to a given signed document.
+ * The consent PDFs the e-signing portal produced, signed or still waiting, as
+ * their own sub-list - distinct from the manually-recorded consents above,
+ * since nothing links a given `PatientConsent` row to a given document.
  */
-const SignedConsentDocuments = ({ documents }: { documents: CompanionRecord[] }) => {
+const ConsentDocuments = ({ documents }: { documents: CompanionRecord[] }) => {
   if (documents.length === 0) return null;
   return (
     <div className="border-t border-[var(--divider)]">
-      <div className={clsx(fieldLabelClass, 'px-4 pt-3')}>Signed documents</div>
+      <div className={clsx(fieldLabelClass, 'px-4 pt-3')}>Consent documents</div>
       <ul className="divide-y divide-[var(--divider)]">
         {documents.map((document) => (
-          <SignedDocumentRow key={document.id ?? document.title} document={document} />
+          <ConsentDocumentRow key={document.id ?? document.title} document={document} />
         ))}
       </ul>
     </div>
@@ -448,7 +452,7 @@ const ConsentList = ({
   onRevoke,
   creating = false,
   revokingId = null,
-  signedDocuments = [],
+  consentDocuments = [],
 }: ConsentListProps) => {
   const [showForm, setShowForm] = useState(false);
   const activeCount = useMemo(
@@ -488,7 +492,7 @@ const ConsentList = ({
         revokingId={revokingId}
       />
 
-      <SignedConsentDocuments documents={signedDocuments} />
+      <ConsentDocuments documents={consentDocuments} />
     </section>
   );
 };

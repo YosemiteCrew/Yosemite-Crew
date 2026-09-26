@@ -13,7 +13,7 @@ jest.mock("src/services/template.service", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    template: { findFirst: jest.fn() },
+    template: { findFirst: jest.fn(), findMany: jest.fn() },
     templateVersion: { findFirst: jest.fn() },
     appointment: { findFirst: jest.fn() },
     formSubmission: { findMany: jest.fn() },
@@ -32,7 +32,7 @@ jest.mock("src/config/prisma", () => ({
 
 describe("FormAssignmentService", () => {
   const mockedPrisma = prisma as unknown as {
-    template: { findFirst: jest.Mock };
+    template: { findFirst: jest.Mock; findMany: jest.Mock };
     templateVersion: { findFirst: jest.Mock };
     appointment: { findFirst: jest.Mock };
     formSubmission: { findMany: jest.Mock };
@@ -67,6 +67,8 @@ describe("FormAssignmentService", () => {
 
     mockedPrisma.template.findFirst.mockResolvedValue({
       id: "template-1",
+      kind: "CONSENT",
+      rules: null,
       latestVersion: 3,
       publishedVersion: 2,
     });
@@ -153,6 +155,149 @@ describe("FormAssignmentService", () => {
       validationSnapshot: null,
       appliesTo: null,
       reason: "linked",
+    });
+  });
+
+  // What the visit's finalisation reads: a request saved when every request
+  // asked for a signature completes on submission for a form the client does
+  // not sign.
+  describe("an appointment's form summaries", () => {
+    const row = (
+      templateId: string,
+      status: string,
+      signingRequired = true,
+    ) => ({
+      id: `assignment-${templateId}`,
+      organisationId: "org-1",
+      templateId,
+      templateVersion: 1,
+      appointmentId: "appt-1",
+      encounterId: null,
+      companionId: null,
+      signerUserId: null,
+      signerName: null,
+      signerEmail: null,
+      signerRole: null,
+      mobileVisible: true,
+      signingRequired,
+      status,
+      sentAt: null,
+      viewedAt: null,
+      submittedAt: null,
+      signedAt: null,
+      expiredAt: null,
+      cancelledAt: null,
+      createdBy: "user-1",
+      updatedBy: "user-1",
+      createdAt: new Date("2026-09-25T00:00:00.000Z"),
+      updatedAt: new Date("2026-09-25T00:00:00.000Z"),
+    });
+
+    it("needs a signature only on a form the client signs", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        row("tpl-intake", "SUBMITTED"),
+        row("tpl-consent", "SUBMITTED"),
+        row("tpl-signed", "SIGNED"),
+      ]);
+      mockedPrisma.template.findMany.mockResolvedValueOnce([
+        { id: "tpl-intake", kind: "FORM", rules: { requiredSigner: "VET" } },
+        { id: "tpl-consent", kind: "CONSENT", rules: null },
+        { id: "tpl-signed", kind: "CONSENT", rules: null },
+      ]);
+
+      const summaries =
+        await FormAssignmentService.listAppointmentFormSummaries(
+          "org-1",
+          "appt-1",
+        );
+
+      expect(
+        summaries.map(({ templateId, status, signingRequired }) => [
+          templateId,
+          status,
+          signingRequired,
+        ]),
+      ).toEqual([
+        ["tpl-intake", "completed", false],
+        ["tpl-consent", "pending", true],
+        ["tpl-signed", "completed", true],
+      ]);
+      expect(mockedPrisma.template.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ["tpl-intake", "tpl-consent", "tpl-signed"] } },
+        select: { id: true, kind: true, rules: true },
+      });
+    });
+
+    it("reads no templates for an appointment with no requests", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([]);
+      mockedPrisma.template.findMany.mockClear();
+
+      await expect(
+        FormAssignmentService.listAppointmentFormSummaries("org-1", "appt-1"),
+      ).resolves.toEqual([]);
+      expect(mockedPrisma.template.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  // The client is asked to sign only what the template says they sign.
+  describe("whether the client is asked to sign", () => {
+    const createFor = async (
+      template: Record<string, unknown>,
+      signingRequired?: boolean,
+    ) => {
+      mockedPrisma.template.findFirst.mockResolvedValueOnce({
+        id: "template-1",
+        latestVersion: 3,
+        publishedVersion: 2,
+        ...template,
+      });
+      await FormAssignmentService.createForAppointment({
+        organisationId: "org-1",
+        appointmentId: "appt-1",
+        templateId: "template-1",
+        createdBy: "user-1",
+        ...(signingRequired === undefined ? {} : { signingRequired }),
+      });
+      return mockedPrisma.formAssignment.create.mock.calls[0][0].data
+        .signingRequired;
+    };
+
+    it.each([
+      ["a consent", { kind: "CONSENT", rules: null }, true],
+      [
+        "a consent saved as a form",
+        { kind: "FORM", rules: { category: "Consent form" } },
+        true,
+      ],
+      [
+        "a form the client signs",
+        { kind: "FORM", rules: { requiredSigner: "CLIENT" } },
+        true,
+      ],
+      [
+        "a form the practice signs",
+        { kind: "FORM", rules: { requiredSigner: "VET" } },
+        false,
+      ],
+      ["a plain form", { kind: "FORM", rules: { category: "Intake" } }, false],
+      ["a form with no rules", { kind: "FORM", rules: null }, false],
+    ])("follows the template for %s", async (_label, template, expected) => {
+      await expect(createFor(template)).resolves.toBe(expected);
+    });
+
+    it("keeps what the practice chose", async () => {
+      await expect(
+        createFor({ kind: "FORM", rules: null }, true),
+      ).resolves.toBe(true);
+    });
+
+    it("selects the template's kind and rules", async () => {
+      await createFor({ kind: "CONSENT", rules: null });
+      expect(mockedPrisma.template.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({ kind: true, rules: true }),
+        }),
+      );
     });
   });
 
@@ -259,6 +404,57 @@ describe("FormAssignmentService", () => {
         }),
       }),
     );
+  });
+
+  // CONSENT became a storage kind of its own (1c3c790f0); a FORM-only lookup
+  // refused every consent template, so none could be sent to a client.
+  describe("assignable template kinds", () => {
+    const storedKinds: Record<string, string> = {
+      "template-form": "FORM",
+      "template-consent": "CONSENT",
+      "template-soap": "SOAP_NOTE",
+    };
+
+    beforeEach(() => {
+      mockedPrisma.template.findFirst.mockImplementation(
+        async ({ where }: { where: { id: string; kind: unknown } }) => {
+          const kind = storedKinds[where.id];
+          const filter = where.kind as string | { in: string[] };
+          const matches =
+            typeof filter === "string"
+              ? filter === kind
+              : filter.in.includes(kind);
+          return matches
+            ? { id: where.id, latestVersion: 2, publishedVersion: 2 }
+            : null;
+        },
+      );
+    });
+
+    const assign = (templateId: string) =>
+      FormAssignmentService.createForAppointment({
+        organisationId: "org-1",
+        appointmentId: "appt-1",
+        templateId,
+        createdBy: "user-1",
+      });
+
+    it.each(["template-form", "template-consent"])(
+      "assigns %s",
+      async (templateId) => {
+        await expect(assign(templateId)).resolves.toMatchObject({
+          assignmentId: "assignment-1",
+        });
+        expect(mockedPrisma.formAssignment.create).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("still refuses a clinical template", async () => {
+      await expect(assign("template-soap")).rejects.toMatchObject({
+        statusCode: 404,
+      });
+      expect(mockedPrisma.formAssignment.create).not.toHaveBeenCalled();
+    });
   });
 
   it("rejects assignments for missing templates", async () => {
@@ -551,6 +747,130 @@ describe("FormAssignmentService", () => {
       }),
     );
     expect(row?.status).toBe("SUBMITTED");
+  });
+
+  // A template published again after it was sent submits at the newer
+  // version; matching on the version too left the assignment open for good.
+  describe("matching a submission to its assignment", () => {
+    const assignment = (id: string, templateVersion: number) => ({
+      id,
+      templateVersion,
+      status: "SENT",
+      appointment: { patient: { parent: { id: "parent-1" } } },
+    });
+
+    // A co-parent answers the appointment's request as well as its primary
+    // parent does; access to the appointment was checked on submitting.
+    it("finds the appointment's assignment for a co-parent's submission", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        assignment("assignment-1", 3),
+      ]);
+      mockedPrisma.formAssignment.update.mockResolvedValueOnce({
+        id: "assignment-1",
+      });
+
+      await FormAssignmentService.markSubmittedFromSubmission({
+        organisationId: "org-1",
+        templateId: "template-1",
+        templateVersion: 3,
+        appointmentId: "appt-1",
+        parentId: "co-parent-2",
+      });
+
+      expect(mockedPrisma.formAssignment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "assignment-1" } }),
+      );
+    });
+
+    it("still matches the parent without an appointment", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        assignment("assignment-1", 3),
+      ]);
+
+      await expect(
+        FormAssignmentService.markSubmittedFromSubmission({
+          organisationId: "org-1",
+          templateId: "template-1",
+          templateVersion: 3,
+          parentId: "co-parent-2",
+        }),
+      ).resolves.toBeNull();
+      expect(mockedPrisma.formAssignment.update).not.toHaveBeenCalled();
+    });
+
+    it("finds the appointment's assignment whatever version was submitted", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        assignment("assignment-v1", 1),
+      ]);
+      mockedPrisma.formAssignment.update.mockResolvedValueOnce({
+        id: "assignment-v1",
+      });
+
+      await FormAssignmentService.markSubmittedFromSubmission({
+        organisationId: "org-1",
+        templateId: "template-1",
+        templateVersion: 3,
+        appointmentId: "appt-1",
+        parentId: "parent-1",
+      });
+
+      expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organisationId: "org-1",
+            templateId: "template-1",
+            appointmentId: "appt-1",
+          },
+        }),
+      );
+      expect(mockedPrisma.formAssignment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "assignment-v1" } }),
+      );
+    });
+
+    it("prefers the assignment sent at the submitted version", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        assignment("assignment-v1", 1),
+        assignment("assignment-v3", 3),
+      ]);
+      mockedPrisma.formAssignment.update.mockResolvedValueOnce({
+        id: "assignment-v3",
+      });
+
+      await FormAssignmentService.markSubmittedFromSubmission({
+        organisationId: "org-1",
+        templateId: "template-1",
+        templateVersion: 3,
+        appointmentId: "appt-1",
+        parentId: "parent-1",
+      });
+
+      expect(mockedPrisma.formAssignment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "assignment-v3" } }),
+      );
+    });
+
+    it("still matches on the version without an appointment", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([]);
+
+      await expect(
+        FormAssignmentService.markSubmittedFromSubmission({
+          organisationId: "org-1",
+          templateId: "template-1",
+          templateVersion: 3,
+        }),
+      ).resolves.toBeNull();
+
+      expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organisationId: "org-1",
+            templateId: "template-1",
+            templateVersion: 3,
+          },
+        }),
+      );
+    });
   });
 
   it("marks a signed assignment when the signed document arrives", async () => {

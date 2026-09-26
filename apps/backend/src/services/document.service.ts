@@ -295,10 +295,13 @@ type RenderedDocumentRow = {
   templateInstance: {
     appointmentId: string | null;
     encounterId: string | null;
+    status?: string;
+    template?: { rules: unknown } | null;
   } | null;
   clinicalArtifact: {
     appointmentId: string | null;
     encounterId: string | null;
+    status?: string;
   } | null;
 };
 
@@ -403,11 +406,53 @@ const loadAppointmentForDocumentLookup = async (appointmentId: string) => {
   };
 };
 
+// The kinds a pet parent fills in themselves.
+const PARENT_FORM_DOCUMENT_KINDS = new Set(["FORM", "CONSENT"]);
+const FINALISED_RECORD_STATUSES = new Set(["COMPLETED", "SIGNED"]);
+
+// The form builder writes the author's "Internal" / "External" /
+// "Internal & External" choice to rules.visibility (buildTemplatePayload).
+const isInternalOnlyTemplate = (rules: unknown) => {
+  const visibility = (rules as { visibility?: unknown } | null)?.visibility;
+  return (
+    typeof visibility === "string" &&
+    visibility.trim().toLowerCase() === "internal"
+  );
+};
+
+/**
+ * What of the practice's rendered documents a pet parent may see.
+ *
+ * Nothing from a record still being written or withdrawn: only COMPLETED and
+ * SIGNED, the rule the parent's prescription list follows. A form or consent
+ * the practice sent the client for this appointment is theirs, whatever the
+ * template's visibility (the builder defaults it to Internal). Otherwise a
+ * template marked Internal is never released, and clinical content is released
+ * only once it is signed off, the rule the parent's encounter packet PDF
+ * follows.
+ */
+const isReleasedToParent = (
+  row: RenderedDocumentRow,
+  assignedTemplateIds: ReadonlySet<string>,
+) => {
+  const record = row.templateInstance ?? row.clinicalArtifact;
+  if (!FINALISED_RECORD_STATUSES.has(record?.status ?? "")) return false;
+  const isFormKind = PARENT_FORM_DOCUMENT_KINDS.has(row.kind);
+  if (isFormKind && assignedTemplateIds.has(row.templateId ?? "")) return true;
+  if (isInternalOnlyTemplate(row.templateInstance?.template?.rules)) {
+    return false;
+  }
+  return isFormKind || row.status === "SIGNED";
+};
+
 const loadRenderedDocumentsForAppointments = async (params: {
   appointmentIds: string[];
   organisationId: string;
   kind?: TemplateKind;
   excludeKind?: TemplateKind;
+  // Set for a parent-facing list: the templates the practice assigned the
+  // client on these appointments.
+  releasedToParent?: { assignedTemplateIds: ReadonlySet<string> };
 }) => {
   if (params.appointmentIds.length === 0) {
     return [];
@@ -436,19 +481,29 @@ const loadRenderedDocumentsForAppointments = async (params: {
         select: {
           appointmentId: true,
           encounterId: true,
+          status: true,
+          template: { select: { rules: true } },
         },
       },
       clinicalArtifact: {
         select: {
           appointmentId: true,
           encounterId: true,
+          status: true,
         },
       },
     },
     orderBy: { updatedAt: "desc" },
   })) as unknown as RenderedDocumentRow[];
 
-  return renderedDocuments.map(mapRenderedDocumentToDto);
+  const { releasedToParent } = params;
+  return renderedDocuments
+    .filter(
+      (row) =>
+        !releasedToParent ||
+        isReleasedToParent(row, releasedToParent.assignedTemplateIds),
+    )
+    .map(mapRenderedDocumentToDto);
 };
 
 /**
@@ -1030,6 +1085,17 @@ export const DocumentService = {
       return [];
     }
 
+    // A request the practice withdrew (or that lapsed) no longer releases
+    // its template's documents to the client.
+    const assignments = await prisma.formAssignment.findMany({
+      where: {
+        organisationId: appointmentLookup.organisationId,
+        appointmentId,
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
+      },
+      select: { templateId: true },
+    });
+
     const [docs, renderedDocs] = await Promise.all([
       prisma.document.findMany({
         where: {
@@ -1042,6 +1108,11 @@ export const DocumentService = {
       loadRenderedDocumentsForAppointments({
         appointmentIds: [appointmentId],
         organisationId: appointmentLookup.organisationId,
+        releasedToParent: {
+          assignedTemplateIds: new Set(
+            assignments.map(({ templateId }) => templateId),
+          ),
+        },
       }),
     ]);
 

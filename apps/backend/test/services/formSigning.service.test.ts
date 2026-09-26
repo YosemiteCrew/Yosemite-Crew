@@ -3,9 +3,11 @@ import { prisma } from "../../src/config/prisma";
 import { DocumensoService } from "../../src/services/documenso.service";
 import {
   createRenderedDocumentRecord,
+  hasNewerSubmissionForSigner,
   signPersistedRenderedDocument,
 } from "../../src/services/rendered-document.service";
 import logger from "../../src/utils/logger";
+import { assertParentCanViewAppointment } from "../../src/services/form.service";
 
 jest.mock("../../src/utils/logger", () => ({
   __esModule: true,
@@ -26,6 +28,10 @@ jest.mock("../../src/config/prisma", () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    templateInstance: { findUnique: jest.fn() },
+    appointment: { findFirst: jest.fn() },
+    formAssignment: { findFirst: jest.fn() },
+    renderedDocument: { findUnique: jest.fn() },
     parent: {
       findUnique: jest.fn(),
     },
@@ -42,8 +48,13 @@ jest.mock("../../src/services/documenso.service", () => ({
   },
 }));
 
+jest.mock("../../src/services/form.service", () => ({
+  assertParentCanViewAppointment: jest.fn(),
+}));
+
 jest.mock("../../src/services/rendered-document.service", () => ({
   createRenderedDocumentRecord: jest.fn(),
+  hasNewerSubmissionForSigner: jest.fn(),
   signPersistedRenderedDocument: jest.fn(),
 }));
 
@@ -55,7 +66,13 @@ const mockedPrisma = prisma as unknown as {
   };
   parent: { findUnique: jest.Mock };
   user: { findUnique: jest.Mock };
+  templateInstance: { findUnique: jest.Mock };
+  appointment: { findFirst: jest.Mock };
+  formAssignment: { findFirst: jest.Mock };
+  renderedDocument: { findUnique: jest.Mock };
 };
+const mockedAssertParentCanViewAppointment =
+  assertParentCanViewAppointment as jest.Mock;
 const mockedDocumensoService = DocumensoService as unknown as {
   resolveOrganisationApiKey: jest.Mock;
   downloadSignedDocument: jest.Mock;
@@ -994,5 +1011,381 @@ describe("FormSigningService.getSignedDocument — download failures", () => {
       documentId: 888,
       apiKey: "api-key-nodl",
     });
+  });
+});
+
+// A template-backed form or consent submitted from the app has a template
+// instance and its rendered document, not a form submission.
+describe("FormSigningService.startSigning - a template-backed submission", () => {
+  const CONSENT_TEMPLATE = { kind: "CONSENT", rules: null };
+  const appointment = { patient: { id: "patient-1" } };
+
+  const arrange = (
+    overrides: {
+      instance?: Record<string, unknown> | null;
+      document?: Record<string, unknown> | null;
+    } = {},
+  ) => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+    (hasNewerSubmissionForSigner as jest.Mock).mockResolvedValueOnce(false);
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(
+      overrides.instance === undefined
+        ? {
+            id: "instance-1",
+            organisationId: "org-1",
+            templateId: "tpl-consent",
+            appointmentId: "appt-1",
+            authorId: "parent-1",
+            template: CONSENT_TEMPLATE,
+          }
+        : overrides.instance,
+    );
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce(appointment);
+    mockedPrisma.formAssignment.findFirst.mockResolvedValueOnce({
+      id: "assignment-1",
+    });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+      overrides.document === undefined
+        ? { id: "doc-1", signing: null }
+        : overrides.document,
+    );
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce({
+      email: "owner@example.com",
+      firstName: "Jane",
+      lastName: "Owner",
+    });
+    mockedSignPersistedRenderedDocument.mockResolvedValueOnce({
+      signing: {
+        documentId: "77",
+        signingUrl: "https://documenso.example/sign/token",
+      },
+    });
+  };
+
+  const startAsParent = (initiatedBy = "parent-1") =>
+    FormSigningService.startSigning({
+      isParent: true,
+      submissionId: "instance-1",
+      initiatedBy,
+    });
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("sends the parent's own submission to them for signing", async () => {
+    arrange();
+
+    await expect(startAsParent()).resolves.toEqual({
+      documentId: "77",
+      signingUrl: "https://documenso.example/sign/token",
+    });
+
+    expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+      where: { id: "appt-1", organisationId: "org-1" },
+      select: { patient: true },
+    });
+    expect(mockedAssertParentCanViewAppointment).toHaveBeenCalledWith(
+      appointment,
+      "parent-1",
+    );
+    expect(mockedPrisma.formAssignment.findFirst).toHaveBeenCalledWith({
+      where: {
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        signingRequired: true,
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
+      },
+      select: { id: true },
+    });
+    expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
+      where: { templateInstanceId: "instance-1" },
+      select: { id: true, signing: true },
+    });
+    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledWith({
+      renderedDocumentId: "doc-1",
+      organisationId: "org-1",
+      signerId: "parent-1",
+      signerType: "PARENT",
+      signerEmail: "owner@example.com",
+      signerName: "Jane Owner",
+    });
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the document id and no link when signing returns none", async () => {
+    arrange();
+    mockedSignPersistedRenderedDocument.mockReset();
+    mockedSignPersistedRenderedDocument.mockResolvedValueOnce({
+      signing: null,
+    });
+
+    await expect(startAsParent()).resolves.toEqual({
+      documentId: "doc-1",
+      signingUrl: null,
+    });
+  });
+
+  // A clinic pre-fill: the practice filled it in, the client signs it.
+  it("sends a consent the practice filled in to the parent", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        template: CONSENT_TEMPLATE,
+      },
+    });
+
+    await expect(startAsParent()).resolves.toMatchObject({ documentId: "77" });
+    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ signerId: "parent-1", signerType: "PARENT" }),
+    );
+  });
+
+  // The practice corrected the form after this version: the client signs the
+  // corrected one, never this.
+  it("refuses a version the practice has since corrected", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        template: CONSENT_TEMPLATE,
+        createdAt: new Date("2026-09-25T09:00:00.000Z"),
+      },
+    });
+    (hasNewerSubmissionForSigner as jest.Mock).mockReset();
+    (hasNewerSubmissionForSigner as jest.Mock).mockResolvedValueOnce(true);
+
+    await expect(startAsParent()).rejects.toThrow(
+      "A newer version of this form is waiting for your signature",
+    );
+    expect(hasNewerSubmissionForSigner).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        id: "instance-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+      }),
+      "parent-1",
+    );
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  // Who signs is the template's to say, as for a form submission.
+  it.each([
+    [
+      "a form the practice signs",
+      { kind: "FORM", rules: { requiredSigner: "VET" } },
+    ],
+    ["a form no one signs", { kind: "FORM", rules: { requiredSigner: "" } }],
+    [
+      "a consent naming the practice",
+      { kind: "CONSENT", rules: { requiredSigner: "VET" } },
+    ],
+  ])("refuses the parent %s", async (_label, template) => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        template,
+      },
+    });
+
+    await expect(startAsParent()).rejects.toThrow(
+      "Form requires vet signature",
+    );
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("sends the parent a form whose template names the client", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        template: { kind: "FORM", rules: { requiredSigner: "client" } },
+      },
+    });
+
+    await expect(startAsParent()).resolves.toMatchObject({ documentId: "77" });
+  });
+
+  it("refuses a submission with no appointment", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: null,
+        template: CONSENT_TEMPLATE,
+      },
+    });
+
+    await expect(startAsParent()).rejects.toThrow("Form submission not found");
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("refuses an id that is neither a submission nor an instance", async () => {
+    arrange({ instance: null });
+
+    await expect(startAsParent()).rejects.toThrow("Form submission not found");
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("refuses an appointment outside the instance's organisation", async () => {
+    arrange();
+    mockedPrisma.appointment.findFirst.mockReset();
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce(null);
+
+    await expect(startAsParent()).rejects.toThrow(
+      "Unauthorized to sign this submission",
+    );
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("refuses a parent who may no longer act for the companion", async () => {
+    arrange();
+    mockedAssertParentCanViewAppointment.mockRejectedValueOnce(
+      new Error("Forbidden"),
+    );
+
+    await expect(startAsParent()).rejects.toThrow("Forbidden");
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the practice did not ask the client to sign", async () => {
+    arrange();
+    mockedPrisma.formAssignment.findFirst.mockReset();
+    mockedPrisma.formAssignment.findFirst.mockResolvedValueOnce(null);
+
+    await expect(startAsParent()).rejects.toThrow(
+      "Unauthorized to sign this submission",
+    );
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("refuses when nothing was rendered to sign yet", async () => {
+    arrange({ document: null });
+
+    await expect(startAsParent()).rejects.toThrow(
+      "Submission has no document to sign yet",
+    );
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  // Leaving the signing page without finishing must not lock the parent out.
+  it("hands back the signing already started for the parent", async () => {
+    arrange({
+      document: {
+        id: "doc-1",
+        signing: {
+          status: "IN_PROGRESS",
+          signerId: "parent-1",
+          documentId: "76",
+          signingUrl: "https://documenso.example/sign/earlier",
+        },
+      },
+    });
+
+    await expect(startAsParent()).resolves.toEqual({
+      documentId: "76",
+      signingUrl: "https://documenso.example/sign/earlier",
+    });
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  // Still being sent, so there is no link to hand back: signing itself
+  // decides (it refuses while the first request is sending).
+  it("does not hand back a signing that has not been sent yet", async () => {
+    arrange({
+      document: {
+        id: "doc-1",
+        signing: { status: "IN_PROGRESS", signerId: "parent-1" },
+      },
+    });
+
+    await startAsParent();
+
+    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands back a sent signing that records no link", async () => {
+    arrange({
+      document: {
+        id: "doc-1",
+        signing: {
+          status: "IN_PROGRESS",
+          signerId: "parent-1",
+          documentId: "76",
+        },
+      },
+    });
+
+    await expect(startAsParent()).resolves.toEqual({
+      documentId: "76",
+      signingUrl: null,
+    });
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("does not hand another signer's open signing to the parent", async () => {
+    arrange({
+      document: {
+        id: "doc-1",
+        signing: {
+          status: "IN_PROGRESS",
+          signerId: "vet-1",
+          signingUrl: "https://documenso.example/sign/vet",
+        },
+      },
+    });
+
+    await expect(startAsParent()).resolves.toEqual({
+      documentId: "77",
+      signingUrl: "https://documenso.example/sign/token",
+    });
+    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a parent with no email to sign with", async () => {
+    arrange();
+    mockedPrisma.parent.findUnique.mockReset();
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce({
+      email: "",
+      firstName: "Jane",
+      lastName: "Owner",
+    });
+
+    await expect(startAsParent()).rejects.toThrow(
+      "Signer email is required for signing",
+    );
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("still refuses practice staff an id with no form submission", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+
+    await expect(
+      FormSigningService.startSigning({
+        isParent: false,
+        submissionId: "instance-1",
+        initiatedBy: "vet-1",
+        organisationId: "org-1",
+      }),
+    ).rejects.toThrow("Form submission not found");
+    expect(mockedPrisma.templateInstance.findUnique).not.toHaveBeenCalled();
   });
 });

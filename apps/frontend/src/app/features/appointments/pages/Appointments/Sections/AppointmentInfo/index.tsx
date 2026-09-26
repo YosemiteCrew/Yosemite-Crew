@@ -353,6 +353,8 @@ const SubmittedFormEntry = ({
             <Primary
               href="#"
               text={submittingId === formId ? 'Saving...' : 'Save'}
+              // One save at a time: a second click would record a second copy.
+              isDisabled={submittingId !== null}
               onClick={async () => {
                 if (!activeAppointment?.id || !attributes?.sub) return;
                 setSubmitError(null);
@@ -561,6 +563,8 @@ export const CustomFormsView = ({
                     <Primary
                       href="#"
                       text={submittingId === selectedTemplateId ? 'Saving...' : 'Save'}
+                      // One save at a time: a second click would record a second copy.
+                      isDisabled={submittingId !== null}
                       onClick={async () => {
                         if (!activeAppointment?.id || !attributes?.sub || !selectedTemplateId)
                           return;

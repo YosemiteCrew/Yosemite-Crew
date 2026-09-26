@@ -24,7 +24,16 @@ import {
   createRenderedDocumentRecord,
   type PersistRenderedDocumentInput,
 } from "src/services/rendered-document.service";
-import { validateTaskWorkflowTemplateBlueprint } from "src/services/task-workflow-blueprints";
+import {
+  isConsentTemplate,
+  lockClientRequest,
+  settleClientRequestAfterPracticeSave,
+  templateNeedsClientSignature,
+} from "src/services/client-signature.helpers";
+import {
+  isWorkflowKind,
+  validateTaskWorkflowTemplateBlueprint,
+} from "src/services/task-workflow-blueprints";
 import { TaskWorkflowService } from "src/services/task-workflow.service";
 
 export class TemplateServiceError extends Error {
@@ -335,13 +344,48 @@ const buildRenderedDocumentSummary = (
   signedBy: renderedDocument.signedBy ?? null,
 });
 
+// CONSENT is here because the patient's Consents panel lists only CONSENT
+// rendered documents (DocumentService.listConsentDocumentsForPms): a consent
+// template left out renders nothing for that list to find.
 const DOCUMENT_BACKED_TEMPLATE_KINDS = new Set<TemplateKind>([
   "FORM",
+  "CONSENT",
   "SOAP_NOTE",
   "PRESCRIPTION",
   "DISCHARGE_SUMMARY",
   "VITAL_RECORD",
 ]);
+
+// The kinds a request to the client can be for (form assignments).
+const CLIENT_REQUEST_TEMPLATE_KINDS = new Set<TemplateKind>([
+  "FORM",
+  "CONSENT",
+]);
+
+const RENDERED_DOCUMENT_TITLES: Partial<Record<TemplateContractKind, string>> =
+  {
+    FORM: "Form submission",
+    CONSENT: "Consent form",
+  };
+
+// Consent templates saved before CONSENT was a storage kind (1c3c790f0) are
+// still stored as FORM, and render as the consent they are.
+const toRenderedDocumentTemplateKind = (template: {
+  kind: TemplateKind;
+  rules: Prisma.JsonValue;
+}): TemplateContractKind =>
+  isConsentTemplate(template)
+    ? "CONSENT"
+    : normalizeTemplateKind(template.kind);
+
+// A consent is listed under its template's name, so the Consents panel can
+// tell one consent from another.
+const toRenderedDocumentTitle = (
+  kind: TemplateContractKind,
+  templateName: string,
+) =>
+  (kind === "CONSENT" && templateName.trim()) ||
+  (RENDERED_DOCUMENT_TITLES[kind] ?? kind.replaceAll("_", " "));
 
 const resolveVersionPayload = (template: {
   latestVersion: number;
@@ -779,8 +823,9 @@ const assertWritableOwnership = (ownership: unknown) => {
 const loadTemplateForReadOrThrow = async (
   templateId: string,
   organisationId?: string,
+  client: Pick<Prisma.TransactionClient, "template"> = prisma,
 ) => {
-  const template = await prisma.template.findUnique({
+  const template = await client.template.findUnique({
     where: { id: ensureId(templateId, "templateId") },
   });
 
@@ -816,8 +861,9 @@ const loadTemplateForWriteOrThrow = async (
 const loadTemplateVersionOrThrow = async (
   templateId: string,
   version: number,
+  client: Pick<Prisma.TransactionClient, "templateVersion"> = prisma,
 ) => {
-  const templateVersion = await prisma.templateVersion.findUnique({
+  const templateVersion = await client.templateVersion.findUnique({
     where: { templateId_version: { templateId, version } },
   });
 
@@ -1489,6 +1535,9 @@ export const TemplateService = {
       organisationId: string;
       authorId?: string;
     },
+    // A caller already inside a transaction passes it, so the work runs on
+    // the connection it holds.
+    client: Prisma.TransactionClient = prisma,
   ) {
     const parsed = createTemplateInstanceSchema.parse(input);
     const organisationId = ensureId(input.organisationId, "organisationId");
@@ -1498,14 +1547,16 @@ export const TemplateService = {
     const template = await loadTemplateForReadOrThrow(
       input.templateId,
       organisationId,
+      client,
     );
     const versionNumber = template.publishedVersion ?? template.latestVersion;
     const version = await loadTemplateVersionOrThrow(
       template.id,
       versionNumber,
+      client,
     );
 
-    return prisma.templateInstance.create({
+    return client.templateInstance.create({
       data: {
         templateId: template.id,
         templateVersion: version.version,
@@ -1524,10 +1575,11 @@ export const TemplateService = {
     instanceId: string,
     input: UpdateTemplateInstanceInput,
     organisationId: string,
+    client: Prisma.TransactionClient = prisma,
   ) {
     const parsed = internalUpdateTemplateInstanceSchema.parse(input);
     const orgScope = ensureId(organisationId, "organisationId");
-    const instance = await prisma.templateInstance.findUnique({
+    const instance = await client.templateInstance.findUnique({
       where: { id: ensureId(instanceId, "instanceId") },
     });
 
@@ -1552,7 +1604,7 @@ export const TemplateService = {
     try {
       // The status the instance was read with is part of the WHERE, so a
       // concurrent submit or signing between the read and this write wins.
-      return await prisma.templateInstance.update({
+      return await client.templateInstance.update({
         where: { id: instance.id, status: instance.status },
         data: {
           data:
@@ -1580,9 +1632,16 @@ export const TemplateService = {
     instanceId: string,
     organisationId: string,
     submittedBy?: string,
+    options: {
+      // Inside a caller's transaction the submit joins it rather than
+      // opening a second one on another connection.
+      client?: Prisma.TransactionClient;
+      // Submitted by the client from the app, not saved by the practice.
+      submittedByParent?: boolean;
+    } = {},
   ) {
     const orgScope = ensureId(organisationId, "organisationId");
-    return prisma.$transaction(async (tx) => {
+    const submit = async (tx: Prisma.TransactionClient) => {
       const instance = await tx.templateInstance.findUnique({
         where: { id: ensureId(instanceId, "instanceId") },
         include: {
@@ -1591,6 +1650,8 @@ export const TemplateService = {
               id: true,
               kind: true,
               ownership: true,
+              name: true,
+              rules: true,
             },
           },
         },
@@ -1607,44 +1668,84 @@ export const TemplateService = {
         );
       }
 
-      if (instance.status === "COMPLETED") {
+      // A signed instance is past submission too: submitting it again must not
+      // render a second document or step its status back to COMPLETED.
+      if (instance.status === "COMPLETED" || instance.status === "SIGNED") {
         return instance;
       }
 
-      const createdBy = ensureId(
-        submittedBy ?? instance.authorId ?? instance.signedBy ?? "",
-        "submittedBy",
-      );
+      // VOID is entered in error: nothing is rendered for it and it never
+      // becomes COMPLETED.
+      if (instance.status === "VOID") {
+        throw new TemplateServiceError("Template instance is void", 409);
+      }
 
-      // The submit routes already gate on forms:edit:any, which governs template
-      // instances org-wide, so the schedule-level ownership check is satisfied.
-      await TaskWorkflowService.launchFromTemplateInstance(
-        instance.id,
-        orgScope,
-        { actorId: createdBy, canEditAny: true },
-        {
-          client: tx,
-          notify: true,
-        },
-      );
+      // A form or consent on an appointment may answer a request sent to the
+      // client. The lock is the one a signature completing on it takes, so a
+      // practice save and that signature never interleave.
+      const clientRequest =
+        instance.appointmentId &&
+        CLIENT_REQUEST_TEMPLATE_KINDS.has(instance.template.kind)
+          ? {
+              organisationId: instance.organisationId,
+              templateId: instance.templateId,
+              appointmentId: instance.appointmentId,
+            }
+          : null;
+      if (clientRequest) {
+        await lockClientRequest(tx, clientRequest);
+      }
+
+      // Claim the instance before any side effect. The UPDATE takes the row
+      // lock, so a concurrent submit of the same instance waits here, then
+      // matches nothing once this one commits and returns the instance it
+      // completed, instead of failing on the unique RenderedDocument link.
+      const claim = await tx.templateInstance.updateMany({
+        where: { id: instance.id, status: { in: ["DRAFT", "IN_PROGRESS"] } },
+        data: { status: "COMPLETED" },
+      });
+      if (claim.count === 0) {
+        return tx.templateInstance.findUniqueOrThrow({
+          where: { id: instance.id },
+        });
+      }
+
+      // Only task templates and care pathways generate a task workflow. The
+      // workflow service throws for any other kind, so launching it for every
+      // submit failed each form, consent and clinical template before its
+      // document was rendered.
+      if (isWorkflowKind(instance.template.kind)) {
+        const createdBy = ensureId(
+          submittedBy ?? instance.authorId ?? instance.signedBy ?? "",
+          "submittedBy",
+        );
+
+        // The submit routes already gate on forms:edit:any, which governs
+        // template instances org-wide, so the schedule-level ownership check is
+        // satisfied.
+        await TaskWorkflowService.launchFromTemplateInstance(
+          instance.id,
+          orgScope,
+          { actorId: createdBy, canEditAny: true },
+          {
+            client: tx,
+            notify: true,
+          },
+        );
+      }
 
       let renderedDocumentSummary:
         Awaited<ReturnType<typeof createRenderedDocumentRecord>> | undefined;
 
       if (DOCUMENT_BACKED_TEMPLATE_KINDS.has(instance.template.kind)) {
-        const normalizedTemplateKind = normalizeTemplateKind(
-          instance.template.kind,
-        );
+        const documentKind = toRenderedDocumentTemplateKind(instance.template);
         const renderedDocumentInput: PersistRenderedDocumentInput = {
-          title:
-            normalizedTemplateKind === "FORM"
-              ? "Form submission"
-              : normalizedTemplateKind.replaceAll("_", " "),
+          title: toRenderedDocumentTitle(documentKind, instance.template.name),
           source: {
             sourceKind: "TEMPLATE_INSTANCE",
             sourceId: instance.id,
             organisationId: instance.organisationId,
-            templateKind: normalizedTemplateKind,
+            templateKind: documentKind,
             templateId: instance.templateId,
             templateVersion: instance.templateVersion,
           },
@@ -1657,7 +1758,7 @@ export const TemplateService = {
         );
       }
 
-      return tx.templateInstance.update({
+      const completed = await tx.templateInstance.update({
         where: { id: instance.id },
         data: {
           status: "COMPLETED",
@@ -1667,6 +1768,18 @@ export const TemplateService = {
           generatedPdfUrl: renderedDocumentSummary?.pdfUrl ?? undefined,
         },
       });
-    });
+
+      if (clientRequest && !options.submittedByParent) {
+        await settleClientRequestAfterPracticeSave(
+          tx,
+          clientRequest,
+          templateNeedsClientSignature(instance.template),
+        );
+      }
+      return completed;
+    };
+    return options.client
+      ? submit(options.client)
+      : prisma.$transaction(submit);
   },
 };

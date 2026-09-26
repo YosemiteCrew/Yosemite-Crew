@@ -1,5 +1,13 @@
 import { Prisma } from "@prisma/client";
 import AWS from "aws-sdk";
+import { randomUUID } from "node:crypto";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
+import {
+  awaitsClientSignature,
+  hasActiveOrCompletedSigning,
+  isOpenSigning,
+  lockClientRequest,
+} from "src/services/client-signature.helpers";
 import axios from "axios";
 import {
   buildDocumentSignature as buildDocumentSignatureContract,
@@ -334,23 +342,15 @@ const resolvePersistedRenderedDocumentPdf = async (
   };
 };
 
+// Where a record's own guards (#3633) read it from.
+export { hasActiveOrCompletedSigning };
+
 const parseRenderedDocumentSigning = (
   value: unknown,
 ): RenderedDocumentSigning | null =>
   typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as RenderedDocumentSigning)
     : null;
-
-export const hasActiveOrCompletedSigning = (document: {
-  status: string;
-  signing: unknown;
-}): boolean => {
-  if (document.status === "SIGNED") {
-    return true;
-  }
-  const signing = parseRenderedDocumentSigning(document.signing);
-  return signing?.status === "IN_PROGRESS" || signing?.status === "SIGNED";
-};
 
 const rerenderAndPersistClinicalRenderedDocumentPdf = async (
   document: PersistedRenderedDocument,
@@ -645,12 +645,14 @@ type ClinicalRecordLinkage = {
 type LinkedRecord = ClinicalRecordLinkage & {
   status: string;
   authorId: string | null;
+  createdAt: Date;
   updatedAt: Date;
 };
 
 const LINKED_RECORD_SELECT = {
   status: true,
   authorId: true,
+  createdAt: true,
   updatedAt: true,
   appointmentId: true,
   caseId: true,
@@ -726,13 +728,20 @@ export const signPersistedRenderedDocument = async (
     throw new RenderedDocumentServiceError("Document is already signed", 409);
   }
 
+  // A consent records the client's agreement, and a form the practice asked
+  // the client to sign is theirs to sign, so only the client signs either.
   if (
-    parseRenderedDocumentSigning(existing.signing)?.status === "IN_PROGRESS"
+    input.signerType !== "PARENT" &&
+    (await awaitsClientSignature(existing))
   ) {
     throw new RenderedDocumentServiceError(
-      "Document signing is already in progress",
+      "This document is signed by the client",
       409,
     );
+  }
+
+  if (isOpenSigning(existing.signing)) {
+    throw signingInProgress();
   }
 
   // Signing attests the record, so it starts from a finalised one: never a
@@ -757,6 +766,95 @@ export const signPersistedRenderedDocument = async (
     );
   }
 
+  // Claimed before Documenso is called: of two requests that both read the
+  // document unsigned, the second matches nothing once the first has claimed
+  // it, so one document is sent and one signing link exists.
+  const claimId = randomUUID();
+  const claimed = await client.renderedDocument.updateMany({
+    where: { id: existing.id, updatedAt: existing.updatedAt },
+    data: {
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "IN_PROGRESS",
+        signerId: input.signerId,
+        signerType: input.signerType,
+        claimId,
+        claimedAt: new Date().toISOString(),
+      },
+    },
+  });
+  if (claimed.count === 0) {
+    return openSigningFor(existing.id, input.signerId, client);
+  }
+
+  try {
+    return await sendClaimedDocumentForSigning(
+      existing,
+      input,
+      linked,
+      apiKey,
+      claimId,
+      client,
+    );
+  } catch (error) {
+    // Nothing was sent, or the send did not complete: let it be tried again.
+    await client.renderedDocument.updateMany({
+      where: {
+        id: existing.id,
+        signing: { path: ["claimId"], equals: claimId },
+      },
+      data: {
+        signing:
+          existing.signing === null
+            ? Prisma.DbNull
+            : (existing.signing as Prisma.InputJsonValue),
+      },
+    });
+    throw error;
+  }
+};
+
+const signingInProgress = () =>
+  new RenderedDocumentServiceError(
+    "Document signing is already in progress",
+    409,
+  );
+
+/**
+ * The request that lost the claim. The signing the winner sent is handed to
+ * the same signer; anyone else, or a signing still being sent, is refused.
+ */
+const openSigningFor = async (
+  renderedDocumentId: string,
+  signerId: string,
+  client: RenderedDocumentWriteClient,
+): Promise<PersistedRenderedDocument> => {
+  const current = await client.renderedDocument.findUnique({
+    where: { id: renderedDocumentId },
+    include: { signature: true },
+  });
+  const signing = parseRenderedDocumentSigning(current?.signing);
+  if (
+    current &&
+    signing?.status === "IN_PROGRESS" &&
+    signing.documentId &&
+    signing.signerId === signerId
+  ) {
+    return normalizePersistedRenderedDocument(current);
+  }
+  throw signingInProgress();
+};
+
+const sendClaimedDocumentForSigning = async (
+  existing: PersistedRenderedDocument,
+  input: PersistRenderedDocumentSignatureInput,
+  linked: LinkedRecord | null,
+  apiKey: string,
+  claimId: string,
+  client: RenderedDocumentWriteClient,
+): Promise<PersistedRenderedDocument> => {
+  const kind = existing.kind as RenderedDocumentKind;
   const renderedPdf = await resolvePersistedRenderedDocumentPdf(existing);
   const renderedPdfSnapshot = {
     ...buildRenderedDocumentPdfSnapshot({
@@ -801,32 +899,63 @@ export const signPersistedRenderedDocument = async (
       ? `${documensoPublicBaseUrl}/sign/${doc.recipients[0].token}`
       : null;
 
-  await DocumensoService.distributeDocument({
+  const signing = {
+    required: true,
+    provider: "DOCUMENSO",
+    status: "IN_PROGRESS",
+    documentId: doc.id.toString(),
+    signerId: input.signerId,
+    signerType: input.signerType,
+    signerEmail: input.signerEmail,
+    signerName: input.signerName,
+    signingUrl,
+    signatureText: input.signatureText ?? null,
+    // The revision of the record the signer is shown. Completion only
+    // marks the record signed while it still stands at this revision.
+    sourceRevision: linked ? linked.updatedAt.toISOString() : null,
+    // Kept so a failed send can still be released.
+    claimId,
+  } satisfies PinnedRenderedDocumentSigning;
+  const stillClaimed = {
+    id: existing.id,
+    signing: { path: ["claimId"], equals: claimId },
+  };
+
+  // Recorded before the document is sent to the signer, and only while this
+  // request still holds the claim. A request slow enough for its claim to be
+  // taken over stops here: its Documenso document is never sent. Until the
+  // send is confirmed the signing expires like a claim, so a request that
+  // stops between the two does not hold the document for good.
+  const recorded = await client.renderedDocument.updateMany({
+    where: stillClaimed,
+    data: {
+      pdf: renderedPdfSnapshot,
+      signing: {
+        ...signing,
+        awaitingSend: true,
+        claimedAt: new Date().toISOString(),
+      },
+    },
+  });
+  if (recorded.count === 0) {
+    throw signingInProgress();
+  }
+
+  const sent = await DocumensoService.sendEnvelope({
     envelopeId: doc.envelopeId,
     apiKey,
   });
+  if (!sent) {
+    throw new RenderedDocumentServiceError(
+      "Unable to send the document for signing",
+      502,
+    );
+  }
 
   return normalizePersistedRenderedDocument(
     await client.renderedDocument.update({
-      where: { id: existing.id },
-      data: {
-        pdf: renderedPdfSnapshot,
-        signing: {
-          required: true,
-          provider: "DOCUMENSO",
-          status: "IN_PROGRESS",
-          documentId: doc.id.toString(),
-          signerId: input.signerId,
-          signerType: input.signerType,
-          signerEmail: input.signerEmail,
-          signerName: input.signerName,
-          signingUrl,
-          signatureText: input.signatureText ?? null,
-          // The revision of the record the signer is shown. Completion only
-          // marks the record signed while it still stands at this revision.
-          sourceRevision: linked ? linked.updatedAt.toISOString() : null,
-        } satisfies PinnedRenderedDocumentSigning,
-      },
+      where: stillClaimed,
+      data: { signing },
       include: { signature: true },
     }),
   );
@@ -890,6 +1019,7 @@ const resolvePatientIdForSignedDocument = async (
 /** `signing` as stored on a rendered document, with the pinned revision. */
 type PinnedRenderedDocumentSigning = RenderedDocumentSigning & {
   sourceRevision?: string | null;
+  claimId?: string;
 };
 
 /**
@@ -1015,9 +1145,17 @@ export const withdrawPersistedRenderedDocumentSigning = async (
  * audited. Conditional on the document still awaiting this Documenso document,
  * so a concurrent completion or a newer signing request is left alone.
  */
+const DISCARD_REASONS = {
+  RECORD_CHANGED: "the record changed while the signature was outstanding",
+  SIGNER_NOT_PERMITTED:
+    "the signer may no longer act for the companion on this appointment",
+} as const;
+type DiscardReason = keyof typeof DISCARD_REASONS;
+
 const releaseDiscardedSigning = async (
   existing: PersistedRenderedDocument,
   documentId: string,
+  reason: DiscardReason,
 ): Promise<void> => {
   if (
     !(await withdrawPersistedRenderedDocumentSigning(existing.id, documentId))
@@ -1026,7 +1164,7 @@ const releaseDiscardedSigning = async (
   }
 
   logger.warn(
-    "[RenderedDocument] Signed copy discarded: the record changed while the signature was outstanding",
+    `[RenderedDocument] Signed copy discarded: ${DISCARD_REASONS[reason]}`,
     { renderedDocumentId: existing.id },
   );
   await recordRenderedDocumentAuditSafely(
@@ -1040,18 +1178,156 @@ const releaseDiscardedSigning = async (
         renderedDocumentId: existing.id,
         kind: existing.kind,
         outcome: "SIGNATURE_DISCARDED",
+        reason,
       },
     },
   );
 };
 
+/**
+ * A client's signature on a form or consent completes what the practice sent
+ * them for that appointment, so the assignment reads signed and no longer
+ * holds up finalising the visit. Only the client's own signature does this: a
+ * signature by practice staff, or the discharge packet's, never does.
+ */
+/**
+ * Whether a newer submission of the same form for the same appointment, by
+ * someone other than the signer, is the one waiting for their signature. The
+ * client signs their own submission, or else the latest the practice
+ * completed for them: a practice correction saved after a first version
+ * supersedes that version for the request.
+ */
+export const hasNewerSubmissionForSigner = async (
+  client: Pick<Prisma.TransactionClient, "templateInstance">,
+  instance: {
+    id: string;
+    organisationId: string;
+    templateId: string;
+    appointmentId: string;
+    authorId: string | null;
+    createdAt: Date;
+  },
+  signerId: string,
+): Promise<boolean> => {
+  if (instance.authorId === signerId) return false;
+  const newer = await client.templateInstance.count({
+    where: {
+      id: { not: instance.id },
+      organisationId: instance.organisationId,
+      templateId: instance.templateId,
+      appointmentId: instance.appointmentId,
+      status: { in: ["COMPLETED", "SIGNED"] },
+      createdAt: { gt: instance.createdAt },
+      OR: [{ authorId: null }, { authorId: { not: signerId } }],
+    },
+  });
+  return newer > 0;
+};
+
+const markClientAssignmentsSigned = async (
+  tx: Pick<Prisma.TransactionClient, "formAssignment" | "templateInstance">,
+  existing: PersistedRenderedDocument,
+  signing: PinnedRenderedDocumentSigning,
+  linked: LinkedRecord | null,
+  signedAt: Date,
+): Promise<void> => {
+  if (
+    signing.signerType !== "PARENT" ||
+    !signing.signerId ||
+    !existing.templateId ||
+    !existing.templateInstanceId ||
+    !linked?.appointmentId
+  ) {
+    return;
+  }
+  // A version the practice has since corrected no longer answers the request.
+  if (
+    await hasNewerSubmissionForSigner(
+      tx,
+      {
+        id: existing.templateInstanceId,
+        organisationId: existing.organisationId,
+        templateId: existing.templateId,
+        appointmentId: linked.appointmentId,
+        authorId: linked.authorId,
+        createdAt: linked.createdAt,
+      },
+      signing.signerId,
+    )
+  ) {
+    return;
+  }
+  await tx.formAssignment.updateMany({
+    where: {
+      organisationId: existing.organisationId,
+      templateId: existing.templateId,
+      appointmentId: linked.appointmentId,
+      status: { in: ["SENT", "VIEWED", "SUBMITTED"] },
+    },
+    data: { status: "SIGNED", signedAt },
+  });
+};
+
+/**
+ * Takes the lock a submission of the same form for the same appointment
+ * takes, so a practice correction saved while a signature completes is seen
+ * by it, or sees the request it answered.
+ */
+const lockRequestOfDocument = async (
+  tx: Prisma.TransactionClient,
+  existing: PersistedRenderedDocument,
+): Promise<void> => {
+  if (!existing.templateId || !existing.templateInstanceId) return;
+  const instance = await tx.templateInstance.findUnique({
+    where: { id: existing.templateInstanceId },
+    select: { appointmentId: true },
+  });
+  if (!instance?.appointmentId) return;
+  await lockClientRequest(tx, {
+    organisationId: existing.organisationId,
+    templateId: existing.templateId,
+    appointmentId: instance.appointmentId,
+  });
+};
+
 /** Rolls the completion transaction back when there is nothing to complete. */
 class SigningCompletionSkipped extends Error {
-  /** `true` when the linked record no longer matches what was signed. */
-  constructor(readonly recordChanged: boolean) {
+  /** Why the signed copy is discarded, or `null` when there is nothing to do. */
+  constructor(readonly discard: DiscardReason | null) {
     super("Signing completion skipped");
   }
 }
+
+/**
+ * Whether a client who signed may still act for the companion on this
+ * appointment: their link is active with the appointments permission, the
+ * rule that let them start the signing. A link revoked, or the permission
+ * taken away, while the signature was outstanding discards it. Other signers,
+ * and documents with no companion to check against, are not affected.
+ */
+const signerMayStillSign = async (
+  tx: Prisma.TransactionClient,
+  linked: LinkedRecord | null,
+  signing: PinnedRenderedDocumentSigning,
+): Promise<boolean> => {
+  if (signing.signerType !== "PARENT" || !signing.signerId || !linked) {
+    return true;
+  }
+  const patientId = await resolvePatientIdForSignedDocument(tx, linked);
+  if (!patientId) return true;
+  const link = await tx.parentPatient.findFirst({
+    where: {
+      parentId: signing.signerId,
+      patientId,
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
+    },
+    select: { role: true, permissions: true },
+  });
+  return Boolean(
+    link && hasCompanionFeature(link.role, link.permissions, "appointments"),
+  );
+};
 
 const isRecordNotFoundError = (error: unknown): boolean =>
   error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -1137,7 +1413,7 @@ const claimSignedDocument = async (
     });
   } catch (error) {
     throw isRecordNotFoundError(error)
-      ? new SigningCompletionSkipped(false)
+      ? new SigningCompletionSkipped(null)
       : error;
   }
 };
@@ -1193,6 +1469,7 @@ const commitSigningCompletion = async (
 
   try {
     return await prisma.$transaction(async (tx) => {
+      await lockRequestOfDocument(tx, existing);
       // Not moved: the record was reopened, edited, voided or superseded while
       // the signature was outstanding, so no signed copy of content it no
       // longer stands for is recorded against it.
@@ -1204,7 +1481,7 @@ const commitSigningCompletion = async (
         signed.at,
       );
       if (!moved) {
-        throw new SigningCompletionSkipped(true);
+        throw new SigningCompletionSkipped("RECORD_CHANGED");
       }
 
       const document = await claimSignedDocument(
@@ -1223,17 +1500,31 @@ const commitSigningCompletion = async (
         update: signatureData,
       });
 
+      const linked = await findLinkedRecord(tx, existing);
+      // Checked on the record as signed; a refusal rolls every write above
+      // back with it.
+      if (!(await signerMayStillSign(tx, linked, signing))) {
+        throw new SigningCompletionSkipped("SIGNER_NOT_PERMITTED");
+      }
+      await markClientAssignmentsSigned(
+        tx,
+        existing,
+        signing,
+        linked,
+        signed.at,
+      );
+
       return {
         document: { ...document, signature: signatureRow },
-        linked: await findLinkedRecord(tx, existing),
+        linked,
       };
     });
   } catch (error) {
     if (!(error instanceof SigningCompletionSkipped)) {
       throw error;
     }
-    if (error.recordChanged) {
-      await releaseDiscardedSigning(existing, documentId);
+    if (error.discard) {
+      await releaseDiscardedSigning(existing, documentId, error.discard);
     }
     return null;
   }

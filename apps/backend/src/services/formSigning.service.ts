@@ -4,8 +4,11 @@ import { prisma } from "src/config/prisma";
 import { Prisma } from "@prisma/client";
 import {
   createRenderedDocumentRecord,
+  hasNewerSubmissionForSigner,
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
+import { templateNeedsClientSignature } from "src/services/client-signature.helpers";
+import { assertParentCanViewAppointment } from "src/services/form.service";
 
 type PrismaFormSubmissionRecord = {
   id: string;
@@ -243,6 +246,137 @@ export class FormSigningService {
     }
   }
 
+  /**
+   * A template-backed form or consent is a template instance with a rendered
+   * document, not a form submission, so the parent signs that document:
+   * whether they submitted it from the app or the practice filled it in for
+   * them. Only on an appointment of a companion they may act for (the same
+   * rule as submitting it), for a template the practice asked them to sign. A
+   * signing already started for them is handed back, so it can be reopened.
+   */
+  private static async startTemplateInstanceSigning(
+    instanceId: string,
+    parentId: string,
+  ) {
+    const instance = await prisma.templateInstance.findUnique({
+      where: { id: instanceId },
+      select: {
+        id: true,
+        organisationId: true,
+        templateId: true,
+        appointmentId: true,
+        authorId: true,
+        createdAt: true,
+        template: { select: { kind: true, rules: true } },
+      },
+    });
+    if (!instance?.appointmentId) {
+      throw new Error("Form submission not found");
+    }
+    // As for a form submission (ensureRequiredSignerMatches): the template
+    // names who signs, and a consent that names no one is the client's.
+    if (!templateNeedsClientSignature(instance.template)) {
+      throw new Error("Form requires vet signature");
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: instance.appointmentId,
+        organisationId: instance.organisationId,
+      },
+      select: { patient: true },
+    });
+    if (!appointment) {
+      throw new Error("Unauthorized to sign this submission");
+    }
+    await assertParentCanViewAppointment(appointment, parentId);
+
+    const assignment = await prisma.formAssignment.findFirst({
+      where: {
+        organisationId: instance.organisationId,
+        templateId: instance.templateId,
+        appointmentId: instance.appointmentId,
+        signingRequired: true,
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
+      },
+      select: { id: true },
+    });
+    if (!assignment) {
+      throw new Error("Unauthorized to sign this submission");
+    }
+
+    if (
+      await hasNewerSubmissionForSigner(
+        prisma,
+        {
+          id: instance.id,
+          organisationId: instance.organisationId,
+          templateId: instance.templateId,
+          appointmentId: instance.appointmentId,
+          authorId: instance.authorId,
+          createdAt: instance.createdAt,
+        },
+        parentId,
+      )
+    ) {
+      throw new Error(
+        "A newer version of this form is waiting for your signature",
+      );
+    }
+
+    const document = await prisma.renderedDocument.findUnique({
+      where: { templateInstanceId: instance.id },
+      select: { id: true, signing: true },
+    });
+    if (!document) {
+      throw new Error("Submission has no document to sign yet");
+    }
+
+    const open = document.signing as {
+      status?: string;
+      signerId?: string;
+      documentId?: string;
+      signingUrl?: string | null;
+    } | null;
+    if (
+      open?.status === "IN_PROGRESS" &&
+      open.documentId &&
+      open.signerId === parentId
+    ) {
+      return {
+        documentId: open.documentId,
+        signingUrl: open.signingUrl ?? null,
+      };
+    }
+
+    const { signerEmail, signerName } =
+      await FormSigningService.resolveSignerInfo({
+        isParent: true,
+        initiatedBy: parentId,
+      });
+    if (!signerEmail) {
+      throw new Error("Signer email is required for signing");
+    }
+
+    const signed = await signPersistedRenderedDocument({
+      renderedDocumentId: document.id,
+      organisationId: instance.organisationId,
+      signerId: parentId,
+      signerType: "PARENT",
+      signerEmail,
+      signerName,
+    });
+    const signing = signed.signing as {
+      documentId?: string;
+      signingUrl?: string | null;
+    } | null;
+
+    return {
+      documentId: signing?.documentId ?? document.id,
+      signingUrl: signing?.signingUrl ?? null,
+    };
+  }
+
   static async startSigning({
     isParent,
     submissionId,
@@ -254,7 +388,18 @@ export class FormSigningService {
     initiatedBy?: string;
     organisationId?: string;
   }) {
-    const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
+    const submission = await prisma.formSubmission.findUnique({
+      where: { id: submissionId },
+    });
+    if (!submission) {
+      if (isParent && initiatedBy) {
+        return FormSigningService.startTemplateInstanceSigning(
+          submissionId,
+          initiatedBy,
+        );
+      }
+      throw new Error("Form submission not found");
+    }
 
     if (isParent) {
       FormSigningService.ensureParentOwnsSubmission(

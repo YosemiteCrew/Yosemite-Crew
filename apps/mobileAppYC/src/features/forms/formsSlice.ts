@@ -8,12 +8,14 @@ import type {Form, FormSubmission} from '@yosemite-crew/types';
 import {formApi, mapAppointmentFormItem} from './services/formService';
 import type {
   AppointmentFormEntry,
+  AppointmentFormStatus,
   AppointmentFormsState,
   FormSource,
 } from './types';
 import {
   deriveFormStatus,
   hasSignatureField,
+  isConsentForm,
   normalizeFormForState,
   normalizeSubmissionFromApi,
   resolveFormVersion,
@@ -44,10 +46,28 @@ const shouldRequireSignature = (
   if (submission?.signing?.required) {
     return true;
   }
-  if ((form.category ?? '').toLowerCase().includes('consent')) {
+  if (isConsentForm(form)) {
     return true;
   }
   return hasSignatureField(form.schema);
+};
+
+/**
+ * The practice's request is the record of what the server accepts: once it is
+ * submitted the form is not offered again, and once the client signed it the
+ * form reads signed, even before this device has the submission itself.
+ */
+const resolveEntryStatus = (
+  derived: AppointmentFormStatus,
+  assignmentStatus?: string | null,
+): AppointmentFormStatus => {
+  if (assignmentStatus === 'signed') {
+    return 'signed';
+  }
+  if (assignmentStatus === 'submitted' && derived === 'not_started') {
+    return 'submitted';
+  }
+  return derived;
 };
 
 const buildEntry = ({
@@ -56,12 +76,18 @@ const buildEntry = ({
   source,
   formVersion,
   signingUrl,
+  assignmentStatus,
+  signingRequested = null,
 }: {
   form: Form;
   submission?: FormSubmission | null;
   source: FormSource;
   formVersion?: number;
   signingUrl?: string | null;
+  assignmentStatus?: string | null;
+  // Whether the practice asks the client to sign it, as the server says.
+  // The server decides when it answers; the form's own fields only when not.
+  signingRequested?: boolean | null;
 }): AppointmentFormEntry => {
   const normalizedForm = normalizeFormForState(form);
   const normalizedSubmission = submission
@@ -73,11 +99,17 @@ const buildEntry = ({
         submittedBy: submission.submittedBy,
       })
     : null;
-  const signingRequired = shouldRequireSignature(
-    normalizedForm,
-    normalizedSubmission ?? undefined,
+  const signingRequired =
+    typeof signingRequested === 'boolean'
+      ? signingRequested
+      : shouldRequireSignature(
+          normalizedForm,
+          normalizedSubmission ?? undefined,
+        );
+  const status = resolveEntryStatus(
+    deriveFormStatus(normalizedSubmission, signingRequired),
+    assignmentStatus,
   );
-  const status = deriveFormStatus(normalizedSubmission, signingRequired);
 
   return {
     form: normalizedForm,
@@ -88,6 +120,8 @@ const buildEntry = ({
     source,
     formVersion:
       formVersion ?? resolveFormVersion(form, submission ?? undefined),
+    assignmentStatus: assignmentStatus ?? null,
+    signingRequested,
   };
 };
 
@@ -170,6 +204,8 @@ const fetchAppointmentFormsData = async ({
         submission: mapped.submission,
         formVersion: mapped.formVersion,
         source: 'appointment',
+        assignmentStatus: mapped.assignmentStatus,
+        signingRequested: mapped.signingRequested,
       });
       entries.push(entry);
       cache.set(entry.form._id, normalizeFormForState(entry.form));
@@ -364,11 +400,15 @@ const formsSlice = createSlice({
         const {appointmentId, form, submission} = action.payload;
         state.submittingByForm[form._id] = false;
         const existing = state.byAppointmentId[appointmentId] ?? [];
+        // What the server said of this form still holds after submitting it.
+        const prior = existing.find(entry => entry.form._id === form._id);
         const updatedEntry = buildEntry({
           form,
           submission,
           source: 'appointment',
           formVersion: submission.formVersion,
+          signingRequested: prior?.signingRequested,
+          assignmentStatus: prior?.assignmentStatus,
         });
         state.byAppointmentId[appointmentId] = mergeEntries(existing, [
           updatedEntry,
@@ -417,6 +457,8 @@ const formsSlice = createSlice({
             source: entry.source,
             formVersion: entry.formVersion,
             signingUrl: signingUrl ?? entry.signingUrl ?? null,
+            assignmentStatus: entry.assignmentStatus,
+            signingRequested: entry.signingRequested,
           });
         });
         state.byAppointmentId[appointmentId] = updated;

@@ -230,6 +230,39 @@ describe('formService', () => {
       (fromFormRequestDTO as jest.Mock).mockReturnValue(mockForm);
     });
 
+    it('carries whether the practice asked for a signature', () => {
+      expect(
+        mapAppointmentFormItem({
+          questionnaire: mockQuestionnaire,
+          signingRequired: true,
+        } as any).signingRequested,
+      ).toBe(true);
+      expect(
+        mapAppointmentFormItem({
+          questionnaire: mockQuestionnaire,
+          signingRequired: false,
+        } as any).signingRequested,
+      ).toBe(false);
+      // Said nothing: the form's own fields decide.
+      expect(
+        mapAppointmentFormItem({questionnaire: mockQuestionnaire} as any)
+          .signingRequested,
+      ).toBeNull();
+    });
+
+    it('carries the request status in lower case', () => {
+      expect(
+        mapAppointmentFormItem({
+          questionnaire: mockQuestionnaire,
+          assignmentStatus: 'SUBMITTED',
+        } as any).assignmentStatus,
+      ).toBe('submitted');
+      expect(
+        mapAppointmentFormItem({questionnaire: mockQuestionnaire} as any)
+          .assignmentStatus,
+      ).toBeNull();
+    });
+
     it('maps item with only questionnaire (no response)', () => {
       const item: any = {questionnaire: mockQuestionnaire};
 

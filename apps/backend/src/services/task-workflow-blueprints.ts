@@ -246,7 +246,9 @@ const kindToRequiredSectionIds: Record<TaskWorkflowTemplateKind, string[]> = {
   CARE_PATHWAY: ["admission", "schedule", "discharge"],
 };
 
-const isWorkflowKind = (kind: TemplateKind): kind is TaskWorkflowTemplateKind =>
+export const isWorkflowKind = (
+  kind: TemplateKind,
+): kind is TaskWorkflowTemplateKind =>
   kind === "TASK_TEMPLATE" || kind === "CARE_PATHWAY";
 
 const getSections = (snapshot: unknown): SnapshotSection[] => {

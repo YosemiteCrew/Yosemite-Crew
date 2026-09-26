@@ -13,6 +13,10 @@ export interface AppointmentFormEntry {
   signingRequired: boolean;
   signingUrl?: string | null;
   source: FormSource;
+  /** Where the practice's request for this form stands, lower case. */
+  assignmentStatus?: string | null;
+  /** Whether the practice asks the client to sign it, when the server says. */
+  signingRequested?: boolean | null;
 }
 
 export interface AppointmentFormsState {
