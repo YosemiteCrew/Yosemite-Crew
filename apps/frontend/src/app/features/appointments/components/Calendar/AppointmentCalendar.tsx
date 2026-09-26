@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DayCalendar from '@/app/features/appointments/components/Calendar/common/DayCalendar';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import WeekCalendar from '@/app/features/appointments/components/Calendar/common/WeekCalendar';
@@ -21,6 +21,17 @@ import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import PhoneCalendar from '@/app/features/appointments/components/Calendar/responsive/PhoneCalendar';
 import useIsTabletCalendar from '@/app/features/appointments/components/Calendar/responsive/useIsTabletCalendar';
 import TabletCalendarTitleBand from '@/app/features/appointments/components/Calendar/responsive/TabletCalendarTitleBand';
+import CalendarBlocksPanel from '@/app/features/appointments/components/Calendar/CalendarBlocksPanel';
+import {
+  createCalendarBlock,
+  deleteCalendarBlock,
+  fetchCalendarBlocks,
+  updateCalendarBlock,
+  type CalendarBlock,
+  type CalendarBlockInput,
+} from '@/app/features/appointments/services/calendarBlockService';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -84,7 +95,26 @@ const AppointmentCalendar = ({
   const isPhone = useIsPhone();
   const isTablet = useIsTabletCalendar();
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
+  const [calendarBlockState, setCalendarBlockState] = useState<{
+    organisationId: string | null;
+    blocks: CalendarBlock[];
+  }>({ organisationId: null, blocks: [] });
+  const primaryOrgId = useOrgStore((state) => state.primaryOrgId);
+  const calendarBlocks =
+    calendarBlockState.organisationId === primaryOrgId ? calendarBlockState.blocks : [];
+  const updateCalendarBlocks = useCallback(
+    (update: (blocks: CalendarBlock[]) => CalendarBlock[]) => {
+      if (!primaryOrgId) return;
+      setCalendarBlockState((current) => ({
+        organisationId: primaryOrgId,
+        blocks: update(current.organisationId === primaryOrgId ? current.blocks : []),
+      }));
+    },
+    [primaryOrgId]
+  );
   const teams = useTeamForPrimaryOrg();
+  const rooms = useRoomsForPrimaryOrg();
+  useLoadRoomsForPrimaryOrg();
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
@@ -115,6 +145,58 @@ const AppointmentCalendar = ({
     teams,
     weekStart,
   });
+
+  const blockRange = useMemo(() => {
+    const start = new Date(activeCalendar === 'week' ? weekStart : currentDate);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - 1);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 9);
+    return { from: start, to: end };
+  }, [activeCalendar, currentDate, weekStart]);
+
+  useEffect(() => {
+    if (!primaryOrgId) {
+      return;
+    }
+    let current = true;
+    void fetchCalendarBlocks(primaryOrgId, blockRange.from, blockRange.to)
+      .then((blocks) => {
+        if (current) updateCalendarBlocks(() => blocks);
+      })
+      .catch(() => {
+        if (current)
+          notify('warning', {
+            title: 'Calendar blocks unavailable',
+            text: 'Try reloading the calendar.',
+          });
+      });
+    return () => {
+      current = false;
+    };
+  }, [blockRange, notify, primaryOrgId, updateCalendarBlocks]);
+
+  const handleSaveCalendarBlock = useCallback(
+    async (id: string | null, input: CalendarBlockInput) => {
+      if (!primaryOrgId) throw new Error('No organisation selected');
+      const saved = id
+        ? await updateCalendarBlock(primaryOrgId, id, input)
+        : await createCalendarBlock(primaryOrgId, input);
+      updateCalendarBlocks((blocks) =>
+        id ? blocks.map((block) => (block.id === id ? saved : block)) : [...blocks, saved]
+      );
+    },
+    [primaryOrgId, updateCalendarBlocks]
+  );
+
+  const handleDeleteCalendarBlock = useCallback(
+    async (id: string) => {
+      if (!primaryOrgId) return;
+      await deleteCalendarBlock(primaryOrgId, id);
+      updateCalendarBlocks((blocks) => blocks.filter((block) => block.id !== id));
+    },
+    [primaryOrgId, updateCalendarBlocks]
+  );
 
   const handleViewAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     setActiveAppointment?.(appointment);
@@ -267,6 +349,14 @@ const AppointmentCalendar = ({
         hasEmergency={hasEmergency}
         filterOptions={filterOptions}
         statusOptions={statusOptions}
+      />
+      <CalendarBlocksPanel
+        blocks={calendarBlocks}
+        teams={teams}
+        rooms={rooms}
+        canEdit={canEditAppointments}
+        onSave={handleSaveCalendarBlock}
+        onDelete={handleDeleteCalendarBlock}
       />
       {dragError ? (
         <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">

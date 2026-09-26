@@ -106,14 +106,23 @@ const syncBaseAvailabilityToPostgres = async (
     slots: AvailabilitySlotMongo[];
   }>,
 ) => {
+  const safeOrganisationId = ensureNonEmptyString(
+    organisationId,
+    "organisationId",
+  );
+  const safeUserId = ensureNonEmptyString(userId, "userId");
+
   await prisma.baseAvailability.deleteMany({
-    where: { userId, organisationId },
+    where: {
+      userId: { equals: String(safeUserId) },
+      organisationId: { equals: String(safeOrganisationId) },
+    },
   });
   if (rows.length) {
     await prisma.baseAvailability.createMany({
       data: rows.map((row) => ({
-        userId,
-        organisationId,
+        userId: safeUserId,
+        organisationId: safeOrganisationId,
         dayOfWeek: row.dayOfWeek as never,
         slots: row.slots as unknown as Prisma.InputJsonValue,
       })),
@@ -416,7 +425,10 @@ export const AvailabilityService = {
     const safeUserId = ensureNonEmptyString(userId, "userId");
 
     await prisma.baseAvailability.deleteMany({
-      where: { organisationId: safeOrganisationId, userId: safeUserId },
+      where: {
+        organisationId: { equals: String(safeOrganisationId) },
+        userId: { equals: String(safeUserId) },
+      },
     });
   },
 
@@ -481,8 +493,8 @@ export const AvailabilityService = {
 
     const override = await prisma.weeklyAvailabilityOverride.findFirst({
       where: {
-        userId: safeUserId,
-        organisationId: safeOrganisationId,
+        userId: { equals: String(safeUserId) },
+        organisationId: { equals: String(safeOrganisationId) },
         weekStartDate: normalizeWeekStart(safeWeekDate),
       },
     });
@@ -511,12 +523,15 @@ export const AvailabilityService = {
     );
     const safeUserId = ensureNonEmptyString(userId, "userId");
     const safeWeekDate = ensureValidDate(weekDate, "weekDate");
+    const safeWeekStartDate = new Date(
+      normalizeWeekStart(safeWeekDate).getTime(),
+    );
 
     await prisma.weeklyAvailabilityOverride.deleteMany({
       where: {
-        userId: safeUserId,
-        organisationId: safeOrganisationId,
-        weekStartDate: normalizeWeekStart(safeWeekDate),
+        userId: { equals: String(safeUserId) },
+        organisationId: { equals: String(safeOrganisationId) },
+        weekStartDate: { equals: safeWeekStartDate },
       },
     });
   },
@@ -628,19 +643,37 @@ export const AvailabilityService = {
       weekStart,
     );
 
-    // Load occupancies for the week
+    // Load appointments and staff blocks for the week so both reduce bookable time.
     const weekEnd = dayjs(weekStart).utc().add(6, "day").endOf("day").toDate();
 
-    const occupancies = await prisma.occupancy.findMany({
-      where: {
-        userId: safeUserId,
-        organisationId: safeOrganisationId,
-        startTime: { lte: weekEnd },
-        endTime: { gte: weekStart },
-      },
-    });
+    const [occupancies, blocks] = await Promise.all([
+      prisma.occupancy.findMany({
+        where: {
+          userId: safeUserId,
+          organisationId: safeOrganisationId,
+          startTime: { lte: weekEnd },
+          endTime: { gte: weekStart },
+        },
+      }),
+      prisma.calendarBlock.findMany({
+        where: {
+          organisationId: safeOrganisationId,
+          targetType: "STAFF",
+          targetId: safeUserId,
+          startAt: { lte: weekEnd },
+          endAt: { gte: weekStart },
+        },
+        select: { startAt: true, endAt: true },
+      }),
+    ]);
 
-    return computeWeekAvailability(weekDates, base, override, occupancies);
+    return computeWeekAvailability(weekDates, base, override, [
+      ...occupancies,
+      ...blocks.map((block) => ({
+        startTime: block.startAt,
+        endTime: block.endAt,
+      })),
+    ]);
   },
 
   async getFinalAvailabilityForDate(
@@ -733,37 +766,52 @@ export const AvailabilityService = {
     const { weekStart, weekDates } = resolveWeekBounds(now);
     const weekEnd = dayjs(weekStart).utc().add(6, "day").endOf("day").toDate();
 
-    const [baseRows, overrideRows, weekOccupancies, currentOccupancies] =
-      await Promise.all([
-        prisma.baseAvailability.findMany({
-          where: { organisationId: safeOrganisationId, userId: { in: ids } },
-          orderBy: { dayOfWeek: "asc" },
-        }),
-        prisma.weeklyAvailabilityOverride.findMany({
-          where: {
-            organisationId: safeOrganisationId,
-            userId: { in: ids },
-            weekStartDate: normalizeWeekStart(weekStart),
-          },
-        }),
-        prisma.occupancy.findMany({
-          where: {
-            organisationId: safeOrganisationId,
-            userId: { in: ids },
-            startTime: { lte: weekEnd },
-            endTime: { gte: weekStart },
-          },
-        }),
-        prisma.occupancy.findMany({
-          where: {
-            organisationId: safeOrganisationId,
-            userId: { in: ids },
-            startTime: { lte: now },
-            endTime: { gte: now },
-          },
-          select: { userId: true },
-        }),
-      ]);
+    const [
+      baseRows,
+      overrideRows,
+      weekOccupancies,
+      currentOccupancies,
+      staffBlocks,
+    ] = await Promise.all([
+      prisma.baseAvailability.findMany({
+        where: { organisationId: safeOrganisationId, userId: { in: ids } },
+        orderBy: { dayOfWeek: "asc" },
+      }),
+      prisma.weeklyAvailabilityOverride.findMany({
+        where: {
+          organisationId: safeOrganisationId,
+          userId: { in: ids },
+          weekStartDate: normalizeWeekStart(weekStart),
+        },
+      }),
+      prisma.occupancy.findMany({
+        where: {
+          organisationId: safeOrganisationId,
+          userId: { in: ids },
+          startTime: { lte: weekEnd },
+          endTime: { gte: weekStart },
+        },
+      }),
+      prisma.occupancy.findMany({
+        where: {
+          organisationId: safeOrganisationId,
+          userId: { in: ids },
+          startTime: { lte: now },
+          endTime: { gte: now },
+        },
+        select: { userId: true },
+      }),
+      prisma.calendarBlock.findMany({
+        where: {
+          organisationId: safeOrganisationId,
+          targetType: "STAFF",
+          targetId: { in: ids },
+          startAt: { lte: weekEnd },
+          endAt: { gte: weekStart },
+        },
+        select: { targetId: true, startAt: true, endAt: true },
+      }),
+    ]);
 
     const groupByUser = <T extends { userId: string }>(rows: T[]) => {
       const grouped = new Map<string, T[]>();
@@ -778,6 +826,13 @@ export const AvailabilityService = {
     const baseByUser = groupByUser(baseRows);
     const overrideByUser = groupByUser(overrideRows);
     const occupancyByUser = groupByUser(weekOccupancies);
+    const blocksByUser = new Map<string, OccupancyWindow[]>();
+    for (const block of staffBlocks) {
+      const existing = blocksByUser.get(block.targetId);
+      const window = { startTime: block.startAt, endTime: block.endAt };
+      if (existing) existing.push(window);
+      else blocksByUser.set(block.targetId, [window]);
+    }
     const occupiedNow = new Set(currentOccupancies.map((row) => row.userId));
 
     const dayOfWeek = getDayOfWeekFromDate(now);
@@ -801,12 +856,10 @@ export const AvailabilityService = {
             }
           : null;
 
-        const week = computeWeekAvailability(
-          weekDates,
-          base,
-          override,
-          occupancyByUser.get(id) ?? [],
-        );
+        const week = computeWeekAvailability(weekDates, base, override, [
+          ...(occupancyByUser.get(id) ?? []),
+          ...(blocksByUser.get(id) ?? []),
+        ]);
         const slots = week.find((d) => d.dayOfWeek === dayOfWeek)?.slots ?? [];
 
         statuses.set(
