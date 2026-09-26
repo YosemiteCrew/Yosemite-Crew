@@ -335,8 +335,8 @@ jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
+  Primary: ({ text, onClick, isDisabled }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled} aria-disabled={isDisabled}>
       {text}
     </button>
   ),
@@ -1002,6 +1002,22 @@ describe('AppointmentInfo modal', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 
+  // A second click while the first save is on its way would record a second
+  // copy of the form.
+  it('saves a picked template once however often Save is clicked', async () => {
+    (createSubmission as jest.Mock).mockReturnValue(new Promise(() => {}));
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Vet Signature Template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const saving = await screen.findByRole('button', { name: 'Saving...' });
+    expect(saving).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(saving);
+
+    expect(createSubmission).toHaveBeenCalledTimes(1);
+  });
+
   it('marks a vet template submission as signature-required on save', async () => {
     renderModal();
     openMedicalRecordsSoap();
@@ -1104,6 +1120,30 @@ describe('AppointmentInfo modal', () => {
     await waitFor(() =>
       expect(createSubmission).toHaveBeenCalledWith(expect.objectContaining({ formId: 'form-1' }))
     );
+  });
+
+  it('saves an appointment form once however often Save is clicked', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: { _id: 'form-1', name: 'Entry Form', requiredSigner: '', schema: [] },
+          submission: null,
+          status: 'pending',
+        },
+      ],
+    });
+    (createSubmission as jest.Mock).mockReturnValue(new Promise(() => {}));
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'trigger-form-change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const saving = await screen.findByRole('button', { name: 'Saving...' });
+    expect(saving).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(saving);
+
+    expect(createSubmission).toHaveBeenCalledTimes(1);
   });
 
   it('marks an editable vet form entry submission as signature-required on save', async () => {
