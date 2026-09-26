@@ -669,6 +669,47 @@ describe("POST /mobile/tools/:toolId/submissions", () => {
     },
   );
 
+  it("records a submission for the companion the app names as companionId", async () => {
+    const { status, body } = await create("owner", {
+      companionId: "pat-1",
+      answers: { q1: "yes" },
+    });
+
+    expect(status).toBe(201);
+    expect(body).toMatchObject({ patientId: "pat-1", filledBy: PARENTS.owner });
+    expect(created()).toHaveLength(1);
+  });
+
+  it("returns 404 for another parent's companion named as companionId", async () => {
+    const { status } = await create("otherParent", {
+      companionId: "pat-1",
+      answers: { q1: "yes" },
+    });
+
+    expect(status).toBe(404);
+    expect(created()).toHaveLength(0);
+  });
+
+  it("checks and records the same companion when both fields are sent", async () => {
+    const refused = await create("owner", {
+      patientId: "pat-2",
+      companionId: "pat-1",
+      answers: { q1: "yes" },
+    });
+    expect(refused.status).toBe(404);
+    expect(created()).toHaveLength(0);
+
+    const recorded = await create("otherParent", {
+      patientId: "pat-2",
+      companionId: "pat-1",
+      answers: { q1: "yes" },
+    });
+    expect(recorded.status).toBe(201);
+    expect(created()).toEqual([
+      expect.objectContaining({ patientId: "pat-2" }),
+    ]);
+  });
+
   it("completes the caller's own task", async () => {
     const { status } = await create("owner", {
       patientId: "pat-1",

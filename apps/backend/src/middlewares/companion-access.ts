@@ -283,15 +283,24 @@ export const resolveObservationSubmissionCompanion: CompanionResourceResolver =
   };
 
 /**
+ * The companion a create route names in its body: `patientId`, or
+ * `companionId` as the app sends it. The access check and the handler both
+ * read it here, so they always act on the same companion.
+ */
+export const readBodyPatientId = (body: unknown): unknown => {
+  const { patientId, companionId } = (body ?? {}) as Record<string, unknown>;
+  return patientId ?? companionId;
+};
+
+/**
  * Routes that create a record for the companion named in the body
- * (`patientId`). Only a non-empty string names a companion; any other value is
- * refused.
+ * (`readBodyPatientId`). Only a non-empty string names a companion; any other
+ * value is refused.
  */
 export const resolveBodyPatientCompanion: CompanionResourceResolver = async (
   req,
 ) => {
-  const patientId = (req.body as Record<string, unknown> | undefined)
-    ?.patientId;
+  const patientId = readBodyPatientId(req.body);
   return typeof patientId === "string" && patientId
     ? { kind: "patient", patientId }
     : { kind: "deny" };

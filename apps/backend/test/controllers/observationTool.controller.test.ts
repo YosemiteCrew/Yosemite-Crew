@@ -377,6 +377,47 @@ describe("ObservationTool Controllers", () => {
         expect(statusMock).toHaveBeenCalledWith(201);
       });
 
+      it("records the companion the app sends as companionId", async () => {
+        (req as any).userId = "u1";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+          parentId: "p1",
+        });
+        req.params = { toolId: "t1" };
+        req.body = { companionId: "c2", answers: { q1: "a1" } };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedSubService.createSubmission as any).mockResolvedValue({
+          id: "s2",
+        });
+
+        await ObservationToolSubmissionController.createFromMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedSubService.createSubmission).toHaveBeenCalledWith(
+          expect.objectContaining({ patientId: "c2", filledBy: "p1" }),
+        );
+        expect(statusMock).toHaveBeenCalledWith(201);
+      });
+
+      it("should 400 for a companion that is not a plain id", async () => {
+        (req as any).userId = "u1";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+          parentId: "p1",
+        });
+        req.body = { companionId: { not: "" }, answers: {} };
+
+        await ObservationToolSubmissionController.createFromMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(mockedSubService.createSubmission).not.toHaveBeenCalled();
+      });
+
       it("should handle service error", async () => {
         (req as any).userId = "u1";
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

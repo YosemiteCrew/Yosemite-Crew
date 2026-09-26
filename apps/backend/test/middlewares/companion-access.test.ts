@@ -466,12 +466,33 @@ describe("observation-tool resolvers", () => {
     ).resolves.toEqual({ kind: "patient", patientId: "pat-3" });
   });
 
+  it("names the companion from the body companionId the app sends", async () => {
+    await expect(
+      resolveBodyPatientCompanion(
+        reqWith({}, { companionId: "pat-4" }),
+        "par-1",
+      ),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-4" });
+  });
+
+  it("takes patientId over companionId when both are sent", async () => {
+    await expect(
+      resolveBodyPatientCompanion(
+        reqWith({}, { patientId: "pat-3", companionId: "pat-4" }),
+        "par-1",
+      ),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-3" });
+  });
+
   it.each([
     undefined,
     {},
     { patientId: "" },
     { patientId: { not: "" } },
     { patientId: ["pat-3"] },
+    { companionId: "" },
+    { companionId: { not: "" } },
+    { patientId: "", companionId: "pat-4" },
   ])("denies a body without a plain patientId (%j)", async (body) => {
     await expect(
       resolveBodyPatientCompanion(reqWith({}, body), "par-1"),

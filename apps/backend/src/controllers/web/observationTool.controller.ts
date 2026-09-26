@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { resolveVerifiedUserId } from "src/utils/request";
 import { OrgRequest } from "src/middlewares/rbac";
+import { readBodyPatientId } from "src/middlewares/companion-access";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
   ObservationToolDefinitionService,
@@ -169,14 +170,14 @@ export const ObservationToolSubmissionController = {
 
       const toolId = req.params.toolId;
 
-      const { patientId, taskId, answers, summary } = req.body as {
-        patientId: string;
+      const { taskId, answers, summary } = req.body as {
         taskId?: string;
         answers: CreateObservationToolSubmissionInput["answers"];
         summary?: string;
       };
+      const patientId = readBodyPatientId(req.body);
 
-      if (!patientId) {
+      if (typeof patientId !== "string" || !patientId) {
         return res.status(400).json({ message: "patientId is required" });
       }
       if (!answers || typeof answers !== "object") {
