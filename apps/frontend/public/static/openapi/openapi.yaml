@@ -14,6 +14,144 @@ tags:
   - name: 'Non-FHIR'
     description: 'Non-FHIR endpoints under /v1'
 paths:
+  '/v1/pms/organisation/{organisationId}/calendar-blocks':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/pms/organisation/{organisationId}/calendar-blocks'
+      operationId: get_v1_pms_organisation_organisationId_calendar_blocks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Calendar blocks in the requested time range
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarBlock'
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/pms/organisation/{organisationId}/calendar-blocks'
+      operationId: post_v1_pms_organisation_organisationId_calendar_blocks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarBlockInput'
+      responses:
+        201:
+          description: Created calendar block
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarBlock'
+  '/v1/pms/organisation/{organisationId}/calendar-blocks/{blockId}':
+    patch:
+      tags:
+        - 'Non-FHIR'
+      summary: 'PATCH /v1/pms/organisation/{organisationId}/calendar-blocks/{blockId}'
+      operationId: patch_v1_pms_organisation_organisationId_calendar_blocks_blockId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: blockId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarBlockUpdate'
+      responses:
+        200:
+          description: Updated calendar block
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarBlock'
+    delete:
+      tags:
+        - 'Non-FHIR'
+      summary: 'DELETE /v1/pms/organisation/{organisationId}/calendar-blocks/{blockId}'
+      operationId: delete_v1_pms_organisation_organisationId_calendar_blocks_blockId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: blockId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        204:
+          description: Calendar block deleted
   '/v1/account-withdrawal/withdraw':
     post:
       tags:
@@ -27148,6 +27286,79 @@ components:
       scheme: bearer
       bearerFormat: 'yc_<live|test>_<secret> - a developer API key, not a session JWT'
   schemas:
+    CalendarBlock:
+      type: object
+      required:
+        - id
+        - organisationId
+        - targetType
+        - targetId
+        - startAt
+        - endAt
+        - reason
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        organisationId:
+          type: string
+        targetType:
+          type: string
+          enum: [STAFF, ROOM]
+        targetId:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        createdBy:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CalendarBlockInput:
+      type: object
+      required: [targetType, targetId, startAt, endAt, reason]
+      properties:
+        targetType:
+          type: string
+          enum: [STAFF, ROOM]
+        targetId:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    CalendarBlockUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        targetType:
+          type: string
+          enum: [STAFF, ROOM]
+        targetId:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
     SupplierBillError:
       type: object
       properties:
