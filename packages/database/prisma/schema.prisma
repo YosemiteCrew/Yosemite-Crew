@@ -1658,6 +1658,7 @@ model OrganisationRoom {
   availabilityStartTime String?
   availabilityEndTime   String?
   capabilities          String[]             @default([])
+  isActive              Boolean              @default(true)
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
@@ -1669,6 +1670,7 @@ model OrganisationRoom {
   @@unique([organisationId, code])
   @@index([organisationId])
   @@index([organisationId, type])
+  @@index([organisationId, isActive])
 }
 
 model OrganisationRoomSpeciality {

@@ -17,6 +17,7 @@ jest.mock("src/config/prisma", () => ({
       create: jest.fn(),
       update: jest.fn(),
       deleteMany: jest.fn(),
+      updateMany: jest.fn(),
     },
     organisationRoomSpeciality: {
       deleteMany: jest.fn(),
@@ -554,11 +555,12 @@ describe("SpecialityService", () => {
   });
 
   describe("Delete Operations", () => {
-    it("deleteAllByOrganizationId should call deleteMany", async () => {
+    it("deleteAllByOrganizationId should call updateMany", async () => {
       await SpecialityService.deleteAllByOrganizationId(mockOrgId);
-      expect(prisma.speciality.deleteMany).toHaveBeenCalledWith(
+      expect(prisma.speciality.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ organisationId: mockOrgId }),
+          data: { isActive: false },
         }),
       );
     });

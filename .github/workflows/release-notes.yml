@@ -52,6 +52,9 @@ jobs:
             *-beta*|*-alpha*|*-rc*) SUFFIXED=true ;;
             *) SUFFIXED=false ;;
           esac
+          # The MCP server is an npm package, not an app: its releases never
+          # take the Latest badge that the desktop updater and release pill read.
+          if [ "$PREFIX" = "mcp" ]; then SUFFIXED=true; fi
           echo "suffixed=$SUFFIXED" >> "$GITHUB_OUTPUT"
 
           # A range between two component tags still contains every other
@@ -63,6 +66,7 @@ jobs:
             pims|pms)     PATHS="apps/frontend packages" ;;
             mobile)       PATHS="apps/mobileAppYC" ;;
             desktop)      PATHS="apps/desktop" ;;
+            mcp)          PATHS="packages/mcp-server" ;;
             *)            PATHS="" ;;
           esac
           echo "paths=$PATHS" >> "$GITHUB_OUTPUT"
@@ -99,7 +103,10 @@ jobs:
           if [ -n "$PREV" ]; then
             RANGE="$PREV..$TAG"
           else
-            RANGE="$TAG"
+            # First release of a component: everything from the root commit.
+            # A bare tag is not a range git-cliff accepts.
+            ROOT=$(git rev-list --max-parents=0 "$TAG" | tail -n 1)
+            RANGE="$ROOT..$TAG"
           fi
 
           set -- "$RANGE" --config cliff.toml --strip all -o notes.md

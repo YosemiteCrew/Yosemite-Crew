@@ -407,8 +407,9 @@ export const SpecialityService = {
   async deleteAllByOrganizationId(organisationId: string) {
     const orgId = requireOrganizationId(organisationId);
 
-    await prisma.speciality.deleteMany({
+    await prisma.speciality.updateMany({
       where: { organisationId: orgId },
+      data: { isActive: false },
     });
   },
 
