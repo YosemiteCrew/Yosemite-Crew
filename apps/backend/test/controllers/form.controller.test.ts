@@ -604,58 +604,73 @@ describe("FormController", () => {
     });
   });
 
-  describe("getFormSubmissions", () => {
-    it("should return 200 and the submission", async () => {
-      req.params.formId = "sub1"; // Note: Parameter is named formId but used as submissionId in code
-      (FormService.getSubmission as jest.Mock).mockResolvedValue({
-        id: "sub1",
-      });
-
-      await FormController.getFormSubmissions(req, res);
-
-      expect(FormService.getSubmission).toHaveBeenCalledWith("sub1");
-      expect(res.status).toHaveBeenCalledWith(200);
+  // Both reads are scoped by the service to what this parent may see, so the
+  // handlers must resolve the parent from the session and hand it over.
+  describe.each([
+    {
+      handler: "getFormSubmissions" as const,
+      service: "getSubmission" as const,
+      result: { id: "sub1" },
+    },
+    {
+      handler: "listFormSubmissions" as const,
+      service: "listSubmissions" as const,
+      result: [{ id: "sub1" }],
+    },
+  ])("$handler", ({ handler, service, result }) => {
+    beforeEach(() => {
+      req.params.formId = "id-1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "parent-1" });
     });
 
-    it("should handle errors", async () => {
-      (FormService.getSubmission as jest.Mock).mockRejectedValue(
-        new FormServiceError("Not Found", 404),
+    it("passes the caller's parent to the service and returns 200", async () => {
+      (FormService[service] as jest.Mock).mockResolvedValue(result);
+
+      await FormController[handler](req, res);
+
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+        "auth_user_123",
       );
-      await FormController.getFormSubmissions(req, res);
+      expect(FormService[service]).toHaveBeenCalledWith("id-1", "parent-1");
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(result);
+    });
+
+    it("returns 401 without a session user and reads nothing", async () => {
+      req.userId = undefined;
+      req.headers = { "x-user-id": "spoofed" };
+
+      await FormController[handler](req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(AuthUserMobileService.getByProviderUserId).not.toHaveBeenCalled();
+      expect(FormService[service]).not.toHaveBeenCalled();
+    });
+
+    it("returns 403 when the session has no parent account and reads nothing", async () => {
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
+
+      await FormController[handler](req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(FormService[service]).not.toHaveBeenCalled();
+    });
+
+    it("maps service errors", async () => {
+      (FormService[service] as jest.Mock).mockRejectedValue(
+        new FormServiceError("Submission not found", 404),
+      );
+      await FormController[handler](req, res);
       expect(res.status).toHaveBeenCalledWith(404);
 
-      (FormService.getSubmission as jest.Mock).mockRejectedValue(
+      (FormService[service] as jest.Mock).mockRejectedValue(
         new Error("Test error"),
       );
-      await FormController.getFormSubmissions(req, res);
-      expect(res.status).toHaveBeenCalledWith(500);
-    });
-  });
-
-  describe("listFormSubmissions", () => {
-    it("should return 200 and the submissions list", async () => {
-      req.params.formId = "f1";
-      (FormService.listSubmissions as jest.Mock).mockResolvedValue([
-        { id: "sub1" },
-      ]);
-
-      await FormController.listFormSubmissions(req, res);
-
-      expect(FormService.listSubmissions).toHaveBeenCalledWith("f1");
-      expect(res.status).toHaveBeenCalledWith(200);
-    });
-
-    it("should handle errors", async () => {
-      (FormService.listSubmissions as jest.Mock).mockRejectedValue(
-        new FormServiceError("Bad Request", 400),
-      );
-      await FormController.listFormSubmissions(req, res);
-      expect(res.status).toHaveBeenCalledWith(400);
-
-      (FormService.listSubmissions as jest.Mock).mockRejectedValue(
-        new Error("Test error"),
-      );
-      await FormController.listFormSubmissions(req, res);
+      await FormController[handler](req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });

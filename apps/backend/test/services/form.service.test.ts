@@ -96,6 +96,7 @@ jest.mock("src/config/prisma", () => ({
     },
     parentPatient: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     organization: {
       findUnique: jest.fn(),
@@ -982,9 +983,9 @@ describe("FormService", () => {
 
     it("getSubmission: throws if not found", async () => {
       (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(FormService.getSubmission(validId)).rejects.toThrow(
-        "Submission not found",
-      );
+      await expect(
+        FormService.getSubmission(validId, "parent-1"),
+      ).rejects.toThrow("Submission not found");
     });
 
     it("getSubmission: returns the normalized submission", async () => {
@@ -993,6 +994,7 @@ describe("FormService", () => {
         id: "sub-1",
         formId: validId,
         formVersion: 1,
+        parentId: "parent-1",
         submittedAt,
         answers: { a: 1 },
       });
@@ -1000,7 +1002,7 @@ describe("FormService", () => {
         schemaSnapshot: [],
       });
 
-      const res = await FormService.getSubmission(validId);
+      const res = await FormService.getSubmission(validId, "parent-1");
       expect(res).toEqual(
         expect.objectContaining({
           _id: "sub-1",
@@ -1017,7 +1019,9 @@ describe("FormService", () => {
         { id: "sub-1" },
       ]);
 
-      const res = await FormService.listSubmissions(validId);
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res = await FormService.listSubmissions(validId, "parent-1");
       expect(res).toEqual([{ id: "sub-1" }]);
     });
 

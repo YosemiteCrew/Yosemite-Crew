@@ -350,9 +350,24 @@ export class FormSigningService {
     };
   }
 
-  static async getSignedDocument({ submissionId }: { submissionId: string }) {
-    // 1️⃣ Load submission
+  static async getSignedDocument({
+    submissionId,
+    organisationId,
+  }: {
+    submissionId: string;
+    organisationId: string;
+  }) {
+    // 1️⃣ Load submission and its form
     const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
+    const form = await FormSigningService.loadFormOrThrowPrisma(
+      submission.formId,
+    );
+
+    // A submission of another organisation's form is reported exactly as a
+    // missing one, before its signing state is read.
+    if (form.orgId !== organisationId) {
+      throw new Error("Form submission not found");
+    }
 
     // 2️⃣ Validate signing state
     const signingStatus = FormSigningService.extractSigningStatus(
@@ -369,9 +384,6 @@ export class FormSigningService {
     }
 
     // 3️⃣ Fetch signed document from Documenso
-    const formId = submission.formId;
-    const form = await FormSigningService.loadFormOrThrowPrisma(formId);
-
     const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
       form.orgId,
     );

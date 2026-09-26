@@ -358,7 +358,10 @@ describe("FormSigningService.startSigning", () => {
     });
 
     await expect(
-      FormSigningService.getSignedDocument({ submissionId: "submission-5" }),
+      FormSigningService.getSignedDocument({
+        submissionId: "submission-5",
+        organisationId: "org-5",
+      }),
     ).resolves.toEqual({
       pdf: {
         downloadUrl: "https://files.example/result.pdf",
@@ -372,9 +375,13 @@ describe("FormSigningService.startSigning", () => {
       formId: "form-6",
       signing: { status: "IN_PROGRESS", documentId: "666" },
     });
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({ orgId: "org-6" });
 
     await expect(
-      FormSigningService.getSignedDocument({ submissionId: "submission-6" }),
+      FormSigningService.getSignedDocument({
+        submissionId: "submission-6",
+        organisationId: "org-6",
+      }),
     ).rejects.toThrow("Submission is not signed yet");
   });
 
@@ -384,9 +391,13 @@ describe("FormSigningService.startSigning", () => {
       formId: "form-7",
       signing: { status: "SIGNED" },
     });
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({ orgId: "org-7" });
 
     await expect(
-      FormSigningService.getSignedDocument({ submissionId: "submission-7" }),
+      FormSigningService.getSignedDocument({
+        submissionId: "submission-7",
+        organisationId: "org-7",
+      }),
     ).rejects.toThrow("No document associated with this submission");
   });
 });
@@ -917,9 +928,14 @@ describe("FormSigningService.getSignedDocument — download failures", () => {
       signing: null,
     });
 
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({
+      orgId: "org-nosigning",
+    });
+
     await expect(
       FormSigningService.getSignedDocument({
         submissionId: "submission-nosigning",
+        organisationId: "org-nosigning",
       }),
     ).rejects.toThrow("Submission is not signed yet");
   });
@@ -931,9 +947,12 @@ describe("FormSigningService.getSignedDocument — download failures", () => {
       signing: { status: "SIGNED", documentId: 555 },
     });
 
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({ orgId: "org-numdoc" });
+
     await expect(
       FormSigningService.getSignedDocument({
         submissionId: "submission-numdoc",
+        organisationId: "org-numdoc",
       }),
     ).rejects.toThrow("No document associated with this submission");
   });
@@ -945,9 +964,12 @@ describe("FormSigningService.getSignedDocument — download failures", () => {
       signing: [],
     });
 
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({ orgId: "org-arrdoc" });
+
     await expect(
       FormSigningService.getSignedDocument({
         submissionId: "submission-arrdoc",
+        organisationId: "org-arrdoc",
       }),
     ).rejects.toThrow("Submission is not signed yet");
   });
@@ -966,6 +988,7 @@ describe("FormSigningService.getSignedDocument — download failures", () => {
     await expect(
       FormSigningService.getSignedDocument({
         submissionId: "submission-nokey",
+        organisationId: "org-nokey",
       }),
     ).rejects.toThrow("Documenso API key not configured for organisation");
 
@@ -987,12 +1010,62 @@ describe("FormSigningService.getSignedDocument — download failures", () => {
     mockedDocumensoService.downloadSignedDocument.mockResolvedValueOnce(null);
 
     await expect(
-      FormSigningService.getSignedDocument({ submissionId: "submission-nodl" }),
+      FormSigningService.getSignedDocument({
+        submissionId: "submission-nodl",
+        organisationId: "org-nodl",
+      }),
     ).rejects.toThrow("Unable to download signed document");
 
     expect(mockedDocumensoService.downloadSignedDocument).toHaveBeenCalledWith({
       documentId: 888,
       apiKey: "api-key-nodl",
     });
+  });
+});
+
+describe("FormSigningService.getSignedDocument - organisation scope", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it.each([
+    ["signed", { status: "SIGNED", documentId: "901" }],
+    ["unsigned", { status: "IN_PROGRESS", documentId: "902" }],
+    ["without a signing block", null],
+  ])(
+    "reports another organisation's %s submission as not found and fetches nothing",
+    async (_label, signing) => {
+      mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+        id: "submission-org-b",
+        formId: "form-org-b",
+        signing,
+      });
+      mockedPrisma.form.findUnique.mockResolvedValueOnce({ orgId: "org-b" });
+
+      await expect(
+        FormSigningService.getSignedDocument({
+          submissionId: "submission-org-b",
+          organisationId: "org-a",
+        }),
+      ).rejects.toThrow("Form submission not found");
+
+      expect(
+        mockedDocumensoService.resolveOrganisationApiKey,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockedDocumensoService.downloadSignedDocument,
+      ).not.toHaveBeenCalled();
+    },
+  );
+
+  it("answers a missing submission with the same error", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+
+    await expect(
+      FormSigningService.getSignedDocument({
+        submissionId: "missing",
+        organisationId: "org-a",
+      }),
+    ).rejects.toThrow("Form submission not found");
   });
 });

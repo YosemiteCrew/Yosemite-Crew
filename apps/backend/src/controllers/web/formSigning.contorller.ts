@@ -73,8 +73,15 @@ export const FormSigningController = {
     try {
       const submissionId = req.params.submissionId;
 
+      // withOrgPermissions() binds the authorised organisation from the request.
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
       const result = await FormSigningService.getSignedDocument({
         submissionId,
+        organisationId,
       });
       res.status(200).json(result);
     } catch (err: unknown) {
