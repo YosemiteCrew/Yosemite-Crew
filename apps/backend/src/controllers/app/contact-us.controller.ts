@@ -20,7 +20,6 @@ import {
 } from "src/middlewares/upload";
 import { resolveVerifiedUserId } from "src/utils/request";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { prisma } from "src/config/prisma";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
 import logger from "src/utils/logger";
 
@@ -119,20 +118,6 @@ type UpdateContactStatusBody = {
   status: ContactStatus;
 };
 
-const keepOwnCompanion = async (
-  parentId: string | undefined,
-  patientId: unknown,
-): Promise<string | undefined> => {
-  if (!parentId || typeof patientId !== "string" || !patientId) {
-    return undefined;
-  }
-  const link = await prisma.parentPatient.findFirst({
-    where: { parentId, patientId, status: "ACTIVE" },
-    select: { id: true },
-  });
-  return link ? patientId : undefined;
-};
-
 export const ContactController = {
   async create(
     this: void,
@@ -173,7 +158,7 @@ export const ContactController = {
         subject,
         message,
         email,
-        patientId: await keepOwnCompanion(parentId, patientId),
+        patientId: await ContactService.ownCompanionFor(parentId, patientId),
         parentId,
         userId,
         dsarDetails,

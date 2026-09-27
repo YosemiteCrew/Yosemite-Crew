@@ -277,13 +277,14 @@ export const CompanionOrganisationService = {
 
   /**
    * Proves the organisation already has a relationship with the companion
-   * before a PMS user may raise a link request for it: either an earlier link
-   * of any status for this companion, or another companion of the same parent
+   * before a PMS user may raise a link request for it: either an ACTIVE or
+   * PENDING link for this companion, or another companion of the same parent
    * that is already ACTIVE here. `linkByPmsUser` itself creates a PENDING link
    * without parent consent, so without this an authenticated staff member could
    * name any companion id and read the parent back off the organisation's link
-   * list. Failures report "not found" so the endpoint cannot be used to confirm
-   * that a companion id exists.
+   * list. A link the parent turned down or revoked is not raised again from
+   * the practice side. Failures report "not found" so the endpoint cannot be
+   * used to confirm that a companion id exists.
    */
   async assertOrganisationMayLinkCompanion(
     patientId: string,
@@ -292,11 +293,26 @@ export const CompanionOrganisationService = {
     const companion = requireId(patientId, "patientId");
     const org = requireId(organisationId, "organisationId");
 
-    const existingLink = await prisma.patientOrganisation.findFirst({
-      where: { patientId: companion, organisationId: org },
+    if (
+      await findActiveOrPendingLink({
+        patientId: companion,
+        organisationId: org,
+      })
+    ) {
+      return;
+    }
+
+    const turnedDown = await prisma.patientOrganisation.findFirst({
+      where: {
+        patientId: companion,
+        organisationId: org,
+        status: PatientOrganisationStatus.REVOKED,
+      },
       select: { id: true },
     });
-    if (existingLink) return;
+    if (turnedDown) {
+      throw new CompanionOrganisationServiceError("Companion not found.", 404);
+    }
 
     const parentLinks = await prisma.parentPatient.findMany({
       where: { patientId: companion, status: "ACTIVE" },
