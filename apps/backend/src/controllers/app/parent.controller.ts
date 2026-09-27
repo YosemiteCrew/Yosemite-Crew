@@ -8,7 +8,7 @@ import type { ParentRequestDTO } from "@yosemite-crew/types";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 import { getProfileUploadUrl } from "./profile-upload.handler";
 import {
-  resolveOrganisationIdFromRequest,
+  resolveVerifiedOrganisationId,
   resolveVerifiedUserId,
 } from "src/utils/request";
 
@@ -187,7 +187,7 @@ export const ParentController = {
     }
   },
 
-  // No Auth UserID for PMS
+  // PMS routes act for the organisation resolved by withOrgPermissions.
   createParentPMS: async (req: Request, res: Response) => {
     try {
       const payload = extractFHIRPayload(req);
@@ -214,6 +214,7 @@ export const ParentController = {
 
       const result = await ParentService.get(id, {
         source: "pms",
+        organisationId: resolveVerifiedOrganisationId(req),
       });
 
       if (!result) {
@@ -240,7 +241,7 @@ export const ParentController = {
 
       const result = await ParentService.update(id, payload, {
         source: "pms",
-        organisationId: resolveOrganisationIdFromRequest(req),
+        organisationId: resolveVerifiedOrganisationId(req),
         actorId: resolveVerifiedUserId(req),
       });
 
@@ -266,6 +267,7 @@ export const ParentController = {
 
       const deleted = await ParentService.delete(id, {
         source: "pms",
+        organisationId: resolveVerifiedOrganisationId(req),
       });
 
       if (!deleted) {
@@ -293,7 +295,14 @@ export const ParentController = {
           .json({ message: "A valid search name is required." });
       }
 
-      const result = await ParentService.getByName(name);
+      const organisationId = resolveVerifiedOrganisationId(req);
+      if (!organisationId) {
+        return res
+          .status(400)
+          .json({ message: "Organisation context is required." });
+      }
+
+      const result = await ParentService.getByName(name, organisationId);
 
       return res.status(200).json(result.responses);
     } catch (error) {

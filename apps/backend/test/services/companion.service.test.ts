@@ -39,8 +39,18 @@ jest.mock("src/config/prisma", () => ({
 jest.mock("../../src/services/parent.service", () => ({
   ParentService: {
     findByLinkedUserId: jest.fn(),
+    mayOrganisationAddCompanion: jest.fn(),
+    isInOrganisation: jest.fn(),
   },
 }));
+
+// The practice-side checks default to "one of the practice's own clients".
+const allowPracticeClient = () => {
+  (ParentService.mayOrganisationAddCompanion as jest.Mock).mockResolvedValue(
+    true,
+  );
+  (ParentService.isInOrganisation as jest.Mock).mockResolvedValue(true);
+};
 
 jest.mock("../../src/services/parent-companion.service", () => {
   const actual = jest.requireActual(
@@ -120,6 +130,7 @@ describe("CompanionService", () => {
       callback(mockedPrisma),
     );
     mockedPrisma.parentPatient.findFirst.mockResolvedValue(null);
+    allowPracticeClient();
   });
 
   const companionPayload: any = {
@@ -193,6 +204,28 @@ describe("CompanionService", () => {
       role: "PRIMARY",
     });
     expect((result.response as any).mapped).toBe(true);
+    // A parent adding their own companion is not a practice action.
+    expect(ParentService.mayOrganisationAddCompanion).not.toHaveBeenCalled();
+  });
+
+  it("does not add a companion for a parent outside the practice", async () => {
+    (
+      ParentService.mayOrganisationAddCompanion as jest.Mock
+    ).mockResolvedValueOnce(false);
+
+    await expect(
+      CompanionService.create(companionPayload, {
+        parentId: "parent-9",
+        organisationId: "org-1",
+      }),
+    ).rejects.toMatchObject({ message: "Parent not found.", statusCode: 404 });
+
+    expect(ParentService.mayOrganisationAddCompanion).toHaveBeenCalledWith(
+      "parent-9",
+      "org-1",
+    );
+    expect(mockedPrisma.patient.create).not.toHaveBeenCalled();
+    expect(ParentCompanionService.linkParent).not.toHaveBeenCalled();
   });
 
   it("loads default tasks from the task library when present", async () => {
@@ -404,6 +437,23 @@ describe("CompanionService", () => {
     );
 
     expect(result.responses).toHaveLength(1);
+    expect(ParentService.isInOrganisation).toHaveBeenCalledWith(
+      "parent-1",
+      "org-1",
+    );
+  });
+
+  it("reads a parent outside the practice as missing", async () => {
+    (ParentService.isInOrganisation as jest.Mock).mockResolvedValueOnce(false);
+
+    await expect(
+      CompanionService.listByParentNotInOrganisation("parent-9", "org-1"),
+    ).rejects.toMatchObject({ message: "Parent not found.", statusCode: 404 });
+
+    expect(
+      ParentCompanionService.getActiveCompanionIdsForParent,
+    ).not.toHaveBeenCalled();
+    expect(mockedPrisma.patient.findMany).not.toHaveBeenCalled();
   });
 
   it("returns an empty list when every companion is already linked", async () => {
@@ -745,6 +795,7 @@ describe("CompanionService.create profile photo", () => {
     (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
       id: "parent-1",
     });
+    allowPracticeClient();
     mockedPrisma.patient.create.mockResolvedValue({ id: "patient-1" });
     mockedPrisma.patient.update.mockResolvedValue({ id: "patient-1" });
     (ParentCompanionService.linkParent as jest.Mock).mockResolvedValue({});

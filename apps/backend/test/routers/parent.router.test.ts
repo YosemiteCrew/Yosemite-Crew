@@ -2,8 +2,19 @@ import type { Router } from "express";
 
 const requireWebAuth = jest.fn((_req, _res, next) => next());
 const requireMobileAuth = jest.fn((_req, _res, next) => next());
-const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
-const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
+const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
+
+// One gate per permission, so a route's stack shows exactly which permission it checks.
+const permissionGates = new Map<string, jest.Mock>();
+const permissionGate = (permission: string) => {
+  if (!permissionGates.has(permission)) {
+    permissionGates.set(
+      permission,
+      jest.fn((_req, _res, next) => next()),
+    );
+  }
+  return permissionGates.get(permission)!;
+};
 
 const ParentController = {
   createParentMobile: jest.fn(),
@@ -27,8 +38,8 @@ jest.mock("../../src/middlewares/auth", () => ({
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
-  withOrgPermissions,
-  requirePermission,
+  withOrgPermissions: () => withOrgPermissionsMiddleware,
+  requirePermission: (permission: string) => permissionGate(permission),
 }));
 
 jest.mock("../../src/controllers/app/parent.controller", () => ({
@@ -50,36 +61,55 @@ type Layer = {
   };
 };
 
-const findRoute = (path: string, method: string) => {
-  const layer = ((router as unknown as { stack: Layer[] }).stack ?? []).find(
-    (entry) =>
-      entry.route?.path === path && Boolean(entry.route?.methods?.[method]),
-  );
-  return layer?.route;
-};
+const handlersFor = (path: string, method: string) =>
+  ((router as unknown as { stack: Layer[] }).stack ?? [])
+    .find(
+      (entry) =>
+        entry.route?.path === path && Boolean(entry.route?.methods?.[method]),
+    )
+    ?.route?.stack.map((layer) => layer.handle);
 
 describe("parent.router", () => {
-  it("guards the PMS parent update route with org membership + companions:edit", () => {
-    const route = findRoute("/pms/parents/:id", "put");
-    expect(route).toBeDefined();
-    // requireWebAuth, then withOrgPermissions, requirePermission, then the controller.
-    expect(route?.stack[0]?.handle).toBe(requireWebAuth);
-    expect(route?.stack.length).toBeGreaterThanOrEqual(4);
-    expect(requirePermission).toHaveBeenCalledWith("companions:edit:any");
+  describe("PMS routes act for a verified organisation", () => {
+    it.each([
+      ["get", "/pms/parents/:id", "companions:view:any", "getParentPMS"],
+      ["get", "/pms/search", "companions:view:any", "searchByName"],
+      ["post", "/pms/parents", "companions:edit:any", "createParentPMS"],
+      ["put", "/pms/parents/:id", "companions:edit:any", "updateParentPMS"],
+    ] as const)(
+      "%s %s requires membership and %s",
+      // Destructured from the rest tuple: under TypeScript 5.9, it.each over an
+      // `as const` table types the callback as a union of tuples.
+      (...[method, path, permission, handler]) => {
+        expect(handlersFor(path, method)).toEqual([
+          requireWebAuth,
+          withOrgPermissionsMiddleware,
+          permissionGate(permission),
+          ParentController[handler],
+        ]);
+      },
+    );
   });
 
-  it("guards the PMS parent create route with org membership + companions:edit", () => {
-    const route = findRoute("/pms/parents", "post");
-    expect(route).toBeDefined();
-    expect(route?.stack[0]?.handle).toBe(requireWebAuth);
-    expect(route?.stack.length).toBeGreaterThanOrEqual(4);
-  });
+  describe("mobile routes stay on mobile auth", () => {
+    // Ownership is checked by the service against the caller's own parent
+    // record, so there is no organisation layer here.
+    it.each([
+      ["get", "/:id", "getParentMobile"],
+      ["put", "/:id", "updateParentMobile"],
+      ["delete", "/:id", "deleteParentMobile"],
+    ] as const)("%s %s", (...[method, path, handler]) => {
+      expect(handlersFor(path, method)).toEqual([
+        requireMobileAuth,
+        ParentController[handler],
+      ]);
+    });
 
-  it("keeps the mobile parent update route self-scoped (no org-permission middleware)", () => {
-    const route = findRoute("/:id", "put");
-    expect(route).toBeDefined();
-    // Mobile updates authorise by self-ownership only — no withOrgPermissions layer.
-    expect(route?.stack[0]?.handle).toBe(requireMobileAuth);
-    expect(route?.stack.length).toBe(2);
+    it("lists companions through the caller-scoped handler", () => {
+      expect(handlersFor("/:parentId/companions", "get")).toEqual([
+        requireMobileAuth,
+        CompanionController.getCompanionsByParentId,
+      ]);
+    });
   });
 });

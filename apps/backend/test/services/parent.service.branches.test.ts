@@ -28,6 +28,8 @@ jest.mock("src/config/prisma", () => ({
     },
     parentPatient: {
       deleteMany: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     authUserMobile: {
       findFirst: jest.fn(),
@@ -73,7 +75,11 @@ const mockedPrisma = prisma as unknown as {
     deleteMany: jest.Mock;
   };
   parentAddress: { upsert: jest.Mock; deleteMany: jest.Mock };
-  parentPatient: { deleteMany: jest.Mock };
+  parentPatient: {
+    deleteMany: jest.Mock;
+    findFirst: jest.Mock;
+    findMany: jest.Mock;
+  };
   authUserMobile: {
     findFirst: jest.Mock;
     findMany: jest.Mock;
@@ -125,6 +131,11 @@ const resetAll = () => {
   mockedAuth.linkParent.mockReset();
   mockedAudit.recordAlertMutation.mockReset();
   mockedMoveFile.mockReset();
+  // PMS calls act for "org-1", where parent-1 is a client unless a test says otherwise.
+  mockedPrisma.parentPatient.findFirst.mockResolvedValue({ id: "link-1" });
+  mockedPrisma.parentPatient.findMany.mockResolvedValue([
+    { parentId: "parent-1" },
+  ]);
 };
 
 /** Wire the happy-path prisma calls a PMS create makes. */
@@ -511,7 +522,10 @@ describe("ParentService.update", () => {
     mockedPrisma.parent.update.mockResolvedValue(record());
 
     await expect(
-      ParentService.update("parent-1", dto(), { source: "pms" }),
+      ParentService.update("parent-1", dto(), {
+        source: "pms",
+        organisationId: "org-1",
+      }),
     ).resolves.toBeNull();
   });
 
@@ -525,6 +539,7 @@ describe("ParentService.update", () => {
 
     const result = await ParentService.update("parent-1", dto(), {
       source: "pms",
+      organisationId: "org-1",
     });
 
     expect(mockedPrisma.parent.update).toHaveBeenLastCalledWith({
@@ -547,6 +562,7 @@ describe("ParentService.update", () => {
 
     const result = await ParentService.update("parent-1", dto(), {
       source: "pms",
+      organisationId: "org-1",
     });
 
     expect(mockedPrisma.parent.update).toHaveBeenCalledTimes(1);
@@ -563,7 +579,7 @@ describe("ParentService.update", () => {
     await ParentService.update(
       "parent-1",
       dto({ address: { city: "Austin" } }),
-      { source: "pms" },
+      { source: "pms", organisationId: "org-1" },
     );
 
     expect(mockedPrisma.parentAddress.upsert).toHaveBeenCalledWith(
@@ -606,7 +622,8 @@ describe("ParentService.update", () => {
     mockedPrisma.parent.update.mockResolvedValue(record());
 
     await ParentService.update("parent-1", dto({ alerts: [] }), {
-      source: "mobile",
+      source: "pms",
+      organisationId: "org-1",
     });
 
     expect(mockedAudit.recordAlertMutation).toHaveBeenCalledWith(
@@ -745,7 +762,10 @@ describe("ParentService.delete", () => {
     mockedPrisma.parent.findUnique.mockResolvedValue(null);
 
     await expect(
-      ParentService.delete("parent-1", { source: "pms" }),
+      ParentService.delete("parent-1", {
+        source: "pms",
+        organisationId: "org-1",
+      }),
     ).resolves.toBeNull();
 
     expect(mockedPrisma.parentPatient.deleteMany).not.toHaveBeenCalled();
@@ -794,7 +814,7 @@ describe("ParentService lookups", () => {
   });
 
   it("rejects an empty search name", async () => {
-    await expect(ParentService.getByName("")).rejects.toMatchObject({
+    await expect(ParentService.getByName("", "org-1")).rejects.toMatchObject({
       message: "Name is required for searching.",
       statusCode: 400,
     } satisfies Partial<ParentServiceError>);
@@ -805,10 +825,11 @@ describe("ParentService lookups", () => {
   it("escapes LIKE wildcards in the search term", async () => {
     mockedPrisma.parent.findMany.mockResolvedValue([]);
 
-    const result = await ParentService.getByName("  100%_a  ");
+    const result = await ParentService.getByName("  100%_a  ", "org-1");
 
     expect(mockedPrisma.parent.findMany).toHaveBeenCalledWith({
       where: {
+        id: { in: ["parent-1"] },
         OR: [
           { firstName: { contains: "100\\%\\_a", mode: "insensitive" } },
           { lastName: { contains: "100\\%\\_a", mode: "insensitive" } },

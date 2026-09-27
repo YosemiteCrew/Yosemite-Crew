@@ -362,6 +362,22 @@ describe("ParentController", () => {
         expect(res.status).toHaveBeenCalledWith(200);
       });
 
+      it("acts for the verified organisation, not the x-org-id header", async () => {
+        req.params.id = "p1";
+        req.body = validFHIR;
+        req.organisationId = "org-1";
+        req.headers["x-org-id"] = "org-2";
+        (ParentService.update as jest.Mock).mockResolvedValue({
+          response: "pms_updated",
+        });
+        await ParentController.updateParentPMS(req, res);
+        expect(ParentService.update).toHaveBeenCalledWith("p1", validFHIR, {
+          source: "pms",
+          organisationId: "org-1",
+          actorId: "auth_user_123",
+        });
+      });
+
       it("should handle errors", async () => {
         req.params.id = "p1";
         req.body = validFHIR;
@@ -416,8 +432,17 @@ describe("ParentController", () => {
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
+    it("should return 400 without a verified organisation", async () => {
+      req.query.name = "John";
+      req.headers["x-org-id"] = "org-2";
+      await ParentController.searchByName(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(ParentService.getByName).not.toHaveBeenCalled();
+    });
+
     it("should return 200 and search results", async () => {
       req.query.name = "John";
+      req.organisationId = "org-1";
       (ParentService.getByName as jest.Mock).mockResolvedValue({
         responses: ["res1"],
       });
@@ -428,6 +453,7 @@ describe("ParentController", () => {
 
     it("should handle custom and generic errors", async () => {
       req.query.name = "John";
+      req.organisationId = "org-1";
       (ParentService.getByName as jest.Mock).mockRejectedValue(
         new ParentServiceError("Custom", 404),
       );

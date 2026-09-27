@@ -321,6 +321,47 @@ export type ParentCreateContext = {
   actorId?: string;
 };
 
+/**
+ * A practice sees a parent through that parent's companions: an ACTIVE parent
+ * link to a companion that is itself ACTIVE at the practice. `Parent` rows carry
+ * no organisation of their own.
+ */
+const inOrganisationScope = (organisationId: string) => ({
+  status: "ACTIVE" as const,
+  patient: {
+    organisations: { some: { organisationId, status: "ACTIVE" as const } },
+  },
+});
+
+const isParentInOrganisation = async (
+  parentId: string,
+  organisationId: string | undefined,
+): Promise<boolean> => {
+  const org = organisationId?.trim();
+  if (!parentId || !org) return false;
+  const link = await prisma.parentPatient.findFirst({
+    where: { parentId, ...inOrganisationScope(org) },
+    select: { id: true },
+  });
+  return Boolean(link);
+};
+
+/** Mobile callers only ever act on their own parent record. */
+const isOwnParent = async (id: string, authUserId: string | undefined) => {
+  if (!authUserId) return false;
+  const parentId = await getParentIdForAuthUser(authUserId);
+  return Boolean(parentId) && parentId === id;
+};
+
+/** PMS reads and edits are limited to the acting practice's own clients. */
+const mayAccessParent = async (id: string, ctx?: ParentCreateContext) => {
+  if (ctx?.source === "mobile") return isOwnParent(id, ctx.authUserId);
+  if (ctx?.source === "pms") {
+    return isParentInOrganisation(id, ctx.organisationId);
+  }
+  return true;
+};
+
 const resolveParentRecord = async (id: string) =>
   prisma.parent.findUnique({
     where: { id },
@@ -499,12 +540,7 @@ export const ParentService = {
   },
 
   async get(id: string, ctx?: ParentCreateContext) {
-    if (ctx?.source === "mobile" && ctx?.authUserId) {
-      const parentId = await getParentIdForAuthUser(ctx.authUserId);
-      if (!parentId || parentId !== id) {
-        return null;
-      }
-    }
+    if (!(await mayAccessParent(id, ctx))) return null;
 
     const doc = await resolveParentRecord(id);
     if (!doc) return null;
@@ -525,12 +561,7 @@ export const ParentService = {
   },
 
   async update(id: string, dto: ParentRequestDTO, ctx?: ParentCreateContext) {
-    if (ctx?.source === "mobile" && ctx.authUserId) {
-      const parentId = await getParentIdForAuthUser(ctx.authUserId);
-      if (!parentId || parentId !== id) {
-        return null;
-      }
-    }
+    if (!(await mayAccessParent(id, ctx))) return null;
 
     const parent = fromParentRequestDTO(dto);
     if (parent.timezone) {
@@ -638,15 +669,10 @@ export const ParentService = {
   },
 
   async delete(id: string, ctx: ParentCreateContext) {
-    if (ctx.source === "mobile") {
-      if (!ctx.authUserId) {
-        throw new ParentServiceError("Authenticated user ID required.", 401);
-      }
-      const parentId = await getParentIdForAuthUser(ctx.authUserId);
-      if (!parentId || parentId !== id) {
-        return null;
-      }
+    if (ctx.source === "mobile" && !ctx.authUserId) {
+      throw new ParentServiceError("Authenticated user ID required.", 401);
     }
+    if (!(await mayAccessParent(id, ctx))) return null;
 
     const existing = await resolveParentRecord(id);
     if (!existing) return null;
@@ -706,7 +732,40 @@ export const ParentService = {
     return resolveParentRecord(id);
   },
 
-  async getByName(name: string) {
+  isInOrganisation: isParentInOrganisation,
+
+  /**
+   * Whether a practice may add a companion for this parent: one of its own
+   * clients, or a client it has just created (entered through the PMS and not
+   * yet linked to any companion).
+   */
+  async mayOrganisationAddCompanion(
+    parentId: string,
+    organisationId: string | undefined,
+  ) {
+    if (!parentId || !organisationId?.trim()) return false;
+    if (await isParentInOrganisation(parentId, organisationId)) return true;
+
+    const parent = await prisma.parent.findUnique({
+      where: { id: parentId },
+      select: { createdFrom: true },
+    });
+    if (parent?.createdFrom !== "pms") return false;
+
+    const anyLink = await prisma.parentPatient.findFirst({
+      where: { parentId },
+      select: { id: true },
+    });
+    return !anyLink;
+  },
+
+  /**
+   * Client name search, limited to the practice's own clients.
+   *
+   * `organisationId` is required: matches come only from parents linked to a
+   * companion that is ACTIVE at that organisation.
+   */
+  async getByName(name: string, organisationId: string) {
     if (!name || typeof name !== "string") {
       throw new ParentServiceError("Name is required for searching.", 400);
     }
@@ -716,10 +775,26 @@ export const ParentService = {
       throw new ParentServiceError("Name is required for searching.", 400);
     }
 
+    const org = organisationId?.trim();
+    if (!org) {
+      throw new ParentServiceError(
+        "Organisation is required for searching.",
+        400,
+      );
+    }
+
+    const links = await prisma.parentPatient.findMany({
+      where: inOrganisationScope(org),
+      select: { parentId: true },
+      distinct: ["parentId"],
+    });
+    if (!links.length) return { responses: [] };
+
     const safe = escapeLikePattern(trimmed);
 
     const docs = await prisma.parent.findMany({
       where: {
+        id: { in: links.map((link) => link.parentId) },
         OR: [
           { firstName: { contains: safe, mode: "insensitive" } },
           { lastName: { contains: safe, mode: "insensitive" } },

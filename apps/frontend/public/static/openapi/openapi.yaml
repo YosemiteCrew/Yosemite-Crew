@@ -20360,6 +20360,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         400:
           description: Response
