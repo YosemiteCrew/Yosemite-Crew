@@ -222,13 +222,30 @@ const SOAP_CATEGORIES = [
   "Discharge",
 ];
 
+// A form kept internal is never shown to a pet parent.
+const isInternalForm = (form: { visibilityType?: string | null }) =>
+  form.visibilityType === "Internal";
+
 // Forms only the practice fills in: the SOAP sections, the discharge summary
 // and any form kept internal.
-const isPracticeOnlyForm = (form: {
+export const isPracticeOnlyForm = (form: {
   category: string;
   visibilityType?: string | null;
-}) =>
-  SOAP_CATEGORIES.includes(form.category) || form.visibilityType === "Internal";
+}) => SOAP_CATEGORIES.includes(form.category) || isInternalForm(form);
+
+// Template kinds a pet parent fills in; every other kind is the practice's.
+const PARENT_TEMPLATE_KINDS = new Set(["FORM", "CONSENT"]);
+
+// Which of these user ids are pet parents.
+const loadParentIds = async (ids: (string | null)[]) => {
+  const unique = [...new Set(ids.filter(Boolean))] as string[];
+  if (!unique.length) return new Set<string>();
+  const rows = await prisma.parent.findMany({
+    where: { id: { in: unique } },
+    select: { id: true },
+  });
+  return new Set(rows.map((row) => row.id));
+};
 
 const resolveOrganizationType = async (
   organisationId: string,
@@ -580,16 +597,33 @@ const assertTemplateSubmittableByParent = async (params: {
       throw new FormServiceError("Forbidden", 403);
     }
     await assertParentCanViewAppointment(appointment, params.parentId);
+
+    // A form the practice filled in is signed by the parent, never replaced.
+    const filled = await prisma.templateInstance.findMany({
+      where: {
+        organisationId: params.organisationId,
+        appointmentId: params.appointmentId,
+        templateId: params.templateId,
+        status: { in: ["COMPLETED", "SIGNED"] },
+      },
+      select: { authorId: true },
+    });
+    const parentIds = await loadParentIds(filled.map((row) => row.authorId));
+    if (filled.some((row) => !row.authorId || !parentIds.has(row.authorId))) {
+      throw new FormServiceError("Forbidden", 403);
+    }
   }
 
   // With an appointment the parent link is already proven above, so the
   // assignment only has to exist for it. Without one there is no such anchor and
-  // the assignment itself must name the parent as the signer.
+  // the assignment itself must name the parent as the signer. Either way it
+  // must have been sent to the app.
   const assignment = await prisma.formAssignment.findFirst({
     where: {
       organisationId: params.organisationId,
       templateId: params.templateId,
       status: { notIn: ["CANCELLED", "EXPIRED"] },
+      mobileVisible: true,
       ...(params.appointmentId
         ? { appointmentId: params.appointmentId }
         : { signerUserId: params.parentId }),
@@ -814,11 +848,12 @@ const buildAppointmentFormItems = async (params: {
 
     const submission = params.submissionMap.get(formId);
     // A parent cannot fill in a practice-only form, so one with nothing they
-    // may read is left out rather than listed as pending.
+    // may read is left out rather than listed as pending. An internal form is
+    // never listed to a parent.
     if (
       params.viewerParentId &&
-      (!submission || submission.hidden) &&
-      isPracticeOnlyForm(form)
+      (isInternalForm(form) ||
+        ((!submission || submission.hidden) && isPracticeOnlyForm(form)))
     ) {
       continue;
     }
@@ -876,23 +911,14 @@ const templateInstancesForParent = async (
   instances: AppointmentTemplateInstance[],
   viewer: { parentId: string; patientId?: string },
 ) => {
-  const authorIds = [
-    ...new Set(instances.map((instance) => instance.authorId).filter(Boolean)),
-  ] as string[];
-  const [parentAuthors, mayReadPracticeRows] = await Promise.all([
-    authorIds.length
-      ? prisma.parent.findMany({
-          where: { id: { in: authorIds } },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
+  const [parentAuthorIds, mayReadPracticeRows] = await Promise.all([
+    loadParentIds(instances.map((instance) => instance.authorId)),
     parentHasCompanionFeature(
       viewer.parentId,
       viewer.patientId,
       "medicalRecords",
     ),
   ]);
-  const parentAuthorIds = new Set(parentAuthors.map((parent) => parent.id));
   return instances.map((instance) =>
     templateInstanceForParent(
       instance,
@@ -928,7 +954,7 @@ const buildTemplateAppointmentFormItems = async (params: {
   }
 
   // A parent sees only what the practice sent to the app, without who created
-  // or signs it.
+  // or signs it or the encounter behind it.
   const viewer = params.viewer;
   const assignments = viewer
     ? allAssignments
@@ -938,7 +964,9 @@ const buildTemplateAppointmentFormItems = async (params: {
           signerUserId: undefined,
           signerName: undefined,
           signerEmail: undefined,
+          signerRole: undefined,
           signerIdentity: undefined,
+          encounterId: undefined,
           createdBy: undefined,
           updatedBy: undefined,
         }))
@@ -1085,6 +1113,37 @@ const parentMaySeeSubmission = (
       submissionFeature(submission),
     )
   );
+};
+
+const isInternalFormId = async (formId: string) =>
+  isInternalForm(
+    (await prisma.form.findUnique({
+      where: { id: formId },
+      select: { visibilityType: true },
+    })) ?? {},
+  );
+
+// The submission as the pet parent `parentId` may read it: one
+// `parentMaySeeSubmission` allows, on a form that is not internal. Anything
+// else is the same 404 as a submission that does not exist.
+const loadSubmissionForParent = async (
+  submissionId: string,
+  parentId: string,
+) => {
+  const submission = await prisma.formSubmission.findUnique({
+    where: { id: submissionId },
+  });
+  if (
+    !submission ||
+    !parentMaySeeSubmission(
+      submission,
+      await loadActiveCompanionLinks(parentId),
+    ) ||
+    (await isInternalFormId(submission.formId))
+  ) {
+    throw new FormServiceError("Submission not found", 404);
+  }
+  return submission;
 };
 
 type SubmissionRow = SubmissionAccessRow & {
@@ -1289,6 +1348,7 @@ const assertFormSubmittableBy = async (
   } else if (patientId) {
     await assertPatientOrgMembership(patientId, formOrgId, throwForbidden);
   }
+  return resolveAppointmentPatientId(appointment);
 };
 
 // A practice may name the companion's parent on a submission it writes. The
@@ -1350,6 +1410,9 @@ const submitViaTemplateInstance = async (
   }
 
   if ("parentId" in actor) {
+    if (!PARENT_TEMPLATE_KINDS.has(template.kind)) {
+      throw new FormServiceError("Form not found", 404);
+    }
     await assertTemplateSubmittableByParent({
       organisationId: template.organisationId,
       templateId: formIdString,
@@ -1642,7 +1705,16 @@ export const FormService = {
     if ("parentId" in actor && isPracticeOnlyForm(formOrganisation)) {
       throw new FormServiceError("Form not found", 404);
     }
-    await assertFormSubmittableBy(submission, formOrganisation.orgId, actor);
+    const appointmentPatientId = await assertFormSubmittableBy(
+      submission,
+      formOrganisation.orgId,
+      actor,
+    );
+    // A parent's answers on an appointment are for its companion, so they stay
+    // readable and signable through the parent's link to it.
+    if ("parentId" in actor && !submission.patientId) {
+      submission.patientId = appointmentPatientId;
+    }
 
     const created = await prisma.formSubmission.create({
       data: {
@@ -1703,22 +1775,14 @@ export const FormService = {
 
   /**
    * One submission, as the pet parent `parentId` may see it (see
-   * `parentMaySeeSubmission`). Anything else is the same 404 as an id that does
-   * not exist.
+   * `loadSubmissionForParent`). Anything else is the same 404 as an id that
+   * does not exist.
    */
   async getSubmission(submissionId: string, parentId: string) {
     const sid = ensureId(submissionId, "submissionId");
     const pid = ensureId(parentId, "parentId");
 
-    const sub = await prisma.formSubmission.findUnique({
-      where: { id: sid },
-    });
-    if (
-      !sub ||
-      !parentMaySeeSubmission(sub, await loadActiveCompanionLinks(pid))
-    ) {
-      throw new FormServiceError("Submission not found", 404);
-    }
+    const sub = await loadSubmissionForParent(sid, pid);
 
     const version = await prisma.formVersion.findFirst({
       where: { formId: sub.formId, version: sub.formVersion },
@@ -1731,6 +1795,7 @@ export const FormService = {
   async listSubmissions(formId: string, parentId: string) {
     const fid = ensureId(formId, "formId");
     const pid = ensureId(parentId, "parentId");
+    if (await isInternalFormId(fid)) return [];
     const links = await loadActiveCompanionLinks(pid);
 
     const rows = await prisma.formSubmission.findMany({
@@ -2000,15 +2065,7 @@ export const FormService = {
     const sid = ensureId(submissionId, "submissionId");
     const pid = ensureId(parentId, "parentId");
 
-    const submission = await prisma.formSubmission.findUnique({
-      where: { id: sid },
-    });
-    if (
-      !submission ||
-      !parentMaySeeSubmission(submission, await loadActiveCompanionLinks(pid))
-    ) {
-      throw new FormServiceError("Submission not found", 404);
-    }
+    const submission = await loadSubmissionForParent(sid, pid);
 
     const version = await prisma.formVersion.findFirst({
       where: {

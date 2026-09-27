@@ -184,6 +184,19 @@ describe("FormService.submitFHIR from the mobile app (concrete form)", () => {
     );
   });
 
+  it("records the appointment's companion on a submission that names none", async () => {
+    await submit({ appointmentId: APPOINTMENT, parentId: PARENT }, asParent);
+
+    expect(db.formSubmission.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          appointmentId: APPOINTMENT,
+          patientId: COMPANION,
+        }),
+      }),
+    );
+  });
+
   it("records a submission for a companion linked to the form's organisation", async () => {
     await submit({ patientId: COMPANION, parentId: PARENT }, asParent);
 
@@ -323,6 +336,15 @@ describe("FormService.submitFHIR from the PMS (concrete form)", () => {
         where: { id: APPOINTMENT, organisationId: ORG },
       }),
     );
+  });
+
+  it("records no companion on a practice submission that names none", async () => {
+    await submit({ appointmentId: APPOINTMENT }, asPractice);
+
+    const [[{ data }]] = db.formSubmission.create.mock.calls as [
+      [{ data: Row }],
+    ];
+    expect(data.patientId).toBeUndefined();
   });
 
   it("returns 404 for another organisation's form", async () => {

@@ -94,6 +94,9 @@ jest.mock("src/config/prisma", () => ({
     formAssignment: {
       findFirst: jest.fn(),
     },
+    parent: {
+      findMany: jest.fn(),
+    },
     parentPatient: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -824,6 +827,23 @@ describe("FormService", () => {
           id: "instance-1",
           templateVersion: 1,
         });
+        (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.parent.findMany as jest.Mock).mockResolvedValue([]);
+      };
+
+      // An assigned parent on their own appointment.
+      const arrangeAssigned = () => {
+        arrangeTemplate();
+        (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+          patient: { id: "companion-1", parent: { id: "parent-1" } },
+        });
+        (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+          role: "PRIMARY",
+          permissions: {},
+        });
+        (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue({
+          id: "assignment-1",
+        });
       };
 
       const submit = (overrides: Record<string, unknown> = {}) =>
@@ -892,6 +912,94 @@ describe("FormService", () => {
           }),
         );
         expect(prisma.appointment.findFirst).not.toHaveBeenCalled();
+      });
+
+      it.each(["SOAP_NOTE", "DISCHARGE_SUMMARY", "PRESCRIPTION"])(
+        "returns 404 for a %s template",
+        async (kind) => {
+          arrangeAssigned();
+          (TemplateService.getById as jest.Mock).mockResolvedValue({
+            id: templateId,
+            organisationId: "org-template",
+            kind,
+          });
+
+          await expect(submit()).rejects.toMatchObject({
+            statusCode: 404,
+            message: "Form not found",
+          });
+          expect(prisma.appointment.findFirst).not.toHaveBeenCalled();
+          expect(TemplateService.createInstance).not.toHaveBeenCalled();
+        },
+      );
+
+      it("accepts a consent template", async () => {
+        arrangeAssigned();
+        (TemplateService.getById as jest.Mock).mockResolvedValue({
+          id: templateId,
+          organisationId: "org-template",
+          kind: "CONSENT",
+        });
+
+        await submit();
+
+        expect(TemplateService.createInstance).toHaveBeenCalled();
+      });
+
+      it("looks only for an assignment sent to the app", async () => {
+        arrangeAssigned();
+
+        await submit();
+        await submit({ appointmentId: undefined }).catch(() => undefined);
+
+        for (const [query] of (prisma.formAssignment.findFirst as jest.Mock)
+          .mock.calls) {
+          expect(query.where).toMatchObject({ mobileVisible: true });
+        }
+        expect(prisma.formAssignment.findFirst).toHaveBeenCalledTimes(2);
+      });
+
+      it.each([
+        ["a practice user", [{ authorId: "staff-1" }]],
+        ["no one recorded", [{ authorId: null }]],
+      ])(
+        "returns 403 over a form on the appointment filled in by %s",
+        async (_label, filled) => {
+          arrangeAssigned();
+          (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue(
+            filled,
+          );
+
+          await expect(submit()).rejects.toMatchObject({ statusCode: 403 });
+          expect(TemplateService.createInstance).not.toHaveBeenCalled();
+          expect(prisma.templateInstance.findMany).toHaveBeenCalledWith({
+            where: {
+              organisationId: "org-template",
+              appointmentId: "appt-1",
+              templateId,
+              status: { in: ["COMPLETED", "SIGNED"] },
+            },
+            select: { authorId: true },
+          });
+        },
+      );
+
+      it("accepts a new answer over a form a parent filled in", async () => {
+        arrangeAssigned();
+        (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue([
+          { authorId: "parent-1" },
+        ]);
+        (prisma.parent.findMany as jest.Mock).mockResolvedValue([
+          { id: "parent-1" },
+        ]);
+
+        await submit();
+
+        expect(prisma.parent.findMany).toHaveBeenCalledWith({
+          where: { id: { in: ["parent-1"] } },
+          select: { id: true },
+        });
+        expect(TemplateService.createInstance).toHaveBeenCalled();
       });
 
       it("allows an assigned parent to submit their own appointment's form", async () => {

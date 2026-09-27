@@ -53,7 +53,7 @@ jest.mock("src/config/prisma", () => ({
     parentPatient: { findMany: jest.fn(), findFirst: jest.fn() },
     appointment: { findUnique: jest.fn() },
     organization: { findUnique: jest.fn() },
-    form: { findMany: jest.fn() },
+    form: { findMany: jest.fn(), findUnique: jest.fn() },
     templateInstance: { findMany: jest.fn() },
     parent: { findMany: jest.fn() },
   },
@@ -78,7 +78,7 @@ const mockedPrisma = prisma as unknown as {
   parentPatient: { findMany: jest.Mock; findFirst: jest.Mock };
   appointment: { findUnique: jest.Mock };
   organization: { findUnique: jest.Mock };
-  form: { findMany: jest.Mock };
+  form: { findMany: jest.Mock; findUnique: jest.Mock };
   templateInstance: { findMany: jest.Mock };
   parent: { findMany: jest.Mock };
 };
@@ -238,6 +238,9 @@ beforeEach(() => {
   mockedPrisma.formVersion.findMany.mockImplementation(async ({ where }) =>
     VERSIONS.filter((row) => matches(row, where)),
   );
+  mockedPrisma.form.findUnique.mockResolvedValue({
+    visibilityType: "External",
+  });
 });
 
 describe("FormService submission reads for a pet parent", () => {
@@ -263,6 +266,19 @@ describe("FormService submission reads for a pet parent", () => {
       await expect(visibleThrough("own")).resolves.toEqual(HIDDEN);
     },
   );
+
+  it("returns 404 for the caller's own submission on an internal form", async () => {
+    useTables({ links: [link()], submissions: [ownRow()] });
+    mockedPrisma.form.findUnique.mockResolvedValue({
+      visibilityType: "Internal",
+    });
+
+    await expect(visibleThrough("own")).resolves.toEqual(HIDDEN);
+    expect(mockedPrisma.form.findUnique).toHaveBeenCalledWith({
+      where: { id: FORM },
+      select: { visibilityType: true },
+    });
+  });
 
   it.each([
     ["the appointments permission", { appointments: true }, SHOWN],
@@ -870,6 +886,24 @@ describe("FormService appointment forms for a pet parent", () => {
     expect(forms.get(FORM)).toMatchObject({ status: "pending" });
   });
 
+  it("never lists an internal form to a parent, even with an answer they may read", async () => {
+    useTables({
+      links: [link()],
+      submissions: [
+        onAppointment("internal-row", {
+          formId: INTERNAL_FORM,
+          parentId: CALLER,
+          submittedBy: CALLER,
+        }),
+      ],
+    });
+
+    const forms = await readForms();
+
+    expect(forms.has(INTERNAL_FORM)).toBe(false);
+    expect(forms.has(FORM)).toBe(true);
+  });
+
   it("lists every form to the practice, practice-only ones included", async () => {
     useTables({ links: [], submissions: [] });
 
@@ -1006,6 +1040,7 @@ describe("FormService template-backed appointment forms for a pet parent", () =>
     signerEmail: "caller@example.com",
     signerRole: "CLIENT",
     signerIdentity: { userId: CALLER, email: "caller@example.com" },
+    encounterId: "encounter-1",
     createdBy: STAFF,
     updatedBy: STAFF,
     status: "sent",
@@ -1103,7 +1138,9 @@ describe("FormService template-backed appointment forms for a pet parent", () =>
         "signerUserId",
         "signerName",
         "signerEmail",
+        "signerRole",
         "signerIdentity",
+        "encounterId",
         "createdBy",
         "updatedBy",
       ]) {
@@ -1228,6 +1265,8 @@ describe("FormService template-backed appointment forms for a pet parent", () =>
     ]);
     expect(items.get("tpl-parent")).toMatchObject({
       signerEmail: "caller@example.com",
+      signerRole: "CLIENT",
+      encounterId: "encounter-1",
       createdBy: STAFF,
     });
     expect(responseOf(items, "tpl-practice")).toEqual(INSTANCES[1]);

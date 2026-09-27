@@ -375,7 +375,7 @@ describe("FormSigningService.startSigning", () => {
     });
   });
 
-  it("rejects parent signing when the required signer does not match", async () => {
+  it("rejects parent signing of their own form when the vet is the required signer", async () => {
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
       id: "submission-3",
       parentId: "parent-owner",
@@ -383,7 +383,7 @@ describe("FormSigningService.startSigning", () => {
       formId: "form-3",
       formVersion: 1,
       signing: { status: "NOT_STARTED" },
-      submittedBy: "submission-owner",
+      submittedBy: "parent-owner",
     });
 
     mockedPrisma.form.findUnique.mockResolvedValueOnce({
@@ -1256,5 +1256,93 @@ describe("FormSigningService.startSigning - the parent's companion link", () => 
       documentId: "555",
       signingUrl: "https://sign.example/555",
     });
+  });
+});
+
+describe("FormSigningService.startSigning - the form's signer", () => {
+  const STAFF = "practice-user";
+
+  const signAsParent = (form: Record<string, unknown>, submittedBy: string) => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-signer",
+      parentId: "parent-owner",
+      patientId: COMPANION,
+      formId: "form-signer",
+      formVersion: 1,
+      submittedBy,
+      signing: { status: "NOT_STARTED" },
+    });
+    mockedPrisma.form.findUnique.mockResolvedValue({
+      name: "Form",
+      orgId: "org-signer",
+      requiredSigner: null,
+      category: "Custom",
+      visibilityType: "External",
+      ...form,
+    });
+
+    return FormSigningService.startSigning({
+      isParent: true,
+      submissionId: "submission-signer",
+      initiatedBy: "parent-owner",
+    });
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedPrisma.parent.findUnique.mockResolvedValue({
+      email: "parent@example.com",
+      firstName: "Parent",
+      lastName: "Owner",
+    });
+    mockedCreateRenderedDocumentRecord.mockResolvedValue({
+      id: "rendered-signer",
+      signing: null,
+    });
+    mockedSignPersistedRenderedDocument.mockResolvedValue({
+      id: "rendered-signer",
+      signing: { documentId: "777", signingUrl: "https://sign.example/777" },
+    });
+  });
+
+  it.each([
+    ["a practice form with no signer named", {}, STAFF],
+    ["a practice form the vet signs", { requiredSigner: "VET" }, STAFF],
+    ["a SOAP note", { category: "SOAP-Subjective" }, STAFF],
+    [
+      "a discharge summary the parent filled in",
+      { category: "Discharge" },
+      "parent-owner",
+    ],
+    [
+      "an internal form the client signs",
+      { visibilityType: "Internal", requiredSigner: "CLIENT" },
+      "parent-owner",
+    ],
+  ])(
+    "answers %s as a missing submission",
+    async (_label, form, submittedBy) => {
+      await expect(signAsParent(form, submittedBy)).rejects.toThrow(
+        "Form submission not found",
+      );
+      expect(mockedCreateRenderedDocumentRecord).not.toHaveBeenCalled();
+      expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["their own form with no signer named", {}, "parent-owner"],
+    ["a practice form the client signs", { requiredSigner: "CLIENT" }, STAFF],
+    [
+      "a SOAP note the client signs",
+      { category: "SOAP-Plan", requiredSigner: "CLIENT" },
+      STAFF,
+    ],
+  ])("lets the parent sign %s", async (_label, form, submittedBy) => {
+    await expect(signAsParent(form, submittedBy)).resolves.toEqual({
+      documentId: "777",
+      signingUrl: "https://sign.example/777",
+    });
+    expect(mockedPrisma.formSubmission.update).toHaveBeenCalled();
   });
 });
