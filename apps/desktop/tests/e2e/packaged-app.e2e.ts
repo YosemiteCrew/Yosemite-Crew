@@ -158,31 +158,13 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     await expect(tab.getByRole('heading', { name: 'Appointment 123' })).toBeVisible();
   });
 
-  // KNOWN BROKEN ON CI, tracked in #2252. Passes locally on every
-  // run; on both macOS and Windows runners the relaunched window comes back at
-  // the default 1024 width, meaning the saved state was not read.
-  //
-  // Ruled out across three CI runs: the resize does apply (the test now fails
-  // loudly if it does not), and it is not the debounce - waiting out the real
-  // 400ms persist behaves identically to the synthetic close that preceded it.
-  // Nor is it clamping: normalizeWindowState only enforces a minimum, so 1024 is
-  // the DEFAULT being substituted, not a display-clamped 1180.
-  //
-  // fixme rather than skip: this is a real unanswered question about whether
-  // state persists when the app is torn down programmatically, not a test we
-  // have decided to stop caring about. Marked so the other 43 can gate the
-  // suite instead of one environment-specific failure holding them hostage.
-  test.fixme('persists window state across relaunches', async () => {
+  test('persists window state across relaunches', async () => {
     const profileDir = userDataDir as string;
 
-    // setBounds is applied by the window server asynchronously, so emitting
-    // 'close' in the same tick made the app's handler read - and persist - the
-    // OLD bounds. CI then restored 1024 and the assertion blamed persistence for
-    // what was really a race in the test. Wait for the resize to land first.
     await app?.evaluate(async ({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows()[0];
       if (!win) throw new Error('no window to resize');
-      win.setBounds({ x: 42, y: 48, width: 1180, height: 820 });
+      win.setBounds({ x: 42, y: 48, width: 1180, height: 700 });
 
       const deadline = Date.now() + 5000;
       while (win.getBounds().width !== 1180 && Date.now() < deadline) {
@@ -192,14 +174,27 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
         throw new Error(`window never resized: width is ${win.getBounds().width}`);
       }
 
-      // Let the resize handler's own debounced persist run (400ms in
-      // window-state.ts) rather than emitting a synthetic 'close'. The synthetic
-      // event fired the save, but on CI the state still came back as defaults,
-      // and driving the real code path removes the guesswork about what else
-      // that emit set in motion during shutdown.
       await new Promise((resolve) => setTimeout(resolve, 1200));
     });
+    await app?.evaluate(({ BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (!win) throw new Error('no window to close');
+      win.close();
+    });
+    await expect
+      .poll(() => {
+        const saved = JSON.parse(
+          fs.readFileSync(path.join(profileDir, 'window-state.json'), 'utf8')
+        ) as { width?: number; height?: number };
+        return { width: saved.width, height: saved.height };
+      })
+      .toEqual({ width: 1180, height: 700 });
+
     await app?.close();
+    const persistedAfterQuit = JSON.parse(
+      fs.readFileSync(path.join(profileDir, 'window-state.json'), 'utf8')
+    ) as { width?: number; height?: number };
+    expect(persistedAfterQuit).toMatchObject({ width: 1180, height: 700 });
     app = undefined;
 
     const relaunched = await launchPackagedApp(pimsServer.origin, docServer.origin, profileDir);
@@ -210,6 +205,6 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
       BrowserWindow.getAllWindows()[0]?.getBounds()
     );
     expect(bounds?.width).toBe(1180);
-    expect(bounds?.height).toBe(820);
+    expect(bounds?.height).toBe(700);
   });
 });
