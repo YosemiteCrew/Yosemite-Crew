@@ -1,7 +1,8 @@
 // Document writes stay inside the caller's scope: a practice adds documents
-// only for its own companions and appointments, a parent deletes only while
-// they may still reach the companion's documents, and every attachment added
-// from a request is a file uploaded for the document's own companion.
+// only for its own companions and appointments and updates only what its own
+// active staff uploaded, a parent deletes only while they may still reach the
+// companion's documents, and every attachment added from a request is a file
+// uploaded for the document's own companion that no other record uses.
 
 import {
   assertCompanionAttachmentKeys,
@@ -25,6 +26,8 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     parentPatient: { findFirst: jest.fn() },
     patientOrganisation: { findFirst: jest.fn() },
+    patient: { findUnique: jest.fn() },
+    userOrganization: { findMany: jest.fn() },
     appointment: { findUnique: jest.fn() },
     document: {
       create: jest.fn(),
@@ -33,7 +36,11 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       deleteMany: jest.fn(),
     },
-    documentAttachment: { createMany: jest.fn(), deleteMany: jest.fn() },
+    documentAttachment: {
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
+      findMany: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -58,8 +65,14 @@ const key = (patientId = COMPANION, file = "0f4d.pdf") =>
 const matches = (row: Row, where: Row): boolean =>
   Object.entries(where).every(([field, filter]) => {
     if (filter === undefined) return true;
+    if (field === "OR") {
+      return (filter as Row[]).some((branch) => matches(row, branch));
+    }
     if (filter && typeof filter === "object" && "in" in filter) {
       return (filter as { in: unknown[] }).in.includes(row[field]);
+    }
+    if (filter && typeof filter === "object" && "not" in filter) {
+      return row[field] !== (filter as { not: unknown }).not;
     }
     return row[field] === filter;
   });
@@ -69,7 +82,20 @@ const tables = {
   memberships: [] as Row[],
   appointments: [] as Row[],
   documents: [] as Row[],
+  patients: [] as Row[],
+  staff: [] as Row[],
 };
+
+// Every stored attachment, as `DocumentAttachment` rows.
+const attachmentRows = (): Row[] =>
+  tables.documents.flatMap((doc) =>
+    (doc.attachments as Row[]).map((attachment) => ({
+      documentId: doc.id,
+      key: attachment.key,
+    })),
+  );
+
+const PHOTO = key(COMPANION, "b7e1.jpg");
 
 const link = (overrides: Row = {}): Row => ({
   parentId: PARENT,
@@ -121,6 +147,26 @@ beforeEach(() => {
     },
   ];
   tables.documents = [documentRow()];
+  tables.patients = [
+    { id: COMPANION, photoUrl: `https://cdn.example.test/${PHOTO}` },
+  ];
+  tables.staff = [
+    {
+      practitionerReference: "pms-1",
+      organizationReference: ORG,
+      active: true,
+    },
+    {
+      practitionerReference: "pms-other-org",
+      organizationReference: OTHER_ORG,
+      active: true,
+    },
+    {
+      practitionerReference: "pms-left",
+      organizationReference: ORG,
+      active: false,
+    },
+  ];
 
   const findIn =
     (rows: () => Row[]) =>
@@ -132,6 +178,15 @@ beforeEach(() => {
   );
   db.appointment.findUnique.mockImplementation(
     findIn(() => tables.appointments),
+  );
+  db.patient.findUnique.mockImplementation(findIn(() => tables.patients));
+  db.userOrganization.findMany.mockImplementation(
+    async ({ where }: { where: Row }) =>
+      tables.staff.filter((row) => matches(row, where)),
+  );
+  db.documentAttachment.findMany.mockImplementation(
+    async ({ where }: { where: Row }) =>
+      attachmentRows().filter((row) => matches(row, where)),
   );
   db.document.findFirst.mockImplementation(findIn(() => tables.documents));
   db.document.findUnique.mockImplementation(findIn(() => tables.documents));
@@ -184,7 +239,9 @@ describe("DocumentService.create", () => {
         patientId: COMPANION,
         category: "HEALTH",
         title: "Lab report",
-        attachments: [{ key: key(), mimeType: "application/pdf" }],
+        attachments: [
+          { key: key(COMPANION, "fresh.pdf"), mimeType: "application/pdf" },
+        ],
         ...fields,
       } as never,
       context,
@@ -254,6 +311,33 @@ describe("DocumentService.create", () => {
     expect(db.document.create).toHaveBeenCalled();
     expect(db.patientOrganisation.findFirst).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["a file another document already uses", key()],
+    ["the companion's profile photo", PHOTO],
+  ])("returns 400 for %s", async (_label, usedKey) => {
+    for (const context of [asParent, asPractice]) {
+      await expect(
+        create(
+          { attachments: [{ key: usedKey, mimeType: "application/pdf" }] },
+          context,
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Invalid attachment key.",
+      });
+    }
+    expect(db.document.create).not.toHaveBeenCalled();
+    expect(db.documentAttachment.createMany).not.toHaveBeenCalled();
+  });
+
+  it("adds a file no other record uses", async () => {
+    await create({}, asParent);
+
+    expect(db.documentAttachment.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ key: key(COMPANION, "fresh.pdf") })],
+    });
+  });
 });
 
 describe("DocumentService.update attachments", () => {
@@ -288,6 +372,48 @@ describe("DocumentService.update attachments", () => {
         expect.objectContaining({ key: key(COMPANION, "new.pdf") }),
       ],
     });
+  });
+
+  const expectUnchanged = async (pending: Promise<unknown>) => {
+    await expect(pending).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Invalid attachment key.",
+    });
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.documentAttachment.deleteMany).not.toHaveBeenCalled();
+    expect(db.documentAttachment.createMany).not.toHaveBeenCalled();
+  };
+
+  it("returns 400 for a new attachment another document already uses", async () => {
+    tables.documents = [
+      documentRow({
+        attachments: [{ key: key(COMPANION, "mine.pdf"), mimeType: "a" }],
+      }),
+      documentRow({
+        id: "document-practice",
+        uploadedByParentId: null,
+        uploadedByPmsUserId: "pms-1",
+        syncedFromPms: true,
+        attachments: [{ key: key(COMPANION, "practice.pdf"), mimeType: "a" }],
+      }),
+    ];
+
+    await expectUnchanged(
+      update([
+        { key: key(COMPANION, "mine.pdf"), mimeType: "application/pdf" },
+        { key: key(COMPANION, "practice.pdf"), mimeType: "application/pdf" },
+      ]),
+    );
+  });
+
+  it("returns 400 for the companion's profile photo as a new attachment", async () => {
+    await expectUnchanged(update([{ key: PHOTO, mimeType: "image/jpeg" }]));
+  });
+
+  it("returns 400 for an attachment entry that is not an object", async () => {
+    await expectUnchanged(
+      update([{ key: key(), mimeType: "application/pdf" }, null as never]),
+    );
   });
 });
 
@@ -343,5 +469,188 @@ describe("DocumentService.deleteForParent", () => {
     tables.documents = [documentRow({ uploadedByParentId: "parent-other" })];
 
     await expectKept();
+  });
+
+  it("keeps a stored file another record still uses", async () => {
+    const shared = key(COMPANION, "shared.pdf");
+    tables.documents = [
+      documentRow({
+        attachments: [
+          { key: shared, mimeType: "application/pdf" },
+          { key: PHOTO, mimeType: "image/jpeg" },
+          { key: key(COMPANION, "only-mine.pdf"), mimeType: "application/pdf" },
+        ],
+      }),
+      documentRow({
+        id: "document-practice",
+        uploadedByParentId: null,
+        attachments: [{ key: shared, mimeType: "application/pdf" }],
+      }),
+    ];
+
+    await DocumentService.deleteForParent(DOCUMENT, PARENT);
+
+    expect(s3Delete.mock.calls).toEqual([[key(COMPANION, "only-mine.pdf")]]);
+    expect(db.document.deleteMany).toHaveBeenCalledWith({
+      where: { id: DOCUMENT },
+    });
+  });
+});
+
+describe("DocumentService.update from the PMS", () => {
+  const practiceDocument = (overrides: Row = {}) =>
+    documentRow({
+      uploadedByParentId: null,
+      uploadedByPmsUserId: "pms-1",
+      syncedFromPms: true,
+      ...overrides,
+    });
+
+  const update = (organisationId = ORG) =>
+    DocumentService.update(
+      DOCUMENT,
+      { title: "Renamed", attachments: [] } as never,
+      { pmsUserId: "pms-caller", organisationId },
+    );
+
+  const expectHidden = async (pending: Promise<unknown>) => {
+    await expect(pending).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Document not found.",
+    });
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.documentAttachment.deleteMany).not.toHaveBeenCalled();
+  };
+
+  it("updates a document the practice's active staff uploaded", async () => {
+    tables.documents = [practiceDocument()];
+
+    await update();
+
+    expect(db.document.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: DOCUMENT } }),
+    );
+    expect(db.documentAttachment.deleteMany).toHaveBeenCalledWith({
+      where: { documentId: DOCUMENT },
+    });
+  });
+
+  it("updates for staff stored under the FHIR organisation reference", async () => {
+    tables.documents = [practiceDocument()];
+    tables.staff = [
+      {
+        practitionerReference: "pms-1",
+        organizationReference: `Organization/${ORG}`,
+        active: true,
+      },
+    ];
+
+    await update();
+
+    expect(db.document.update).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the companion's link is PENDING", { patientId: "companion-pending" }],
+    ["the companion is not linked", { patientId: OTHER_COMPANION }],
+    [
+      "another organisation's staff uploaded it",
+      { uploadedByPmsUserId: "pms-other-org" },
+    ],
+    [
+      "the uploader has left the organisation",
+      { uploadedByPmsUserId: "pms-left" },
+    ],
+    ["no uploader was recorded", { uploadedByPmsUserId: null }],
+  ])("returns 404 when %s", async (_label, overrides) => {
+    tables.documents = [practiceDocument(overrides)];
+
+    await expectHidden(update());
+  });
+
+  it("returns 403 for a document a parent uploaded", async () => {
+    await expect(update()).rejects.toMatchObject({ statusCode: 403 });
+    expect(db.document.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("DocumentService.update saving", () => {
+  // A transaction client of its own, so a write that bypasses the transaction
+  // lands on `prisma` instead and shows up here.
+  const tx = {
+    document: { update: jest.fn() },
+    documentAttachment: { deleteMany: jest.fn(), createMany: jest.fn() },
+  };
+  const renamed = (attachments: Row[]) => ({
+    ...documentRow(),
+    title: "Renamed",
+    attachments,
+  });
+
+  beforeEach(() => {
+    transaction.mockImplementation(async (fn: (client: unknown) => unknown) =>
+      fn(tx),
+    );
+  });
+
+  it("replaces the attachments and the fields in one transaction", async () => {
+    const saved = [{ key: key(COMPANION, "new.pdf"), mimeType: "a", size: 2 }];
+    tx.document.update.mockResolvedValue(renamed(saved));
+
+    const result = await DocumentService.update(
+      DOCUMENT,
+      {
+        title: "Renamed",
+        attachments: [
+          { key: key(COMPANION, "new.pdf"), mimeType: "a", size: 2 },
+        ],
+      } as never,
+      { parentId: PARENT },
+    );
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(tx.documentAttachment.deleteMany).toHaveBeenCalledWith({
+      where: { documentId: DOCUMENT },
+    });
+    expect(tx.documentAttachment.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ key: key(COMPANION, "new.pdf") })],
+    });
+    expect(tx.document.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: DOCUMENT } }),
+    );
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.documentAttachment.deleteMany).not.toHaveBeenCalled();
+    expect(db.documentAttachment.createMany).not.toHaveBeenCalled();
+    expect(result.attachments).toEqual([
+      expect.objectContaining({ key: key(COMPANION, "new.pdf") }),
+    ]);
+  });
+
+  it("keeps the attachments when the update does not send a list", async () => {
+    tx.document.update.mockResolvedValue(
+      renamed(documentRow().attachments as Row[]),
+    );
+
+    await DocumentService.update(DOCUMENT, { title: "Renamed" } as never, {
+      parentId: PARENT,
+    });
+
+    expect(tx.document.update).toHaveBeenCalled();
+    expect(tx.documentAttachment.deleteMany).not.toHaveBeenCalled();
+    expect(tx.documentAttachment.createMany).not.toHaveBeenCalled();
+  });
+
+  it("saves nothing when the transaction fails", async () => {
+    tx.document.update.mockRejectedValue(new Error("write failed"));
+
+    await expect(
+      DocumentService.update(
+        DOCUMENT,
+        { title: "Renamed", attachments: [] } as never,
+        { parentId: PARENT },
+      ),
+    ).rejects.toThrow("write failed");
+    expect(db.documentAttachment.deleteMany).not.toHaveBeenCalled();
+    expect(db.document.update).not.toHaveBeenCalled();
   });
 });

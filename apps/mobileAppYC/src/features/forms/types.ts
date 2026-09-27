@@ -11,6 +11,8 @@ export interface AppointmentFormEntry {
   submission?: FormSubmission | null;
   status: AppointmentFormStatus;
   signingRequired: boolean;
+  // Whether this parent may sign the submission.
+  canSign?: boolean;
   signingUrl?: string | null;
   source: FormSource;
 }

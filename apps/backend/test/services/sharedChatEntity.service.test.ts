@@ -44,6 +44,7 @@ import {
 } from "src/services/sharedChatEntity.service";
 import { ChatServiceError } from "src/services/chat.service";
 import { prisma } from "src/config/prisma";
+import { storedRows } from "../helpers/stored-rows";
 
 const mockedPrisma = prisma as unknown as {
   chatSession: { findFirst: jest.Mock };
@@ -304,9 +305,11 @@ describe("SharedChatEntityService.shareEntity", () => {
 
   it("shares a companion that is linked to the organisation", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
-    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
-      id: "link1",
-    });
+    mockedPrisma.patientOrganisation.findFirst.mockImplementation(
+      storedRows([
+        { organisationId: "org1", patientId: "pet1", status: "ACTIVE" },
+      ]).findFirst,
+    );
     mockedPrisma.sharedChatEntity.create.mockResolvedValue({ id: "share3" });
 
     await SharedChatEntityService.shareEntity({
@@ -316,16 +319,30 @@ describe("SharedChatEntityService.shareEntity", () => {
       entityId: "pet1",
     });
 
-    expect(mockedPrisma.patientOrganisation.findFirst).toHaveBeenCalledWith({
-      where: {
-        organisationId: "org1",
-        patientId: "pet1",
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-      select: { id: true },
-    });
     expect(mockedPrisma.sharedChatEntity.create).toHaveBeenCalled();
   });
+
+  it.each(["PENDING", "REVOKED"])(
+    "rejects a companion whose link to the organisation is %s",
+    async (status) => {
+      mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+      mockedPrisma.patientOrganisation.findFirst.mockImplementation(
+        storedRows([{ organisationId: "org1", patientId: "pet1", status }])
+          .findFirst,
+      );
+
+      await expect(
+        SharedChatEntityService.shareEntity({
+          channelId: "ch1",
+          userId: "u1",
+          entityType: SharedChatEntityType.COMPANION,
+          entityId: "pet1",
+        }),
+      ).rejects.toMatchObject({ statusCode: 403 });
+      expect(mockSendMessage).not.toHaveBeenCalled();
+      expect(mockedPrisma.sharedChatEntity.create).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects with 403 when the companion is not linked to the organisation", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);

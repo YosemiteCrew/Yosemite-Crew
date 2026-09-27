@@ -7,9 +7,11 @@ import {
   type OrganizationFHIRPayload,
 } from "../../services/organization.service";
 import { generatePresignedUrl } from "src/middlewares/upload";
-import { stringify } from "node:querystring";
 import helpers from "src/utils/helper";
-import { resolveVerifiedUserId } from "src/utils/request";
+import {
+  resolveVerifiedOrganisationId,
+  resolveVerifiedUserId,
+} from "src/utils/request";
 import { getParentAddressForAuthUser } from "src/utils/location";
 
 // Only strings reach the `googlePlacesId` / `name` Prisma filters: a structured value such
@@ -54,14 +56,17 @@ const handleOrganizationError = (
   res.status(500).json({ message: responseMessage });
 };
 
+// A logo for a practice the caller belongs to goes straight to its folder; one
+// for a practice still being created is a fresh upload, kept for its uploader.
 const respondWithPresignedUpload = async (
+  req: Request,
   res: Response,
   mimeType: string,
-  orgId: Record<string, string>,
 ) => {
+  const orgId = resolveVerifiedOrganisationId(req);
   const { url, key } = orgId
-    ? await generatePresignedUrl(mimeType, "org", stringify(orgId))
-    : await generatePresignedUrl(mimeType, "temp");
+    ? await generatePresignedUrl(mimeType, "org", orgId)
+    : await generatePresignedUrl(mimeType, "temp", resolveVerifiedUserId(req));
   res.status(200).json({ uploadUrl: url, s3Key: key });
 };
 
@@ -223,7 +228,11 @@ export const OrganizationController = {
       }
 
       const payload = rawPayload;
-      const resource = await OrganizationService.update(id, payload);
+      const resource = await OrganizationService.update(
+        id,
+        payload,
+        resolveVerifiedUserId(req),
+      );
 
       if (!resource) {
         res.status(404).json({ message: "Business not found." });
@@ -244,7 +253,6 @@ export const OrganizationController = {
   getLogoUploadUrl: async (req: Request, res: Response) => {
     try {
       const rawBody: unknown = req.body;
-      const orgId = req.params;
       const mimeType =
         typeof rawBody === "object" && rawBody !== null && "mimeType" in rawBody
           ? (rawBody as { mimeType?: unknown }).mimeType
@@ -256,7 +264,7 @@ export const OrganizationController = {
           .json({ message: "MIME type is required in the request body." });
         return;
       }
-      await respondWithPresignedUpload(res, mimeType, orgId);
+      await respondWithPresignedUpload(req, res, mimeType);
     } catch (error) {
       logger.error("Failed to generate logo upload URL", error);
       res.status(500).json({ message: "Unable to generate logo upload URL." });

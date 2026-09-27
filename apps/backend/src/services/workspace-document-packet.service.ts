@@ -868,14 +868,20 @@ export const WorkspaceDocumentPacketService = {
       select: { organisationId: true, patientId: true },
     });
 
-    // The packet is a document: the parent needs a live link to the companion,
-    // and a co-parent the documents permission.
+    // The packet is a clinical document: the parent needs a live link to the
+    // companion, and a co-parent both the documents and medical records
+    // permissions.
     if (
       !encounter ||
       !(await parentHasCompanionFeature(
         normalizedParentId,
         encounter.patientId,
         "documents",
+      )) ||
+      !(await parentHasCompanionFeature(
+        normalizedParentId,
+        encounter.patientId,
+        "medicalRecords",
       ))
     ) {
       throw new WorkspaceServiceError("Encounter not found", 404);

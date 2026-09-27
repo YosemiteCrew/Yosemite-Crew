@@ -210,6 +210,15 @@ export const requireCompanionPermissionForResource =
   (req: Request, res: Response, next: NextFunction) =>
     enforce(req, res, next, feature, resolve);
 
+/** For a route that names the companion in the request body as `patientId`. */
+export const resolveBodyPatient: CompanionResourceResolver = async (req) => {
+  const patientId: unknown = (req.body as { patientId?: unknown } | undefined)
+    ?.patientId;
+  return typeof patientId === "string" && patientId
+    ? { kind: "patient", patientId }
+    : { kind: "deny" };
+};
+
 /**
  * Expenses are keyed by a bare id, and the id space is shared: the route serves
  * both `ExternalExpense` (a parent-recorded cost) and `Invoice` (raised by a
@@ -247,4 +256,89 @@ export const resolveExpenseCompanion: CompanionResourceResolver = async (
   }
 
   return invoice.parentId === parentId ? { kind: "allow" } : { kind: "deny" };
+};
+
+const readIdParam = (req: Request, name: string): string | undefined =>
+  (req.params as Record<string, string | undefined>)[name]?.trim();
+
+/** Observation-tool task routes: the companion recorded on the task. */
+export const resolveObservationTaskCompanion: CompanionResourceResolver =
+  async (req) => {
+    const taskId = readIdParam(req, "taskId");
+    if (!taskId) return { kind: "deny" };
+
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { patientId: true },
+    });
+    return task?.patientId
+      ? { kind: "patient", patientId: task.patientId }
+      : { kind: "deny" };
+  };
+
+/**
+ * Observation-tool task previews also return the task's latest result (the
+ * same row the preview reads). A result filled in by a parent of the companion
+ * is task work and needs nothing more; one the practice recorded is a medical
+ * record.
+ */
+export const resolveObservationTaskResultCompanion: CompanionResourceResolver =
+  async (req) => {
+    const taskId = readIdParam(req, "taskId");
+    if (!taskId) return { kind: "deny" };
+
+    // Same row, same order as the preview handler, ties included.
+    const submission = await prisma.observationToolSubmission.findFirst({
+      where: { taskId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { patientId: true, filledBy: true },
+    });
+    if (!submission) return { kind: "allow" };
+
+    const filledByParent = await prisma.parentPatient.findFirst({
+      where: { parentId: submission.filledBy, patientId: submission.patientId },
+      select: { parentId: true },
+    });
+    return filledByParent
+      ? { kind: "allow" }
+      : { kind: "patient", patientId: submission.patientId };
+  };
+
+/** Observation-tool submission routes: the companion the submission is for. */
+export const resolveObservationSubmissionCompanion: CompanionResourceResolver =
+  async (req) => {
+    const submissionId = readIdParam(req, "submissionId");
+    if (!submissionId) return { kind: "deny" };
+
+    const submission = await prisma.observationToolSubmission.findUnique({
+      where: { id: submissionId },
+      select: { patientId: true },
+    });
+    return submission
+      ? { kind: "patient", patientId: submission.patientId }
+      : { kind: "deny" };
+  };
+
+/**
+ * The companion a create route names in its body: `patientId`, or
+ * `companionId` as the app sends it. The access check and the handler both
+ * read it here, so they always act on the same companion.
+ */
+export const readBodyPatientId = (body: unknown): unknown => {
+  const { patientId, companionId } = (body ?? {}) as Record<string, unknown>;
+  return patientId ?? companionId;
+};
+
+/**
+ * Routes that create a record for the companion named in the body
+ * (`readBodyPatientId`). Only a non-empty string names a companion; any other
+ * value is refused.
+ */
+export const resolveBodyPatientCompanion: CompanionResourceResolver = async (
+  req,
+) => {
+  const patientId = readBodyPatientId(req.body);
+  return typeof patientId === "string" && patientId
+    ? { kind: "patient", patientId }
+    : { kind: "deny" };
 };

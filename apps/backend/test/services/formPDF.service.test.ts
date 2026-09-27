@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import {
   buildPdfViewModel,
   renderPdf,
+  serveRenderRequest,
   generateFormSubmissionPdf,
   closePdfBrowser,
   clearPdfTemplateCache,
@@ -28,6 +29,7 @@ const mockPage = {
 };
 
 const mockContext = {
+  route: jest.fn(),
   newPage: jest.fn(),
   close: jest.fn(),
 };
@@ -358,6 +360,15 @@ describe("FormPDFService", () => {
       expect(chromium.launch).toHaveBeenCalled();
       expect(mockBrowser.newContext).toHaveBeenCalled();
       expect(mockContext.newPage).toHaveBeenCalled();
+      // Every request the page makes is served by the guarded handler, set up
+      // before the page exists.
+      expect(mockContext.route).toHaveBeenCalledWith(
+        "**/*",
+        serveRenderRequest,
+      );
+      expect(mockContext.route.mock.invocationCallOrder[0]).toBeLessThan(
+        mockContext.newPage.mock.invocationCallOrder[0],
+      );
       expect(fs.promises.readFile).toHaveBeenCalledWith(
         expect.stringContaining("pdf-templates/form.html"),
         "utf8",

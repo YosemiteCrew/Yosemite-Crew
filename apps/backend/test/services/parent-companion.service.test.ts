@@ -3,6 +3,7 @@ import {
   ParentCompanionServiceError,
 } from "../../src/services/parent-companion.service";
 import { prisma } from "src/config/prisma";
+import { storedRows } from "../helpers/stored-rows";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -354,6 +355,29 @@ describe("ParentCompanionService", () => {
     await expect(
       ParentCompanionService.getActiveCompanionIdsForParent("parent-1"),
     ).resolves.toEqual(["patient-1", "patient-2"]);
+  });
+
+  it("lists only the companions a parent is ACTIVE on", async () => {
+    mockedPrisma.parentPatient.findMany.mockImplementationOnce(
+      storedRows([
+        { parentId: "parent-1", patientId: "patient-active", status: "ACTIVE" },
+        {
+          parentId: "parent-1",
+          patientId: "patient-pending",
+          status: "PENDING",
+        },
+        {
+          parentId: "parent-1",
+          patientId: "patient-revoked",
+          status: "REVOKED",
+        },
+        { parentId: "parent-2", patientId: "patient-other", status: "ACTIVE" },
+      ]).findMany,
+    );
+
+    await expect(
+      ParentCompanionService.getActiveCompanionIdsForParent("parent-1"),
+    ).resolves.toEqual(["patient-active"]);
   });
 
   it("throws when the requester is not a primary parent", async () => {

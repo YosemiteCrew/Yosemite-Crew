@@ -11,6 +11,7 @@ import { getAuthService } from "@yosemite-crew/auth";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
+import { uploadKeyToMove } from "src/utils/upload-key";
 import { escapeLikePattern } from "../utils/escape-like";
 
 export class ParentServiceError extends Error {
@@ -320,6 +321,47 @@ export type ParentCreateContext = {
   actorId?: string;
 };
 
+/**
+ * A practice sees a parent through that parent's companions: an ACTIVE parent
+ * link to a companion that is itself ACTIVE at the practice. `Parent` rows carry
+ * no organisation of their own.
+ */
+const inOrganisationScope = (organisationId: string) => ({
+  status: "ACTIVE" as const,
+  patient: {
+    organisations: { some: { organisationId, status: "ACTIVE" as const } },
+  },
+});
+
+const isParentInOrganisation = async (
+  parentId: string,
+  organisationId: string | undefined,
+): Promise<boolean> => {
+  const org = organisationId?.trim();
+  if (!parentId || !org) return false;
+  const link = await prisma.parentPatient.findFirst({
+    where: { parentId, ...inOrganisationScope(org) },
+    select: { id: true },
+  });
+  return Boolean(link);
+};
+
+/** Mobile callers only ever act on their own parent record. */
+const isOwnParent = async (id: string, authUserId: string | undefined) => {
+  if (!authUserId) return false;
+  const parentId = await getParentIdForAuthUser(authUserId);
+  return Boolean(parentId) && parentId === id;
+};
+
+/** PMS reads and edits are limited to the acting practice's own clients. */
+const mayAccessParent = async (id: string, ctx?: ParentCreateContext) => {
+  if (ctx?.source === "mobile") return isOwnParent(id, ctx.authUserId);
+  if (ctx?.source === "pms") {
+    return isParentInOrganisation(id, ctx.organisationId);
+  }
+  return true;
+};
+
 const resolveParentRecord = async (id: string) =>
   prisma.parent.findUnique({
     where: { id },
@@ -360,17 +402,22 @@ const resolveParentExistingByLinkedUser = async (
   });
 };
 
+/** The person saving a parent profile: the signed-in parent, or a practice user. */
+const uploaderOf = (ctx?: ParentCreateContext) =>
+  ctx?.authUserId ?? ctx?.actorId;
+
 const maybeSyncParentProfileImage = async (
   parentId: string,
-  profileImageUrl: string | undefined,
+  profileImageKey: string | null,
+  uploaderId: string | undefined,
 ) => {
-  if (!profileImageUrl) {
+  if (!profileImageKey) {
     return;
   }
 
   try {
     const finalKey = buildS3Key("parent", parentId, "image/jpg");
-    const uploadedUrl = await moveFile(profileImageUrl, finalKey);
+    const uploadedUrl = await moveFile(profileImageKey, finalKey, uploaderId);
     await prisma.parent.update({
       where: { id: parentId },
       data: { profileImageUrl: uploadedUrl },
@@ -404,6 +451,14 @@ export const ParentService = {
       throw new ParentServiceError("Parent already exists for this user.", 409);
     }
 
+    const profileImageKey = uploadKeyToMove(
+      parent.profileImageUrl,
+      { uploaderId: uploaderOf(ctx) },
+      () => {
+        throw new ParentServiceError("Invalid profile image key.", 400);
+      },
+    );
+
     const created = await prisma.parent.create({
       data: {
         firstName: parent.firstName,
@@ -413,7 +468,10 @@ export const ParentService = {
         phoneNumber: parent.phoneNumber ?? undefined,
         currency: parent.currency ?? undefined,
         timezone: parent.timezone ?? undefined,
-        profileImageUrl: parent.profileImageUrl ?? undefined,
+        // A fresh upload is saved only once it has been moved into place.
+        profileImageUrl: profileImageKey
+          ? undefined
+          : (parent.profileImageUrl ?? undefined),
         isProfileComplete: false,
         linkedUserId: parent.linkedUserId ?? undefined,
         createdFrom: parent.createdFrom,
@@ -455,7 +513,11 @@ export const ParentService = {
       });
     }
 
-    await maybeSyncParentProfileImage(created.id, parent.profileImageUrl);
+    await maybeSyncParentProfileImage(
+      created.id,
+      profileImageKey,
+      uploaderOf(ctx),
+    );
 
     if (ctx.source === "mobile" && ctx.authUserId) {
       await AuthUserMobileService.linkParent(ctx.authUserId, created.id);
@@ -478,12 +540,7 @@ export const ParentService = {
   },
 
   async get(id: string, ctx?: ParentCreateContext) {
-    if (ctx?.source === "mobile" && ctx?.authUserId) {
-      const parentId = await getParentIdForAuthUser(ctx.authUserId);
-      if (!parentId || parentId !== id) {
-        return null;
-      }
-    }
+    if (!(await mayAccessParent(id, ctx))) return null;
 
     const doc = await resolveParentRecord(id);
     if (!doc) return null;
@@ -504,23 +561,30 @@ export const ParentService = {
   },
 
   async update(id: string, dto: ParentRequestDTO, ctx?: ParentCreateContext) {
-    if (ctx?.source === "mobile" && ctx.authUserId) {
-      const parentId = await getParentIdForAuthUser(ctx.authUserId);
-      if (!parentId || parentId !== id) {
-        return null;
-      }
-    }
+    if (!(await mayAccessParent(id, ctx))) return null;
 
     const parent = fromParentRequestDTO(dto);
     if (parent.timezone) {
       parent.timezone = validateTimezone(parent.timezone, "Timezone");
     }
 
-    // Capture the prior alert set so an alert change can be audited (created/updated/deleted).
+    // Capture the prior alert set so an alert change can be audited (created/updated/deleted),
+    // and the saved picture, which is kept as it is.
     const beforeUpdate = await prisma.parent.findUnique({
       where: { id },
-      select: { alerts: true },
+      select: { alerts: true, profileImageUrl: true },
     });
+
+    const profileImageKey = uploadKeyToMove(
+      parent.profileImageUrl,
+      {
+        uploaderId: uploaderOf(ctx),
+        current: beforeUpdate?.profileImageUrl,
+      },
+      () => {
+        throw new ParentServiceError("Invalid profile image key.", 400);
+      },
+    );
 
     await prisma.parent.update({
       where: { id },
@@ -532,7 +596,10 @@ export const ParentService = {
         phoneNumber: parent.phoneNumber ?? undefined,
         currency: parent.currency ?? undefined,
         timezone: parent.timezone ?? undefined,
-        profileImageUrl: parent.profileImageUrl ?? undefined,
+        // A fresh upload is moved into the parent's folder below, never saved as is.
+        profileImageUrl: profileImageKey
+          ? undefined
+          : (parent.profileImageUrl ?? undefined),
         isProfileComplete: false,
         createdFrom: parent.createdFrom,
         // Only the PMS path manages client alerts: it sends the full alert set, so an
@@ -552,6 +619,8 @@ export const ParentService = {
     if (hasAddressData(parent.address)) {
       await upsertParentAddress(id, parent.address);
     }
+
+    await maybeSyncParentProfileImage(id, profileImageKey, uploaderOf(ctx));
 
     // Audit client (parent) alert mutations. No-ops when alerts are unchanged or no org
     // context is available, so a plain profile update is never spuriously audited.
@@ -600,15 +669,10 @@ export const ParentService = {
   },
 
   async delete(id: string, ctx: ParentCreateContext) {
-    if (ctx.source === "mobile") {
-      if (!ctx.authUserId) {
-        throw new ParentServiceError("Authenticated user ID required.", 401);
-      }
-      const parentId = await getParentIdForAuthUser(ctx.authUserId);
-      if (!parentId || parentId !== id) {
-        return null;
-      }
+    if (ctx.source === "mobile" && !ctx.authUserId) {
+      throw new ParentServiceError("Authenticated user ID required.", 401);
     }
+    if (!(await mayAccessParent(id, ctx))) return null;
 
     const existing = await resolveParentRecord(id);
     if (!existing) return null;
@@ -668,7 +732,40 @@ export const ParentService = {
     return resolveParentRecord(id);
   },
 
-  async getByName(name: string) {
+  isInOrganisation: isParentInOrganisation,
+
+  /**
+   * Whether a practice may add a companion for this parent: one of its own
+   * clients, or a client it has just created (entered through the PMS and not
+   * yet linked to any companion).
+   */
+  async mayOrganisationAddCompanion(
+    parentId: string,
+    organisationId: string | undefined,
+  ) {
+    if (!parentId || !organisationId?.trim()) return false;
+    if (await isParentInOrganisation(parentId, organisationId)) return true;
+
+    const parent = await prisma.parent.findUnique({
+      where: { id: parentId },
+      select: { createdFrom: true },
+    });
+    if (parent?.createdFrom !== "pms") return false;
+
+    const anyLink = await prisma.parentPatient.findFirst({
+      where: { parentId },
+      select: { id: true },
+    });
+    return !anyLink;
+  },
+
+  /**
+   * Client name search, limited to the practice's own clients.
+   *
+   * `organisationId` is required: matches come only from parents linked to a
+   * companion that is ACTIVE at that organisation.
+   */
+  async getByName(name: string, organisationId: string) {
     if (!name || typeof name !== "string") {
       throw new ParentServiceError("Name is required for searching.", 400);
     }
@@ -678,10 +775,26 @@ export const ParentService = {
       throw new ParentServiceError("Name is required for searching.", 400);
     }
 
+    const org = organisationId?.trim();
+    if (!org) {
+      throw new ParentServiceError(
+        "Organisation is required for searching.",
+        400,
+      );
+    }
+
+    const links = await prisma.parentPatient.findMany({
+      where: inOrganisationScope(org),
+      select: { parentId: true },
+      distinct: ["parentId"],
+    });
+    if (!links.length) return { responses: [] };
+
     const safe = escapeLikePattern(trimmed);
 
     const docs = await prisma.parent.findMany({
       where: {
+        id: { in: links.map((link) => link.parentId) },
         OR: [
           { firstName: { contains: safe, mode: "insensitive" } },
           { lastName: { contains: safe, mode: "insensitive" } },

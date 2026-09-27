@@ -1532,8 +1532,11 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () =
   it.each([
     ["the primary parent", link()],
     [
-      "a co-parent with the documents permission",
-      link({ role: "CO_PARENT", permissions: { documents: true } }),
+      "a co-parent with the documents and medical records permissions",
+      link({
+        role: "CO_PARENT",
+        permissions: { documents: true, medicalRecords: true },
+      }),
     ],
   ])("serves the signed packet to %s", async (_label, companionLink) => {
     useLinks([companionLink]);
@@ -1554,6 +1557,17 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () =
         role: "CO_PARENT",
         permissions: { documents: false, medicalRecords: true },
       }),
+    ],
+    [
+      "a co-parent without the medical records permission",
+      link({
+        role: "CO_PARENT",
+        permissions: { documents: true, medicalRecords: false },
+      }),
+    ],
+    [
+      "a co-parent with only the documents permission recorded",
+      link({ role: "CO_PARENT", permissions: { documents: true } }),
     ],
     ["a link to another companion", link({ patientId: "companion-2" })],
   ])("returns 404 through %s", async (_label, companionLink) => {

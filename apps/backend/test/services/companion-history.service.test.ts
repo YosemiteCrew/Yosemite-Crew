@@ -9,6 +9,7 @@ import { InvoiceService } from "../../src/services/invoice.service";
 import { CompanionService } from "../../src/services/companion.service";
 import { prisma } from "../../src/config/prisma";
 import logger from "../../src/utils/logger";
+import { storedRows } from "../helpers/stored-rows";
 
 jest.mock("../../src/services/appointment.service");
 jest.mock("../../src/services/task.service");
@@ -539,6 +540,49 @@ describe("CompanionHistoryService", () => {
     );
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].link.id).toBe("inv-1");
+  });
+
+  it.each(["PENDING", "REVOKED"])(
+    "reads a companion with a %s link as missing, before any section loads",
+    async (status) => {
+      (
+        prisma.patientOrganisation.findFirst as jest.Mock
+      ).mockImplementationOnce(
+        storedRows([{ organisationId, patientId: companionId, status }])
+          .findFirst,
+      );
+
+      await expect(
+        CompanionHistoryService.listForCompanion({
+          organisationId,
+          patientId: companionId,
+        }),
+      ).rejects.toMatchObject({
+        message: "Companion not found",
+        statusCode: 404,
+      });
+      // The sections never run, so documents cannot fail and warn per request.
+      expect(DocumentService.listForPms).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reads the history of a companion with an ACTIVE link", async () => {
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockImplementationOnce(
+      storedRows([{ organisationId, patientId: companionId, status: "ACTIVE" }])
+        .findFirst,
+    );
+
+    await CompanionHistoryService.listForCompanion({
+      organisationId,
+      patientId: companionId,
+      types: ["DOCUMENT"],
+    });
+
+    expect(DocumentService.listForPms).toHaveBeenCalledWith({
+      patientId: companionId,
+      organisationId,
+    });
   });
 
   it("logs warnings when a source fetch fails", async () => {

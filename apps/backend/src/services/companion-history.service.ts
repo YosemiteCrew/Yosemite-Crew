@@ -6,7 +6,7 @@ import { LabResultService } from "src/services/lab-result.service";
 import { LabOrderService } from "src/services/lab-order.service";
 import { InvoiceService } from "src/services/invoice.service";
 import { CompanionService } from "src/services/companion.service";
-import { prisma } from "src/config/prisma";
+import { assertPatientOrgMembership } from "src/services/shared/patient-org-membership";
 import logger from "src/utils/logger";
 import { type AppointmentResponseDTO } from "@yosemite-crew/types";
 import type { DocumentDto } from "src/services/document.service";
@@ -311,20 +311,15 @@ const resolveAnswersPreview = (answers?: Record<string, unknown>) => {
   return entries.slice(0, 3).join(" • ");
 };
 
-export const ensureCompanionVisible = async (
+// A practice reads a companion's history only through an ACTIVE link. A link
+// the parent has not approved yet, or one that has ended, reads as missing.
+export const assertCompanionVisible = (
   organisationId: string,
   patientId: string,
-) => {
-  const link = await prisma.patientOrganisation.findFirst({
-    where: {
-      organisationId,
-      patientId,
-      status: { in: ["ACTIVE", "PENDING"] },
-    },
-    select: { id: true },
+): Promise<void> =>
+  assertPatientOrgMembership(patientId, organisationId, () => {
+    throw new CompanionHistoryServiceError("Companion not found", 404);
   });
-  return Boolean(link);
-};
 
 const getAppointmentIdSet = async (
   patientId: string,
@@ -754,10 +749,7 @@ export const CompanionHistoryService = {
       throw new CompanionHistoryServiceError("Companion not found", 404);
     }
 
-    const isVisible = await ensureCompanionVisible(organisationId, patientId);
-    if (!isVisible) {
-      throw new CompanionHistoryServiceError("Companion not found", 404);
-    }
+    await assertCompanionVisible(organisationId, patientId);
 
     const entries: HistoryEntry[] = [];
     let appointmentIdSet: Set<string> | null = null;

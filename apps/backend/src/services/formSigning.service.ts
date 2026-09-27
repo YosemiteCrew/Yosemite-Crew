@@ -1,5 +1,7 @@
 import { DocumensoService } from "./documenso.service";
 import logger from "src/utils/logger";
+import { parentHasCompanionFeature } from "src/middlewares/companion-access";
+import { isPracticeOnlyForm } from "src/services/form.service";
 import { prisma } from "src/config/prisma";
 import { Prisma } from "@prisma/client";
 import {
@@ -205,14 +207,57 @@ export class FormSigningService {
     return { renderedDocument, signedRenderedDocument };
   }
 
-  private static ensureParentOwnsSubmission(
-    submissionParentId: unknown,
+  /**
+   * A parent signs a submission that names them, for a companion they hold an
+   * ACTIVE link to. A co-parent needs "appointments" for a form they filled in
+   * and "medicalRecords" for one the practice wrote, as for reading it. Any
+   * other submission is answered as a missing one.
+   */
+  private static async ensureParentOwnsSubmission(
+    submission: Pick<
+      PrismaFormSubmissionRecord,
+      "parentId" | "patientId" | "submittedBy"
+    >,
     initiatedBy?: string,
   ) {
-    const ownerParentId = FormSigningService.normalizeId(submissionParentId);
+    const ownerParentId = FormSigningService.normalizeId(submission.parentId);
 
-    if (!ownerParentId || !initiatedBy || ownerParentId !== initiatedBy) {
-      throw new Error("Unauthorized to sign this submission");
+    if (
+      !ownerParentId ||
+      !initiatedBy ||
+      ownerParentId !== initiatedBy ||
+      !(await parentHasCompanionFeature(
+        initiatedBy,
+        submission.patientId,
+        submission.submittedBy === initiatedBy
+          ? "appointments"
+          : "medicalRecords",
+      ))
+    ) {
+      throw new Error("Form submission not found");
+    }
+  }
+
+  /**
+   * A parent signs a form the practice filled in, or a practice-only one, only
+   * where the form names the client as its signer, and never an internal form.
+   * Anything else is answered as a missing submission.
+   */
+  private static ensureParentMaySignForm(
+    form: {
+      requiredSigner: string | null;
+      category: string;
+      visibilityType: string | null;
+    },
+    submittedBy?: string,
+    initiatedBy?: string,
+  ) {
+    if (
+      form.visibilityType === "Internal" ||
+      (form.requiredSigner !== "CLIENT" &&
+        (submittedBy !== initiatedBy || isPracticeOnlyForm(form)))
+    ) {
+      throw new Error("Form submission not found");
     }
   }
 
@@ -255,10 +300,20 @@ export class FormSigningService {
     organisationId?: string;
   }) {
     const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
+    const formId = submission.formId;
+    let form:
+      | Awaited<ReturnType<typeof FormSigningService.loadFormOrThrowPrisma>>
+      | undefined;
 
     if (isParent) {
-      FormSigningService.ensureParentOwnsSubmission(
-        submission.parentId,
+      await FormSigningService.ensureParentOwnsSubmission(
+        submission,
+        initiatedBy,
+      );
+      form = await FormSigningService.loadFormOrThrowPrisma(formId);
+      FormSigningService.ensureParentMaySignForm(
+        form,
+        submission.submittedBy ?? undefined,
         initiatedBy,
       );
     }
@@ -267,8 +322,7 @@ export class FormSigningService {
       FormSigningService.extractSigningStatus(submission.signing),
     );
 
-    const formId = submission.formId;
-    const form = await FormSigningService.loadFormOrThrowPrisma(formId);
+    form ??= await FormSigningService.loadFormOrThrowPrisma(formId);
 
     if (!isParent) {
       FormSigningService.ensurePmsUserCanSign({

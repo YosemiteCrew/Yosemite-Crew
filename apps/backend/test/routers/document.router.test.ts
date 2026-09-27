@@ -104,3 +104,14 @@ describe("document.router mobile routes", () => {
     expect(guardedFeatures).toContainEqual(["documents", "patientId"]);
   });
 });
+
+describe("document.router PMS routes", () => {
+  it.each([
+    ["POST", "/pms/view", "getSignedDownloadUrl"],
+    ["POST", "/pms/companion-1", "createDocumentPms"],
+    ["GET", "/pms/view/doc-1", "getDocumentDownloadUrl"],
+    ["PATCH", "/pms/details/doc-1", "updateDocument"],
+  ])("routes %s %s to %s", async (method, url, expected) => {
+    await expect(dispatch(method, url)).resolves.toBe(expected);
+  });
+});

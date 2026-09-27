@@ -139,6 +139,33 @@ describe('formsSlice', () => {
   });
 
   describe('fetchAppointmentForms', () => {
+    it('keeps whether the parent may sign each form', async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'signable'}),
+            submission: mockSubmission({_id: 'sub-a'}),
+            canSign: true,
+          },
+          {
+            form: mockForm({_id: 'not-signable'}),
+            submission: mockSubmission({_id: 'sub-b'}),
+          },
+        ],
+      });
+
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      const entries = store.getState().forms.byAppointmentId[mockAppointmentId];
+      expect(
+        Object.fromEntries(
+          entries.map(entry => [entry.form._id, entry.canSign]),
+        ),
+      ).toEqual({signable: true, 'not-signable': false});
+    });
+
     it('fetches appointment forms, normalizes submissions, updates loading, and caches forms', async () => {
       const form = mockForm();
       const submission = mockSubmission({
@@ -650,6 +677,55 @@ describe('formsSlice', () => {
       expect(store.getState().forms.submittingByForm.f1).toBe(false);
       expect(store.getState().forms.error).toBe('Network Error');
     });
+
+    it('rejects submit with the reason the server gave', async () => {
+      (formApi.submitForm as jest.Mock).mockRejectedValue(
+        Object.assign(new Error('Request failed with status code 409'), {
+          response: {
+            status: 409,
+            data: {message: 'This form was already completed at the practice'},
+          },
+        }),
+      );
+
+      const action = await store.dispatch(
+        submitAppointmentForm({
+          appointmentId: mockAppointmentId,
+          form: mockForm({_id: 'f1'}) as any,
+          answers: {},
+        }),
+      );
+
+      expect(action.type).toBe(submitAppointmentForm.rejected.type);
+      expect(action.payload).toBe(
+        'This form was already completed at the practice',
+      );
+    });
+
+    it.each([
+      ['the client', 'CLIENT', true],
+      ['no one', undefined, true],
+      ['the vet', 'VET', false],
+    ])(
+      'lets the parent sign their new submission when %s signs the form',
+      async (_label, requiredSigner, canSign) => {
+        (formApi.submitForm as jest.Mock).mockResolvedValue(
+          mockSubmission({_id: 'own-sub', formId: 'f1'}),
+        );
+
+        await store.dispatch(
+          submitAppointmentForm({
+            appointmentId: mockAppointmentId,
+            form: mockForm({_id: 'f1', requiredSigner}) as any,
+            answers: {},
+          }),
+        );
+
+        expect(
+          store.getState().forms.byAppointmentId[mockAppointmentId][0].canSign,
+        ).toBe(canSign);
+      },
+    );
 
     it('rejects submit with the generic message for non-error failures', async () => {
       (formApi.submitForm as jest.Mock).mockRejectedValue('bad submit');

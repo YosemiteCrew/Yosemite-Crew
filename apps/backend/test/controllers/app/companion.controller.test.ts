@@ -654,6 +654,7 @@ describe("CompanionController", () => {
 
     it("should success (200)", async () => {
       req.body = { mimeType: "image/jpeg" };
+      (req as any).userId = "u1";
       mockedUpload.generatePresignedUrl.mockResolvedValue({
         url: "http://s3",
         key: "key",
@@ -663,12 +664,28 @@ describe("CompanionController", () => {
         req as Request,
         res as Response,
       );
+      expect(mockedUpload.generatePresignedUrl).toHaveBeenCalledWith(
+        "image/jpeg",
+        "temp",
+        "u1",
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
       expect(jsonMock).toHaveBeenCalledWith({ url: "http://s3", key: "key" });
     });
 
+    it("should 401 without a signed-in user", async () => {
+      req.body = { mimeType: "image/jpeg" };
+      await CompanionController.getProfileUploadUrl(
+        req as Request,
+        res as Response,
+      );
+      expect(mockedUpload.generatePresignedUrl).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(401);
+    });
+
     it("should handle error (500)", async () => {
       req.body = { mimeType: "image/jpeg" };
+      (req as any).userId = "u1";
       mockedUpload.generatePresignedUrl.mockRejectedValue(
         new Error("S3 error"),
       );

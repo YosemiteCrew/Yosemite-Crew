@@ -362,6 +362,22 @@ describe("ParentController", () => {
         expect(res.status).toHaveBeenCalledWith(200);
       });
 
+      it("acts for the verified organisation, not the x-org-id header", async () => {
+        req.params.id = "p1";
+        req.body = validFHIR;
+        req.organisationId = "org-1";
+        req.headers["x-org-id"] = "org-2";
+        (ParentService.update as jest.Mock).mockResolvedValue({
+          response: "pms_updated",
+        });
+        await ParentController.updateParentPMS(req, res);
+        expect(ParentService.update).toHaveBeenCalledWith("p1", validFHIR, {
+          source: "pms",
+          organisationId: "org-1",
+          actorId: "auth_user_123",
+        });
+      });
+
       it("should handle errors", async () => {
         req.params.id = "p1";
         req.body = validFHIR;
@@ -416,8 +432,17 @@ describe("ParentController", () => {
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
+    it("should return 400 without a verified organisation", async () => {
+      req.query.name = "John";
+      req.headers["x-org-id"] = "org-2";
+      await ParentController.searchByName(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(ParentService.getByName).not.toHaveBeenCalled();
+    });
+
     it("should return 200 and search results", async () => {
       req.query.name = "John";
+      req.organisationId = "org-1";
       (ParentService.getByName as jest.Mock).mockResolvedValue({
         responses: ["res1"],
       });
@@ -428,6 +453,7 @@ describe("ParentController", () => {
 
     it("should handle custom and generic errors", async () => {
       req.query.name = "John";
+      req.organisationId = "org-1";
       (ParentService.getByName as jest.Mock).mockRejectedValue(
         new ParentServiceError("Custom", 404),
       );
@@ -478,9 +504,23 @@ describe("ParentController", () => {
       });
       await ParentController.getProfileUploadUrl(req, res);
 
-      expect(generatePresignedUrl).toHaveBeenCalledWith("image/jpeg", "temp");
+      // The fresh upload is kept for the signed-in person who asked for it.
+      expect(generatePresignedUrl).toHaveBeenCalledWith(
+        "image/jpeg",
+        "temp",
+        "auth_user_123",
+      );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ url: "http://url", key: "key1" });
+    });
+
+    it("returns 401 without an upload URL when nobody is signed in", async () => {
+      req.body = { mimeType: "image/jpeg" };
+      req.userId = null;
+      await ParentController.getProfileUploadUrl(req, res);
+
+      expect(generatePresignedUrl).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
     it("should handle generic errors", async () => {

@@ -12,6 +12,7 @@ import { recomputeOrganizationVerification } from "./organization-verification.s
 import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
+import { uploadKeyToMove } from "src/utils/upload-key";
 import logger from "src/utils/logger";
 import { pruneUndefined } from "src/utils/prune-undefined";
 import { Prisma } from "@prisma/client";
@@ -726,6 +727,24 @@ const assertActiveMembership = async (
   }
 };
 
+const refuseImage = (): never => {
+  throw new OrganizationServiceError("Invalid image key.", 400);
+};
+
+/** Moves a fresh upload into the organisation's own folder and saves its address. */
+const takeOverImage = async (
+  organisationId: string,
+  imageKey: string,
+  uploaderId: string | undefined,
+) => {
+  const finalKey = buildS3Key("org", organisationId, "image/jpg");
+  const imageUrl = await moveFile(imageKey, finalKey, uploaderId);
+  await prisma.organization.update({
+    where: { id: organisationId },
+    data: { imageUrl },
+  });
+};
+
 export const OrganizationService = {
   async upsert(payload: OrganizationFHIRPayload, userId?: string) {
     const { persistable, attributes } = createPersistableFromFHIR(payload);
@@ -748,7 +767,17 @@ export const OrganizationService = {
       await assertActiveMembership(existing.id, userId);
     }
 
-    const data = buildOrganizationWriteData(persistable);
+    // A fresh upload is moved into the practice's own folder once it exists,
+    // never saved as is.
+    const imageKey = uploadKeyToMove(
+      persistable.imageURL,
+      { uploaderId: userId, current: existing?.imageUrl },
+      refuseImage,
+    );
+
+    const data = buildOrganizationWriteData(
+      imageKey ? { ...persistable, imageURL: undefined } : persistable,
+    );
 
     const organisation = existing
       ? await prisma.organization.update({
@@ -823,15 +852,10 @@ export const OrganizationService = {
           });
         }
       }
+    }
 
-      if (persistable.imageURL && !persistable.imageURL.includes("https://")) {
-        const finalKey = buildS3Key("org", organisation.id, "image/jpg");
-        const profileUrl = await moveFile(persistable.imageURL, finalKey);
-        await prisma.organization.update({
-          where: { id: organisation.id },
-          data: { imageUrl: profileUrl },
-        });
-      }
+    if (imageKey) {
+      await takeOverImage(organisation.id, imageKey, userId);
     }
 
     // isVerified is derived, never client-supplied: recompute from Stripe
@@ -919,7 +943,7 @@ export const OrganizationService = {
     return true;
   },
 
-  async update(id: string, payload: OrganizationFHIRPayload) {
+  async update(id: string, payload: OrganizationFHIRPayload, userId?: string) {
     const { persistable } = createPersistableFromFHIR(payload);
     const identifier = ensureSafeIdentifier(id);
     if (!identifier) {
@@ -934,10 +958,22 @@ export const OrganizationService = {
       return null;
     }
 
+    const imageKey = uploadKeyToMove(
+      persistable.imageURL,
+      { uploaderId: userId, current: organisation.imageUrl },
+      refuseImage,
+    );
+
     await prisma.organization.update({
       where: { id: organisation.id },
-      data: buildOrganizationWriteData(persistable),
+      data: buildOrganizationWriteData(
+        imageKey ? { ...persistable, imageURL: undefined } : persistable,
+      ),
     });
+
+    if (imageKey) {
+      await takeOverImage(organisation.id, imageKey, userId);
+    }
 
     // The upsert path already did this; this one did not, so an authenticated
     // update could leave a stale or client-forced verification state behind.

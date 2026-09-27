@@ -1,12 +1,18 @@
+import type { Prisma } from "@prisma/client";
 import type { TemplateKind } from "@yosemite-crew/database";
 import { prisma } from "src/config/prisma";
-import { hasCompanionFeature } from "src/middlewares/companion-access";
+import {
+  hasCompanionFeature,
+  parentHasCompanionFeature,
+} from "src/middlewares/companion-access";
 import {
   deleteFromS3,
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
 import { assertSafeString } from "src/utils/sanitize";
+import { isUploadKeyIn } from "src/utils/upload-key";
 import { documentWhereForOrg } from "./document-scope";
+import { filterUserIdsInOrganisation } from "./shared/organisation-membership";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 
@@ -157,23 +163,19 @@ const assertParentCanAccessCompanion = async (
   }
 };
 
+// A practice reads the documents of a companion it holds an ACTIVE link to.
 const assertPmsCanAccessCompanion = async (
   organisationId: string,
   patientId: string,
 ): Promise<void> => {
   assertSafeString(organisationId, "organisationId");
-  const link = await prisma.patientOrganisation.findFirst({
-    where: {
-      organisationId,
-      patientId: normalizeStringId(patientId, "patientId"),
-      status: { in: ["ACTIVE", "PENDING"] },
+  await assertPatientOrgMembership(
+    normalizeStringId(patientId, "patientId"),
+    organisationId,
+    () => {
+      throw new DocumentServiceError("Document not found.", 404);
     },
-    select: { id: true },
-  });
-
-  if (!link) {
-    throw new DocumentServiceError("Document not found.", 404);
-  }
+  );
 };
 
 // The companions whose documents this parent may read: the rule
@@ -301,6 +303,7 @@ type RenderedDocumentRow = {
   templateInstance: {
     appointmentId: string | null;
     encounterId: string | null;
+    authorId?: string | null;
   } | null;
   clinicalArtifact: {
     appointmentId: string | null;
@@ -409,11 +412,45 @@ const loadAppointmentForDocumentLookup = async (appointmentId: string) => {
   };
 };
 
+// What a parent may see of an appointment's rendered documents, on top of the
+// documents permission the route already proved: a form a parent filled in
+// with the appointments permission, and a practice record only once signed
+// and with the medical records permission. Anything else is left out.
+const renderedDocumentsForParent = async (
+  rows: RenderedDocumentRow[],
+  parentId: string,
+  patientId: string,
+) => {
+  const authorIds = [
+    ...new Set(rows.map((row) => row.templateInstance?.authorId)),
+  ].filter((id): id is string => !!id);
+  const [parents, mayReadParentForms, mayReadPracticeRecords] =
+    await Promise.all([
+      authorIds.length
+        ? prisma.parent.findMany({
+            where: { id: { in: authorIds } },
+            select: { id: true },
+          })
+        : Promise.resolve([]),
+      parentHasCompanionFeature(parentId, patientId, "appointments"),
+      parentHasCompanionFeature(parentId, patientId, "medicalRecords"),
+    ]);
+  const parentAuthorIds = new Set(parents.map((parent) => parent.id));
+  return rows.filter((row) => {
+    const authorId = row.templateInstance?.authorId;
+    return authorId && parentAuthorIds.has(authorId)
+      ? mayReadParentForms
+      : mayReadPracticeRecords && row.status === "SIGNED";
+  });
+};
+
 const loadRenderedDocumentsForAppointments = async (params: {
   appointmentIds: string[];
   organisationId: string;
   kind?: TemplateKind;
   excludeKind?: TemplateKind;
+  // A parent asking, who sees only what `renderedDocumentsForParent` allows.
+  viewer?: { parentId: string; patientId: string };
 }) => {
   if (params.appointmentIds.length === 0) {
     return [];
@@ -442,6 +479,7 @@ const loadRenderedDocumentsForAppointments = async (params: {
         select: {
           appointmentId: true,
           encounterId: true,
+          authorId: true,
         },
       },
       clinicalArtifact: {
@@ -454,7 +492,14 @@ const loadRenderedDocumentsForAppointments = async (params: {
     orderBy: { updatedAt: "desc" },
   })) as unknown as RenderedDocumentRow[];
 
-  return renderedDocuments.map(mapRenderedDocumentToDto);
+  const visible = params.viewer
+    ? await renderedDocumentsForParent(
+        renderedDocuments,
+        params.viewer.parentId,
+        params.viewer.patientId,
+      )
+    : renderedDocuments;
+  return visible.map(mapRenderedDocumentToDto);
 };
 
 /**
@@ -580,13 +625,8 @@ const loadCaseAndEncounterIdsForPatient = async (params: {
 
 // The keys the upload-url routes issue for a companion:
 // `companion/<patientId>/<file name>`.
-const isCompanionUploadKey = (key: unknown, patientId: string): boolean => {
-  if (typeof key !== "string") return false;
-  const prefix = `companion/${patientId}/`;
-  return (
-    key.startsWith(prefix) && /^[\w-][\w.-]*$/.test(key.slice(prefix.length))
-  );
-};
+const isCompanionUploadKey = (key: unknown, patientId: string): boolean =>
+  isUploadKeyIn(`companion/${patientId}/`, key);
 
 /**
  * Attachments added from a request must be files uploaded for the document's
@@ -605,6 +645,48 @@ export const assertCompanionAttachmentKeys = (
     ),
   );
   if (!allowed) {
+    throw new DocumentServiceError("Invalid attachment key.", 400);
+  }
+};
+
+/**
+ * The keys among `keys` that another record still points at: an attachment of
+ * a document other than `documentId`, or the companion's profile photo.
+ */
+const findKeysInUse = async (
+  keys: string[],
+  patientId: string,
+  documentId?: string,
+): Promise<Set<string>> => {
+  if (keys.length === 0) return new Set();
+  const [attachments, patient] = await Promise.all([
+    prisma.documentAttachment.findMany({
+      where: {
+        key: { in: keys },
+        ...(documentId ? { documentId: { not: documentId } } : {}),
+      },
+      select: { key: true },
+    }),
+    prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { photoUrl: true },
+    }),
+  ]);
+  const photoUrl = patient?.photoUrl;
+  const inUse = new Set(attachments.map(({ key }) => key));
+  for (const key of keys) {
+    if (photoUrl === key || photoUrl?.endsWith(`/${key}`)) inUse.add(key);
+  }
+  return inUse;
+};
+
+// A file added to a document is not one another record already uses.
+const assertAttachmentKeysUnused = async (
+  keys: string[],
+  patientId: string,
+  documentId?: string,
+): Promise<void> => {
+  if ((await findKeysInUse(keys, patientId, documentId)).size > 0) {
     throw new DocumentServiceError("Invalid attachment key.", 400);
   }
 };
@@ -667,6 +749,10 @@ const createDocumentRecord = async (
     mimeType: String(att.mimeType),
     size: typeof att.size === "number" ? att.size : undefined,
   }));
+  await assertAttachmentKeysUnused(
+    attachments.map(({ key }) => key),
+    patientId,
+  );
 
   const created = await prisma.$transaction(async (tx) => {
     const document = await tx.document.create({
@@ -775,19 +861,42 @@ const assertParentCanUpdateDocument = async (
   }
 };
 
+// A practice updates the documents its own active staff uploaded for a
+// companion it holds an ACTIVE link to.
 const assertPmsCanUpdateDocument = async (
   context: DocumentCreateContext,
-  doc: { patientId: string; syncedFromPms: boolean },
+  doc: {
+    patientId: string;
+    syncedFromPms: boolean;
+    uploadedByPmsUserId: string | null;
+  },
 ): Promise<void> => {
-  if (!context.organisationId) {
+  const { organisationId } = context;
+  if (!organisationId) {
     throw new DocumentServiceError("organisationId is required.", 400);
   }
-  await assertPmsCanAccessCompanion(context.organisationId, doc.patientId);
+  const throwNotFound = (): never => {
+    throw new DocumentServiceError("Document not found.", 404);
+  };
+  await assertPatientOrgMembership(
+    doc.patientId,
+    organisationId,
+    throwNotFound,
+  );
   if (!doc.syncedFromPms) {
     throw new DocumentServiceError(
       "PMS cannot update documents uploaded by parent.",
       403,
     );
+  }
+  const uploader = doc.uploadedByPmsUserId;
+  if (
+    !uploader ||
+    !(await filterUserIdsInOrganisation([uploader], organisationId)).has(
+      uploader,
+    )
+  ) {
+    throwNotFound();
   }
 };
 
@@ -869,14 +978,15 @@ const recordDocumentAuditSafely = async (
 };
 
 const syncDocumentAttachmentsToPostgres = async (
+  tx: Prisma.TransactionClient,
   documentId: string,
   attachments: AttachmentInput[],
 ) => {
-  await prisma.documentAttachment.deleteMany({ where: { documentId } });
+  await tx.documentAttachment.deleteMany({ where: { documentId } });
   if (!attachments.length) {
     return;
   }
-  await prisma.documentAttachment.createMany({
+  await tx.documentAttachment.createMany({
     data: attachments.map((attachment) => ({
       documentId,
       key: attachment.key,
@@ -1060,8 +1170,10 @@ export const DocumentService = {
     }
     await assertParentCanAccessCompanion(parentId, doc.patientId);
 
-    for (const attachment of doc.attachments) {
-      await deleteFromS3(attachment.key);
+    const keys = doc.attachments.map(({ key }) => key);
+    const inUse = await findKeysInUse(keys, doc.patientId, doc.id);
+    for (const key of keys) {
+      if (!inUse.has(key)) await deleteFromS3(key);
     }
 
     await prisma.$transaction(async (tx) => {
@@ -1110,6 +1222,10 @@ export const DocumentService = {
       loadRenderedDocumentsForAppointments({
         appointmentIds: [appointmentId],
         organisationId: appointmentLookup.organisationId,
+        viewer: {
+          parentId: params.parentId,
+          patientId: appointmentLookup.patientId,
+        },
       }),
     ]);
 
@@ -1198,10 +1314,18 @@ export const DocumentService = {
 
     if (Array.isArray(updates.attachments)) {
       // Attachments the document already has are kept as they are.
-      const existingKeys = new Set(doc.attachments.map(({ key }) => key));
-      assertCompanionAttachmentKeys(
+      const existingKeys = new Set<unknown>(
+        doc.attachments.map(({ key }) => key),
+      );
+      const added = updates.attachments.filter(
+        (attachment) =>
+          !existingKeys.has((attachment as { key?: unknown } | null)?.key),
+      );
+      assertCompanionAttachmentKeys(doc.patientId, added);
+      await assertAttachmentKeysUnused(
+        added.map(({ key }) => key),
         doc.patientId,
-        updates.attachments.filter(({ key }) => !existingKeys.has(key)),
+        documentId,
       );
     }
 
@@ -1210,22 +1334,26 @@ export const DocumentService = {
       doc,
     );
 
-    const updated = await prisma.document.update({
-      where: { id: documentId },
-      data: buildDocumentUpdateData(updates, category, subcategory),
-      include: { attachments: true },
+    // The fields and the attachment list change together or not at all, and
+    // the response carries the attachments as saved.
+    const updated = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(updates.attachments)) {
+        await syncDocumentAttachmentsToPostgres(
+          tx,
+          documentId,
+          updates.attachments.map((attachment) => ({
+            key: String(attachment.key),
+            mimeType: String(attachment.mimeType),
+            size: attachment.size,
+          })),
+        );
+      }
+      return tx.document.update({
+        where: { id: documentId },
+        data: buildDocumentUpdateData(updates, category, subcategory),
+        include: { attachments: true },
+      });
     });
-
-    if (Array.isArray(updates.attachments)) {
-      await syncDocumentAttachmentsToPostgres(
-        documentId,
-        updates.attachments.map((attachment) => ({
-          key: String(attachment.key),
-          mimeType: String(attachment.mimeType),
-          size: attachment.size,
-        })),
-      );
-    }
 
     await recordDocumentAuditSafely("DOCUMENT_UPDATED", updated, context);
 

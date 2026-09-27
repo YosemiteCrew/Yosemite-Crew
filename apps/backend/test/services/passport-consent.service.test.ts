@@ -6,6 +6,7 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "src/services/audit-trail.service";
 import { NotificationService } from "src/services/notification.service";
 import { sendEmail } from "src/utils/email";
+import { storedRows } from "../helpers/stored-rows";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -144,6 +145,33 @@ describe("PassportConsentService.requestConsent", () => {
     await expect(
       PassportConsentService.requestConsent(base),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it.each(["PENDING", "REVOKED"])(
+    "404s a companion whose link to the caller org is %s",
+    async (status) => {
+      prismaMock.patientOrganisation.findFirst.mockImplementation(
+        storedRows([{ patientId: "pat-1", organisationId: "org-1", status }])
+          .findFirst,
+      );
+      await expect(
+        PassportConsentService.requestConsent(base),
+      ).rejects.toMatchObject({
+        message: "Companion not found.",
+        statusCode: 404,
+      });
+      expect(prismaMock.passportShareConsent.upsert).not.toHaveBeenCalled();
+    },
+  );
+
+  it("records a consent request for an actively linked companion", async () => {
+    prismaMock.patientOrganisation.findFirst.mockImplementation(
+      storedRows([
+        { patientId: "pat-1", organisationId: "org-1", status: "ACTIVE" },
+      ]).findFirst,
+    );
+    await PassportConsentService.requestConsent(base);
+    expect(prismaMock.passportShareConsent.upsert).toHaveBeenCalled();
   });
 
   it("400s a companion with no microchip", async () => {

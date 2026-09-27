@@ -4,6 +4,7 @@ import { IoCameraOutline, IoRemoveCircleOutline } from 'react-icons/io5';
 import { postData } from '@/app/services/axios';
 import axios from 'axios';
 import { sanitizeUrl } from '@braintree/sanitize-url';
+import { isPictureFile, PICTURE_ACCEPT, PICTURE_TYPE_ERROR } from '@/app/lib/pictureFiles';
 
 import './LogoUploader.css';
 
@@ -47,9 +48,10 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
     if (!file) return;
     setError(null);
     setIsUploading(true);
-    if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
-      setError('Only non-SVG image files are supported.');
+    if (!isPictureFile(file)) {
+      setError(PICTURE_TYPE_ERROR);
       setIsUploading(false);
+      e.target.value = '';
       return;
     }
     const localUrl = URL.createObjectURL(file);
@@ -105,7 +107,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               type="file"
               id={inputId}
               aria-label="Upload logo image"
-              accept="image/*"
+              accept={PICTURE_ACCEPT}
               onChange={handleImageChange}
               style={{ display: 'none' }}
             />

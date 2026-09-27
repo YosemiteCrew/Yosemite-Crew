@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import logger from "../../utils/logger";
 import { generatePresignedUrl } from "src/middlewares/upload";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 export const getProfileUploadUrl = async (req: Request, res: Response) => {
   try {
@@ -17,7 +18,17 @@ export const getProfileUploadUrl = async (req: Request, res: Response) => {
       return;
     }
 
-    const { url, key } = await generatePresignedUrl(mimeType, "temp");
+    const uploaderId = resolveVerifiedUserId(req);
+    if (!uploaderId) {
+      res.status(401).json({ message: "Authentication required." });
+      return;
+    }
+
+    const { url, key } = await generatePresignedUrl(
+      mimeType,
+      "temp",
+      uploaderId,
+    );
 
     return res.status(200).json({ url, key });
   } catch (error) {

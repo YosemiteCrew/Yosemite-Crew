@@ -425,8 +425,10 @@ const assertParentOfPatient = async (
   if (!link) {
     throw new PetPassportServiceError("Companion not found.", 404);
   }
+  // The practice the pet is ACTIVE at; a link the parent has not approved
+  // is not one.
   const membership = await prisma.patientOrganisation.findFirst({
-    where: { patientId, status: { in: ["ACTIVE", "PENDING"] } },
+    where: { patientId, status: "ACTIVE" },
     select: { organisationId: true },
   });
   if (!membership?.organisationId) {

@@ -366,10 +366,15 @@ describe("ParentController", () => {
 
     it("should success (200)", async () => {
       req.params = { id: "p1" };
+      (req as any).organisationId = "org-1";
       mockedParentService.get.mockResolvedValue({
         response: { id: "p1" },
       } as any);
       await ParentController.getParentPMS(req as any, res as Response);
+      expect(mockedParentService.get).toHaveBeenCalledWith("p1", {
+        source: "pms",
+        organisationId: "org-1",
+      });
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
@@ -479,14 +484,27 @@ describe("ParentController", () => {
 
     it("should success (200)", async () => {
       req.query = { name: "John" };
+      (req as any).organisationId = "org-1";
       mockedParentService.getByName.mockResolvedValue({ responses: [] } as any);
       await ParentController.searchByName(req as any, res as Response);
-      expect(mockedParentService.getByName).toHaveBeenCalledWith("John");
+      expect(mockedParentService.getByName).toHaveBeenCalledWith(
+        "John",
+        "org-1",
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("should 400 without a verified organisation, ignoring x-org-id", async () => {
+      req.query = { name: "John" };
+      req.headers = { "x-org-id": "org-2" };
+      await ParentController.searchByName(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedParentService.getByName).not.toHaveBeenCalled();
     });
 
     it("should handle service error", async () => {
       req.query = { name: "John" };
+      (req as any).organisationId = "org-1";
       mockServiceError("getByName", 400);
       await ParentController.searchByName(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(400);
@@ -494,6 +512,7 @@ describe("ParentController", () => {
 
     it("should handle generic error", async () => {
       req.query = { name: "John" };
+      (req as any).organisationId = "org-1";
       mockGenericError("getByName");
       await ParentController.searchByName(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
@@ -509,16 +528,30 @@ describe("ParentController", () => {
 
     it("should success (200)", async () => {
       req.body = { mimeType: "image/jpeg" };
+      (req as any).userId = "u1";
       mockedUpload.generatePresignedUrl.mockResolvedValue({
         url: "http://s3",
         key: "key",
       });
       await ParentController.getProfileUploadUrl(req as any, res as Response);
+      expect(mockedUpload.generatePresignedUrl).toHaveBeenCalledWith(
+        "image/jpeg",
+        "temp",
+        "u1",
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("should 401 without a signed-in user", async () => {
+      req.body = { mimeType: "image/jpeg" };
+      await ParentController.getProfileUploadUrl(req as any, res as Response);
+      expect(mockedUpload.generatePresignedUrl).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(401);
     });
 
     it("should handle generic error", async () => {
       req.body = { mimeType: "image/jpeg" };
+      (req as any).userId = "u1";
       mockedUpload.generatePresignedUrl.mockRejectedValue(new Error("Fail"));
       await ParentController.getProfileUploadUrl(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);

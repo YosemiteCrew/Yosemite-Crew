@@ -2,7 +2,8 @@
 // update) stay inside the caller's scope: practice staff act on their own
 // organisation's forms, appointments and companions; a parent submits for a
 // companion they may act for (an ACTIVE PRIMARY or CO_PARENT link, and the
-// appointments permission for a co-parent).
+// appointments permission for a co-parent), on an appointment at the form's
+// organisation or, with none, for a companion linked to that organisation.
 
 jest.mock("../../src/services/documenso.service", () => ({
   DocumensoService: {},
@@ -28,7 +29,7 @@ jest.mock("src/config/prisma", () => ({
     form: { findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
     formVersion: { findFirst: jest.fn(), create: jest.fn() },
     formField: { deleteMany: jest.fn(), createMany: jest.fn() },
-    formSubmission: { create: jest.fn() },
+    formSubmission: { create: jest.fn(), findMany: jest.fn() },
     appointment: { findFirst: jest.fn(), updateMany: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
     patientOrganisation: { findFirst: jest.fn() },
@@ -41,6 +42,7 @@ jest.mock("@yosemite-crew/types", () => ({
 }));
 
 import { FormService } from "../../src/services/form.service";
+import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { prisma } from "src/config/prisma";
 
 type Row = Record<string, unknown>;
@@ -54,6 +56,8 @@ const OTHER_ORG_FORM = "form-b";
 const PARENT = "parent-caller";
 const COMPANION = "companion-caller";
 const OTHER_COMPANION = "companion-other";
+// Another companion the practice may also act for.
+const SECOND_COMPANION = "companion-second";
 const APPOINTMENT = "appt-caller";
 
 // Applies a Prisma `where` the way Prisma does - an omitted field matches
@@ -125,6 +129,7 @@ beforeEach(() => {
     findIn(() => tables.memberships),
   );
   db.formSubmission.create.mockResolvedValue({ id: "submission-1" });
+  db.formSubmission.findMany.mockResolvedValue([]);
   db.form.update.mockImplementation(async ({ data }: { data: Row }) => ({
     ...tables.forms[0],
     ...data,
@@ -180,10 +185,88 @@ describe("FormService.submitFHIR from the mobile app (concrete form)", () => {
     );
   });
 
-  it("records a submission that names no appointment or companion", async () => {
-    await submit({ parentId: PARENT }, asParent);
+  it.each([
+    ["a practice user", { parentId: PARENT, submittedBy: "practice-user" }],
+    ["no one recorded", { parentId: null, submittedBy: null }],
+  ])(
+    "returns 409 over a form on the appointment filled in by %s",
+    async (_label, row) => {
+      db.formSubmission.findMany.mockResolvedValue([row]);
+
+      await expectRefused(
+        submit({ appointmentId: APPOINTMENT, patientId: COMPANION }, asParent),
+        409,
+        "This form was already completed at the practice",
+      );
+      expect(db.formSubmission.findMany).toHaveBeenCalledWith({
+        where: { formId: FORM, appointmentId: APPOINTMENT },
+        select: { parentId: true, submittedBy: true },
+      });
+    },
+  );
+
+  it("records a new answer over a form a parent filled in", async () => {
+    db.formSubmission.findMany.mockResolvedValue([
+      { parentId: "parent-other", submittedBy: "parent-other" },
+    ]);
+
+    await submit(
+      { appointmentId: APPOINTMENT, patientId: COMPANION },
+      asParent,
+    );
 
     expect(db.formSubmission.create).toHaveBeenCalled();
+  });
+
+  it("records the appointment's companion on a submission that names none", async () => {
+    await submit({ appointmentId: APPOINTMENT, parentId: PARENT }, asParent);
+
+    expect(db.formSubmission.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          appointmentId: APPOINTMENT,
+          patientId: COMPANION,
+        }),
+      }),
+    );
+  });
+
+  it("records a submission for a companion linked to the form's organisation", async () => {
+    await submit({ patientId: COMPANION, parentId: PARENT }, asParent);
+
+    expect(db.formSubmission.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ patientId: COMPANION }),
+      }),
+    );
+  });
+
+  it("returns 403 without an appointment or companion", async () => {
+    await expectRefused(submit({ parentId: PARENT }, asParent));
+  });
+
+  it("returns 403 without an appointment for a companion not linked to the form's organisation", async () => {
+    await expectRefused(
+      submit({ formId: OTHER_ORG_FORM, patientId: COMPANION }, asParent),
+    );
+    expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 without an appointment once the organisation link is PENDING", async () => {
+    tables.links = [link({ patientId: "companion-pending" })];
+
+    await expectRefused(submit({ patientId: "companion-pending" }, asParent));
+  });
+
+  it("returns 403 for a companion other than the appointment's", async () => {
+    tables.links = [link(), link({ patientId: OTHER_COMPANION })];
+
+    await expectRefused(
+      submit(
+        { appointmentId: APPOINTMENT, patientId: OTHER_COMPANION },
+        asParent,
+      ),
+    );
   });
 
   it("returns 403 for another family's appointment", async () => {
@@ -236,6 +319,36 @@ describe("FormService.submitFHIR from the mobile app (concrete form)", () => {
     expect(db.formSubmission.create).toHaveBeenCalled();
   });
 
+  it.each([
+    ["a SOAP section", { category: "SOAP-Subjective" }],
+    ["a discharge summary", { category: "Discharge" }],
+    ["an internal form", { visibilityType: "Internal" }],
+  ])("returns 404 for %s", async (_label, fields) => {
+    tables.forms[0] = { ...tables.forms[0], ...fields };
+
+    await expectRefused(
+      submit({ appointmentId: APPOINTMENT, patientId: COMPANION }, asParent),
+      404,
+      "Form not found",
+    );
+    expect(db.appointment.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("records a form shown both internally and externally", async () => {
+    tables.forms[0] = {
+      ...tables.forms[0],
+      category: "Consent",
+      visibilityType: "Internal_External",
+    };
+
+    await submit(
+      { appointmentId: APPOINTMENT, patientId: COMPANION },
+      asParent,
+    );
+
+    expect(db.formSubmission.create).toHaveBeenCalled();
+  });
+
   it("returns 403 for ids that are not plain strings", async () => {
     await expectRefused(submit({ appointmentId: { not: "" } }, asParent));
     await expectRefused(submit({ patientId: { not: "" } }, asParent));
@@ -259,6 +372,15 @@ describe("FormService.submitFHIR from the PMS (concrete form)", () => {
     );
   });
 
+  it("records no companion on a practice submission that names none", async () => {
+    await submit({ appointmentId: APPOINTMENT }, asPractice);
+
+    const [[{ data }]] = db.formSubmission.create.mock.calls as [
+      [{ data: Row }],
+    ];
+    expect(data.patientId).toBeUndefined();
+  });
+
   it("returns 404 for another organisation's form", async () => {
     await expectRefused(
       submit({ formId: OTHER_ORG_FORM }, asPractice),
@@ -276,6 +398,117 @@ describe("FormService.submitFHIR from the PMS (concrete form)", () => {
   it("returns 403 for a companion that is not the organisation's", async () => {
     await expectRefused(submit({ patientId: OTHER_COMPANION }, asPractice));
     await expectRefused(submit({ patientId: "companion-pending" }, asPractice));
+  });
+
+  it("records the practice's answer whatever is already on the appointment", async () => {
+    db.formSubmission.findMany.mockResolvedValue([
+      { parentId: PARENT, submittedBy: "practice-user" },
+    ]);
+
+    await submit(
+      { appointmentId: APPOINTMENT, patientId: COMPANION },
+      asPractice,
+    );
+
+    expect(db.formSubmission.create).toHaveBeenCalled();
+    expect(db.formSubmission.findMany).not.toHaveBeenCalled();
+  });
+
+  it("records the practice's SOAP and internal forms", async () => {
+    tables.forms[0] = {
+      ...tables.forms[0],
+      category: "SOAP-Subjective",
+      visibilityType: "Internal",
+    };
+
+    await submit(
+      { appointmentId: APPOINTMENT, patientId: COMPANION },
+      asPractice,
+    );
+
+    expect(db.formSubmission.create).toHaveBeenCalled();
+  });
+
+  it("returns 403 for one of the organisation's companions on another companion's appointment", async () => {
+    tables.memberships.push({
+      patientId: SECOND_COMPANION,
+      organisationId: ORG,
+      status: "ACTIVE",
+    });
+
+    await expectRefused(
+      submit(
+        { appointmentId: APPOINTMENT, patientId: SECOND_COMPANION },
+        asPractice,
+      ),
+    );
+    await expect(
+      submit({ patientId: SECOND_COMPANION }, asPractice),
+    ).resolves.toBeDefined();
+  });
+
+  const recordedParent = () =>
+    (db.formSubmission.create.mock.calls[0][0] as { data: Row }).data.parentId;
+
+  it("keeps the companion's parent the practice names", async () => {
+    await submit({ patientId: COMPANION, parentId: PARENT }, asPractice);
+
+    expect(recordedParent()).toBe(PARENT);
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({ actorType: "PARENT", actorId: PARENT }),
+    );
+  });
+
+  it("keeps a co-parent with the medical records permission", async () => {
+    tables.links = [
+      link({ role: "CO_PARENT", permissions: { medicalRecords: true } }),
+    ];
+
+    await submit({ patientId: COMPANION, parentId: PARENT }, asPractice);
+
+    expect(recordedParent()).toBe(PARENT);
+  });
+
+  it.each([
+    ["with no link to the companion", [] as Row[]],
+    ["whose link is PENDING", [link({ status: "PENDING" })]],
+    [
+      "that is a co-parent without the medical records permission",
+      [link({ role: "CO_PARENT", permissions: { medicalRecords: false } })],
+    ],
+  ])("drops a parent %s", async (_label, links) => {
+    tables.links = links;
+
+    await submit({ patientId: COMPANION, parentId: PARENT }, asPractice);
+
+    expect(recordedParent()).toBeUndefined();
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({ actorType: "SYSTEM", actorId: null }),
+    );
+  });
+
+  it("drops a parent when the submission names no companion", async () => {
+    await submit({ appointmentId: APPOINTMENT, parentId: PARENT }, asPractice);
+
+    expect(recordedParent()).toBeUndefined();
+    expect(db.parentPatient.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("drops a parent id that is not a plain string", async () => {
+    await submit({ patientId: COMPANION, parentId: { not: "" } }, asPractice);
+
+    expect(recordedParent()).toBeUndefined();
+    expect(db.parentPatient.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("FormService.submitFHIR without a caller", () => {
+  it("records nothing", async () => {
+    await expect(
+      submit({ patientId: COMPANION }, undefined as never),
+    ).rejects.toThrow();
+    expect(db.formSubmission.create).not.toHaveBeenCalled();
+    expect(db.form.findUnique).not.toHaveBeenCalled();
   });
 });
 

@@ -5,6 +5,8 @@ jest.mock("src/config/prisma", () => ({
     parentPatient: { findFirst: jest.fn() },
     externalExpense: { findUnique: jest.fn() },
     invoice: { findUnique: jest.fn() },
+    task: { findUnique: jest.fn() },
+    observationToolSubmission: { findUnique: jest.fn(), findFirst: jest.fn() },
   },
 }));
 jest.mock("src/services/shared/parent-identity", () => ({
@@ -13,11 +15,16 @@ jest.mock("src/services/shared/parent-identity", () => ({
 
 import { prisma } from "src/config/prisma";
 import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
+import { storedRows } from "../helpers/stored-rows";
 import {
   parentHasCompanionFeature,
   requireCompanionPermission,
   requireCompanionPermissionForResource,
+  resolveBodyPatientCompanion,
   resolveExpenseCompanion,
+  resolveObservationSubmissionCompanion,
+  resolveObservationTaskCompanion,
+  resolveObservationTaskResultCompanion,
 } from "src/middlewares/companion-access";
 
 const findFirst = (
@@ -380,5 +387,203 @@ describe("parentHasCompanionFeature", () => {
       parentHasCompanionFeature(parentId, patientId, "documents"),
     ).resolves.toBe(false);
     expect(findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("observation-tool resolvers", () => {
+  const taskFindUnique = (
+    prisma as unknown as { task: { findUnique: jest.Mock } }
+  ).task.findUnique;
+  const submissionFindUnique = (
+    prisma as unknown as {
+      observationToolSubmission: { findUnique: jest.Mock };
+    }
+  ).observationToolSubmission.findUnique;
+  const reqWith = (params: Record<string, string>, body?: unknown) =>
+    ({ params, body }) as unknown as Request;
+
+  it("reads the companion off the task", async () => {
+    taskFindUnique.mockResolvedValue({ patientId: "pat-1" });
+
+    await expect(
+      resolveObservationTaskCompanion(reqWith({ taskId: " task-1 " }), "par-1"),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-1" });
+    expect(taskFindUnique).toHaveBeenCalledWith({
+      where: { id: "task-1" },
+      select: { patientId: true },
+    });
+  });
+
+  it.each([null, { patientId: null }])(
+    "denies a task that is missing or has no companion (%j)",
+    async (task) => {
+      taskFindUnique.mockResolvedValue(task);
+
+      await expect(
+        resolveObservationTaskCompanion(reqWith({ taskId: "task-1" }), "par-1"),
+      ).resolves.toEqual({ kind: "deny" });
+    },
+  );
+
+  it("reads the companion off the submission", async () => {
+    submissionFindUnique.mockResolvedValue({ patientId: "pat-2" });
+
+    await expect(
+      resolveObservationSubmissionCompanion(
+        reqWith({ submissionId: "sub-1" }),
+        "par-1",
+      ),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-2" });
+    expect(submissionFindUnique).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      select: { patientId: true },
+    });
+  });
+
+  it("denies a submission that does not exist", async () => {
+    submissionFindUnique.mockResolvedValue(null);
+
+    await expect(
+      resolveObservationSubmissionCompanion(
+        reqWith({ submissionId: "sub-1" }),
+        "par-1",
+      ),
+    ).resolves.toEqual({ kind: "deny" });
+  });
+
+  it("denies blank ids without a query", async () => {
+    await expect(
+      resolveObservationTaskCompanion(reqWith({ taskId: "  " }), "par-1"),
+    ).resolves.toEqual({ kind: "deny" });
+    await expect(
+      resolveObservationSubmissionCompanion(reqWith({}), "par-1"),
+    ).resolves.toEqual({ kind: "deny" });
+    expect(taskFindUnique).not.toHaveBeenCalled();
+    expect(submissionFindUnique).not.toHaveBeenCalled();
+  });
+
+  describe("resolveObservationTaskResultCompanion", () => {
+    const submissionFindFirst = (
+      prisma as unknown as {
+        observationToolSubmission: { findFirst: jest.Mock };
+      }
+    ).observationToolSubmission.findFirst;
+    const resolveResult = (taskId = " task-1 ") =>
+      resolveObservationTaskResultCompanion(reqWith({ taskId }), "par-2");
+
+    it("allows a task with no result yet", async () => {
+      submissionFindFirst.mockResolvedValue(null);
+
+      await expect(resolveResult()).resolves.toEqual({ kind: "allow" });
+      expect(submissionFindFirst).toHaveBeenCalledWith({
+        where: { taskId: "task-1" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { patientId: true, filledBy: true },
+      });
+    });
+
+    it("breaks a tie on createdAt by id, the row the preview returns", async () => {
+      // Two results stored in the same instant: the parent's first, then the
+      // one the practice recorded. The preview shows the higher id, so the
+      // check has to judge that row too.
+      const at = new Date("2026-09-27T10:00:00.000Z");
+      submissionFindFirst.mockImplementationOnce(
+        storedRows([
+          {
+            id: "sub-1",
+            taskId: "task-1",
+            createdAt: at,
+            patientId: "pat-1",
+            filledBy: "par-2",
+          },
+          {
+            id: "sub-2",
+            taskId: "task-1",
+            createdAt: at,
+            patientId: "pat-1",
+            filledBy: "staff-1",
+          },
+        ]).findFirst,
+      );
+      findFirst.mockImplementationOnce(
+        storedRows([{ parentId: "par-2", patientId: "pat-1" }]).findFirst,
+      );
+
+      await expect(resolveResult()).resolves.toEqual({
+        kind: "patient",
+        patientId: "pat-1",
+      });
+    });
+
+    it("allows the latest result when a parent of the companion filled it in", async () => {
+      submissionFindFirst.mockResolvedValue({
+        patientId: "pat-1",
+        filledBy: "par-1",
+      });
+      findFirst.mockResolvedValue({ parentId: "par-1" });
+
+      await expect(resolveResult()).resolves.toEqual({ kind: "allow" });
+      expect(findFirst).toHaveBeenCalledWith({
+        where: { parentId: "par-1", patientId: "pat-1" },
+        select: { parentId: true },
+      });
+    });
+
+    it("names the companion when the practice recorded the result", async () => {
+      submissionFindFirst.mockResolvedValue({
+        patientId: "pat-1",
+        filledBy: "staff-1",
+      });
+      findFirst.mockResolvedValue(null);
+
+      await expect(resolveResult()).resolves.toEqual({
+        kind: "patient",
+        patientId: "pat-1",
+      });
+    });
+
+    it("denies a blank task id without a query", async () => {
+      await expect(resolveResult("  ")).resolves.toEqual({ kind: "deny" });
+      expect(submissionFindFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  it("names the companion from the body patientId", async () => {
+    await expect(
+      resolveBodyPatientCompanion(reqWith({}, { patientId: "pat-3" }), "par-1"),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-3" });
+  });
+
+  it("names the companion from the body companionId the app sends", async () => {
+    await expect(
+      resolveBodyPatientCompanion(
+        reqWith({}, { companionId: "pat-4" }),
+        "par-1",
+      ),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-4" });
+  });
+
+  it("takes patientId over companionId when both are sent", async () => {
+    await expect(
+      resolveBodyPatientCompanion(
+        reqWith({}, { patientId: "pat-3", companionId: "pat-4" }),
+        "par-1",
+      ),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-3" });
+  });
+
+  it.each([
+    undefined,
+    {},
+    { patientId: "" },
+    { patientId: { not: "" } },
+    { patientId: ["pat-3"] },
+    { companionId: "" },
+    { companionId: { not: "" } },
+    { patientId: "", companionId: "pat-4" },
+  ])("denies a body without a plain patientId (%j)", async (body) => {
+    await expect(
+      resolveBodyPatientCompanion(reqWith({}, body), "par-1"),
+    ).resolves.toEqual({ kind: "deny" });
   });
 });

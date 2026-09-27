@@ -2,6 +2,7 @@ import { PatientVitalsHistoryService } from "../../src/services/patient-vitals-h
 import { CompanionService } from "../../src/services/companion.service";
 import { ClinicalArtifactService } from "../../src/services/clinical-artifact.service";
 import { prisma } from "../../src/config/prisma";
+import { storedRows } from "../helpers/stored-rows";
 
 jest.mock("../../src/services/companion.service");
 jest.mock("../../src/services/clinical-artifact.service", () => ({
@@ -99,6 +100,16 @@ describe("PatientVitalsHistoryService.listForPatient", () => {
 
   it("throws 404 when the companion is not linked to the organisation", async () => {
     mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
+    await expect(
+      PatientVitalsHistoryService.listForPatient(base),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(listVitalRecordsForVisits).not.toHaveBeenCalled();
+  });
+
+  it("throws 404 when the companion's link is still PENDING", async () => {
+    mockedPrisma.patientOrganisation.findFirst.mockImplementation(
+      storedRows([{ organisationId, patientId, status: "PENDING" }]).findFirst,
+    );
     await expect(
       PatientVitalsHistoryService.listForPatient(base),
     ).rejects.toMatchObject({ statusCode: 404 });

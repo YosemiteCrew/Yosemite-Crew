@@ -56,6 +56,27 @@ jest.mock("../../src/controllers/web/appointment.prisma.controller", () => ({
   AppointmentController,
 }));
 
+type Row = Record<string, unknown>;
+let parentLinks: Row[] = [];
+const findParentLink = jest.fn(
+  async ({ where }: { where: Row }) =>
+    parentLinks.find((row) =>
+      Object.entries(where).every(([field, filter]) =>
+        filter && typeof filter === "object" && "in" in filter
+          ? (filter as { in: unknown[] }).in.includes(row[field])
+          : row[field] === filter,
+      ),
+    ) ?? null,
+);
+
+jest.mock("../../src/config/prisma", () => ({
+  prisma: { parentPatient: { findFirst: findParentLink } },
+}));
+
+jest.mock("../../src/services/shared/parent-identity", () => ({
+  findParentIdForAuthUser: jest.fn(async () => "parent-caller"),
+}));
+
 const appointmentRouter = jest.requireActual(
   "../../src/routers/appointment.router",
 ).default as Router;
@@ -161,4 +182,91 @@ describe("appointment.router", () => {
       AppointmentController.getByIdMobile,
     );
   });
+});
+
+describe("POST /mobile/documentUpload", () => {
+  const link = (overrides: Row = {}): Row => ({
+    parentId: "parent-caller",
+    patientId: "pet-1",
+    role: "PRIMARY",
+    status: "ACTIVE",
+    permissions: {},
+    ...overrides,
+  });
+
+  // Runs the route's own middleware chain up to the handler.
+  const post = async (body: Row) => {
+    const route = findRoute("/mobile/documentUpload", "post");
+    const res = {
+      statusCode: 200,
+      status: jest.fn(function (this: { statusCode: number }, code: number) {
+        this.statusCode = code;
+        return this;
+      }),
+      json: jest.fn(),
+    };
+    const req = { body, userId: "provider-caller", params: {} };
+    for (const { handle } of route?.stack ?? []) {
+      let next = false;
+      await (handle as (...args: unknown[]) => unknown)(req, res, () => {
+        next = true;
+      });
+      if (!next) break;
+    }
+    return res;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    parentLinks = [link()];
+  });
+
+  it.each([
+    ["the primary parent", link()],
+    [
+      "a co-parent with the documents permission",
+      link({ role: "CO_PARENT", permissions: { documents: true } }),
+    ],
+  ])("issues an upload link for %s", async (_label, row) => {
+    parentLinks = [row];
+
+    await post({ patientId: "pet-1", mimeType: "application/pdf" });
+
+    expect(AppointmentController.getDocumentUplaodURL).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 403 for a co-parent without the documents permission", async () => {
+    parentLinks = [
+      link({ role: "CO_PARENT", permissions: { documents: false } }),
+    ];
+
+    const res = await post({ patientId: "pet-1", mimeType: "application/pdf" });
+
+    expect(res.statusCode).toBe(403);
+    expect(AppointmentController.getDocumentUplaodURL).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a PENDING link", { status: "PENDING" }],
+    ["a REVOKED link", { status: "REVOKED" }],
+    ["another parent's companion", { parentId: "parent-other" }],
+  ])("returns 404 for %s", async (_label, overrides) => {
+    parentLinks = [link(overrides)];
+
+    const res = await post({ patientId: "pet-1", mimeType: "application/pdf" });
+
+    expect(res.statusCode).toBe(404);
+    expect(AppointmentController.getDocumentUplaodURL).not.toHaveBeenCalled();
+  });
+
+  it.each([{}, { patientId: "" }, { patientId: ["pet-1"] }])(
+    "returns 404 without looking up a link for the body %j",
+    async (body) => {
+      const res = await post({ ...body, mimeType: "application/pdf" });
+
+      expect(res.statusCode).toBe(404);
+      expect(findParentLink).not.toHaveBeenCalled();
+      expect(AppointmentController.getDocumentUplaodURL).not.toHaveBeenCalled();
+    },
+  );
 });

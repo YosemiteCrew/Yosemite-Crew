@@ -1032,6 +1032,24 @@ paths:
                 properties:
                   message:
                     type: string
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         200:
           description: Response
           content:
@@ -16888,43 +16906,17 @@ paths:
                 type: object
                 required:
                   - id
-                  - toolId
-                  - patientId
-                  - filledBy
-                  - answers
-                  - createdAt
-                  - updatedAt
+                  - taskId
+                  - evaluationAppointmentId
                 properties:
                   id:
                     type: string
-                  toolId:
-                    type: string
                   taskId:
-                    type: string
-                    nullable: true
-                  patientId:
-                    type: string
-                  filledBy:
-                    type: string
-                  answers:
-                    type: object
-                    additionalProperties: true
-                    description: answers is a Prisma Json column keyed by the observation tool's field keys (see ObservationToolDefinition.fields); its shape varies per tool definition and has no fixed schema at the database level.
-                  score:
-                    type: number
-                    nullable: true
-                  summary:
                     type: string
                     nullable: true
                   evaluationAppointmentId:
                     type: string
                     nullable: true
-                  createdAt:
-                    type: string
-                    format: date-time
-                  updatedAt:
-                    type: string
-                    format: date-time
   '/v1/observation-tools/mobile/tasks/{taskId}/preview':
     get:
       tags:
@@ -20366,6 +20358,12 @@ paths:
         - name: name
           in: query
           required: false
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:

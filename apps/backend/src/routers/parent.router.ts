@@ -23,9 +23,10 @@ router.get(
 );
 
 // Routes for PMS
-// Mutations require organisation membership + the companions:edit capability (parents/clients
-// are managed under companion permissions), mirroring the PMS companion routes. The PMS client
-// always sends the x-org-id header, so withOrgPermissions resolves the acting organisation.
+// Every route requires organisation membership plus the matching companion capability
+// (parents/clients are managed under companion permissions), mirroring the PMS companion
+// routes. The PMS client always sends the x-org-id header, so withOrgPermissions resolves
+// the acting organisation, and reads and edits are limited to that organisation's clients.
 router.post(
   "/pms/parents",
   requireWebAuth,
@@ -33,7 +34,13 @@ router.post(
   requirePermission("companions:edit:any"),
   ParentController.createParentPMS,
 );
-router.get("/pms/parents/:id", requireWebAuth, ParentController.getParentPMS);
+router.get(
+  "/pms/parents/:id",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  ParentController.getParentPMS,
+);
 router.put(
   "/pms/parents/:id",
   requireWebAuth,
@@ -41,6 +48,12 @@ router.put(
   requirePermission("companions:edit:any"),
   ParentController.updateParentPMS,
 );
-router.get("/pms/search", requireWebAuth, ParentController.searchByName);
+router.get(
+  "/pms/search",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  ParentController.searchByName,
+);
 
 export default router;

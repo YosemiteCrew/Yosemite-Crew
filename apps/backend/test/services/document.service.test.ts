@@ -45,9 +45,19 @@ jest.mock("src/config/prisma", () => ({
     documentAttachment: {
       createMany: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       deleteMany: jest.fn(),
     },
+    patient: {
+      findUnique: jest.fn(),
+    },
+    userOrganization: {
+      findMany: jest.fn(),
+    },
     renderedDocument: {
+      findMany: jest.fn(),
+    },
+    parent: {
       findMany: jest.fn(),
     },
     appointment: {
@@ -110,7 +120,10 @@ const resetPrisma = () => {
   mockedPrisma.document.deleteMany.mockReset();
   mockedPrisma.documentAttachment.createMany.mockReset();
   mockedPrisma.documentAttachment.findFirst.mockReset();
+  mockedPrisma.documentAttachment.findMany.mockReset();
   mockedPrisma.documentAttachment.deleteMany.mockReset();
+  mockedPrisma.patient.findUnique.mockReset();
+  mockedPrisma.userOrganization.findMany.mockReset();
   mockedPrisma.renderedDocument.findMany.mockReset();
   mockedPrisma.appointment.findUnique.mockReset();
   mockedPrisma.appointment.findMany.mockReset();
@@ -147,6 +160,11 @@ describe("DocumentService", () => {
     mockedPrisma.documentAttachment.findFirst.mockResolvedValue({
       documentId: uuidDocumentId,
     } as any);
+    mockedPrisma.documentAttachment.findMany.mockResolvedValue([]);
+    mockedPrisma.patient.findUnique.mockResolvedValue(null);
+    mockedPrisma.userOrganization.findMany.mockResolvedValue([
+      { practitionerReference: "pms-1" },
+    ] as any);
     mockedPrisma.document.findMany.mockResolvedValue([
       {
         ...baseRow,
@@ -704,7 +722,7 @@ describe("DocumentService", () => {
               organisations: {
                 some: {
                   organisationId: uuidOrganisationId,
-                  status: { in: ["ACTIVE", "PENDING"] },
+                  status: "ACTIVE",
                 },
               },
             },
@@ -894,6 +912,167 @@ describe("DocumentService", () => {
     });
   });
 
+  // Rendered documents on the appointment: a form a parent filled in follows
+  // the submission rule, a practice record needs medical records and a
+  // signature, and anything else is left out.
+  describe("listForAppointmentParent rendered documents", () => {
+    const otherParentId = "44444444-5555-4666-8777-888888888888";
+    const staffId = "staff-user";
+
+    const rendered = (
+      id: string,
+      overrides: Record<string, unknown> = {},
+    ): Record<string, unknown> => ({
+      id,
+      organisationId: uuidOrganisationId,
+      sourceKind: "TEMPLATE_INSTANCE",
+      sourceId: `source-${id}`,
+      templateId: "tmpl-1",
+      templateVersion: 1,
+      kind: "FORM",
+      title: id,
+      status: "SIGNED",
+      pdfUrl: `https://cdn/${id}.pdf`,
+      signing: null,
+      signedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      templateInstance: {
+        appointmentId: uuidAppointmentId,
+        encounterId: null,
+        authorId: staffId,
+      },
+      clinicalArtifact: null,
+      ...overrides,
+    });
+
+    const ROWS = [
+      rendered("practice-note-signed", {
+        sourceKind: "CLINICAL_ARTIFACT",
+        kind: "SOAP_NOTE",
+        templateInstance: null,
+        clinicalArtifact: {
+          appointmentId: uuidAppointmentId,
+          encounterId: null,
+        },
+      }),
+      rendered("practice-form-signed"),
+      rendered("practice-form-unattributed", {
+        templateInstance: {
+          appointmentId: uuidAppointmentId,
+          encounterId: null,
+          authorId: null,
+        },
+      }),
+      rendered("practice-discharge-draft", {
+        kind: "DISCHARGE_SUMMARY",
+        status: "DRAFT",
+      }),
+      rendered("parent-form-draft", {
+        status: "DRAFT",
+        templateInstance: {
+          appointmentId: uuidAppointmentId,
+          encounterId: null,
+          authorId: otherParentId,
+        },
+      }),
+    ];
+
+    // The caller's one link to the appointment's companion, answering both the
+    // documents lookup and the per-feature one.
+    const useLink = (role: string, permissions: Record<string, boolean>) => {
+      const row = { patientId: uuidPatientId, role, permissions };
+      mockedPrisma.parentPatient.findMany.mockResolvedValue([row] as any);
+      mockedPrisma.parentPatient.findFirst.mockImplementation((async ({
+        where,
+      }: any) =>
+        where.parentId === uuidParentId &&
+        where.patientId === uuidPatientId &&
+        where.status === "ACTIVE"
+          ? row
+          : null) as any);
+    };
+
+    const listedIds = async () =>
+      (
+        await DocumentService.listForAppointmentParent({
+          appointmentId: uuidAppointmentId,
+          parentId: uuidParentId,
+        })
+      )
+        .map((doc) => doc.id)
+        .sort();
+
+    beforeEach(() => {
+      mockedPrisma.document.findMany.mockResolvedValue([]);
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        organisationId: uuidOrganisationId,
+        patient: { id: uuidPatientId },
+      } as any);
+      mockedPrisma.renderedDocument.findMany.mockResolvedValue(ROWS as any);
+      (mockedPrisma as any).parent.findMany.mockImplementation(
+        async ({ where }: any) =>
+          [{ id: otherParentId }].filter((row) => where.id.in.includes(row.id)),
+      );
+    });
+
+    it("shows the primary parent signed practice records and parent forms, never a practice draft", async () => {
+      useLink("PRIMARY", {});
+
+      await expect(listedIds()).resolves.toEqual(
+        [
+          "parent-form-draft",
+          "practice-form-signed",
+          "practice-form-unattributed",
+          "practice-note-signed",
+        ].sort(),
+      );
+      expect((mockedPrisma as any).parent.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [staffId, otherParentId] } },
+        select: { id: true },
+      });
+    });
+
+    it.each([
+      [
+        "documents and appointments",
+        { documents: true, appointments: true },
+        ["parent-form-draft"],
+      ],
+      [
+        "documents and medical records",
+        { documents: true, medicalRecords: true },
+        [
+          "practice-form-signed",
+          "practice-form-unattributed",
+          "practice-note-signed",
+        ],
+      ],
+      ["documents only", { documents: true }, []],
+    ])(
+      "shows a co-parent with %s only what those allow",
+      async (_label, permissions, expected) => {
+        useLink("CO_PARENT", permissions);
+
+        await expect(listedIds()).resolves.toEqual([...expected].sort());
+      },
+    );
+
+    it("leaves the practice view unchanged", async () => {
+      mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+        id: "po-1",
+      } as any);
+
+      const docs = await DocumentService.listForAppointmentPms({
+        appointmentId: uuidAppointmentId,
+        organisationId: uuidOrganisationId,
+      });
+
+      expect(docs).toHaveLength(ROWS.length);
+      expect((mockedPrisma as any).parent.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   it("loads appointment documents from postgres only", async () => {
     mockedPrisma.document.findMany.mockResolvedValueOnce([
       {
@@ -1073,6 +1252,8 @@ describe("DocumentService", () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
+  // The mapping is shared by both appointment listings; the practice one shows
+  // every rendered document, so it exercises all three shapes.
   it("maps rendered documents with signing status for appointment listings", async () => {
     const renderedBase = {
       organisationId: uuidOrganisationId,
@@ -1112,9 +1293,9 @@ describe("DocumentService", () => {
       },
     ] as any);
 
-    const result = await DocumentService.listForAppointmentParent({
+    const result = await DocumentService.listForAppointmentPms({
       appointmentId: uuidAppointmentId,
-      parentId: uuidParentId,
+      organisationId: uuidOrganisationId,
     });
 
     const byId = new Map(result.map((doc) => [doc.id, doc]));

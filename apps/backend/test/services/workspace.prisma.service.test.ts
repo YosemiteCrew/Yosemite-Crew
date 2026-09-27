@@ -1811,7 +1811,7 @@ describe("WorkspaceService", () => {
         where: {
           patientId: "patient-victim",
           organisationId: "org-attacker",
-          status: { in: ["ACTIVE", "PENDING"] },
+          status: "ACTIVE",
         },
       }),
     );
@@ -1838,7 +1838,7 @@ describe("WorkspaceService", () => {
             organisations: {
               some: {
                 organisationId: "org-scope",
-                status: { in: ["ACTIVE", "PENDING"] },
+                status: "ACTIVE",
               },
             },
           },

@@ -6,6 +6,7 @@ import { AuthUserMobileService } from "../../src/services/authUserMobile.service
 import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { prisma } from "src/config/prisma";
 import { moveFile } from "../../src/middlewares/upload";
+import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 
 // Companion suite to parent.service.test.ts. It owns the edge/guard paths (timezone
 // parsing, profile-completion recomputation, mobile ownership checks) and resets every
@@ -27,6 +28,8 @@ jest.mock("src/config/prisma", () => ({
     },
     parentPatient: {
       deleteMany: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     authUserMobile: {
       findFirst: jest.fn(),
@@ -72,7 +75,11 @@ const mockedPrisma = prisma as unknown as {
     deleteMany: jest.Mock;
   };
   parentAddress: { upsert: jest.Mock; deleteMany: jest.Mock };
-  parentPatient: { deleteMany: jest.Mock };
+  parentPatient: {
+    deleteMany: jest.Mock;
+    findFirst: jest.Mock;
+    findMany: jest.Mock;
+  };
   authUserMobile: {
     findFirst: jest.Mock;
     findMany: jest.Mock;
@@ -124,6 +131,11 @@ const resetAll = () => {
   mockedAuth.linkParent.mockReset();
   mockedAudit.recordAlertMutation.mockReset();
   mockedMoveFile.mockReset();
+  // PMS calls act for "org-1", where parent-1 is a client unless a test says otherwise.
+  mockedPrisma.parentPatient.findFirst.mockResolvedValue({ id: "link-1" });
+  mockedPrisma.parentPatient.findMany.mockResolvedValue([
+    { parentId: "parent-1" },
+  ]);
 };
 
 /** Wire the happy-path prisma calls a PMS create makes. */
@@ -320,18 +332,33 @@ describe("ParentService.create", () => {
     expect(mockedPrisma.parent.update).not.toHaveBeenCalled();
   });
 
-  it("moves an uploaded profile image and stores the final URL", async () => {
+  const MINE = `${tempUploadPrefixFor("prov-1")}tmp.jpg`;
+  const THEIRS = `${tempUploadPrefixFor("prov-2")}tmp.jpg`;
+
+  /** A signed-in parent creating their own profile from the app. */
+  const createFromApp = (profileImageUrl: string) => {
+    mockedAuth.getAuthUserMobileIdByProviderId.mockResolvedValue("mobile-1");
+    mockedAuth.linkParent.mockResolvedValue(undefined);
+    return ParentService.create(dto({ profileImageUrl }), {
+      source: "mobile",
+      authUserId: "prov-1",
+    });
+  };
+
+  it("moves the caller's uploaded profile image and stores the final URL", async () => {
     primeCreate();
     mockedMoveFile.mockResolvedValue("https://cdn.example.com/final.jpg");
 
-    await ParentService.create(
-      dto({ profileImageUrl: "https://cdn.example.com/tmp.jpg" }),
-      { source: "pms" },
-    );
+    await createFromApp(MINE);
 
+    // The upload itself is never saved on the profile.
+    expect(mockedPrisma.parent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ profileImageUrl: undefined }),
+    });
     expect(mockedMoveFile).toHaveBeenCalledWith(
-      "https://cdn.example.com/tmp.jpg",
+      MINE,
       "parent/image-key",
+      "prov-1",
     );
     expect(mockedPrisma.parent.update).toHaveBeenCalledWith({
       where: { id: "parent-1" },
@@ -343,14 +370,74 @@ describe("ParentService.create", () => {
     primeCreate();
     mockedMoveFile.mockRejectedValue(new Error("bad key"));
 
-    const result = await ParentService.create(
-      dto({ profileImageUrl: "https://cdn.example.com/tmp.jpg" }),
+    const result = await createFromApp(MINE);
+
+    expect(mockedPrisma.parent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ profileImageUrl: undefined }),
+    });
+    expect(mockedPrisma.parent.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ profileImageUrl: expect.anything() }),
+      }),
+    );
+    expect(result.response.id).toBe("parent-1");
+  });
+
+  it.each([
+    ["another person's upload", THEIRS],
+    ["an upload that is not kept per person", "temp/uploads/tmp.jpg"],
+    ["an http link", "http://cdn.example.com/avatar.jpg"],
+    ["a file link", "file:///etc/hosts"],
+  ])(
+    "returns 400 for %s from the app without creating the parent",
+    async (_label, profileImageUrl) => {
+      primeCreate();
+
+      await expect(createFromApp(profileImageUrl)).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Invalid profile image key.",
+      });
+      expect(mockedPrisma.parent.create).not.toHaveBeenCalled();
+      expect(mockedMoveFile).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps a profile image link as given", async () => {
+    primeCreate();
+
+    await ParentService.create(
+      dto({ profileImageUrl: "https://cdn.example.com/avatar.jpg" }),
       { source: "pms" },
     );
 
-    expect(mockedPrisma.parent.update).not.toHaveBeenCalled();
-    expect(result.response.id).toBe("parent-1");
+    expect(mockedPrisma.parent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        profileImageUrl: "https://cdn.example.com/avatar.jpg",
+      }),
+    });
+    expect(mockedMoveFile).not.toHaveBeenCalled();
   });
+
+  it.each([
+    "parent/parent-2/photo.jpg",
+    "temp/uploads/%2e%2e/photo.jpg",
+    // A practice create names no uploader, so no fresh upload is its own.
+    `${tempUploadPrefixFor("prov-1")}tmp.jpg`,
+  ])(
+    "returns 400 for the profile image %s without creating the parent",
+    async (profileImageUrl) => {
+      primeCreate();
+
+      await expect(
+        ParentService.create(dto({ profileImageUrl }), { source: "pms" }),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Invalid profile image key.",
+      });
+      expect(mockedPrisma.parent.create).not.toHaveBeenCalled();
+      expect(mockedMoveFile).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not attempt an image move when no image was supplied", async () => {
     primeCreate();
@@ -435,7 +522,10 @@ describe("ParentService.update", () => {
     mockedPrisma.parent.update.mockResolvedValue(record());
 
     await expect(
-      ParentService.update("parent-1", dto(), { source: "pms" }),
+      ParentService.update("parent-1", dto(), {
+        source: "pms",
+        organisationId: "org-1",
+      }),
     ).resolves.toBeNull();
   });
 
@@ -449,6 +539,7 @@ describe("ParentService.update", () => {
 
     const result = await ParentService.update("parent-1", dto(), {
       source: "pms",
+      organisationId: "org-1",
     });
 
     expect(mockedPrisma.parent.update).toHaveBeenLastCalledWith({
@@ -471,6 +562,7 @@ describe("ParentService.update", () => {
 
     const result = await ParentService.update("parent-1", dto(), {
       source: "pms",
+      organisationId: "org-1",
     });
 
     expect(mockedPrisma.parent.update).toHaveBeenCalledTimes(1);
@@ -487,7 +579,7 @@ describe("ParentService.update", () => {
     await ParentService.update(
       "parent-1",
       dto({ address: { city: "Austin" } }),
-      { source: "pms" },
+      { source: "pms", organisationId: "org-1" },
     );
 
     expect(mockedPrisma.parentAddress.upsert).toHaveBeenCalledWith(
@@ -530,12 +622,94 @@ describe("ParentService.update", () => {
     mockedPrisma.parent.update.mockResolvedValue(record());
 
     await ParentService.update("parent-1", dto({ alerts: [] }), {
-      source: "mobile",
+      source: "pms",
+      organisationId: "org-1",
     });
 
     expect(mockedAudit.recordAlertMutation).toHaveBeenCalledWith(
       expect.objectContaining({ previousAlerts: undefined, nextAlerts: [] }),
     );
+  });
+});
+
+describe("ParentService.update profile image", () => {
+  const MINE = `${tempUploadPrefixFor("prov-1")}tmp.jpg`;
+  const THEIRS = `${tempUploadPrefixFor("prov-2")}tmp.jpg`;
+  const SAVED = "https://cdn.example.com/parent/parent-1/old.jpg";
+
+  beforeEach(() => {
+    resetAll();
+    mockedPrisma.parent.findUnique
+      .mockResolvedValueOnce({ alerts: null, profileImageUrl: SAVED })
+      .mockResolvedValue(record());
+    mockedPrisma.parent.update.mockResolvedValue(record());
+  });
+
+  const updateFromApp = (profileImageUrl: string) =>
+    ParentService.update("parent-1", dto({ profileImageUrl }), {
+      source: "pms",
+      organisationId: "org-1",
+      actorId: "prov-1",
+    });
+
+  it("moves the caller's fresh upload into the parent's folder, never saving the upload", async () => {
+    mockedMoveFile.mockResolvedValue("https://cdn.example.com/final.jpg");
+
+    await updateFromApp(MINE);
+
+    expect(mockedPrisma.parent.update.mock.calls[0][0].data).toMatchObject({
+      profileImageUrl: undefined,
+    });
+    expect(mockedMoveFile).toHaveBeenCalledWith(
+      MINE,
+      "parent/image-key",
+      "prov-1",
+    );
+    expect(mockedPrisma.parent.update).toHaveBeenCalledWith({
+      where: { id: "parent-1" },
+      data: { profileImageUrl: "https://cdn.example.com/final.jpg" },
+    });
+  });
+
+  it("uses the signed-in parent as the uploader on an app update", async () => {
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "parent-1",
+    });
+    mockedMoveFile.mockResolvedValue("https://cdn.example.com/final.jpg");
+
+    await ParentService.update("parent-1", dto({ profileImageUrl: MINE }), {
+      source: "mobile",
+      authUserId: "prov-1",
+    });
+
+    expect(mockedMoveFile).toHaveBeenCalledWith(
+      MINE,
+      "parent/image-key",
+      "prov-1",
+    );
+  });
+
+  it("keeps the saved picture as it is", async () => {
+    await updateFromApp(SAVED);
+
+    expect(mockedMoveFile).not.toHaveBeenCalled();
+    expect(mockedPrisma.parent.update.mock.calls[0][0].data).toMatchObject({
+      profileImageUrl: SAVED,
+    });
+  });
+
+  it.each([
+    ["another person's upload", THEIRS],
+    ["an http link", "http://cdn.example.com/avatar.jpg"],
+    ["a script link", "javascript:alert(1)"],
+    ["a stored parent file", "parent/parent-2/photo.jpg"],
+  ])("returns 400 for %s without saving", async (_label, profileImageUrl) => {
+    await expect(updateFromApp(profileImageUrl)).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Invalid profile image key.",
+    });
+    expect(mockedPrisma.parent.update).not.toHaveBeenCalled();
+    expect(mockedMoveFile).not.toHaveBeenCalled();
   });
 });
 
@@ -589,7 +763,10 @@ describe("ParentService.delete", () => {
     mockedPrisma.parent.findUnique.mockResolvedValue(null);
 
     await expect(
-      ParentService.delete("parent-1", { source: "pms" }),
+      ParentService.delete("parent-1", {
+        source: "pms",
+        organisationId: "org-1",
+      }),
     ).resolves.toBeNull();
 
     expect(mockedPrisma.parentPatient.deleteMany).not.toHaveBeenCalled();
@@ -638,7 +815,7 @@ describe("ParentService lookups", () => {
   });
 
   it("rejects an empty search name", async () => {
-    await expect(ParentService.getByName("")).rejects.toMatchObject({
+    await expect(ParentService.getByName("", "org-1")).rejects.toMatchObject({
       message: "Name is required for searching.",
       statusCode: 400,
     } satisfies Partial<ParentServiceError>);
@@ -649,10 +826,11 @@ describe("ParentService lookups", () => {
   it("escapes LIKE wildcards in the search term", async () => {
     mockedPrisma.parent.findMany.mockResolvedValue([]);
 
-    const result = await ParentService.getByName("  100%_a  ");
+    const result = await ParentService.getByName("  100%_a  ", "org-1");
 
     expect(mockedPrisma.parent.findMany).toHaveBeenCalledWith({
       where: {
+        id: { in: ["parent-1"] },
         OR: [
           { firstName: { contains: "100\\%\\_a", mode: "insensitive" } },
           { lastName: { contains: "100\\%\\_a", mode: "insensitive" } },

@@ -92,6 +92,16 @@ router.post(
   DocumentController.getUploadUrl,
 );
 
+// Signed download URL (PMS). Registered before "/pms/:patientId", which would
+// otherwise match "view".
+router.post(
+  "/pms/view",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("document:view:any"),
+  DocumentController.getSignedDownloadUrl,
+);
+
 // Create document (PMS)
 router.post(
   "/pms/:patientId",
@@ -144,15 +154,6 @@ router.get(
   withOrgPermissions(),
   requirePermission("document:view:any"),
   DocumentController.getDocumentDownloadUrl,
-);
-
-// Signed download URL (PMS)
-router.post(
-  "/pms/view",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("document:view:any"),
-  DocumentController.getSignedDownloadUrl,
 );
 
 // List documents for appointment (PMS)

@@ -2,6 +2,7 @@ import { LabCensusService } from "../../src/services/lab-census.service";
 import { prisma } from "../../src/config/prisma";
 import { IntegrationService } from "../../src/services/integration.service";
 import { IdexxClient } from "../../src/integrations/idexx/idexx.client";
+import { storedRows } from "../helpers/stored-rows";
 
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
@@ -123,6 +124,62 @@ describe("LabCensusService", () => {
         parentId,
       }),
     ).rejects.toThrow("Parent not found.");
+  });
+
+  it.each(["PENDING", "REVOKED"])(
+    "sends nothing for a companion whose link to the practice is %s",
+    async (status) => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockImplementation(
+        storedRows([{ organisationId, patientId, status }]).findFirst,
+      );
+
+      await expect(
+        LabCensusService.addCensusPatient("IDEXX", organisationId, {
+          patientId,
+          parentId,
+        }),
+      ).rejects.toMatchObject({
+        message: "Companion not found.",
+        statusCode: 404,
+      });
+      expect(prisma.patient.findUnique).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["PENDING", "REVOKED"])(
+    "sends nothing for a parent whose link to the companion is %s",
+    async (status) => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockImplementation(
+        storedRows([{ parentId, patientId, status }]).findFirst,
+      );
+
+      await expect(
+        LabCensusService.addCensusPatient("IDEXX", organisationId, {
+          patientId,
+          parentId,
+        }),
+      ).rejects.toMatchObject({
+        message: "Parent not found.",
+        statusCode: 404,
+      });
+      expect(prisma.parent.findUnique).not.toHaveBeenCalled();
+    },
+  );
+
+  it("sends a companion and parent that are both actively linked", async () => {
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockImplementation(
+      storedRows([{ organisationId, patientId, status: "ACTIVE" }]).findFirst,
+    );
+    (prisma.parentPatient.findFirst as jest.Mock).mockImplementation(
+      storedRows([{ parentId, patientId, status: "ACTIVE" }]).findFirst,
+    );
+
+    await expect(
+      LabCensusService.addCensusPatient("IDEXX", organisationId, {
+        patientId,
+        parentId,
+      }),
+    ).resolves.toEqual({ ok: true });
   });
 
   it("rejects when companion species or breed is missing", async () => {

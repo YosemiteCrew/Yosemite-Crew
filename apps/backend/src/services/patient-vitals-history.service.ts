@@ -3,7 +3,7 @@ import { CompanionService } from "src/services/companion.service";
 import { ClinicalArtifactService } from "src/services/clinical-artifact.service";
 import {
   CompanionHistoryServiceError,
-  ensureCompanionVisible,
+  assertCompanionVisible,
 } from "src/services/companion-history.service";
 
 /**
@@ -160,9 +160,7 @@ export const PatientVitalsHistoryService = {
     if (!companion?.response) {
       throw new CompanionHistoryServiceError("Companion not found", 404);
     }
-    if (!(await ensureCompanionVisible(organisationId, patientId))) {
-      throw new CompanionHistoryServiceError("Companion not found", 404);
-    }
+    await assertCompanionVisible(organisationId, patientId);
 
     // One extra row per source says whether anything was cut off.
     const take = limit + 1;

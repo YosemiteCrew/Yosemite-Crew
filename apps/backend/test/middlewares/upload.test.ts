@@ -14,6 +14,7 @@ import {
   ATTACHMENT_MIME_TYPES,
   IMAGE_ONLY_MIME_TYPES,
 } from "../../src/middlewares/upload";
+import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 
 // --- 1. Mocks ---
 // All mocks must be defined INSIDE the factory or via mock variables to avoid hoisting issues.
@@ -117,7 +118,7 @@ describe("Upload Middleware", () => {
   describe("buildS3Key", () => {
     it("builds correct paths for all folder types", () => {
       expect(buildS3Key("temp", "123", "image/png")).toBe(
-        "temp/uploads/mock-uuid.png",
+        `${tempUploadPrefixFor("123")}mock-uuid.png`,
       );
       expect(buildS3Key("user", "123", "image/jpeg")).toBe(
         "users/123/mock-uuid.jpg",
@@ -135,6 +136,15 @@ describe("Upload Middleware", () => {
     it("throws on invalid type", () => {
       expect(() => buildS3Key("invalid" as any, "123")).toThrow(
         "Invalid upload type",
+      );
+    });
+
+    it.each([
+      ["no uploader", undefined],
+      ["an empty uploader", ""],
+    ])("refuses a fresh upload key for %s", (_label, uploaderId) => {
+      expect(() => buildS3Key("temp", uploaderId, "image/png")).toThrow(
+        "A fresh upload needs its uploader.",
       );
     });
   });
@@ -235,30 +245,93 @@ describe("Upload Middleware", () => {
       expect(mockGetSignedUrlPromise).not.toHaveBeenCalled();
     });
 
-    it.each(["image/jpeg", "image/png", "application/pdf"])(
-      "mints an upload URL for the allowed type %s",
-      async (mimeType) => {
-        mockGetSignedUrlPromise.mockResolvedValueOnce("https://presigned");
-        await expect(
-          generatePresignedUrl(mimeType, "temp"),
-        ).resolves.toMatchObject({ url: "https://presigned" });
-      },
-    );
+    it.each([
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+    ])("mints an upload URL for the allowed type %s", async (mimeType) => {
+      mockGetSignedUrlPromise.mockResolvedValueOnce("https://presigned");
+      await expect(
+        generatePresignedUrl(mimeType, "temp", "user-1"),
+      ).resolves.toMatchObject({
+        url: "https://presigned",
+        key: expect.stringMatching(
+          new RegExp(`^${tempUploadPrefixFor("user-1")}mock-uuid`),
+        ),
+      });
+    });
   });
 
   describe("moveFile", () => {
+    const mine = `${tempUploadPrefixFor("user-1")}from.jpg`;
+
     it("copies, deletes, and returns cloudfront url", async () => {
       mockCopyObject.mockResolvedValueOnce({});
       mockDeleteObject.mockResolvedValueOnce({});
-      const res = await moveFile("from.jpg", "to.jpg");
+      const res = await moveFile(mine, "to.jpg", "user-1");
       expect(res).toBe("https://test-cf.cloudfront.net/to.jpg");
-      expect(mockCopyObject).toHaveBeenCalled();
-      expect(mockDeleteObject).toHaveBeenCalled();
+      expect(mockCopyObject).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        CopySource: `test-bucket/${mine}`,
+        Key: "to.jpg",
+      });
+      expect(mockDeleteObject).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        Key: mine,
+      });
     });
+
+    it("moves a key the upload URL issued to the same uploader", async () => {
+      mockCopyObject.mockResolvedValueOnce({});
+      mockDeleteObject.mockResolvedValueOnce({});
+      const fresh = buildS3Key("temp", "user-1", "image/png");
+
+      await moveFile(fresh, "companion/pet-1/photo.png", "user-1");
+
+      expect(mockDeleteObject).toHaveBeenCalledWith(
+        expect.objectContaining({ Key: fresh }),
+      );
+    });
+
+    it.each([
+      ["another person's upload", mine, "user-2"],
+      ["an upload with no uploader named", mine, undefined],
+      [
+        "an upload from before uploads were kept per person",
+        "temp/uploads/x.jpg",
+        "user-1",
+      ],
+      ["a stored practice file", "companion/pet-1/report.pdf", "user-1"],
+      [
+        "a relative path out of the upload folder",
+        `${tempUploadPrefixFor("user-1")}../orgs/x`,
+        "user-1",
+      ],
+      [
+        "an encoded path",
+        `${tempUploadPrefixFor("user-1")}%2e%2e%2forgs%2fx`,
+        "user-1",
+      ],
+      ["a differently cased folder", mine.toUpperCase(), "user-1"],
+      ["a leading slash", `/${mine}`, "user-1"],
+    ])(
+      "refuses %s before any storage call",
+      async (_label, fromKey, uploaderId) => {
+        delete process.env.AWS_S3_BUCKET_NAME;
+
+        await expect(moveFile(fromKey, "to.jpg", uploaderId)).rejects.toThrow(
+          "Invalid upload key.",
+        );
+        expect(mockCopyObject).not.toHaveBeenCalled();
+        expect(mockDeleteObject).not.toHaveBeenCalled();
+      },
+    );
 
     it("handles errors", async () => {
       mockCopyObject.mockRejectedValueOnce(new Error("Move failed"));
-      await expect(moveFile("a", "b")).rejects.toThrow(
+      await expect(moveFile(mine, "b", "user-1")).rejects.toThrow(
         "Failed to move file: Move failed",
       );
     });
@@ -410,6 +483,12 @@ describe("presigned upload mime allowlists", () => {
     "image/webp",
   ])("accepts %s for a document upload", (mimeType) => {
     expect(isAllowedMimeType(mimeType)).toBe(true);
+  });
+
+  it("takes a gif wherever a picture is taken", () => {
+    expect(isAllowedMimeType("image/gif")).toBe(true);
+    expect(isAllowedMimeType("image/gif", ATTACHMENT_MIME_TYPES)).toBe(true);
+    expect(isAllowedMimeType("image/gif", IMAGE_ONLY_MIME_TYPES)).toBe(true);
   });
 
   it.each(["text/html", "application/javascript", "image/svg+xml"])(
