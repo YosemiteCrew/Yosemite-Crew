@@ -3385,6 +3385,33 @@ describe("AppointmentPrismaService", () => {
   });
 
   describe("updateAppointmentPMS", () => {
+    it("rejects clearing the active parent from an appointment", async () => {
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        patient: { id: "comp_1" },
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({
+          status: "UPCOMING",
+          patient: { id: "comp_1", parent: { id: "parent_1" } },
+        }),
+      );
+      mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+        id: "patient-org-link",
+      } as any);
+
+      await expect(
+        AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+          resourceType: "Appointment",
+        } as any),
+      ).rejects.toMatchObject({
+        message: "Companion not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.parentPatient.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
     it("requires an appointmentId", async () => {
       await expect(
         AppointmentPrismaService.updateAppointmentPMS("", {
@@ -4616,7 +4643,7 @@ describe("AppointmentPrismaService", () => {
         endTime: new Date("2026-06-10T10:30:00.000Z"),
       } as any);
       mockedPrisma.appointment.findFirst.mockResolvedValue(
-        makeRow({ status: "REQUESTED" }),
+        makeRow({ status: "REQUESTED", patient: { id: "comp_1" } }),
       );
       mockedPrisma.appointment.update.mockResolvedValue(
         makeRow({ status: "UPCOMING", caseId: null }),
@@ -4652,6 +4679,7 @@ describe("AppointmentPrismaService", () => {
           appointmentKind: "OUTPATIENT",
           caseId: null,
           encounterId: null,
+          patient: { id: "comp_1" },
         }),
       );
       mockedPrisma.appointment.update.mockResolvedValue(
@@ -4688,6 +4716,7 @@ describe("AppointmentPrismaService", () => {
           caseId: null,
           encounterId: null,
           lead: { id: "lead_row", name: "Row Lead" },
+          patient: { id: "comp_1" },
         }),
       );
       mockedPrisma.appointment.update.mockResolvedValue(
@@ -4719,6 +4748,7 @@ describe("AppointmentPrismaService", () => {
           appointmentKind: "OUTPATIENT",
           caseId: "case_old",
           encounterId: "enc_old",
+          patient: { id: "comp_1" },
         }),
       );
       mockedPrisma.appointment.update.mockResolvedValue(

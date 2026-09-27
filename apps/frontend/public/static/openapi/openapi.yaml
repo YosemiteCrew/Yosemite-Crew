@@ -22014,13 +22014,31 @@ paths:
                     type: string
                     format: date-time
   /v1/task/mobile/task:
-    get:
+    post:
       tags:
         - 'Non-FHIR'
-      summary: GET /v1/task/mobile/task
-      operationId: get_v1_task_mobile_task
+      summary: POST /v1/task/mobile/task
+      operationId: post_v1_task_mobile_task
       security:
         - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                patientId:
+                  type: string
+                fromDueAt:
+                  type: string
+                  format: date-time
+                toDueAt:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+                  description: Comma-separated task statuses.
       responses:
         200:
           description: Response

@@ -34,6 +34,7 @@ describe('taskService', () => {
       userId: mockUserId,
       expiresAt: Date.now() + 10000,
     });
+    (apiClient.post as jest.Mock).mockResolvedValue({data: []});
     (isTokenExpired as jest.Mock).mockReturnValue(false);
     (resolveObservationToolIdSync as jest.Mock).mockImplementation(id => id);
     (buildCdnUrlFromKey as jest.Mock).mockImplementation(key =>
@@ -62,7 +63,7 @@ describe('taskService', () => {
         (getFreshStoredTokens as jest.Mock).mockResolvedValue({
           accessToken: mockAccessToken,
         });
-        (apiClient.get as jest.Mock).mockResolvedValue({data: []});
+        (apiClient.post as jest.Mock).mockResolvedValue({data: []});
 
         await taskApi.list();
 
@@ -782,14 +783,14 @@ describe('taskService', () => {
   describe('taskApi', () => {
     it('list() fetches tasks with correct params', async () => {
       const mockResponse = {data: [{_id: '1'}, {_id: '2'}]};
-      (apiClient.get as jest.Mock).mockResolvedValue(mockResponse);
+      (apiClient.post as jest.Mock).mockResolvedValue(mockResponse);
 
       const res = await taskApi.list({companionId: 'c1', status: ['PENDING']});
 
-      expect(apiClient.get).toHaveBeenCalledWith(
+      expect(apiClient.post).toHaveBeenCalledWith(
         '/v1/task/mobile/task',
+        {patientId: 'c1', status: 'PENDING'},
         expect.objectContaining({
-          params: {companionId: 'c1', status: 'PENDING'},
           headers: expect.not.objectContaining({
             'x-user-id': expect.anything(),
           }),

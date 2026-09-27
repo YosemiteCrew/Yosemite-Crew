@@ -28,6 +28,7 @@ jest.mock("../../../src/services/task.service", () => {
       changeStatus: jest.fn(),
       getById: jest.fn(),
       listForEmployee: jest.fn(),
+      listForParent: jest.fn(),
     },
   };
 });
@@ -665,6 +666,60 @@ describe("TaskController", () => {
         "parent-1",
         "THIS",
       );
+    });
+  });
+
+  describe("listParentTasks (mobile)", () => {
+    it("reads filters from the request body", async () => {
+      req.userId = "provider-user-id";
+      req.query = { patientId: "query-patient" } as never;
+      req.body = {
+        patientId: "body-patient",
+        fromDueAt: "2026-06-01T00:00:00.000Z",
+        toDueAt: "2026-06-30T23:59:59.000Z",
+        status: "PENDING,COMPLETED",
+      } as never;
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as never);
+      mockedTaskService.listForParent.mockResolvedValue([
+        { id: "task-1" },
+      ] as any);
+
+      await TaskController.listParentTasks(req as Request, res);
+
+      expect(mockedTaskService.listForParent).toHaveBeenCalledWith({
+        parentId: "parent-1",
+        patientId: "body-patient",
+        fromDueAt: new Date("2026-06-01T00:00:00.000Z"),
+        toDueAt: new Date("2026-06-30T23:59:59.000Z"),
+        status: ["PENDING", "COMPLETED"],
+      });
+      expect(jsonMock).toHaveBeenCalledWith([{ id: "task-1" }]);
+    });
+
+    it("ignores filters that are not strings", async () => {
+      req.userId = "provider-user-id";
+      req.body = {
+        patientId: { equals: "body-patient" },
+        fromDueAt: 123,
+        toDueAt: null,
+        status: ["PENDING"],
+      } as never;
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as never);
+      mockedTaskService.listForParent.mockResolvedValue([] as any);
+
+      await TaskController.listParentTasks(req as Request, res);
+
+      expect(mockedTaskService.listForParent).toHaveBeenCalledWith({
+        parentId: "parent-1",
+        patientId: undefined,
+        fromDueAt: undefined,
+        toDueAt: undefined,
+        status: undefined,
+      });
     });
   });
 });

@@ -1141,9 +1141,9 @@ const upsertAppointmentOccupancy = async (args: {
 }) => {
   await args.tx.occupancy.deleteMany({
     where: {
-      organisationId: args.organisationId,
+      organisationId: { equals: args.organisationId },
       sourceType: "APPOINTMENT",
-      referenceId: args.appointmentId,
+      referenceId: { equals: args.appointmentId },
     },
   });
 
@@ -1717,11 +1717,17 @@ const assertPatientChangeAllowed = async (
   const patientId = getPatientId(patient ?? null);
   const parentId = getParentIdFromPatient(patient ?? null);
   const companionChanged = patientId !== getPatientId(row.patient);
-  const parentChanged =
-    !!parentId && parentId !== getParentIdFromPatient(row.patient);
+  const parentChanged = parentId !== getParentIdFromPatient(row.patient);
   if (!companionChanged && !parentChanged) return;
 
-  const [practiceLink, parentLink] = patientId
+  const parentLinkQuery =
+    patientId && parentId
+      ? prisma.parentPatient.findFirst({
+          where: { parentId, patientId, status: "ACTIVE" },
+          select: { id: true },
+        })
+      : Promise.resolve(null);
+  const [practiceLink, linkedParent] = patientId
     ? await Promise.all([
         prisma.patientOrganisation.findFirst({
           where: {
@@ -1731,14 +1737,13 @@ const assertPatientChangeAllowed = async (
           },
           select: { id: true },
         }),
-        parentId
-          ? prisma.parentPatient.findFirst({
-              where: { parentId, patientId, status: "ACTIVE" },
-              select: { id: true },
-            })
-          : { id: "no-parent-named" },
+        parentLinkQuery,
       ])
     : [null, null];
+  let parentLink = linkedParent;
+  if (patientId && !parentId && !parentChanged) {
+    parentLink = { id: "no-parent-named" };
+  }
   if (!practiceLink || !parentLink) {
     throw new AppointmentPrismaServiceError("Companion not found", 404);
   }

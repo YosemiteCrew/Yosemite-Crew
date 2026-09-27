@@ -58,6 +58,13 @@ type ChangeStatusRequestBody = {
   completion?: CompleteTaskInput;
 };
 
+type ParentTaskListRequestBody = {
+  patientId?: unknown;
+  fromDueAt?: unknown;
+  toDueAt?: unknown;
+  status?: unknown;
+};
+
 type RecurrenceScope = "THIS" | "THIS_AND_FOLLOWING" | "ALL";
 
 type CreateTaskTemplateRequestBody = Omit<CreateTaskTemplateInput, "createdBy">;
@@ -105,6 +112,9 @@ const parseDateQuery = (value?: string | string[]): Date | undefined => {
   const date = new Date(str);
   return Number.isNaN(date.getTime()) ? undefined : date;
 };
+
+const parseStringValue = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
 
 const parseBooleanQuery = (
   value?: boolean | string | string[],
@@ -638,17 +648,7 @@ export const TaskController = {
 
   // Mobile — List Parent Tasks
   listParentTasks: async (
-    req: Request<
-      ParamsDictionary,
-      unknown,
-      unknown,
-      {
-        patientId?: string;
-        fromDueAt?: string;
-        toDueAt?: string;
-        status?: string;
-      }
-    >,
+    req: Request<ParamsDictionary, unknown, ParentTaskListRequestBody, unknown>,
     res: Response,
   ) => {
     try {
@@ -662,10 +662,10 @@ export const TaskController = {
 
       const tasks = await TaskService.listForParent({
         parentId,
-        patientId: req.query.patientId,
-        fromDueAt: parseDateQuery(req.query.fromDueAt),
-        toDueAt: parseDateQuery(req.query.toDueAt),
-        status: parseStatusList(req.query.status),
+        patientId: parseStringValue(req.body?.patientId),
+        fromDueAt: parseDateQuery(parseStringValue(req.body?.fromDueAt)),
+        toDueAt: parseDateQuery(parseStringValue(req.body?.toDueAt)),
+        status: parseStatusList(parseStringValue(req.body?.status)),
       });
 
       res.json(tasks);
