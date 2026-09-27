@@ -354,9 +354,12 @@ const loadLatestVersions = async (
   return latest;
 };
 
+// With `viewerParentId`, the latest per form among the submissions that parent
+// may see (see `parentMaySeeSubmission`).
 const loadLatestSubmissions = async (
   appointmentId: string,
   forms: LeanForm[],
+  viewerParentId?: string,
 ) => {
   if (!forms.length) return new Map<string, SubmissionAgg>();
   const submissions = await prisma.formSubmission.findMany({
@@ -366,9 +369,18 @@ const loadLatestSubmissions = async (
     },
     orderBy: [{ formId: "asc" }, { submittedAt: "desc" }],
   });
+  const links = viewerParentId
+    ? await loadActiveCompanionLinks(viewerParentId)
+    : [];
 
   const latest = new Map<string, SubmissionAgg>();
   for (const submission of submissions) {
+    if (
+      viewerParentId &&
+      !parentMaySeeSubmission(submission, viewerParentId, links)
+    ) {
+      continue;
+    }
     if (!latest.has(submission.formId)) {
       latest.set(submission.formId, {
         ...submission,
@@ -415,8 +427,16 @@ const buildQuestionnaireResponse = async (
   submission: SubmissionAgg | undefined,
   version: VersionAgg,
   orgId: string,
+  viewerParentId?: string,
 ) => {
   if (!submission) return undefined;
+  // Signing details are shown to a parent only on a form they filled in.
+  if (viewerParentId && !isOwnSubmission(submission, viewerParentId)) {
+    return toParentSubmissionResponse(
+      { ...submission, id: submission._id },
+      version.schemaSnapshot,
+    );
+  }
   const signedPdfUrl = await resolveSignedPdfUrl(submission, orgId);
   return toFHIRQuestionnaireResponse(
     {
@@ -742,6 +762,7 @@ const buildAppointmentFormItems = async (params: {
   versionMap: Map<string, VersionAgg>;
   submissionMap: Map<string, SubmissionAgg>;
   includeQuestionnaire: boolean;
+  viewerParentId?: string;
 }) => {
   const items: {
     questionnaire?: ReturnType<typeof toFHIRQuestionnaire>;
@@ -765,6 +786,7 @@ const buildAppointmentFormItems = async (params: {
       params.submissionMap.get(formId),
       version,
       form.orgId,
+      params.viewerParentId,
     );
 
     items.push({
@@ -883,9 +905,9 @@ const assertParentCanViewAppointment = async (
 };
 
 type SubmissionAccessRow = {
-  parentId: string | null;
-  patientId: string | null;
-  submittedBy: string | null;
+  parentId?: string | null;
+  patientId?: string | null;
+  submittedBy?: string | null;
 };
 
 type CompanionLinkRow = {
@@ -900,14 +922,15 @@ type CompanionLinkRow = {
 const isOwnSubmission = (submission: SubmissionAccessRow, parentId: string) =>
   submission.parentId === parentId && submission.submittedBy === parentId;
 
+const isParentFilled = (submission: SubmissionAccessRow) =>
+  !!submission.submittedBy && submission.submittedBy === submission.parentId;
+
 // The co-parent permission a submission needs: "appointments" for a form a
 // parent filled in, "medicalRecords" for anything the practice wrote.
 const submissionFeature = (
   submission: SubmissionAccessRow,
 ): CompanionFeature =>
-  submission.submittedBy && submission.submittedBy === submission.parentId
-    ? "appointments"
-    : "medicalRecords";
+  isParentFilled(submission) ? "appointments" : "medicalRecords";
 
 const loadActiveCompanionLinks = (
   parentId: string,
@@ -949,12 +972,13 @@ type SubmissionRow = SubmissionAccessRow & {
   id: string;
   formId: string;
   formVersion: number;
-  appointmentId: string | null;
+  appointmentId?: string | null;
   answers: unknown;
   submittedAt: Date;
 };
 
-// The pet parent's view of a submission, without the signing metadata.
+// The pet parent's view of a submission, without the signing metadata, and
+// with the submitter only when that is the parent.
 const toParentSubmissionResponse = (
   sub: SubmissionRow,
   schemaSnapshot: unknown,
@@ -967,7 +991,9 @@ const toParentSubmissionResponse = (
       appointmentId: sub.appointmentId ?? undefined,
       patientId: sub.patientId ?? undefined,
       parentId: sub.parentId ?? undefined,
-      submittedBy: sub.submittedBy ?? undefined,
+      submittedBy: isParentFilled(sub)
+        ? (sub.submittedBy ?? undefined)
+        : undefined,
       answers: sub.answers as Record<string, unknown>,
       submittedAt: sub.submittedAt,
     },
@@ -1959,7 +1985,11 @@ export const FormService = {
     const versionMap = await loadLatestVersions(forms);
 
     // 3️⃣ Load latest submissions per form
-    const submissionMap = await loadLatestSubmissions(appointmentId, forms);
+    const submissionMap = await loadLatestSubmissions(
+      appointmentId,
+      forms,
+      params.viewerParentId,
+    );
 
     // 4️⃣ Build FHIR response
     const includeQuestionnaire = !params.isPMS;
@@ -1968,6 +1998,7 @@ export const FormService = {
       versionMap,
       submissionMap,
       includeQuestionnaire,
+      viewerParentId: params.viewerParentId,
     });
 
     return {

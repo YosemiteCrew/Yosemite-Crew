@@ -8,9 +8,17 @@
 //
 // SOAP notes (getSOAPNotesByAppointment): an ACTIVE link to the appointment's
 // companion, and the medical records permission for a co-parent.
+//
+// Appointment forms (getFormsForAppointment): each form's latest submission
+// the caller may see by the submission rule above. Signing details are shown
+// only on the caller's own submissions.
 
 jest.mock("../../src/services/documenso.service", () => ({
   DocumensoService: { downloadSignedDocument: jest.fn() },
+}));
+jest.mock("../../src/utils/logger", () => ({
+  __esModule: true,
+  default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock("../../src/services/audit-trail.service", () => ({
   AuditTrailService: { recordSafely: jest.fn() },
@@ -19,7 +27,11 @@ jest.mock("../../src/services/template.service", () => ({
   TemplateService: { getById: jest.fn() },
 }));
 jest.mock("../../src/services/form-assignment.service", () => ({
-  FormAssignmentService: {},
+  FormAssignmentService: {
+    markViewedForAppointment: jest.fn(),
+    syncLinkedTemplateAssignmentsForAppointment: jest.fn(),
+    listForAppointment: jest.fn(async () => []),
+  },
 }));
 jest.mock("../../src/services/fhir-template.mapper", () => ({
   templateMapper: {},
@@ -43,9 +55,11 @@ jest.mock("@yosemite-crew/types", () => ({
     ...submission,
     schema,
   })),
+  toFHIRQuestionnaire: jest.fn((form) => ({ id: form._id })),
 }));
 
 import { FormService } from "../../src/services/form.service";
+import { DocumensoService } from "../../src/services/documenso.service";
 import { prisma } from "src/config/prisma";
 
 const mockedPrisma = prisma as unknown as {
@@ -88,6 +102,7 @@ const VERSIONS: Row[] = [
   { formId: FORM, version: 1, schemaSnapshot: [{ id: "q-v1" }] },
   { formId: FORM, version: 2, schemaSnapshot: [{ id: "q-v2" }] },
   { formId: OTHER_ORG_FORM, version: 1, schemaSnapshot: [{ id: "q-b" }] },
+  { formId: SOAP_FORM, version: 1, schemaSnapshot: [{ id: "q-soap" }] },
 ];
 
 let submissionRows: Row[] = [];
@@ -217,6 +232,9 @@ describe("FormService submission reads for a pet parent", () => {
 
     await expect(visibleThrough("own")).resolves.toEqual(SHOWN);
     await expect(listIds()).resolves.toEqual(["own"]);
+    await expect(
+      FormService.getSubmission("own", CALLER),
+    ).resolves.toMatchObject({ parentId: CALLER, submittedBy: CALLER });
   });
 
   it("keeps the caller's own submission after their link is revoked", async () => {
@@ -257,10 +275,19 @@ describe("FormService submission reads for a pet parent", () => {
     },
   );
 
-  it("shows a practice-written row to the primary parent of its companion", async () => {
+  it("shows a practice-written row to the primary parent of its companion, without the practice user", async () => {
     useTables({ links: [link()], submissions: [practiceRowForCaller()] });
 
     await expect(visibleThrough("practice-for-caller")).resolves.toEqual(SHOWN);
+    await expect(
+      FormService.getSubmission("practice-for-caller", CALLER),
+    ).resolves.toMatchObject({ parentId: CALLER, submittedBy: undefined });
+    await expect(listIds()).resolves.toEqual(["practice-for-caller"]);
+    const [listed] = (await FormService.listSubmissions(
+      FORM,
+      CALLER,
+    )) as unknown as Row[];
+    expect(listed.submittedBy).toBeUndefined();
   });
 
   it("shows a practice-written row with no parent or submitter recorded to the primary parent", async () => {
@@ -569,5 +596,229 @@ describe("FormService SOAP notes for a pet parent", () => {
 
     await expectHiddenSoap();
     expect(mockedPrisma.parentPatient.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("FormService appointment forms for a pet parent", () => {
+  const ORG = "org-hospital";
+
+  const formRow = (id: string, category: string): Row => ({
+    id,
+    orgId: ORG,
+    businessType: null,
+    name: id,
+    category,
+    description: null,
+    visibilityType: null,
+    serviceId: [],
+    speciesFilter: null,
+    requiredSigner: null,
+    status: "published",
+    schema: [],
+    createdBy: STAFF,
+    updatedBy: STAFF,
+    createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+  });
+
+  const FORM_ROWS = [
+    formRow(FORM, "Consent"),
+    formRow(SOAP_FORM, "SOAP-Subjective"),
+  ];
+
+  const signed = (documentId: string, email: string) => ({
+    required: true,
+    status: "SIGNED",
+    provider: "DOCUMENSO",
+    documentId,
+    signer: { email, role: "CLIENT" },
+  });
+
+  const onAppointment = (id: string, overrides: Row): Row =>
+    submission(id, {
+      appointmentId: APPOINTMENT,
+      patientId: COMPANION,
+      ...overrides,
+    });
+
+  // The caller's own signed consent for this appointment.
+  const ownConsent = onAppointment("own-consent", {
+    parentId: CALLER,
+    submittedBy: CALLER,
+    signing: signed("77", "caller@example.com"),
+  });
+
+  // A signed note the practice wrote on this appointment.
+  const practiceNote = onAppointment("practice-note", {
+    formId: SOAP_FORM,
+    parentId: CALLER,
+    submittedBy: STAFF,
+    signing: signed("88", "vet@example.com"),
+  });
+
+  const readForms = async (
+    params: { viewerParentId?: string; requesterOrgId?: string } = {
+      viewerParentId: CALLER,
+    },
+  ) => {
+    const result = (await FormService.getFormsForAppointment({
+      appointmentId: APPOINTMENT,
+      ...params,
+    })) as unknown as { items: Row[] };
+    return new Map(
+      result.items.map((item) => [
+        (item.questionnaire as Row).id as string,
+        item,
+      ]),
+    );
+  };
+
+  const responseOf = (forms: Map<string, Row>, formId: string) =>
+    forms.get(formId)?.questionnaireResponse as Row | undefined;
+
+  beforeEach(() => {
+    mockedPrisma.appointment.findUnique.mockResolvedValue({
+      organisationId: ORG,
+      formIds: [FORM],
+      patient: { id: COMPANION },
+    });
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      type: "HOSPITAL",
+      documensoApiKey: "documenso-key",
+    });
+    mockedPrisma.form.findMany.mockImplementation(async ({ where }) =>
+      FORM_ROWS.filter((row) => matches(row, where)),
+    );
+    (DocumensoService.downloadSignedDocument as jest.Mock).mockImplementation(
+      async ({ documentId }) => ({
+        downloadUrl: `https://signed.example/${documentId}`,
+      }),
+    );
+  });
+
+  it("shows the primary parent the practice's note without its signing details or submitter", async () => {
+    useTables({ links: [link()], submissions: [practiceNote, ownConsent] });
+
+    const note = responseOf(await readForms(), SOAP_FORM);
+
+    expect(note).toMatchObject({
+      _id: "practice-note",
+      answers: { q: "practice-note" },
+      parentId: CALLER,
+      submittedBy: undefined,
+    });
+    expect(note).not.toHaveProperty("signing");
+    expect(DocumensoService.downloadSignedDocument).not.toHaveBeenCalledWith(
+      expect.objectContaining({ documentId: 88 }),
+    );
+  });
+
+  it("keeps the signing state and signed copy of the caller's own form", async () => {
+    useTables({ links: [link()], submissions: [practiceNote, ownConsent] });
+
+    const consent = responseOf(await readForms(), FORM);
+
+    expect(consent).toMatchObject({
+      _id: "own-consent",
+      submittedBy: CALLER,
+      signing: {
+        status: "SIGNED",
+        pdf: { url: "https://signed.example/77" },
+      },
+    });
+  });
+
+  it.each([
+    [
+      "medical records switched off",
+      coParent({ appointments: true, medicalRecords: false }),
+    ],
+    [
+      "no medical records permission recorded",
+      coParent({ appointments: true }),
+    ],
+  ])(
+    "leaves the practice's note unanswered for a co-parent with %s",
+    async (_label, companionLink) => {
+      useTables({
+        links: [companionLink],
+        submissions: [practiceNote, ownConsent],
+      });
+
+      const forms = await readForms();
+
+      expect(forms.get(SOAP_FORM)).toMatchObject({ status: "pending" });
+      expect(responseOf(forms, SOAP_FORM)).toBeUndefined();
+      expect(responseOf(forms, FORM)).toMatchObject({ _id: "own-consent" });
+    },
+  );
+
+  it("shows the practice's note to a co-parent with the medical records permission", async () => {
+    useTables({
+      links: [coParent({ appointments: true, medicalRecords: true })],
+      submissions: [practiceNote],
+    });
+
+    const note = responseOf(await readForms(), SOAP_FORM);
+
+    expect(note).toMatchObject({
+      _id: "practice-note",
+      submittedBy: undefined,
+    });
+    expect(note).not.toHaveProperty("signing");
+  });
+
+  it("shows another parent's form without its signing details", async () => {
+    useTables({
+      links: [coParent({ appointments: true })],
+      submissions: [
+        onAppointment("other-parents-consent", {
+          signing: signed("99", "other@example.com"),
+        }),
+      ],
+    });
+
+    const consent = responseOf(await readForms(), FORM);
+
+    expect(consent).toMatchObject({
+      _id: "other-parents-consent",
+      submittedBy: OTHER_PARENT,
+    });
+    expect(consent).not.toHaveProperty("signing");
+    expect(DocumensoService.downloadSignedDocument).not.toHaveBeenCalled();
+  });
+
+  it("shows the latest submission the caller may see when a newer one is hidden", async () => {
+    useTables({
+      links: [coParent({ appointments: true })],
+      submissions: [
+        onAppointment("newer-practice-row", {
+          parentId: CALLER,
+          submittedBy: STAFF,
+          submittedAt: new Date("2026-09-02T00:00:00.000Z"),
+        }),
+        ownConsent,
+      ],
+    });
+
+    const consent = responseOf(await readForms(), FORM);
+
+    expect(consent).toMatchObject({ _id: "own-consent" });
+  });
+
+  it("keeps signing details and the submitter on the practice view", async () => {
+    useTables({ links: [], submissions: [practiceNote] });
+
+    const note = responseOf(
+      await readForms({ requesterOrgId: ORG }),
+      SOAP_FORM,
+    );
+
+    expect(note).toMatchObject({
+      _id: "practice-note",
+      submittedBy: STAFF,
+      signing: { status: "SIGNED", pdf: { url: "https://signed.example/88" } },
+    });
+    expect(mockedPrisma.parentPatient.findMany).not.toHaveBeenCalled();
   });
 });

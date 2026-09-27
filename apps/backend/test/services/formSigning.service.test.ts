@@ -29,6 +29,9 @@ jest.mock("../../src/config/prisma", () => ({
     parent: {
       findUnique: jest.fn(),
     },
+    parentPatient: {
+      findFirst: jest.fn(),
+    },
     user: {
       findUnique: jest.fn(),
     },
@@ -54,6 +57,7 @@ const mockedPrisma = prisma as unknown as {
     update: jest.Mock;
   };
   parent: { findUnique: jest.Mock };
+  parentPatient: { findFirst: jest.Mock };
   user: { findUnique: jest.Mock };
 };
 const mockedDocumensoService = DocumensoService as unknown as {
@@ -70,6 +74,48 @@ const mockedLogger = logger as unknown as {
   error: jest.Mock;
 };
 
+type LinkRow = {
+  parentId: string;
+  patientId: string;
+  role: string;
+  status: string;
+  permissions: unknown;
+};
+
+const COMPANION = "companion-1";
+
+// The caller's companion links. `findFirst` applies the `where` the way Prisma
+// does, so a query that drops a condition finds a link it should not.
+let companionLinks: LinkRow[] = [];
+
+const companionLink = (overrides: Partial<LinkRow> = {}): LinkRow => ({
+  parentId: "parent-owner",
+  patientId: COMPANION,
+  role: "PRIMARY",
+  status: "ACTIVE",
+  permissions: {},
+  ...overrides,
+});
+
+const findLink = async ({ where }: { where: Record<string, unknown> }) =>
+  companionLinks.find((row) =>
+    Object.entries(where).every(([key, filter]) =>
+      filter && typeof filter === "object" && "in" in filter
+        ? (filter as { in: unknown[] }).in.includes(row[key as keyof LinkRow])
+        : row[key as keyof LinkRow] === filter,
+    ),
+  ) ?? null;
+
+beforeEach(() => {
+  companionLinks = [
+    companionLink(),
+    companionLink({ parentId: "parent-hex" }),
+    companionLink({ parentId: "parent-str" }),
+    companionLink({ parentId: "parent-1" }),
+  ];
+  mockedPrisma.parentPatient.findFirst.mockImplementation(findLink);
+});
+
 describe("FormSigningService.startSigning", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -77,8 +123,11 @@ describe("FormSigningService.startSigning", () => {
   });
 
   it("rejects parent signing when submission does not belong to the parent", async () => {
+    companionLinks.push(companionLink({ parentId: "different-parent" }));
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
       parentId: "parent-owner",
+      patientId: COMPANION,
+      submittedBy: "parent-owner",
     });
 
     await expect(
@@ -87,7 +136,7 @@ describe("FormSigningService.startSigning", () => {
         submissionId: "submission-1",
         initiatedBy: "different-parent",
       }),
-    ).rejects.toThrow("Unauthorized to sign this submission");
+    ).rejects.toThrow("Form submission not found");
 
     expect(mockedCreateRenderedDocumentRecord).not.toHaveBeenCalled();
     expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
@@ -97,6 +146,8 @@ describe("FormSigningService.startSigning", () => {
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
       id: "submission-1",
       parentId: "parent-owner",
+      patientId: COMPANION,
+      submittedBy: "parent-owner",
       formId: "form-1",
       formVersion: 1,
       signing: { status: "NOT_STARTED" },
@@ -139,6 +190,15 @@ describe("FormSigningService.startSigning", () => {
       signingUrl: "https://documenso.example/sign/recipient-token",
     });
 
+    expect(mockedPrisma.parentPatient.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          parentId: "parent-owner",
+          patientId: COMPANION,
+          status: "ACTIVE",
+        }),
+      }),
+    );
     expect(mockedPrisma.parent.findUnique).toHaveBeenCalledWith({
       where: { id: "parent-owner" },
     });
@@ -319,6 +379,7 @@ describe("FormSigningService.startSigning", () => {
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
       id: "submission-3",
       parentId: "parent-owner",
+      patientId: COMPANION,
       formId: "form-3",
       formVersion: 1,
       signing: { status: "NOT_STARTED" },
@@ -557,6 +618,7 @@ describe("FormSigningService.startSigning — parent ownership normalisation", (
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
       id: "submission-norm",
       parentId,
+      patientId: COMPANION,
       formId: "form-norm",
       formVersion: 1,
       signing: null,
@@ -603,7 +665,7 @@ describe("FormSigningService.startSigning — parent ownership normalisation", (
   it("rejects when toHexString yields an empty id", async () => {
     await expect(
       startParentSigning({ toHexString: () => "" }, "parent-hex"),
-    ).rejects.toThrow("Unauthorized to sign this submission");
+    ).rejects.toThrow("Form submission not found");
 
     expect(mockedPrisma.form.findUnique).not.toHaveBeenCalled();
   });
@@ -619,25 +681,25 @@ describe("FormSigningService.startSigning — parent ownership normalisation", (
 
   it("rejects a plain object parent id that stringifies to [object Object]", async () => {
     await expect(startParentSigning({}, "parent-str")).rejects.toThrow(
-      "Unauthorized to sign this submission",
+      "Form submission not found",
     );
   });
 
   it("rejects a parent id that stringifies to an empty string", async () => {
     await expect(
       startParentSigning({ toString: () => "" }, "parent-str"),
-    ).rejects.toThrow("Unauthorized to sign this submission");
+    ).rejects.toThrow("Form submission not found");
   });
 
   it("rejects a non-object, non-string parent id", async () => {
     await expect(startParentSigning(42, "42")).rejects.toThrow(
-      "Unauthorized to sign this submission",
+      "Form submission not found",
     );
   });
 
   it("rejects when the caller did not supply an initiator", async () => {
     await expect(startParentSigning("parent-owner", undefined)).rejects.toThrow(
-      "Unauthorized to sign this submission",
+      "Form submission not found",
     );
   });
 });
@@ -659,6 +721,7 @@ describe("FormSigningService.startSigning — signer resolution", () => {
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
       id: "submission-noparent",
       parentId: "parent-1",
+      patientId: COMPANION,
       formId: "form-noparent",
       formVersion: 1,
       signing: null,
@@ -1067,5 +1130,131 @@ describe("FormSigningService.getSignedDocument - organisation scope", () => {
         organisationId: "org-a",
       }),
     ).rejects.toThrow("Form submission not found");
+  });
+});
+
+describe("FormSigningService.startSigning - the parent's companion link", () => {
+  const STAFF = "practice-user";
+
+  const signAsParent = (row: Record<string, unknown>) => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-link",
+      parentId: "parent-owner",
+      patientId: COMPANION,
+      formId: "form-link",
+      formVersion: 1,
+      signing: { status: "NOT_STARTED" },
+      ...row,
+    });
+
+    return FormSigningService.startSigning({
+      isParent: true,
+      submissionId: "submission-link",
+      initiatedBy: "parent-owner",
+    });
+  };
+
+  const expectAnsweredAsMissing = async (row: Record<string, unknown>) => {
+    await expect(signAsParent(row)).rejects.toThrow(
+      "Form submission not found",
+    );
+    expect(mockedPrisma.form.findUnique).not.toHaveBeenCalled();
+    expect(mockedCreateRenderedDocumentRecord).not.toHaveBeenCalled();
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+  };
+
+  const coParent = (permissions: unknown) =>
+    companionLink({ role: "CO_PARENT", permissions });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedPrisma.form.findUnique.mockResolvedValue({
+      name: "Consent",
+      orgId: "org-link",
+      requiredSigner: "CLIENT",
+    });
+    mockedPrisma.parent.findUnique.mockResolvedValue({
+      email: "parent@example.com",
+      firstName: "Parent",
+      lastName: "Owner",
+    });
+    mockedCreateRenderedDocumentRecord.mockResolvedValue({
+      id: "rendered-link",
+      signing: null,
+    });
+    mockedSignPersistedRenderedDocument.mockResolvedValue({
+      id: "rendered-link",
+      signing: { documentId: "555", signingUrl: "https://sign.example/555" },
+    });
+  });
+
+  it.each([
+    ["a REVOKED link", companionLink({ status: "REVOKED" })],
+    ["a PENDING link", companionLink({ status: "PENDING" })],
+    ["no link", companionLink({ parentId: "parent-other" })],
+    [
+      "a link to another companion",
+      companionLink({ patientId: "companion-2" }),
+    ],
+  ])(
+    "answers a submission naming the parent through %s as a missing one",
+    async (_label, link) => {
+      companionLinks = [link];
+
+      await expectAnsweredAsMissing({ submittedBy: "parent-owner" });
+    },
+  );
+
+  it("answers a submission with no companion as a missing one", async () => {
+    await expectAnsweredAsMissing({
+      patientId: null,
+      submittedBy: "parent-owner",
+    });
+    expect(mockedPrisma.parentPatient.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("lets a co-parent sign a form they filled in with the appointments permission", async () => {
+    companionLinks = [coParent({ appointments: true })];
+
+    await expect(
+      signAsParent({ submittedBy: "parent-owner" }),
+    ).resolves.toEqual({
+      documentId: "555",
+      signingUrl: "https://sign.example/555",
+    });
+  });
+
+  it("answers a co-parent without the appointments permission as missing for a form they filled in", async () => {
+    companionLinks = [coParent({ appointments: false, medicalRecords: true })];
+
+    await expectAnsweredAsMissing({ submittedBy: "parent-owner" });
+  });
+
+  it("lets a co-parent sign a practice-written row with the medical records permission", async () => {
+    companionLinks = [coParent({ medicalRecords: true })];
+
+    await expect(signAsParent({ submittedBy: STAFF })).resolves.toEqual({
+      documentId: "555",
+      signingUrl: "https://sign.example/555",
+    });
+  });
+
+  it.each([
+    ["only the appointments permission", { appointments: true }],
+    ["no permissions recorded", null],
+  ])(
+    "answers a co-parent with %s as missing for a practice-written row",
+    async (_label, permissions) => {
+      companionLinks = [coParent(permissions)];
+
+      await expectAnsweredAsMissing({ submittedBy: STAFF });
+    },
+  );
+
+  it("lets the primary parent sign a practice-written row", async () => {
+    await expect(signAsParent({ submittedBy: STAFF })).resolves.toEqual({
+      documentId: "555",
+      signingUrl: "https://sign.example/555",
+    });
   });
 });
