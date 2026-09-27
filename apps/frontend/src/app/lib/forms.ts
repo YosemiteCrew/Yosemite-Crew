@@ -26,6 +26,7 @@ import {
   FormsProps,
   FormsStatus,
   FormsUsage,
+  RequiredSignerValue,
 } from '@/app/features/forms/types/forms';
 import { formatDisplayDate, formatTimeInPreferredTimeZone } from '@/app/lib/date';
 import {
@@ -531,8 +532,19 @@ const resolveTemplateCategory = (template: TemplateLike): FormsCategory => {
   return templateKindToCategory(template.kind);
 };
 
+// buildTemplatePayload persists "Signed by" as rules.requiredSigner. Read it
+// back as the server reads it (CLIENT, VET, any other value as no signature),
+// so editing a template saves the signer it was loaded with rather than none.
+const resolveTemplateRequiredSigner = (template: TemplateLike): RequiredSignerValue => {
+  const persisted = (template.rules as { requiredSigner?: unknown } | null)?.requiredSigner;
+  if (typeof persisted !== 'string' || !persisted.trim()) return '';
+  const named = persisted.trim().toUpperCase();
+  return named === 'CLIENT' || named === 'VET' ? named : 'NONE';
+};
+
 export const mapTemplateToUI = (template: TemplateLike): FormsProps => ({
   ...mapFormToUI(templateToForm(template)),
+  requiredSigner: resolveTemplateRequiredSigner(template),
   species: normalizeSpeciesList(
     (template.rules as { appliesTo?: { species?: unknown }; species?: unknown } | null)?.appliesTo
       ?.species ?? (template.rules as { species?: unknown } | null)?.species
@@ -1227,7 +1239,11 @@ export const buildFHIRPayload = ({
     visibilityType,
     serviceId: form.services?.length ? form.services : undefined,
     speciesFilter: form.species?.length ? form.species : undefined,
-    requiredSigner: form.requiredSigner || undefined,
+    // A form record names only who signs; no signature is no signer.
+    requiredSigner:
+      form.requiredSigner === 'CLIENT' || form.requiredSigner === 'VET'
+        ? form.requiredSigner
+        : undefined,
     status: labelToStatus(form.status),
     schema,
     createdBy: (form as any).createdBy || userId,

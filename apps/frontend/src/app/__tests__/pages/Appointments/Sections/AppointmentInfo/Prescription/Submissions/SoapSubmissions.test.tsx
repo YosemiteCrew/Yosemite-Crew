@@ -53,6 +53,12 @@ describe.each(cases)('SoapSubmissions (%s)', ({ key, title }) => {
         formsById: {
           'form-vet': { schema: [{ id: 'sig-1', type: 'signature' }], requiredSigner: 'VET' },
           'form-client': { schema: [{ id: 'sig-2', type: 'signature' }], requiredSigner: 'CLIENT' },
+          'tpl-vet': {
+            schema: [{ id: 'sig-3', type: 'signature' }],
+            requiredSigner: 'VET',
+            isTemplateBacked: true,
+            templateKind: 'SOAP_NOTE',
+          },
         },
       })
     );
@@ -117,6 +123,25 @@ describe.each(cases)('SoapSubmissions (%s)', ({ key, title }) => {
     );
 
     expect(screen.getByTestId('signature-actions')).toHaveTextContent('sub-vet-1');
+  });
+
+  // A template-backed form is signed on its document, not from here.
+  it('offers no signing here for a template the vet signs', () => {
+    render(
+      <SoapSubmissions
+        formData={
+          {
+            [key]: [{ _id: 'sub-tpl-1', formId: 'tpl-vet', answers: { diagnosis: 'Otitis' } }],
+          } as any
+        }
+        setFormData={setFormData as any}
+        formDataKey={key}
+        title={title}
+      />
+    );
+
+    expect(screen.getByText('Otitis')).toBeInTheDocument();
+    expect(screen.queryByTestId('signature-actions')).not.toBeInTheDocument();
   });
 
   it('renders parent signing status for client signer submissions', () => {

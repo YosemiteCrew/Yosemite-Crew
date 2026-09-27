@@ -115,22 +115,47 @@ export type FormField = BackendFormField & {
 };
 
 export type RequiredSigner = BackendForm['requiredSigner'];
-export type RequiredSignerValue = 'CLIENT' | 'VET' | '';
+// NONE is a choice of no signature; '' is no choice made, which leaves a
+// consent to the pet parent and any other form unsigned.
+export type RequiredSignerValue = 'CLIENT' | 'VET' | 'NONE' | '';
 
 export const RequiredSignerOptions: Array<{
   label: string;
   value: RequiredSignerValue;
 }> = [
-  { label: 'No signature required', value: '' },
+  { label: 'No signature required', value: 'NONE' },
   { label: 'Pet parent', value: 'CLIENT' },
   { label: 'Service provider', value: 'VET' },
 ];
 
 export const requiredSignerLabel = (value?: RequiredSignerValue): string => {
-  if (value === '') return 'No signature required';
+  if (value === 'NONE') return 'No signature required';
   if (value === 'CLIENT') return 'Pet parent';
   if (value === 'VET') return 'Service provider';
   return '';
+};
+
+/** Whether the form names someone who signs it. */
+export const namesASigner = (value?: string): value is 'CLIENT' | 'VET' =>
+  value === 'CLIENT' || value === 'VET';
+
+/**
+ * Who signs a form picked on an appointment. A template-backed form is signed
+ * on its document, not from the appointment, so there only the pet parent
+ * counts: on a form or consent, which is sent to them to fill in and sign. A
+ * consent that names no one is theirs, as the server reads it.
+ */
+export const appointmentFormSigner = (form?: {
+  requiredSigner?: string;
+  isTemplateBacked?: boolean;
+  templateKind?: string;
+  category?: string;
+}): string => {
+  const signer = form?.requiredSigner ?? '';
+  if (!form?.isTemplateBacked) return signer;
+  if (form.templateKind !== 'FORM' && form.templateKind !== 'CONSENT') return '';
+  const isConsent = form.templateKind === 'CONSENT' || form.category === 'Consent form';
+  return signer === 'CLIENT' || (signer === '' && isConsent) ? 'CLIENT' : '';
 };
 
 export type FormsProps = {

@@ -196,4 +196,34 @@ describe('PrescriptionFormSection', () => {
 
     expect(createSubmissionMock).not.toHaveBeenCalled();
   });
+
+  // A template-backed form is signed on its document, not from here: it is
+  // saved without asking for a signature, whoever signs it.
+  it.each([
+    ['the vet', 'VET'],
+    ['the pet parent', 'CLIENT'],
+  ])('saves a template signed by %s without asking for a signature here', async (_l, signer) => {
+    useFormsForPrimaryOrgByCategoryMock.mockReturnValue([
+      {
+        _id: 'tpl-rx',
+        templateId: 'tpl-rx',
+        name: 'Prescription Template',
+        schema: [{ id: 'sig', type: 'signature' }],
+        requiredSigner: signer,
+        isTemplateBacked: true,
+        templateKind: 'PRESCRIPTION',
+      },
+    ]);
+    createSubmissionMock.mockResolvedValue({ _id: 'sub-rx', signing: undefined });
+    const onAfterCreate = jest.fn();
+
+    render(<Harness onAfterCreate={onAfterCreate} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Prescription Template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(onAfterCreate).toHaveBeenCalled());
+    expect(onAfterCreate.mock.calls[0][0].created).not.toHaveProperty('signatureRequired');
+    expect(linkAppointmentFormsMock).not.toHaveBeenCalled();
+  });
 });

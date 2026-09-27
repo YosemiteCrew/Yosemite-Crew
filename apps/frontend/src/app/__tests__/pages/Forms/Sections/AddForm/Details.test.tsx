@@ -672,8 +672,8 @@ describe('Details Component', () => {
       />
     );
 
-    // SOAP only allows the empty (no-signature) signer option (lines 132-133).
-    expect(screen.getByTestId('dropdown-option-Signed by-')).toBeInTheDocument();
+    // SOAP only allows the no-signature signer option.
+    expect(screen.getByTestId('dropdown-option-Signed by-NONE')).toBeInTheDocument();
     expect(screen.queryByTestId('dropdown-option-Signed by-CLIENT')).not.toBeInTheDocument();
     expect(screen.queryByTestId('dropdown-option-Signed by-VET')).not.toBeInTheDocument();
   });
@@ -904,9 +904,9 @@ describe('Details Component', () => {
       typeof updater === 'function'
         ? updater({ ...defaultFormData, requiredSigner: 'VET', templateSource: 'ORG_TEMPLATE' })
         : updater;
-    // SOAP clears the signer (line 326 truthy branch).
+    // A SOAP note is never signed.
     expect(next.category).toBe('SOAP');
-    expect(next.requiredSigner).toBe('');
+    expect(next.requiredSigner).toBe('NONE');
   });
 
   // --- 10. Services validation for non-custom categories ---
@@ -983,6 +983,48 @@ describe('Details Component', () => {
     expect(next.requiredSigner).toBe('SelectedValue');
   });
 
+  // A YC default template keeps no signer of its own choosing: its consents
+  // stay with the pet parent.
+  it('leaves the signer unset for a YC default template', () => {
+    const setFormData = jest.fn();
+    render(
+      <Details
+        formData={{ ...defaultFormData, requiredSigner: 'VET', templateSource: 'YC_LIBRARY' }}
+        setFormData={setFormData}
+        onNext={mockOnNext}
+        serviceOptions={serviceOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('dropdown-option-Category-Consent form'));
+    const updater = setFormData.mock.calls.at(-1)?.[0];
+    const next =
+      typeof updater === 'function'
+        ? updater({ ...defaultFormData, requiredSigner: 'VET', templateSource: 'YC_LIBRARY' })
+        : updater;
+    expect(next.requiredSigner).toBe('');
+  });
+
+  it('keeps the signer for any other category', () => {
+    const setFormData = jest.fn();
+    render(
+      <Details
+        formData={{ ...defaultFormData, requiredSigner: 'VET', templateSource: 'ORG_TEMPLATE' }}
+        setFormData={setFormData}
+        onNext={mockOnNext}
+        serviceOptions={serviceOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('dropdown-option-Category-Consent form'));
+    const updater = setFormData.mock.calls.at(-1)?.[0];
+    const next =
+      typeof updater === 'function'
+        ? updater({ ...defaultFormData, requiredSigner: 'VET', templateSource: 'ORG_TEMPLATE' })
+        : updater;
+    expect(next.requiredSigner).toBe('VET');
+  });
+
   it('removes signature fields when the signer is cleared', () => {
     render(
       <Details
@@ -993,12 +1035,14 @@ describe('Details Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('dropdown-option-Signed by-'));
+    fireEvent.click(screen.getByTestId('dropdown-option-Signed by-NONE'));
     const updater = mockSetFormData.mock.calls.at(-1)?.[0];
-    if (typeof updater === 'function') {
-      updater({ ...defaultFormData, schema: [{ id: 's' }] as any });
-    }
-    // Cleared signer -> removeSignatureFields (lines 404-405).
+    const next =
+      typeof updater === 'function'
+        ? updater({ ...defaultFormData, schema: [{ id: 's' }] as any })
+        : updater;
+    // No signature chosen -> stored as NONE, signature fields removed.
+    expect(next.requiredSigner).toBe('NONE');
     expect(formUtils.removeSignatureFields).toHaveBeenCalled();
   });
 

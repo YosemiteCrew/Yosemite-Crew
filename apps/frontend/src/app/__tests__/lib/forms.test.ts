@@ -1144,6 +1144,54 @@ describe('mapTemplateToUI category resolution', () => {
   });
 });
 
+// Editing a template must save the signer it was loaded with: the builder
+// used to load every template with no signer, and the next save stored none.
+describe('template signer round-trip', () => {
+  const stored = (requiredSigner?: string) =>
+    ({
+      id: 'tpl-sign',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'CONSENT',
+      name: 'Anaesthesia consent',
+      description: null,
+      status: 'PUBLISHED',
+      scope: 'ORGANISATION',
+      rules: { category: 'Consent form', requiredSigner },
+      latestVersion: 1,
+      publishedVersion: 1,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }) as any;
+
+  it.each(['NONE', 'VET', 'CLIENT'])('loads and saves %s unchanged', (requiredSigner) => {
+    const loaded = mapTemplateToUI(stored(requiredSigner));
+    expect(loaded.requiredSigner).toBe(requiredSigner);
+
+    const saved = buildTemplatePayload(loaded, 'org-1');
+
+    expect((saved.rules as { requiredSigner?: string }).requiredSigner).toBe(requiredSigner);
+  });
+
+  it('keeps a template with no signer chosen as having none', () => {
+    const saved = buildTemplatePayload(mapTemplateToUI(stored(undefined)), 'org-1');
+
+    expect((saved.rules as { requiredSigner?: string }).requiredSigner).toBe('');
+  });
+
+  it.each([
+    ['client', 'CLIENT'],
+    [' vet ', 'VET'],
+    ['nobody', 'NONE'],
+    ['   ', ''],
+  ])('reads a stored %j as the server does, as %j', (requiredSigner, expected) => {
+    expect(mapTemplateToUI(stored(requiredSigner)).requiredSigner).toBe(expected);
+  });
+});
+
 describe('template custom field placeholder round-trip', () => {
   it('restores an authored placeholder after save -> reload', () => {
     const form = {

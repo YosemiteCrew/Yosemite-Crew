@@ -5,14 +5,32 @@ import {
   fromFormRequestDTO,
   fromFormSubmissionRequestDTO,
 } from '@yosemite-crew/types';
-import { AppointmentFormsResponse } from '@/app/features/appointments/types/appointmentForms';
+import {
+  AppointmentFormEntry,
+  AppointmentFormsResponse,
+} from '@/app/features/appointments/types/appointmentForms';
 import { FormField } from '@/app/features/forms/types/forms';
 
 type AppointmentFormsApiItem = {
   questionnaire: any;
   questionnaireResponse?: any;
   status?: string;
+  // Set on a form sent to the pet parent as a request.
+  assignmentId?: string;
+  assignmentStatus?: string;
+  signingRequired?: boolean;
 };
+
+// Where the request sent to the pet parent stands, so a reload shows it as the
+// row showed it when it was sent.
+const requestOf = (item: AppointmentFormsApiItem) =>
+  typeof item.assignmentStatus === 'string'
+    ? {
+        assignmentId: item.assignmentId,
+        assignmentStatus: item.assignmentStatus,
+        signingRequired: item.signingRequired === true,
+      }
+    : {};
 
 type AppointmentFormsApiResponse = {
   appointmentId: string;
@@ -84,9 +102,7 @@ const buildFallbackForm = (qr: any): { form: Form; submission: FormSubmission } 
   return { form, submission };
 };
 
-const mapItem = (
-  item: AppointmentFormsApiItem
-): { form: Form; submission: FormSubmission | null; status: 'completed' | 'pending' } | null => {
+const mapItem = (item: AppointmentFormsApiItem): AppointmentFormEntry | null => {
   try {
     const form = fromFormRequestDTO(item.questionnaire);
     const submission = item.questionnaireResponse
@@ -104,7 +120,7 @@ const mapItem = (
     } else {
       status = 'pending';
     }
-    return { form, submission, status };
+    return { form, submission, status, ...requestOf(item) };
   } catch (error_) {
     if (item.questionnaireResponse) {
       try {

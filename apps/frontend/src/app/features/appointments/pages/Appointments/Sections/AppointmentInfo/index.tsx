@@ -24,13 +24,11 @@ import { createSubmission } from '@/app/features/appointments/services/soapServi
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
-import {
-  fetchAppointmentForms,
-  linkAppointmentForms,
-} from '@/app/features/forms/services/appointmentFormsService';
+import { fetchAppointmentForms } from '@/app/features/forms/services/appointmentFormsService';
+import { sendFormToParent } from '@/app/features/forms/services/formAssignmentService';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { AppointmentFormEntry } from '@/app/features/appointments/types/appointmentForms';
-import { FormField } from '@/app/features/forms/types/forms';
+import { FormField, appointmentFormSigner } from '@/app/features/forms/types/forms';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
 import { buildInitialValues } from '@/app/features/forms/pages/Forms/Sections/AddForm/reviewUtils';
 import { collectMissingRequiredFields } from '@/app/features/forms/pages/Forms/Sections/AddForm/validationUtils';
@@ -243,6 +241,70 @@ const getFormBadge = (
   return { label, badgeClass };
 };
 
+// A request sent to the pet parent that is still theirs to answer or sign.
+const isOpenRequest = (entry: AppointmentFormEntry) =>
+  entry.assignmentStatus !== undefined &&
+  entry.assignmentStatus !== 'cancelled' &&
+  entry.assignmentStatus !== 'expired';
+
+// A request the practice withdrew, or that lapsed.
+const isWithdrawnRequest = (entry: AppointmentFormEntry) =>
+  entry.assignmentStatus === 'cancelled' || entry.assignmentStatus === 'expired';
+
+// One row per request, so a form sent again keeps a key of its own.
+const entryKey = (entry: AppointmentFormEntry, idx: number) =>
+  entry.assignmentId ?? entry.submission?._id ?? `${entry.form._id ?? entry.form.name}-${idx}`;
+
+/**
+ * A request the practice withdrew: read-only, with no answers and nothing to
+ * save. The form can be picked again from the templates to send or fill in.
+ */
+const WithdrawnFormEntry = ({ entry }: { entry: AppointmentFormEntry }) => (
+  <Accordion
+    title={entry.form.name}
+    defaultOpen={false}
+    showEditIcon={false}
+    isEditing
+    rightElement={
+      <FormBadge
+        label="Withdrawn"
+        badgeClass="bg-[var(--status-requested-bg)] text-[var(--color-warning-900)]"
+      />
+    }
+  >
+    <div className="text-xs text-text-secondary">
+      Withdrawn from the pet parent. It is no longer theirs to fill in or sign.
+    </div>
+  </Accordion>
+);
+
+// What the row says while the pet parent has the form.
+const sentToParentNote = (isClientSigner: boolean, openRequest: boolean) => {
+  if (isClientSigner) return 'Sent to pet parent. It will update when they sign the document.';
+  if (openRequest) return 'Sent to pet parent. It will update when they fill it in.';
+  return null;
+};
+
+/**
+ * Who signs a row: a request says itself whether the pet parent signs it; any
+ * other form says so in its "Signed by", and asks the vet to sign here only
+ * where it has a signature field.
+ */
+const entrySigners = (entry: AppointmentFormEntry) => {
+  const requiredSigner = appointmentFormSigner(entry.form);
+  const openRequest = isOpenRequest(entry);
+  const isClientSigner = openRequest ? entry.signingRequired === true : requiredSigner === 'CLIENT';
+  const signatureRequired =
+    !isClientSigner && requiredSigner === 'VET' && hasSignatureField(entry.form.schema ?? []);
+  return { openRequest, isClientSigner, signatureRequired };
+};
+
+// Signed on its submission, or, for a request, once the pet parent signed it.
+const isEntrySigned = (entry: AppointmentFormEntry, openRequest: boolean) =>
+  entry.submission?.signing?.status === 'SIGNED' ||
+  Boolean(entry.submission?.signing?.pdf?.url) ||
+  (openRequest && entry.assignmentStatus === 'signed');
+
 type SubmittedFormEntryProps = {
   entry: AppointmentFormEntry;
   idx: number;
@@ -276,26 +338,19 @@ const SubmittedFormEntry = ({
   onSubmissionUpdate,
 }: SubmittedFormEntryProps) => {
   const answers = entry.submission?.answers ?? {};
-  const requiredSigner = entry.form.requiredSigner ?? '';
-  const isClientSigner = requiredSigner === 'CLIENT';
-  const isExplicitNone = requiredSigner === '';
-  const signatureRequired =
-    !isClientSigner &&
-    !isExplicitNone &&
-    requiredSigner === 'VET' &&
-    hasSignatureField(entry.form.schema ?? []);
+  const { openRequest, isClientSigner, signatureRequired } = entrySigners(entry);
   const formId = entry.form._id ?? entry.form.name;
   const formValues = valuesByForm[formId] ?? buildInitialValues(entry.form.schema ?? []);
-  const key = entry.submission?._id ?? `${formId}-${idx}`;
+  const key = entryKey(entry, idx);
   const submissionWithMeta = entry.submission
     ? ({
         ...entry.submission,
         signatureRequired,
       } satisfies FormSubmission & { signatureRequired?: boolean })
     : null;
-  const signingStatus = submissionWithMeta?.signing?.status;
-  const isSigned = signingStatus === 'SIGNED' || Boolean(submissionWithMeta?.signing?.pdf?.url);
+  const isSigned = isEntrySigned(entry, openRequest);
   const needsSignature = submissionWithMeta?.signatureRequired;
+  const sentNote = sentToParentNote(isClientSigner, openRequest);
   const { label, badgeClass } = getFormBadge(entry, needsSignature, isSigned, isClientSigner);
   const shouldOpenByDefault = label === 'Signature Pending';
   const signatureActions = submissionWithMeta?.signatureRequired ? (
@@ -346,13 +401,17 @@ const SubmittedFormEntry = ({
                   [formId]: { ...(prev[formId] ?? formValues), [id]: value },
                 }))
               }
-              readOnly={!canEdit || isClientSigner}
+              // The pet parent answers an open request; the practice does not
+              // save over it.
+              readOnly={!canEdit || isClientSigner || openRequest}
             />
           </div>
-          {canEdit && !isClientSigner && (
+          {canEdit && !isClientSigner && !openRequest && (
             <Primary
               href="#"
               text={submittingId === formId ? 'Saving...' : 'Save'}
+              // One save at a time: a second click would record a second copy.
+              isDisabled={submittingId !== null}
               onClick={async () => {
                 if (!activeAppointment?.id || !attributes?.sub) return;
                 setSubmitError(null);
@@ -410,15 +469,48 @@ const SubmittedFormEntry = ({
               }}
             />
           )}
-          {isClientSigner ? (
-            <div className="text-xs text-text-secondary">
-              Sent to pet parent. It will update when they sign the document.
-            </div>
-          ) : null}
+          {sentNote ? <div className="text-xs text-text-secondary">{sentNote}</div> : null}
         </div>
       )}
     </Accordion>
   );
+};
+
+/**
+ * The row for a form just sent to the pet parent. Sending one they already have
+ * hands back that request, so its row stays as it stands, answers included; a
+ * new request starts a row of its own.
+ */
+const sentFormEntry = (
+  form: AppointmentFormEntry['form'],
+  forms: AppointmentFormEntry[],
+  request: Record<string, unknown> | undefined
+): AppointmentFormEntry => {
+  const formId = form._id ?? form.name;
+  const current = forms.find((entry) => (entry.form._id ?? entry.form.name) === formId);
+  const assignmentId = typeof request?.assignmentId === 'string' ? request.assignmentId : undefined;
+  if (current && assignmentId && current.assignmentId === assignmentId) {
+    return {
+      ...current,
+      assignmentStatus:
+        typeof request?.status === 'string' ? request.status : current.assignmentStatus,
+    };
+  }
+  return {
+    form,
+    submission: null,
+    status: 'pending',
+    ...(request
+      ? {
+          assignmentId,
+          assignmentStatus: typeof request.status === 'string' ? request.status : 'sent',
+          signingRequired:
+            typeof request.signingRequired === 'boolean'
+              ? request.signingRequired
+              : appointmentFormSigner(form) === 'CLIENT',
+        }
+      : {}),
+  };
 };
 
 /**
@@ -493,7 +585,7 @@ export const CustomFormsView = ({
               ? (() => {
                   const template = templates.find((t) => t.value === selectedTemplateId);
                   const schema = template?.schema ?? [];
-                  const isClientSigner = template?.form?.requiredSigner === 'CLIENT';
+                  const isClientSigner = appointmentFormSigner(template?.form) === 'CLIENT';
                   return (
                     <div className="border border-card-border rounded-2xl p-4">
                       <FormRenderer
@@ -517,7 +609,7 @@ export const CustomFormsView = ({
             {selectedTemplateId
               ? (() => {
                   const template = templates.find((t) => t.value === selectedTemplateId);
-                  const isClientSigner = template?.form?.requiredSigner === 'CLIENT';
+                  const isClientSigner = appointmentFormSigner(template?.form) === 'CLIENT';
                   if (isClientSigner) {
                     return (
                       <Primary
@@ -535,16 +627,12 @@ export const CustomFormsView = ({
                               setSendingId(null);
                               return;
                             }
-                            await linkAppointmentForms({
-                              organisationId: orgId,
-                              appointmentId: activeAppointment.id,
-                              formIds: [template.form._id ?? template.value],
+                            const request = await sendFormToParent(orgId, activeAppointment.id, {
+                              id: template.form._id ?? template.value,
+                              templateId: template.form.templateId,
+                              isTemplateBacked: template.form.isTemplateBacked,
                             });
-                            onFormLinked?.({
-                              form: template.form,
-                              submission: null,
-                              status: 'pending',
-                            });
+                            onFormLinked?.(sentFormEntry(template.form, forms, request));
                             setSelectedTemplateId('');
                             setSelectedTemplateLabel('');
                           } catch (e) {
@@ -561,6 +649,8 @@ export const CustomFormsView = ({
                     <Primary
                       href="#"
                       text={submittingId === selectedTemplateId ? 'Saving...' : 'Save'}
+                      // One save at a time: a second click would record a second copy.
+                      isDisabled={submittingId !== null}
                       onClick={async () => {
                         if (!activeAppointment?.id || !attributes?.sub || !selectedTemplateId)
                           return;
@@ -572,7 +662,7 @@ export const CustomFormsView = ({
                           return;
                         }
                         try {
-                          const requiredSigner = template.form?.requiredSigner ?? '';
+                          const requiredSigner = appointmentFormSigner(template.form);
                           const requiresSignature =
                             requiredSigner === 'VET' && hasSignatureField(template.schema);
                           const companion = activeAppointment?.companion;
@@ -634,8 +724,10 @@ export const CustomFormsView = ({
         ) : null}
 
         {forms.map((entry, idx) => {
-          const formId = entry.form._id ?? entry.form.name;
-          const key = entry.submission?._id ?? `${formId}-${idx}`;
+          const key = entryKey(entry, idx);
+          if (isWithdrawnRequest(entry)) {
+            return <WithdrawnFormEntry key={key} entry={entry} />;
+          }
           return (
             <SubmittedFormEntry
               key={key}
@@ -846,8 +938,11 @@ const useAppointmentCustomForms = (appointmentId?: string | null) => {
   const [customFormsError, setCustomFormsError] = useState<string | null>(null);
   const upsertCustomForm = useCallback((entry: AppointmentFormEntry) => {
     setCustomForms((prev) => {
-      const existsIdx = prev.findIndex(
-        (e) => (e.form._id ?? e.form.name) === (entry.form._id ?? entry.form.name)
+      // A request's row is its own; a form sent again gets a row of its own.
+      const existsIdx = prev.findIndex((e) =>
+        entry.assignmentId
+          ? e.assignmentId === entry.assignmentId
+          : !e.assignmentId && (e.form._id ?? e.form.name) === (entry.form._id ?? entry.form.name)
       );
       if (existsIdx === -1) {
         return [entry, ...prev];
@@ -937,7 +1032,7 @@ const useSubmissionSignatureMeta = (
         const hasSigningData = Boolean(
           mergedSigning?.status || mergedSigning?.pdf?.url || mergedSigning?.documentId
         );
-        const requiredSigner = form?.requiredSigner ?? '';
+        const requiredSigner = appointmentFormSigner(form);
         const isClientSigner = requiredSigner === 'CLIENT';
         const isExplicitNone = requiredSigner === '';
         const requiresSignature =

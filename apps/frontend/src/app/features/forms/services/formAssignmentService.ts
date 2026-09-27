@@ -1,4 +1,5 @@
 import { getData, postData } from '@/app/services/axios';
+import { linkAppointmentForms } from '@/app/features/forms/services/appointmentFormsService';
 import type {
   FormAssignmentListFilters,
   FormAssignmentListItem,
@@ -17,6 +18,25 @@ export const createAppointmentFormAssignment = async (
     body
   );
   return res.data;
+};
+
+/**
+ * Sends a form to the pet parent on an appointment: a template as a request to
+ * fill it in and sign it, a form as a link on the appointment. For a template,
+ * the request as it stands, which is the one already open when there is one.
+ */
+export const sendFormToParent = async (
+  organisationId: string,
+  appointmentId: string,
+  form: { id: string; templateId?: string; isTemplateBacked?: boolean }
+): Promise<FormAssignmentDTO | undefined> => {
+  if (form.isTemplateBacked) {
+    return createAppointmentFormAssignment(organisationId, appointmentId, {
+      templateId: form.templateId ?? form.id,
+    });
+  }
+  await linkAppointmentForms({ organisationId, appointmentId, formIds: [form.id] });
+  return undefined;
 };
 
 export const listAppointmentFormAssignments = async (

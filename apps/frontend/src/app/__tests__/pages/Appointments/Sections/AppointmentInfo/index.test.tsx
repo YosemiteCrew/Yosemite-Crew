@@ -12,6 +12,7 @@ import {
 } from '@/app/features/forms/services/appointmentFormsService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import { useAuthStore } from '@/app/stores/authStore';
+import { postData } from '@/app/services/axios';
 
 const labelsSpy = jest.fn();
 let labelsRenderCount = 0;
@@ -63,6 +64,27 @@ const formsStoreState: {
       category: 'SOAP',
       schema: [{ type: 'signature', id: 'sig', label: 'Signature' }],
       requiredSigner: 'CLIENT',
+    },
+    // Template-backed: listed only by the tests that add them to formIds.
+    'tpl-consent': {
+      _id: 'tpl-consent',
+      templateId: 'tpl-consent',
+      name: 'Anaesthesia consent',
+      category: 'Consent form',
+      schema: [],
+      requiredSigner: 'CLIENT',
+      isTemplateBacked: true,
+      templateKind: 'CONSENT',
+    },
+    'tpl-vet': {
+      _id: 'tpl-vet',
+      templateId: 'tpl-vet',
+      name: 'Vet signed intake',
+      category: 'Custom',
+      schema: [{ type: 'signature', id: 'sig', label: 'Signature' }],
+      requiredSigner: 'VET',
+      isTemplateBacked: true,
+      templateKind: 'FORM',
     },
   },
   formIds: ['form-1', 'form-2', 'form-vet', 'form-required', 'form-client'],
@@ -280,6 +302,17 @@ jest.mock('@/app/features/forms/services/appointmentFormsService', () => ({
   getAppointmentFormSubmission: jest.fn(),
 }));
 
+// Only the request a template is sent to the parent with reaches the API here.
+jest.mock('@/app/services/axios', () => ({
+  __esModule: true,
+  default: {},
+  getData: jest.fn(),
+  postData: jest.fn(),
+  putData: jest.fn(),
+  patchData: jest.fn(),
+  deleteData: jest.fn(),
+}));
+
 jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: jest.fn(() => ({
     can: jest.fn(() => true),
@@ -335,8 +368,8 @@ jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
+  Primary: ({ text, onClick, isDisabled }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled} aria-disabled={isDisabled}>
       {text}
     </button>
   ),
@@ -774,6 +807,57 @@ describe('AppointmentInfo modal', () => {
     expect(createSubmission).not.toHaveBeenCalled();
   });
 
+  // A consent the pet parent signs is sent to them as a request to fill it in
+  // and sign it: staff are never offered to save one nobody could sign.
+  it.each([
+    ['names the pet parent', 'CLIENT'],
+    ['names no one', ''],
+  ])('sends a consent template that %s to the parent as a request', async (_l, signer) => {
+    formsStoreState.formsById['tpl-consent'].requiredSigner = signer;
+    formsStoreState.formIds = [...DEFAULT_FORM_IDS, 'tpl-consent'];
+    (postData as jest.Mock).mockResolvedValue({ data: { id: 'assignment-1' } });
+
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Anaesthesia consent' }));
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
+
+    await waitFor(() =>
+      expect(postData).toHaveBeenCalledWith(
+        '/v1/forms/organisations/org-1/appointments/appt-1/assignments',
+        { templateId: 'tpl-consent' }
+      )
+    );
+    expect(linkAppointmentForms).not.toHaveBeenCalled();
+    expect(createSubmission).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText('Sent to pet parent. It will update when they sign the document.')
+    ).toBeInTheDocument();
+  });
+
+  // Staff sign a template-backed form on its document, not from this pane.
+  it('saves a template the vet signs without asking for a signature here', async () => {
+    formsStoreState.formIds = [...DEFAULT_FORM_IDS, 'tpl-vet'];
+
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Vet signed intake' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(createSubmission).toHaveBeenCalledWith(expect.objectContaining({ formId: 'tpl-vet' }))
+    );
+    expect(await screen.findByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'signature-actions' })).not.toBeInTheDocument();
+  });
+
   const renderModal = (props: any = {}) =>
     render(
       <AppointmentInfoModal
@@ -1002,6 +1086,22 @@ describe('AppointmentInfo modal', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 
+  // A second click while the first save is on its way would record a second
+  // copy of the form.
+  it('saves a picked template once however often Save is clicked', async () => {
+    (createSubmission as jest.Mock).mockReturnValue(new Promise(() => {}));
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Vet Signature Template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const saving = await screen.findByRole('button', { name: 'Saving...' });
+    expect(saving).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(saving);
+
+    expect(createSubmission).toHaveBeenCalledTimes(1);
+  });
+
   it('marks a vet template submission as signature-required on save', async () => {
     renderModal();
     openMedicalRecordsSoap();
@@ -1106,6 +1206,30 @@ describe('AppointmentInfo modal', () => {
     );
   });
 
+  it('saves an appointment form once however often Save is clicked', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: { _id: 'form-1', name: 'Entry Form', requiredSigner: '', schema: [] },
+          submission: null,
+          status: 'pending',
+        },
+      ],
+    });
+    (createSubmission as jest.Mock).mockReturnValue(new Promise(() => {}));
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'trigger-form-change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const saving = await screen.findByRole('button', { name: 'Saving...' });
+    expect(saving).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(saving);
+
+    expect(createSubmission).toHaveBeenCalledTimes(1);
+  });
+
   it('marks an editable vet form entry submission as signature-required on save', async () => {
     (fetchAppointmentForms as jest.Mock).mockResolvedValue({
       forms: [
@@ -1199,6 +1323,157 @@ describe('AppointmentInfo modal', () => {
     await waitFor(() =>
       expect(createSubmission).toHaveBeenCalledWith(expect.objectContaining({ formId: 'form-1' }))
     );
+  });
+
+  // A form sent to the pet parent reloads as its request stands: waiting for
+  // them, signed by them, or completed, and never open to a practice save
+  // while it is theirs.
+  describe('a form sent to the pet parent as a request', () => {
+    const requestRow = (overrides: Record<string, unknown>) => ({
+      form: { _id: 'tpl-consent', name: 'Anaesthesia consent', schema: [] },
+      submission: null,
+      status: 'pending',
+      assignmentId: 'assignment-1',
+      assignmentStatus: 'sent',
+      signingRequired: true,
+      ...overrides,
+    });
+    const answered = { _id: 'instance-1', formId: 'tpl-consent', answers: { agree: 'yes' } };
+    const listWith = async (rows: Record<string, unknown>[]) => {
+      (fetchAppointmentForms as jest.Mock).mockResolvedValue({ forms: rows });
+      renderModal();
+      openMedicalRecordsSoap();
+      await screen.findAllByText('Anaesthesia consent');
+    };
+
+    it('waits for the pet parent to sign what they submitted', async () => {
+      await listWith([
+        requestRow({ submission: answered, status: 'completed', assignmentStatus: 'submitted' }),
+      ]);
+
+      expect(screen.getByText('Pending parent signature')).toBeInTheDocument();
+      expect(screen.queryByText('Completed')).not.toBeInTheDocument();
+    });
+
+    it('shows it signed once the pet parent signed it', async () => {
+      await listWith([
+        requestRow({ submission: answered, status: 'completed', assignmentStatus: 'signed' }),
+      ]);
+
+      expect(screen.getByText('Signed by pet parent')).toBeInTheDocument();
+      expect(screen.getByText('Signed by pet parent.')).toBeInTheDocument();
+    });
+
+    it('completes a form the pet parent does not sign once they submit it', async () => {
+      await listWith([
+        requestRow({
+          submission: answered,
+          status: 'completed',
+          assignmentStatus: 'submitted',
+          signingRequired: false,
+        }),
+      ]);
+
+      expect(screen.getByText('Completed')).toBeInTheDocument();
+    });
+
+    it.each([
+      [true, 'Sent to pet parent. It will update when they sign the document.'],
+      [false, 'Sent to pet parent. It will update when they fill it in.'],
+    ])(
+      'offers no practice save while the request is open (signs: %s)',
+      async (signingRequired, note) => {
+        await listWith([requestRow({ signingRequired })]);
+
+        expect(screen.getByText(note)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+      }
+    );
+
+    // Withdrawn: read-only, with no answers and nothing to save, so no
+    // consent is saved that nobody could sign.
+    it.each(['cancelled', 'expired'])(
+      'shows a %s request as withdrawn, read-only',
+      async (assignmentStatus) => {
+        await listWith([
+          requestRow({ submission: answered, status: 'completed', assignmentStatus }),
+        ]);
+
+        expect(screen.getByText('Withdrawn')).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            'Withdrawn from the pet parent. It is no longer theirs to fill in or sign.'
+          )
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+        expect(screen.queryByText('form-renderer')).not.toBeInTheDocument();
+        expect(screen.queryByText('Pending parent signature')).not.toBeInTheDocument();
+      }
+    );
+
+    // Withdrawn, sent again and answered: two rows, each keyed by its request.
+    it('keys the withdrawn and the new request apart', async () => {
+      const errors = jest.spyOn(console, 'error');
+      errors.mockClear();
+      await listWith([
+        requestRow({ assignmentStatus: 'cancelled', submission: answered, status: 'completed' }),
+        requestRow({
+          assignmentId: 'assignment-2',
+          assignmentStatus: 'submitted',
+          submission: answered,
+          status: 'completed',
+        }),
+      ]);
+
+      expect(screen.getByText('Withdrawn')).toBeInTheDocument();
+      expect(screen.getByText('Pending parent signature')).toBeInTheDocument();
+      expect(
+        errors.mock.calls.some((call) =>
+          String(call[0]).includes('Encountered two children with the same key')
+        )
+      ).toBe(false);
+    });
+
+    // Sending a form the pet parent already has hands back that request: its
+    // row stays as it stands, answers included, rather than an empty one.
+    it('keeps the row of the request sent again', async () => {
+      formsStoreState.formIds = [...DEFAULT_FORM_IDS, 'tpl-consent'];
+      (postData as jest.Mock).mockResolvedValue({
+        data: { assignmentId: 'assignment-1', status: 'signed', signingRequired: true },
+      });
+      await listWith([
+        requestRow({ submission: answered, status: 'completed', assignmentStatus: 'signed' }),
+      ]);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Anaesthesia consent' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
+
+      await waitFor(() => expect(postData).toHaveBeenCalled());
+      expect(await screen.findByText('Signed by pet parent.')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Sent to pet parent. It will update when they sign the document.')
+      ).not.toBeInTheDocument();
+    });
+
+    it('starts a new row for a new request', async () => {
+      formsStoreState.formIds = [...DEFAULT_FORM_IDS, 'tpl-consent'];
+      (postData as jest.Mock).mockResolvedValue({
+        data: { assignmentId: 'assignment-2', status: 'sent', signingRequired: true },
+      });
+      await listWith([
+        requestRow({ submission: answered, status: 'completed', assignmentStatus: 'cancelled' }),
+      ]);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Anaesthesia consent' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
+
+      expect(
+        await screen.findByText('Sent to pet parent. It will update when they sign the document.')
+      ).toBeInTheDocument();
+      expect(screen.getByText('Pending parent signature')).toBeInTheDocument();
+      // The withdrawn request keeps its own row.
+      expect(screen.getByText('Withdrawn')).toBeInTheDocument();
+    });
   });
 
   it('renders signature badges, client-signer notices, and handles status updates', async () => {

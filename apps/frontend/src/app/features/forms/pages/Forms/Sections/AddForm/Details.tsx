@@ -8,6 +8,7 @@ import {
   FormsCategoryOptions,
   FormsProps,
   RequiredSignerOptions,
+  namesASigner,
   FormsUsage,
   FormsUsageOptions,
   getFormCategoryDisplayLabel,
@@ -66,6 +67,12 @@ type FormDetailsFieldsProps = {
   onOwnershipChange: (value: string) => void;
   onCategoryChange: (category: FormsCategory) => void;
   onRequiredSignerChange: (value: string) => void;
+};
+
+const resolveCategorySigner = (prev: FormsProps, category: FormsCategory) => {
+  if (prev.templateSource === 'YC_LIBRARY') return '';
+  if (category === 'SOAP') return 'NONE';
+  return prev.requiredSigner;
 };
 
 const FormDetailsFields = ({
@@ -131,7 +138,7 @@ const FormDetailsFields = ({
         onSelect={(option) => onRequiredSignerChange(option.value)}
         options={
           formData.category === 'SOAP'
-            ? RequiredSignerOptions.filter((option) => option.value === '')
+            ? RequiredSignerOptions.filter((option) => option.value === 'NONE')
             : RequiredSignerOptions
         }
         error={formDataErrors.requiredSigner}
@@ -305,7 +312,7 @@ const Details = ({
     const clinicalCategories = new Set(['Prescription', 'Discharge Form']);
     let normalizedTemplate = template;
     if (clinicalCategories.has(category)) {
-      normalizedTemplate = formData.requiredSigner
+      normalizedTemplate = namesASigner(formData.requiredSigner)
         ? ensureSingleSignatureAtEnd(template ?? [])
         : removeSignatureFields(template ?? []);
     }
@@ -313,8 +320,8 @@ const Details = ({
     setFormData((prev) => ({
       ...prev,
       category,
-      requiredSigner:
-        prev.templateSource === 'YC_LIBRARY' || category === 'SOAP' ? '' : prev.requiredSigner,
+      // A SOAP note is never signed; a YC default template keeps its own rule.
+      requiredSigner: resolveCategorySigner(prev, category),
       schema: normalizedTemplate,
     }));
   };
@@ -392,7 +399,7 @@ const Details = ({
                   ...prev,
                   requiredSigner: nextSigner,
                 };
-                if (!nextSigner) {
+                if (!namesASigner(nextSigner)) {
                   next.schema = removeSignatureFields(next.schema ?? []);
                 } else if (
                   new Set(['Prescription', 'Discharge Form']).has(next.category) &&
