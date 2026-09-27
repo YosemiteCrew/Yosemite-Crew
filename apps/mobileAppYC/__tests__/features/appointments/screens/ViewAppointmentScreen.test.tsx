@@ -750,8 +750,21 @@ describe('ViewAppointmentScreen', () => {
           status: 'submitted',
           submission: {_id: 'sub-2'},
           signingRequired: true,
+          canSign: true,
         } as any),
       ).toEqual({label: 'View & Sign', mode: 'view', allowSign: true});
+
+      // A form this parent may not sign is only viewed.
+      for (const canSign of [false, undefined]) {
+        expect(
+          getAppointmentFormAction({
+            status: 'submitted',
+            submission: {_id: 'sub-2'},
+            signingRequired: true,
+            canSign,
+          } as any),
+        ).toEqual({label: 'View form', mode: 'view', allowSign: false});
+      }
 
       expect(
         getAppointmentFormAction({
@@ -2031,11 +2044,37 @@ describe('ViewAppointmentScreen', () => {
       });
     });
 
+    it('offers only viewing for a submitted form this parent may not sign', () => {
+      mockAppointmentForms = [
+        {
+          status: 'submitted',
+          signingRequired: true,
+          canSign: false,
+          form: {
+            _id: 'form-2',
+            name: 'Estimate Approval',
+            description: '',
+            schema: [],
+          },
+          submission: {
+            _id: 'submission-2',
+            answers: {approved_by: 'Alex'},
+          },
+        },
+      ];
+
+      renderScreen();
+
+      expect(screen.queryByTestId('btn-View & Sign')).toBeNull();
+      expect(screen.getByTestId('btn-View form')).toBeTruthy();
+    });
+
     it('renders signable submitted form and opens it with signing enabled', () => {
       mockAppointmentForms = [
         {
           status: 'submitted',
           signingRequired: true,
+          canSign: true,
           form: {
             _id: 'form-2',
             name: 'Estimate Approval',

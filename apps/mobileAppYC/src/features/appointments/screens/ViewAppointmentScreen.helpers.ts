@@ -210,7 +210,7 @@ export const getAppointmentFormAction = (
   if (isSigned) {
     return {label: 'View form', mode: 'view', allowSign: false};
   }
-  if (entry.submission && entry.signingRequired) {
+  if (entry.submission && entry.signingRequired && entry.canSign) {
     return {label: 'View & Sign', mode: 'view', allowSign: true};
   }
   if (entry.submission) {
