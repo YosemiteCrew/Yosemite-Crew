@@ -13,6 +13,7 @@ import {
   IoChevronForwardOutline,
   IoCubeOutline,
   IoExtensionPuzzleOutline,
+  IoLayersOutline,
   IoFlaskOutline,
   IoGitNetworkOutline,
   IoGlobeOutline,
@@ -63,6 +64,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Billing: IoWalletOutline,
   'Website - Builder': IoGlobeOutline,
   Plugins: IoExtensionPuzzleOutline,
+  IoLayersOutline,
   Documentation: IoBookOutline,
 };
 
@@ -81,6 +83,7 @@ const DEV_ROUTE_GROUPS = [
       'Dashboard',
       'Connect',
       'API Keys',
+      'My Integrations',
       'Form Draft Import',
       'Billing',
       'Website - Builder',

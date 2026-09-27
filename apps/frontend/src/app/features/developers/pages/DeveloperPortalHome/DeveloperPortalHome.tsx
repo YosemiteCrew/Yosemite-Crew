@@ -62,6 +62,7 @@ const DeveloperPortalHome = () => {
    */
   const [activeKeyCount, setActiveKeyCount] = useState<number | null>(null);
   const [callCount, setCallCount] = useState<number | null>(null);
+  const [integrationsCount, setIntegrationsCount] = useState<number | null>(null);
 
   const loadStatus = useCallback(async () => {
     const [keysResult, usageResult] = await Promise.allSettled([listApiKeys(), getUsage()]);
@@ -85,6 +86,8 @@ const DeveloperPortalHome = () => {
         usageResult.reason
       );
     }
+
+    setIntegrationsCount(0);
   }, []);
 
   useEffect(() => {
@@ -223,6 +226,21 @@ const DeveloperPortalHome = () => {
               so neither could ever be populated. An empty state would still
               claim the feature exists.
             */}
+            <div className="dev-portal-card yc-card-surface">
+              <div className="dev-card-head">
+                <h2 className="dev-card-title">My Integrations</h2>
+                <span className="dev-card-pill secondary text-caption-3">Build</span>
+              </div>
+              <p className="dev-plugin-desc">
+                Create and manage integrations that extend the PIMS. Build once, deploy to every
+                clinic on the platform.
+              </p>
+              <Link href="/developers/my-integrations" className="dev-card-action">
+                {integrationsCount === 0 ? 'Create your first integration' : 'Manage integrations'}
+                <Icon icon="ion:arrow-forward" width={14} height={14} aria-hidden="true" />
+              </Link>
+            </div>
+
             <div className="dev-portal-card yc-card-surface">
               <div className="dev-card-head">
                 <h2 className="dev-card-title">Your API keys</h2>

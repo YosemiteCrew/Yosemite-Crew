@@ -1,0 +1,286 @@
+.dev-my-integrations-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.dev-my-integrations-intro h1 {
+  margin: 0 0 var(--space-1);
+}
+
+.dev-my-integrations-subtitle {
+  margin: 0;
+  color: var(--colour-text-secondary);
+  font-size: var(--text-body);
+}
+
+.dev-my-integrations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-4);
+}
+
+.dev-integration-card {
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.dev-integration-card:hover {
+  border-color: var(--colour-border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.dev-integration-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.dev-integration-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.dev-integration-category {
+  font-size: var(--text-caption-1);
+  color: var(--colour-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dev-integration-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-caption-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+}
+
+.dev-integration-status.status-draft {
+  background: var(--colour-neutral-100);
+  color: var(--colour-neutral-600);
+}
+
+.dev-integration-status.status-review {
+  background: var(--colour-warning-100);
+  color: var(--colour-warning-700);
+}
+
+.dev-integration-status.status-published {
+  background: var(--colour-success-100);
+  color: var(--colour-success-700);
+}
+
+.dev-integration-status.status-installed {
+  background: var(--colour-primary-100);
+  color: var(--colour-primary-700);
+}
+
+.dev-integration-version {
+  font-size: var(--text-caption-2);
+  color: var(--colour-text-tertiary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.dev-integration-title {
+  margin: 0;
+  font-size: var(--text-heading-3);
+  font-weight: 600;
+  color: var(--colour-text-primary);
+  line-height: 1.3;
+}
+
+.dev-integration-description {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--colour-text-secondary);
+  line-height: 1.5;
+  flex: 1;
+}
+
+.dev-integration-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--colour-border);
+  font-size: var(--text-caption-1);
+  color: var(--colour-text-tertiary);
+}
+
+.dev-integration-installs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--colour-text-secondary);
+}
+
+.dev-integration-actions {
+  display: flex;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+}
+
+.dev-my-integrations-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-lg);
+}
+
+.dev-empty-icon {
+  color: var(--colour-text-tertiary);
+  margin-bottom: var(--space-4);
+}
+
+.dev-my-integrations-empty h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-heading-2);
+  color: var(--colour-text-primary);
+}
+
+.dev-my-integrations-empty p {
+  margin: 0 0 var(--space-6);
+  max-width: 400px;
+  color: var(--colour-text-secondary);
+  line-height: 1.6;
+}
+
+.dev-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 1000;
+  animation: fadeIn var(--transition-fast);
+}
+
+.dev-modal {
+  background: var(--colour-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp var(--transition-normal);
+}
+
+.dev-modal h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-heading-2);
+}
+
+.dev-modal-description {
+  margin: 0 0 var(--space-6);
+  color: var(--colour-text-secondary);
+  line-height: 1.5;
+}
+
+.dev-modal-field {
+  margin-bottom: var(--space-4);
+}
+
+.dev-modal-field label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-caption-1);
+  font-weight: 500;
+  color: var(--colour-text-secondary);
+}
+
+.dev-modal-field input,
+.dev-modal-field select {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-body);
+  color: var(--colour-text-primary);
+  background: var(--colour-background);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.dev-modal-field input:focus,
+.dev-modal-field select:focus {
+  outline: none;
+  border-color: var(--colour-primary);
+  box-shadow: 0 0 0 3px var(--colour-primary-100);
+}
+
+.dev-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .dev-integration-status.status-draft {
+    background: var(--colour-neutral-800);
+    color: var(--colour-neutral-400);
+  }
+
+  .dev-integration-status.status-review {
+    background: var(--colour-warning-900);
+    color: var(--colour-warning-300);
+  }
+
+  .dev-integration-status.status-published {
+    background: var(--colour-success-900);
+    color: var(--colour-success-300);
+  }
+
+  .dev-integration-status.status-installed {
+    background: var(--colour-primary-900);
+    color: var(--colour-primary-300);
+  }
+}
