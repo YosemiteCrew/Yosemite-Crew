@@ -160,22 +160,28 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
 
   test('persists window state across relaunches', async () => {
     const profileDir = userDataDir as string;
+    const expectedBounds = { width: 1024, height: 720 };
 
-    await app?.evaluate(async ({ BrowserWindow }) => {
+    await app?.evaluate(async ({ BrowserWindow }, expectedBounds) => {
       const win = BrowserWindow.getAllWindows()[0];
       if (!win) throw new Error('no window to resize');
-      win.setBounds({ x: 42, y: 48, width: 1180, height: 700 });
+      win.setBounds({ x: 42, y: 48, ...expectedBounds });
 
       const deadline = Date.now() + 5000;
-      while (win.getBounds().width !== 1180 && Date.now() < deadline) {
+      while (
+        (win.getBounds().width !== expectedBounds.width ||
+          win.getBounds().height !== expectedBounds.height) &&
+        Date.now() < deadline
+      ) {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
-      if (win.getBounds().width !== 1180) {
-        throw new Error(`window never resized: width is ${win.getBounds().width}`);
+      const bounds = win.getBounds();
+      if (bounds.width !== expectedBounds.width || bounds.height !== expectedBounds.height) {
+        throw new Error(`window never resized: ${bounds.width}x${bounds.height}`);
       }
 
       await new Promise((resolve) => setTimeout(resolve, 1200));
-    });
+    }, expectedBounds);
     await app?.evaluate(({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows()[0];
       if (!win) throw new Error('no window to close');
@@ -188,13 +194,13 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
         ) as { width?: number; height?: number };
         return { width: saved.width, height: saved.height };
       })
-      .toEqual({ width: 1180, height: 700 });
+      .toEqual(expectedBounds);
 
     await app?.close();
     const persistedAfterQuit = JSON.parse(
       fs.readFileSync(path.join(profileDir, 'window-state.json'), 'utf8')
     ) as { width?: number; height?: number };
-    expect(persistedAfterQuit).toMatchObject({ width: 1180, height: 700 });
+    expect(persistedAfterQuit).toMatchObject(expectedBounds);
     app = undefined;
 
     const relaunched = await launchPackagedApp(pimsServer.origin, docServer.origin, profileDir);
@@ -204,7 +210,7 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     const bounds = await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0]?.getBounds()
     );
-    expect(bounds?.width).toBe(1180);
-    expect(bounds?.height).toBe(700);
+    expect(bounds?.width).toBe(expectedBounds.width);
+    expect(bounds?.height).toBe(expectedBounds.height);
   });
 });
