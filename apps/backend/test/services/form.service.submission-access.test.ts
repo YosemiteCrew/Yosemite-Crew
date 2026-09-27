@@ -1150,6 +1150,76 @@ describe("FormService appointment forms for a pet parent", () => {
     },
   );
 
+  describe("whether the parent may sign", () => {
+    const withSigner = (requiredSigner: string | null) =>
+      mockedPrisma.form.findMany.mockImplementation(async ({ where }) =>
+        FORM_ROWS.map((row) =>
+          row.id === FORM ? { ...row, requiredSigner } : row,
+        ).filter((row) => matches(row, where)),
+      );
+
+    const canSignOn = async (
+      links: Row[],
+      submissions: Row[],
+      requiredSigner: string | null,
+    ) => {
+      useTables({ links, submissions });
+      withSigner(requiredSigner);
+      return (await readForms()).get(FORM)?.canSign;
+    };
+
+    const ownForm = onAppointment("own-form", {
+      parentId: CALLER,
+      submittedBy: CALLER,
+    });
+
+    it.each([
+      ["their own form the client signs", [ownForm], "CLIENT", true],
+      ["their own form no one signs", [ownForm], null, true],
+      ["their own form the vet signs", [ownForm], "VET", false],
+      [
+        "a practice form the client signs",
+        [consentSentToCaller],
+        "CLIENT",
+        true,
+      ],
+      ["a practice form no one signs", [consentSentToCaller], null, false],
+      ["a blank form no one signs", [], null, true],
+      ["a blank form the vet signs", [], "VET", false],
+      [
+        "a form the client signs that names another parent",
+        [onAppointment("other-parents", { submittedBy: STAFF })],
+        "CLIENT",
+        false,
+      ],
+    ])(
+      "answers the primary parent for %s",
+      async (_label, submissions, requiredSigner, expected) => {
+        await expect(
+          canSignOn([link()], submissions, requiredSigner),
+        ).resolves.toBe(expected);
+      },
+    );
+
+    it("answers no for a practice form the co-parent may not read", async () => {
+      await expect(
+        canSignOn(
+          [coParent({ appointments: true })],
+          [consentSentToCaller],
+          "CLIENT",
+        ),
+      ).resolves.toBe(false);
+    });
+
+    it("is not part of the practice view", async () => {
+      useTables({ links: [], submissions: [ownForm] });
+
+      const forms = await readForms({ requesterOrgId: ORG });
+
+      expect(forms.get(FORM)).not.toHaveProperty("canSign");
+    });
+  });
+
   it("keeps signing details and the submitter on the practice view", async () => {
     useTables({ links: [], submissions: [practiceNote] });
 
@@ -1223,8 +1293,8 @@ describe("FormService template-backed appointment forms for a pet parent", () =>
         assignment("tpl-not-sent", { mobileVisible: false }),
       ],
     );
-    mockedPrisma.templateInstance.findMany.mockResolvedValue(
-      tables.instances ?? INSTANCES,
+    mockedPrisma.templateInstance.findMany.mockImplementation(
+      async ({ orderBy }) => ordered(tables.instances ?? INSTANCES, orderBy),
     );
   };
 
@@ -1390,6 +1460,35 @@ describe("FormService template-backed appointment forms for a pet parent", () =>
     expect(responseOf(items, "tpl-practice")?.data).toEqual({});
     expect(responseOf(items, "tpl-practice")).toMatchObject({
       generatedPdfUrl: null,
+    });
+  });
+
+  it("lists the most recently created answer to each form", async () => {
+    useTemplates({
+      links: [link()],
+      instances: [
+        instance("tpl-parent", {
+          id: "created-first",
+          authorId: CALLER,
+          createdAt: new Date("2026-09-01T00:00:00.000Z"),
+        }),
+        instance("tpl-parent", {
+          id: "created-last",
+          authorId: CALLER,
+          createdAt: new Date("2026-09-02T00:00:00.000Z"),
+        }),
+        instance("tpl-parent", {
+          id: "created-last-a",
+          authorId: CALLER,
+          createdAt: new Date("2026-09-02T00:00:00.000Z"),
+        }),
+      ],
+    });
+
+    const items = await readTemplateForms();
+
+    expect(responseOf(items, "tpl-parent")).toMatchObject({
+      id: "created-last-a",
     });
   });
 

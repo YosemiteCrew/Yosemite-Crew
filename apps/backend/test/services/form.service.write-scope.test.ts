@@ -189,12 +189,14 @@ describe("FormService.submitFHIR from the mobile app (concrete form)", () => {
     ["a practice user", { parentId: PARENT, submittedBy: "practice-user" }],
     ["no one recorded", { parentId: null, submittedBy: null }],
   ])(
-    "returns 403 over a form on the appointment filled in by %s",
+    "returns 409 over a form on the appointment filled in by %s",
     async (_label, row) => {
       db.formSubmission.findMany.mockResolvedValue([row]);
 
       await expectRefused(
         submit({ appointmentId: APPOINTMENT, patientId: COMPANION }, asParent),
+        409,
+        "This form was already completed at the practice",
       );
       expect(db.formSubmission.findMany).toHaveBeenCalledWith({
         where: { formId: FORM, appointmentId: APPOINTMENT },

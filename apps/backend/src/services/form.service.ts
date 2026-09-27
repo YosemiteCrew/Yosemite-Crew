@@ -233,6 +233,15 @@ export const isPracticeOnlyForm = (form: {
   visibilityType?: string | null;
 }) => SOAP_CATEGORIES.includes(form.category) || isInternalForm(form);
 
+// A parent's answer on a form the practice already completed for the
+// appointment: they sign the practice's copy instead.
+const throwCompletedAtPractice = (): never => {
+  throw new FormServiceError(
+    "This form was already completed at the practice",
+    409,
+  );
+};
+
 // Newest first by when the server recorded a submission, never by the time a
 // client says it was submitted, with the id breaking ties.
 const NEWEST_RECORDED_FIRST: Prisma.FormSubmissionOrderByWithRelationInput[] = [
@@ -604,21 +613,6 @@ const assertTemplateSubmittableByParent = async (params: {
       throw new FormServiceError("Forbidden", 403);
     }
     await assertParentCanViewAppointment(appointment, params.parentId);
-
-    // A form the practice filled in is signed by the parent, never replaced.
-    const filled = await prisma.templateInstance.findMany({
-      where: {
-        organisationId: params.organisationId,
-        appointmentId: params.appointmentId,
-        templateId: params.templateId,
-        status: { in: ["COMPLETED", "SIGNED"] },
-      },
-      select: { authorId: true },
-    });
-    const parentIds = await loadParentIds(filled.map((row) => row.authorId));
-    if (filled.some((row) => !row.authorId || !parentIds.has(row.authorId))) {
-      throw new FormServiceError("Forbidden", 403);
-    }
   }
 
   // With an appointment the parent link is already proven above, so the
@@ -640,6 +634,23 @@ const assertTemplateSubmittableByParent = async (params: {
 
   if (!assignment) {
     throw new FormServiceError("Form not found", 404);
+  }
+
+  if (params.appointmentId) {
+    // A form the practice filled in is signed by the parent, never replaced.
+    const filled = await prisma.templateInstance.findMany({
+      where: {
+        organisationId: params.organisationId,
+        appointmentId: params.appointmentId,
+        templateId: params.templateId,
+        status: { in: ["COMPLETED", "SIGNED"] },
+      },
+      select: { authorId: true },
+    });
+    const parentIds = await loadParentIds(filled.map((row) => row.authorId));
+    if (filled.some((row) => !row.authorId || !parentIds.has(row.authorId))) {
+      throwCompletedAtPractice();
+    }
   }
 };
 
@@ -831,6 +842,24 @@ const loadSubmissionFormIdStringsForAppointment = async (
   return submissionFormIds.map((entry) => entry.formId);
 };
 
+// Whether the parent may start signing a form's submission, by the rule
+// signing applies: one they may read that names them, where a form the practice
+// filled in needs the client as its signer; before anything is filled in, any
+// form the vet does not sign.
+const parentMaySign = (
+  form: LeanForm,
+  submission: SubmissionAgg | undefined,
+  parentId: string,
+) => {
+  if (form.requiredSigner && form.requiredSigner !== "CLIENT") return false;
+  if (!submission) return true;
+  return (
+    !submission.hidden &&
+    submission.parentId === parentId &&
+    (form.requiredSigner === "CLIENT" || submission.submittedBy === parentId)
+  );
+};
+
 const buildAppointmentFormItems = async (params: {
   forms: LeanForm[];
   versionMap: Map<string, VersionAgg>;
@@ -842,6 +871,7 @@ const buildAppointmentFormItems = async (params: {
     questionnaire?: ReturnType<typeof toFHIRQuestionnaire>;
     questionnaireResponse?: ReturnType<typeof toFHIRQuestionnaireResponse>;
     status: "completed" | "pending";
+    canSign?: boolean;
   }[] = [];
 
   for (const form of params.forms) {
@@ -879,6 +909,9 @@ const buildAppointmentFormItems = async (params: {
       ...(params.includeQuestionnaire ? { questionnaire } : {}),
       questionnaireResponse,
       status: questionnaireResponse ? "completed" : "pending",
+      ...(params.viewerParentId
+        ? { canSign: parentMaySign(form, submission, params.viewerParentId) }
+        : {}),
     });
   }
 
@@ -1002,17 +1035,18 @@ const buildTemplateAppointmentFormItems = async (params: {
       appointmentId: params.appointmentId,
       templateId: { in: uniqueTemplateIds },
     },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 
   const listedInstances = viewer
     ? await templateInstancesForParent(instances, viewer)
     : instances;
-  const instanceMap = new Map(
-    listedInstances.map((instance) => [
-      `${instance.templateId}:${instance.templateVersion}`,
-      instance,
-    ]),
-  );
+  // The newest instance of each template version.
+  const instanceMap = new Map<string, AppointmentTemplateInstance>();
+  for (const instance of listedInstances) {
+    const key = `${instance.templateId}:${instance.templateVersion}`;
+    if (!instanceMap.has(key)) instanceMap.set(key, instance);
+  }
 
   const includeQuestionnaire = !params.isPMS;
   const items = assignments
@@ -1373,7 +1407,7 @@ const assertNoPracticeSubmission = async (
     select: { parentId: true, submittedBy: true },
   });
   if (rows.some((row) => !isParentFilled(row))) {
-    throwForbidden();
+    throwCompletedAtPractice();
   }
 };
 
@@ -1567,8 +1601,7 @@ export const FormService = {
       orderBy: { version: "desc" },
     });
 
-    if (!version)
-      throw new FormServiceError("Form has no published version", 400);
+    if (!version) throw new FormServiceError("Form not found", 404);
 
     const form = await prisma.form.findUnique({
       where: { id: version.formId },

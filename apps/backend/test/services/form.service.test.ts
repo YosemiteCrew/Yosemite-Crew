@@ -439,11 +439,12 @@ describe("FormService", () => {
   describe("getFormForUser", () => {
     const formId = "form-1";
 
-    it("throws if no published version", async () => {
+    it("answers an unknown form, or one with no version, as a missing one", async () => {
       (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue(null);
-      await expect(FormService.getFormForUser(formId)).rejects.toThrow(
-        "Form has no published version",
-      );
+      await expect(FormService.getFormForUser(formId)).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Form not found",
+      });
     });
 
     it("throws if form doc missing", async () => {
@@ -1002,14 +1003,17 @@ describe("FormService", () => {
         ["a practice user", [{ authorId: "staff-1" }]],
         ["no one recorded", [{ authorId: null }]],
       ])(
-        "returns 403 over a form on the appointment filled in by %s",
+        "returns 409 over a form on the appointment filled in by %s",
         async (_label, filled) => {
           arrangeAssigned();
           (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue(
             filled,
           );
 
-          await expect(submit()).rejects.toMatchObject({ statusCode: 403 });
+          await expect(submit()).rejects.toMatchObject({
+            statusCode: 409,
+            message: "This form was already completed at the practice",
+          });
           expect(TemplateService.createInstance).not.toHaveBeenCalled();
           expect(prisma.templateInstance.findMany).toHaveBeenCalledWith({
             where: {
@@ -1022,6 +1026,20 @@ describe("FormService", () => {
           });
         },
       );
+
+      it("answers a template never sent to the parent as missing before looking at answers", async () => {
+        arrangeAssigned();
+        (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue(null);
+        (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue([
+          { authorId: "staff-1" },
+        ]);
+
+        await expect(submit()).rejects.toMatchObject({
+          statusCode: 404,
+          message: "Form not found",
+        });
+        expect(prisma.templateInstance.findMany).not.toHaveBeenCalled();
+      });
 
       it("accepts a new answer over a form a parent filled in", async () => {
         arrangeAssigned();
