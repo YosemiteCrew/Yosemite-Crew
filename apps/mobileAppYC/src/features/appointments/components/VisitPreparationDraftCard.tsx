@@ -105,12 +105,12 @@ export const VisitPreparationDraftCard: React.FC<{
       });
       return;
     }
-    const bodyKey =
-      result.status === 'denied'
-        ? 'appointments.visitPreparation.voicePermissionDenied'
-        : result.status === 'unavailable'
-          ? 'appointments.visitPreparation.voiceUnavailable'
-          : 'appointments.visitPreparation.voiceFailed';
+    let bodyKey = 'appointments.visitPreparation.voiceFailed';
+    if (result.status === 'denied') {
+      bodyKey = 'appointments.visitPreparation.voicePermissionDenied';
+    } else if (result.status === 'unavailable') {
+      bodyKey = 'appointments.visitPreparation.voiceUnavailable';
+    }
     Alert.alert(t('appointments.visitPreparation.voiceErrorTitle'), t(bodyKey));
   };
 
