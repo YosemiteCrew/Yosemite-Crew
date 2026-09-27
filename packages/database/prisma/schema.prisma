@@ -2370,6 +2370,7 @@ enum AuditEventType {
   INSURANCE_CLAIM_STATUS_CHANGED
   INSURANCE_CLAIM_CANCELLED
   CARE_REMINDER_SENT
+  CARE_REMINDER_DELIVERY_ATTEMPT
   CARE_REMINDER_RESPONDED
   CARE_REMINDER_CANCELLED
   PROBLEM_CREATED
@@ -4463,6 +4464,7 @@ enum CareReminderType {
 
 enum CareReminderStatus {
   PENDING
+  SENDING
   SENT
   RESPONDED
   EXPIRED
@@ -4478,6 +4480,9 @@ model CareReminder {
   dueDate        DateTime
   sendAt         DateTime?
   status         CareReminderStatus @default(PENDING)
+  sendingAt      DateTime?
+  lastAttemptAt  DateTime?
+  lastDelivery   Json?
   sentAt         DateTime?
   respondedAt    DateTime?
   appointmentId  String?
@@ -4490,6 +4495,7 @@ model CareReminder {
   @@index([organisationId, status])
   @@index([organisationId, reminderType])
   @@index([organisationId, dueDate])
+  @@index([status, lastAttemptAt, sendAt])
   @@map("CareReminder")
 }
 

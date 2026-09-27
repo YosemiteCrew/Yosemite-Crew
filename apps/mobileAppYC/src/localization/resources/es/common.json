@@ -425,6 +425,26 @@
     "loadFailed": "No se pudieron cargar las recetas. Inténtalo de nuevo.",
     "retry": "Intentar de nuevo"
   },
+  "careReminders": {
+    "title": "Cuidados pendientes",
+    "intro": "Próximos cuidados y cuidados atrasados de este animal.",
+    "empty": "No hay próximos recordatorios de cuidado.",
+    "overdue": "Atrasado · {{date}}",
+    "due": "Pendiente · {{date}}",
+    "scheduled": "Recordatorio programado",
+    "sent": "Recordatorio enviado",
+    "signInAgain": "Vuelve a iniciar sesión para ver los recordatorios de cuidado.",
+    "loadFailed": "No se pudieron cargar los recordatorios. Inténtalo de nuevo.",
+    "retry": "Intentar de nuevo",
+    "types": {
+      "VACCINATION_BOOSTER": "Vacunación",
+      "ANNUAL_CHECKUP": "Revisión anual",
+      "PARASITE_TREATMENT": "Tratamiento antiparasitario",
+      "DENTAL_CLEANING": "Cuidado dental",
+      "FOLLOW_UP": "Seguimiento",
+      "CUSTOM": "Recordatorio de cuidado"
+    }
+  },
   "appointments": {
     "chatLockedTitle": "El chat aun no esta abierto",
     "chatLockedBody": "El chat se abre un dia antes de tu cita.\n\nCita: {{appointmentTime}}\nSe abre en: {{hours}} h {{minutes}} min",
