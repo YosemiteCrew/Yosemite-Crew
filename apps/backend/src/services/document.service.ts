@@ -1,7 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import type { TemplateKind } from "@yosemite-crew/database";
 import { prisma } from "src/config/prisma";
-import { hasCompanionFeature } from "src/middlewares/companion-access";
+import {
+  hasCompanionFeature,
+  parentHasCompanionFeature,
+} from "src/middlewares/companion-access";
 import {
   deleteFromS3,
   generatePresignedDownloadUrl,
@@ -300,6 +303,7 @@ type RenderedDocumentRow = {
   templateInstance: {
     appointmentId: string | null;
     encounterId: string | null;
+    authorId?: string | null;
   } | null;
   clinicalArtifact: {
     appointmentId: string | null;
@@ -408,11 +412,45 @@ const loadAppointmentForDocumentLookup = async (appointmentId: string) => {
   };
 };
 
+// What a parent may see of an appointment's rendered documents, on top of the
+// documents permission the route already proved: a form a parent filled in
+// with the appointments permission, and a practice record only once signed
+// and with the medical records permission. Anything else is left out.
+const renderedDocumentsForParent = async (
+  rows: RenderedDocumentRow[],
+  parentId: string,
+  patientId: string,
+) => {
+  const authorIds = [
+    ...new Set(rows.map((row) => row.templateInstance?.authorId)),
+  ].filter((id): id is string => !!id);
+  const [parents, mayReadParentForms, mayReadPracticeRecords] =
+    await Promise.all([
+      authorIds.length
+        ? prisma.parent.findMany({
+            where: { id: { in: authorIds } },
+            select: { id: true },
+          })
+        : Promise.resolve([]),
+      parentHasCompanionFeature(parentId, patientId, "appointments"),
+      parentHasCompanionFeature(parentId, patientId, "medicalRecords"),
+    ]);
+  const parentAuthorIds = new Set(parents.map((parent) => parent.id));
+  return rows.filter((row) => {
+    const authorId = row.templateInstance?.authorId;
+    return authorId && parentAuthorIds.has(authorId)
+      ? mayReadParentForms
+      : mayReadPracticeRecords && row.status === "SIGNED";
+  });
+};
+
 const loadRenderedDocumentsForAppointments = async (params: {
   appointmentIds: string[];
   organisationId: string;
   kind?: TemplateKind;
   excludeKind?: TemplateKind;
+  // A parent asking, who sees only what `renderedDocumentsForParent` allows.
+  viewer?: { parentId: string; patientId: string };
 }) => {
   if (params.appointmentIds.length === 0) {
     return [];
@@ -441,6 +479,7 @@ const loadRenderedDocumentsForAppointments = async (params: {
         select: {
           appointmentId: true,
           encounterId: true,
+          authorId: true,
         },
       },
       clinicalArtifact: {
@@ -453,7 +492,14 @@ const loadRenderedDocumentsForAppointments = async (params: {
     orderBy: { updatedAt: "desc" },
   })) as unknown as RenderedDocumentRow[];
 
-  return renderedDocuments.map(mapRenderedDocumentToDto);
+  const visible = params.viewer
+    ? await renderedDocumentsForParent(
+        renderedDocuments,
+        params.viewer.parentId,
+        params.viewer.patientId,
+      )
+    : renderedDocuments;
+  return visible.map(mapRenderedDocumentToDto);
 };
 
 /**
@@ -1176,6 +1222,10 @@ export const DocumentService = {
       loadRenderedDocumentsForAppointments({
         appointmentIds: [appointmentId],
         organisationId: appointmentLookup.organisationId,
+        viewer: {
+          parentId: params.parentId,
+          patientId: appointmentLookup.patientId,
+        },
       }),
     ]);
 
