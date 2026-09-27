@@ -4,6 +4,7 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import ServicesPackagesEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/ServicesPackagesEditor';
 import PrescriptionEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/PrescriptionEditor';
 import InpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/InpatientSchedule';
+import MedicationAdministrationPanel from '@/app/features/appointments/pages/AppointmentWorkspace/components/MedicationAdministrationPanel';
 import OutpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/OutpatientSchedule';
 import WorkspaceTreatmentSummary from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceTreatmentSummary';
 import { buildOutpatientSchedule } from '@/app/features/appointments/lib/outpatientSchedule';
@@ -747,20 +748,20 @@ const TreatmentStep = ({
   // model). It degrades to an empty state when no future visits are available — e.g. on
   // a direct deep-link where the appointment list has not been loaded.
   const currentAppointment = appointmentsById[appointmentId];
-  const outpatientCompanionId = useMemo(
+  const companionId = useMemo(
     () => (currentAppointment ? getAppointmentCompanion(currentAppointment).id : undefined),
     [currentAppointment]
   );
   const outpatientSchedule = useMemo(
     () =>
       buildOutpatientSchedule(Object.values(appointmentsById), {
-        companionId: outpatientCompanionId,
+        companionId,
         excludeAppointmentId: appointmentId,
         // Carries the (still backend-unpopulated) series note + delivered count so
         // the design's series rail lights up the moment they are supplied.
         currentAppointment,
       }),
-    [appointmentsById, outpatientCompanionId, appointmentId, currentAppointment]
+    [appointmentsById, companionId, appointmentId, currentAppointment]
   );
 
   const {
@@ -962,23 +963,33 @@ const TreatmentStep = ({
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         {isInpatient ? (
-          <InpatientSchedule
-            tasks={visibleScheduleTasks}
-            templates={scheduleTemplates}
-            readOnly={readOnly}
-            assigneeOptions={assigneeOptions}
-            // Add and View route to the Quick Actions Tasks side modal (no inline add/edit).
-            onAddTask={() => setActiveSideAction('TASKS')}
-            onViewTask={(id) => openTaskInQuickActions(id)}
-            onAssignTask={(id, option) =>
-              handleUpdateScheduleTask(id, {
-                assignedToId: option.value,
-                assignedToName: option.label,
-              })
-            }
-            onStatusChange={(id, status) => handleUpdateScheduleTask(id, { status })}
-            onAppendTemplate={handleApplyScheduleTemplate}
-          />
+          <>
+            <InpatientSchedule
+              tasks={visibleScheduleTasks}
+              templates={scheduleTemplates}
+              readOnly={readOnly}
+              assigneeOptions={assigneeOptions}
+              // Add and View route to the Quick Actions Tasks side modal (no inline add/edit).
+              onAddTask={() => setActiveSideAction('TASKS')}
+              onViewTask={(id) => openTaskInQuickActions(id)}
+              onAssignTask={(id, option) =>
+                handleUpdateScheduleTask(id, {
+                  assignedToId: option.value,
+                  assignedToName: option.label,
+                })
+              }
+              onStatusChange={(id, status) => handleUpdateScheduleTask(id, { status })}
+              onAppendTemplate={handleApplyScheduleTemplate}
+            />
+            <MedicationAdministrationPanel
+              key={`${organisationId ?? ''}:${encounterId ?? ''}:${companionId ?? ''}`}
+              organisationId={organisationId}
+              patientId={companionId}
+              encounterId={encounterId}
+              prescriptions={prescriptionItems}
+              readOnly={readOnly}
+            />
+          </>
         ) : (
           <OutpatientSchedule
             schedule={outpatientSchedule}

@@ -1,6 +1,7 @@
 import { MARService, MARError } from "src/services/mar.service";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "src/services/audit-trail.service";
+import { Prisma } from "@prisma/client";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -46,13 +47,16 @@ const makeEntry = (over: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
+  let currentEntry = makeEntry();
   jest.clearAllMocks();
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
-  pm.mAREntry.findFirst.mockResolvedValue(makeEntry());
+  pm.mAREntry.findFirst.mockImplementation(() => Promise.resolve(currentEntry));
   pm.mAREntry.create.mockResolvedValue(makeEntry());
   pm.mAREntry.update.mockImplementation(
-    (args: { data: Record<string, unknown> }) =>
-      Promise.resolve(makeEntry({ ...args.data })),
+    (args: { data: Record<string, unknown> }) => {
+      currentEntry = makeEntry({ ...currentEntry, ...args.data });
+      return Promise.resolve(currentEntry);
+    },
   );
   pm.mAREntry.findMany.mockResolvedValue([makeEntry()]);
 });
@@ -151,10 +155,12 @@ describe("MARService.administer", () => {
     });
     expect(pm.mAREntry.update).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: "mar-1", organisationId: "org-1", status: "SCHEDULED" },
         data: expect.objectContaining({
           status: "GIVEN",
           administeredBy: "nurse-1",
         }),
+        select: expect.any(Object),
       }),
     );
     expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
@@ -183,10 +189,12 @@ describe("MARService.hold", () => {
     await MARService.hold("mar-1", "org-1", "Patient vomiting", "vet-1");
     expect(pm.mAREntry.update).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: "mar-1", organisationId: "org-1", status: "SCHEDULED" },
         data: expect.objectContaining({
           status: "HELD",
           notes: "Patient vomiting",
         }),
+        select: expect.any(Object),
       }),
     );
     expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
@@ -212,7 +220,9 @@ describe("MARService.markMissed", () => {
     );
     expect(pm.mAREntry.update).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: "mar-1", organisationId: "org-1", status: "SCHEDULED" },
         data: expect.objectContaining({ status: "MISSED" }),
+        select: expect.any(Object),
       }),
     );
     expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
@@ -225,5 +235,50 @@ describe("MARService.markMissed", () => {
     await expect(
       MARService.markMissed("mar-1", "org-1", undefined),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
+});
+
+describe("MARService.refuse", () => {
+  it("transitions SCHEDULED to REFUSED and emits audit", async () => {
+    await MARService.refuse(
+      "mar-1",
+      "org-1",
+      "Patient refused the dose",
+      "vet-1",
+    );
+    expect(pm.mAREntry.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "mar-1", organisationId: "org-1", status: "SCHEDULED" },
+        data: expect.objectContaining({
+          status: "REFUSED",
+          notes: "Patient refused the dose",
+        }),
+        select: expect.any(Object),
+      }),
+    );
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "MAR_ENTRY_REFUSED" }),
+    );
+  });
+
+  it("rejects refusing a non-SCHEDULED entry", async () => {
+    pm.mAREntry.findFirst.mockResolvedValue(makeEntry({ status: "GIVEN" }));
+    await expect(
+      MARService.refuse("mar-1", "org-1", undefined),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("rejects a simultaneous outcome after another nurse closes the entry", async () => {
+    pm.mAREntry.update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Record to update not found.", {
+        code: "P2025",
+        clientVersion: "test",
+      }),
+    );
+
+    await expect(
+      MARService.refuse("mar-1", "org-1", undefined),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
   });
 });

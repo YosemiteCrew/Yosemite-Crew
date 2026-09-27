@@ -25,6 +25,7 @@ jest.mock("src/services/mar.service", () => {
       administer: jest.fn(),
       hold: jest.fn(),
       markMissed: jest.fn(),
+      refuse: jest.fn(),
     },
   };
 });
@@ -155,6 +156,15 @@ runClinicalControllerSuite({
       serviceMethod: "markMissed",
       expectArgs: [RECORD_ID, ORG_ID, undefined, USER_ID],
       fallback: "Failed to mark MAR entry as missed",
+    },
+    {
+      handler: "refuse",
+      params: { organisationId: ORG_ID, marEntryId: RECORD_ID },
+      body: { notes: "Patient refused" },
+      serviceMethod: "refuse",
+      expectArgs: [RECORD_ID, ORG_ID, "Patient refused", USER_ID],
+      fallback: "Failed to record MAR entry refusal",
+      invalidPayload: { notes: 12 },
     },
   ],
 });

@@ -68,4 +68,12 @@ router.post(
   MARController.markMissed,
 );
 
+router.post(
+  "/pms/organisation/:organisationId/mar-entries/:marEntryId/refuse",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission([...EDIT_MEDICATION_RECORDS]),
+  MARController.refuse,
+);
+
 export default router;
