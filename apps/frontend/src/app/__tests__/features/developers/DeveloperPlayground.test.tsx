@@ -97,13 +97,14 @@ describe('DeveloperPlayground', () => {
     render(<DeveloperPlayground baseUrl={BASE} />);
     fill('API key', KEY);
     expect(screen.getByLabelText('API key')).toHaveAttribute('type', 'password');
-    for (const tab of ['cURL', 'TypeScript', 'Request fixture']) {
+    for (const tab of ['cURL', 'TypeScript', 'Request fixture', 'MCP']) {
       fireEvent.click(screen.getByRole('tab', { name: tab }));
       expect(screen.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
       const panel = screen.getByRole('tabpanel');
       expect(panel.textContent).toContain('YC_API_KEY');
       expect(panel.textContent).not.toContain(KEY);
     }
+    expect(screen.getByRole('tabpanel').textContent).toContain('"name": "list_organizations"');
     expect(globalThis.location.href).not.toContain(KEY);
     expect(JSON.stringify({ ...globalThis.localStorage })).not.toContain(KEY);
   });
