@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 
-> The read-only Developer Data API and its MCP client are implemented in the current product build.
+> The read-only Developer Data API and its MCP server are implemented in the current product build.
 > This ADR still describes proposed work: the in-browser editing agent, draft
 > configuration writes, and inference-key vault are not shipped. The existing
 > read surface is documented in [Current capabilities](../current-capabilities.md);
@@ -18,7 +18,7 @@ This is the highest-risk surface in the developer platform, and its security mod
 - The agent operates inside a system holding veterinary health data. Model output is probabilistic; a hallucinated or prompt-injected tool call must not be able to change what clinicians see in production, alter the database schema, or exfiltrate patient data.
 - Data the agent reads back from the PIMS (patient names, form field contents, template bodies) can itself contain adversarial text. Any security model that assumes the model "follows instructions" fails here.
 - The BYO inference key is a valuable credential belonging to the developer. Custody, logging, and revocation need explicit rules, or the key leaks into logs and error reports by default.
-- The building blocks are already built and constrain the design: versioned form/template models with a draft-then-publish lifecycle in the config engine, `DeveloperApiKey` with hashed keys and scoped auth, the live `/v1/developer` read routes, `DeveloperApiUsage` metering, and the read-only MCP client. Future write routes must preserve the same membership and scope checks.
+- The building blocks are already built and constrain the design: versioned form/template models with a draft-then-publish lifecycle in the config engine, `DeveloperApiKey` with hashed keys and scoped auth, the live `/v1/developer` read routes, `DeveloperApiUsage` metering, and the read-only MCP server. Future write routes must preserve the same membership and scope checks.
 
 ## Decision
 
