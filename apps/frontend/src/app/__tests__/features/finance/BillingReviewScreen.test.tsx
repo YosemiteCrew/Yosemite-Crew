@@ -38,6 +38,11 @@ describe('BillingReviewContent', () => {
     expect(screen.getByText('Select a practice to view completed visits.')).toBeInTheDocument();
   });
 
+  it('does not create a nested main landmark inside the app shell', () => {
+    render(<BillingReviewContent loadPage={jest.fn()} />);
+    expect(screen.queryByRole('main')).not.toBeInTheDocument();
+  });
+
   it('renders visit details, human labels and a link back to the invoice workspace', async () => {
     const loadPage = jest.fn().mockResolvedValue(
       page([

@@ -22,7 +22,7 @@ export const BillingReviewService = {
     const afterCursor = cursor
       ? Prisma.sql`AND (
           a."appointmentDate" < ${cursor.createdAt}
-          OR (a."appointmentDate" = ${cursor.createdAt} AND a."id" < ${cursor.id}::uuid)
+          OR (a."appointmentDate" = ${cursor.createdAt} AND a."id" < ${cursor.id})
         )`
       : Prisma.empty;
 

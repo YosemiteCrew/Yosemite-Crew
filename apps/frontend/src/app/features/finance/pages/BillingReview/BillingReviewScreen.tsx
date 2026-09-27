@@ -257,7 +257,7 @@ const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps)
     useBillingReviewList(organisationId, loadPage);
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 border-b border-card-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link
@@ -341,7 +341,7 @@ const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps)
           {isLoadingMore ? 'Loading…' : 'Load more visits'}
         </button>
       )}
-    </main>
+    </div>
   );
 };
 
@@ -349,7 +349,10 @@ const BillingReviewScreen = () => (
   <ProtectedRoute skeleton={PAGE_SKELETON}>
     <OrgGuard skeleton={PAGE_SKELETON}>
       <Suspense fallback={PAGE_SKELETON}>
-        <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
+        <PermissionGate
+          allOf={[PERMISSIONS.BILLING_VIEW_ANY, PERMISSIONS.APPOINTMENTS_VIEW_ANY]}
+          fallback={<Fallback />}
+        >
           <BillingReviewContent />
         </PermissionGate>
       </Suspense>

@@ -61,6 +61,7 @@ describe("BillingReviewService.list", () => {
     const query = queryRaw.mock.calls[0][0];
     expect(query.sql).toContain('a."appointmentDate" <');
     expect(query.sql).toContain('a."id" <');
+    expect(query.sql).not.toContain("::uuid");
     expect(query.values).toContain(cursorId);
     expect(query.values).toContain(date);
   });

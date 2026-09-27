@@ -180,6 +180,7 @@ describe("finance.router", () => {
     expect(handlers).toContain(requireWebAuth);
     expect(handlers).toContain(withOrgPermissionsMiddleware);
     expect(handlers).toContain(permissionGuard("billing:view:any"));
+    expect(handlers).toContain(permissionGuard("appointments:view:any"));
   });
 
   it("puts the reconciliation queue behind web auth, org scope and a permission", () => {
