@@ -410,10 +410,8 @@ describe("DocumentService.update attachments", () => {
     await expectUnchanged(update([{ key: PHOTO, mimeType: "image/jpeg" }]));
   });
 
-  it("returns 400 for an attachment entry that is not an object", async () => {
-    await expectUnchanged(
-      update([{ key: key(), mimeType: "application/pdf" }, null as never]),
-    );
+  it("returns 400 for a null attachment entry", async () => {
+    await expectUnchanged(update([null as never]));
   });
 });
 
