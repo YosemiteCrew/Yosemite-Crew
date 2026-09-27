@@ -46,6 +46,7 @@ describe('InpatientMonitoringPanel', () => {
     render(<InpatientMonitoringPanel {...props} />);
 
     expect(await screen.findByText('38.2 °C')).toBeInTheDocument();
+    expect(screen.getByText('27 Sept 2026, 10:00 UTC')).toBeInTheDocument();
     expect(screen.getByText('90 bpm')).toBeInTheDocument();
     expect(screen.getByText('12 mL')).toBeInTheDocument();
     expect(screen.getByText('+4 mL')).toBeInTheDocument();

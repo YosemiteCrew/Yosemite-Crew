@@ -27,6 +27,13 @@ const sortedNewestFirst = (records: HospitalizationObservation[]) =>
 const display = (value: number | string | null | undefined, unit = '') =>
   value === null || value === undefined || value === '' ? '—' : `${value}${unit}`;
 
+const formatObservedAt = (value: string) =>
+  `${new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(value))} UTC`;
+
 const numericValue = (form: FormData, name: string) => {
   const value = form.get(name);
   return typeof value === 'string' && value.trim() ? Number(value) : undefined;
@@ -161,7 +168,9 @@ const InpatientMonitoringPanel = ({
                 <li key={record.id} className="py-4 first:pt-0 last:pb-0">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <Text as="h3" variant="body-3-emphasis" className="text-text-primary">
-                      {new Date(record.observedAt).toLocaleString()}
+                      <time dateTime={record.observedAt}>
+                        {formatObservedAt(record.observedAt)}
+                      </time>
                     </Text>
                     <Text as="span" variant="caption-1" className="text-text-tertiary">
                       Recorded observation
