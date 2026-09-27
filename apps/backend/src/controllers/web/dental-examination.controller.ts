@@ -59,11 +59,11 @@ const CreateBodySchema = z.object({
 const UpdateBodySchema = z.object({
   overallGrade: DentalGradeEnum.optional(),
   findings: z.array(ToothFindingSchema).optional(),
-  calculusScore: z.number().int().min(0).max(3).optional(),
-  plaqueScore: z.number().int().min(0).max(3).optional(),
-  gingivalScore: z.number().int().min(0).max(3).optional(),
+  calculusScore: z.number().int().min(0).max(3).nullable().optional(),
+  plaqueScore: z.number().int().min(0).max(3).nullable().optional(),
+  gingivalScore: z.number().int().min(0).max(3).nullable().optional(),
   procedures: z.array(z.string().max(300)).optional(),
-  notes: z.string().max(3000).optional(),
+  notes: z.string().max(3000).nullable().optional(),
 });
 
 const ListQuerySchema = patientScopeQuery;

@@ -104,12 +104,22 @@ runClinicalControllerSuite({
     {
       handler: "update",
       params: { organisationId: ORG_ID, examId: RECORD_ID },
-      body: { overallGrade: "GRADE_4", gingivalScore: 3 },
+      body: {
+        overallGrade: "GRADE_4",
+        gingivalScore: 3,
+        calculusScore: null,
+        notes: null,
+      },
       serviceMethod: "update",
       expectArgs: [
         RECORD_ID,
         ORG_ID,
-        { overallGrade: "GRADE_4", gingivalScore: 3 },
+        {
+          overallGrade: "GRADE_4",
+          gingivalScore: 3,
+          calculusScore: null,
+          notes: null,
+        },
       ],
       fallback: "Failed to update dental examination",
       invalidPayload: { gingivalScore: 9 },

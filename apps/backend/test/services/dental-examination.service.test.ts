@@ -102,6 +102,35 @@ describe("DentalExaminationService.update", () => {
     expect(result.overallGrade).toBe("GRADE_3");
   });
 
+  it("clears optional scores and notes when explicitly set to null", async () => {
+    mockFindFirst.mockResolvedValue(baseExam);
+    mockUpdate.mockResolvedValue({
+      ...baseExam,
+      calculusScore: null,
+      plaqueScore: null,
+      gingivalScore: null,
+      notes: null,
+    });
+
+    await DentalExaminationService.update("de-1", "org-1", {
+      calculusScore: null,
+      plaqueScore: null,
+      gingivalScore: null,
+      notes: null,
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          calculusScore: null,
+          plaqueScore: null,
+          gingivalScore: null,
+          notes: null,
+        },
+      }),
+    );
+  });
+
   it("throws 404 when exam missing", async () => {
     mockFindFirst.mockResolvedValue(null);
     await expect(

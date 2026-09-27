@@ -52,11 +52,11 @@ export interface CreateDentalExamParams {
 export interface UpdateDentalExamParams {
   overallGrade?: DentalGrade;
   findings?: ToothFinding[];
-  calculusScore?: number;
-  plaqueScore?: number;
-  gingivalScore?: number;
+  calculusScore?: number | null;
+  plaqueScore?: number | null;
+  gingivalScore?: number | null;
   procedures?: string[];
-  notes?: string;
+  notes?: string | null;
 }
 
 export interface ListDentalExamParams {
