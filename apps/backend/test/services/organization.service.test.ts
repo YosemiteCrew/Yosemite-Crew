@@ -10,6 +10,13 @@ import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 import * as TypesPkg from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 
+/** An active membership whose role may edit the organisation's settings. */
+const SETTINGS_EDITOR = {
+  roleCode: "ADMIN",
+  extraPermissions: [],
+  revokedPermissions: [],
+};
+
 jest.mock("../../src/services/user-organization.service", () => ({
   UserOrganizationService: {
     createUserOrganizationMapping: jest.fn(),
@@ -346,9 +353,9 @@ describe("OrganizationService", () => {
         ...baseOrg,
         imageUrl: saved,
       });
-      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "mapping-1",
-      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce(
+        SETTINGS_EDITOR,
+      );
       (prisma.organization.update as jest.Mock).mockResolvedValueOnce(baseOrg);
       (
         prisma.organization.findUniqueOrThrow as jest.Mock
@@ -372,9 +379,9 @@ describe("OrganizationService", () => {
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
         baseOrg,
       );
-      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "mapping-1",
-      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce(
+        SETTINGS_EDITOR,
+      );
       (prisma.organization.update as jest.Mock).mockResolvedValue(baseOrg);
       (
         prisma.organization.findUniqueOrThrow as jest.Mock
@@ -409,9 +416,9 @@ describe("OrganizationService", () => {
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
         baseOrg,
       );
-      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "mapping-1",
-      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce(
+        SETTINGS_EDITOR,
+      );
 
       await expect(
         OrganizationService.upsert(
@@ -466,9 +473,9 @@ describe("OrganizationService", () => {
         prisma.organization.findUniqueOrThrow as jest.Mock
       ).mockResolvedValueOnce(baseOrg);
 
-      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "mapping-1",
-      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce(
+        SETTINGS_EDITOR,
+      );
 
       const result = await OrganizationService.upsert(baseDto, userId);
 
@@ -539,8 +546,67 @@ describe("OrganizationService", () => {
           { resourceType: "Organization", id: orgId, name: "Hijacked" },
           "stranger",
         ),
-      ).rejects.toMatchObject({ statusCode: 403 });
+      ).rejects.toMatchObject({ statusCode: 404 });
       expect(prisma.organization.update).not.toHaveBeenCalled();
+      expect(prisma.userOrganization.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            practitionerReference: "stranger",
+            active: true,
+          }),
+        }),
+      );
+    });
+
+    it.each([
+      [
+        "a member whose role cannot edit settings",
+        { roleCode: "VETERINARIAN" },
+      ],
+      [
+        "an admin whose settings permission was revoked",
+        { roleCode: "ADMIN", revokedPermissions: ["teams:edit:any"] },
+      ],
+    ])(
+      "refuses to overwrite an existing organisation for %s",
+      async (_label, mapping) => {
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+          baseOrg,
+        );
+        (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+          extraPermissions: [],
+          revokedPermissions: [],
+          ...mapping,
+        });
+
+        await expect(
+          OrganizationService.upsert(
+            { resourceType: "Organization", id: orgId, name: "Renamed" },
+            "member",
+          ),
+        ).rejects.toMatchObject({ statusCode: 403 });
+        expect(prisma.organization.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it("lets a member granted the settings permission overwrite the profile", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+        baseOrg,
+      );
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        roleCode: "VETERINARIAN",
+        extraPermissions: ["teams:edit:any"],
+        revokedPermissions: [],
+      });
+      (prisma.organization.update as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+
+      const result = await OrganizationService.upsert(baseDto, "member");
+
+      expect(result.created).toBe(false);
+      expect(prisma.organization.update).toHaveBeenCalled();
     });
 
     it("resolves organisations by place, lat/lng, and name", async () => {

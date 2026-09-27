@@ -122,6 +122,19 @@ export interface UpdateTaskTemplateInput {
 const toDefaultRole = (value: "EMPLOYEE" | "PARENT") =>
   value === "EMPLOYEE" ? "EMPLOYEE" : "PARENT";
 
+/** A template of another organisation answers as not found. */
+const findOrganisationTemplate = async (id: string, organisationId: string) => {
+  const safeId = ensureId(id, "id");
+  const safeOrganisationId = ensureId(organisationId, "organisationId");
+  const doc = await prisma.taskTemplate.findFirst({
+    where: { id: safeId, organisationId: safeOrganisationId },
+  });
+  if (!doc) {
+    throw new TaskTemplateServiceError("Task template not found", 404);
+  }
+  return doc;
+};
+
 export const TaskTemplateService = {
   async create(input: CreateTaskTemplateInput): Promise<TaskTemplateDocument> {
     if (!input.organisationId || !input.category || !input.name) {
@@ -164,18 +177,12 @@ export const TaskTemplateService = {
   async update(
     id: string,
     input: UpdateTaskTemplateInput,
+    organisationId: string,
   ): Promise<TaskTemplateDocument> {
-    const safeId = ensureId(id, "id");
-    const existing = await prisma.taskTemplate.findFirst({
-      where: { id: safeId },
-    });
-
-    if (!existing) {
-      throw new TaskTemplateServiceError("Task template not found", 404);
-    }
+    const existing = await findOrganisationTemplate(id, organisationId);
 
     const updated = await prisma.taskTemplate.update({
-      where: { id: safeId },
+      where: { id: existing.id },
       data: {
         category: input.category ?? existing.category,
         name: input.name ?? existing.name,
@@ -211,18 +218,11 @@ export const TaskTemplateService = {
     return updated;
   },
 
-  async archive(id: string): Promise<void> {
-    const safeId = ensureId(id, "id");
-    const existing = await prisma.taskTemplate.findFirst({
-      where: { id: safeId },
-    });
-
-    if (!existing) {
-      throw new TaskTemplateServiceError("Task template not found", 404);
-    }
+  async archive(id: string, organisationId: string): Promise<void> {
+    const existing = await findOrganisationTemplate(id, organisationId);
 
     await prisma.taskTemplate.update({
-      where: { id: safeId },
+      where: { id: existing.id },
       data: { isActive: false },
     });
   },
@@ -277,14 +277,10 @@ export const TaskTemplateService = {
     return docs;
   },
 
-  async getById(id: string): Promise<TaskTemplateDocument> {
-    const safeId = ensureId(id, "id");
-    const doc = await prisma.taskTemplate.findFirst({
-      where: { id: safeId },
-    });
-    if (!doc) {
-      throw new TaskTemplateServiceError("Task template not found", 404);
-    }
-    return doc;
+  async getById(
+    id: string,
+    organisationId: string,
+  ): Promise<TaskTemplateDocument> {
+    return findOrganisationTemplate(id, organisationId);
   },
 };

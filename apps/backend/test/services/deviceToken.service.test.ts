@@ -97,4 +97,26 @@ describe("DeviceTokenService", () => {
       });
     });
   });
+
+  describe("removeTokenForOwners", () => {
+    it("removes the token only where one of the owners holds it", async () => {
+      await DeviceTokenService.removeTokenForOwners("token-1", [
+        "parent-1",
+        "auth-1",
+      ]);
+
+      expect(prisma.deviceToken.deleteMany).toHaveBeenCalledWith({
+        where: {
+          deviceToken: "token-1",
+          userId: { in: ["parent-1", "auth-1"] },
+        },
+      });
+    });
+
+    it("removes nothing when no owner is known", async () => {
+      await DeviceTokenService.removeTokenForOwners("token-1", ["", ""]);
+
+      expect(prisma.deviceToken.deleteMany).not.toHaveBeenCalled();
+    });
+  });
 });

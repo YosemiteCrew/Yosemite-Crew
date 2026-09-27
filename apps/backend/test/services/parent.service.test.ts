@@ -108,6 +108,9 @@ const mockParent = {
   },
 };
 
+/** A practice read of one of its own clients (the link lookup is mocked). */
+const PMS = { source: "pms" as const, organisationId: "org-1" };
+
 describe("ParentService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -328,10 +331,24 @@ describe("ParentService", () => {
     ).rejects.toBeInstanceOf(ParentServiceError);
   });
 
+  it.each([
+    ["no context", undefined],
+    ["an invited context", { source: "invited" as const }],
+    ["a practice context with no organisation", { source: "pms" as const }],
+  ])("reaches no parent record with %s", async (_label, ctx) => {
+    mockedPrisma.parent.findUnique.mockResolvedValue(mockParent as never);
+
+    await expect(ParentService.get("parent-1", ctx)).resolves.toBeNull();
+    await expect(
+      ParentService.update("parent-1", {} as never, ctx),
+    ).resolves.toBeNull();
+    expect(mockedPrisma.parent.findUnique).not.toHaveBeenCalled();
+  });
+
   it("returns a parent by id", async () => {
     mockedPrisma.parent.findUnique.mockResolvedValueOnce(mockParent);
 
-    const result = await ParentService.get("parent-1");
+    const result = await ParentService.get("parent-1", PMS);
 
     expect((result?.response as any).mapped).toBe(true);
     expect(result?.response.id).toBe("parent-1");
@@ -367,7 +384,7 @@ describe("ParentService", () => {
       alerts: [{ label: "VIP" }],
     } as never);
 
-    const result = await ParentService.get("parent-1");
+    const result = await ParentService.get("parent-1", PMS);
 
     expect((result?.response as { alerts?: unknown }).alerts).toEqual([
       { label: "VIP" },

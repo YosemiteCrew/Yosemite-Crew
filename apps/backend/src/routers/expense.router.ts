@@ -4,6 +4,7 @@ import { requireMobileAuth } from "src/middlewares/auth";
 import {
   requireCompanionPermission,
   requireCompanionPermissionForResource,
+  resolveBodyPatientCompanion,
   resolveExpenseCompanion,
 } from "src/middlewares/companion-access";
 
@@ -16,7 +17,16 @@ const requireExpenseAccess = requireCompanionPermissionForResource(
   resolveExpenseCompanion,
 );
 
-router.post("/", requireMobileAuth, ExpenseController.createExpense);
+// A new expense names its companion in the body.
+router.post(
+  "/",
+  requireMobileAuth,
+  requireCompanionPermissionForResource(
+    "expenses",
+    resolveBodyPatientCompanion,
+  ),
+  ExpenseController.createExpense,
+);
 
 router.patch(
   "/:expenseId",

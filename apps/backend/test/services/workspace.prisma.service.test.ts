@@ -23,6 +23,7 @@ jest.mock("src/config/prisma", () => ({
     patient: { findFirst: jest.fn() },
     patientOrganisation: { findFirst: jest.fn() },
     parent: { findFirst: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
     admission: { findUnique: jest.fn() },
     productItem: { findFirst: jest.fn(), findMany: jest.fn() },
     task: { findMany: jest.fn() },
@@ -102,6 +103,7 @@ describe("WorkspaceService", () => {
     patient: { findFirst: jest.Mock };
     patientOrganisation: { findFirst: jest.Mock };
     parent: { findFirst: jest.Mock };
+    parentPatient: { findFirst: jest.Mock };
     admission: { findUnique: jest.Mock };
     productItem: { findFirst: jest.Mock; findMany: jest.Mock };
     task: { findMany: jest.Mock };
@@ -158,6 +160,8 @@ describe("WorkspaceService", () => {
     mockedPrisma.patient.findFirst.mockResolvedValue(null);
     mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
     mockedPrisma.parent.findFirst.mockResolvedValue(null);
+    // The client is one of the practice's clients unless a test says not.
+    mockedPrisma.parentPatient.findFirst.mockResolvedValue({ id: "pp-1" });
     mockedPrisma.admission.findUnique.mockResolvedValue(null);
     mockedPrisma.productItem.findFirst.mockResolvedValue(null);
     mockedPrisma.task.findMany.mockResolvedValue([]);
@@ -2198,6 +2202,7 @@ describe("WorkspaceService aggregate edge cases", () => {
     db.invoice.findFirst.mockResolvedValue(null);
     db.invoice.findMany.mockResolvedValue([]);
     db.organization.findUnique.mockResolvedValue(null);
+    db.parentPatient.findFirst.mockResolvedValue({ id: "pp-cov" });
     db.patient.findFirst.mockResolvedValue(null);
     db.patientOrganisation.findFirst.mockResolvedValue(null);
     db.parent.findFirst.mockResolvedValue(null);
@@ -3574,6 +3579,60 @@ describe("WorkspaceService aggregate edge cases", () => {
   });
 
   describe("workspace context resolution", () => {
+    it("reads the companion and client only through this visit's ACTIVE links", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.patient.findFirst.mockResolvedValue({ id: "pet-cov", name: "Rex" });
+      db.parent.findFirst.mockResolvedValue({
+        id: "parent-cov",
+        firstName: "Ada",
+        lastName: null,
+        createdAt: DAY,
+        updatedAt: DAY,
+      });
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        FULL_PERMISSIONS,
+      );
+
+      const practiceScope = {
+        organisations: { some: { organisationId: ORG, status: "ACTIVE" } },
+      };
+      expect(db.patient.findFirst).toHaveBeenCalledWith({
+        where: { id: "pet-cov", ...practiceScope },
+      });
+      expect(db.parentPatient.findFirst).toHaveBeenCalledWith({
+        where: {
+          parentId: "parent-cov",
+          patientId: "pet-cov",
+          status: "ACTIVE",
+          patient: practiceScope,
+        },
+        select: { id: true },
+      });
+      expect(result.client).toMatchObject({ id: "parent-cov" });
+    });
+
+    it("shows no client who is not actively linked to this visit's companion", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.parentPatient.findFirst.mockResolvedValue(null);
+      db.parent.findFirst.mockResolvedValue({
+        id: "parent-cov",
+        firstName: "Ada",
+        lastName: null,
+        createdAt: DAY,
+        updatedAt: DAY,
+      });
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.client).toBeNull();
+      expect(db.parent.findFirst).not.toHaveBeenCalled();
+    });
+
     it("ignores unusable patient identifiers on the appointment", async () => {
       db.appointment.findFirst.mockResolvedValue(
         appointmentRow({
@@ -3610,9 +3669,10 @@ describe("WorkspaceService aggregate edge cases", () => {
 
       expect(db.patient.findFirst).not.toHaveBeenCalled();
       expect(result.companion).toBeNull();
-      // The parent falls back to the episode of care.
-      expect(result.client).toMatchObject({ id: "parent-from-case" });
-      expect(result.client?.name).toBe("Ada");
+      // With no companion for this visit there is no client to show, even the
+      // one the episode of care names.
+      expect(result.client).toBeNull();
+      expect(db.parent.findFirst).not.toHaveBeenCalled();
       expect(result.episodeOfCare?.description).toBe("Ongoing dermatitis");
       // The product lookup found nothing, so no product kind is surfaced.
       expect(result.appointment).toMatchObject({

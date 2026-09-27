@@ -24367,6 +24367,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -24631,6 +24637,13 @@ paths:
       operationId: post_v1_task_pms_templates
       security:
         - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional when the body names organisationId; sent, it is used in place of the body value.
+          schema:
+            type: string
       responses:
         200:
           description: Response

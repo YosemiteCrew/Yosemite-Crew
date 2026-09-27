@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import { DeviceTokenService } from "../../services/deviceToken.service";
+import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
+import { resolveVerifiedUserId } from "src/utils/request";
 import logger from "src/utils/logger";
 
 type RegisterDeviceTokenBody = {
-  userId: string;
   deviceToken: string;
   platform: "ios" | "android";
 };
@@ -12,16 +13,33 @@ type UnregisterDeviceTokenBody = {
   deviceToken: string;
 };
 
+/**
+ * The ids a signed-in caller's devices are registered under. Notifications are
+ * addressed to the parent, so a token is stored against the caller's parent
+ * record, or against their own account until they have one. Any `userId` in
+ * the body is ignored: a device only ever registers for the person signed in
+ * on it.
+ */
+const resolveCallerIds = async (
+  req: Request,
+): Promise<{ owner: string; all: string[] } | null> => {
+  const userId = resolveVerifiedUserId(req);
+  if (!userId) return null;
+  const parentId = await findParentIdForAuthUser(userId);
+  return parentId
+    ? { owner: parentId, all: [parentId, userId] }
+    : { owner: userId, all: [userId] };
+};
+
 export class DeviceTokenController {
   static async registerDeviceToken(
     this: void,
     req: Request<unknown, unknown, RegisterDeviceTokenBody>,
     res: Response,
   ) {
-    const { userId, deviceToken, platform } = req.body;
+    const { deviceToken, platform } = req.body;
 
     if (
-      typeof userId !== "string" ||
       typeof deviceToken !== "string" ||
       (platform !== "ios" && platform !== "android")
     ) {
@@ -29,7 +47,15 @@ export class DeviceTokenController {
     }
 
     try {
-      await DeviceTokenService.registerToken(userId, deviceToken, platform);
+      const caller = await resolveCallerIds(req as Request);
+      if (!caller) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      await DeviceTokenService.registerToken(
+        caller.owner,
+        deviceToken,
+        platform,
+      );
       res
         .status(200)
         .json({ message: "Device token registered successfully." });
@@ -53,7 +79,11 @@ export class DeviceTokenController {
     }
 
     try {
-      await DeviceTokenService.removeToken(deviceToken);
+      const caller = await resolveCallerIds(req as Request);
+      if (!caller) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      await DeviceTokenService.removeTokenForOwners(deviceToken, caller.all);
       res
         .status(200)
         .json({ message: "Device token unregistered successfully." });

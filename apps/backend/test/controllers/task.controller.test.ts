@@ -23,6 +23,12 @@ jest.mock("../../src/services/taskLibrary.service");
 jest.mock("../../src/services/taskTemplate.service");
 jest.mock("../../src/services/authUserMobile.service");
 jest.mock("../../src/utils/logger");
+jest.mock("../../src/middlewares/companion-access", () => ({
+  ...jest.requireActual<Record<string, unknown>>(
+    "../../src/middlewares/companion-access",
+  ),
+  parentHasCompanionFeature: jest.fn(),
+}));
 
 // Retrieve REAL Error class to ensure instanceof checks pass in controller
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,6 +44,12 @@ const mockedTaskLibraryService = jest.mocked(TaskLibraryService);
 const mockedTaskTemplateService = jest.mocked(TaskTemplateService);
 const mockedAuthService = jest.mocked(AuthUserMobileService);
 const mockedLogger = jest.mocked(logger);
+const { parentHasCompanionFeature: mockedParentHasCompanionFeature } =
+  jest.requireMock("../../src/middlewares/companion-access") as {
+    parentHasCompanionFeature: jest.Mock<
+      (parentId: string, patientId: string, feature: string) => Promise<boolean>
+    >;
+  };
 
 describe("Task Controllers", () => {
   let req: Partial<Request>;
@@ -149,6 +161,125 @@ describe("Task Controllers", () => {
 
         await TaskController.createCustomTask(req as any, res as Response);
       });
+
+      describe("what a parent's task is made of", () => {
+        beforeEach(() => {
+          (req as any).userId = "u1";
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+            parentId: "p1",
+          });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (mockedTaskService.createCustom as any).mockResolvedValue({
+            id: "t1",
+          });
+        });
+
+        it("takes only a parent's own fields from the body", async () => {
+          req.body = {
+            companionId: "pat-1",
+            category: "CUSTOM",
+            name: "Walk",
+            description: "Around the block",
+            dueAt: "2026-10-01T09:00:00.000Z",
+            timezone: "Europe/Berlin",
+            reminder: { enabled: true, offsetMinutes: 30 },
+            organisationId: "org-x",
+            appointmentId: "appt-x",
+            audience: "EMPLOYEE_TASK",
+            assignedGroupId: "group-x",
+            status: "COMPLETED",
+            createdBy: "someone-else",
+            assignedBy: "someone-else",
+          };
+
+          await TaskController.createCustomTask(req as any, res as Response);
+
+          const input = (mockedTaskService.createCustom as jest.Mock).mock
+            .calls[0][0] as Record<string, unknown>;
+          expect(input).toMatchObject({
+            audience: "PARENT_TASK",
+            patientId: "pat-1",
+            category: "CUSTOM",
+            name: "Walk",
+            description: "Around the block",
+            timezone: "Europe/Berlin",
+            reminder: { enabled: true, offsetMinutes: 30 },
+            createdBy: "p1",
+            assignedBy: "p1",
+            assignedTo: "p1",
+          });
+          for (const key of [
+            "organisationId",
+            "appointmentId",
+            "assignedGroupId",
+            "status",
+          ]) {
+            expect(input[key]).toBeUndefined();
+          }
+          expect(mockedParentHasCompanionFeature).not.toHaveBeenCalled();
+          expect(statusMock).toHaveBeenCalledWith(201);
+        });
+
+        it("assigns to another parent of the companion who may work on its tasks", async () => {
+          mockedParentHasCompanionFeature.mockResolvedValue(true);
+          req.body = {
+            patientId: "pat-1",
+            category: "CUSTOM",
+            name: "Walk",
+            assignedTo: "p2",
+          };
+
+          await TaskController.createCustomTask(req as any, res as Response);
+
+          expect(mockedParentHasCompanionFeature).toHaveBeenCalledWith(
+            "p2",
+            "pat-1",
+            "tasks",
+          );
+          expect(mockedTaskService.createCustom).toHaveBeenCalledWith(
+            expect.objectContaining({ assignedTo: "p2", createdBy: "p1" }),
+          );
+        });
+
+        it("answers any other assignee as not found and creates nothing", async () => {
+          mockedParentHasCompanionFeature.mockResolvedValue(false);
+          req.body = {
+            patientId: "pat-1",
+            category: "CUSTOM",
+            name: "Walk",
+            assignedTo: "stranger",
+          };
+
+          await TaskController.createCustomTask(req as any, res as Response);
+
+          expect(statusMock).toHaveBeenCalledWith(404);
+          expect(mockedTaskService.createCustom).not.toHaveBeenCalled();
+        });
+      });
+    });
+
+    describe("practice task creates", () => {
+      it.each([
+        ["createCustomTaskFromPms", "createCustom"],
+        ["createFromLibrary", "createFromLibrary"],
+        ["createFromTemplate", "createFromTemplate"],
+      ] as const)(
+        "%s writes to the organisation the caller was authorised for",
+        async (handler, serviceMethod) => {
+          (req as any).userId = "pms1";
+          (req as any).organisationId = "org-a";
+          req.body = { organisationId: "org-b", templateId: "t1" };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (mockedTaskService[serviceMethod] as any).mockResolvedValue({});
+
+          await TaskController[handler](req as any, res as Response);
+
+          expect(mockedTaskService[serviceMethod]).toHaveBeenCalledWith(
+            expect.objectContaining({ organisationId: "org-a" }),
+          );
+        },
+      );
     });
 
     describe("createCustomTaskFromPms", () => {
@@ -358,16 +489,99 @@ describe("Task Controllers", () => {
         await TaskController.updateTask(req as any, res as Response);
         expect(mockedTaskService.updateTask).toHaveBeenCalledWith(
           "t1",
-          req.body,
+          { ...(req.body as object), assignedGroupId: undefined },
           "p1",
           "THIS",
         );
+        expect(mockedTaskService.getById).not.toHaveBeenCalled();
       });
 
       it("should handle error", async () => {
         mockGenericError(mockedAuthService.getByProviderUserId as jest.Mock);
         await TaskController.updateTask(req as any, res as Response);
         expect(statusMock).toHaveBeenCalledWith(500);
+      });
+
+      describe("who a parent may hand a task to", () => {
+        beforeEach(() => {
+          (req as any).userId = "u1";
+          req.params = { taskId: "t1" };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+            parentId: "p1",
+          });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (mockedTaskService.getById as any).mockResolvedValue({
+            id: "t1",
+            patientId: "pat-1",
+            assignedTo: "p2",
+          });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (mockedTaskService.updateTask as any).mockResolvedValue({});
+        });
+
+        it.each([
+          ["themselves", "p1"],
+          ["the parent it is already with", "p2"],
+        ])(
+          "lets a parent keep or take a task: %s",
+          async (_label, assignee) => {
+            req.body = { name: "Walk", assignedTo: assignee };
+
+            await TaskController.updateTask(req as any, res as Response);
+
+            expect(mockedParentHasCompanionFeature).not.toHaveBeenCalled();
+            expect(mockedTaskService.updateTask).toHaveBeenCalled();
+          },
+        );
+
+        it("hands a task to another parent who may work on the companion's tasks", async () => {
+          mockedParentHasCompanionFeature.mockResolvedValue(true);
+          req.body = { assignedTo: "p3" };
+
+          await TaskController.updateTask(req as any, res as Response);
+
+          expect(mockedParentHasCompanionFeature).toHaveBeenCalledWith(
+            "p3",
+            "pat-1",
+            "tasks",
+          );
+          expect(mockedTaskService.updateTask).toHaveBeenCalledWith(
+            "t1",
+            { assignedTo: "p3", assignedGroupId: undefined },
+            "p1",
+            "THIS",
+          );
+        });
+
+        it.each([
+          ["anyone else", "stranger"],
+          ["a value that is not an id", { not: "" }],
+        ])(
+          "answers %s as not found and changes nothing",
+          async (_label, assignee) => {
+            mockedParentHasCompanionFeature.mockResolvedValue(false);
+            req.body = { assignedTo: assignee };
+
+            await TaskController.updateTask(req as any, res as Response);
+
+            expect(statusMock).toHaveBeenCalledWith(404);
+            expect(mockedTaskService.updateTask).not.toHaveBeenCalled();
+          },
+        );
+
+        it("never takes a staff group from a parent", async () => {
+          req.body = { name: "Walk", assignedGroupId: "group-1" };
+
+          await TaskController.updateTask(req as any, res as Response);
+
+          expect(mockedTaskService.updateTask).toHaveBeenCalledWith(
+            "t1",
+            { name: "Walk", assignedGroupId: undefined },
+            "p1",
+            "THIS",
+          );
+        });
       });
     });
 
@@ -608,6 +822,44 @@ describe("Task Controllers", () => {
         (req as any).userPermissions = ["tasks:view:any"];
         mockGenericError(mockedTaskService.listForEmployee as jest.Mock);
         await TaskController.listEmployeeTasks(req as any, res as Response);
+        expect(statusMock).toHaveBeenCalledWith(500);
+      });
+    });
+
+    describe("listForCompanionMobile", () => {
+      it("lists only parent tasks, whatever audience or role the query asks for", async () => {
+        req.params = { patientId: "pat-1" };
+        req.query = {
+          audience: "EMPLOYEE_TASK",
+          assignedRole: "EMPLOYEE_TASK",
+          status: "PENDING",
+        } as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskService.listForCompanion as any).mockResolvedValue([]);
+
+        await TaskController.listForCompanionMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedTaskService.listForCompanion).toHaveBeenCalledWith(
+          expect.objectContaining({
+            patientId: "pat-1",
+            organisationId: undefined,
+            audience: "PARENT_TASK",
+            assignedRole: undefined,
+            status: ["PENDING"],
+          }),
+        );
+      });
+
+      it("maps a service error", async () => {
+        req.params = { patientId: "pat-1" };
+        mockGenericError(mockedTaskService.listForCompanion as jest.Mock);
+        await TaskController.listForCompanionMobile(
+          req as any,
+          res as Response,
+        );
         expect(statusMock).toHaveBeenCalledWith(500);
       });
     });
@@ -878,6 +1130,20 @@ describe("Task Controllers", () => {
         expect(statusMock).toHaveBeenCalledWith(201);
       });
 
+      it("creates in the organisation the caller was authorised for", async () => {
+        (req as any).userId = "u1";
+        (req as any).organisationId = "org-a";
+        req.body = { name: "Tmpl", organisationId: "org-b" };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskTemplateService.create as any).mockResolvedValue({});
+
+        await TaskTemplateController.create(req as any, res as Response);
+
+        expect(mockedTaskTemplateService.create).toHaveBeenCalledWith(
+          expect.objectContaining({ organisationId: "org-a" }),
+        );
+      });
+
       it("should handle error", async () => {
         mockGenericError(mockedTaskTemplateService.create as jest.Mock);
         await TaskTemplateController.create(req as any, res as Response);
@@ -888,6 +1154,7 @@ describe("Task Controllers", () => {
     describe("update", () => {
       it("should success", async () => {
         req.params = { templateId: "t1" };
+        (req as any).organisationId = "o1";
         req.body = { name: "Upd" };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedTaskTemplateService.update as any).mockResolvedValue({});
@@ -895,6 +1162,7 @@ describe("Task Controllers", () => {
         expect(mockedTaskTemplateService.update).toHaveBeenCalledWith(
           "t1",
           req.body,
+          "o1",
         );
       });
 
@@ -908,10 +1176,14 @@ describe("Task Controllers", () => {
     describe("archive", () => {
       it("should success (204)", async () => {
         req.params = { templateId: "t1" };
+        (req as any).organisationId = "o1";
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedTaskTemplateService.archive as any).mockResolvedValue(undefined);
         await TaskTemplateController.archive(req as any, res as Response);
-        expect(mockedTaskTemplateService.archive).toHaveBeenCalledWith("t1");
+        expect(mockedTaskTemplateService.archive).toHaveBeenCalledWith(
+          "t1",
+          "o1",
+        );
         expect(statusMock).toHaveBeenCalledWith(204);
       });
 
@@ -989,10 +1261,32 @@ describe("Task Controllers", () => {
     describe("getById", () => {
       it("should success", async () => {
         req.params = { templateId: "t1" };
+        (req as any).organisationId = "o1";
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedTaskTemplateService.getById as any).mockResolvedValue({});
         await TaskTemplateController.getById(req as any, res as Response);
-        expect(mockedTaskTemplateService.getById).toHaveBeenCalledWith("t1");
+        expect(mockedTaskTemplateService.getById).toHaveBeenCalledWith(
+          "t1",
+          "o1",
+        );
+      });
+
+      it("answers a template the service cannot find with 404", async () => {
+        req.params = { templateId: "t1" };
+        (req as any).organisationId = "o1";
+        const { TaskTemplateServiceError: MockedError } = jest.requireMock(
+          "../../src/services/taskTemplate.service",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ) as any;
+        const error = new MockedError();
+        error.statusCode = 404;
+        error.message = "Task template not found";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskTemplateService.getById as any).mockRejectedValue(error);
+
+        await TaskTemplateController.getById(req as any, res as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(404);
       });
 
       it("should handle error", async () => {

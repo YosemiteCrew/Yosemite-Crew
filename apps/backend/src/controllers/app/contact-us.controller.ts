@@ -20,6 +20,7 @@ import {
 } from "src/middlewares/upload";
 import { resolveVerifiedUserId } from "src/utils/request";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { prisma } from "src/config/prisma";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
 import logger from "src/utils/logger";
 
@@ -118,6 +119,20 @@ type UpdateContactStatusBody = {
   status: ContactStatus;
 };
 
+const keepOwnCompanion = async (
+  parentId: string | undefined,
+  patientId: unknown,
+): Promise<string | undefined> => {
+  if (!parentId || typeof patientId !== "string" || !patientId) {
+    return undefined;
+  }
+  const link = await prisma.parentPatient.findFirst({
+    where: { parentId, patientId, status: "ACTIVE" },
+    select: { id: true },
+  });
+  return link ? patientId : undefined;
+};
+
 export const ContactController = {
   async create(
     this: void,
@@ -145,24 +160,22 @@ export const ContactController = {
         subject,
         message,
         email,
-        organisationId,
         patientId,
-        parentId: bodyParentId,
         dsarDetails,
         attachments,
-        userId: bodyUserId,
       } = req.body;
 
+      // Who is writing comes from the session only. A companion is kept only
+      // when it is the caller's own; an organisation is never taken from here.
       const payload = {
         type,
         source,
         subject,
         message,
         email,
-        organisationId,
-        patientId,
-        parentId: parentId ?? bodyParentId,
-        userId: userId ?? bodyUserId,
+        patientId: await keepOwnCompanion(parentId, patientId),
+        parentId,
+        userId,
         dsarDetails,
         attachments,
       };

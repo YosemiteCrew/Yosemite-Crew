@@ -1,6 +1,14 @@
 import { Router } from "express";
 import { ChatController } from "../controllers/app/chat.controller";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
+import {
+  requirePermission,
+  withAppointmentOrgPermissions,
+} from "src/middlewares/rbac";
+import {
+  requireCompanionPermissionForResource,
+  resolveAppointmentCompanion,
+} from "src/middlewares/companion-access";
 
 export const chatRouter = Router();
 
@@ -10,9 +18,15 @@ chatRouter.post("/mobile/token", requireMobileAuth, (req, res) =>
   ChatController.generateToken(req, res),
 );
 
+// A parent opens the chat for an appointment of a companion they may chat
+// with the vet about.
 chatRouter.post(
   "/mobile/appointments/:appointmentId",
   requireMobileAuth,
+  requireCompanionPermissionForResource(
+    "chatWithVet",
+    resolveAppointmentCompanion,
+  ),
   (req, res) => ChatController.ensureAppointmentSession(req, res),
 );
 
@@ -32,9 +46,12 @@ chatRouter.post("/pms/token", requireWebAuth, (req, res) =>
   ChatController.generateTokenForPMS(req, res),
 );
 
+// Staff open the chat for an appointment of their own organisation.
 chatRouter.post(
   "/pms/appointments/:appointmentId",
   requireWebAuth,
+  withAppointmentOrgPermissions({ hideFromNonMembers: true }),
+  requirePermission(["appointments:view:any", "appointments:view:own"]),
   (req, res) => ChatController.ensureAppointmentSession(req, res),
 );
 

@@ -157,6 +157,9 @@ const dto = (overrides: Record<string, unknown> = {}): any => ({
 const createdTimezone = () =>
   mockedPrisma.parent.create.mock.calls.at(-1)?.[0]?.data?.timezone;
 
+/** A practice read of one of its own clients (the link lookup is mocked). */
+const PMS = { source: "pms" as const, organisationId: "org-1" };
+
 describe("ParentService timezone validation", () => {
   beforeEach(resetAll);
 
@@ -498,7 +501,7 @@ describe("ParentService.get", () => {
   it("returns null when the parent does not exist", async () => {
     mockedPrisma.parent.findUnique.mockResolvedValue(null);
 
-    await expect(ParentService.get("missing")).resolves.toBeNull();
+    await expect(ParentService.get("missing", PMS)).resolves.toBeNull();
   });
 
   it("defaults isProfileComplete to false when the column is null", async () => {
@@ -506,7 +509,7 @@ describe("ParentService.get", () => {
       record({ isProfileComplete: null }),
     );
 
-    const result = await ParentService.get("parent-1");
+    const result = await ParentService.get("parent-1", PMS);
 
     expect(result?.isProfileComplete).toBe(false);
   });

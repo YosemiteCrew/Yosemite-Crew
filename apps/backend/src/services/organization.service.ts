@@ -12,6 +12,8 @@ import { recomputeOrganizationVerification } from "./organization-verification.s
 import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
+import { computeEffectivePermissions } from "src/middlewares/rbac";
+import type { RoleCode } from "src/models/role-permission";
 import { uploadKeyToMove } from "src/utils/upload-key";
 import logger from "src/utils/logger";
 import { pruneUndefined } from "src/utils/prune-undefined";
@@ -697,29 +699,42 @@ const buildOrganizationWriteData = (persistable: OrganizationMongo) => ({
  * rather than from an org-scoped route, where `withOrgPermissions` has nothing
  * to bind to.
  */
-const assertActiveMembership = async (
+/**
+ * Changing an existing organisation's profile takes the same permission as the
+ * organisation settings update route (`teams:edit:any`), not just membership.
+ * Someone who is not an active member is told the organisation does not exist.
+ */
+const assertMayEditOrganisation = async (
   organisationId: string,
   userId?: string,
 ): Promise<void> => {
   const actor = userId?.trim();
-  if (!actor) {
-    throw new OrganizationServiceError(
-      "Not authorised to modify this organisation.",
-      403,
-    );
-  }
-  const mapping = await prisma.userOrganization.findFirst({
-    where: {
-      practitionerReference: actor,
-      active: true,
-      OR: [
-        { organizationReference: organisationId },
-        { organizationReference: `Organization/${organisationId}` },
-      ],
-    },
-    select: { id: true },
-  });
+  const mapping = actor
+    ? await prisma.userOrganization.findFirst({
+        where: {
+          practitionerReference: actor,
+          active: true,
+          OR: [
+            { organizationReference: organisationId },
+            { organizationReference: `Organization/${organisationId}` },
+          ],
+        },
+        select: {
+          roleCode: true,
+          extraPermissions: true,
+          revokedPermissions: true,
+        },
+      })
+    : null;
   if (!mapping) {
+    throw new OrganizationServiceError("Organisation not found.", 404);
+  }
+  const permissions = computeEffectivePermissions(
+    mapping.roleCode as RoleCode,
+    mapping.extraPermissions,
+    mapping.revokedPermissions,
+  );
+  if (!permissions.includes("teams:edit:any")) {
     throw new OrganizationServiceError(
       "Not authorised to modify this organisation.",
       403,
@@ -762,9 +777,9 @@ export const OrganizationService = {
     // practice has no organisation to be scoped to yet. That makes the CREATE
     // branch safe for any signed-in user, but the UPDATE branch is a different
     // operation reached purely by naming an existing identifier in the body, so
-    // it needs the membership check the route cannot perform.
+    // it needs the membership and permission check the route cannot perform.
     if (existing) {
-      await assertActiveMembership(existing.id, userId);
+      await assertMayEditOrganisation(existing.id, userId);
     }
 
     // A fresh upload is moved into the practice's own folder once it exists,

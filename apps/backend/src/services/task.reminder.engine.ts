@@ -61,10 +61,14 @@ export const TaskReminderEngine = {
 
         const humanTime = dueAtLocal.format("MMM D, h:mm A");
 
-        const companion = await prisma.patient.findFirst({
-          where: { id: task.patientId ?? undefined },
-          select: { name: true },
-        });
+        // A task without a companion has no one to name; an unset id must
+        // never reach the query, where it would match any companion.
+        const companion = task.patientId
+          ? await prisma.patient.findFirst({
+              where: { id: task.patientId },
+              select: { name: true },
+            })
+          : null;
         if (!companion) {
           console.warn(
             `Skipping reminder for task ${task.id}; companion not found`,

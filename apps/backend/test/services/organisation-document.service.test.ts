@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from "@jest/globals";
 
 import { prisma } from "src/config/prisma";
 import { OrganizationDocumentService } from "../../src/services/organisation-document.service";
@@ -621,6 +628,73 @@ describe("OrganizationDocumentService", () => {
       acknowledged: false,
       version: 4,
       acknowledgedAt: undefined,
+    });
+  });
+
+  describe("acknowledgements reach published documents only", () => {
+    /** A PUBLIC and an INTERNAL document of org-1, matched as Prisma would. */
+    const DOCUMENTS = [
+      { ...termsDocument(2), id: "doc-public", visibility: "PUBLIC" },
+      { ...termsDocument(2), id: "doc-internal", visibility: "INTERNAL" },
+    ];
+
+    beforeEach(() => {
+      mockedPrisma.organizationDocument.findFirst.mockImplementation(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          DOCUMENTS.find((doc) =>
+            Object.entries(where).every(
+              ([key, value]) => (doc as Record<string, unknown>)[key] === value,
+            ),
+          ) ?? null,
+      );
+      mockedPrisma.organizationDocumentAcknowledgement.findFirst.mockResolvedValue(
+        null,
+      );
+    });
+
+    afterEach(() => {
+      mockedPrisma.organizationDocument.findFirst.mockReset();
+      mockedPrisma.organizationDocumentAcknowledgement.findFirst.mockReset();
+    });
+
+    const acknowledge = (documentId: string) =>
+      OrganizationDocumentService.acknowledgeDocument({
+        organisationId: "org-1",
+        documentId,
+        userId: "user-1",
+        category: "TERMS_AND_CONDITIONS",
+        version: 2,
+      });
+    const status = (documentId: string) =>
+      OrganizationDocumentService.getAcknowledgementStatus({
+        organisationId: "org-1",
+        documentId,
+        userId: "user-1",
+      });
+
+    it("acknowledges and reports on a published document", async () => {
+      await expect(acknowledge("doc-public")).resolves.toBeUndefined();
+      await expect(status("doc-public")).resolves.toMatchObject({
+        acknowledged: false,
+        version: 2,
+      });
+    });
+
+    it.each([
+      ["an internal document", "doc-internal"],
+      ["a document that does not exist", "doc-missing"],
+    ])("answers %s as not found", async (_label, documentId) => {
+      await expect(acknowledge(documentId)).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Document not found",
+      });
+      await expect(status(documentId)).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Document not found",
+      });
+      expect(
+        mockedPrisma.organizationDocumentAcknowledgement.upsert,
+      ).not.toHaveBeenCalled();
     });
   });
 

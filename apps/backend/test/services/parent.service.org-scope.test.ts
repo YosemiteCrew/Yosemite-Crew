@@ -232,7 +232,10 @@ describe("ParentService organisation scope", () => {
       db.parentPatient.findFirst
         .mockResolvedValueOnce(null) // not a client of org-1
         .mockResolvedValueOnce(null); // no companion links at all
-      db.parent.findUnique.mockResolvedValue({ createdFrom: "pms" });
+      db.parent.findUnique.mockResolvedValue({
+        createdFrom: "pms",
+        createdAt: new Date(Date.now() - 14 * 60 * 1000),
+      });
 
       await expect(
         ParentService.mayOrganisationAddCompanion("parent-1", "org-1"),
@@ -243,11 +246,39 @@ describe("ParentService organisation scope", () => {
       });
     });
 
+    it.each([
+      [
+        "entered more than 15 minutes ago",
+        new Date(Date.now() - 16 * 60 * 1000),
+      ],
+      ["with no creation time", null],
+    ])(
+      "refuses a link-less practice-entered parent %s",
+      async (_label, createdAt) => {
+        db.parentPatient.findFirst.mockResolvedValue(null);
+        db.parent.findUnique.mockResolvedValue({
+          createdFrom: "pms",
+          createdAt,
+        });
+
+        await expect(
+          ParentService.mayOrganisationAddCompanion("parent-1", "org-1"),
+        ).resolves.toBe(false);
+        expect(db.parent.findUnique).toHaveBeenCalledWith({
+          where: { id: "parent-1" },
+          select: { createdFrom: true, createdAt: true },
+        });
+      },
+    );
+
     it("refuses a practice-entered parent that already has companions elsewhere", async () => {
       db.parentPatient.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: "link-at-another-practice" });
-      db.parent.findUnique.mockResolvedValue({ createdFrom: "pms" });
+      db.parent.findUnique.mockResolvedValue({
+        createdFrom: "pms",
+        createdAt: new Date(),
+      });
 
       await expect(
         ParentService.mayOrganisationAddCompanion("parent-1", "org-1"),
