@@ -23,6 +23,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import PluginSlot from '@/app/features/plugins/PluginSlot';
 
 const AddForm = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/AddForm'));
 const FormInfo = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/FormInfo'));
@@ -320,6 +321,8 @@ const Forms = () => {
             />
           </div>
         </div>
+        <PluginSlot point="forms.configuration.action" />
+        <PluginSlot point="forms.configuration.panel" />
 
         <AddForm
           key={editingForm?._id ? `edit-${editingForm._id}` : 'add-form'}

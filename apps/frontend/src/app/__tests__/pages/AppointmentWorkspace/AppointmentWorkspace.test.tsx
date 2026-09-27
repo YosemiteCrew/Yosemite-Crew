@@ -32,6 +32,7 @@ import { useParentStore } from '@/app/stores/parentStore';
 import { useAuthStore } from '@/app/stores/authStore';
 import { persistEncounterTreatmentLine } from '@/app/features/appointments/services/workspaceAggregateService';
 import { buildEmptyEncounter } from '@/app/features/appointments/services/workspaceInitialData';
+import { PluginContributionsContext } from '@/app/features/plugins/PluginSlot';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
@@ -444,6 +445,35 @@ describe('AppointmentWorkspace container', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('SOAP read only: false')).not.toBeInTheDocument();
     // Let hydration settle inside this test rather than after its mocks reset.
+    await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalled());
+  });
+
+  it('shows installed plugin panels and actions in the appointment workspace', async () => {
+    render(
+      <PluginContributionsContext.Provider
+        value={[
+          {
+            pluginId: 'sample',
+            pluginName: 'Sample plugin',
+            point: 'appointment.workspace.panel',
+            title: 'Sample workspace panel',
+            url: 'https://plugin.example/panel',
+          },
+          {
+            pluginId: 'sample',
+            pluginName: 'Sample plugin',
+            point: 'appointment.workspace.action',
+            title: 'Sample workspace action',
+            url: 'https://plugin.example/action',
+          },
+        ]}
+      >
+        <AppointmentWorkspace appointment={makeAppointment(new Date())} />
+      </PluginContributionsContext.Provider>
+    );
+
+    expect(await screen.findByTitle('Sample workspace panel')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sample workspace action' })).toBeInTheDocument();
     await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalled());
   });
 

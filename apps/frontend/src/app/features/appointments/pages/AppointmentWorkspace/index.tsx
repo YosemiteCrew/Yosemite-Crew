@@ -87,6 +87,7 @@ import {
   toAssignableRoomOptions,
 } from '@/app/features/appointments/lib/roomUnitAvailability';
 import type { RecordTab } from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/RecordPanel';
+import PluginSlot from '@/app/features/plugins/PluginSlot';
 
 type AppointmentWorkspaceProps = {
   appointment: Appointment;
@@ -1885,6 +1886,9 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         </section>
         <WorkspaceActionRail activeAction={activeSideAction} onSelect={setActiveSideAction} />
       </div>
+
+      <PluginSlot point="appointment.workspace.action" />
+      <PluginSlot point="appointment.workspace.panel" />
 
       {sharedModals}
     </div>

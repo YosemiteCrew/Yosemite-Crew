@@ -8,6 +8,7 @@ import { loadForms } from '@/app/features/forms/services/formService';
 expect.extend(toHaveNoViolations);
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { PluginContributionsContext } from '@/app/features/plugins/PluginSlot';
 
 // Controllable mocks (prefixed with `mock` so jest hoisting permits references).
 const mockCan = jest.fn(() => true);
@@ -266,6 +267,33 @@ describe('Forms Page', () => {
     await screen.findByRole('heading', { level: 1, name: /Templates/ });
     const results = await axe(container);
     expect(results).toHaveNoViolations();
+  });
+
+  it('shows installed plugin panels and actions for form configuration', () => {
+    render(
+      <PluginContributionsContext.Provider
+        value={[
+          {
+            pluginId: 'sample',
+            pluginName: 'Sample plugin',
+            point: 'forms.configuration.panel',
+            title: 'Sample forms panel',
+            url: 'https://plugin.example/panel',
+          },
+          {
+            pluginId: 'sample',
+            pluginName: 'Sample plugin',
+            point: 'forms.configuration.action',
+            title: 'Sample forms action',
+            url: 'https://plugin.example/action',
+          },
+        ]}
+      >
+        <ProtectedForms />
+      </PluginContributionsContext.Provider>
+    );
+    expect(screen.getByTitle('Sample forms panel')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sample forms action' })).toBeInTheDocument();
   });
 
   it('renders h1 page heading', () => {
