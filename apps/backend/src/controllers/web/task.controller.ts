@@ -465,7 +465,7 @@ export const TaskController = {
       const requestedAssignee: unknown = req.body?.assignedTo;
       if (requestedAssignee !== undefined && requestedAssignee !== parentId) {
         const current = await TaskService.getById(taskId);
-        const unchanged = current && requestedAssignee === current.assignedTo;
+        const unchanged = requestedAssignee === current?.assignedTo;
         if (
           current &&
           !unchanged &&
