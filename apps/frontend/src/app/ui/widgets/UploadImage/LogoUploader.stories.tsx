@@ -58,6 +58,6 @@ export const InvalidFileType: Story = {
     fireEvent.change(input, { target: { files: [svg] } });
 
     const alert = await canvas.findByRole('alert');
-    await expect(alert).toHaveTextContent('Only non-SVG image files are supported.');
+    await expect(alert).toHaveTextContent('Please choose a PNG, JPG, GIF or WEBP image.');
   },
 };

@@ -1,5 +1,6 @@
 import type React from 'react';
 import { IoInformationCircleOutline } from 'react-icons/io5';
+import { IoIosWarning } from 'react-icons/io';
 import { FiCheck, FiPlus } from 'react-icons/fi';
 import { MdPets } from 'react-icons/md';
 import { FaUser } from 'react-icons/fa';
@@ -359,7 +360,11 @@ const PatientDetailsColumn = ({
     <div className="flex items-start gap-3 sm:gap-4">
       <PhotoDropzone
         photoUrl={typeof companionFormData.photoUrl === 'string' ? companionFormData.photoUrl : ''}
-        onPhotoSelected={onPhotoSelected}
+        onPhotoSelected={(dataUrl) => {
+          setCompanionErrors((prev) => ({ ...prev, photo: undefined }));
+          onPhotoSelected(dataUrl);
+        }}
+        onPhotoRejected={(message) => setCompanionErrors((prev) => ({ ...prev, photo: message }))}
         className="size-14 sm:size-[72px]"
       />
       <div className="min-w-0 flex-1">
@@ -377,6 +382,12 @@ const PatientDetailsColumn = ({
         />
       </div>
     </div>
+    {companionErrors.photo && (
+      <div role="alert" className="flex items-center gap-1 px-1 text-caption-2 text-text-error">
+        <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
+        <span>{companionErrors.photo}</span>
+      </div>
+    )}
 
     <div className="grid grid-cols-2 gap-3">
       <LabelDropdown

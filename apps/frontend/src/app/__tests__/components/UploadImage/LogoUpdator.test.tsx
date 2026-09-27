@@ -108,10 +108,53 @@ describe('LogoUpdator', () => {
     const badFile = new File(['hello'], 'hello.txt', { type: 'text/plain' });
     fireEvent.change(fileInput as HTMLInputElement, { target: { files: [badFile] } });
 
-    expect(
-      screen.getByText('Please choose a valid image file (PNG, JPG, or WEBP).')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Please choose a PNG, JPG, GIF or WEBP image.')).toBeInTheDocument();
     expect(screen.getByTestId('IoCamera')).toBeInTheDocument();
+  });
+
+  it('offers only picture types and turns a HEIC photo away inline', () => {
+    render(
+      <LogoUpdator
+        title="Update Logo"
+        apiUrl="/api/logo"
+        onSave={jest.fn()}
+        imageUrl={MEDIA_SOURCES.avatars.business}
+      />
+    );
+
+    fireEvent.click(screen.getAllByAltText('Logo')[0]);
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).toHaveAttribute('accept', 'image/png,image/jpeg,image/gif,image/webp');
+
+    fireEvent.change(fileInput, {
+      target: { files: [new File(['heic'], 'logo.heic', { type: 'image/heic' })] },
+    });
+
+    expect(screen.getByText('Please choose a PNG, JPG, GIF or WEBP image.')).toBeInTheDocument();
+    expect(screen.queryByAltText('New Logo')).not.toBeInTheDocument();
+    expect(fileInput.value).toBe('');
+  });
+
+  it('takes a gif logo', () => {
+    render(
+      <LogoUpdator
+        title="Update Logo"
+        apiUrl="/api/logo"
+        onSave={jest.fn()}
+        imageUrl={MEDIA_SOURCES.avatars.business}
+      />
+    );
+
+    fireEvent.click(screen.getAllByAltText('Logo')[0]);
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: { files: [new File(['gif'], 'logo.gif', { type: 'image/gif' })] },
+    });
+
+    expect(screen.getByAltText('New Logo')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Please choose a PNG, JPG, GIF or WEBP image.')
+    ).not.toBeInTheDocument();
   });
 
   it('swaps the image src to the default avatar when the logo image errors', () => {

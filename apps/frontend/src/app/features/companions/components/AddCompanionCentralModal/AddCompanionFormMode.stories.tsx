@@ -344,6 +344,33 @@ export const CreateStepOne: Story = {
   },
 };
 
+export const CreateStepOnePhotoTypeError: Story = {
+  name: 'Create wizard - photo of an unsupported type',
+  args: {
+    mode: 'create',
+    formStep: 1,
+    companionErrors: { photo: 'Please choose a PNG, JPG, GIF or WEBP image.' },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The message sits under the photo and name row, where the eye already is,
+    // rather than squeezed under the 56-72px photo circle.
+    await expect(canvas.getByRole('alert')).toHaveTextContent(
+      'Please choose a PNG, JPG, GIF or WEBP image.'
+    );
+    await expect(canvas.getByText('PHOTO')).toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A photo is kept only as a PNG, JPG, GIF or WEBP image. Any other file is turned away ' +
+          'before it is read, and this line explains why; picking a supported photo clears it.',
+      },
+    },
+  },
+};
+
 export const CreateStepTwo: Story = {
   name: 'Create wizard - step 2 (client)',
   args: { mode: 'create', formStep: 2 },

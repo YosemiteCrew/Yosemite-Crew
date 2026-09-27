@@ -7,6 +7,7 @@ import axios from 'axios';
 import { IoArrowForwardOutline, IoCamera } from 'react-icons/io5';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getSafeImageUrl } from '@/app/lib/urls';
+import { isPictureFile, PICTURE_ACCEPT, PICTURE_TYPE_ERROR } from '@/app/lib/pictureFiles';
 
 type LogoUpdatorProps = {
   imageUrl: string;
@@ -76,9 +77,8 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
     const f = e.target.files?.[0];
     if (!f) return;
     setUploadError(null);
-    const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
-    if (!allowedMimeTypes.has(f.type)) {
-      setUploadError('Please choose a valid image file (PNG, JPG, or WEBP).');
+    if (!isPictureFile(f)) {
+      setUploadError(PICTURE_TYPE_ERROR);
       if (fileRef.current) fileRef.current.value = '';
       return;
     }
@@ -165,7 +165,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
                   type="file"
                   id={inputId}
                   aria-label="Update logo image"
-                  accept="image/png, image/jpeg, image/jpg, image/webp"
+                  accept={PICTURE_ACCEPT}
                   onChange={handlePickFile}
                   className="hidden"
                 />

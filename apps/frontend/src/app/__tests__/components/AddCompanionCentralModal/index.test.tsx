@@ -3037,6 +3037,39 @@ describe('AddCompanionCentralModal', () => {
       });
     });
 
+    it('explains an unsupported photo type next to the photo and clears it on a good pick', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      const fileInput = screen.getByLabelText('Upload companion photo') as HTMLInputElement;
+      await act(async () => {
+        fireEvent.change(fileInput, {
+          target: { files: [new File(['heic'], 'pet.heic', { type: 'image/heic' })] },
+        });
+      });
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Please choose a PNG, JPG, GIF or WEBP image.'
+      );
+      // Nothing was taken, so the empty dropzone stays.
+      expect(screen.getByText('PHOTO')).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.change(fileInput, {
+          target: { files: [new File(['gif'], 'pet.gif', { type: 'image/gif' })] },
+        });
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText('PHOTO')).not.toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText('Please choose a PNG, JPG, GIF or WEBP image.')
+      ).not.toBeInTheDocument();
+    });
+
     it('ignores a photo change event with no file selected', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
