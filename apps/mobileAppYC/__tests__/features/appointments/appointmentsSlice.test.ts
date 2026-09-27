@@ -288,6 +288,31 @@ describe('appointmentsSlice', () => {
   });
 
   describe('fetchAppointmentsForCompanion', () => {
+    it('preserves local drafts when a stale response omits an appointment', () => {
+      const draft = {
+        observations: 'Low appetite',
+        questions: 'Could diet be involved?',
+        includeObservations: true,
+        includeQuestions: false,
+      };
+      const state = appointmentsReducer(
+        {
+          ...initialState,
+          items: [{...mockAppointment, id: 'new-appt', companionId: 'comp-1'}],
+          activeRequests: {'comp-1': 'newer-request'},
+          visitPreparationDrafts: {'new-appt': draft},
+        } as any,
+        fetchAppointmentsForCompanion.fulfilled(
+          {companionId: 'comp-1', items: []},
+          'older-request',
+          {companionId: 'comp-1'},
+        ),
+      );
+
+      expect(state.visitPreparationDrafts['new-appt']).toEqual(draft);
+      expect(state.activeRequests['comp-1']).toBe('newer-request');
+    });
+
     it('sets loading on pending and replaces hydrated companion appointments on fulfilled', async () => {
       const oldSameCompanion = {
         ...mockAppointment,

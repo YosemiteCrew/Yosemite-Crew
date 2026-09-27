@@ -477,12 +477,14 @@ const appointmentsSlice = createSlice({
         state.loading = false;
         const {companionId, items} = action.payload;
         const incomingIds = new Set(items.map(item => item.id));
-        state.items
-          .filter(
-            item =>
-              item.companionId === companionId && !incomingIds.has(item.id),
-          )
-          .forEach(item => delete state.visitPreparationDrafts?.[item.id]);
+        if (state.activeRequests?.[companionId] === action.meta.requestId) {
+          state.items
+            .filter(
+              item =>
+                item.companionId === companionId && !incomingIds.has(item.id),
+            )
+            .forEach(item => delete state.visitPreparationDrafts?.[item.id]);
+        }
         state.items = state.items.filter(a => a.companionId !== companionId);
         state.items.push(...items);
         markCollectionHydrated(

@@ -211,9 +211,11 @@ class VisitVoiceModule(
     }
 
     override fun invalidate() {
-        clearRecognition()
-        textToSpeech?.shutdown()
-        textToSpeech = null
+        mainHandler.post {
+            clearRecognition()
+            textToSpeech?.shutdown()
+            textToSpeech = null
+        }
         super.invalidate()
     }
 

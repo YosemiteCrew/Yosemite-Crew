@@ -61,6 +61,13 @@ final class VisitVoiceBridge: RCTEventEmitter, AVSpeechSynthesizerDelegate {
       }
 
       do {
+        let input = self.audioEngine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate.isFinite, format.sampleRate > 0, format.channelCount > 0 else {
+          reject("voice_unavailable", "Microphone input is unavailable.", nil)
+          return
+        }
+
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(
           .playAndRecord,
@@ -75,8 +82,6 @@ final class VisitVoiceBridge: RCTEventEmitter, AVSpeechSynthesizerDelegate {
         self.recognitionResolve = resolve
         self.recognitionReject = reject
 
-        let input = self.audioEngine.inputNode
-        let format = input.outputFormat(forBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
           request.append(buffer)
         }

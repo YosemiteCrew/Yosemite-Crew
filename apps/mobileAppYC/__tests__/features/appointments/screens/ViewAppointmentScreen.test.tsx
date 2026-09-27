@@ -1040,6 +1040,28 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.queryByTestId('visit-draft-review')).toBeNull();
     });
 
+    it.each(['REQUESTED', 'AWAITING_PAYMENT', 'PAYMENT_FAILED'])(
+      'hides visit preparation for chat-ineligible status %s',
+      status => {
+        const state = clone(defaultState);
+        state.appointments.items[0].status = status;
+
+        renderScreen(state);
+
+        expect(screen.queryByTestId('visit-draft-review')).toBeNull();
+      },
+    );
+
+    it('hides visit preparation when no practice recipient is assigned', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].employeeId = null;
+      state.appointments.items[0].employeeName = null;
+
+      renderScreen(state);
+
+      expect(screen.queryByTestId('visit-draft-review')).toBeNull();
+    });
+
     it('shows a loading state and fetches when the appointment is missing', () => {
       const state = clone(defaultState);
       state.appointments.items = [];
