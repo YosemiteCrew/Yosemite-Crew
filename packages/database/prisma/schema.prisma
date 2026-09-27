@@ -33,6 +33,19 @@ enum ContactStatus {
   CLOSED
 }
 
+enum PracticeProfileFieldEntity {
+  CLIENT
+  PATIENT
+}
+
+enum PracticeProfileFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+}
+
 enum PrescriptionDispenseRequestStatus {
   PENDING
   NOT_DISPENSED
@@ -534,10 +547,10 @@ enum MigrationAuditSeverity {
 /// inputHash pins the run to the exact bytes it validated, so re-running the
 /// same bundle is detectably the same input rather than a fresh guess.
 model MigrationAuditRun {
-  id              String                 @id @default(uuid())
+  id              String                @id @default(uuid())
   organisationId  String
   createdByUserId String
-  status          MigrationAuditStatus   @default(PENDING)
+  status          MigrationAuditStatus  @default(PENDING)
   /// sha256 of the concatenated source file bytes, in a fixed file order.
   inputHash       String
   /// { owners: s3Key, animals: s3Key, appointments: s3Key, attachments?: s3Key }
@@ -546,8 +559,8 @@ model MigrationAuditRun {
   /// assessed, duplicates, orphans. Absent while PENDING/RUNNING.
   summary         Json?
   errorMessage    String?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
   completedAt     DateTime?
   issues          MigrationAuditIssue[]
 
@@ -1128,11 +1141,50 @@ model Organization {
   createdAt                              DateTime             @default(now())
   updatedAt                              DateTime             @updatedAt
 
-  bookingSettings     PublicBookingSettings?
-  bookingSlugHistory  BookingSlugReservation[]
+  practiceProfileFields PracticeProfileField[]
+
+  bookingSettings       PublicBookingSettings?
+  bookingSlugHistory    BookingSlugReservation[]
   publicBookingRequests PublicBookingRequest[]
 
   @@index([googlePlacesId, name])
+}
+
+model PracticeProfileField {
+  id             String                     @id @default(uuid())
+  organisationId String
+  entityType     PracticeProfileFieldEntity
+  fieldKey       String
+  label          String
+  type           PracticeProfileFieldType
+  options        String[]                   @default([])
+  sortOrder      Int                        @default(0)
+  isActive       Boolean                    @default(true)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  organisation Organization                @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  values       PracticeProfileFieldValue[]
+
+  @@unique([organisationId, entityType, fieldKey])
+  @@unique([id, organisationId, entityType])
+  @@index([organisationId, entityType, isActive, sortOrder])
+}
+
+model PracticeProfileFieldValue {
+  id             String                     @id @default(uuid())
+  organisationId String
+  fieldId        String
+  entityType     PracticeProfileFieldEntity
+  entityId       String
+  value          Json
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  field PracticeProfileField @relation(fields: [fieldId, organisationId, entityType], references: [id, organisationId, entityType], onDelete: Cascade)
+
+  @@unique([fieldId, entityId])
+  @@index([organisationId, entityType, entityId])
 }
 
 model OrganizationAddress {
@@ -1234,7 +1286,7 @@ model PublicBookingRequest {
 
   /// SHA-256 of the emailed confirmation token. The token itself is never
   /// stored, so a database disclosure does not let anyone confirm requests.
-  confirmationTokenHash String   @unique
+  confirmationTokenHash String    @unique
   confirmationExpiresAt DateTime
   confirmedAt           DateTime?
 
@@ -1262,12 +1314,12 @@ model PublicBookingRequest {
 /// one public surface, and because `Organization` is already the widest row in
 /// the schema. Absent row means the practice has never opened the wizard.
 model PublicBookingSettings {
-  id             String @id @default(uuid())
-  organizationId String @unique
+  id                String   @id @default(uuid())
+  organizationId    String   @unique
   /// The services offered publicly. A service listed here is still re-checked
   /// against `isBookable` and `ACTIVE` when the page renders, so archiving a
   /// service withdraws it from the public page without anyone editing this list.
-  serviceIds     String[]
+  serviceIds        String[]
   /// How far ahead a pet owner may book.
   bookingWindowDays Int      @default(28)
   /// Padding added after a publicly booked slot.
@@ -1831,21 +1883,21 @@ model OrganizationUsageCounter {
 /// Programmatic API credential for the developer platform (humans + agents).
 /// Only the SHA-256 hash is stored; the plaintext secret is shown once at creation.
 model DeveloperApiKey {
-  id             String                    @id @default(uuid())
-  ownerUserId    String
-  name           String
-  prefix         String                    @unique
-  hashedKey      String                    @unique
-  last4          String
-  scopes         String[]                  @default([])
-  environment    DeveloperApiKeyEnvironment @default(live)
-  status         DeveloperApiKeyStatus      @default(active)
-  lastUsedAt     DateTime?
-  expiresAt      DateTime?
-  revokedAt      DateTime?
-  createdBy      String
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
+  id          String                     @id @default(uuid())
+  ownerUserId String
+  name        String
+  prefix      String                     @unique
+  hashedKey   String                     @unique
+  last4       String
+  scopes      String[]                   @default([])
+  environment DeveloperApiKeyEnvironment @default(live)
+  status      DeveloperApiKeyStatus      @default(active)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdBy   String
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
 
   @@index([ownerUserId])
   @@index([status])
@@ -2800,17 +2852,17 @@ model FormAssignment {
 // stored source snapshot lets the diff view detect a concurrent edit to the
 // source form and refuse to show a comparison against a base that has moved.
 model FormDraftImport {
-  id                      String   @id @default(uuid())
-  organisationId          String
-  sourceFormId            String?
+  id                        String    @id @default(uuid())
+  organisationId            String
+  sourceFormId              String?
   sourceFormVersionAtImport Int?
   sourceFormUpdatedAtImport DateTime?
-  draftFormId             String   @unique
-  suppliedText            String
-  unsupportedConstructs   Json
-  createdByUserId         String
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  draftFormId               String    @unique
+  suppliedText              String
+  unsupportedConstructs     Json
+  createdByUserId           String
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 
   sourceForm Form? @relation("FormDraftImportSource", fields: [sourceFormId], references: [id], onDelete: SetNull)
   draftForm  Form  @relation("FormDraftImportDraft", fields: [draftFormId], references: [id], onDelete: Cascade)
@@ -3090,9 +3142,9 @@ model Prescription {
   createdAt        DateTime                      @default(now())
   updatedAt        DateTime                      @updatedAt
 
-  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
-  supersedes   Prescription? @relation("PrescriptionSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
-  supersededBy Prescription? @relation("PrescriptionSupersession")
+  artifact     ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  supersedes   Prescription?    @relation("PrescriptionSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy Prescription?    @relation("PrescriptionSupersession")
 
   @@index([artifactId])
 }
@@ -7145,20 +7197,20 @@ model ParasiteRiskCell {
 
 /// A location a pet parent has asked to be alerted about.
 model ParasiteRiskSubscription {
-  id          String           @id @default(uuid())
-  parentId    String
-  latBucket   Float
-  lonBucket   Float
-  countryCode String
-  label       String
-  alertTier   ParasiteRiskTier @default(HIGH)
+  id           String           @id @default(uuid())
+  parentId     String
+  latBucket    Float
+  lonBucket    Float
+  countryCode  String
+  label        String
+  alertTier    ParasiteRiskTier @default(HIGH)
   /// Map of parasiteId to the tier last alerted on, so a sustained high tier
   /// does not re-notify every day.
   alertedTiers Json?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  parent      Parent           @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
 
   @@unique([parentId, latBucket, lonBucket])
   @@index([parentId])
@@ -7262,7 +7314,7 @@ model ProviderReceipt {
 /// thing it points at, because that is precisely the history a reconciliation
 /// works from.
 model ProviderReceiptAllocation {
-  id             String  @id @default(uuid())
+  id             String    @id @default(uuid())
   receiptId      String
   invoiceId      String
   amount         Float
@@ -7343,34 +7395,34 @@ model SupplierAccount {
 }
 
 model SupplierBill {
-  id                  String               @id @default(uuid())
-  organisationId      String
-  vendorId            String
-  supplierAccountId   String
-  externalReference   String
-  currency            String
-  status              SupplierBillStatus   @default(DRAFT)
-  version             Int                  @default(0)
-  postedAt            DateTime?
-  postedBy            String?
-  voidedAt            DateTime?
-  voidedBy            String?
-  voidReason          String?
-  idempotencyKey      String?
+  id                 String               @id @default(uuid())
+  organisationId     String
+  vendorId           String
+  supplierAccountId  String
+  externalReference  String
+  currency           String
+  status             SupplierBillStatus   @default(DRAFT)
+  version            Int                  @default(0)
+  postedAt           DateTime?
+  postedBy           String?
+  voidedAt           DateTime?
+  voidedBy           String?
+  voidReason         String?
+  idempotencyKey     String?
   /// Key of the post request that moved this bill to POSTED, so a retried post
   /// returns the posted bill instead of a conflict.
-  postIdempotencyKey  String?
-  expectedVersion     Int                  @default(0)
+  postIdempotencyKey String?
+  expectedVersion    Int                  @default(0)
   /// Gross amount owed to the supplier: line totals plus tax.
-  totalAmount         Float                @default(0)
-  taxTotal            Float                @default(0)
-  lines               SupplierBillLine[]
-  credits             SupplierCredit[]
-  allocations         SupplierAllocation[]
-  entries             SupplierEntry[]
-  documentId          String?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  totalAmount        Float                @default(0)
+  taxTotal           Float                @default(0)
+  lines              SupplierBillLine[]
+  credits            SupplierCredit[]
+  allocations        SupplierAllocation[]
+  entries            SupplierEntry[]
+  documentId         String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
 
@@ -7408,27 +7460,27 @@ model SupplierBillLine {
 }
 
 model SupplierCredit {
-  id                  String   @id @default(uuid())
-  organisationId      String
-  vendorId            String
-  supplierAccountId   String
-  billId              String?
-  receiptId           String?
-  externalReference   String
-  currency            String
-  amount              Float
-  reason              String?
-  documentId          String?
-  version             Int      @default(0)
-  idempotencyKey      String?
-  expectedVersion     Int      @default(0)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                String   @id @default(uuid())
+  organisationId    String
+  vendorId          String
+  supplierAccountId String
+  billId            String?
+  receiptId         String?
+  externalReference String
+  currency          String
+  amount            Float
+  reason            String?
+  documentId        String?
+  version           Int      @default(0)
+  idempotencyKey    String?
+  expectedVersion   Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  bill         SupplierBill?         @relation(fields: [billId], references: [id], onDelete: SetNull)
-  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
-  allocations  SupplierAllocation[]
-  entries      SupplierEntry[]
+  bill            SupplierBill?        @relation(fields: [billId], references: [id], onDelete: SetNull)
+  supplierAccount SupplierAccount      @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  allocations     SupplierAllocation[]
+  entries         SupplierEntry[]
 
   @@unique([organisationId, vendorId, externalReference])
   @@index([organisationId])
@@ -7438,22 +7490,22 @@ model SupplierCredit {
 }
 
 model SupplierPayment {
-  id                  String                @id @default(uuid())
-  organisationId      String
-  vendorId            String
-  supplierAccountId   String
-  amount              Float
-  currency            String
-  paidAt              DateTime
-  method              SupplierPaymentMethod
-  reference           String
-  version             Int                   @default(0)
-  idempotencyKey      String
-  expectedVersion     Int                   @default(0)
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  id                String                @id @default(uuid())
+  organisationId    String
+  vendorId          String
+  supplierAccountId String
+  amount            Float
+  currency          String
+  paidAt            DateTime
+  method            SupplierPaymentMethod
+  reference         String
+  version           Int                   @default(0)
+  idempotencyKey    String
+  expectedVersion   Int                   @default(0)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
-  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  supplierAccount SupplierAccount      @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
   allocations     SupplierAllocation[]
   entries         SupplierEntry[]
 
@@ -7464,22 +7516,22 @@ model SupplierPayment {
 }
 
 model SupplierAllocation {
-  id                  String   @id @default(uuid())
-  organisationId      String
-  supplierAccountId   String
-  creditId            String?
-  paymentId           String?
-  billId              String
-  amount              Float
-  idempotencyKey      String
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                String   @id @default(uuid())
+  organisationId    String
+  supplierAccountId String
+  creditId          String?
+  paymentId         String?
+  billId            String
+  amount            Float
+  idempotencyKey    String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  credit         SupplierCredit?   @relation(fields: [creditId], references: [id], onDelete: SetNull)
-  payment        SupplierPayment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  bill           SupplierBill      @relation(fields: [billId], references: [id], onDelete: Restrict)
-  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
-  entries        SupplierEntry[]
+  credit          SupplierCredit?  @relation(fields: [creditId], references: [id], onDelete: SetNull)
+  payment         SupplierPayment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  bill            SupplierBill     @relation(fields: [billId], references: [id], onDelete: Restrict)
+  supplierAccount SupplierAccount  @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  entries         SupplierEntry[]
 
   @@index([organisationId])
   @@index([supplierAccountId])
@@ -7491,26 +7543,26 @@ model SupplierAllocation {
 }
 
 model SupplierEntry {
-  id                  String             @id @default(uuid())
-  organisationId      String
-  vendorId            String
-  supplierAccountId   String
-  type                SupplierEntryType
-  billId              String?
-  creditId            String?
-  paymentId           String?
-  allocationId        String?
-  amount              Float
-  currency            String
-  description         String?
-  version             Int                @default(0)
-  createdAt           DateTime           @default(now())
+  id                String            @id @default(uuid())
+  organisationId    String
+  vendorId          String
+  supplierAccountId String
+  type              SupplierEntryType
+  billId            String?
+  creditId          String?
+  paymentId         String?
+  allocationId      String?
+  amount            Float
+  currency          String
+  description       String?
+  version           Int               @default(0)
+  createdAt         DateTime          @default(now())
 
-  bill           SupplierBill?      @relation(fields: [billId], references: [id], onDelete: SetNull)
-  credit         SupplierCredit?    @relation(fields: [creditId], references: [id], onDelete: SetNull)
-  payment        SupplierPayment?   @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  allocation     SupplierAllocation? @relation(fields: [allocationId], references: [id], onDelete: SetNull)
-  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  bill            SupplierBill?       @relation(fields: [billId], references: [id], onDelete: SetNull)
+  credit          SupplierCredit?     @relation(fields: [creditId], references: [id], onDelete: SetNull)
+  payment         SupplierPayment?    @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  allocation      SupplierAllocation? @relation(fields: [allocationId], references: [id], onDelete: SetNull)
+  supplierAccount SupplierAccount     @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
 
   @@index([organisationId, vendorId])
   @@index([supplierAccountId])
