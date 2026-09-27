@@ -43,6 +43,14 @@ const REPORT_COLUMNS = [
   "Currency",
   "Invoice",
 ];
+const PDF_COLUMNS = [
+  "Date (UTC)",
+  "Type",
+  "Status",
+  "Provider",
+  "Amount",
+  "Invoice",
+];
 const statusLabel = (status: string): string =>
   ({
     SUCCEEDED: "Completed",
@@ -221,7 +229,7 @@ export const buildPaymentActivityPdf = async (
       font,
     });
     y -= 24;
-    REPORT_COLUMNS.forEach((label, index) => {
+    PDF_COLUMNS.forEach((label, index) => {
       page.drawText(label, { x: columns[index], y, size: 8, font: bold });
     });
     y -= lineHeight;

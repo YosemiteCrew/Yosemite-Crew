@@ -148,6 +148,7 @@ describe("payment activity report", () => {
   });
 
   it("creates a readable PDF with an additional page for long reports", async () => {
+    const drawText = jest.spyOn(PDFPage.prototype, "drawText");
     const pdf = await buildPaymentActivityPdf(
       report([
         ...Array.from({ length: 40 }, (_, index) =>
@@ -161,6 +162,10 @@ describe("payment activity report", () => {
 
     const document = await PDFDocument.load(pdf);
     expect(document.getPageCount()).toBe(2);
+    expect(
+      drawText.mock.calls.every(([, options]) => Number.isFinite(options?.x)),
+    ).toBe(true);
+    drawText.mockRestore();
   });
 
   it("creates an empty report PDF without requiring any rows", async () => {
