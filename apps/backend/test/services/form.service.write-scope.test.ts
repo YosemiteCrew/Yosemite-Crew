@@ -272,6 +272,36 @@ describe("FormService.submitFHIR from the mobile app (concrete form)", () => {
     expect(db.formSubmission.create).toHaveBeenCalled();
   });
 
+  it.each([
+    ["a SOAP section", { category: "SOAP-Subjective" }],
+    ["a discharge summary", { category: "Discharge" }],
+    ["an internal form", { visibilityType: "Internal" }],
+  ])("returns 404 for %s", async (_label, fields) => {
+    tables.forms[0] = { ...tables.forms[0], ...fields };
+
+    await expectRefused(
+      submit({ appointmentId: APPOINTMENT, patientId: COMPANION }, asParent),
+      404,
+      "Form not found",
+    );
+    expect(db.appointment.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("records a form shown both internally and externally", async () => {
+    tables.forms[0] = {
+      ...tables.forms[0],
+      category: "Consent",
+      visibilityType: "Internal_External",
+    };
+
+    await submit(
+      { appointmentId: APPOINTMENT, patientId: COMPANION },
+      asParent,
+    );
+
+    expect(db.formSubmission.create).toHaveBeenCalled();
+  });
+
   it("returns 403 for ids that are not plain strings", async () => {
     await expectRefused(submit({ appointmentId: { not: "" } }, asParent));
     await expectRefused(submit({ patientId: { not: "" } }, asParent));
@@ -312,6 +342,21 @@ describe("FormService.submitFHIR from the PMS (concrete form)", () => {
   it("returns 403 for a companion that is not the organisation's", async () => {
     await expectRefused(submit({ patientId: OTHER_COMPANION }, asPractice));
     await expectRefused(submit({ patientId: "companion-pending" }, asPractice));
+  });
+
+  it("records the practice's SOAP and internal forms", async () => {
+    tables.forms[0] = {
+      ...tables.forms[0],
+      category: "SOAP-Subjective",
+      visibilityType: "Internal",
+    };
+
+    await submit(
+      { appointmentId: APPOINTMENT, patientId: COMPANION },
+      asPractice,
+    );
+
+    expect(db.formSubmission.create).toHaveBeenCalled();
   });
 
   it("returns 403 for one of the organisation's companions on another companion's appointment", async () => {

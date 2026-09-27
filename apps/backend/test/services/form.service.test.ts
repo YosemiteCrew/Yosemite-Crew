@@ -1045,11 +1045,14 @@ describe("FormService", () => {
         formId: validId,
         formVersion: 1,
         parentId: "parent-1",
+        patientId: "companion-1",
         submittedBy: "parent-1",
         submittedAt,
         answers: { a: 1 },
       });
-      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([
+        { patientId: "companion-1", role: "PRIMARY", permissions: {} },
+      ]);
       (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
         schemaSnapshot: [],
       });
@@ -1073,6 +1076,7 @@ describe("FormService", () => {
           formId: validId,
           formVersion: 1,
           parentId: "parent-1",
+          patientId: "companion-1",
           submittedBy: "parent-1",
           answers: {},
           signing: { status: "SIGNED" },
@@ -1080,7 +1084,9 @@ describe("FormService", () => {
       ]);
       (prisma.formVersion.findMany as jest.Mock).mockResolvedValue([]);
 
-      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([
+        { patientId: "companion-1", role: "PRIMARY", permissions: {} },
+      ]);
 
       const res = await FormService.listSubmissions(validId, "parent-1");
       expect(res).toEqual([
@@ -1376,11 +1382,14 @@ describe("FormService", () => {
       formId: "form-1",
       formVersion: 1,
       parentId: "parent-1",
+      patientId: "companion-1",
       submittedBy: "parent-1",
     };
 
     beforeEach(() => {
-      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([
+        { patientId: "companion-1", role: "PRIMARY", permissions: {} },
+      ]);
     });
 
     it("throws if submission missing", async () => {

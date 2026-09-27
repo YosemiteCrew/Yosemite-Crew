@@ -35,7 +35,12 @@ jest.mock("../../src/services/form-assignment.service", () => ({
   },
 }));
 jest.mock("../../src/services/fhir-template.mapper", () => ({
-  templateMapper: {},
+  templateMapper: {
+    templateToQuestionnaire: jest.fn((template) => ({ id: template.id })),
+    templateInstanceToQuestionnaireResponse: jest.fn((instance) => ({
+      ...instance,
+    })),
+  },
 }));
 jest.mock("../../src/services/formPDF.service", () => ({
   buildPdfViewModel: jest.fn(() => ({})),
@@ -49,6 +54,8 @@ jest.mock("src/config/prisma", () => ({
     appointment: { findUnique: jest.fn() },
     organization: { findUnique: jest.fn() },
     form: { findMany: jest.fn() },
+    templateInstance: { findMany: jest.fn() },
+    parent: { findMany: jest.fn() },
   },
 }));
 jest.mock("@yosemite-crew/types", () => ({
@@ -61,6 +68,8 @@ jest.mock("@yosemite-crew/types", () => ({
 
 import { FormService } from "../../src/services/form.service";
 import { DocumensoService } from "../../src/services/documenso.service";
+import { FormAssignmentService } from "../../src/services/form-assignment.service";
+import { TemplateService } from "../../src/services/template.service";
 import { prisma } from "src/config/prisma";
 
 const mockedPrisma = prisma as unknown as {
@@ -70,6 +79,8 @@ const mockedPrisma = prisma as unknown as {
   appointment: { findUnique: jest.Mock };
   organization: { findUnique: jest.Mock };
   form: { findMany: jest.Mock };
+  templateInstance: { findMany: jest.Mock };
+  parent: { findMany: jest.Mock };
 };
 
 const CALLER = "parent-caller";
@@ -81,6 +92,7 @@ const FORM = "form-org-a";
 const OTHER_ORG_FORM = "form-org-b";
 const APPOINTMENT = "appointment-1";
 const SOAP_FORM = "soap-form";
+const INTERNAL_FORM = "internal-form";
 
 type Row = Record<string, unknown>;
 
@@ -104,6 +116,7 @@ const VERSIONS: Row[] = [
   { formId: FORM, version: 2, schemaSnapshot: [{ id: "q-v2" }] },
   { formId: OTHER_ORG_FORM, version: 1, schemaSnapshot: [{ id: "q-b" }] },
   { formId: SOAP_FORM, version: 1, schemaSnapshot: [{ id: "q-soap" }] },
+  { formId: INTERNAL_FORM, version: 1, schemaSnapshot: [{ id: "q-int" }] },
 ];
 
 let submissionRows: Row[] = [];
@@ -229,7 +242,7 @@ beforeEach(() => {
 
 describe("FormService submission reads for a pet parent", () => {
   it("shows the caller's own submission", async () => {
-    useTables({ links: [], submissions: [ownRow(), ...foreignRows] });
+    useTables({ links: [link()], submissions: [ownRow(), ...foreignRows] });
 
     await expect(visibleThrough("own")).resolves.toEqual(SHOWN);
     await expect(listIds()).resolves.toEqual(["own"]);
@@ -238,14 +251,30 @@ describe("FormService submission reads for a pet parent", () => {
     ).resolves.toMatchObject({ parentId: CALLER, submittedBy: CALLER });
   });
 
-  it("keeps the caller's own submission after their link is revoked", async () => {
-    useTables({
-      links: [link({ status: "REVOKED" })],
-      submissions: [ownRow()],
-    });
+  it.each([
+    ["a REVOKED link", link({ status: "REVOKED" })],
+    ["a PENDING link", link({ status: "PENDING" })],
+    ["no link at all", link({ parentId: OTHER_PARENT })],
+  ])(
+    "returns 404 for the caller's own submission through %s",
+    async (_label, companionLink) => {
+      useTables({ links: [companionLink], submissions: [ownRow()] });
 
-    await expect(visibleThrough("own")).resolves.toEqual(SHOWN);
-  });
+      await expect(visibleThrough("own")).resolves.toEqual(HIDDEN);
+    },
+  );
+
+  it.each([
+    ["the appointments permission", { appointments: true }, SHOWN],
+    ["no appointments permission", { medicalRecords: true }, HIDDEN],
+  ])(
+    "reads a co-parent's own submission with %s",
+    async (_label, permissions, expected) => {
+      useTables({ links: [coParent(permissions)], submissions: [ownRow()] });
+
+      await expect(visibleThrough("own")).resolves.toEqual(expected);
+    },
+  );
 
   it("returns 404 for a practice-written row naming the caller once the link is revoked", async () => {
     useTables({
@@ -256,7 +285,7 @@ describe("FormService submission reads for a pet parent", () => {
     await expect(visibleThrough("practice-for-caller")).resolves.toEqual(
       HIDDEN,
     );
-    await expect(listIds()).resolves.toEqual(["own"]);
+    await expect(listIds()).resolves.toEqual([]);
   });
 
   it.each([
@@ -653,6 +682,7 @@ describe("FormService appointment forms for a pet parent", () => {
   const FORM_ROWS = [
     formRow(FORM, "Consent"),
     formRow(SOAP_FORM, "SOAP-Subjective"),
+    { ...formRow(INTERNAL_FORM, "Custom"), visibilityType: "Internal" },
   ];
 
   const signed = (
@@ -727,7 +757,7 @@ describe("FormService appointment forms for a pet parent", () => {
   beforeEach(() => {
     mockedPrisma.appointment.findUnique.mockResolvedValue({
       organisationId: ORG,
-      formIds: [FORM],
+      formIds: [FORM, INTERNAL_FORM],
       patient: { id: COMPANION },
     });
     mockedPrisma.organization.findUnique.mockResolvedValue({
@@ -778,6 +808,20 @@ describe("FormService appointment forms for a pet parent", () => {
     });
   });
 
+  it("lists a practice form the caller signed only as answered once they may not read it", async () => {
+    useTables({
+      links: [coParent({ appointments: true })],
+      submissions: [consentSentToCaller],
+    });
+
+    const consent = responseOf(await readForms(), FORM);
+
+    expect(consent).toMatchObject({ _id: "consent-sent-to-caller" });
+    expect(consent?.answers).toEqual({});
+    expect(consent?.signing).toEqual(SIGNING_STATE);
+    expect(DocumensoService.downloadSignedDocument).not.toHaveBeenCalled();
+  });
+
   it("keeps the signing state and signed copy of the caller's own form", async () => {
     useTables({ links: [link()], submissions: [practiceNote, ownConsent] });
 
@@ -803,7 +847,7 @@ describe("FormService appointment forms for a pet parent", () => {
       coParent({ appointments: true }),
     ],
   ])(
-    "leaves the practice's note unanswered for a co-parent with %s",
+    "leaves the practice's note out for a co-parent with %s",
     async (_label, companionLink) => {
       useTables({
         links: [companionLink],
@@ -812,11 +856,55 @@ describe("FormService appointment forms for a pet parent", () => {
 
       const forms = await readForms();
 
-      expect(forms.get(SOAP_FORM)).toMatchObject({ status: "pending" });
-      expect(responseOf(forms, SOAP_FORM)).toBeUndefined();
+      expect(forms.has(SOAP_FORM)).toBe(false);
       expect(responseOf(forms, FORM)).toMatchObject({ _id: "own-consent" });
     },
   );
+
+  it("leaves out practice-only forms with nothing on them, and lists the rest as pending", async () => {
+    useTables({ links: [link()], submissions: [] });
+
+    const forms = await readForms();
+
+    expect([...forms.keys()]).toEqual([FORM]);
+    expect(forms.get(FORM)).toMatchObject({ status: "pending" });
+  });
+
+  it("lists every form to the practice, practice-only ones included", async () => {
+    useTables({ links: [], submissions: [] });
+
+    const forms = await readForms({ requesterOrgId: ORG });
+
+    expect([...forms.keys()].sort()).toEqual(
+      [FORM, INTERNAL_FORM, SOAP_FORM].sort(),
+    );
+  });
+
+  it("lists a practice row a co-parent may not read as answered, without its answers", async () => {
+    useTables({
+      links: [coParent({ appointments: true })],
+      submissions: [
+        onAppointment("practice-consent", {
+          parentId: CALLER,
+          submittedBy: STAFF,
+          signing: signed("55", "vet@example.com", "VET"),
+        }),
+      ],
+    });
+
+    const forms = await readForms();
+    const consent = responseOf(forms, FORM);
+
+    expect(forms.get(FORM)).toMatchObject({ status: "completed" });
+    expect(consent).toMatchObject({
+      _id: "practice-consent",
+      parentId: undefined,
+      submittedBy: undefined,
+    });
+    expect(consent?.answers).toEqual({});
+    expect(consent?.signing).toEqual(SIGNING_STATE);
+    expect(DocumensoService.downloadSignedDocument).not.toHaveBeenCalled();
+  });
 
   it("shows the practice's note to a co-parent with the medical records permission", async () => {
     useTables({
@@ -902,5 +990,247 @@ describe("FormService appointment forms for a pet parent", () => {
       signing: { status: "SIGNED", pdf: { url: "https://signed.example/88" } },
     });
     expect(mockedPrisma.parentPatient.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("FormService template-backed appointment forms for a pet parent", () => {
+  const ORG = "org-clinic";
+
+  const assignment = (templateId: string, overrides: Row = {}): Row => ({
+    id: `assignment-${templateId}`,
+    templateId,
+    templateVersion: 1,
+    mobileVisible: true,
+    signerUserId: CALLER,
+    signerName: "Caller Parent",
+    signerEmail: "caller@example.com",
+    signerRole: "CLIENT",
+    signerIdentity: { userId: CALLER, email: "caller@example.com" },
+    createdBy: STAFF,
+    updatedBy: STAFF,
+    status: "sent",
+    ...overrides,
+  });
+
+  const instance = (templateId: string, overrides: Row = {}): Row => ({
+    id: `instance-${templateId}`,
+    templateId,
+    templateVersion: 1,
+    organisationId: ORG,
+    appointmentId: APPOINTMENT,
+    caseId: "case-1",
+    encounterId: "encounter-1",
+    status: "COMPLETED",
+    data: { q: templateId },
+    signedBy: null,
+    signedAt: null,
+    generatedPdfUrl: `https://pdf.example/${templateId}`,
+    generatedPdf: { key: templateId },
+    ...overrides,
+  });
+
+  // A form another parent (the primary) filled in, and one the practice did.
+  const INSTANCES = [
+    instance("tpl-parent", { authorId: OTHER_PARENT }),
+    instance("tpl-practice", { authorId: STAFF }),
+  ];
+
+  const useTemplates = (tables: {
+    links: Row[];
+    instances?: Row[];
+    assignments?: Row[];
+  }) => {
+    useTables({ links: tables.links, submissions: [] });
+    (FormAssignmentService.listForAppointment as jest.Mock).mockResolvedValue(
+      tables.assignments ?? [
+        assignment("tpl-parent"),
+        assignment("tpl-practice"),
+        assignment("tpl-not-sent", { mobileVisible: false }),
+      ],
+    );
+    mockedPrisma.templateInstance.findMany.mockResolvedValue(
+      tables.instances ?? INSTANCES,
+    );
+  };
+
+  const readTemplateForms = async (
+    params: { viewerParentId?: string; requesterOrgId?: string } = {
+      viewerParentId: CALLER,
+    },
+  ) => {
+    const result = (await FormService.getFormsForAppointment({
+      appointmentId: APPOINTMENT,
+      ...params,
+    })) as unknown as { items: Row[] };
+    return new Map(
+      result.items.map((item) => [item.templateId as string, item]),
+    );
+  };
+
+  const responseOf = (items: Map<string, Row>, templateId: string) =>
+    items.get(templateId)?.questionnaireResponse as Row | undefined;
+
+  beforeEach(() => {
+    mockedPrisma.appointment.findUnique.mockResolvedValue({
+      organisationId: ORG,
+      formIds: [],
+      patient: { id: COMPANION },
+    });
+    (TemplateService.getById as jest.Mock).mockImplementation(
+      async (templateId: string) => ({ id: templateId }),
+    );
+    mockedPrisma.parent.findMany.mockImplementation(async ({ where }) =>
+      [{ id: CALLER }, { id: OTHER_PARENT }].filter((row) =>
+        matches(row, where),
+      ),
+    );
+  });
+
+  afterEach(() => {
+    (FormAssignmentService.listForAppointment as jest.Mock).mockResolvedValue(
+      [],
+    );
+  });
+
+  it("lists only what was sent to the app, without who created or signs it", async () => {
+    useTemplates({ links: [link()] });
+
+    const items = await readTemplateForms();
+
+    expect([...items.keys()]).toEqual(["tpl-parent", "tpl-practice"]);
+    for (const item of items.values()) {
+      for (const field of [
+        "signerUserId",
+        "signerName",
+        "signerEmail",
+        "signerIdentity",
+        "createdBy",
+        "updatedBy",
+      ]) {
+        expect(item[field]).toBeUndefined();
+      }
+    }
+  });
+
+  it("lists nothing to a parent when nothing was sent to the app", async () => {
+    useTemplates({
+      links: [link()],
+      assignments: [assignment("tpl-not-sent", { mobileVisible: false })],
+    });
+
+    await expect(readTemplateForms()).resolves.toEqual(new Map());
+  });
+
+  it("shows the primary parent every answer, without the submitter or the generated PDF", async () => {
+    useTemplates({ links: [link()] });
+
+    const items = await readTemplateForms();
+
+    for (const templateId of ["tpl-parent", "tpl-practice"]) {
+      expect(responseOf(items, templateId)).toMatchObject({
+        data: { q: templateId },
+        authorId: null,
+        generatedPdfUrl: null,
+        generatedPdf: null,
+      });
+    }
+  });
+
+  it("shows a co-parent without medical records the parent's answers and only that the practice's form is answered", async () => {
+    useTemplates({ links: [coParent({ appointments: true })] });
+
+    const items = await readTemplateForms();
+
+    expect(responseOf(items, "tpl-parent")).toMatchObject({
+      data: { q: "tpl-parent" },
+      authorId: null,
+      generatedPdfUrl: null,
+    });
+    expect(items.get("tpl-practice")).toMatchObject({ status: "completed" });
+    expect(responseOf(items, "tpl-practice")?.data).toEqual({});
+    expect(responseOf(items, "tpl-practice")).toMatchObject({
+      id: "instance-tpl-practice",
+      status: "COMPLETED",
+      authorId: null,
+      caseId: null,
+      encounterId: null,
+      generatedPdfUrl: null,
+      generatedPdf: null,
+    });
+  });
+
+  it("treats a form with no author recorded as the practice's", async () => {
+    useTemplates({
+      links: [coParent({ appointments: true })],
+      instances: [instance("tpl-practice", { authorId: null })],
+    });
+
+    const items = await readTemplateForms();
+
+    expect(responseOf(items, "tpl-practice")?.data).toEqual({});
+    expect(mockedPrisma.parent.findMany).not.toHaveBeenCalled();
+  });
+
+  it("shows a co-parent with medical records the practice's answers", async () => {
+    useTemplates({
+      links: [coParent({ appointments: true, medicalRecords: true })],
+    });
+
+    const items = await readTemplateForms();
+
+    expect(responseOf(items, "tpl-practice")).toMatchObject({
+      data: { q: "tpl-practice" },
+      authorId: null,
+      generatedPdfUrl: null,
+    });
+  });
+
+  it.each([
+    ["filled in", { authorId: CALLER }, coParent({ appointments: true })],
+    ["signed", { authorId: STAFF, signedBy: CALLER }, link()],
+  ])(
+    "keeps the submitter and the generated PDF on a form the caller %s",
+    async (_label, overrides, companionLink) => {
+      const own = instance("tpl-practice", overrides);
+      useTemplates({ links: [companionLink], instances: [own] });
+
+      const items = await readTemplateForms();
+
+      expect(responseOf(items, "tpl-practice")).toEqual(own);
+    },
+  );
+
+  it("shows a signer who may not read the practice's form only that it is answered", async () => {
+    useTemplates({
+      links: [coParent({ appointments: true })],
+      instances: [
+        instance("tpl-practice", { authorId: STAFF, signedBy: CALLER }),
+      ],
+    });
+
+    const items = await readTemplateForms();
+
+    expect(responseOf(items, "tpl-practice")?.data).toEqual({});
+    expect(responseOf(items, "tpl-practice")).toMatchObject({
+      generatedPdfUrl: null,
+    });
+  });
+
+  it("leaves the practice view unchanged", async () => {
+    useTemplates({ links: [] });
+
+    const items = await readTemplateForms({ requesterOrgId: ORG });
+
+    expect([...items.keys()]).toEqual([
+      "tpl-parent",
+      "tpl-practice",
+      "tpl-not-sent",
+    ]);
+    expect(items.get("tpl-parent")).toMatchObject({
+      signerEmail: "caller@example.com",
+      createdBy: STAFF,
+    });
+    expect(responseOf(items, "tpl-practice")).toEqual(INSTANCES[1]);
+    expect(mockedPrisma.parent.findMany).not.toHaveBeenCalled();
   });
 });

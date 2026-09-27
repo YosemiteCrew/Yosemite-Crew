@@ -206,6 +206,8 @@ type VersionAgg = {
 type SubmissionAgg = Omit<FormSubmissionDocument, "_id" | "formId"> & {
   _id: string;
   formId: string;
+  // A submission the viewing parent may not read, listed only as answered.
+  hidden?: boolean;
 };
 type AppointmentLean = {
   organisationId: string;
@@ -219,6 +221,14 @@ const SOAP_CATEGORIES = [
   "SOAP-Plan",
   "Discharge",
 ];
+
+// Forms only the practice fills in: the SOAP sections, the discharge summary
+// and any form kept internal.
+const isPracticeOnlyForm = (form: {
+  category: string;
+  visibilityType?: string | null;
+}) =>
+  SOAP_CATEGORIES.includes(form.category) || form.visibilityType === "Internal";
 
 const resolveOrganizationType = async (
   organisationId: string,
@@ -355,7 +365,7 @@ const loadLatestVersions = async (
 };
 
 // With `viewerParentId`, the latest per form among the submissions that parent
-// may see (see `parentMaySeeSubmission`).
+// may see (see `parentMaySeeSubmission`), or else the latest one, marked hidden.
 const loadLatestSubmissions = async (
   appointmentId: string,
   forms: LeanForm[],
@@ -375,15 +385,13 @@ const loadLatestSubmissions = async (
 
   const latest = new Map<string, SubmissionAgg>();
   for (const submission of submissions) {
-    if (
-      viewerParentId &&
-      !parentMaySeeSubmission(submission, viewerParentId, links)
-    ) {
-      continue;
-    }
-    if (!latest.has(submission.formId)) {
+    const hidden =
+      !!viewerParentId && !parentMaySeeSubmission(submission, links);
+    const current = latest.get(submission.formId);
+    if (!current || (current.hidden && !hidden)) {
       latest.set(submission.formId, {
         ...submission,
+        hidden,
         _id: submission.id,
         formId: submission.formId,
         parentId: submission.parentId ?? undefined,
@@ -437,11 +445,17 @@ const buildQuestionnaireResponse = async (
   viewerParentId?: string,
 ) => {
   if (!submission) return undefined;
-  // Any other parent sees only whether it needs, and has, a signature.
-  if (viewerParentId && !parentHoldsSigning(submission, viewerParentId)) {
+  // Any other parent sees only whether it needs, and has, a signature, and a
+  // submission they may not read only as answered.
+  if (
+    viewerParentId &&
+    (submission.hidden || !parentHoldsSigning(submission, viewerParentId))
+  ) {
     const { signing } = submission;
     return toParentSubmissionResponse(
-      { ...submission, id: submission._id },
+      submission.hidden
+        ? { ...submission, id: submission._id, parentId: null, answers: {} }
+        : { ...submission, id: submission._id },
       version.schemaSnapshot,
       signing && {
         required: signing.required,
@@ -798,8 +812,19 @@ const buildAppointmentFormItems = async (params: {
         })
       : undefined;
 
+    const submission = params.submissionMap.get(formId);
+    // A parent cannot fill in a practice-only form, so one with nothing they
+    // may read is left out rather than listed as pending.
+    if (
+      params.viewerParentId &&
+      (!submission || submission.hidden) &&
+      isPracticeOnlyForm(form)
+    ) {
+      continue;
+    }
+
     const questionnaireResponse = await buildQuestionnaireResponse(
-      params.submissionMap.get(formId),
+      submission,
       version,
       form.orgId,
       params.viewerParentId,
@@ -815,11 +840,75 @@ const buildAppointmentFormItems = async (params: {
   return items;
 };
 
+type AppointmentTemplateInstance = Prisma.TemplateInstanceGetPayload<
+  Record<string, never>
+>;
+
+// What a parent sees of a template instance they may read: all of it when they
+// filled it in or signed it, else the answers without the submitter or the
+// generated PDF. One they may not read shows only that it is answered.
+const templateInstanceForParent = (
+  instance: AppointmentTemplateInstance,
+  parentId: string,
+  readable: boolean,
+): AppointmentTemplateInstance => {
+  if (
+    readable &&
+    (instance.authorId === parentId || instance.signedBy === parentId)
+  ) {
+    return instance;
+  }
+  const trimmed = {
+    ...instance,
+    authorId: null,
+    generatedPdfUrl: null,
+    generatedPdf: null,
+  };
+  return readable
+    ? trimmed
+    : { ...trimmed, data: {}, caseId: null, encounterId: null };
+};
+
+// The same rule as for form submissions: a co-parent reads a form a parent
+// filled in with the appointments permission, which viewing the appointment
+// already needs, and one the practice filled in with medical records.
+const templateInstancesForParent = async (
+  instances: AppointmentTemplateInstance[],
+  viewer: { parentId: string; patientId?: string },
+) => {
+  const authorIds = [
+    ...new Set(instances.map((instance) => instance.authorId).filter(Boolean)),
+  ] as string[];
+  const [parentAuthors, mayReadPracticeRows] = await Promise.all([
+    authorIds.length
+      ? prisma.parent.findMany({
+          where: { id: { in: authorIds } },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    parentHasCompanionFeature(
+      viewer.parentId,
+      viewer.patientId,
+      "medicalRecords",
+    ),
+  ]);
+  const parentAuthorIds = new Set(parentAuthors.map((parent) => parent.id));
+  return instances.map((instance) =>
+    templateInstanceForParent(
+      instance,
+      viewer.parentId,
+      mayReadPracticeRows ||
+        (!!instance.authorId && parentAuthorIds.has(instance.authorId)),
+    ),
+  );
+};
+
 const buildTemplateAppointmentFormItems = async (params: {
   appointmentId: string;
   organisationId: string;
   isPMS?: boolean;
   canManageForms?: boolean;
+  viewer?: { parentId: string; patientId?: string };
 }) => {
   // Only a caller who may EDIT forms materialises linked-template assignments;
   // for everyone else this listing is read-only.
@@ -829,14 +918,31 @@ const buildTemplateAppointmentFormItems = async (params: {
     canManageForms: params.canManageForms ?? false,
   });
 
-  const assignments = await FormAssignmentService.listForAppointment(
+  const allAssignments = await FormAssignmentService.listForAppointment(
     params.organisationId,
     params.appointmentId,
   );
 
-  if (!assignments.length) {
+  if (!allAssignments.length) {
     return null;
   }
+
+  // A parent sees only what the practice sent to the app, without who created
+  // or signs it.
+  const viewer = params.viewer;
+  const assignments = viewer
+    ? allAssignments
+        .filter((assignment) => assignment.mobileVisible)
+        .map((assignment) => ({
+          ...assignment,
+          signerUserId: undefined,
+          signerName: undefined,
+          signerEmail: undefined,
+          signerIdentity: undefined,
+          createdBy: undefined,
+          updatedBy: undefined,
+        }))
+    : allAssignments;
 
   const uniqueTemplateIds = [
     ...new Set(assignments.map((item) => item.templateId)),
@@ -860,8 +966,11 @@ const buildTemplateAppointmentFormItems = async (params: {
     },
   });
 
+  const listedInstances = viewer
+    ? await templateInstancesForParent(instances, viewer)
+    : instances;
   const instanceMap = new Map(
-    instances.map((instance) => [
+    listedInstances.map((instance) => [
       `${instance.templateId}:${instance.templateVersion}`,
       instance,
     ]),
@@ -932,12 +1041,8 @@ type CompanionLinkRow = {
   permissions: unknown;
 };
 
-// A form the parent filled in names them as both parent and submitter. A row
-// the practice wrote names the client as parent and a practice user as
-// submitter, so it is never "own" for the parent it names.
-const isOwnSubmission = (submission: SubmissionAccessRow, parentId: string) =>
-  submission.parentId === parentId && submission.submittedBy === parentId;
-
+// A form a parent filled in names them as both parent and submitter. A row the
+// practice wrote names the client as parent and a practice user as submitter.
 const isParentFilled = (submission: SubmissionAccessRow) =>
   !!submission.submittedBy && submission.submittedBy === submission.parentId;
 
@@ -961,17 +1066,15 @@ const loadActiveCompanionLinks = (
   });
 
 /**
- * Whether the pet parent `parentId` may see a form submission: their own, or
- * one for a companion they hold an ACTIVE link to, with the permission
- * `submissionFeature` names for a co-parent. `links` are the parent's ACTIVE
- * links from `loadActiveCompanionLinks`.
+ * Whether the pet parent `parentId` may see a form submission, their own
+ * included: one for a companion they hold an ACTIVE link to, with the
+ * permission `submissionFeature` names for a co-parent. `links` are the
+ * parent's ACTIVE links from `loadActiveCompanionLinks`.
  */
 const parentMaySeeSubmission = (
   submission: SubmissionAccessRow,
-  parentId: string,
   links: CompanionLinkRow[],
 ): boolean => {
-  if (isOwnSubmission(submission, parentId)) return true;
   if (!submission.patientId) return false;
   const link = links.find((row) => row.patientId === submission.patientId);
   return (
@@ -1529,11 +1632,15 @@ export const FormService = {
 
     const formOrganisation = await prisma.form.findUnique({
       where: { id: formIdString },
-      select: { orgId: true },
+      select: { orgId: true, category: true, visibilityType: true },
     });
 
     if (!formOrganisation) {
       return submitViaTemplateInstance(formIdString, submission, actor);
+    }
+    // A parent is never shown a practice-only form to fill in.
+    if ("parentId" in actor && isPracticeOnlyForm(formOrganisation)) {
+      throw new FormServiceError("Form not found", 404);
     }
     await assertFormSubmittableBy(submission, formOrganisation.orgId, actor);
 
@@ -1608,7 +1715,7 @@ export const FormService = {
     });
     if (
       !sub ||
-      !parentMaySeeSubmission(sub, pid, await loadActiveCompanionLinks(pid))
+      !parentMaySeeSubmission(sub, await loadActiveCompanionLinks(pid))
     ) {
       throw new FormServiceError("Submission not found", 404);
     }
@@ -1629,16 +1736,11 @@ export const FormService = {
     const rows = await prisma.formSubmission.findMany({
       where: {
         formId: fid,
-        OR: [
-          { parentId: pid, submittedBy: pid },
-          { patientId: { in: links.map((link) => link.patientId) } },
-        ],
+        patientId: { in: links.map((link) => link.patientId) },
       },
       orderBy: { submittedAt: "desc" },
     });
-    const visible = rows.filter((row) =>
-      parentMaySeeSubmission(row, pid, links),
-    );
+    const visible = rows.filter((row) => parentMaySeeSubmission(row, links));
     if (!visible.length) return [];
 
     const versions = await prisma.formVersion.findMany({
@@ -1903,11 +2005,7 @@ export const FormService = {
     });
     if (
       !submission ||
-      !parentMaySeeSubmission(
-        submission,
-        pid,
-        await loadActiveCompanionLinks(pid),
-      )
+      !parentMaySeeSubmission(submission, await loadActiveCompanionLinks(pid))
     ) {
       throw new FormServiceError("Submission not found", 404);
     }
@@ -1986,6 +2084,12 @@ export const FormService = {
       organisationId: appointment.organisationId,
       isPMS: params.isPMS,
       canManageForms: params.canManageForms,
+      viewer: params.viewerParentId
+        ? {
+            parentId: params.viewerParentId,
+            patientId: resolveAppointmentPatientId(appointment),
+          }
+        : undefined,
     });
 
     if (templateBackedForms) {
