@@ -159,9 +159,11 @@ const isUserInOrg = async (
   userId: string,
   organisationId: string,
 ): Promise<boolean> => {
+  // A deactivated membership is no membership, as in the permission check.
   const mapping = await prisma.userOrganization.findFirst({
     where: {
       practitionerReference: userId,
+      active: true,
       OR: [
         { organizationReference: organisationId },
         { organizationReference: `Organization/${organisationId}` },
@@ -244,6 +246,12 @@ export const ChatService = {
     });
     if (!appointment) {
       throw new ChatServiceError("Appointment not found", 404);
+    }
+    if (appointment.status === "CANCELLED") {
+      throw new ChatServiceError(
+        "Chat not available for this appointment status.",
+        409,
+      );
     }
 
     const existing = await prisma.chatSession.findFirst({

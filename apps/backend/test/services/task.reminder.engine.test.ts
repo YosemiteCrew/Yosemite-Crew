@@ -101,6 +101,38 @@ describe("TaskReminderEngine", () => {
     }
   });
 
+  it("skips a task with no companion without looking any companion up", async () => {
+    jest.useFakeTimers({ now: new Date("2026-01-01T12:00:01.000Z") });
+    try {
+      prismaMock.task.findMany.mockResolvedValue([
+        dueTask({ patientId: null }),
+      ]);
+
+      await TaskReminderEngine.run();
+
+      expect(prismaMock.patient.findFirst).not.toHaveBeenCalled();
+      expect(sendToUserMock).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("looks up exactly the task's companion", async () => {
+    jest.useFakeTimers({ now: new Date("2026-01-01T12:00:01.000Z") });
+    try {
+      prismaMock.task.findMany.mockResolvedValue([dueTask()]);
+
+      await TaskReminderEngine.run();
+
+      expect(prismaMock.patient.findFirst).toHaveBeenCalledWith({
+        where: { id: dueTask().patientId },
+        select: { name: true },
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("does not resend once scheduledNotificationId is already set", async () => {
     jest.useFakeTimers({ now: new Date("2026-01-01T12:00:01.000Z") });
     try {

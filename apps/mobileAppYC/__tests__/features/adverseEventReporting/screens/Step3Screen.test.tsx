@@ -16,10 +16,20 @@ const mockNavigation = {
   goBack: mockGoBack,
 } as any;
 
-// 2. Redux — Step3Screen only reads via useSelector; the business card
-// (which uses useDispatch) is mocked below, so useSelector alone is enough.
+// 2. Redux: the screen reads the linked businesses and loads the ones for
+// the report's companion.
+const mockDispatch = jest.fn();
 jest.mock('react-redux', () => ({
   useSelector: jest.fn(),
+  useDispatch: () => mockDispatch,
+}));
+
+const mockFetchLinkedBusinesses = jest.fn((args: unknown) => ({
+  type: 'linkedBusinesses/fetch',
+  args,
+}));
+jest.mock('../../../../src/features/linkedBusinesses/thunks', () => ({
+  fetchLinkedBusinesses: (args: unknown) => mockFetchLinkedBusinesses(args),
 }));
 
 // 3. Context
@@ -81,22 +91,35 @@ jest.mock(
 // --- Test Suite ---
 
 describe('Step3Screen', () => {
+  const hospital = (id: string, businessName: string, over = {}) => ({
+    id,
+    businessName,
+    companionId: 'pet-1',
+    businessId: `org-${id}`,
+    category: 'hospital',
+    state: 'active',
+    ...over,
+  });
   const mockBusinesses = [
-    {id: 'b1', businessName: 'Vet Clinic A'},
-    {id: 'b2', businessName: 'Animal Hospital B'},
+    hospital('b1', 'Vet Clinic A'),
+    hospital('b2', 'Animal Hospital B'),
   ];
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  const setup = (draftId: string | null = null) => {
+  const setup = (
+    draftId: string | null = null,
+    businesses: unknown[] = mockBusinesses,
+    companionId: string | null = 'pet-1',
+  ) => {
     (useAdverseEventReport as jest.Mock).mockReturnValue({
-      draft: {linkedBusinessId: draftId},
+      draft: {linkedBusinessId: draftId, companionId},
       updateDraft: mockUpdateDraft,
     });
 
-    (useSelector as unknown as jest.Mock).mockReturnValue(mockBusinesses);
+    (useSelector as unknown as jest.Mock).mockReturnValue(businesses);
 
     return render(
       <Step3Screen navigation={mockNavigation} route={{} as any} />,
@@ -116,6 +139,41 @@ describe('Step3Screen', () => {
     const card2 = getByTestId('business-card-b2');
     expect(within(card1).getByText('UNSELECTED')).toBeTruthy();
     expect(within(card2).getByText('UNSELECTED')).toBeTruthy();
+  });
+
+  it("loads the report companion's hospitals", () => {
+    setup(null);
+
+    expect(mockFetchLinkedBusinesses).toHaveBeenCalledWith({
+      companionId: 'pet-1',
+      category: 'hospital',
+    });
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'linkedBusinesses/fetch',
+      args: {companionId: 'pet-1', category: 'hospital'},
+    });
+  });
+
+  it('loads nothing before a companion is chosen', () => {
+    setup(null, mockBusinesses, null);
+
+    expect(mockFetchLinkedBusinesses).not.toHaveBeenCalled();
+  });
+
+  it('offers only hospitals actively linked to the report companion', () => {
+    const {getByText, queryByText} = setup(null, [
+      hospital('b1', 'Vet Clinic A'),
+      hospital('b3', 'Other Pet Clinic', {companionId: 'pet-2'}),
+      hospital('b4', 'Pending Clinic', {state: 'pending'}),
+      hospital('b5', 'Groomer', {category: 'groomer'}),
+      hospital('b6', 'Not On The Platform', {businessId: undefined}),
+    ]);
+
+    expect(getByText('Vet Clinic A')).toBeTruthy();
+    expect(queryByText('Other Pet Clinic')).toBeNull();
+    expect(queryByText('Pending Clinic')).toBeNull();
+    expect(queryByText('Groomer')).toBeNull();
+    expect(queryByText('Not On The Platform')).toBeNull();
   });
 
   it('renders correctly with a pre-selected business from draft', () => {
@@ -200,7 +258,7 @@ describe('Step3Screen', () => {
 
   it('reads linked businesses from redux state via the selector', () => {
     (useAdverseEventReport as jest.Mock).mockReturnValue({
-      draft: {linkedBusinessId: null},
+      draft: {linkedBusinessId: null, companionId: 'pet-1'},
       updateDraft: mockUpdateDraft,
     });
 

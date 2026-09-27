@@ -48,7 +48,17 @@ export const DeviceTokenService = {
     }));
   },
 
+  /** Drops a token the push provider reported as no longer valid. */
   async removeToken(deviceToken: string) {
     await prisma.deviceToken.deleteMany({ where: { deviceToken } });
+  },
+
+  /** A signed-in caller removes their own device; anyone else's stays. */
+  async removeTokenForOwners(deviceToken: string, ownerIds: string[]) {
+    const owners = ownerIds.filter((id) => typeof id === "string" && id);
+    if (!owners.length) return;
+    await prisma.deviceToken.deleteMany({
+      where: { deviceToken, userId: { in: owners } },
+    });
   },
 };

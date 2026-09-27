@@ -353,14 +353,24 @@ const isOwnParent = async (id: string, authUserId: string | undefined) => {
   return Boolean(parentId) && parentId === id;
 };
 
-/** PMS reads and edits are limited to the acting practice's own clients. */
+/**
+ * Mobile callers reach only their own parent record, and PMS reads and edits
+ * only the acting practice's own clients. Any other context reaches nothing.
+ */
 const mayAccessParent = async (id: string, ctx?: ParentCreateContext) => {
   if (ctx?.source === "mobile") return isOwnParent(id, ctx.authUserId);
   if (ctx?.source === "pms") {
     return isParentInOrganisation(id, ctx.organisationId);
   }
-  return true;
+  return false;
 };
+
+/**
+ * How long a practice may treat a client it entered, and has not yet linked to
+ * any companion, as its own: long enough to finish adding the client's first
+ * companion. After that a parent without links is not the practice's to use.
+ */
+const NEW_CLIENT_WINDOW_MS = 15 * 60 * 1000;
 
 const resolveParentRecord = async (id: string) =>
   prisma.parent.findUnique({
@@ -736,8 +746,8 @@ export const ParentService = {
 
   /**
    * Whether a practice may add a companion for this parent: one of its own
-   * clients, or a client it has just created (entered through the PMS and not
-   * yet linked to any companion).
+   * clients, or a client it has just created (entered through the PMS in the
+   * last 15 minutes and not yet linked to any companion).
    */
   async mayOrganisationAddCompanion(
     parentId: string,
@@ -748,9 +758,15 @@ export const ParentService = {
 
     const parent = await prisma.parent.findUnique({
       where: { id: parentId },
-      select: { createdFrom: true },
+      select: { createdFrom: true, createdAt: true },
     });
     if (parent?.createdFrom !== "pms") return false;
+    if (
+      !(parent.createdAt instanceof Date) ||
+      Date.now() - parent.createdAt.getTime() > NEW_CLIENT_WINDOW_MS
+    ) {
+      return false;
+    }
 
     const anyLink = await prisma.parentPatient.findFirst({
       where: { parentId },

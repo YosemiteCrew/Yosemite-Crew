@@ -110,21 +110,26 @@ const ensureResultTask = async (params: {
   if (existing) return;
 
   const actor = params.createdByUserId ?? "SYSTEM";
-  await TaskService.createCustom({
-    organisationId: params.organisationId,
-    appointmentId: params.appointmentId ?? undefined,
-    patientId: params.patientId,
-    createdBy: actor,
-    assignedBy: actor,
-    assignedTo: actor,
-    audience: "EMPLOYEE_TASK",
-    category: "LAB_RESULTS",
-    name: "Review lab results",
-    description: `Lab results are ready for review (Result ID: ${params.resultId}).`,
-    additionalNotes: buildResultTaskKey(params.resultId),
-    dueAt: new Date(),
-    timezone: undefined,
-  });
+  await TaskService.createCustom(
+    {
+      organisationId: params.organisationId,
+      appointmentId: params.appointmentId ?? undefined,
+      patientId: params.patientId,
+      createdBy: actor,
+      assignedBy: actor,
+      assignedTo: actor,
+      audience: "EMPLOYEE_TASK",
+      category: "LAB_RESULTS",
+      name: "Review lab results",
+      description: `Lab results are ready for review (Result ID: ${params.resultId}).`,
+      additionalNotes: buildResultTaskKey(params.resultId),
+      dueAt: new Date(),
+      timezone: undefined,
+    },
+    // The reviewer is the staff member who placed the order, read from the order
+    // itself, or the system when there was none.
+    { assigneeFromServer: true },
+  );
 };
 
 const ensureResultDocument = async (params: {

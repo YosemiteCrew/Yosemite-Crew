@@ -446,10 +446,13 @@ export const OrganizationDocumentService = {
       throw new OrgDocumentServiceError("Invalid version", 400);
     }
 
+    // Only documents the practice publishes can be acknowledged or checked;
+    // an internal one answers exactly as a missing one.
     const document = await prisma.organizationDocument.findFirst({
       where: {
         id: documentId,
         organisationId,
+        visibility: "PUBLIC",
       },
     });
 
@@ -510,10 +513,13 @@ export const OrganizationDocumentService = {
     const documentId = requireSafeString(input.documentId, "documentId");
     const userId = requireSafeString(input.userId, "userId");
 
+    // Only documents the practice publishes can be acknowledged or checked;
+    // an internal one answers exactly as a missing one.
     const document = await prisma.organizationDocument.findFirst({
       where: {
         id: documentId,
         organisationId,
+        visibility: "PUBLIC",
       },
     });
 

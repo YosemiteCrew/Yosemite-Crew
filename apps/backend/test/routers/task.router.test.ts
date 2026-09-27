@@ -6,7 +6,21 @@ const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const withTaskOrgPermissions = jest.fn(() =>
   jest.fn((_req, _res, next) => next()),
 );
+const withTaskTemplateOrgPermissions = jest.fn(() =>
+  jest.fn((_req, _res, next) => next()),
+);
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
+const requireSuperAdmin = jest.fn((_req, _res, next) => next());
+const bodyCompanionGuard = jest.fn((_req, _res, next) => next());
+const taskCompanionGuard = jest.fn((_req, _res, next) => next());
+const resolveBodyPatientCompanion = jest.fn();
+const resolveParentTaskCompanion = jest.fn();
+const requireCompanionPermissionForResource = jest.fn(
+  (_feature: string, resolver: unknown) =>
+    resolver === resolveParentTaskCompanion
+      ? taskCompanionGuard
+      : bodyCompanionGuard,
+);
 
 const TaskController = {
   createFromLibrary: jest.fn(),
@@ -14,6 +28,7 @@ const TaskController = {
   createCustomTaskFromPms: jest.fn(),
   listEmployeeTasks: jest.fn(),
   listForCompanion: jest.fn(),
+  listForCompanionMobile: jest.fn(),
   getById: jest.fn(),
   updateTaskPMS: jest.fn(),
   deleteTaskPMS: jest.fn(),
@@ -57,7 +72,12 @@ jest.mock("../../src/middlewares/auth", () => ({
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions,
   withTaskOrgPermissions,
+  withTaskTemplateOrgPermissions,
   requirePermission,
+}));
+
+jest.mock("../../src/middlewares/super-admin", () => ({
+  requireSuperAdmin,
 }));
 
 jest.mock("../../src/controllers/web/task.controller", () => ({
@@ -71,6 +91,9 @@ jest.mock("../../src/middlewares/companion-access", () => ({
     requireCompanionPermission(feature, paramName);
     return companionGuard;
   },
+  requireCompanionPermissionForResource,
+  resolveBodyPatientCompanion,
+  resolveParentTaskCompanion,
 }));
 
 jest.mock("../../src/controllers/app/task-recommendation.controller", () => ({
@@ -100,19 +123,49 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("task.router", () => {
-  it("protects task library write routes with requireWebAuth", () => {
-    const createRoute = findRoute("/pms/library", "post");
-    const updateRoute = findRoute("/pms/library/:libraryId", "put");
-
-    expect(createRoute).toBeDefined();
-    expect(updateRoute).toBeDefined();
-
-    expect(createRoute?.stack.map((layer) => layer.handle)).toContain(
+  it("limits task library writes to platform administrators", () => {
+    expect(
+      findRoute("/pms/library", "post")?.stack.map((layer) => layer.handle),
+    ).toEqual([
       requireWebAuth,
-    );
-    expect(updateRoute?.stack.map((layer) => layer.handle)).toContain(
+      requireSuperAdmin,
+      TaskLibraryController.create,
+    ]);
+    expect(
+      findRoute("/pms/library/:libraryId", "put")?.stack.map(
+        (layer) => layer.handle,
+      ),
+    ).toEqual([
       requireWebAuth,
+      requireSuperAdmin,
+      TaskLibraryController.update,
+    ]);
+  });
+
+  it("guards the mobile create on the companion the body names", () => {
+    expect(
+      findRoute("/mobile/", "post")?.stack.map((layer) => layer.handle),
+    ).toEqual([
+      requireMobileAuth,
+      bodyCompanionGuard,
+      TaskController.createCustomTask,
+    ]);
+    expect(requireCompanionPermissionForResource).toHaveBeenCalledWith(
+      "tasks",
+      resolveBodyPatientCompanion,
     );
+  });
+
+  it.each([
+    ["/pms/templates/organisation/:organisationId", "get"],
+    ["/pms/templates/:templateId", "get"],
+    ["/pms/templates", "post"],
+    ["/pms/templates/:templateId", "patch"],
+    ["/pms/templates/:templateId", "delete"],
+  ])("scopes template route %s (%s) to an organisation", (path, method) => {
+    const handles = findRoute(path, method)?.stack.map((layer) => layer.handle);
+    expect(handles).toHaveLength(4);
+    expect(handles?.[0]).toBe(requireWebAuth);
   });
 
   it("protects PMS task create, list, and detail routes with RBAC", () => {
@@ -177,6 +230,40 @@ describe("task.router", () => {
       requireMobileAuth,
     );
   });
+
+  it("lists a companion's parent tasks on mobile through its own handler", () => {
+    expect(
+      findRoute("/mobile/companion/:patientId", "get")?.stack.map(
+        (layer) => layer.handle,
+      ),
+    ).toEqual([
+      requireMobileAuth,
+      companionGuard,
+      TaskController.listForCompanionMobile,
+    ]);
+  });
+
+  it.each([
+    ["/mobile/:taskId", "get", "getById"],
+    ["/mobile/:taskId", "patch", "updateTask"],
+    ["/mobile/:taskId", "delete", "deleteTask"],
+    ["/mobile/:taskId/status", "post", "changeStatus"],
+  ] as const)(
+    "puts %s (%s) behind the companion tasks gate",
+    (path, method, handler) => {
+      expect(
+        findRoute(path, method)?.stack.map((layer) => layer.handle),
+      ).toEqual([
+        requireMobileAuth,
+        taskCompanionGuard,
+        TaskController[handler],
+      ]);
+      expect(requireCompanionPermissionForResource).toHaveBeenCalledWith(
+        "tasks",
+        resolveParentTaskCompanion,
+      );
+    },
+  );
 });
 
 describe("task.router recommendations", () => {

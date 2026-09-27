@@ -6,6 +6,15 @@ import {
   type ExternalExpenseUpdateInput,
 } from "../../services/expense.service";
 import logger from "src/utils/logger";
+import { readBodyPatientId } from "src/middlewares/companion-access";
+import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
+import { resolveVerifiedUserId } from "src/utils/request";
+
+/** The signed-in caller's parent record; never an id from the body. */
+const resolveCallerParentId = async (req: Request) => {
+  const userId = resolveVerifiedUserId(req);
+  return userId ? findParentIdForAuthUser(userId) : null;
+};
 
 export const ExpenseController = {
   getExpenseSummary: async (req: Request, res: Response) => {
@@ -25,7 +34,16 @@ export const ExpenseController = {
 
   createExpense: async (req: Request, res: Response) => {
     try {
-      const expenseData = req.body as ExternalExpenseInput;
+      const parentId = await resolveCallerParentId(req);
+      if (!parentId) {
+        return res.status(404).json({ message: "Companion not found." });
+      }
+      // The companion is the one the route checked; the recorder is the caller.
+      const expenseData = {
+        ...(req.body as ExternalExpenseInput),
+        patientId: readBodyPatientId(req.body) as string,
+        parentId,
+      };
       const newExpense = await ExpenseService.createExpense(expenseData);
       res.status(201).json(newExpense);
     } catch (error) {
@@ -40,7 +58,13 @@ export const ExpenseController = {
   updateExpense: async (req: Request, res: Response) => {
     try {
       const { expenseId } = req.params;
-      const updateData = req.body as ExternalExpenseUpdateInput;
+      // An expense stays with its companion and with the parent who recorded
+      // it; an edit changes neither.
+      const updateData: ExternalExpenseUpdateInput = {
+        ...(req.body as ExternalExpenseUpdateInput),
+        patientId: undefined,
+        parentId: undefined,
+      };
       const updatedExpense = await ExpenseService.updateExpense(
         expenseId,
         updateData,

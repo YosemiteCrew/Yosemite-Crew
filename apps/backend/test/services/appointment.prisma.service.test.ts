@@ -42,7 +42,9 @@ jest.mock("../../src/services/invoice.service", () => ({
 jest.mock("../../src/services/companion-organisation.service", () => ({
   CompanionOrganisationService: {
     linkByParent: jest.fn(),
+    linkByPmsUser: jest.fn(),
     assertParentManagesCompanion: jest.fn(),
+    assertOrganisationMayLinkCompanion: jest.fn(),
   },
 }));
 
@@ -145,6 +147,10 @@ const mockedInvoiceService = InvoiceService as unknown as {
 };
 const mockedCompanionOrgService = CompanionOrganisationService as unknown as {
   linkByParent: jest.Mock;
+  linkByPmsUser: jest.Mock;
+  assertOrganisationMayLinkCompanion: jest.Mock<
+    (patientId: string, organisationId: string) => Promise<void>
+  >;
   assertParentManagesCompanion: jest.Mock<
     (parentId: string, patientId: string) => Promise<void>
   >;
@@ -266,6 +272,9 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.parentPatient.findFirst.mockResolvedValue({
       role: "PRIMARY",
       permissions: {},
+    } as any);
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+      id: "po_1",
     } as any);
     mockedPrisma.roomUnitAssignment.findFirst.mockResolvedValue(null);
     mockedPrisma.roomUnitAssignment.update.mockResolvedValue({} as any);
@@ -484,6 +493,25 @@ describe("AppointmentPrismaService", () => {
     expect((result as any).caseId).toBe("case_new");
   });
 
+  it("refuses a practice booking for a companion the practice does not know", async () => {
+    mockedCompanionOrgService.assertOrganisationMayLinkCompanion.mockRejectedValueOnce(
+      Object.assign(new Error("Companion not found."), { statusCode: 404 }),
+    );
+
+    await expect(
+      AppointmentPrismaService.createAppointmentFromPms(
+        { resourceType: "Appointment" } as any,
+        false,
+        undefined,
+        "staff_1",
+      ),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
+    expect(mockedCompanionOrgService.linkByPmsUser).not.toHaveBeenCalled();
+    expect(mockedCompanionOrgService.linkByParent).not.toHaveBeenCalled();
+  });
+
   it("creates a PMS appointment as upcoming", async () => {
     mockedPrisma.case.findUnique.mockResolvedValue({
       id: "case_1",
@@ -505,8 +533,12 @@ describe("AppointmentPrismaService", () => {
       { resourceType: "Appointment" } as any,
       true,
       "PAYMENT_LINK",
+      "staff_1",
     );
 
+    expect(
+      mockedCompanionOrgService.assertOrganisationMayLinkCompanion,
+    ).toHaveBeenCalledWith("comp_1", "org_1");
     expect(mockedPrisma.appointment.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -526,14 +558,15 @@ describe("AppointmentPrismaService", () => {
       "appt_1",
       "PAYMENT_LINK",
     );
-    expect(mockedCompanionOrgService.linkByParent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parentId: "parent_1",
-        patientId: "comp_1",
-        organisationId: "org_1",
-        organisationType: "HOSPITAL",
-      }),
-    );
+    // A practice booking never activates a link itself: an existing link is
+    // kept and anything else is a request for the parent to approve.
+    expect(mockedCompanionOrgService.linkByParent).not.toHaveBeenCalled();
+    expect(mockedCompanionOrgService.linkByPmsUser).toHaveBeenCalledWith({
+      pmsUserId: "staff_1",
+      patientId: "comp_1",
+      organisationId: "org_1",
+      organisationType: "HOSPITAL",
+    });
     expect(
       mockedInvoiceService.createCheckoutSessionAndEmailParent,
     ).toHaveBeenCalledWith("inv_1");
@@ -5141,5 +5174,147 @@ describe("AppointmentPrismaService", () => {
       // discarded-return method has no caller that needs - it must not run.
       expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
     });
+  });
+
+  describe("practice edits of who an appointment is for", () => {
+    type Link = { id: string } | null;
+
+    /**
+     * Links as the database holds them: parent_1 and parent_2 are ACTIVE parents
+     * of comp_1, which is ACTIVE at org_1. comp_2 is not at org_1. Anything
+     * else has no link.
+     */
+    const seedLinks = () => {
+      mockedPrisma.parentPatient.findFirst.mockImplementation((async ({
+        where,
+      }: {
+        where: Record<string, unknown>;
+      }): Promise<Link> =>
+        where.status === "ACTIVE" &&
+        where.patientId === "comp_1" &&
+        ["parent_1", "parent_2"].includes(where.parentId as string)
+          ? { id: "pp" }
+          : null) as any);
+      mockedPrisma.patientOrganisation.findFirst.mockImplementation((async ({
+        where,
+      }: {
+        where: Record<string, unknown>;
+      }): Promise<Link> =>
+        where.status === "ACTIVE" &&
+        where.organisationId === "org_1" &&
+        where.patientId === "comp_1"
+          ? { id: "po" }
+          : null) as any);
+    };
+
+    const withPatient = (patient: Record<string, unknown>) =>
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        patient,
+        lead: { id: "lead_9", name: "Dr Nine" },
+        appointmentKind: "OUTPATIENT",
+        startTime: new Date("2026-06-10T10:00:00.000Z"),
+        endTime: new Date("2026-06-10T10:30:00.000Z"),
+      } as any);
+
+    beforeEach(() => {
+      seedLinks();
+      const row = {
+        appointmentKind: "OUTPATIENT",
+        caseId: null,
+        encounterId: null,
+      };
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({ ...row, status: "UPCOMING" }),
+      );
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ ...row, status: "REQUESTED" }),
+      );
+    });
+
+    const update = () =>
+      AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+        resourceType: "Appointment",
+      } as any);
+    const approve = () =>
+      AppointmentPrismaService.approveRequestedFromPms(
+        "appt_1",
+        { resourceType: "Appointment" } as any,
+        "org_1",
+      );
+
+    const expectWritten = async (run: () => Promise<unknown>) => {
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "UPCOMING", appointmentKind: "OUTPATIENT" }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+      await run();
+      expect(mockedPrisma.appointment.update).toHaveBeenCalled();
+    };
+
+    it.each([["update"], ["approve"]])(
+      "%s saves an unchanged companion and parent without a link lookup",
+      async (label) => {
+        const run = label === "update" ? update : approve;
+        withPatient({ id: "comp_1", parent: { id: "parent_1" } });
+
+        await expectWritten(run);
+
+        expect(
+          mockedPrisma.patientOrganisation.findFirst,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([["update"], ["approve"]])(
+      "%s saves another ACTIVE parent of the same companion",
+      async (label) => {
+        const run = label === "update" ? update : approve;
+        withPatient({ id: "comp_1", parent: { id: "parent_2" } });
+
+        await expectWritten(run);
+
+        expect(mockedPrisma.parentPatient.findFirst).toHaveBeenCalledWith({
+          where: {
+            parentId: "parent_2",
+            patientId: "comp_1",
+            status: "ACTIVE",
+          },
+          select: { id: true },
+        });
+      },
+    );
+
+    it.each([
+      [
+        "update",
+        "a parent with no link",
+        { id: "comp_1", parent: { id: "stranger" } },
+      ],
+      [
+        "approve",
+        "a parent with no link",
+        { id: "comp_1", parent: { id: "stranger" } },
+      ],
+      [
+        "update",
+        "a companion not at the practice",
+        { id: "comp_2", parent: { id: "parent_1" } },
+      ],
+      ["approve", "a companion not at the practice", { id: "comp_2" }],
+      ["update", "no companion at all", { id: "", parent: { id: "parent_1" } }],
+    ])(
+      "%s answers %s as not found and writes nothing",
+      async (label, _what, patient) => {
+        const run = label === "update" ? update : approve;
+        withPatient(patient);
+
+        await expect(run()).rejects.toMatchObject({
+          statusCode: 404,
+          message: "Companion not found",
+        });
+        expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+        expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+      },
+    );
   });
 });

@@ -292,6 +292,7 @@ export const AppointmentController = {
         typeof paymentCollectionMethod === "string"
           ? paymentCollectionMethod
           : undefined,
+        resolveVerifiedUserId(req as Request),
       );
 
       return res.status(201).json({ message: "Appointment created", data });

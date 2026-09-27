@@ -15,10 +15,11 @@ jest.mock("src/config/prisma", () => ({
     passportShareConsent: {
       upsert: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
     },
-    parentPatient: { findFirst: jest.fn() },
+    parentPatient: { findFirst: jest.fn(), findMany: jest.fn() },
     parent: { findUnique: jest.fn() },
     authUserMobile: { findFirst: jest.fn() },
   },
@@ -53,10 +54,11 @@ const prismaMock = prisma as unknown as {
   passportShareConsent: {
     upsert: jest.Mock;
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
     update: jest.Mock;
     findMany: jest.Mock;
   };
-  parentPatient: { findFirst: jest.Mock };
+  parentPatient: { findFirst: jest.Mock; findMany: jest.Mock };
   parent: { findUnique: jest.Mock };
   authUserMobile: { findFirst: jest.Mock };
 };
@@ -248,128 +250,138 @@ describe("PassportConsentService.requestConsent", () => {
 
 describe("PassportConsentService.grantConsent", () => {
   // Consent to share clinical records across practices belongs to the pet's
-  // owner, so every granted case must be authenticated AS that owner.
-  // The caller presents an auth PROVIDER id, so ownership is established by
-  // resolving that id to a parent through AuthUser - not by comparing it to
-  // Parent.linkedUserId, which holds an AuthUser primary key. `callerParentId`
-  // is what that resolution returns for the granting user.
-  const asPrimaryParent = (callerParentId: string | null = "par-1") => {
-    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
-    prismaMock.authUserMobile.findFirst.mockResolvedValue(
-      callerParentId ? { parentId: callerParentId } : null,
-    );
+  // owner, so every granted case must be authenticated AS that owner. The
+  // caller presents an auth PROVIDER id, resolved to a parent through AuthUser.
+  //
+  // Stored rows: user-1 is par-1, the ACTIVE primary parent of pat-1.
+  // user-2 is par-2, who owns pat-2 only. con-1 is for pat-1 between org-1
+  // and org-2; con-revoked is also for pat-1, already revoked.
+  const CONSENTS = [
+    consentRow(),
+    consentRow({ id: "con-revoked", status: "REVOKED" }),
+  ];
+  const PRIMARY_LINKS = [
+    {
+      parentId: "par-1",
+      patientId: "pat-1",
+      role: "PRIMARY",
+      status: "ACTIVE",
+    },
+    {
+      parentId: "par-2",
+      patientId: "pat-2",
+      role: "PRIMARY",
+      status: "ACTIVE",
+    },
+    {
+      parentId: "par-3",
+      patientId: "pat-1",
+      role: "PRIMARY",
+      status: "REVOKED",
+    },
+  ];
+  const USERS: Record<string, string> = {
+    "user-1": "par-1",
+    "user-2": "par-2",
+    "user-3": "par-3",
   };
 
-  it("grants when the caller is the pet's primary parent", async () => {
-    asPrimaryParent();
-    const dto = await PassportConsentService.grantConsent({
-      consentId: "con-1",
-      organisationId: "org-1",
-      method: "EMAIL",
-      grantingUserId: "user-1",
-    });
-    expect(dto.status).toBe("GRANTED");
-    expect(dto.consentMethod).toBe("EMAIL");
+  beforeEach(() => {
+    prismaMock.authUserMobile.findFirst.mockImplementation(
+      async ({ where }: { where: { providerUserId: string } }) =>
+        USERS[where.providerUserId]
+          ? { parentId: USERS[where.providerUserId] }
+          : null,
+    );
+    prismaMock.parentPatient.findMany.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) =>
+        PRIMARY_LINKS.filter(
+          (link) =>
+            link.parentId === where.parentId &&
+            link.role === where.role &&
+            link.status === where.status,
+        ),
+    );
+    prismaMock.passportShareConsent.findFirst.mockImplementation(
+      async ({
+        where,
+      }: {
+        where: {
+          id: string;
+          patientId: { in: string[] };
+          OR: Array<Record<string, string>>;
+        };
+      }) =>
+        CONSENTS.find(
+          (row) =>
+            row.id === where.id &&
+            where.patientId.in.includes(row.patientId) &&
+            where.OR.some((option) =>
+              Object.entries(option).every(
+                ([key, value]) =>
+                  (row as Record<string, unknown>)[key] === value,
+              ),
+            ),
+        ) ?? null,
+    );
   });
 
-  it("derives parentId from the parent link, never from the caller", async () => {
-    asPrimaryParent();
-    await PassportConsentService.grantConsent({
+  const grant = (over: Record<string, unknown> = {}) =>
+    PassportConsentService.grantConsent({
       consentId: "con-1",
       organisationId: "org-1",
       method: "MOBILE",
       grantingUserId: "user-1",
+      ...over,
+    } as never);
+
+  it("grants when the caller is the pet's primary parent", async () => {
+    const dto = await grant({ method: "EMAIL" });
+    expect(dto.status).toBe("GRANTED");
+    expect(dto.consentMethod).toBe("EMAIL");
+  });
+
+  it("grants from the recipient practice too", async () => {
+    await expect(grant({ organisationId: "org-2" })).resolves.toMatchObject({
+      status: "GRANTED",
     });
+  });
+
+  it("derives parentId from the parent link, never from the caller", async () => {
+    await grant();
     const data =
       prismaMock.passportShareConsent.update.mock.calls.at(-1)[0].data;
     expect(data.parentId).toBe("par-1");
   });
 
-  it("refuses a staff session that is not the pet's parent", async () => {
-    asPrimaryParent("par-someone-else");
-    await expect(
-      PassportConsentService.grantConsent({
-        consentId: "con-1",
-        organisationId: "org-1",
-        method: "MOBILE",
-        grantingUserId: "receptionist-9",
-      }),
-    ).rejects.toMatchObject({ statusCode: 403 });
+  it.each([
+    ["a consent that does not exist", { consentId: "con-missing" }],
+    ["a consent at another practice", { organisationId: "org-9" }],
+    ["another owner's consent", { grantingUserId: "user-2" }],
+    ["a parent whose primary link was revoked", { grantingUserId: "user-3" }],
+    ["a caller with no parent account", { grantingUserId: "staff-9" }],
+    ["an unauthenticated grant", { grantingUserId: null }],
+    [
+      "someone else's consent that was already revoked",
+      { consentId: "con-revoked", grantingUserId: "user-2" },
+    ],
+  ])("answers %s as not found", async (_label, over) => {
+    await expect(grant(over)).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Consent not found.",
+    });
     expect(prismaMock.passportShareConsent.update).not.toHaveBeenCalled();
   });
 
-  it("refuses an unauthenticated grant", async () => {
-    asPrimaryParent();
-    await expect(
-      PassportConsentService.grantConsent({
-        consentId: "con-1",
-        organisationId: "org-1",
-        method: "MOBILE",
-        grantingUserId: null,
-      }),
-    ).rejects.toMatchObject({ statusCode: 403 });
-  });
-
-  it("refuses when the pet has no linked parent account", async () => {
-    prismaMock.parentPatient.findFirst.mockResolvedValue(null);
-    await expect(
-      PassportConsentService.grantConsent({
-        consentId: "con-1",
-        organisationId: "org-1",
-        method: "MOBILE",
-        grantingUserId: "user-1",
-      }),
-    ).rejects.toMatchObject({ statusCode: 403 });
-  });
-
-  it("will not resurrect a revoked consent", async () => {
-    asPrimaryParent();
-    prismaMock.passportShareConsent.findUnique.mockResolvedValue(
-      consentRow({ status: "REVOKED" }),
-    );
-    await expect(
-      PassportConsentService.grantConsent({
-        consentId: "con-1",
-        organisationId: "org-1",
-        method: "MOBILE",
-        grantingUserId: "user-1",
-      }),
-    ).rejects.toMatchObject({ statusCode: 409 });
+  it("will not resurrect the owner's revoked consent", async () => {
+    await expect(grant({ consentId: "con-revoked" })).rejects.toMatchObject({
+      statusCode: 409,
+    });
     expect(prismaMock.passportShareConsent.update).not.toHaveBeenCalled();
-  });
-
-  it("404s an unknown or out-of-org consent", async () => {
-    asPrimaryParent();
-    prismaMock.passportShareConsent.findUnique.mockResolvedValue(null);
-    await expect(
-      PassportConsentService.grantConsent({
-        consentId: "con-1",
-        organisationId: "org-1",
-        method: "MOBILE",
-        grantingUserId: "user-1",
-      }),
-    ).rejects.toMatchObject({ statusCode: 404 });
-
-    prismaMock.passportShareConsent.findUnique.mockResolvedValue(consentRow());
-    await expect(
-      PassportConsentService.grantConsent({
-        consentId: "con-1",
-        organisationId: "org-9",
-        method: "MOBILE",
-        grantingUserId: "user-1",
-      }),
-    ).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("emits PASSPORT_CONSENT_GRANTED with the parent actor", async () => {
-    asPrimaryParent();
-    await PassportConsentService.grantConsent({
-      consentId: "con-1",
-      organisationId: "org-1",
-      method: "EMAIL",
-      grantingUserId: "user-1",
-      actor: { type: "PARENT", id: "user-1" },
-    });
+    await grant({ method: "EMAIL", actor: { type: "PARENT", id: "user-1" } });
     expect(mockRecordSafely).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: "PASSPORT_CONSENT_GRANTED",

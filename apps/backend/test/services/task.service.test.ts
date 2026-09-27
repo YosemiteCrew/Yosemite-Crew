@@ -49,6 +49,11 @@ jest.mock("src/config/prisma", () => ({
     },
     userOrganization: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    parentPatient: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
   },
 }));
@@ -102,6 +107,11 @@ const mockedPrisma = prisma as unknown as {
   };
   userOrganization: {
     findMany: jest.Mock;
+    findFirst: jest.Mock;
+  };
+  parentPatient: {
+    findMany: jest.Mock;
+    findFirst: jest.Mock;
   };
 };
 const mockedAuditTrailService = AuditTrailService as unknown as {
@@ -125,6 +135,13 @@ describe("TaskService", () => {
     mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
       id: "patient-org-link",
     });
+    // The caller's parent links, for parent task lists: none unless a test
+    // says otherwise.
+    mockedPrisma.parentPatient.findMany.mockResolvedValue([]);
+    // Every assignee is a valid one (an active member, or an actively linked
+    // parent) unless a test says otherwise.
+    mockedPrisma.userOrganization.findFirst.mockResolvedValue({ id: "member" });
+    mockedPrisma.parentPatient.findFirst.mockResolvedValue({ id: "link" });
     // Assignment emails only reach staff who work at the task's organisation.
     mockedPrisma.userOrganization.findMany.mockImplementation(
       async (args: {
@@ -187,6 +204,7 @@ describe("TaskService", () => {
     mockedPrisma.patient.findFirst.mockResolvedValueOnce({ name: "Milo" });
 
     const result = await TaskService.createCustom({
+      organisationId: "org-1",
       category: "Care",
       name: "Check vitals",
       createdBy: "user-1",
@@ -241,6 +259,7 @@ describe("TaskService", () => {
     });
 
     const result = await TaskService.createCustom({
+      organisationId: "org-1",
       category: "Care",
       name: "Check vitals",
       createdBy: "user-1",
@@ -293,6 +312,7 @@ describe("TaskService", () => {
       });
 
     await TaskService.createCustom({
+      organisationId: "org-1",
       category: "Care",
       name: "P",
       createdBy: "user-1",
@@ -310,6 +330,7 @@ describe("TaskService", () => {
     );
 
     await TaskService.createCustom({
+      organisationId: "org-1",
       category: "Care",
       name: "P",
       createdBy: "user-1",
@@ -352,6 +373,7 @@ describe("TaskService", () => {
     });
 
     await TaskService.createFromLibrary({
+      organisationId: "org-1",
       libraryTaskId: "lib-1",
       createdBy: "user-1",
       assignedTo: "user-2",
@@ -1445,6 +1467,7 @@ describe("TaskService", () => {
     const createWithMedication = async (medication: unknown) => {
       mockedPrisma.task.create.mockResolvedValueOnce(createdRow as never);
       await TaskService.createCustom({
+        organisationId: "org-1",
         category: "CARE",
         name: "Meds",
         createdBy: "user-1",
@@ -1542,6 +1565,7 @@ describe("TaskService", () => {
     it("requires a companion when a medication survives sanitisation", async () => {
       await expect(
         TaskService.createCustom({
+          organisationId: "org-1",
           category: "CARE",
           name: "Meds",
           createdBy: "user-1",
@@ -1576,6 +1600,7 @@ describe("TaskService", () => {
     const createWithRecurrence = async (recurrence: unknown) => {
       mockedPrisma.task.create.mockResolvedValueOnce(createdRow as never);
       await TaskService.createCustom({
+        organisationId: "org-1",
         category: "CARE",
         name: "Rec",
         createdBy: "user-1",
@@ -1977,7 +2002,7 @@ describe("TaskService", () => {
       expect(result.completion?.id).toBe("completion-auto");
     });
 
-    it("keeps an explicit filler, score, and summary on the completion record", async () => {
+    it("records the signed-in actor as the filler, whoever the request names", async () => {
       mockedPrisma.taskCompletion.create.mockResolvedValueOnce({
         id: "completion-9",
       } as never);
@@ -1995,7 +2020,7 @@ describe("TaskService", () => {
 
       expect(mockedPrisma.taskCompletion.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          filledBy: "user-7",
+          filledBy: "user-2",
           score: 88,
           summary: "Doing well",
         }),
@@ -2121,6 +2146,7 @@ describe("TaskService", () => {
         .mockResolvedValueOnce(null as never);
 
       await TaskService.createCustom({
+        organisationId: "org-1",
         category: "CARE",
         name: "Check vitals",
         createdBy: "user-1",
@@ -2160,6 +2186,7 @@ describe("TaskService", () => {
       } as never);
 
       await TaskService.createCustom({
+        organisationId: "org-1",
         category: "CARE",
         name: "Unassigned",
         createdBy: "user-1",
@@ -2190,6 +2217,7 @@ describe("TaskService", () => {
         .mockResolvedValueOnce(null as never);
 
       await TaskService.createCustom({
+        organisationId: "org-1",
         category: "CARE",
         name: "Check vitals",
         createdBy: "user-1",
@@ -2217,6 +2245,7 @@ describe("TaskService", () => {
       mockedPrisma.user.findFirst.mockRejectedValue(new Error("db down"));
 
       const result = await TaskService.createCustom({
+        organisationId: "org-1",
         category: "CARE",
         name: "Check vitals",
         createdBy: "user-1",
@@ -2287,6 +2316,7 @@ describe("TaskService", () => {
       } as never);
 
       await TaskService.createCustom({
+        organisationId: "org-1",
         category: "CARE",
         name: "Restock",
         createdBy: "user-1",
@@ -2311,6 +2341,7 @@ describe("TaskService", () => {
 
       await expect(
         TaskService.createFromLibrary({
+          organisationId: "org-1",
           libraryTaskId: "lib-x",
           createdBy: "user-1",
           assignedTo: "user-2",
@@ -2344,6 +2375,7 @@ describe("TaskService", () => {
       } as never);
 
       await TaskService.createFromLibrary({
+        organisationId: "org-1",
         libraryTaskId: "lib-1",
         createdBy: "user-1",
         assignedTo: "user-2",
@@ -2390,8 +2422,8 @@ describe("TaskService", () => {
           dueAt,
         }),
       ).rejects.toMatchObject({
-        message: "Template does not belong to organisation",
-        statusCode: 400,
+        message: "Task template not found or inactive",
+        statusCode: 404,
       });
       expect(mockedPrisma.task.create).not.toHaveBeenCalled();
     });
@@ -2496,6 +2528,7 @@ describe("TaskService", () => {
     it("rejects a custom task with no category or name", async () => {
       await expect(
         TaskService.createCustom({
+          organisationId: "org-1",
           category: "",
           name: "",
           createdBy: "user-1",
@@ -3244,6 +3277,7 @@ describe("TaskService", () => {
       expect(whereOf()).toEqual({
         audience: "PARENT_TASK",
         OR: [{ assignedTo: "parent-1" }, { createdBy: "parent-1" }],
+        AND: [{ OR: [{ patientId: null }, { patientId: { in: [] } }] }],
         patientId: "comp-1",
         status: { in: ["PENDING"] },
         dueAt: { gte: fromDueAt, lte: toDueAt },
@@ -3561,6 +3595,315 @@ describe("TaskService", () => {
       // With no organisation there are no org templates, so the kind filter
       // collapses to an empty template id list.
       expect(whereOf()).toEqual({ id: { in: [] } });
+    });
+  });
+
+  describe("parent task lists follow the caller's companion links", () => {
+    it("lists tasks of companions the caller may work on, and tasks with no companion", async () => {
+      mockedPrisma.parentPatient.findMany.mockResolvedValue([
+        { patientId: "pat-own", role: "PRIMARY", permissions: {} },
+        {
+          patientId: "pat-shared",
+          role: "CO_PARENT",
+          permissions: { tasks: true },
+        },
+        {
+          patientId: "pat-no-tasks",
+          role: "CO_PARENT",
+          permissions: { tasks: false },
+        },
+      ]);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([] as never);
+
+      await TaskService.listForParent({ parentId: "parent-1" });
+
+      expect(mockedPrisma.parentPatient.findMany).toHaveBeenCalledWith({
+        where: {
+          parentId: "parent-1",
+          status: "ACTIVE",
+          role: { in: ["PRIMARY", "CO_PARENT"] },
+        },
+        select: { patientId: true, role: true, permissions: true },
+      });
+      const where = mockedPrisma.task.findMany.mock.calls[0][0].where;
+      expect(where.AND).toEqual([
+        {
+          OR: [
+            { patientId: null },
+            { patientId: { in: ["pat-own", "pat-shared"] } },
+          ],
+        },
+      ]);
+    });
+  });
+
+  describe("who a task may be given to", () => {
+    const MEMBERS = [
+      {
+        practitionerReference: "vet-1",
+        organizationReference: "org-1",
+        active: true,
+      },
+      {
+        practitionerReference: "vet-off",
+        organizationReference: "org-1",
+        active: false,
+      },
+      {
+        practitionerReference: "vet-2",
+        organizationReference: "Organization/org-2",
+        active: true,
+      },
+    ];
+    const PARENT_LINKS = [
+      { parentId: "par-1", patientId: "pat-1", status: "ACTIVE" },
+      { parentId: "par-old", patientId: "pat-1", status: "REVOKED" },
+    ];
+
+    beforeEach(() => {
+      mockedPrisma.userOrganization.findFirst.mockImplementation(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          MEMBERS.find(
+            (row) =>
+              row.practitionerReference === where.practitionerReference &&
+              row.active === where.active &&
+              (where.OR as Array<{ organizationReference: string }>).some(
+                (option) =>
+                  option.organizationReference === row.organizationReference,
+              ),
+          ) ?? null,
+      );
+      mockedPrisma.parentPatient.findFirst.mockImplementation(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          PARENT_LINKS.find((row) =>
+            Object.entries(where).every(
+              ([key, value]) => (row as Record<string, unknown>)[key] === value,
+            ),
+          ) ?? null,
+      );
+      mockedPrisma.task.create.mockImplementation(
+        async ({ data }: { data: Record<string, unknown> }) => ({
+          id: "task-new",
+          ...data,
+        }),
+      );
+    });
+
+    const create = (input: Record<string, unknown>) =>
+      TaskService.createCustom({
+        organisationId: "org-1",
+        category: "Care",
+        name: "Check",
+        createdBy: "vet-1",
+        dueAt,
+        ...input,
+      } as never);
+
+    it.each([
+      [
+        "an active member for a staff task",
+        { audience: "EMPLOYEE_TASK", assignedTo: "vet-1" },
+      ],
+      [
+        "no one yet for a staff task",
+        { audience: "EMPLOYEE_TASK", assignedTo: "" },
+      ],
+      [
+        "no one yet (null) for a staff task",
+        { audience: "EMPLOYEE_TASK", assignedTo: null },
+      ],
+      [
+        "an active parent of the companion for a parent task",
+        { audience: "PARENT_TASK", assignedTo: "par-1", patientId: "pat-1" },
+      ],
+    ])("creates a task given to %s", async (_label, input) => {
+      await expect(create(input)).resolves.toMatchObject({ id: "task-new" });
+    });
+
+    it.each([
+      [
+        "a member of another organisation",
+        { audience: "EMPLOYEE_TASK", assignedTo: "vet-2" },
+      ],
+      [
+        "a deactivated member",
+        { audience: "EMPLOYEE_TASK", assignedTo: "vet-off" },
+      ],
+      [
+        "a parent given a staff task",
+        { audience: "EMPLOYEE_TASK", assignedTo: "par-1", patientId: "pat-1" },
+      ],
+      [
+        "a staff member given a parent task",
+        { audience: "PARENT_TASK", assignedTo: "vet-1", patientId: "pat-1" },
+      ],
+      [
+        "a parent whose link was revoked",
+        { audience: "PARENT_TASK", assignedTo: "par-old", patientId: "pat-1" },
+      ],
+      [
+        "no one for a parent task",
+        { audience: "PARENT_TASK", assignedTo: "", patientId: "pat-1" },
+      ],
+      [
+        "an assignee that is not an id",
+        { audience: "EMPLOYEE_TASK", assignedTo: { not: "" } },
+      ],
+      [
+        "a staff task with no organisation",
+        {
+          audience: "EMPLOYEE_TASK",
+          assignedTo: "vet-1",
+          organisationId: undefined,
+        },
+      ],
+    ])("answers %s as not found and creates nothing", async (_label, input) => {
+      await expect(create(input)).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Assignee not found",
+      });
+      expect(mockedPrisma.task.create).not.toHaveBeenCalled();
+    });
+
+    it("skips the check for an assignee the server itself chose", async () => {
+      await expect(
+        TaskService.createCustom(
+          {
+            organisationId: "org-1",
+            audience: "EMPLOYEE_TASK",
+            category: "LAB_RESULTS",
+            name: "Review lab results",
+            createdBy: "SYSTEM",
+            assignedTo: "SYSTEM",
+            dueAt,
+          },
+          { assigneeFromServer: true },
+        ),
+      ).resolves.toMatchObject({ id: "task-new" });
+      expect(mockedPrisma.userOrganization.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("checks a library task's assignee", async () => {
+      mockedPrisma.taskLibraryDefinition.findFirst.mockResolvedValueOnce({
+        id: "lib-1",
+        isActive: true,
+        category: "Care",
+        name: "Library task",
+      } as never);
+
+      await expect(
+        TaskService.createFromLibrary({
+          libraryTaskId: "lib-1",
+          organisationId: "org-1",
+          audience: "EMPLOYEE_TASK",
+          createdBy: "vet-1",
+          assignedTo: "vet-2",
+          dueAt,
+        } as never),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      expect(mockedPrisma.task.create).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a parent template given to a staff member", "PARENT", "vet-1", 404],
+      ["a staff template given to a parent", "EMPLOYEE", "par-1", 404],
+    ])(
+      "checks a template task against the template's audience: %s",
+      async (_label, role, assignee, status) => {
+        mockedPrisma.taskTemplate.findFirst.mockResolvedValueOnce({
+          id: "tmpl-1",
+          organisationId: "org-1",
+          isActive: true,
+          category: "Care",
+          name: "Template task",
+          defaultRole: role,
+        } as never);
+
+        await expect(
+          TaskService.createFromTemplate({
+            templateId: "tmpl-1",
+            organisationId: "org-1",
+            createdBy: "vet-1",
+            assignedTo: assignee,
+            patientId: "pat-1",
+            dueAt,
+          } as never),
+        ).rejects.toMatchObject({ statusCode: status });
+        expect(mockedPrisma.task.create).not.toHaveBeenCalled();
+      },
+    );
+
+    const existing = (over: Record<string, unknown> = {}) => ({
+      id: "task-1",
+      organisationId: "org-1",
+      audience: "EMPLOYEE_TASK",
+      patientId: "pat-1",
+      createdBy: "vet-1",
+      assignedTo: "vet-1",
+      assignedGroupId: null,
+      name: "Old",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+      ...over,
+    });
+
+    it("lets the creator hand a staff task to another active member", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(existing() as never);
+      mockedPrisma.task.update.mockResolvedValueOnce(
+        existing({ assignedTo: "vet-9" }) as never,
+      );
+      MEMBERS.push({
+        practitionerReference: "vet-9",
+        organizationReference: "org-1",
+        active: true,
+      });
+      try {
+        await TaskService.updateTask(
+          "task-1",
+          { assignedTo: "vet-9" },
+          "vet-1",
+        );
+      } finally {
+        MEMBERS.pop();
+      }
+      expect(mockedPrisma.task.update).toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a staff task to a member elsewhere", {}, "vet-2"],
+      [
+        "a parent task to a parent with no link",
+        { audience: "PARENT_TASK" },
+        "par-old",
+      ],
+    ])("refuses to hand %s", async (_label, over, assignee) => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(
+        existing(over) as never,
+      );
+
+      await expect(
+        TaskService.updateTask("task-1", { assignedTo: assignee }, "vet-1"),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      expect(mockedPrisma.task.update).not.toHaveBeenCalled();
+    });
+
+    it("leaves an unchanged assignee unchecked", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(
+        existing({ assignedTo: "vet-left" }) as never,
+      );
+      mockedPrisma.task.update.mockResolvedValueOnce(existing() as never);
+
+      await TaskService.updateTask(
+        "task-1",
+        { name: "New", assignedTo: "vet-left" },
+        "vet-1",
+      );
+
+      expect(mockedPrisma.userOrganization.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.task.update).toHaveBeenCalled();
     });
   });
 });

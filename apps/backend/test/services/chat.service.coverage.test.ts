@@ -123,6 +123,20 @@ describe("ChatService.initSystemUserOnce", () => {
 /* --------------------------- ensureAppointmentChat ------------------------- */
 
 describe("ChatService.ensureAppointmentChat", () => {
+  it("refuses a cancelled appointment, even one that already has a session", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "a1",
+      status: "CANCELLED",
+    });
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({ id: "s1" });
+
+    await expect(ChatService.ensureAppointmentChat("a1")).rejects.toMatchObject(
+      { statusCode: 409 },
+    );
+    expect(mockedPrisma.chatSession.findFirst).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   it("returns the existing session when one already exists", async () => {
     mockedPrisma.appointment.findFirst.mockResolvedValue({ id: "a1" });
     const existing = { id: "s1", channelId: "appointment-a1" };

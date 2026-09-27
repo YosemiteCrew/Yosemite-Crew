@@ -342,3 +342,64 @@ export const resolveBodyPatientCompanion: CompanionResourceResolver = async (
     ? { kind: "patient", patientId }
     : { kind: "deny" };
 };
+
+/**
+ * The companion an adverse-event report is about: `patient.patientId`, or
+ * `patient.companionId` as the app sends it. The access check and the service
+ * both read it here, so the stored report names the companion that was checked.
+ */
+export const readAdverseEventCompanionId = (body: unknown): unknown => {
+  const patient = (body as { patient?: unknown } | null | undefined)?.patient;
+  if (!patient || typeof patient !== "object") return undefined;
+  const { patientId, companionId } = patient as Record<string, unknown>;
+  return patientId ?? companionId;
+};
+
+export const resolveAdverseEventCompanion: CompanionResourceResolver = async (
+  req,
+) => {
+  const patientId = readAdverseEventCompanionId(req.body);
+  return typeof patientId === "string" && patientId
+    ? { kind: "patient", patientId }
+    : { kind: "deny" };
+};
+
+/** Appointment routes: the companion the appointment is booked for. */
+export const resolveAppointmentCompanion: CompanionResourceResolver = async (
+  req,
+) => {
+  const appointmentId = readIdParam(req, "appointmentId");
+  if (!appointmentId) return { kind: "deny" };
+
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: { patient: true },
+  });
+  const patientId = (appointment?.patient as { id?: unknown } | null)?.id;
+  return typeof patientId === "string" && patientId
+    ? { kind: "patient", patientId }
+    : { kind: "deny" };
+};
+
+/**
+ * Parent task routes keyed by a task id: the companion the task is for. A task
+ * with no companion belongs to whoever created it or was given it, and to no
+ * one else.
+ */
+export const resolveParentTaskCompanion: CompanionResourceResolver = async (
+  req,
+  parentId,
+) => {
+  const taskId = readIdParam(req, "taskId");
+  if (!taskId) return { kind: "deny" };
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { patientId: true, createdBy: true, assignedTo: true },
+  });
+  if (!task) return { kind: "deny" };
+  if (task.patientId) return { kind: "patient", patientId: task.patientId };
+  return task.createdBy === parentId || task.assignedTo === parentId
+    ? { kind: "allow" }
+    : { kind: "deny" };
+};

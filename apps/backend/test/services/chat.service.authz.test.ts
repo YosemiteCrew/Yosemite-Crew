@@ -152,3 +152,55 @@ describe("ChatService.closeSession authorization", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe("ChatService counts only active memberships", () => {
+  /** Membership rows as stored: userB's membership of org1 is deactivated. */
+  const MEMBERSHIPS = [
+    {
+      id: "m-a",
+      practitionerReference: "userA",
+      organizationReference: "org1",
+      active: true,
+    },
+    {
+      id: "m-b",
+      practitionerReference: "userB",
+      organizationReference: "org1",
+      active: false,
+    },
+  ];
+
+  beforeEach(() => {
+    mockedPrisma.userOrganization.findFirst.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) =>
+        MEMBERSHIPS.find(
+          (row) =>
+            row.practitionerReference === where.practitionerReference &&
+            (where.active === undefined || row.active === where.active) &&
+            (where.OR as Array<{ organizationReference: string }>).some(
+              (option) =>
+                option.organizationReference === row.organizationReference,
+            ),
+        ) ?? null,
+    );
+  });
+
+  it("refuses a direct chat with someone whose membership was deactivated", async () => {
+    await expect(
+      ChatService.createOrgDirectChat("org1", "userA", "userB"),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockChannel).not.toHaveBeenCalled();
+  });
+
+  it("refuses a group chat started by someone whose membership was deactivated", async () => {
+    await expect(
+      ChatService.createOrgGroupChat({
+        organisationId: "org1",
+        createdBy: "userB",
+        title: "Team",
+        memberIds: ["userB", "userA"],
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockChannel).not.toHaveBeenCalled();
+  });
+});
