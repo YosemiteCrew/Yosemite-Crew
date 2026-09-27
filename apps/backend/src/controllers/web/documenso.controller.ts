@@ -172,6 +172,14 @@ async function handleRenderedDocumentEvent(
   renderedDocument: { id: string } | null,
 ) {
   if (!renderedDocument) {
+    // A signature on a document nothing here waits for any more (its signing
+    // was released or replaced) is not recorded; say so rather than drop it.
+    if (eventType === "DOCUMENT_COMPLETED") {
+      logger.warn(
+        "[DocumensoWebhook] Completed document matches no open signing",
+        { documentId },
+      );
+    }
     return;
   }
 

@@ -857,6 +857,35 @@ describe("DocumensoWebhookController", () => {
       mockedPrisma.case.findUnique.mockReset();
     });
 
+    // A signature on a document nothing waits for any more (its signing was
+    // released or replaced) is not recorded, and is logged rather than lost
+    // without trace.
+    it("logs a completed document that matches no open signing", async () => {
+      mockedPrisma.renderedDocument.findFirst.mockResolvedValue(null);
+      webhookFor("DOCUMENT_COMPLETED", 778);
+
+      await handle();
+
+      expect(mockedLogger.warn).toHaveBeenCalledWith(
+        "[DocumensoWebhook] Completed document matches no open signing",
+        { documentId: "778" },
+      );
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("does not log other events that match no signing", async () => {
+      mockedPrisma.renderedDocument.findFirst.mockResolvedValue(null);
+      webhookFor("DOCUMENT_DELETED", 778);
+
+      await handle();
+
+      expect(mockedLogger.warn).not.toHaveBeenCalledWith(
+        "[DocumensoWebhook] Completed document matches no open signing",
+        expect.anything(),
+      );
+    });
+
     it("completes the rendered document when no submission or packet matches", async () => {
       storeRenderedDocument();
       signedPdfAvailable();
