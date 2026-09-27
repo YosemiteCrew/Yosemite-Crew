@@ -165,7 +165,11 @@ describe("IdexxResultsService", () => {
     );
     expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
     expect(mockedLogger.error).not.toHaveBeenCalled();
-    expect(mockedTaskService.createCustom).toHaveBeenCalled();
+    // The reviewer comes from the stored order, so the task says so.
+    expect(mockedTaskService.createCustom).toHaveBeenCalledWith(
+      expect.objectContaining({ audience: "EMPLOYEE_TASK" }),
+      { assigneeFromServer: true },
+    );
   });
 
   // lab-result reads authorize on the stored organisationId, so it must come from the

@@ -247,6 +247,12 @@ export const ChatService = {
     if (!appointment) {
       throw new ChatServiceError("Appointment not found", 404);
     }
+    if (appointment.status === "CANCELLED") {
+      throw new ChatServiceError(
+        "Chat not available for this appointment status.",
+        409,
+      );
+    }
 
     const existing = await prisma.chatSession.findFirst({
       where: { appointmentId },

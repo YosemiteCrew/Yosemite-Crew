@@ -195,6 +195,7 @@ describe("AppointmentPrismaController", () => {
   it("creates PMS appointments with payment options", async () => {
     req.query = { createPayment: "1", paymentCollectionMethod: "clinic" };
     (req as any).organisationId = "org_a";
+    (req as any).userId = "staff_1";
     req.body = { resourceType: "Appointment" } as any;
     mockedService.createAppointmentFromPms.mockResolvedValue({
       id: "appt_2",
@@ -202,10 +203,12 @@ describe("AppointmentPrismaController", () => {
 
     await AppointmentController.createFromPms(req as any, res as any);
 
+    // The signed-in staff member is who any link request is raised by.
     expect(mockedService.createAppointmentFromPms).toHaveBeenCalledWith(
       req.body,
       true,
       "clinic",
+      "staff_1",
     );
     expect(res.status).toHaveBeenCalledWith(201);
   });

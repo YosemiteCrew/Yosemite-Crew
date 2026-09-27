@@ -42,7 +42,9 @@ jest.mock("../../src/services/invoice.service", () => ({
 jest.mock("../../src/services/companion-organisation.service", () => ({
   CompanionOrganisationService: {
     linkByParent: jest.fn(),
+    linkByPmsUser: jest.fn(),
     assertParentManagesCompanion: jest.fn(),
+    assertOrganisationMayLinkCompanion: jest.fn(),
   },
 }));
 
@@ -145,6 +147,10 @@ const mockedInvoiceService = InvoiceService as unknown as {
 };
 const mockedCompanionOrgService = CompanionOrganisationService as unknown as {
   linkByParent: jest.Mock;
+  linkByPmsUser: jest.Mock;
+  assertOrganisationMayLinkCompanion: jest.Mock<
+    (patientId: string, organisationId: string) => Promise<void>
+  >;
   assertParentManagesCompanion: jest.Mock<
     (parentId: string, patientId: string) => Promise<void>
   >;
@@ -487,6 +493,25 @@ describe("AppointmentPrismaService", () => {
     expect((result as any).caseId).toBe("case_new");
   });
 
+  it("refuses a practice booking for a companion the practice does not know", async () => {
+    mockedCompanionOrgService.assertOrganisationMayLinkCompanion.mockRejectedValueOnce(
+      Object.assign(new Error("Companion not found."), { statusCode: 404 }),
+    );
+
+    await expect(
+      AppointmentPrismaService.createAppointmentFromPms(
+        { resourceType: "Appointment" } as any,
+        false,
+        undefined,
+        "staff_1",
+      ),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
+    expect(mockedCompanionOrgService.linkByPmsUser).not.toHaveBeenCalled();
+    expect(mockedCompanionOrgService.linkByParent).not.toHaveBeenCalled();
+  });
+
   it("creates a PMS appointment as upcoming", async () => {
     mockedPrisma.case.findUnique.mockResolvedValue({
       id: "case_1",
@@ -508,8 +533,12 @@ describe("AppointmentPrismaService", () => {
       { resourceType: "Appointment" } as any,
       true,
       "PAYMENT_LINK",
+      "staff_1",
     );
 
+    expect(
+      mockedCompanionOrgService.assertOrganisationMayLinkCompanion,
+    ).toHaveBeenCalledWith("comp_1", "org_1");
     expect(mockedPrisma.appointment.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -529,14 +558,15 @@ describe("AppointmentPrismaService", () => {
       "appt_1",
       "PAYMENT_LINK",
     );
-    expect(mockedCompanionOrgService.linkByParent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parentId: "parent_1",
-        patientId: "comp_1",
-        organisationId: "org_1",
-        organisationType: "HOSPITAL",
-      }),
-    );
+    // A practice booking never activates a link itself: an existing link is
+    // kept and anything else is a request for the parent to approve.
+    expect(mockedCompanionOrgService.linkByParent).not.toHaveBeenCalled();
+    expect(mockedCompanionOrgService.linkByPmsUser).toHaveBeenCalledWith({
+      pmsUserId: "staff_1",
+      patientId: "comp_1",
+      organisationId: "org_1",
+      organisationType: "HOSPITAL",
+    });
     expect(
       mockedInvoiceService.createCheckoutSessionAndEmailParent,
     ).toHaveBeenCalledWith("inv_1");

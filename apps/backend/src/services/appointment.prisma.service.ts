@@ -1494,9 +1494,17 @@ const getParentOwnedAppointment = async (
   return row;
 };
 
+/**
+ * Who is booking. A parent booking links their companion to the practice. A
+ * practice booking only ever raises a PENDING request for the parent to
+ * approve, and only for a companion the practice already knows.
+ */
+type BookedBy = { kind: "parent" } | { kind: "practice"; actorId?: string };
+
 const createAppointment = async (
   dto: AppointmentRequestDTO,
   status: AppointmentStatus,
+  bookedBy: BookedBy,
 ): Promise<AppointmentResponseDTO> => {
   const input = fromAppointmentRequestDTO(dto);
   const appointmentKind = normalizeAppointmentKind(input.appointmentKind);
@@ -1532,6 +1540,12 @@ const createAppointment = async (
     input.patient.parent.id,
     getPatientId(input.patient),
   );
+  if (bookedBy.kind === "practice") {
+    await CompanionOrganisationService.assertOrganisationMayLinkCompanion(
+      getPatientId(input.patient),
+      input.organisationId,
+    );
+  }
 
   const created = await prisma.$transaction(
     async (tx) => {
@@ -1617,12 +1631,22 @@ const createAppointment = async (
   // that failed appointment validation still left an ACTIVE patient-organisation
   // link behind - and that link is what authorises PMS access to the companion's
   // records and surfaces its primary parent on the organisation's list.
-  await CompanionOrganisationService.linkByParent({
-    parentId: input.patient.parent.id,
-    patientId: input.patient.id,
-    organisationId: input.organisationId,
-    organisationType: organisation.type,
-  });
+  if (bookedBy.kind === "parent") {
+    await CompanionOrganisationService.linkByParent({
+      parentId: input.patient.parent.id,
+      patientId: input.patient.id,
+      organisationId: input.organisationId,
+      organisationType: organisation.type,
+    });
+  } else {
+    // Keeps an ACTIVE or PENDING link as it is; otherwise asks the parent.
+    await CompanionOrganisationService.linkByPmsUser({
+      pmsUserId: bookedBy.actorId ?? "",
+      patientId: input.patient.id,
+      organisationId: input.organisationId,
+      organisationType: organisation.type,
+    });
+  }
 
   return toResponse(created);
 };
@@ -1785,13 +1809,14 @@ export const AppointmentPrismaService = {
       );
     }
 
-    return createAppointment(dto, "REQUESTED");
+    return createAppointment(dto, "REQUESTED", { kind: "parent" });
   },
 
   async createAppointmentFromPms(
     dto: AppointmentRequestDTO,
     createPayment = false,
     paymentCollectionMethod?: string,
+    actorId?: string,
   ) {
     const resolvedPaymentCollectionMethod =
       resolvePaymentCollectionMethod(paymentCollectionMethod, (message) => {
@@ -1808,7 +1833,10 @@ export const AppointmentPrismaService = {
       );
     }
 
-    const appointment = await createAppointment(dto, "UPCOMING");
+    const appointment = await createAppointment(dto, "UPCOMING", {
+      kind: "practice",
+      actorId,
+    });
     const appointmentId =
       typeof appointment.id === "string" ? appointment.id : undefined;
     if (!appointmentId) {

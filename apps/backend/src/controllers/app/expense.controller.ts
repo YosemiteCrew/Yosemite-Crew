@@ -58,15 +58,12 @@ export const ExpenseController = {
   updateExpense: async (req: Request, res: Response) => {
     try {
       const { expenseId } = req.params;
-      const parentId = await resolveCallerParentId(req);
-      if (!parentId) {
-        return res.status(404).json({ message: "Companion not found." });
-      }
-      // An expense stays with its companion; the editor is the caller.
+      // An expense stays with its companion and with the parent who recorded
+      // it; an edit changes neither.
       const updateData: ExternalExpenseUpdateInput = {
         ...(req.body as ExternalExpenseUpdateInput),
         patientId: undefined,
-        parentId,
+        parentId: undefined,
       };
       const updatedExpense = await ExpenseService.updateExpense(
         expenseId,

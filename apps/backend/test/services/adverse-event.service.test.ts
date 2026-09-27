@@ -13,6 +13,9 @@ jest.mock("src/config/prisma", () => ({
     appointment: {
       findFirst: jest.fn(),
     },
+    parent: {
+      findUnique: jest.fn(),
+    },
     organization: {
       findUnique: jest.fn(),
     },
@@ -117,6 +120,14 @@ const APPOINTMENTS: Row[] = [
   { id: "appt-9", organisationId: "org-1", patient: { id: "pat-9" } },
 ];
 
+/** The signed-in parent's own record, which the reporter details come from. */
+const SIGNED_IN_PARENT = {
+  firstName: "Ada",
+  lastName: "Lovelace",
+  email: "ada@example.com",
+  phoneNumber: "+44 20 7946 0000",
+};
+
 const REPORTS: Row[] = [
   { ...storedRow, id: "report-1", organisationId: "org-1" },
   { ...storedRow, id: "report-2", organisationId: "org-2" },
@@ -130,6 +141,7 @@ describe("AdverseEventService.createFromMobile", () => {
       matching(PRACTICE_LINKS),
     );
     prisma.appointment.findFirst.mockImplementation(matching(APPOINTMENTS));
+    prisma.parent.findUnique.mockResolvedValue(SIGNED_IN_PARENT);
     prisma.organization.findUnique.mockResolvedValue({
       name: "Bramble Vets",
       email: "clinic@example.com",
@@ -243,15 +255,45 @@ describe("AdverseEventService.createFromMobile", () => {
     expect(sendEmailTemplate).not.toHaveBeenCalled();
   });
 
-  it("validates the report before storing or sending anything", async () => {
+  it("takes the reporter's name and contact details from the signed-in parent", async () => {
+    await AdverseEventService.createFromMobile(
+      {
+        ...(VALID_INPUT as object),
+        reporter: {
+          firstName: "Someone",
+          lastName: "Else",
+          email: "someone@example.com",
+          phoneNumber: "000",
+          city: "Leeds",
+        },
+      } as never,
+      "par-1",
+    );
+
+    expect(prisma.parent.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "par-1" } }),
+    );
+    const { data } = prisma.adverseEventReport.create.mock.calls[0][0];
+    expect(data.reporter).toMatchObject({
+      userId: "par-1",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "ada@example.com",
+      phoneNumber: "+44 20 7946 0000",
+      city: "Leeds",
+    });
+    // The practice is told about the parent who is signed in.
+    expect(sendEmailTemplate.mock.calls[0][0].templateData).toMatchObject({
+      reporterName: "Ada Lovelace",
+      reporterEmail: "ada@example.com",
+    });
+  });
+
+  it("refuses a caller whose parent record cannot be read", async () => {
+    prisma.parent.findUnique.mockResolvedValue(null);
+
     await expect(
-      AdverseEventService.createFromMobile(
-        {
-          ...(VALID_INPUT as object),
-          reporter: { firstName: "Ada" },
-        } as never,
-        "par-1",
-      ),
+      AdverseEventService.createFromMobile(VALID_INPUT, "par-1"),
     ).rejects.toThrow("Reporter firstName and email are required");
 
     expect(prisma.adverseEventReport.create).not.toHaveBeenCalled();
@@ -267,6 +309,7 @@ describe("AdverseEventService.createFromMobile - who and what a report names", (
       matching(PRACTICE_LINKS),
     );
     prisma.appointment.findFirst.mockImplementation(matching(APPOINTMENTS));
+    prisma.parent.findUnique.mockResolvedValue(SIGNED_IN_PARENT);
     prisma.organization.findUnique.mockResolvedValue(null);
   });
 

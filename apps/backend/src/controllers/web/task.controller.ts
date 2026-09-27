@@ -336,7 +336,6 @@ export const TaskController = {
         createdBy: actorId,
         assignedBy: actorId,
       };
-      await TaskService.assertPracticeAssignee(input);
 
       const task = await TaskService.createCustom(input);
       res.status(201).json(task);
@@ -359,7 +358,6 @@ export const TaskController = {
         createdBy: actorId,
         assignedBy: actorId,
       };
-      await TaskService.assertPracticeAssignee(input);
 
       const task = await TaskService.createFromLibrary(input);
       res.status(201).json(task);
@@ -382,10 +380,6 @@ export const TaskController = {
         createdBy: actorId,
         assignedBy: actorId,
       };
-      await TaskService.assertPracticeAssignee({
-        ...input,
-        audience: input.audienceOverride,
-      });
 
       const task = await TaskService.createFromTemplate(input);
       res.status(201).json(task);
@@ -465,19 +459,17 @@ export const TaskController = {
       const requestedAssignee: unknown = req.body?.assignedTo;
       if (requestedAssignee !== undefined && requestedAssignee !== parentId) {
         const current = await TaskService.getById(taskId);
-        const unchanged = requestedAssignee === current?.assignedTo;
-        if (
-          current &&
-          !unchanged &&
-          !(
-            typeof requestedAssignee === "string" &&
+        const assignee =
+          typeof requestedAssignee === "string" ? requestedAssignee : null;
+        const allowed =
+          assignee !== null &&
+          (assignee === current?.assignedTo ||
             (await parentHasCompanionFeature(
-              requestedAssignee,
-              current.patientId,
+              assignee,
+              current?.patientId,
               "tasks",
-            ))
-          )
-        ) {
+            )));
+        if (current && !allowed) {
           return res.status(404).json({ message: "Assignee not found" });
         }
       }
@@ -727,6 +719,28 @@ export const TaskController = {
   },
 
   // Companion Task List
+  // Mobile: a parent sees the companion's parent tasks only, from every
+  // practice. The route has checked the caller's link to the companion.
+  listForCompanionMobile: async (
+    req: Request<{ patientId: string }, unknown, unknown, TaskListQuery>,
+    res: Response,
+  ) => {
+    try {
+      const tasks = await TaskService.listForCompanion({
+        ...parseTaskListQueryFilters(req.query),
+        patientId: req.params.patientId,
+        organisationId: undefined,
+        audience: "PARENT_TASK",
+        assignedRole: undefined,
+        assignedTo: pickFirstQueryValue(req.query.assignedTo),
+      });
+
+      res.json(tasks);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
   listForCompanion: async (
     req: Request<{ patientId: string }, unknown, unknown, TaskListQuery>,
     res: Response,

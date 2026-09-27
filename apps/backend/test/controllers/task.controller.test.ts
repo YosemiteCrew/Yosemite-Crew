@@ -261,48 +261,6 @@ describe("Task Controllers", () => {
 
     describe("practice task creates", () => {
       it.each([
-        ["createCustomTaskFromPms", "createCustom", "PARENT_TASK"],
-        ["createFromLibrary", "createFromLibrary", "PARENT_TASK"],
-        ["createFromTemplate", "createFromTemplate", undefined],
-      ] as const)(
-        "%s gives the task only to an assignee of the organisation",
-        async (handler, serviceMethod, audience) => {
-          (req as any).userId = "pms1";
-          (req as any).organisationId = "org-a";
-          req.body = {
-            audience: "PARENT_TASK",
-            audienceOverride: undefined,
-            assignedTo: "someone",
-            patientId: "pat-1",
-          };
-          const { TaskServiceError: MockedError } = jest.requireMock(
-            "../../src/services/task.service",
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ) as any;
-          const error = new MockedError();
-          error.statusCode = 404;
-          error.message = "Assignee not found";
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (
-            mockedTaskService.assertPracticeAssignee as any
-          ).mockRejectedValueOnce(error);
-
-          await TaskController[handler](req as any, res as Response);
-
-          expect(mockedTaskService.assertPracticeAssignee).toHaveBeenCalledWith(
-            expect.objectContaining({
-              organisationId: "org-a",
-              assignedTo: "someone",
-              patientId: "pat-1",
-              audience,
-            }),
-          );
-          expect(statusMock).toHaveBeenCalledWith(404);
-          expect(mockedTaskService[serviceMethod]).not.toHaveBeenCalled();
-        },
-      );
-
-      it.each([
         ["createCustomTaskFromPms", "createCustom"],
         ["createFromLibrary", "createFromLibrary"],
         ["createFromTemplate", "createFromTemplate"],
@@ -864,6 +822,44 @@ describe("Task Controllers", () => {
         (req as any).userPermissions = ["tasks:view:any"];
         mockGenericError(mockedTaskService.listForEmployee as jest.Mock);
         await TaskController.listEmployeeTasks(req as any, res as Response);
+        expect(statusMock).toHaveBeenCalledWith(500);
+      });
+    });
+
+    describe("listForCompanionMobile", () => {
+      it("lists only parent tasks, whatever audience or role the query asks for", async () => {
+        req.params = { patientId: "pat-1" };
+        req.query = {
+          audience: "EMPLOYEE_TASK",
+          assignedRole: "EMPLOYEE_TASK",
+          status: "PENDING",
+        } as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskService.listForCompanion as any).mockResolvedValue([]);
+
+        await TaskController.listForCompanionMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedTaskService.listForCompanion).toHaveBeenCalledWith(
+          expect.objectContaining({
+            patientId: "pat-1",
+            organisationId: undefined,
+            audience: "PARENT_TASK",
+            assignedRole: undefined,
+            status: ["PENDING"],
+          }),
+        );
+      });
+
+      it("maps a service error", async () => {
+        req.params = { patientId: "pat-1" };
+        mockGenericError(mockedTaskService.listForCompanion as jest.Mock);
+        await TaskController.listForCompanionMobile(
+          req as any,
+          res as Response,
+        );
         expect(statusMock).toHaveBeenCalledWith(500);
       });
     });

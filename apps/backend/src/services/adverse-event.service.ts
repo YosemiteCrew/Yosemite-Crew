@@ -227,12 +227,6 @@ export const AdverseEventService = {
     input: AdverseEventReport,
     parentId: string,
   ): Promise<AdverseEventReport> {
-    if (!input.reporter?.firstName || !input.reporter?.email) {
-      throw new AdverseEventServiceError(
-        "Reporter firstName and email are required",
-        400,
-      );
-    }
     if (!input.product?.productName) {
       throw new AdverseEventServiceError("productName is required", 400);
     }
@@ -246,16 +240,42 @@ export const AdverseEventService = {
     }
     await assertReportLinks(input, companionId);
 
+    // Who is reporting, and how to reach them, comes from the signed-in
+    // parent's own record; the rest of the reporter details are the form's.
+    const parent = await prisma.parent.findUnique({
+      where: { id: parentId },
+      select: {
+        firstName: true,
+        lastName: true,
+        email: true,
+        phoneNumber: true,
+      },
+    });
+    if (!parent?.firstName || !parent.email) {
+      throw new AdverseEventServiceError(
+        "Reporter firstName and email are required",
+        400,
+      );
+    }
+    const report: AdverseEventReport = {
+      ...input,
+      reporter: {
+        ...input.reporter,
+        userId: parentId,
+        firstName: parent.firstName,
+        lastName: parent.lastName ?? "",
+        email: parent.email,
+        phoneNumber: parent.phoneNumber ?? undefined,
+      },
+      patient: { ...input.patient, patientId: companionId, companionId },
+    };
+
     const doc = await prisma.adverseEventReport.create({
       data: {
         organisationId: input.organisationId ?? undefined,
         appointmentId: input.appointmentId ?? undefined,
-        reporter: toInputJsonObject({ ...input.reporter, userId: parentId }),
-        patient: toInputJsonObject({
-          ...input.patient,
-          patientId: companionId,
-          companionId,
-        }),
+        reporter: toInputJsonObject(report.reporter),
+        patient: toInputJsonObject(report.patient),
         product: toInputJsonObject(input.product),
         destinations: toInputJsonObject(input.destinations),
         consent: {
@@ -265,7 +285,7 @@ export const AdverseEventService = {
         status: "SUBMITTED",
       },
     });
-    await notifyOrganisation(doc.id, input);
+    await notifyOrganisation(doc.id, report);
 
     return toDomainFromPrisma({
       ...doc,

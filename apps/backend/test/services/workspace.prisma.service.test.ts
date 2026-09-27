@@ -3579,7 +3579,7 @@ describe("WorkspaceService aggregate edge cases", () => {
   });
 
   describe("workspace context resolution", () => {
-    it("reads the companion and client only through the practice's ACTIVE links", async () => {
+    it("reads the companion and client only through this visit's ACTIVE links", async () => {
       db.appointment.findFirst.mockResolvedValue(appointmentRow());
       db.patient.findFirst.mockResolvedValue({ id: "pet-cov", name: "Rex" });
       db.parent.findFirst.mockResolvedValue({
@@ -3604,6 +3604,7 @@ describe("WorkspaceService aggregate edge cases", () => {
       expect(db.parentPatient.findFirst).toHaveBeenCalledWith({
         where: {
           parentId: "parent-cov",
+          patientId: "pet-cov",
           status: "ACTIVE",
           patient: practiceScope,
         },
@@ -3612,7 +3613,7 @@ describe("WorkspaceService aggregate edge cases", () => {
       expect(result.client).toMatchObject({ id: "parent-cov" });
     });
 
-    it("shows no client who is not one of the practice's clients", async () => {
+    it("shows no client who is not actively linked to this visit's companion", async () => {
       db.appointment.findFirst.mockResolvedValue(appointmentRow());
       db.parentPatient.findFirst.mockResolvedValue(null);
       db.parent.findFirst.mockResolvedValue({
@@ -3668,9 +3669,10 @@ describe("WorkspaceService aggregate edge cases", () => {
 
       expect(db.patient.findFirst).not.toHaveBeenCalled();
       expect(result.companion).toBeNull();
-      // The parent falls back to the episode of care.
-      expect(result.client).toMatchObject({ id: "parent-from-case" });
-      expect(result.client?.name).toBe("Ada");
+      // With no companion for this visit there is no client to show, even the
+      // one the episode of care names.
+      expect(result.client).toBeNull();
+      expect(db.parent.findFirst).not.toHaveBeenCalled();
       expect(result.episodeOfCare?.description).toBe("Ongoing dermatitis");
       // The product lookup found nothing, so no product kind is surfaced.
       expect(result.appointment).toMatchObject({

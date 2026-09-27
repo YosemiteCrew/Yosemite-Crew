@@ -75,7 +75,7 @@ router.get(
   "/mobile/companion/:patientId",
   requireMobileAuth,
   requireCompanionPermission("tasks", "patientId"),
-  TaskController.listForCompanion,
+  TaskController.listForCompanionMobile,
 );
 
 // Behind the same co-parent gate as the companion's task list. The rules are

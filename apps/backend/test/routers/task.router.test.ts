@@ -28,6 +28,7 @@ const TaskController = {
   createCustomTaskFromPms: jest.fn(),
   listEmployeeTasks: jest.fn(),
   listForCompanion: jest.fn(),
+  listForCompanionMobile: jest.fn(),
   getById: jest.fn(),
   updateTaskPMS: jest.fn(),
   deleteTaskPMS: jest.fn(),
@@ -228,6 +229,18 @@ describe("task.router", () => {
     expect(deleteMobileTaskRoute?.stack.map((layer) => layer.handle)).toContain(
       requireMobileAuth,
     );
+  });
+
+  it("lists a companion's parent tasks on mobile through its own handler", () => {
+    expect(
+      findRoute("/mobile/companion/:patientId", "get")?.stack.map(
+        (layer) => layer.handle,
+      ),
+    ).toEqual([
+      requireMobileAuth,
+      companionGuard,
+      TaskController.listForCompanionMobile,
+    ]);
   });
 
   it.each([

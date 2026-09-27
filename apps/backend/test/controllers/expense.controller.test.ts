@@ -160,11 +160,11 @@ describe("ExpenseController", () => {
         res as any,
       );
 
-      // An expense stays with its companion; the editor is the caller.
+      // An expense stays with its companion and with whoever recorded it.
       expect(mockedService.updateExpense).toHaveBeenCalledWith("1", {
         notes: "n",
         patientId: undefined,
-        parentId: "parent-1",
+        parentId: undefined,
       });
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ id: "exp-1" });

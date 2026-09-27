@@ -341,7 +341,8 @@ const createTaskCompletionIfNeeded = async (params: {
     data: {
       taskId: params.task.id,
       patientId: params.task.patientId,
-      filledBy: completion.filledBy ?? params.actorId,
+      // Whoever is signed in filled it in; a body cannot name someone else.
+      filledBy: params.actorId,
       answers: completionAnswers as unknown as Prisma.InputJsonValue,
       score: completion.score ?? undefined,
       summary: completion.summary ?? undefined,
@@ -1463,6 +1464,63 @@ const listTasksMatching = async (
   return tasks.map(toTaskLike);
 };
 
+/**
+ * Who a task may be given to. A staff task goes to an active member of the
+ * task's organisation, or to no one yet; a parent task goes to a parent with
+ * an ACTIVE link to the task's companion. Anyone else answers as not found.
+ * Every create and every change of assignee goes through here.
+ */
+const assertTaskAssignee = async (input: {
+  organisationId?: string | null;
+  audience: TaskAudience;
+  assignedTo: unknown;
+  patientId?: string | null;
+}): Promise<void> => {
+  const notFound = () => new TaskServiceError("Assignee not found", 404);
+  const blank =
+    input.assignedTo === undefined ||
+    input.assignedTo === null ||
+    (typeof input.assignedTo === "string" && !input.assignedTo.trim());
+  if (blank && input.audience === "EMPLOYEE_TASK") return;
+
+  const assignedTo = asNonEmptyString(input.assignedTo);
+  if (!assignedTo) throw notFound();
+
+  if (input.audience === "PARENT_TASK") {
+    const patientId = asNonEmptyString(input.patientId);
+    const link = patientId
+      ? await prisma.parentPatient.findFirst({
+          where: { parentId: assignedTo, patientId, status: "ACTIVE" },
+          select: { id: true },
+        })
+      : null;
+    if (!link) throw notFound();
+    return;
+  }
+
+  const organisationId = asNonEmptyString(input.organisationId);
+  const member = organisationId
+    ? await prisma.userOrganization.findFirst({
+        where: {
+          practitionerReference: assignedTo,
+          active: true,
+          OR: [
+            { organizationReference: organisationId },
+            { organizationReference: `Organization/${organisationId}` },
+          ],
+        },
+        select: { id: true },
+      })
+    : null;
+  if (!member) throw notFound();
+};
+
+/**
+ * For a task the server itself raises (a lab result arriving, say), whose
+ * assignee comes from stored records rather than from a request.
+ */
+export type TaskCreateOptions = { assigneeFromServer?: boolean };
+
 export interface BaseTaskCreateInput {
   organisationId?: string;
   appointmentId?: string;
@@ -1571,6 +1629,7 @@ export const TaskService = {
       observationToolId: input.observationToolId,
     });
     await assertCompanionInOrganisation(input.patientId, input.organisationId);
+    await assertTaskAssignee(input);
 
     const doc = await prisma.task.create({
       data: buildCreateTaskData({
@@ -1616,16 +1675,15 @@ export const TaskService = {
       throw new TaskServiceError("Task template not found or inactive", 404);
     }
 
+    // Another organisation's template answers exactly as a missing one.
     if (template.organisationId !== input.organisationId) {
-      throw new TaskServiceError(
-        "Template does not belong to organisation",
-        400,
-      );
+      throw new TaskServiceError("Task template not found or inactive", 404);
     }
 
     const audience: TaskAudience =
       input.audienceOverride ??
       (template.defaultRole === "PARENT" ? "PARENT_TASK" : "EMPLOYEE_TASK");
+    await assertTaskAssignee({ ...input, audience });
 
     const templateMedication = (template.defaultMedication ?? undefined) as
       MedicationInput | undefined;
@@ -1719,7 +1777,10 @@ export const TaskService = {
     return mapped;
   },
 
-  async createCustom(input: CreateCustomTaskInput): Promise<TaskLike> {
+  async createCustom(
+    input: CreateCustomTaskInput,
+    options: TaskCreateOptions = {},
+  ): Promise<TaskLike> {
     if (!input.category || !input.name) {
       throw new TaskServiceError("category and name are required", 400);
     }
@@ -1731,6 +1792,7 @@ export const TaskService = {
       observationToolId: input.observationToolId,
     });
     await assertCompanionInOrganisation(input.patientId, input.organisationId);
+    if (!options.assigneeFromServer) await assertTaskAssignee(input);
 
     const doc = await prisma.task.create({
       data: buildCreateTaskData({
@@ -1843,6 +1905,14 @@ export const TaskService = {
     const { isReassigningUser, isReassigningGroup } =
       resolveTaskReassignmentFlags(task, updates, isCreator);
     const isReassigning = isReassigningUser || isReassigningGroup;
+    if (isReassigningUser) {
+      await assertTaskAssignee({
+        organisationId: task.organisationId,
+        audience: task.audience,
+        assignedTo: updates.assignedTo,
+        patientId: task.patientId,
+      });
+    }
 
     const seriesMasterId = getSeriesMasterId(task);
     const normalizedScope = normalizeRecurrenceScope(scope);
@@ -2154,50 +2224,6 @@ export const TaskService = {
       },
       params,
     );
-  },
-
-  /**
-   * Who a practice may give a task to: a staff task goes to an active member
-   * of the organisation, a parent task to a parent with an ACTIVE link to the
-   * task's companion. When the audience is not known yet (a template decides
-   * it), either qualifies. Anyone else answers as not found.
-   */
-  async assertPracticeAssignee(input: {
-    organisationId?: string;
-    audience?: TaskAudience;
-    assignedTo?: unknown;
-    patientId?: unknown;
-  }): Promise<void> {
-    const organisationId = asNonEmptyString(input.organisationId);
-    const assignedTo = asNonEmptyString(input.assignedTo);
-    const notFound = () => new TaskServiceError("Assignee not found", 404);
-    if (!organisationId || !assignedTo) throw notFound();
-
-    if (input.audience !== "PARENT_TASK") {
-      const member = await prisma.userOrganization.findFirst({
-        where: {
-          practitionerReference: assignedTo,
-          active: true,
-          OR: [
-            { organizationReference: organisationId },
-            { organizationReference: `Organization/${organisationId}` },
-          ],
-        },
-        select: { id: true },
-      });
-      if (member) return;
-    }
-
-    const patientId = asNonEmptyString(input.patientId);
-    if (input.audience !== "EMPLOYEE_TASK" && patientId) {
-      const parent = await prisma.parentPatient.findFirst({
-        where: { parentId: assignedTo, patientId, status: "ACTIVE" },
-        select: { id: true },
-      });
-      if (parent) return;
-    }
-
-    throw notFound();
   },
 
   async listForEmployee(params: {
