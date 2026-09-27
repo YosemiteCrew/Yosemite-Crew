@@ -1972,6 +1972,7 @@ describe('AppointmentFormScreen — final coverage push', () => {
           ...baseFormEntry,
           status: 'signing',
           signingRequired: true,
+          canSign: true,
           submission: {
             _id: 'instance-1',
             answers: {f1: 'Jane'},
@@ -1989,6 +1990,29 @@ describe('AppointmentFormScreen — final coverage push', () => {
       expect(getByTestId('btn-View & Sign')).toBeTruthy();
       expect(getByTestId('form-submitted-badge')).toBeTruthy();
       expect(getByText(/Waiting for your signature/)).toBeTruthy();
+    });
+
+    // Another parent signs it: this one is not told the signature is theirs.
+    it('does not ask a parent who may not sign it for their signature', () => {
+      route(false);
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {
+          ...baseFormEntry,
+          status: 'submitted',
+          signingRequired: true,
+          canSign: false,
+          submission: {
+            _id: 'instance-1',
+            answers: {f1: 'Jane'},
+            submittedAt: new Date('2026-09-24T10:00:00.000Z'),
+          },
+        },
+      ]);
+
+      const {getByText, queryByText} = render(<AppointmentFormScreen />);
+
+      expect(getByText(/Waiting for a signature\./)).toBeTruthy();
+      expect(queryByText(/Waiting for your signature/)).toBeNull();
     });
 
     it('shows a form the practice has as submitted, without Submit', () => {

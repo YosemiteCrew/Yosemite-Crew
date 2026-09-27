@@ -67,7 +67,11 @@ const describeSubmission = (
   const note = submittedAt
     ? `Submitted on ${getDisplayDate(submittedAt)}`
     : 'Submitted';
-  return entry.signingRequired ? `${note}. Waiting for your signature.` : note;
+  if (!entry.signingRequired) return note;
+  // Theirs to sign only where the server says so; else someone else signs.
+  return entry.canSign === true
+    ? `${note}. Waiting for your signature.`
+    : `${note}. Waiting for a signature.`;
 };
 
 const SUBMITTED_FORM_STATUSES = new Set<AppointmentFormStatus>([
