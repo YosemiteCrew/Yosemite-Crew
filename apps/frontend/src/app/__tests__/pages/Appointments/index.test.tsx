@@ -145,6 +145,7 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
 
 jest.mock('@/app/ui/widgets/TitleCalendar', () => (props: any) => (
   <div>
+    {props.actionBeforeAdd}
     <button type="button" onClick={() => props.setActiveView('calendar')}>
       Calendar
     </button>
@@ -297,6 +298,10 @@ describe('Appointments page', () => {
   it('renders calendar view by default and toggles to list/board', async () => {
     await renderAppointments();
 
+    expect(screen.getByRole('link', { name: 'Shift handover' })).toHaveAttribute(
+      'href',
+      '/appointments/handover'
+    );
     expect(useLoadAppointmentsForPrimaryOrgMock).toHaveBeenCalled();
     expect(screen.getByTestId('appointment-calendar')).toBeInTheDocument();
     expect(calendarSpy).toHaveBeenCalledWith(

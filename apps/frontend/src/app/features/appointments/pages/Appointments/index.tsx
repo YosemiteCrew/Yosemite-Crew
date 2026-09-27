@@ -1,5 +1,6 @@
 'use client';
 import React, { Suspense, startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -716,6 +717,14 @@ const useAppointmentsView = () => {
           activeView={activeView}
           setActiveView={handleActiveViewChange}
           showAdd={false}
+          actionBeforeAdd={
+            <Link
+              href="/appointments/handover"
+              className="inline-flex min-h-10 items-center rounded-full border border-[var(--hairline)] px-4 text-caption-1 font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+            >
+              Shift handover
+            </Link>
+          }
         />
         <MobileSearchBar placeholder="Search appointments" />
 
