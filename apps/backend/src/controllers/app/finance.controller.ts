@@ -20,6 +20,11 @@ import {
 } from "src/services/finance/provider-receipt";
 import { ProviderReceiptAuditService } from "src/services/finance/provider-receipt-audit";
 import {
+  buildPaymentActivityCsv,
+  buildPaymentActivityPdf,
+  getPaymentActivityReport,
+} from "src/services/finance/payment-activity-report";
+import {
   ClientAccountService,
   type ClientAccountAllocationResult,
 } from "src/services/finance/client-account";
@@ -273,6 +278,20 @@ const ProviderReceiptQuerySchema = z.object({
   capturedTo: z.iso.datetime({ offset: true }).optional(),
   limit: z.string().optional(),
 });
+
+const PaymentActivityReportQuerySchema = z
+  .object({
+    from: z.iso.datetime({ offset: true }),
+    to: z.iso.datetime({ offset: true }),
+    format: z.enum(["json", "csv", "pdf"]).optional().default("json"),
+  })
+  .refine(
+    ({ from, to }) => new Date(from).getTime() <= new Date(to).getTime(),
+    {
+      path: ["to"],
+      message: "The end date must be on or after the start date.",
+    },
+  );
 
 /**
  * The filter for the historical mismatch audit (#3170 delivery 4).
@@ -1975,6 +1994,58 @@ export const FinanceController = {
       });
     } catch (error) {
       logger.error("Error listing provider receipts for reconciliation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async getPaymentActivityReport(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const query = PaymentActivityReportQuerySchema.safeParse(req.query);
+      if (!query.success) {
+        return res.status(400).json({
+          message: "Provide a valid start date, end date and file format.",
+        });
+      }
+
+      const from = new Date(query.data.from);
+      const to = new Date(query.data.to);
+      const report = await getPaymentActivityReport(organisationId, from, to);
+
+      if (query.data.format === "csv") {
+        const filename = `payments-refunds-${from.toISOString().slice(0, 10)}-${to
+          .toISOString()
+          .slice(0, 10)}.csv`;
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${filename}"`,
+        );
+        return res.status(200).send(buildPaymentActivityCsv(report));
+      }
+
+      if (query.data.format === "pdf") {
+        const filename = `payments-refunds-${from.toISOString().slice(0, 10)}-${to
+          .toISOString()
+          .slice(0, 10)}.pdf`;
+        const pdf = await buildPaymentActivityPdf(report, from, to);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${filename}"`,
+        );
+        return res.status(200).send(pdf);
+      }
+
+      return res.status(200).json({ data: report, error: null });
+    } catch (error) {
+      logger.error("Error generating payment activity report", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },

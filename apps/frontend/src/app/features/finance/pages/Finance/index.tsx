@@ -168,6 +168,12 @@ const Finance = () => {
                 size="compact"
                 ariaLabel="Review captured payments"
               />
+              <Secondary
+                href="/finance/reports"
+                text="Reports"
+                size="compact"
+                ariaLabel="View payment reports"
+              />
             </div>
             <PhoneInvoiceList
               filteredList={filteredList}
@@ -237,6 +243,11 @@ const Finance = () => {
                     href="/finance/payment-reconciliation"
                     text="Reconciliation"
                     ariaLabel="Review captured payments"
+                  />
+                  <Secondary
+                    href="/finance/reports"
+                    text="Reports"
+                    ariaLabel="View payment reports"
                   />
                   <StripeStatusPill />
                 </div>

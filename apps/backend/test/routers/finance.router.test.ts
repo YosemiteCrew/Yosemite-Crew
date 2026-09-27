@@ -61,6 +61,7 @@ const FinanceController = {
   webhook: jest.fn(),
   getDiscountSettings: jest.fn(),
   listProviderReceipts: jest.fn(),
+  getPaymentActivityReport: jest.fn(),
   auditProviderReceipts: jest.fn(),
   allocateProviderReceipt: jest.fn(),
   getClientAccountCredit: jest.fn(),
@@ -163,6 +164,19 @@ describe("finance.router", () => {
     expect(handlers).toContain(withOrgPermissionsMiddleware);
     expect(handlers).toContain(permissionGuard("billing:view:any"));
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
+  });
+
+  it("protects payment activity reports with web auth, org scope and billing view", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/reports/payment-activity",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.getPaymentActivityReport);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:view:any"));
   });
 
   it("puts allocating a capture behind the billing EDIT permission", () => {
