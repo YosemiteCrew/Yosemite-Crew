@@ -5,6 +5,7 @@ import type {
   BillingReviewPage,
 } from '@/app/features/finance/types/billingReview';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { getPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
 
 const missingInvoice: BillingReviewItem = {
   id: 'visit/1',
@@ -75,6 +76,34 @@ describe('BillingReviewContent', () => {
       'href',
       '/appointments/visit%2F1/workspace?step=INVOICE'
     );
+  });
+
+  it('updates visit dates when the preferred timezone changes', async () => {
+    const originalTimezone = getPreferredTimeZone();
+    const formattedAt = (timeZone: string) =>
+      new Intl.DateTimeFormat('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone,
+      }).format(new Date(missingInvoice.appointmentDate));
+
+    try {
+      act(() => setPreferredTimeZone('UTC'));
+      const { container } = render(
+        <BillingReviewContent
+          organisationId="org-1"
+          loadPage={async () => page([missingInvoice])}
+        />
+      );
+      expect(await screen.findByText('Milo')).toBeInTheDocument();
+      const date = container.querySelector('time')!;
+      expect(date).toHaveTextContent(formattedAt('UTC'));
+
+      act(() => setPreferredTimeZone('Europe/Madrid'));
+      expect(date).toHaveTextContent(formattedAt('Europe/Madrid'));
+    } finally {
+      act(() => setPreferredTimeZone(originalTimezone));
+    }
   });
 
   it('shows an empty result state', async () => {

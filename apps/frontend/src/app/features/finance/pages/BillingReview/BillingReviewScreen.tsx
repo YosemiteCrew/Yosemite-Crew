@@ -1,6 +1,14 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useSyncExternalStore,
+} from 'react';
 import Link from 'next/link';
 import { IoArrowForwardOutline, IoReceiptOutline } from 'react-icons/io5';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
@@ -12,6 +20,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { getPreferredTimeZone } from '@/app/lib/timezone';
 import { listBillingReview } from '@/app/features/finance/services/billingReviewService';
 import type {
   BillingReviewItem,
@@ -36,25 +45,37 @@ const statusLabel: Record<BillingReviewStatus, string> = {
 };
 
 const PAGE_SKELETON = <PageSkeleton variant="list" />;
-
-const formatVisitDate = (value: string) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? 'Date unavailable'
-    : new Intl.DateTimeFormat('en', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }).format(date);
+const subscribeToTimezone = (onChange: () => void) => {
+  globalThis.window?.addEventListener('yc:timezone-changed', onChange);
+  return () => globalThis.window?.removeEventListener('yc:timezone-changed', onChange);
 };
 
+const getServerTimezone = () => 'UTC';
+
 const visitHref = (id: string) => `/appointments/${encodeURIComponent(id)}/workspace?step=INVOICE`;
+
+const VisitDate = ({ value }: { value: string }) => {
+  const timeZone = useSyncExternalStore(
+    subscribeToTimezone,
+    getPreferredTimeZone,
+    getServerTimezone
+  );
+  const formatter = useMemo(
+    () => new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone }),
+    [timeZone]
+  );
+  const date = new Date(value);
+  const label = Number.isNaN(date.getTime()) ? 'Date unavailable' : formatter.format(date);
+
+  return <time dateTime={value}>{label}</time>;
+};
 
 const VisitCard = ({ item }: { item: BillingReviewItem }) => (
   <article className="rounded-2xl border border-card-border bg-card p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="text-caption-1 text-text-secondary">
-          {formatVisitDate(item.appointmentDate)}
+          <VisitDate value={item.appointmentDate} />
         </p>
         <h2 className="mt-1 truncate text-body-2-emphasis text-text-primary">
           {item.patientName || item.appointmentType || 'Completed visit'}
@@ -102,43 +123,103 @@ export const BillingReviewContent = ({
   );
 };
 
-const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps) => {
-  const [items, setItems] = useState<BillingReviewItem[]>([]);
-  const [itemsOrganisationId, setItemsOrganisationId] = useState<string | null>(null);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [isLoading, setIsLoading] = useState(Boolean(organisationId));
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState('');
-  const visibleItems = itemsOrganisationId === organisationId ? items : [];
+type BillingReviewListState = {
+  items: BillingReviewItem[];
+  hasMore: boolean;
+  isLoading: boolean;
+  isLoadingMore: boolean;
+  error: string;
+};
+
+type BillingReviewListAction =
+  | { type: 'reset' }
+  | { type: 'load-start' }
+  | { type: 'load-success'; page: BillingReviewPage }
+  | { type: 'load-error'; message: string }
+  | { type: 'load-more-start' }
+  | { type: 'load-more-success'; page: BillingReviewPage }
+  | { type: 'load-more-error'; message: string };
+
+const billingReviewListReducer = (
+  state: BillingReviewListState,
+  action: BillingReviewListAction
+): BillingReviewListState => {
+  switch (action.type) {
+    case 'reset':
+      return { items: [], hasMore: false, isLoading: false, isLoadingMore: false, error: '' };
+    case 'load-start':
+      return { ...state, isLoading: true, error: '' };
+    case 'load-success':
+      return { ...state, items: action.page.items, hasMore: action.page.hasMore, isLoading: false };
+    case 'load-error':
+      return { ...state, isLoading: false, error: action.message };
+    case 'load-more-start':
+      return { ...state, isLoadingMore: true, error: '' };
+    case 'load-more-success':
+      return {
+        ...state,
+        items: [...state.items, ...action.page.items],
+        hasMore: action.page.hasMore,
+        isLoadingMore: false,
+      };
+    case 'load-more-error':
+      return { ...state, isLoadingMore: false, error: action.message };
+    default:
+      return state;
+  }
+};
+
+const useBillingReviewList = (
+  organisationId: string | null,
+  loadPage: BillingReviewListProps['loadPage']
+) => {
+  const [state, dispatch] = useReducer(billingReviewListReducer, {
+    items: [],
+    hasMore: false,
+    isLoading: Boolean(organisationId),
+    isLoadingMore: false,
+    error: '',
+  });
+  const cursor = useRef<string | null>(null);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       if (!organisationId) {
-        setItems([]);
-        setItemsOrganisationId(null);
-        setCursor(null);
-        setHasMore(false);
-        setIsLoading(false);
+        cursor.current = null;
+        dispatch({ type: 'reset' });
         return;
       }
-      setIsLoading(true);
-      setError('');
+      dispatch({ type: 'load-start' });
       try {
         const page = await loadPage(organisationId);
         if (!active) return;
-        setItems(page.items);
-        setItemsOrganisationId(organisationId);
-        setCursor(page.nextCursor);
-        setHasMore(page.hasMore);
+        cursor.current = page.nextCursor;
+        dispatch({ type: 'load-success', page });
       } catch {
-        if (active) setError('We could not load the billing review list. Try again.');
-      } finally {
-        if (active) setIsLoading(false);
+        if (active)
+          dispatch({
+            type: 'load-error',
+            message: 'We could not load the billing review list. Try again.',
+          });
       }
     };
-    load().catch(() => undefined);
+    void load().catch(() => {
+      console.error('Unexpected billing review load failure.');
+      if (active)
+        dispatch({
+          type: 'load-error',
+          message: 'We could not load the billing review list. Try again.',
+        });
+    });
     return () => {
       active = false;
     };
@@ -146,37 +227,41 @@ const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps)
 
   const loadFirstPage = useCallback(async () => {
     if (!organisationId) return;
-    setIsLoading(true);
-    setError('');
+    dispatch({ type: 'load-start' });
     try {
       const page = await loadPage(organisationId);
-      setItems(page.items);
-      setItemsOrganisationId(organisationId);
-      setCursor(page.nextCursor);
-      setHasMore(page.hasMore);
+      if (!mounted.current) return;
+      cursor.current = page.nextCursor;
+      dispatch({ type: 'load-success', page });
     } catch {
-      setError('We could not load the billing review list. Try again.');
-    } finally {
-      setIsLoading(false);
+      if (mounted.current)
+        dispatch({
+          type: 'load-error',
+          message: 'We could not load the billing review list. Try again.',
+        });
     }
   }, [loadPage, organisationId]);
 
-  const loadMore = async () => {
-    if (!organisationId || itemsOrganisationId !== organisationId || !hasMore || isLoadingMore)
-      return;
-    setIsLoadingMore(true);
-    setError('');
+  const loadMore = useCallback(async () => {
+    if (!organisationId || !state.hasMore || state.isLoadingMore) return;
+    dispatch({ type: 'load-more-start' });
     try {
-      const page = await loadPage(organisationId, cursor);
-      setItems((current) => [...current, ...page.items]);
-      setCursor(page.nextCursor);
-      setHasMore(page.hasMore);
+      const page = await loadPage(organisationId, cursor.current);
+      if (!mounted.current) return;
+      cursor.current = page.nextCursor;
+      dispatch({ type: 'load-more-success', page });
     } catch {
-      setError('We could not load more visits. Try again.');
-    } finally {
-      setIsLoadingMore(false);
+      if (mounted.current)
+        dispatch({ type: 'load-more-error', message: 'We could not load more visits. Try again.' });
     }
-  };
+  }, [loadPage, organisationId, state.hasMore, state.isLoadingMore]);
+
+  return { ...state, loadFirstPage, loadMore };
+};
+
+const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps) => {
+  const { items, hasMore, isLoading, isLoadingMore, error, loadFirstPage, loadMore } =
+    useBillingReviewList(organisationId, loadPage);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -197,7 +282,7 @@ const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps)
         </div>
         <div className="flex items-center gap-2 rounded-xl border border-card-border bg-card px-3 py-2 text-caption-1 text-text-secondary">
           <IoReceiptOutline aria-hidden="true" className="text-action-primary" />
-          {visibleItems.length} shown
+          {items.length} shown
         </div>
       </header>
 
@@ -235,32 +320,28 @@ const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps)
         </div>
       )}
 
-      {!isLoading &&
-        !error &&
-        organisationId &&
-        itemsOrganisationId === organisationId &&
-        visibleItems.length === 0 && (
-          <section className="rounded-2xl border border-card-border bg-card px-5 py-10 text-center">
-            <IoReceiptOutline aria-hidden="true" className="mx-auto size-8 text-text-tertiary" />
-            <h2 className="mt-3 text-body-2-emphasis text-text-primary">You’re caught up</h2>
-            <p className="mx-auto mt-1 max-w-md text-body-4 text-text-secondary">
-              Completed visits with a missing or unfinished invoice will appear here.
-            </p>
-          </section>
-        )}
+      {!isLoading && !error && organisationId && items.length === 0 && (
+        <section className="rounded-2xl border border-card-border bg-card px-5 py-10 text-center">
+          <IoReceiptOutline aria-hidden="true" className="mx-auto size-8 text-text-tertiary" />
+          <h2 className="mt-3 text-body-2-emphasis text-text-primary">You’re caught up</h2>
+          <p className="mx-auto mt-1 max-w-md text-body-4 text-text-secondary">
+            Completed visits with a missing or unfinished invoice will appear here.
+          </p>
+        </section>
+      )}
 
-      {!isLoading && visibleItems.length > 0 && (
+      {!isLoading && items.length > 0 && (
         <section aria-label="Visits needing billing review" className="flex flex-col gap-3">
-          {visibleItems.map((item) => (
+          {items.map((item) => (
             <VisitCard key={item.id} item={item} />
           ))}
         </section>
       )}
 
-      {hasMore && !isLoading && itemsOrganisationId === organisationId && (
+      {hasMore && !isLoading && (
         <button
           type="button"
-          onClick={() => loadMore()}
+          onClick={loadMore}
           disabled={isLoadingMore}
           className="min-h-11 self-center rounded-xl border border-card-border bg-card px-5 text-body-4-emphasis text-text-primary transition-colors hover:bg-card-hover disabled:opacity-50"
         >
