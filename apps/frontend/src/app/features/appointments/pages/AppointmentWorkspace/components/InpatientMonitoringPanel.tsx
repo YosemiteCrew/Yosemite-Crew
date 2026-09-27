@@ -90,6 +90,8 @@ const InpatientMonitoringPanel = ({
     const painScore = numericValue(form, 'painScore');
     const inputMl = numericValue(form, 'inputMl');
     const outputMl = numericValue(form, 'outputMl');
+    const notesEntry = form.get('notes');
+    const notes = typeof notesEntry === 'string' ? notesEntry.trim() : '';
 
     setIsSaving(true);
     setError(null);
@@ -105,9 +107,7 @@ const InpatientMonitoringPanel = ({
         ...(painScore !== undefined ? { painScore } : {}),
         ...(inputMl !== undefined ? { inputMl } : {}),
         ...(outputMl !== undefined ? { outputMl } : {}),
-        ...(String(form.get('notes') ?? '').trim()
-          ? { notes: String(form.get('notes')).trim() }
-          : {}),
+        ...(notes ? { notes } : {}),
       });
       setRecords((current) => sortedNewestFirst([entry, ...current]));
       setShowForm(false);
@@ -225,7 +225,7 @@ const InpatientMonitoringPanel = ({
             className="grid grid-cols-1 gap-3 rounded-xl border border-card-border p-4 sm:grid-cols-2"
           >
             <label className="flex min-w-0 flex-col gap-1 text-body-4 font-medium text-text-primary sm:col-span-2">
-              Observed at
+              <span>Observed at</span>
               <input
                 required
                 name="observedAt"

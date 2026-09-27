@@ -167,6 +167,28 @@ describe('InpatientMonitoringPanel', () => {
     expect(payload).not.toHaveProperty('notes');
   });
 
+  it('omits file-valued notes entries', async () => {
+    jest.mocked(recordHospitalizationObservation).mockResolvedValue({ ...record, id: 'obs-4' });
+    render(<InpatientMonitoringPanel {...props} />);
+    await screen.findByText('38.2 °C');
+    fireEvent.click(screen.getByRole('button', { name: 'Record observation' }));
+
+    const form = screen.getByRole('button', { name: 'Save observation' }).closest('form');
+    expect(form).not.toBeNull();
+    within(form as HTMLFormElement)
+      .getByLabelText('Notes')
+      .removeAttribute('name');
+    const fileInput = document.createElement('input');
+    fileInput.name = 'notes';
+    fileInput.type = 'file';
+    form?.append(fileInput);
+    fireEvent.submit(form as HTMLFormElement);
+
+    await waitFor(() => expect(recordHospitalizationObservation).toHaveBeenCalled());
+    const [payload] = jest.mocked(recordHospitalizationObservation).mock.calls[0];
+    expect(payload).not.toHaveProperty('notes');
+  });
+
   it('shows retry after load failure', async () => {
     jest.mocked(listHospitalizationObservations).mockRejectedValue(new Error('offline'));
     render(<InpatientMonitoringPanel {...props} />);
