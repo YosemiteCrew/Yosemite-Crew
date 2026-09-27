@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { getStreamServer } from "src/config/stream-client";
 import { ChatServiceError } from "src/services/chat.service";
+import { assertPatientOrgMembership } from "src/services/shared/patient-org-membership";
 import logger from "src/utils/logger";
 
 // Group channels were created as Stream "team" channels; appointment and direct
@@ -145,15 +146,9 @@ const assertEntityIsShareable = async (
       break;
     }
     case SharedChatEntityType.COMPANION: {
-      const link = await prisma.patientOrganisation.findFirst({
-        where: {
-          organisationId,
-          patientId: id,
-          status: { in: ["ACTIVE", "PENDING"] },
-        },
-        select: { id: true },
+      await assertPatientOrgMembership(id, organisationId, () => {
+        throw notInOrg();
       });
-      if (!link) throw notInOrg();
       break;
     }
     default:

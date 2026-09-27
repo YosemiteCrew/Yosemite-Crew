@@ -250,21 +250,36 @@ const isSubmissionAtOrganisation = async (
   (await keepOrganisationSubmissions([doc], organisationId)).length > 0;
 
 /**
- * PMS: a submission the organisation cannot read answers like a missing one.
  * A pet parent may link a submission that has no appointment yet, or repeat
  * its current link.
+ *
+ * PMS: the submission must be readable here and already the organisation's,
+ * raised from one of its tasks or on one of its appointments. A parent's own
+ * submission with neither is readable at every practice the companion is
+ * linked to, and which of them it goes to is the parent's choice. Anything
+ * else answers like a missing submission.
  */
-const canLinkSubmission = (
+const canLinkSubmission = async (
   doc: SubmissionLinks & { patientId: string },
   organisationId: string | null,
   appointmentId: string,
-): Promise<boolean> =>
-  organisationId
-    ? isSubmissionAtOrganisation(doc, organisationId)
-    : Promise.resolve(
-        !doc.evaluationAppointmentId ||
-          doc.evaluationAppointmentId === appointmentId,
-      );
+): Promise<boolean> => {
+  if (!organisationId) {
+    return (
+      !doc.evaluationAppointmentId ||
+      doc.evaluationAppointmentId === appointmentId
+    );
+  }
+  if (!(await isSubmissionAtOrganisation(doc, organisationId))) return false;
+  // Readable here means a linked appointment is this organisation's.
+  if (doc.evaluationAppointmentId) return true;
+  if (!doc.taskId) return false;
+  const task = await prisma.task.findFirst({
+    where: { id: doc.taskId, organisationId },
+    select: { id: true },
+  });
+  return Boolean(task);
+};
 
 const appointmentPatientIdOf = (patient: unknown): string | undefined =>
   asNonEmptyString((patient as { id?: unknown } | null)?.id);
@@ -743,9 +758,10 @@ export const ObservationToolSubmissionService = {
       );
     }
 
+    // Same row, same order as resolveObservationTaskResultCompanion.
     const submission = await prisma.observationToolSubmission.findFirst({
       where: { taskId: safeTaskId },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
 
     const submissionAnswers = submission?.answers as

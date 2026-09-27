@@ -15,6 +15,7 @@ jest.mock("src/services/shared/parent-identity", () => ({
 
 import { prisma } from "src/config/prisma";
 import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
+import { storedRows } from "../helpers/stored-rows";
 import {
   parentHasCompanionFeature,
   requireCompanionPermission,
@@ -476,8 +477,41 @@ describe("observation-tool resolvers", () => {
       await expect(resolveResult()).resolves.toEqual({ kind: "allow" });
       expect(submissionFindFirst).toHaveBeenCalledWith({
         where: { taskId: "task-1" },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: { patientId: true, filledBy: true },
+      });
+    });
+
+    it("breaks a tie on createdAt by id, the row the preview returns", async () => {
+      // Two results stored in the same instant: the parent's first, then the
+      // one the practice recorded. The preview shows the higher id, so the
+      // check has to judge that row too.
+      const at = new Date("2026-09-27T10:00:00.000Z");
+      submissionFindFirst.mockImplementationOnce(
+        storedRows([
+          {
+            id: "sub-1",
+            taskId: "task-1",
+            createdAt: at,
+            patientId: "pat-1",
+            filledBy: "par-2",
+          },
+          {
+            id: "sub-2",
+            taskId: "task-1",
+            createdAt: at,
+            patientId: "pat-1",
+            filledBy: "staff-1",
+          },
+        ]).findFirst,
+      );
+      findFirst.mockImplementationOnce(
+        storedRows([{ parentId: "par-2", patientId: "pat-1" }]).findFirst,
+      );
+
+      await expect(resolveResult()).resolves.toEqual({
+        kind: "patient",
+        patientId: "pat-1",
       });
     });
 

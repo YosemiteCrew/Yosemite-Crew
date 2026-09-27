@@ -722,7 +722,7 @@ export const CompanionService = {
     }
 
     const link = (await ParentCompanionService.getLinksForCompanion(id)).find(
-      (entry) => entry.parentId === parent.id && entry.status !== "REVOKED",
+      (entry) => entry.parentId === parent.id && entry.status === "ACTIVE",
     ) as ParentPatientLinkRecord | undefined;
 
     if (!link) {

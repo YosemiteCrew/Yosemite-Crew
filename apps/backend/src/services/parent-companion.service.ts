@@ -689,10 +689,7 @@ export const ParentCompanionService = {
     const normalizedParentId = normalizeId(parentId);
 
     const links = await prisma.parentPatient.findMany({
-      where: {
-        parentId: normalizedParentId,
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
+      where: { parentId: normalizedParentId, status: "ACTIVE" },
       select: { patientId: true },
     });
 
