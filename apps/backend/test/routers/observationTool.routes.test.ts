@@ -14,6 +14,7 @@ const requireSuperAdmin = jest.fn((_req, _res, next) => next());
 const resolveBodyPatientCompanion = jest.fn();
 const resolveObservationSubmissionCompanion = jest.fn();
 const resolveObservationTaskCompanion = jest.fn();
+const resolveObservationTaskResultCompanion = jest.fn();
 const companionGuards: Array<{
   feature: string;
   resolver: unknown;
@@ -69,6 +70,7 @@ jest.mock("../../src/middlewares/companion-access", () => ({
   resolveBodyPatientCompanion,
   resolveObservationSubmissionCompanion,
   resolveObservationTaskCompanion,
+  resolveObservationTaskResultCompanion,
 }));
 
 jest.mock("../../src/controllers/web/observationTool.controller", () => ({
@@ -110,7 +112,7 @@ describe("observationTool.routes", () => {
     {
       path: "/mobile/tools/:toolId/submissions",
       method: "post",
-      feature: "medicalRecords",
+      feature: "tasks",
       resolver: resolveBodyPatientCompanion,
       handler: ObservationToolSubmissionController.createFromMobile,
     },
@@ -120,13 +122,6 @@ describe("observationTool.routes", () => {
       feature: "appointments",
       resolver: resolveObservationSubmissionCompanion,
       handler: ObservationToolSubmissionController.linkAppointmentFromMobile,
-    },
-    {
-      path: "/mobile/tasks/:taskId/preview",
-      method: "get",
-      feature: "medicalRecords",
-      resolver: resolveObservationTaskCompanion,
-      handler: ObservationToolSubmissionController.getPreviewByTaskId,
     },
   ])(
     "checks the companion before $method $path",
@@ -138,6 +133,20 @@ describe("observationTool.routes", () => {
       expect(handles).toEqual([requireMobileAuth, entry?.guard, handler]);
     },
   );
+
+  it("checks the task, then a result the practice recorded, before a mobile preview", () => {
+    const task = companionGuardFor(resolveObservationTaskCompanion);
+    const result = companionGuardFor(resolveObservationTaskResultCompanion);
+
+    expect(task?.feature).toBe("tasks");
+    expect(result?.feature).toBe("medicalRecords");
+    expect(handlesOf("/mobile/tasks/:taskId/preview", "get")).toEqual([
+      requireMobileAuth,
+      task?.guard,
+      result?.guard,
+      ObservationToolSubmissionController.getPreviewByTaskId,
+    ]);
+  });
 
   it.each([
     ["/pms/tools", "post"],

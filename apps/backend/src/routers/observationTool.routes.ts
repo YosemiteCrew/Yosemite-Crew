@@ -5,6 +5,7 @@ import {
   resolveBodyPatientCompanion,
   resolveObservationSubmissionCompanion,
   resolveObservationTaskCompanion,
+  resolveObservationTaskResultCompanion,
 } from "src/middlewares/companion-access";
 import { requireSuperAdmin } from "src/middlewares/super-admin";
 import {
@@ -39,14 +40,11 @@ router.get(
   ObservationToolDefinitionController.getById,
 );
 
-// Parent submits OT for a companion they may record results for
+// Parent fills in an OT for a companion whose tasks they may work on
 router.post(
   "/mobile/tools/:toolId/submissions",
   requireMobileAuth,
-  requireCompanionPermissionForResource(
-    "medicalRecords",
-    resolveBodyPatientCompanion,
-  ),
+  requireCompanionPermissionForResource("tasks", resolveBodyPatientCompanion),
   ObservationToolSubmissionController.createFromMobile,
 );
 
@@ -64,8 +62,13 @@ router.get(
   "/mobile/tasks/:taskId/preview",
   requireMobileAuth,
   requireCompanionPermissionForResource(
-    "medicalRecords",
+    "tasks",
     resolveObservationTaskCompanion,
+  ),
+  // A result the practice recorded also needs medical records access.
+  requireCompanionPermissionForResource(
+    "medicalRecords",
+    resolveObservationTaskResultCompanion,
   ),
   ObservationToolSubmissionController.getPreviewByTaskId,
 );

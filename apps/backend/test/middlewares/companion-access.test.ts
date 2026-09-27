@@ -6,7 +6,7 @@ jest.mock("src/config/prisma", () => ({
     externalExpense: { findUnique: jest.fn() },
     invoice: { findUnique: jest.fn() },
     task: { findUnique: jest.fn() },
-    observationToolSubmission: { findUnique: jest.fn() },
+    observationToolSubmission: { findUnique: jest.fn(), findFirst: jest.fn() },
   },
 }));
 jest.mock("src/services/shared/parent-identity", () => ({
@@ -23,6 +23,7 @@ import {
   resolveExpenseCompanion,
   resolveObservationSubmissionCompanion,
   resolveObservationTaskCompanion,
+  resolveObservationTaskResultCompanion,
 } from "src/middlewares/companion-access";
 
 const findFirst = (
@@ -458,6 +459,59 @@ describe("observation-tool resolvers", () => {
     ).resolves.toEqual({ kind: "deny" });
     expect(taskFindUnique).not.toHaveBeenCalled();
     expect(submissionFindUnique).not.toHaveBeenCalled();
+  });
+
+  describe("resolveObservationTaskResultCompanion", () => {
+    const submissionFindFirst = (
+      prisma as unknown as {
+        observationToolSubmission: { findFirst: jest.Mock };
+      }
+    ).observationToolSubmission.findFirst;
+    const resolveResult = (taskId = " task-1 ") =>
+      resolveObservationTaskResultCompanion(reqWith({ taskId }), "par-2");
+
+    it("allows a task with no result yet", async () => {
+      submissionFindFirst.mockResolvedValue(null);
+
+      await expect(resolveResult()).resolves.toEqual({ kind: "allow" });
+      expect(submissionFindFirst).toHaveBeenCalledWith({
+        where: { taskId: "task-1" },
+        orderBy: { createdAt: "desc" },
+        select: { patientId: true, filledBy: true },
+      });
+    });
+
+    it("allows the latest result when a parent of the companion filled it in", async () => {
+      submissionFindFirst.mockResolvedValue({
+        patientId: "pat-1",
+        filledBy: "par-1",
+      });
+      findFirst.mockResolvedValue({ parentId: "par-1" });
+
+      await expect(resolveResult()).resolves.toEqual({ kind: "allow" });
+      expect(findFirst).toHaveBeenCalledWith({
+        where: { parentId: "par-1", patientId: "pat-1" },
+        select: { parentId: true },
+      });
+    });
+
+    it("names the companion when the practice recorded the result", async () => {
+      submissionFindFirst.mockResolvedValue({
+        patientId: "pat-1",
+        filledBy: "staff-1",
+      });
+      findFirst.mockResolvedValue(null);
+
+      await expect(resolveResult()).resolves.toEqual({
+        kind: "patient",
+        patientId: "pat-1",
+      });
+    });
+
+    it("denies a blank task id without a query", async () => {
+      await expect(resolveResult("  ")).resolves.toEqual({ kind: "deny" });
+      expect(submissionFindFirst).not.toHaveBeenCalled();
+    });
   });
 
   it("names the companion from the body patientId", async () => {

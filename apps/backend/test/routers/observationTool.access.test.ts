@@ -149,6 +149,8 @@ const ALL_OFF = {
 const PARENTS = {
   owner: "par-owner",
   coParent: "par-co-yes",
+  coParentTasksOnly: "par-co-tasks",
+  coParentNoTasks: "par-co-no-tasks",
   coParentWithout: "par-co-no",
   otherParent: "par-other",
   pending: "par-pending",
@@ -177,6 +179,25 @@ const seed = () => {
     },
     {
       parentId: PARENTS.coParent,
+      patientId: "pat-1",
+      role: "CO_PARENT",
+      status: "ACTIVE",
+      permissions: {
+        ...ALL_OFF,
+        tasks: true,
+        medicalRecords: true,
+        appointments: true,
+      },
+    },
+    {
+      parentId: PARENTS.coParentTasksOnly,
+      patientId: "pat-1",
+      role: "CO_PARENT",
+      status: "ACTIVE",
+      permissions: { ...ALL_OFF, tasks: true },
+    },
+    {
+      parentId: PARENTS.coParentNoTasks,
       patientId: "pat-1",
       role: "CO_PARENT",
       status: "ACTIVE",
@@ -378,7 +399,7 @@ describe("GET /mobile/tasks/:taskId/preview", () => {
   const preview = (caller?: Caller, taskId = "task-1") =>
     call("GET", `/mobile/tasks/${taskId}/preview`, caller);
 
-  it.each<Caller>(["owner", "coParent"])(
+  it.each<Caller>(["owner", "coParent", "coParentTasksOnly"])(
     "returns the latest submission to a permitted caller (%s)",
     async (caller) => {
       const { status, body } = await preview(caller);
@@ -421,11 +442,58 @@ describe("GET /mobile/tasks/:taskId/preview", () => {
     },
   );
 
-  it("returns 403 to a co-parent without the medical records permission", async () => {
-    const { status, body } = await preview("coParentWithout");
+  it.each<Caller>(["coParentWithout", "coParentNoTasks"])(
+    "returns 403 to a co-parent without the tasks permission (%s)",
+    async (caller) => {
+      const { status, body } = await preview(caller);
 
-    expect(status).toBe(403);
-    expect(body).not.toHaveProperty("answersPreview");
+      expect(status).toBe(403);
+      expect(body).not.toHaveProperty("answersPreview");
+    },
+  );
+
+  it("returns a task with no result yet to a co-parent with the tasks permission", async () => {
+    const { status, body } = await preview("coParentTasksOnly", "task-3");
+
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ taskId: "task-3", toolId: "tool-1" });
+    expect(body).not.toHaveProperty("submissionId");
+  });
+
+  describe("a result the practice recorded", () => {
+    beforeEach(() => {
+      mockDb.task.push({
+        id: "task-4",
+        patientId: "pat-1",
+        organisationId: "org-a",
+        observationToolId: "tool-1",
+        assignedTo: "staff-a",
+      });
+      mockDb.observationToolSubmission.push({
+        ...recorded("sub-practice"),
+        taskId: "task-4",
+        filledBy: "staff-a",
+        score: 1,
+      });
+    });
+
+    it.each<Caller>(["owner", "coParent"])(
+      "is returned to a caller with medical records access (%s)",
+      async (caller) => {
+        const { status, body } = await preview(caller, "task-4");
+
+        expect(status).toBe(200);
+        expect(body).toMatchObject({ submissionId: "sub-practice", score: 1 });
+      },
+    );
+
+    it("returns 403 to a co-parent with only the tasks permission", async () => {
+      const { status, body } = await preview("coParentTasksOnly", "task-4");
+
+      expect(status).toBe(403);
+      expect(body).not.toHaveProperty("score");
+      expect(body).not.toHaveProperty("answersPreview");
+    });
   });
 
   it("returns 401 without a session", async () => {
@@ -651,7 +719,7 @@ describe("POST /mobile/tools/:toolId/submissions", () => {
       String(row.id).startsWith("observationToolSubmission-"),
     );
 
-  it.each<Caller>(["owner", "coParent"])(
+  it.each<Caller>(["owner", "coParent", "coParentTasksOnly"])(
     "records a submission for the companion (%s)",
     async (caller) => {
       const { status, body } = await create(caller, {
@@ -749,15 +817,18 @@ describe("POST /mobile/tools/:toolId/submissions", () => {
     },
   );
 
-  it("returns 403 to a co-parent without the medical records permission", async () => {
-    const { status } = await create("coParentWithout", {
-      patientId: "pat-1",
-      answers: { q1: "yes" },
-    });
+  it.each<Caller>(["coParentWithout", "coParentNoTasks"])(
+    "returns 403 to a co-parent without the tasks permission and records nothing (%s)",
+    async (caller) => {
+      const { status } = await create(caller, {
+        patientId: "pat-1",
+        answers: { q1: "yes" },
+      });
 
-    expect(status).toBe(403);
-    expect(created()).toHaveLength(0);
-  });
+      expect(status).toBe(403);
+      expect(created()).toHaveLength(0);
+    },
+  );
 
   it.each([{ not: "" }, ["pat-1"], undefined])(
     "returns 404 for a patientId that is not a plain id (%j) and records nothing",

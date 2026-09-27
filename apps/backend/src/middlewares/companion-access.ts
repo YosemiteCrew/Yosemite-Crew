@@ -267,6 +267,33 @@ export const resolveObservationTaskCompanion: CompanionResourceResolver =
       : { kind: "deny" };
   };
 
+/**
+ * Observation-tool task previews also return the task's latest result (the
+ * same row the preview reads). A result filled in by a parent of the companion
+ * is task work and needs nothing more; one the practice recorded is a medical
+ * record.
+ */
+export const resolveObservationTaskResultCompanion: CompanionResourceResolver =
+  async (req) => {
+    const taskId = readIdParam(req, "taskId");
+    if (!taskId) return { kind: "deny" };
+
+    const submission = await prisma.observationToolSubmission.findFirst({
+      where: { taskId },
+      orderBy: { createdAt: "desc" },
+      select: { patientId: true, filledBy: true },
+    });
+    if (!submission) return { kind: "allow" };
+
+    const filledByParent = await prisma.parentPatient.findFirst({
+      where: { parentId: submission.filledBy, patientId: submission.patientId },
+      select: { parentId: true },
+    });
+    return filledByParent
+      ? { kind: "allow" }
+      : { kind: "patient", patientId: submission.patientId };
+  };
+
 /** Observation-tool submission routes: the companion the submission is for. */
 export const resolveObservationSubmissionCompanion: CompanionResourceResolver =
   async (req) => {
