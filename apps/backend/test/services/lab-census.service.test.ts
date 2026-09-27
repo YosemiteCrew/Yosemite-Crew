@@ -182,6 +182,35 @@ describe("LabCensusService", () => {
     ).resolves.toEqual({ ok: true });
   });
 
+  it("checks the independent active links concurrently", async () => {
+    let resolvePracticeLink: (value: { id: string }) => void = () => {};
+    let resolveParentLink: (value: { id: string }) => void = () => {};
+    const practiceLink = new Promise<{ id: string }>((resolve) => {
+      resolvePracticeLink = resolve;
+    });
+    const parentLink = new Promise<{ id: string }>((resolve) => {
+      resolveParentLink = resolve;
+    });
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockImplementationOnce(
+      () => practiceLink,
+    );
+    (prisma.parentPatient.findFirst as jest.Mock).mockImplementationOnce(
+      () => parentLink,
+    );
+
+    const request = LabCensusService.addCensusPatient("IDEXX", organisationId, {
+      patientId,
+      parentId,
+    });
+    const parentCheckStartedBeforeEitherResult =
+      (prisma.parentPatient.findFirst as jest.Mock).mock.calls.length === 1;
+    resolvePracticeLink({ id: "patient-org-link" });
+    resolveParentLink({ id: "parent-patient-link" });
+
+    await expect(request).resolves.toEqual({ ok: true });
+    expect(parentCheckStartedBeforeEitherResult).toBe(true);
+  });
+
   it("rejects when companion species or breed is missing", async () => {
     (prisma.patient.findUnique as jest.Mock).mockResolvedValueOnce({
       id: patientId,
