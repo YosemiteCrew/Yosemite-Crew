@@ -12,6 +12,7 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {saveVisitPreparationDraft} from '../appointmentsSlice';
 import type {VisitPreparationDraft} from '../types';
 import {
+  cancelVisitVoiceCapture,
   captureVisitVoice,
   isVisitReadBackAvailable,
   isVisitVoiceAvailable,
@@ -53,9 +54,11 @@ export const VisitPreparationDraftCard: React.FC<{
     null,
   );
   const [isReading, setIsReading] = React.useState(false);
+  const mounted = React.useRef(true);
 
   React.useEffect(() => {
     let active = true;
+    mounted.current = true;
     isVisitVoiceAvailable().then(available => {
       if (active) setVoiceAvailable(available);
     });
@@ -67,7 +70,9 @@ export const VisitPreparationDraftCard: React.FC<{
     });
     return () => {
       active = false;
+      mounted.current = false;
       removeReadBackListener();
+      cancelVisitVoiceCapture().catch(() => undefined);
       stopReadingVisitText().catch(() => undefined);
     };
   }, []);
@@ -93,6 +98,7 @@ export const VisitPreparationDraftCard: React.FC<{
   const capture = async (field: DraftField) => {
     setListeningField(field);
     const result = await captureVisitVoice(i18n.resolvedLanguage ?? 'en-US');
+    if (!mounted.current) return;
     setListeningField(null);
     if (result.status === 'ok') {
       const current = latestDraft.current[field].trim();

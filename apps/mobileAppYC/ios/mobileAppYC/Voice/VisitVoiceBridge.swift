@@ -116,26 +116,9 @@ final class VisitVoiceBridge: RCTEventEmitter, AVSpeechSynthesizerDelegate {
 
   private func finishRecognition(text: String? = nil, error: Error? = nil) {
     DispatchQueue.main.async {
-      self.recognitionEndTimer?.invalidate()
-      self.recognitionEndTimer = nil
-      self.audioEngine.stop()
-      self.recognitionRequest?.endAudio()
-      self.recognitionTask?.cancel()
-      if self.tapInstalled {
-        self.audioEngine.inputNode.removeTap(onBus: 0)
-        self.tapInstalled = false
-      }
-      try? AVAudioSession.sharedInstance().setActive(
-        false,
-        options: .notifyOthersOnDeactivation
-      )
-
       let resolve = self.recognitionResolve
       let reject = self.recognitionReject
-      self.recognitionRequest = nil
-      self.recognitionTask = nil
-      self.recognitionResolve = nil
-      self.recognitionReject = nil
+      self.clearRecognition()
 
       if let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         resolve?(text)
@@ -143,6 +126,43 @@ final class VisitVoiceBridge: RCTEventEmitter, AVSpeechSynthesizerDelegate {
         reject?("voice_error", "Speech recognition failed.", error)
       }
     }
+  }
+
+  @objc(cancelRecognition:rejecter:)
+  func cancelRecognition(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter _: @escaping RCTPromiseRejectBlock
+  ) {
+    DispatchQueue.main.async {
+      guard self.recognitionResolve != nil else {
+        resolve(false)
+        return
+      }
+      let reject = self.recognitionReject
+      self.clearRecognition()
+      reject?("voice_cancelled", "Speech recognition was cancelled.", nil)
+      resolve(true)
+    }
+  }
+
+  private func clearRecognition() {
+    recognitionEndTimer?.invalidate()
+    recognitionEndTimer = nil
+    audioEngine.stop()
+    recognitionRequest?.endAudio()
+    recognitionTask?.cancel()
+    if tapInstalled {
+      audioEngine.inputNode.removeTap(onBus: 0)
+      tapInstalled = false
+    }
+    try? AVAudioSession.sharedInstance().setActive(
+      false,
+      options: .notifyOthersOnDeactivation
+    )
+    recognitionRequest = nil
+    recognitionTask = nil
+    recognitionResolve = nil
+    recognitionReject = nil
   }
 
   @objc(speak:locale:resolver:rejecter:)

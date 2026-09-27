@@ -15,6 +15,10 @@ RCT_EXTERN_METHOD(recognize
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(cancelRecognition
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(speak
                   : (NSString *)text locale
                   : (NSString *)locale resolver

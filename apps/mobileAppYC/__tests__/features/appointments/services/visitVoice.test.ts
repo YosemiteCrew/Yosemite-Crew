@@ -1,6 +1,7 @@
 import {DeviceEventEmitter, NativeModules, Platform} from 'react-native';
 import {check, request, RESULTS} from 'react-native-permissions';
 import {
+  cancelVisitVoiceCapture,
   captureVisitVoice,
   isVisitReadBackAvailable,
   isVisitVoiceAvailable,
@@ -10,9 +11,12 @@ import {
 } from '../../../../src/features/appointments/services/visitVoice';
 
 const native = {
+  addListener: jest.fn(),
+  removeListeners: jest.fn(),
   isAvailable: jest.fn(),
   isReadBackAvailable: jest.fn(),
   recognize: jest.fn(),
+  cancelRecognition: jest.fn(),
   speak: jest.fn(),
   stopSpeaking: jest.fn(),
 };
@@ -30,6 +34,7 @@ describe('visitVoice', () => {
     native.isAvailable.mockResolvedValue(true);
     native.isReadBackAvailable.mockResolvedValue(true);
     native.recognize.mockResolvedValue('  Luna coughed twice  ');
+    native.cancelRecognition.mockResolvedValue(true);
     native.speak.mockResolvedValue(true);
     native.stopSpeaking.mockResolvedValue(true);
   });
@@ -53,6 +58,21 @@ describe('visitVoice', () => {
     remove();
     DeviceEventEmitter.emit('visitVoiceReadBackFinished');
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('registers iOS completion events with the native module', () => {
+    Object.defineProperty(Platform, 'OS', {value: 'ios', configurable: true});
+    const listener = jest.fn();
+    const remove = onVisitReadBackFinished(listener);
+
+    expect(native.addListener).toHaveBeenCalledWith(
+      'visitVoiceReadBackFinished',
+    );
+    DeviceEventEmitter.emit('visitVoiceReadBackFinished');
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    remove();
+    expect(native.removeListeners).toHaveBeenCalledWith(1);
   });
 
   afterEach(() => {
@@ -139,5 +159,15 @@ describe('visitVoice', () => {
     delete (NativeModules as any).VisitVoice;
     await expect(readVisitText('Question', 'en-US')).resolves.toBe(false);
     await expect(stopReadingVisitText()).resolves.toBe(false);
+  });
+
+  it('cancels active recognition with safe fallbacks', async () => {
+    await expect(cancelVisitVoiceCapture()).resolves.toBe(true);
+    expect(native.cancelRecognition).toHaveBeenCalled();
+
+    native.cancelRecognition.mockRejectedValueOnce(new Error('failed'));
+    await expect(cancelVisitVoiceCapture()).resolves.toBe(false);
+    delete (NativeModules as any).VisitVoice;
+    await expect(cancelVisitVoiceCapture()).resolves.toBe(false);
   });
 });

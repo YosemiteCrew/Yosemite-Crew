@@ -111,6 +111,24 @@ class VisitVoiceModule(
     }
 
     @ReactMethod
+    fun cancelRecognition(promise: Promise) {
+        mainHandler.post {
+            val activePromise = recognitionPromise
+            val activeRecognizer = recognizer
+            if (activePromise == null || activeRecognizer == null) {
+                promise.resolve(false)
+                return@post
+            }
+            recognizer = null
+            recognitionPromise = null
+            activeRecognizer.cancel()
+            activeRecognizer.destroy()
+            activePromise.reject("voice_cancelled", "Speech recognition was cancelled.")
+            promise.resolve(true)
+        }
+    }
+
+    @ReactMethod
     fun speak(text: String, locale: String, promise: Promise) {
         mainHandler.post {
             initializeTextToSpeech(

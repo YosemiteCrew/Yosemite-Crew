@@ -85,6 +85,7 @@ jest.mock(
 
 jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
 jest.mock('../../../../src/features/appointments/services/visitVoice', () => ({
+  cancelVisitVoiceCapture: jest.fn(),
   isVisitVoiceAvailable: jest.fn(),
   isVisitReadBackAvailable: jest.fn(),
   onVisitReadBackFinished: jest.fn((listener: () => void) => {
@@ -139,6 +140,7 @@ describe('VisitPreparationDraftCard', () => {
       status: 'ok',
       text: 'Coughed twice',
     });
+    (visitVoice.cancelVisitVoiceCapture as jest.Mock).mockResolvedValue(true);
     (visitVoice.readVisitText as jest.Mock).mockResolvedValue(true);
     (visitVoice.stopReadingVisitText as jest.Mock).mockResolvedValue(true);
   });
@@ -377,7 +379,7 @@ describe('VisitPreparationDraftCard', () => {
     });
   });
 
-  it('keeps typed input available when native speech is unavailable and stops speech on unmount', async () => {
+  it('keeps typed input available when native speech is unavailable and stops voice work on unmount', async () => {
     (visitVoice.isVisitVoiceAvailable as jest.Mock).mockResolvedValueOnce(
       false,
     );
@@ -394,6 +396,30 @@ describe('VisitPreparationDraftCard', () => {
       'Include Questions when sending',
     );
     unmount();
+    expect(visitVoice.cancelVisitVoiceCapture).toHaveBeenCalled();
     expect(visitVoice.stopReadingVisitText).toHaveBeenCalled();
+  });
+
+  it('ignores recognition results after unmounting', async () => {
+    let finishCapture: ((result: {status: 'ok'; text: string}) => void) | null =
+      null;
+    (visitVoice.captureVisitVoice as jest.Mock).mockReturnValueOnce(
+      new Promise(resolve => {
+        finishCapture = resolve;
+      }),
+    );
+    const {store, unmount} = renderCard();
+    await waitFor(() =>
+      expect(screen.getByTestId('visit-voice-observations')).toBeTruthy(),
+    );
+
+    fireEvent.press(screen.getByTestId('visit-voice-observations'));
+    unmount();
+    await act(async () => {
+      finishCapture?.({status: 'ok', text: 'Late result'});
+    });
+
+    expect(visitVoice.cancelVisitVoiceCapture).toHaveBeenCalled();
+    expect(store.getState().appointments.visitPreparationDrafts).toEqual({});
   });
 });

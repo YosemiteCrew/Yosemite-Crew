@@ -1,10 +1,18 @@
-import {DeviceEventEmitter, NativeModules, Platform} from 'react-native';
+import {
+  DeviceEventEmitter,
+  NativeEventEmitter,
+  NativeModules,
+  Platform,
+} from 'react-native';
 import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 
 interface VisitVoiceNativeModule {
+  addListener(eventType: string): void;
+  removeListeners(count: number): void;
   isAvailable(): Promise<boolean>;
   isReadBackAvailable(): Promise<boolean>;
   recognize(locale: string): Promise<string>;
+  cancelRecognition(): Promise<boolean>;
   speak(text: string, locale: string): Promise<boolean>;
   stopSpeaking(): Promise<boolean>;
 }
@@ -57,11 +65,21 @@ export const isVisitReadBackAvailable = async (): Promise<boolean> => {
 };
 
 export const onVisitReadBackFinished = (listener: () => void): (() => void) => {
-  const subscription = DeviceEventEmitter.addListener(
-    READ_BACK_FINISHED_EVENT,
-    listener,
-  );
+  const native = getModule();
+  const emitter =
+    Platform.OS === 'ios' && native
+      ? new NativeEventEmitter(native)
+      : DeviceEventEmitter;
+  const subscription = emitter.addListener(READ_BACK_FINISHED_EVENT, listener);
   return () => subscription.remove();
+};
+
+export const cancelVisitVoiceCapture = async (): Promise<boolean> => {
+  try {
+    return (await getModule()?.cancelRecognition()) ?? false;
+  } catch {
+    return false;
+  }
 };
 
 export const captureVisitVoice = async (
