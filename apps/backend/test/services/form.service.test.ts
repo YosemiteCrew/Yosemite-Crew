@@ -458,6 +458,42 @@ describe("FormService", () => {
       );
     });
 
+    it.each(["Internal_External", "External"])(
+      "serves a form shown %s",
+      async (visibilityType) => {
+        (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
+          formId,
+          version: 1,
+          schemaSnapshot: [],
+        });
+        (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+          id: formId,
+          status: "published",
+          visibilityType,
+        });
+
+        await expect(FormService.getFormForUser(formId)).resolves.toBeTruthy();
+      },
+    );
+
+    it("answers an internal form as a missing one", async () => {
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
+        formId,
+        version: 1,
+        schemaSnapshot: [],
+      });
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+        id: formId,
+        status: "published",
+        visibilityType: "Internal",
+      });
+
+      await expect(FormService.getFormForUser(formId)).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Form not found",
+      });
+    });
+
     it("returns simplified client form", async () => {
       (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
         formId,
@@ -894,7 +930,10 @@ describe("FormService", () => {
         });
         (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue(null);
 
-        await expect(submit()).rejects.toMatchObject({ statusCode: 403 });
+        await expect(submit()).rejects.toMatchObject({
+          statusCode: 404,
+          message: "Form not found",
+        });
         expect(TemplateService.createInstance).not.toHaveBeenCalled();
       });
 
@@ -904,7 +943,7 @@ describe("FormService", () => {
 
         await expect(
           submit({ appointmentId: undefined }),
-        ).rejects.toMatchObject({ statusCode: 403 });
+        ).rejects.toMatchObject({ statusCode: 404, message: "Form not found" });
 
         expect(prisma.formAssignment.findFirst).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1545,7 +1584,7 @@ describe("FormService", () => {
       ).rejects.toThrow("Appointment not found");
     });
 
-    it("throws forbidden when viewer parent does not own appointment", async () => {
+    it("answers a parent who does not hold the appointment as if it did not exist", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
         organisationId: "o",
         patient: { id: "companion-a", parent: { id: "parent-a" } },
@@ -1556,7 +1595,10 @@ describe("FormService", () => {
           appointmentId: validId,
           viewerParentId: "parent-b",
         }),
-      ).rejects.toThrow("Forbidden");
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Appointment not found",
+      });
     });
 
     it("allows assigned paperwork for an authorised co-parent", async () => {
@@ -1595,7 +1637,10 @@ describe("FormService", () => {
           appointmentId: validId,
           viewerParentId: "co-parent-a",
         }),
-      ).rejects.toThrow("Forbidden");
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Appointment not found",
+      });
     });
 
     it("throws forbidden when the appointment belongs to another organisation (cross-tenant IDOR)", async () => {

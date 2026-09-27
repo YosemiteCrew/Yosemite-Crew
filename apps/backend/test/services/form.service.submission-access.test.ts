@@ -121,6 +121,25 @@ const VERSIONS: Row[] = [
 
 let submissionRows: Row[] = [];
 
+// Applies a Prisma `orderBy` the way Prisma does, so a query that sorts on the
+// wrong column returns the rows in the wrong order.
+const ordered = (rows: Row[], orderBy?: unknown): Row[] => {
+  const keys = (
+    [orderBy ?? []].flat() as Record<string, "asc" | "desc">[]
+  ).flatMap((entry) => Object.entries(entry));
+  const value = (row: Row, key: string) => {
+    const field = row[key];
+    return field instanceof Date ? field.getTime() : (field as string | number);
+  };
+  return [...rows].sort((a, b) => {
+    for (const [key, direction] of keys) {
+      const [x, y] = [value(a, key), value(b, key)];
+      if (x !== y) return (x < y ? -1 : 1) * (direction === "desc" ? -1 : 1);
+    }
+    return 0;
+  });
+};
+
 const useTables = (tables: { links: Row[]; submissions: Row[] }) => {
   submissionRows = tables.submissions;
   mockedPrisma.parentPatient.findMany.mockImplementation(async ({ where }) =>
@@ -130,8 +149,12 @@ const useTables = (tables: { links: Row[]; submissions: Row[] }) => {
     async ({ where }) =>
       tables.links.find((row) => matches(row, where)) ?? null,
   );
-  mockedPrisma.formSubmission.findMany.mockImplementation(async ({ where }) =>
-    tables.submissions.filter((row) => matches(row, where)),
+  mockedPrisma.formSubmission.findMany.mockImplementation(
+    async ({ where, orderBy }) =>
+      ordered(
+        tables.submissions.filter((row) => matches(row, where)),
+        orderBy,
+      ),
   );
   mockedPrisma.formSubmission.findUnique.mockImplementation(
     async ({ where }) =>
@@ -161,15 +184,17 @@ const submission = (id: string, overrides: Row = {}): Row => ({
   submittedBy: OTHER_PARENT,
   answers: { q: id },
   submittedAt: new Date("2026-09-01T00:00:00.000Z"),
+  createdAt: new Date("2026-09-01T00:00:00.000Z"),
   ...overrides,
 });
 
 // A form the caller filled in themselves.
-const ownRow = (id = "own") =>
+const ownRow = (id = "own", overrides: Row = {}) =>
   submission(id, {
     parentId: CALLER,
     submittedBy: CALLER,
     patientId: COMPANION,
+    ...overrides,
   });
 
 // A row the practice wrote for the caller's companion: the practice stores its
@@ -522,7 +547,11 @@ describe("FormService submission reads for a pet parent", () => {
       useTables({
         links: [link()],
         submissions: [
-          { ...ownRow("v1-row"), signing: { signers: [{ email: "x" }] } },
+          {
+            ...ownRow("v1-row"),
+            signing: { signers: [{ email: "x" }] },
+            createdAt: new Date("2026-09-02T00:00:00.000Z"),
+          },
           {
             ...otherParentsFormForCompanion("v2-row"),
             formVersion: 2,
@@ -545,6 +574,31 @@ describe("FormService submission reads for a pet parent", () => {
         expect(item).not.toHaveProperty("signing");
         expect(item).not.toHaveProperty("id");
       }
+    });
+
+    it("lists the most recently recorded first, whatever time the client gave", async () => {
+      useTables({
+        links: [link()],
+        submissions: [
+          ownRow("recorded-first", {
+            submittedAt: new Date("2026-09-30T00:00:00.000Z"),
+            createdAt: new Date("2026-09-01T00:00:00.000Z"),
+          }),
+          ownRow("recorded-last", {
+            submittedAt: new Date("2026-08-01T00:00:00.000Z"),
+            createdAt: new Date("2026-09-02T00:00:00.000Z"),
+          }),
+          ownRow("recorded-last-b", {
+            createdAt: new Date("2026-09-02T00:00:00.000Z"),
+          }),
+        ],
+      });
+
+      await expect(listIds()).resolves.toEqual([
+        "recorded-last-b",
+        "recorded-last",
+        "recorded-first",
+      ]);
     });
 
     it("reads no versions when nothing is visible", async () => {
@@ -633,6 +687,52 @@ describe("FormService SOAP notes for a pet parent", () => {
     expect(result.soapNotes).toMatchObject({
       Subjective: [expect.objectContaining({ submittedBy: CALLER })],
     });
+  });
+
+  it("leaves out the answers of an internal form for every parent", async () => {
+    useTables({ links: [link()], submissions: [soapRow] });
+    mockedPrisma.form.findMany.mockResolvedValue([
+      {
+        id: SOAP_FORM,
+        category: "SOAP-Subjective",
+        visibilityType: "Internal",
+      },
+    ]);
+
+    const result = await readSoap();
+    const practice = await FormService.getSOAPNotesByAppointment(APPOINTMENT, {
+      requesterOrgId: "org-hospital",
+    });
+
+    expect(result.soapNotes).toMatchObject({ Subjective: [] });
+    expect(practice.soapNotes).toMatchObject({
+      Subjective: [
+        expect.objectContaining({ submissionId: "soap-subjective" }),
+      ],
+    });
+  });
+
+  it("lists the most recently recorded note first", async () => {
+    useTables({
+      links: [link()],
+      submissions: [
+        { ...soapRow, id: "recorded-first" },
+        {
+          ...soapRow,
+          id: "recorded-last",
+          submittedAt: new Date("2026-08-01T00:00:00.000Z"),
+          createdAt: new Date("2026-09-02T00:00:00.000Z"),
+        },
+      ],
+    });
+
+    const result = (await readSoap()) as unknown as {
+      soapNotes: Record<string, Row[]>;
+    };
+
+    expect(
+      result.soapNotes.Subjective.map((note) => note.submissionId),
+    ).toEqual(["recorded-last", "recorded-first"]);
   });
 
   it("keeps the submitter on the practice view", async () => {
@@ -1009,6 +1109,46 @@ describe("FormService appointment forms for a pet parent", () => {
 
     expect(consent).toMatchObject({ _id: "own-consent" });
   });
+
+  it("shows the most recently recorded submission, whatever time the client gave", async () => {
+    useTables({
+      links: [link()],
+      submissions: [
+        onAppointment("recorded-first", {
+          parentId: CALLER,
+          submittedBy: CALLER,
+          submittedAt: new Date("2026-09-30T00:00:00.000Z"),
+          createdAt: new Date("2026-09-01T00:00:00.000Z"),
+        }),
+        onAppointment("recorded-last", {
+          parentId: CALLER,
+          submittedBy: CALLER,
+          submittedAt: new Date("2026-08-01T00:00:00.000Z"),
+          createdAt: new Date("2026-09-02T00:00:00.000Z"),
+        }),
+      ],
+    });
+
+    const consent = responseOf(await readForms(), FORM);
+
+    expect(consent).toMatchObject({ _id: "recorded-last" });
+  });
+
+  it.each([
+    ["no link", link({ parentId: OTHER_PARENT })],
+    ["a PENDING link", link({ status: "PENDING" })],
+    ["a co-parent without appointments", coParent({ medicalRecords: true })],
+  ])(
+    "answers a parent with %s as if the appointment did not exist",
+    async (_label, companionLink) => {
+      useTables({ links: [companionLink], submissions: [ownConsent] });
+
+      await expect(readForms()).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Appointment not found",
+      });
+    },
+  );
 
   it("keeps signing details and the submitter on the practice view", async () => {
     useTables({ links: [], submissions: [practiceNote] });

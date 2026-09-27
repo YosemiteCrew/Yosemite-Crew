@@ -233,6 +233,13 @@ export const isPracticeOnlyForm = (form: {
   visibilityType?: string | null;
 }) => SOAP_CATEGORIES.includes(form.category) || isInternalForm(form);
 
+// Newest first by when the server recorded a submission, never by the time a
+// client says it was submitted, with the id breaking ties.
+const NEWEST_RECORDED_FIRST: Prisma.FormSubmissionOrderByWithRelationInput[] = [
+  { createdAt: "desc" },
+  { id: "desc" },
+];
+
 // Template kinds a pet parent fills in; every other kind is the practice's.
 const PARENT_TEMPLATE_KINDS = new Set(["FORM", "CONSENT"]);
 
@@ -394,7 +401,7 @@ const loadLatestSubmissions = async (
       appointmentId,
       formId: { in: forms.map((f) => f._id) },
     },
-    orderBy: [{ formId: "asc" }, { submittedAt: "desc" }],
+    orderBy: [{ formId: "asc" }, ...NEWEST_RECORDED_FIRST],
   });
   const links = viewerParentId
     ? await loadActiveCompanionLinks(viewerParentId)
@@ -632,7 +639,7 @@ const assertTemplateSubmittableByParent = async (params: {
   });
 
   if (!assignment) {
-    throw new FormServiceError("Forbidden", 403);
+    throw new FormServiceError("Form not found", 404);
   }
 };
 
@@ -754,7 +761,7 @@ const loadSoapSubmissions = async (
 ): Promise<SoapNoteEntry[]> => {
   const rows = await prisma.formSubmission.findMany({
     where: { appointmentId },
-    orderBy: { submittedAt: "desc" },
+    orderBy: NEWEST_RECORDED_FIRST,
   });
 
   return rows.map((row) => ({
@@ -772,16 +779,19 @@ type SoapFormLookup = {
   category: Form["category"];
 };
 
-const loadSoapFormLookup = async (formIds: string[]) => {
+// With `forParent`, internal forms are left out.
+const loadSoapFormLookup = async (formIds: string[], forParent: boolean) => {
   if (!formIds.length) return new Map<string, SoapFormLookup>();
 
   const rows = await prisma.form.findMany({
     where: { id: { in: formIds } },
-    select: { id: true, category: true },
+    select: { id: true, category: true, visibilityType: true },
   });
 
   return new Map(
-    rows.map((row) => [row.id, { formId: row.id, category: row.category }]),
+    rows
+      .filter((row) => !forParent || !isInternalForm(row))
+      .map((row) => [row.id, { formId: row.id, category: row.category }]),
   );
 };
 
@@ -1351,6 +1361,22 @@ const assertFormSubmittableBy = async (
   return resolveAppointmentPatientId(appointment);
 };
 
+// A form the practice filled in on an appointment is signed by the parent,
+// never answered over.
+const assertNoPracticeSubmission = async (
+  formId: string,
+  appointmentId?: string,
+) => {
+  if (!appointmentId) return;
+  const rows = await prisma.formSubmission.findMany({
+    where: { formId, appointmentId },
+    select: { parentId: true, submittedBy: true },
+  });
+  if (rows.some((row) => !isParentFilled(row))) {
+    throwForbidden();
+  }
+};
+
 // A practice may name the companion's parent on a submission it writes. The
 // name is kept only for a parent who may see that submission.
 const parentNamedByPractice = async (
@@ -1547,7 +1573,9 @@ export const FormService = {
     const form = await prisma.form.findUnique({
       where: { id: version.formId },
     });
-    if (!form) throw new FormServiceError("Form not found", 404);
+    if (!form || isInternalForm(form)) {
+      throw new FormServiceError("Form not found", 404);
+    }
 
     const fhirForm = {
       _id: fid,
@@ -1710,10 +1738,13 @@ export const FormService = {
       formOrganisation.orgId,
       actor,
     );
-    // A parent's answers on an appointment are for its companion, so they stay
-    // readable and signable through the parent's link to it.
-    if ("parentId" in actor && !submission.patientId) {
-      submission.patientId = appointmentPatientId;
+    if ("parentId" in actor) {
+      // A parent's answers on an appointment are for its companion, so they
+      // stay readable and signable through the parent's link to it.
+      if (!submission.patientId) {
+        submission.patientId = appointmentPatientId;
+      }
+      await assertNoPracticeSubmission(formIdString, submission.appointmentId);
     }
 
     const created = await prisma.formSubmission.create({
@@ -1803,7 +1834,7 @@ export const FormService = {
         formId: fid,
         patientId: { in: links.map((link) => link.patientId) },
       },
-      orderBy: { submittedAt: "desc" },
+      orderBy: NEWEST_RECORDED_FIRST,
     });
     const visible = rows.filter((row) => parentMaySeeSubmission(row, links));
     if (!visible.length) return [];
@@ -1979,7 +2010,7 @@ export const FormService = {
     }
 
     const formIds = [...new Set(submissions.map((s) => s.formId))];
-    const formLookup = await loadSoapFormLookup(formIds);
+    const formLookup = await loadSoapFormLookup(formIds, !!parentId);
     const soapNotes = buildSoapNotes({
       submissions,
       formLookup,
@@ -2119,7 +2150,16 @@ export const FormService = {
     }
 
     if (params.viewerParentId) {
-      await assertParentCanViewAppointment(appointment, params.viewerParentId);
+      // An appointment the parent may not view is answered as a missing one.
+      if (
+        !(await parentHasCompanionFeature(
+          params.viewerParentId,
+          resolveAppointmentPatientId(appointment),
+          "appointments",
+        ))
+      ) {
+        throw new FormServiceError("Appointment not found", 404);
+      }
 
       try {
         await FormAssignmentService.markViewedForAppointment({

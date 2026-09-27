@@ -29,7 +29,7 @@ jest.mock("src/config/prisma", () => ({
     form: { findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
     formVersion: { findFirst: jest.fn(), create: jest.fn() },
     formField: { deleteMany: jest.fn(), createMany: jest.fn() },
-    formSubmission: { create: jest.fn() },
+    formSubmission: { create: jest.fn(), findMany: jest.fn() },
     appointment: { findFirst: jest.fn(), updateMany: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
     patientOrganisation: { findFirst: jest.fn() },
@@ -129,6 +129,7 @@ beforeEach(() => {
     findIn(() => tables.memberships),
   );
   db.formSubmission.create.mockResolvedValue({ id: "submission-1" });
+  db.formSubmission.findMany.mockResolvedValue([]);
   db.form.update.mockImplementation(async ({ data }: { data: Row }) => ({
     ...tables.forms[0],
     ...data,
@@ -182,6 +183,37 @@ describe("FormService.submitFHIR from the mobile app (concrete form)", () => {
         }),
       }),
     );
+  });
+
+  it.each([
+    ["a practice user", { parentId: PARENT, submittedBy: "practice-user" }],
+    ["no one recorded", { parentId: null, submittedBy: null }],
+  ])(
+    "returns 403 over a form on the appointment filled in by %s",
+    async (_label, row) => {
+      db.formSubmission.findMany.mockResolvedValue([row]);
+
+      await expectRefused(
+        submit({ appointmentId: APPOINTMENT, patientId: COMPANION }, asParent),
+      );
+      expect(db.formSubmission.findMany).toHaveBeenCalledWith({
+        where: { formId: FORM, appointmentId: APPOINTMENT },
+        select: { parentId: true, submittedBy: true },
+      });
+    },
+  );
+
+  it("records a new answer over a form a parent filled in", async () => {
+    db.formSubmission.findMany.mockResolvedValue([
+      { parentId: "parent-other", submittedBy: "parent-other" },
+    ]);
+
+    await submit(
+      { appointmentId: APPOINTMENT, patientId: COMPANION },
+      asParent,
+    );
+
+    expect(db.formSubmission.create).toHaveBeenCalled();
   });
 
   it("records the appointment's companion on a submission that names none", async () => {
@@ -364,6 +396,20 @@ describe("FormService.submitFHIR from the PMS (concrete form)", () => {
   it("returns 403 for a companion that is not the organisation's", async () => {
     await expectRefused(submit({ patientId: OTHER_COMPANION }, asPractice));
     await expectRefused(submit({ patientId: "companion-pending" }, asPractice));
+  });
+
+  it("records the practice's answer whatever is already on the appointment", async () => {
+    db.formSubmission.findMany.mockResolvedValue([
+      { parentId: PARENT, submittedBy: "practice-user" },
+    ]);
+
+    await submit(
+      { appointmentId: APPOINTMENT, patientId: COMPANION },
+      asPractice,
+    );
+
+    expect(db.formSubmission.create).toHaveBeenCalled();
+    expect(db.formSubmission.findMany).not.toHaveBeenCalled();
   });
 
   it("records the practice's SOAP and internal forms", async () => {
