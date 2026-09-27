@@ -67,7 +67,7 @@ describe('LogoUploader Component', () => {
 
     const input = document.querySelector('input[type="file"]');
     expect(input).toBeInTheDocument();
-    expect(input).toHaveAttribute('accept', 'image/*');
+    expect(input).toHaveAttribute('accept', 'image/png,image/jpeg,image/gif,image/webp');
     expect(screen.getByLabelText(mockTitle)).toBeInTheDocument();
   });
 
@@ -202,6 +202,43 @@ describe('LogoUploader Component', () => {
     unmount();
 
     expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/mock-image');
+  });
+
+  it.each([
+    ['image/heic', 'logo.heic'],
+    ['image/svg+xml', 'logo.svg'],
+    ['image/avif', 'logo.avif'],
+  ])('turns away %s inline before asking for an upload link', (type, name) => {
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], name, { type })] } });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Please choose a PNG, JPG, GIF or WEBP image.'
+    );
+    expect(postData).not.toHaveBeenCalled();
+    expect(mockCreateObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByText(mockTitle)).toBeInTheDocument();
+  });
+
+  it('uploads a gif logo', async () => {
+    (postData as jest.Mock).mockResolvedValue({
+      data: { uploadUrl: 'https://s3.url', s3Key: 'logos/image.gif' },
+    });
+    (axios.put as jest.Mock).mockResolvedValue({});
+
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [new File(['gif'], 'logo.gif', { type: 'image/gif' })] },
+    });
+
+    await waitFor(() => {
+      expect(postData).toHaveBeenCalledWith(mockApiUrl, { mimeType: 'image/gif' });
+      expect(mockSetImageUrl).toHaveBeenCalledWith('logos/image.gif');
+    });
   });
 
   it('announces upload errors accessibly', async () => {

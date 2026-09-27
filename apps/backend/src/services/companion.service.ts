@@ -392,6 +392,24 @@ const createDefaultTasks = async (input: {
   }
 };
 
+/**
+ * Moves a fresh upload into the companion's own folder and returns its address,
+ * or null when it cannot be moved (the photo is then left as it was).
+ */
+const takeOverPhoto = async (
+  photoKey: string,
+  companionId: string,
+  uploaderId: string | undefined,
+): Promise<string | null> => {
+  try {
+    const finalKey = buildS3Key("companion", companionId, "image/jpg");
+    return await moveFile(photoKey, finalKey, uploaderId);
+  } catch (error) {
+    logger.warn("Invalid key has been sent", error);
+    return null;
+  }
+};
+
 export const CompanionService = {
   async create(payload: CompanionRequestDTO, context?: CompanionCreateContext) {
     if (!context) {
@@ -422,9 +440,15 @@ export const CompanionService = {
     }
 
     const persistable = toPersistable(payload);
-    const photoKey = uploadKeyToMove(persistable.photoUrl, () => {
-      throw new CompanionServiceError("Invalid photo key.", 400);
-    });
+    const photoKey = uploadKeyToMove(
+      persistable.photoUrl,
+      { uploaderId: context.authUserId },
+      () => {
+        throw new CompanionServiceError("Invalid photo key.", 400);
+      },
+    );
+    // A fresh upload is saved only once it has been moved into place.
+    if (photoKey) persistable.photoUrl = undefined;
     await validateCompanionCodes(persistable);
     persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
@@ -447,17 +471,14 @@ export const CompanionService = {
     }
 
     let updated = created;
-    if (photoKey) {
-      try {
-        const finalKey = buildS3Key("companion", created.id, "image/jpg");
-        const profileUrl = await moveFile(photoKey, finalKey);
-        updated = await prisma.patient.update({
-          where: { id: created.id },
-          data: { photoUrl: profileUrl },
-        });
-      } catch (error) {
-        logger.warn("Invalid key has been sent", error);
-      }
+    const profileUrl = photoKey
+      ? await takeOverPhoto(photoKey, created.id, context.authUserId)
+      : null;
+    if (profileUrl) {
+      updated = await prisma.patient.update({
+        where: { id: created.id },
+        data: { photoUrl: profileUrl },
+      });
     }
 
     void createDefaultTasks({
@@ -643,14 +664,29 @@ export const CompanionService = {
     context?: CompanionCreateContext,
   ) {
     const persistable = toPersistable(payload);
+
+    // Capture the prior alert set so an alert change can be audited, and the
+    // saved photo, which is kept as it is.
+    const beforeUpdate = await prisma.patient.findUnique({
+      where: { id },
+      select: { alerts: true, photoUrl: true },
+    });
+
+    const photoKey = uploadKeyToMove(
+      persistable.photoUrl,
+      { uploaderId: context?.authUserId, current: beforeUpdate?.photoUrl },
+      () => {
+        throw new CompanionServiceError("Invalid photo key.", 400);
+      },
+    );
     await validateCompanionCodes(persistable);
     persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
-    // Capture the prior alert set so an alert change can be audited.
-    const beforeUpdate = await prisma.patient.findUnique({
-      where: { id },
-      select: { alerts: true },
-    });
+    // A fresh upload is moved into the companion's folder, never saved as is.
+    if (photoKey) {
+      persistable.photoUrl =
+        (await takeOverPhoto(photoKey, id, context?.authUserId)) ?? undefined;
+    }
 
     const doc = await prisma.patient.update({
       where: { id },

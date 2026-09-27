@@ -612,9 +612,23 @@ describe("CompanionController", () => {
       });
       await CompanionController.getProfileUploadUrl(req, res);
 
-      expect(generatePresignedUrl).toHaveBeenCalledWith("image/jpeg", "temp");
+      // The fresh upload is kept for the signed-in person who asked for it.
+      expect(generatePresignedUrl).toHaveBeenCalledWith(
+        "image/jpeg",
+        "temp",
+        "auth_user_123",
+      );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ url: "http://url", key: "key1" });
+    });
+
+    it("returns 401 without an upload URL when nobody is signed in", async () => {
+      req.body = { mimeType: "image/jpeg" };
+      req.userId = null;
+      await CompanionController.getProfileUploadUrl(req, res);
+
+      expect(generatePresignedUrl).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
     it("should handle generic errors", async () => {

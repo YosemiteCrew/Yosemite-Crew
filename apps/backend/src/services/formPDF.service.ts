@@ -1,6 +1,7 @@
 import { FormField } from "@yosemite-crew/types";
+import { resolveLogoSource } from "@yosemite-crew/lib";
 import fs from "node:fs";
-import { chromium, type Browser } from "playwright";
+import { chromium, type Browser, type Route } from "playwright";
 import {
   addCachedPromise,
   type CachedPromise,
@@ -312,6 +313,31 @@ export const closePdfBrowser = async (): Promise<void> => {
   }
 };
 
+/**
+ * Serves every request a rendered page makes. An inline (`data:`) image loads
+ * as usual. An https image is fetched here with the checks the other document
+ * renderers apply to branding (public addresses only, or the hosts listed in
+ * `PDF_LOGO_ALLOWED_HOSTS`; no redirects; bounded size; images only) and handed
+ * to the page. Nothing else loads.
+ */
+export const serveRenderRequest = async (route: Route): Promise<void> => {
+  const url = route.request().url();
+  if (url.startsWith("data:")) {
+    await route.continue();
+    return;
+  }
+
+  const image = url.startsWith("https://")
+    ? await resolveLogoSource(url)
+    : null;
+  if (Buffer.isBuffer(image)) {
+    await route.fulfill({ status: 200, body: image });
+    return;
+  }
+
+  await route.abort("blockedbyclient");
+};
+
 export async function renderPdf(
   vm: PdfViewModel,
   options?: PdfRenderOptions,
@@ -323,6 +349,7 @@ export async function renderPdf(
   const context = await browser.newContext();
 
   try {
+    await context.route("**/*", serveRenderRequest);
     const page = await context.newPage();
 
     await page.setContent(

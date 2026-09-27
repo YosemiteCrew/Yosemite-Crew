@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import {
   AlertChipView,
   AlertChipEdit,
+  PhotoDropzone,
 } from '@/app/features/companions/components/AddCompanionCentralModal/AddCompanionPresentational';
 import type { CompanionAlert } from '@/app/features/companions/components/AddCompanion/type';
 
@@ -56,5 +57,69 @@ describe('AlertChipEdit', () => {
     render(<AlertChipEdit alert={alert} onRemove={onRemove} />);
     fireEvent.click(screen.getByRole('button', { name: 'Remove alert Diabetic' }));
     expect(onRemove).toHaveBeenCalledWith('a1');
+  });
+});
+
+// ─── PhotoDropzone — only picture types are read ───────────────────────────────
+
+describe('PhotoDropzone', () => {
+  const readAsDataURL = jest.spyOn(FileReader.prototype, 'readAsDataURL');
+
+  afterEach(() => readAsDataURL.mockClear());
+  afterAll(() => readAsDataURL.mockRestore());
+
+  const pick = (type: string, name = 'pet') => {
+    const onPhotoSelected = jest.fn();
+    const onPhotoRejected = jest.fn();
+    render(
+      <PhotoDropzone
+        photoUrl=""
+        onPhotoSelected={onPhotoSelected}
+        onPhotoRejected={onPhotoRejected}
+      />
+    );
+    const input = screen.getByLabelText('Upload companion photo') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], name, { type })] } });
+    return { input, onPhotoSelected, onPhotoRejected };
+  };
+
+  it('offers only png, jpeg, gif and webp in the file picker', () => {
+    render(<PhotoDropzone photoUrl="" onPhotoSelected={jest.fn()} />);
+    expect(screen.getByLabelText('Upload companion photo')).toHaveAttribute(
+      'accept',
+      'image/png,image/jpeg,image/gif,image/webp'
+    );
+  });
+
+  it.each([
+    ['image/heic', 'pet.heic'],
+    ['image/svg+xml', 'pet.svg'],
+    ['image/avif', 'pet.avif'],
+    ['application/pdf', 'pet.pdf'],
+  ])('turns away %s with the message to show, without reading it', (type, name) => {
+    const { onPhotoSelected, onPhotoRejected } = pick(type, name);
+
+    expect(onPhotoRejected).toHaveBeenCalledWith('Please choose a PNG, JPG, GIF or WEBP image.');
+    expect(readAsDataURL).not.toHaveBeenCalled();
+    expect(onPhotoSelected).not.toHaveBeenCalled();
+  });
+
+  it('turns a file away quietly when no one listens for it', () => {
+    render(<PhotoDropzone photoUrl="" onPhotoSelected={jest.fn()} />);
+    const input = screen.getByLabelText('Upload companion photo') as HTMLInputElement;
+
+    expect(() =>
+      fireEvent.change(input, {
+        target: { files: [new File(['x'], 'pet.heic', { type: 'image/heic' })] },
+      })
+    ).not.toThrow();
+    expect(readAsDataURL).not.toHaveBeenCalled();
+  });
+
+  it.each(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])('reads a %s', (type) => {
+    const { onPhotoRejected } = pick(type);
+
+    expect(readAsDataURL).toHaveBeenCalledTimes(1);
+    expect(onPhotoRejected).not.toHaveBeenCalled();
   });
 });

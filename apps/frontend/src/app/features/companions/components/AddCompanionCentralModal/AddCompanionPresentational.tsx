@@ -8,6 +8,7 @@ import {
   ALERT_PRIORITY_CONFIG,
 } from '@/app/features/companions/components/AddCompanion/type';
 import type { ModalMode } from './addCompanionCentralModalHelpers';
+import { isPictureFile, PICTURE_ACCEPT, PICTURE_TYPE_ERROR } from '@/app/lib/pictureFiles';
 
 export const SectionHeading = ({ icon, title }: { icon: React.ReactNode; title: string }) => (
   <div className="flex items-center gap-2">
@@ -122,15 +123,21 @@ export const StepDots = ({ step }: { step: 1 | 2 }) => (
   </span>
 );
 
-/** Dashed-circle camera dropzone that reads a chosen image into a data URL. */
+/**
+ * Dashed-circle camera dropzone that reads a chosen image into a data URL. A
+ * file of any other type is turned away through `onPhotoRejected` with the
+ * message to show.
+ */
 export const PhotoDropzone = ({
   photoUrl,
   onPhotoSelected,
+  onPhotoRejected,
   className,
   iconSize = 20,
 }: {
   photoUrl?: string;
   onPhotoSelected: (dataUrl: string) => void;
+  onPhotoRejected?: (message: string) => void;
   className?: string;
   iconSize?: number;
 }) => {
@@ -158,12 +165,17 @@ export const PhotoDropzone = ({
       <input
         id={inputId}
         type="file"
-        accept="image/*"
+        accept={PICTURE_ACCEPT}
         className="sr-only"
         aria-label="Upload companion photo"
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (!file) return;
+          if (!isPictureFile(file)) {
+            event.target.value = '';
+            onPhotoRejected?.(PICTURE_TYPE_ERROR);
+            return;
+          }
           const reader = new FileReader();
           reader.addEventListener('load', () => {
             if (typeof reader.result === 'string') onPhotoSelected(reader.result);

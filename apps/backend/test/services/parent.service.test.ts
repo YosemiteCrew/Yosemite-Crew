@@ -5,6 +5,7 @@ import {
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
 import { prisma } from "src/config/prisma";
 import { moveFile } from "../../src/middlewares/upload";
+import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -243,14 +244,15 @@ describe("ParentService", () => {
       {
         firstName: "Jane",
         email: "jane@example.com",
-        profileImageUrl: "temp/uploads/original.jpg",
+        profileImageUrl: `${tempUploadPrefixFor("user-1")}original.jpg`,
       } as any,
-      { source: "pms" },
+      { source: "pms", actorId: "user-1" },
     );
 
     expect(moveFile).toHaveBeenCalledWith(
-      "temp/uploads/original.jpg",
+      `${tempUploadPrefixFor("user-1")}original.jpg`,
       "parent/image-key",
+      "user-1",
     );
     expect(result.response.id).toBe("parent-1");
   });
