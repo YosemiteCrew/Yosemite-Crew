@@ -66,7 +66,10 @@ const PrefilledMessageInput: React.FC<{initialMessage?: string}> = ({
   const applied = React.useRef(false);
   React.useEffect(() => {
     if (!applied.current && initialMessage) {
-      composer.textComposer.setText(initialMessage);
+      const existingText = composer.textComposer.text.trim();
+      composer.textComposer.setText(
+        existingText ? `${existingText}\n\n${initialMessage}` : initialMessage,
+      );
       applied.current = true;
     }
   }, [composer, initialMessage]);

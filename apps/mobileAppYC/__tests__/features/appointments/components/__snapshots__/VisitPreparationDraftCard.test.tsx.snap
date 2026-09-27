@@ -141,7 +141,7 @@ exports[`VisitPreparationDraftCard persists typed drafts, lets the parent choose
       }
     >
       <View
-        accessibilityHint="Include when sending"
+        accessibilityHint="Include Observations when sending"
         accessibilityRole="checkbox"
         accessibilityState={
           {
@@ -226,7 +226,7 @@ exports[`VisitPreparationDraftCard persists typed drafts, lets the parent choose
             ]
           }
         >
-          Include when sending
+          Include Observations when sending
         </Text>
       </View>
     </View>
@@ -337,7 +337,7 @@ exports[`VisitPreparationDraftCard persists typed drafts, lets the parent choose
       }
     >
       <View
-        accessibilityHint="Include when sending"
+        accessibilityHint="Include Questions when sending"
         accessibilityRole="checkbox"
         accessibilityState={
           {
@@ -422,7 +422,7 @@ exports[`VisitPreparationDraftCard persists typed drafts, lets the parent choose
             ]
           }
         >
-          Include when sending
+          Include Questions when sending
         </Text>
       </View>
     </View>

@@ -1,8 +1,12 @@
-#import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
 
-@interface RCT_EXTERN_MODULE (VisitVoice, NSObject)
+@interface RCT_EXTERN_MODULE (VisitVoice, RCTEventEmitter)
 
 RCT_EXTERN_METHOD(isAvailable
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(isReadBackAvailable
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 

@@ -1,14 +1,17 @@
-import {NativeModules, Platform} from 'react-native';
+import {DeviceEventEmitter, NativeModules, Platform} from 'react-native';
 import {check, request, RESULTS} from 'react-native-permissions';
 import {
   captureVisitVoice,
+  isVisitReadBackAvailable,
   isVisitVoiceAvailable,
+  onVisitReadBackFinished,
   readVisitText,
   stopReadingVisitText,
 } from '../../../../src/features/appointments/services/visitVoice';
 
 const native = {
   isAvailable: jest.fn(),
+  isReadBackAvailable: jest.fn(),
   recognize: jest.fn(),
   speak: jest.fn(),
   stopSpeaking: jest.fn(),
@@ -25,9 +28,31 @@ describe('visitVoice', () => {
     (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
     (request as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
     native.isAvailable.mockResolvedValue(true);
+    native.isReadBackAvailable.mockResolvedValue(true);
     native.recognize.mockResolvedValue('  Luna coughed twice  ');
     native.speak.mockResolvedValue(true);
     native.stopSpeaking.mockResolvedValue(true);
+  });
+
+  it('reports read-back availability independently of recognition', async () => {
+    native.isAvailable.mockResolvedValueOnce(false);
+    await expect(isVisitVoiceAvailable()).resolves.toBe(false);
+    await expect(isVisitReadBackAvailable()).resolves.toBe(true);
+
+    native.isReadBackAvailable.mockRejectedValueOnce(new Error('failed'));
+    await expect(isVisitReadBackAvailable()).resolves.toBe(false);
+  });
+
+  it('subscribes to native read-back completion events', () => {
+    const listener = jest.fn();
+    const remove = onVisitReadBackFinished(listener);
+
+    DeviceEventEmitter.emit('visitVoiceReadBackFinished');
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    remove();
+    DeviceEventEmitter.emit('visitVoiceReadBackFinished');
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   afterEach(() => {

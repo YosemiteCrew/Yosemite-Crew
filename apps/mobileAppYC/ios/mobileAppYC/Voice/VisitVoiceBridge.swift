@@ -4,17 +4,27 @@ import React
 import Speech
 
 @objc(VisitVoice)
-final class VisitVoiceBridge: NSObject {
+final class VisitVoiceBridge: RCTEventEmitter, AVSpeechSynthesizerDelegate {
   private let audioEngine = AVAudioEngine()
   private let synthesizer = AVSpeechSynthesizer()
   private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
   private var recognitionTask: SFSpeechRecognitionTask?
   private var recognitionResolve: RCTPromiseResolveBlock?
   private var recognitionReject: RCTPromiseRejectBlock?
+  private var recognitionEndTimer: Timer?
   private var tapInstalled = false
 
-  @objc static func requiresMainQueueSetup() -> Bool {
+  override init() {
+    super.init()
+    synthesizer.delegate = self
+  }
+
+  @objc override static func requiresMainQueueSetup() -> Bool {
     return false
+  }
+
+  override func supportedEvents() -> [String]! {
+    return ["visitVoiceReadBackFinished"]
   }
 
   @objc(isAvailable:rejecter:)
@@ -23,6 +33,14 @@ final class VisitVoiceBridge: NSObject {
     rejecter _: @escaping RCTPromiseRejectBlock
   ) {
     resolve(SFSpeechRecognizer()?.isAvailable ?? false)
+  }
+
+  @objc(isReadBackAvailable:rejecter:)
+  func isReadBackAvailable(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter _: @escaping RCTPromiseRejectBlock
+  ) {
+    resolve(!AVSpeechSynthesisVoice.speechVoices().isEmpty)
   }
 
   @objc(recognize:resolver:rejecter:)
@@ -44,7 +62,11 @@ final class VisitVoiceBridge: NSObject {
 
       do {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try session.setCategory(
+          .playAndRecord,
+          mode: .measurement,
+          options: [.defaultToSpeaker, .duckOthers]
+        )
         try session.setActive(true)
 
         let request = SFSpeechAudioBufferRecognitionRequest()
@@ -61,10 +83,13 @@ final class VisitVoiceBridge: NSObject {
         self.tapInstalled = true
         self.audioEngine.prepare()
         try self.audioEngine.start()
+        self.scheduleRecognitionEnd(after: 4)
 
         self.recognitionTask = recognizer.recognitionTask(with: request) { result, error in
           if let result, result.isFinal {
             self.finishRecognition(text: result.bestTranscription.formattedString)
+          } else if result != nil {
+            self.scheduleRecognitionEnd(after: 1.5)
           } else if let error {
             self.finishRecognition(error: error)
           }
@@ -75,8 +100,24 @@ final class VisitVoiceBridge: NSObject {
     }
   }
 
+  private func scheduleRecognitionEnd(after delay: TimeInterval) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      self.recognitionEndTimer?.invalidate()
+      self.recognitionEndTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) {
+        [weak self] _ in
+        guard let self else { return }
+        self.audioEngine.stop()
+        self.recognitionRequest?.endAudio()
+        self.recognitionTask?.finish()
+      }
+    }
+  }
+
   private func finishRecognition(text: String? = nil, error: Error? = nil) {
     DispatchQueue.main.async {
+      self.recognitionEndTimer?.invalidate()
+      self.recognitionEndTimer = nil
       self.audioEngine.stop()
       self.recognitionRequest?.endAudio()
       self.recognitionTask?.cancel()
@@ -109,14 +150,22 @@ final class VisitVoiceBridge: NSObject {
     _ text: String,
     locale: String,
     resolver resolve: @escaping RCTPromiseResolveBlock,
-    rejecter _: @escaping RCTPromiseRejectBlock
+    rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
     DispatchQueue.main.async {
-      let utterance = AVSpeechUtterance(string: text)
-      utterance.voice = AVSpeechSynthesisVoice(language: locale)
-      self.synthesizer.stopSpeaking(at: .immediate)
-      self.synthesizer.speak(utterance)
-      resolve(true)
+      do {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playback, mode: .spokenAudio, options: .duckOthers)
+        try session.setActive(true)
+
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: locale)
+        self.synthesizer.stopSpeaking(at: .immediate)
+        self.synthesizer.speak(utterance)
+        resolve(true)
+      } catch {
+        reject("speech_unavailable", "Text to speech is unavailable.", error)
+      }
     }
   }
 
@@ -129,5 +178,27 @@ final class VisitVoiceBridge: NSObject {
       self.synthesizer.stopSpeaking(at: .immediate)
       resolve(true)
     }
+  }
+
+  func speechSynthesizer(
+    _: AVSpeechSynthesizer,
+    didFinish _: AVSpeechUtterance
+  ) {
+    finishReadBack()
+  }
+
+  func speechSynthesizer(
+    _: AVSpeechSynthesizer,
+    didCancel _: AVSpeechUtterance
+  ) {
+    finishReadBack()
+  }
+
+  private func finishReadBack() {
+    try? AVAudioSession.sharedInstance().setActive(
+      false,
+      options: .notifyOthersOnDeactivation
+    )
+    sendEvent(withName: "visitVoiceReadBackFinished", body: nil)
   }
 }

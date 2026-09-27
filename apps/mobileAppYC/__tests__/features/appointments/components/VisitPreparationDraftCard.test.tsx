@@ -10,14 +10,13 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 import appointmentsReducer from '../../../../src/features/appointments/appointmentsSlice';
-import {
-  composeVisitPreparationMessage,
-  VisitPreparationDraftCard,
-} from '../../../../src/features/appointments/components/VisitPreparationDraftCard';
+import {VisitPreparationDraftCard} from '../../../../src/features/appointments/components/VisitPreparationDraftCard';
 import * as visitVoice from '../../../../src/features/appointments/services/visitVoice';
+import {composeVisitPreparationMessage} from '../../../../src/features/appointments/utils/visitPreparation';
 import {mockTheme} from '../../../setup/mockTheme';
 
 let mockResolvedLanguage: string | undefined = 'en-US';
+let mockReadBackFinished: (() => void) | undefined;
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
@@ -37,6 +36,7 @@ jest.mock('react-i18next', () => ({
           'Question placeholder',
         'appointments.visitPreparation.includeWhenSending':
           'Include when sending',
+        'appointments.visitPreparation.includeWhenSendingField': `Include ${vars?.field} when sending`,
         'appointments.visitPreparation.observationsHeading': 'Observations:',
         'appointments.visitPreparation.questionsHeading': 'Questions:',
         'appointments.visitPreparation.readBack': 'Read selected notes aloud',
@@ -86,6 +86,11 @@ jest.mock(
 jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
 jest.mock('../../../../src/features/appointments/services/visitVoice', () => ({
   isVisitVoiceAvailable: jest.fn(),
+  isVisitReadBackAvailable: jest.fn(),
+  onVisitReadBackFinished: jest.fn((listener: () => void) => {
+    mockReadBackFinished = listener;
+    return jest.fn();
+  }),
   captureVisitVoice: jest.fn(),
   readVisitText: jest.fn(),
   stopReadingVisitText: jest.fn(),
@@ -126,8 +131,10 @@ describe('VisitPreparationDraftCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockResolvedLanguage = 'en-US';
+    mockReadBackFinished = undefined;
     jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     (visitVoice.isVisitVoiceAvailable as jest.Mock).mockResolvedValue(true);
+    (visitVoice.isVisitReadBackAvailable as jest.Mock).mockResolvedValue(true);
     (visitVoice.captureVisitVoice as jest.Mock).mockResolvedValue({
       status: 'ok',
       text: 'Coughed twice',
@@ -215,6 +222,40 @@ describe('VisitPreparationDraftCard', () => {
     );
   });
 
+  it('preserves edits made while dictation is pending', async () => {
+    let finishCapture: ((result: {status: 'ok'; text: string}) => void) | null =
+      null;
+    (visitVoice.captureVisitVoice as jest.Mock).mockReturnValueOnce(
+      new Promise(resolve => {
+        finishCapture = resolve;
+      }),
+    );
+    const {store} = renderCard();
+    await waitFor(() =>
+      expect(screen.getByTestId('visit-voice-observations')).toBeTruthy(),
+    );
+
+    fireEvent.press(screen.getByTestId('visit-voice-observations'));
+    fireEvent.changeText(
+      screen.getByTestId('visit-questions-input'),
+      'Question added while listening',
+    );
+    fireEvent.press(screen.getAllByRole('checkbox')[1]);
+
+    await act(async () => {
+      finishCapture?.({status: 'ok', text: 'Coughed twice'});
+    });
+
+    expect(
+      store.getState().appointments.visitPreparationDrafts['appt-1'],
+    ).toEqual({
+      observations: 'Coughed twice',
+      questions: 'Question added while listening',
+      includeObservations: true,
+      includeQuestions: false,
+    });
+  });
+
   it('starts an empty draft with captured speech and falls back to English', async () => {
     mockResolvedLanguage = undefined;
     renderCard();
@@ -237,6 +278,11 @@ describe('VisitPreparationDraftCard', () => {
       'Observations:\nCoughed twice',
       'en-US',
     );
+
+    act(() => {
+      mockReadBackFinished?.();
+    });
+    expect(screen.getByTestId('button-Read selected notes aloud')).toBeTruthy();
   });
 
   it.each([
@@ -301,6 +347,14 @@ describe('VisitPreparationDraftCard', () => {
     await waitFor(() => expect(screen.getByText('Type instead')).toBeTruthy());
     expect(screen.queryByTestId('visit-voice-observations')).toBeNull();
     expect(screen.getByTestId('visit-observations-input')).toBeTruthy();
+    expect(screen.getByTestId('button-Read selected notes aloud')).toBeTruthy();
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes[0].props.accessibilityHint).toBe(
+      'Include Observations when sending',
+    );
+    expect(checkboxes[1].props.accessibilityHint).toBe(
+      'Include Questions when sending',
+    );
     unmount();
     expect(visitVoice.stopReadingVisitText).toHaveBeenCalled();
   });

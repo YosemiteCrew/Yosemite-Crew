@@ -443,6 +443,7 @@
       "questions": "Questions",
       "questionsPlaceholder": "Questions you want to ask during the visit",
       "includeWhenSending": "Include when sending",
+      "includeWhenSendingField": "Include {{field}} when sending",
       "observationsHeading": "Observations:",
       "questionsHeading": "Questions:",
       "speakFor": "Speak {{field}}",

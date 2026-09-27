@@ -1,12 +1,15 @@
-import {NativeModules, Platform} from 'react-native';
+import {DeviceEventEmitter, NativeModules, Platform} from 'react-native';
 import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 
 interface VisitVoiceNativeModule {
   isAvailable(): Promise<boolean>;
+  isReadBackAvailable(): Promise<boolean>;
   recognize(locale: string): Promise<string>;
   speak(text: string, locale: string): Promise<boolean>;
   stopSpeaking(): Promise<boolean>;
 }
+
+const READ_BACK_FINISHED_EVENT = 'visitVoiceReadBackFinished';
 
 export type VoiceCaptureResult =
   {status: 'ok'; text: string} | {status: 'denied' | 'unavailable' | 'error'};
@@ -43,6 +46,22 @@ export const isVisitVoiceAvailable = async (): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+export const isVisitReadBackAvailable = async (): Promise<boolean> => {
+  try {
+    return (await getModule()?.isReadBackAvailable()) ?? false;
+  } catch {
+    return false;
+  }
+};
+
+export const onVisitReadBackFinished = (listener: () => void): (() => void) => {
+  const subscription = DeviceEventEmitter.addListener(
+    READ_BACK_FINISHED_EVENT,
+    listener,
+  );
+  return () => subscription.remove();
 };
 
 export const captureVisitVoice = async (

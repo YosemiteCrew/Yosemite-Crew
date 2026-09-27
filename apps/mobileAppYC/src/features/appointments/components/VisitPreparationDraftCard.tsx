@@ -13,33 +13,19 @@ import {saveVisitPreparationDraft} from '../appointmentsSlice';
 import type {VisitPreparationDraft} from '../types';
 import {
   captureVisitVoice,
+  isVisitReadBackAvailable,
   isVisitVoiceAvailable,
+  onVisitReadBackFinished,
   readVisitText,
   stopReadingVisitText,
 } from '../services/visitVoice';
+import {composeVisitPreparationMessage} from '../utils/visitPreparation';
 
 const EMPTY_DRAFT: VisitPreparationDraft = {
   observations: '',
   questions: '',
   includeObservations: true,
   includeQuestions: true,
-};
-
-export const composeVisitPreparationMessage = (
-  draft: VisitPreparationDraft,
-  observationLabel: string,
-  questionLabel: string,
-): string => {
-  const sections: string[] = [];
-  const observations = draft.observations.trim();
-  const questions = draft.questions.trim();
-  if (draft.includeObservations && observations) {
-    sections.push(`${observationLabel}\n${observations}`);
-  }
-  if (draft.includeQuestions && questions) {
-    sections.push(`${questionLabel}\n${questions}`);
-  }
-  return sections.join('\n\n');
 };
 
 type DraftField = 'observations' | 'questions';
@@ -57,9 +43,12 @@ export const VisitPreparationDraftCard: React.FC<{
       state.appointments.visitPreparationDrafts?.[appointmentId],
   );
   const draft = storedDraft ?? EMPTY_DRAFT;
+  const latestDraft = React.useRef(draft);
+  latestDraft.current = draft;
   const [voiceAvailable, setVoiceAvailable] = React.useState<boolean | null>(
     null,
   );
+  const [readBackAvailable, setReadBackAvailable] = React.useState(false);
   const [listeningField, setListeningField] = React.useState<DraftField | null>(
     null,
   );
@@ -70,8 +59,15 @@ export const VisitPreparationDraftCard: React.FC<{
     isVisitVoiceAvailable().then(available => {
       if (active) setVoiceAvailable(available);
     });
+    isVisitReadBackAvailable().then(available => {
+      if (active) setReadBackAvailable(available);
+    });
+    const removeReadBackListener = onVisitReadBackFinished(() => {
+      if (active) setIsReading(false);
+    });
     return () => {
       active = false;
+      removeReadBackListener();
       stopReadingVisitText().catch(() => undefined);
     };
   }, []);
@@ -81,11 +77,11 @@ export const VisitPreparationDraftCard: React.FC<{
       dispatch(
         saveVisitPreparationDraft({
           appointmentId,
-          draft: {...draft, ...changes},
+          draft: {...latestDraft.current, ...changes},
         }),
       );
     },
-    [appointmentId, dispatch, draft],
+    [appointmentId, dispatch],
   );
 
   const message = composeVisitPreparationMessage(
@@ -99,7 +95,7 @@ export const VisitPreparationDraftCard: React.FC<{
     const result = await captureVisitVoice(i18n.resolvedLanguage ?? 'en-US');
     setListeningField(null);
     if (result.status === 'ok') {
-      const current = draft[field].trim();
+      const current = latestDraft.current[field].trim();
       updateDraft({
         [field]: current ? `${current} ${result.text}` : result.text,
       });
@@ -177,7 +173,9 @@ export const VisitPreparationDraftCard: React.FC<{
       <Checkbox
         value={draft[includeField]}
         onValueChange={value => updateDraft({[includeField]: value})}
-        label={t('appointments.visitPreparation.includeWhenSending')}
+        label={t('appointments.visitPreparation.includeWhenSendingField', {
+          field: t(`appointments.visitPreparation.${field}`),
+        })}
       />
     </View>
   );
@@ -198,7 +196,7 @@ export const VisitPreparationDraftCard: React.FC<{
       {renderField('observations', 'includeObservations')}
       {renderField('questions', 'includeQuestions')}
       <View style={styles.actions}>
-        {voiceAvailable ? (
+        {readBackAvailable ? (
           <LiquidGlassButton
             title={t(
               isReading
