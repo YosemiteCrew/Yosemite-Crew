@@ -459,12 +459,18 @@ describe("OrganizationController.updateBusinessById", () => {
     const req = {
       params: { organizationId: "org-1" },
       body: organizationPayload,
+      userId: "user-1",
     } as unknown as Request;
     const res = createResponse();
 
     await OrganizationController.updateBusinessById(req, res);
 
-    expect(mockedUpdate).toHaveBeenCalledWith("org-1", organizationPayload);
+    // The signed-in user is who a fresh logo upload must belong to.
+    expect(mockedUpdate).toHaveBeenCalledWith(
+      "org-1",
+      organizationPayload,
+      "user-1",
+    );
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
@@ -525,14 +531,16 @@ describe("OrganizationController.getLogoUploadUrl", () => {
     });
   });
 
-  it("presigns an org-scoped upload from the route params", async () => {
+  it("presigns an upload into the folder of the practice the caller was checked against", async () => {
     mockedGeneratePresignedUrl.mockResolvedValueOnce({
       url: "https://s3.example/put",
-      key: "org/org-1/logo.png",
+      key: "orgs/org-1/logo.png",
     });
     const req = {
       body: { mimeType: "image/png" },
-      params: { organizationId: "org-1" },
+      params: { orgId: " org-1" },
+      organisationId: "org-1",
+      userId: "user-1",
     } as unknown as Request;
     const res = createResponse();
 
@@ -541,35 +549,46 @@ describe("OrganizationController.getLogoUploadUrl", () => {
     expect(mockedGeneratePresignedUrl).toHaveBeenCalledWith(
       "image/png",
       "org",
-      "organizationId=org-1",
+      "org-1",
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       uploadUrl: "https://s3.example/put",
-      s3Key: "org/org-1/logo.png",
+      s3Key: "orgs/org-1/logo.png",
     });
   });
 
-  it("falls back to a temp upload when the request carries no params", async () => {
-    mockedGeneratePresignedUrl.mockResolvedValueOnce({
-      url: "https://s3.example/tmp",
-      key: "temp/logo.png",
-    });
-    const req = { body: { mimeType: "image/png" } } as unknown as Request;
-    const res = createResponse();
+  it.each([
+    ["an empty param list, as the onboarding route has", {}],
+    ["a practice in the path that was never checked", { orgId: "org-2" }],
+  ])(
+    "presigns a fresh upload kept for the signed-in user when the request has %s",
+    async (_label, params) => {
+      mockedGeneratePresignedUrl.mockResolvedValueOnce({
+        url: "https://s3.example/tmp",
+        key: "temp/uploads/abc/logo.png",
+      });
+      const req = {
+        body: { mimeType: "image/png" },
+        params,
+        userId: "user-1",
+      } as unknown as Request;
+      const res = createResponse();
 
-    await OrganizationController.getLogoUploadUrl(req, res);
+      await OrganizationController.getLogoUploadUrl(req, res);
 
-    expect(mockedGeneratePresignedUrl).toHaveBeenCalledWith(
-      "image/png",
-      "temp",
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({
-      uploadUrl: "https://s3.example/tmp",
-      s3Key: "temp/logo.png",
-    });
-  });
+      expect(mockedGeneratePresignedUrl).toHaveBeenCalledWith(
+        "image/png",
+        "temp",
+        "user-1",
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        uploadUrl: "https://s3.example/tmp",
+        s3Key: "temp/uploads/abc/logo.png",
+      });
+    },
+  );
 
   it("logs and returns 500 when presigning fails", async () => {
     mockedGeneratePresignedUrl.mockRejectedValueOnce(new Error("s3 down"));

@@ -9,6 +9,7 @@ import {
 } from "../../src/services/parent-companion.service";
 import { prisma } from "src/config/prisma";
 import { moveFile } from "src/middlewares/upload";
+import { tempUploadPrefixFor } from "src/utils/upload-key";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -701,14 +702,21 @@ describe("CompanionService", () => {
 });
 
 describe("CompanionService.create profile photo", () => {
+  const MINE = `${tempUploadPrefixFor("user-1")}photo.jpg`;
+  const THEIRS = `${tempUploadPrefixFor("user-2")}photo.jpg`;
+
+  // A signed-in parent adds a companion from the app.
   const create = (photoUrl: string) =>
     CompanionService.create(
       { resourceType: "Patient", name: "Buddy", type: "dog", photoUrl } as any,
-      { parentId: "parent-1", organisationId: "org-1" },
+      { authUserId: "user-1" },
     );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+      id: "parent-1",
+    });
     mockedPrisma.patient.create.mockResolvedValue({ id: "patient-1" });
     mockedPrisma.patient.update.mockResolvedValue({ id: "patient-1" });
     (ParentCompanionService.linkParent as jest.Mock).mockResolvedValue({});
@@ -717,17 +725,29 @@ describe("CompanionService.create profile photo", () => {
     );
   });
 
-  it("moves a fresh upload into the companion's folder", async () => {
-    await create("temp/uploads/photo.jpg");
+  it("moves the caller's fresh upload into the companion's folder", async () => {
+    await create(MINE);
 
-    expect(moveFile).toHaveBeenCalledWith(
-      "temp/uploads/photo.jpg",
-      "patient/image-key",
-    );
+    // The upload itself is never saved on the companion.
+    expect(mockedPrisma.patient.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ photoUrl: undefined }),
+    });
+    expect(moveFile).toHaveBeenCalledWith(MINE, "patient/image-key", "user-1");
     expect(mockedPrisma.patient.update).toHaveBeenCalledWith({
       where: { id: "patient-1" },
       data: { photoUrl: "https://cdn.example.test/patient/image-key" },
     });
+  });
+
+  it("creates the companion without a photo when the upload cannot be moved", async () => {
+    (moveFile as jest.Mock).mockRejectedValueOnce(new Error("missing"));
+
+    await expect(create(MINE)).resolves.toBeDefined();
+
+    expect(mockedPrisma.patient.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ photoUrl: undefined }),
+    });
+    expect(mockedPrisma.patient.update).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -743,14 +763,128 @@ describe("CompanionService.create profile photo", () => {
   });
 
   it.each([
-    "companion/pet-9/photo.jpg",
-    "temp/uploads/../companion/pet-9/photo.jpg",
-  ])("returns 400 for %s without creating the companion", async (photoUrl) => {
-    await expect(create(photoUrl)).rejects.toMatchObject({
+    ["another person's upload", THEIRS],
+    ["an upload that is not kept per person", "temp/uploads/photo.jpg"],
+    ["a stored companion file", "companion/pet-9/photo.jpg"],
+    ["a relative path", `${tempUploadPrefixFor("user-1")}../photo.jpg`],
+    ["an http link", "http://cdn.example.test/photo.jpg"],
+    ["a file link", "file:///etc/hosts"],
+    ["a script link", "javascript:alert(1)"],
+    ["an inline svg", "data:image/svg+xml;base64,PHN2Zz4="],
+  ])(
+    "returns 400 for %s without creating the companion",
+    async (_label, photoUrl) => {
+      await expect(create(photoUrl)).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Invalid photo key.",
+      });
+      expect(mockedPrisma.patient.create).not.toHaveBeenCalled();
+      expect(moveFile).not.toHaveBeenCalled();
+    },
+  );
+
+  it("returns 400 for a fresh upload on a practice create, which names no uploader", async () => {
+    await expect(
+      CompanionService.create(
+        {
+          resourceType: "Patient",
+          name: "Buddy",
+          type: "dog",
+          photoUrl: MINE,
+        } as any,
+        { parentId: "parent-1", organisationId: "org-1" },
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockedPrisma.patient.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("CompanionService.update profile photo", () => {
+  const MINE = `${tempUploadPrefixFor("user-1")}photo.jpg`;
+  const THEIRS = `${tempUploadPrefixFor("user-2")}photo.jpg`;
+  const SAVED = "https://cdn.example.test/companion/patient-1/old.jpg";
+
+  const update = (photoUrl: string) =>
+    CompanionService.update(
+      "patient-1",
+      { resourceType: "Patient", name: "Buddy", type: "dog", photoUrl } as any,
+      { authUserId: "user-1" },
+    );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedPrisma.patient.findUnique.mockResolvedValue({
+      alerts: null,
+      photoUrl: SAVED,
+    });
+    mockedPrisma.patient.update.mockResolvedValue({ id: "patient-1" });
+    (moveFile as jest.Mock).mockResolvedValue(
+      "https://cdn.example.test/patient/image-key",
+    );
+  });
+
+  it("moves the caller's fresh upload into the companion's folder and saves where it went", async () => {
+    await update(MINE);
+
+    expect(moveFile).toHaveBeenCalledWith(MINE, "patient/image-key", "user-1");
+    expect(mockedPrisma.patient.update).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.patient.update).toHaveBeenCalledWith({
+      where: { id: "patient-1" },
+      data: expect.objectContaining({
+        photoUrl: "https://cdn.example.test/patient/image-key",
+      }),
+    });
+  });
+
+  it("leaves the saved photo in place when the upload cannot be moved", async () => {
+    (moveFile as jest.Mock).mockRejectedValueOnce(new Error("missing"));
+
+    await update(MINE);
+
+    expect(mockedPrisma.patient.update).toHaveBeenCalledWith({
+      where: { id: "patient-1" },
+      data: expect.objectContaining({ photoUrl: undefined }),
+    });
+  });
+
+  it("keeps the saved photo as it is", async () => {
+    mockedPrisma.patient.findUnique.mockResolvedValue({
+      alerts: null,
+      photoUrl: "temp/uploads/legacy.jpg",
+    });
+
+    await update("temp/uploads/legacy.jpg");
+
+    expect(moveFile).not.toHaveBeenCalled();
+    expect(mockedPrisma.patient.update).toHaveBeenCalledWith({
+      where: { id: "patient-1" },
+      data: expect.objectContaining({ photoUrl: "temp/uploads/legacy.jpg" }),
+    });
+  });
+
+  it.each([
+    ["another person's upload", THEIRS],
+    ["an http link", "http://cdn.example.test/photo.jpg"],
+    ["a file link", "file:///etc/hosts"],
+    ["a stored companion file", "companion/pet-9/photo.jpg"],
+  ])("returns 400 for %s without saving", async (_label, photoUrl) => {
+    await expect(update(photoUrl)).rejects.toMatchObject({
       statusCode: 400,
       message: "Invalid photo key.",
     });
-    expect(mockedPrisma.patient.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.patient.update).not.toHaveBeenCalled();
     expect(moveFile).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a fresh upload when no uploader is known", async () => {
+    await expect(
+      CompanionService.update("patient-1", {
+        resourceType: "Patient",
+        name: "Buddy",
+        type: "dog",
+        photoUrl: MINE,
+      } as any),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockedPrisma.patient.update).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import { UserOrganizationService } from "../../src/services/user-organization.se
 import { SpecialityService } from "../../src/services/speciality.service";
 import { OrganisationRoomService } from "../../src/services/organisation-room.service";
 import { buildS3Key, moveFile } from "../../src/middlewares/upload";
+import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 import * as TypesPkg from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 
@@ -239,10 +240,13 @@ describe("OrganizationService", () => {
       );
     });
 
-    it("moves a fresh logo upload during create", async () => {
+    const MY_LOGO = `${tempUploadPrefixFor("user-1")}logo.jpg`;
+    const THEIR_LOGO = `${tempUploadPrefixFor("user-2")}logo.jpg`;
+
+    it("moves the caller's fresh logo upload during create", async () => {
       (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
         ...baseDto,
-        imageURL: "temp/uploads/logo.jpg",
+        imageURL: MY_LOGO,
       });
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
@@ -260,50 +264,59 @@ describe("OrganizationService", () => {
       await OrganizationService.upsert(
         {
           ...baseDto,
-          imageURL: "temp/uploads/logo.jpg",
+          imageURL: MY_LOGO,
         },
         userId,
       );
 
+      // The upload itself is never saved on the organisation.
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ imageUrl: undefined }),
+        }),
+      );
       expect(buildS3Key).toHaveBeenCalledWith("org", orgId, "image/jpg");
-      expect(moveFile).toHaveBeenCalledWith("temp/uploads/logo.jpg", "org/key");
+      expect(moveFile).toHaveBeenCalledWith(MY_LOGO, "org/key", userId);
       expect(prisma.organization.update).toHaveBeenCalledWith({
         where: { id: orgId },
         data: { imageUrl: "https://cdn.example.com/org/key" },
       });
     });
 
-    it.each(["http://example.com/image.jpg", "https://example.com/image.jpg"])(
-      "keeps the logo link %s as given during create",
-      async (imageURL) => {
-        (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
-          ...baseDto,
-          imageURL,
-        });
-        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
-          null,
-        );
-        (prisma.organization.create as jest.Mock).mockResolvedValueOnce(
-          baseOrg,
-        );
-        (
-          prisma.organization.findUniqueOrThrow as jest.Mock
-        ).mockResolvedValueOnce(baseOrg);
+    it.each([
+      "https://example.com/image.jpg",
+      "data:image/png;base64,iVBORw0KGgo=",
+    ])("keeps the logo link %s as given during create", async (imageURL) => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        imageURL,
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
 
-        await OrganizationService.upsert({ ...baseDto, imageURL }, userId);
+      await OrganizationService.upsert({ ...baseDto, imageURL }, userId);
 
-        expect(prisma.organization.create).toHaveBeenCalledWith(
-          expect.objectContaining({
-            data: expect.objectContaining({ imageUrl: imageURL }),
-          }),
-        );
-        expect(moveFile).not.toHaveBeenCalled();
-      },
-    );
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ imageUrl: imageURL }),
+        }),
+      );
+      expect(moveFile).not.toHaveBeenCalled();
+    });
 
-    it.each(["orgs/org-2/logo.jpg", "temp/uploads/../orgs/org-2/logo.jpg"])(
-      "returns 400 for the logo %s without creating the organisation",
-      async (imageURL) => {
+    it.each([
+      ["another organisation's file", "orgs/org-2/logo.jpg"],
+      ["a relative path", "temp/uploads/../orgs/org-2/logo.jpg"],
+      ["another person's upload", THEIR_LOGO],
+      ["an http link", "http://example.com/image.jpg"],
+      ["a file link", "file:///etc/hosts"],
+      ["a script link", "javascript:alert(1)"],
+    ])(
+      "returns 400 for %s without creating the organisation",
+      async (_label, imageURL) => {
         (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
           ...baseDto,
           imageURL,
@@ -323,14 +336,16 @@ describe("OrganizationService", () => {
       },
     );
 
-    it("leaves an existing organisation's logo key in place", async () => {
+    it("keeps an existing organisation's saved logo as it is", async () => {
+      const saved = "orgs/org-1/logo.jpg";
       (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
         ...baseDto,
-        imageURL: "orgs/org-1/logo.jpg",
+        imageURL: saved,
       });
-      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
-        baseOrg,
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        ...baseOrg,
+        imageUrl: saved,
+      });
       (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
         id: "mapping-1",
       });
@@ -339,16 +354,72 @@ describe("OrganizationService", () => {
         prisma.organization.findUniqueOrThrow as jest.Mock
       ).mockResolvedValueOnce(baseOrg);
 
-      await OrganizationService.upsert(
-        { ...baseDto, imageURL: "orgs/org-1/logo.jpg" },
-        userId,
-      );
+      await OrganizationService.upsert({ ...baseDto, imageURL: saved }, userId);
 
       expect(prisma.organization.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ imageUrl: "orgs/org-1/logo.jpg" }),
+          data: expect.objectContaining({ imageUrl: saved }),
         }),
       );
+      expect(moveFile).not.toHaveBeenCalled();
+    });
+
+    it("moves the caller's fresh logo into an existing organisation's folder", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        imageURL: MY_LOGO,
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+        baseOrg,
+      );
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "mapping-1",
+      });
+      (prisma.organization.update as jest.Mock).mockResolvedValue(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+      (moveFile as jest.Mock).mockResolvedValueOnce(
+        "https://cdn.example.com/org/key",
+      );
+
+      await OrganizationService.upsert(
+        { ...baseDto, imageURL: MY_LOGO },
+        userId,
+      );
+
+      expect(prisma.organization.update).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          data: expect.objectContaining({ imageUrl: undefined }),
+        }),
+      );
+      expect(moveFile).toHaveBeenCalledWith(MY_LOGO, "org/key", userId);
+      expect(prisma.organization.update).toHaveBeenCalledWith({
+        where: { id: orgId },
+        data: { imageUrl: "https://cdn.example.com/org/key" },
+      });
+    });
+
+    it("returns 400 for a changed logo that is not the caller's upload on an existing organisation", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        imageURL: THEIR_LOGO,
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+        baseOrg,
+      );
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "mapping-1",
+      });
+
+      await expect(
+        OrganizationService.upsert(
+          { ...baseDto, imageURL: THEIR_LOGO },
+          userId,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(prisma.organization.update).not.toHaveBeenCalled();
       expect(moveFile).not.toHaveBeenCalled();
     });
 
@@ -629,6 +700,107 @@ describe("OrganizationService", () => {
         OrganizationService.listNearbyForAppointmentsPaginated(Number.NaN, 20),
       ).rejects.toThrow("lat/lng are required");
     });
+  });
+
+  describe("update logo", () => {
+    const MY_LOGO = `${tempUploadPrefixFor("user-1")}logo.jpg`;
+
+    beforeEach(() => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue(baseOrg);
+      (prisma.organization.update as jest.Mock).mockResolvedValue(baseOrg);
+      (prisma.organization.findUniqueOrThrow as jest.Mock).mockResolvedValue(
+        baseOrg,
+      );
+    });
+
+    afterEach(() => {
+      (prisma.organization.findFirst as jest.Mock).mockReset();
+      (prisma.organization.update as jest.Mock).mockReset();
+      (prisma.organization.findUniqueOrThrow as jest.Mock).mockReset();
+    });
+
+    const updateWith = (imageURL: string, caller?: string) => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        imageURL,
+      });
+      return OrganizationService.update(
+        orgId,
+        { ...baseDto, imageURL },
+        caller,
+      );
+    };
+
+    it("saves a new https logo as given", async () => {
+      await updateWith("https://cdn.example.com/orgs/org-1/new.jpg", userId);
+
+      expect(prisma.organization.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            imageUrl: "https://cdn.example.com/orgs/org-1/new.jpg",
+          }),
+        }),
+      );
+      expect(moveFile).not.toHaveBeenCalled();
+    });
+
+    it("moves the caller's fresh upload into the organisation's folder", async () => {
+      (moveFile as jest.Mock).mockResolvedValueOnce(
+        "https://cdn.example.com/org/key",
+      );
+
+      await updateWith(MY_LOGO, userId);
+
+      expect(prisma.organization.update).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          data: expect.objectContaining({ imageUrl: undefined }),
+        }),
+      );
+      expect(moveFile).toHaveBeenCalledWith(MY_LOGO, "org/key", userId);
+      expect(prisma.organization.update).toHaveBeenCalledWith({
+        where: { id: orgId },
+        data: { imageUrl: "https://cdn.example.com/org/key" },
+      });
+    });
+
+    it("keeps the saved logo as it is", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        ...baseOrg,
+        imageUrl: "http://legacy.example.com/logo.jpg",
+      });
+
+      await updateWith("http://legacy.example.com/logo.jpg", userId);
+
+      expect(prisma.organization.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            imageUrl: "http://legacy.example.com/logo.jpg",
+          }),
+        }),
+      );
+    });
+
+    it.each([
+      ["an http link", "http://example.com/new.jpg", userId],
+      ["a file link", "file:///etc/hosts", userId],
+      ["a fresh upload with no caller", MY_LOGO, undefined],
+      [
+        "another person's upload",
+        `${tempUploadPrefixFor("user-2")}l.jpg`,
+        userId,
+      ],
+    ])(
+      "returns 400 for %s without saving",
+      async (_label, imageURL, caller) => {
+        await expect(updateWith(imageURL, caller)).rejects.toMatchObject({
+          statusCode: 400,
+          message: "Invalid image key.",
+        });
+        expect(prisma.organization.update).not.toHaveBeenCalled();
+        expect(moveFile).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("mutations", () => {

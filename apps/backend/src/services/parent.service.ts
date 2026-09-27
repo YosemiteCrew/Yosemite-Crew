@@ -361,9 +361,14 @@ const resolveParentExistingByLinkedUser = async (
   });
 };
 
+/** The person saving a parent profile: the signed-in parent, or a practice user. */
+const uploaderOf = (ctx?: ParentCreateContext) =>
+  ctx?.authUserId ?? ctx?.actorId;
+
 const maybeSyncParentProfileImage = async (
   parentId: string,
   profileImageKey: string | null,
+  uploaderId: string | undefined,
 ) => {
   if (!profileImageKey) {
     return;
@@ -371,7 +376,7 @@ const maybeSyncParentProfileImage = async (
 
   try {
     const finalKey = buildS3Key("parent", parentId, "image/jpg");
-    const uploadedUrl = await moveFile(profileImageKey, finalKey);
+    const uploadedUrl = await moveFile(profileImageKey, finalKey, uploaderId);
     await prisma.parent.update({
       where: { id: parentId },
       data: { profileImageUrl: uploadedUrl },
@@ -405,9 +410,13 @@ export const ParentService = {
       throw new ParentServiceError("Parent already exists for this user.", 409);
     }
 
-    const profileImageKey = uploadKeyToMove(parent.profileImageUrl, () => {
-      throw new ParentServiceError("Invalid profile image key.", 400);
-    });
+    const profileImageKey = uploadKeyToMove(
+      parent.profileImageUrl,
+      { uploaderId: uploaderOf(ctx) },
+      () => {
+        throw new ParentServiceError("Invalid profile image key.", 400);
+      },
+    );
 
     const created = await prisma.parent.create({
       data: {
@@ -418,7 +427,10 @@ export const ParentService = {
         phoneNumber: parent.phoneNumber ?? undefined,
         currency: parent.currency ?? undefined,
         timezone: parent.timezone ?? undefined,
-        profileImageUrl: parent.profileImageUrl ?? undefined,
+        // A fresh upload is saved only once it has been moved into place.
+        profileImageUrl: profileImageKey
+          ? undefined
+          : (parent.profileImageUrl ?? undefined),
         isProfileComplete: false,
         linkedUserId: parent.linkedUserId ?? undefined,
         createdFrom: parent.createdFrom,
@@ -460,7 +472,11 @@ export const ParentService = {
       });
     }
 
-    await maybeSyncParentProfileImage(created.id, profileImageKey);
+    await maybeSyncParentProfileImage(
+      created.id,
+      profileImageKey,
+      uploaderOf(ctx),
+    );
 
     if (ctx.source === "mobile" && ctx.authUserId) {
       await AuthUserMobileService.linkParent(ctx.authUserId, created.id);
@@ -521,11 +537,23 @@ export const ParentService = {
       parent.timezone = validateTimezone(parent.timezone, "Timezone");
     }
 
-    // Capture the prior alert set so an alert change can be audited (created/updated/deleted).
+    // Capture the prior alert set so an alert change can be audited (created/updated/deleted),
+    // and the saved picture, which is kept as it is.
     const beforeUpdate = await prisma.parent.findUnique({
       where: { id },
-      select: { alerts: true },
+      select: { alerts: true, profileImageUrl: true },
     });
+
+    const profileImageKey = uploadKeyToMove(
+      parent.profileImageUrl,
+      {
+        uploaderId: uploaderOf(ctx),
+        current: beforeUpdate?.profileImageUrl,
+      },
+      () => {
+        throw new ParentServiceError("Invalid profile image key.", 400);
+      },
+    );
 
     await prisma.parent.update({
       where: { id },
@@ -537,7 +565,10 @@ export const ParentService = {
         phoneNumber: parent.phoneNumber ?? undefined,
         currency: parent.currency ?? undefined,
         timezone: parent.timezone ?? undefined,
-        profileImageUrl: parent.profileImageUrl ?? undefined,
+        // A fresh upload is moved into the parent's folder below, never saved as is.
+        profileImageUrl: profileImageKey
+          ? undefined
+          : (parent.profileImageUrl ?? undefined),
         isProfileComplete: false,
         createdFrom: parent.createdFrom,
         // Only the PMS path manages client alerts: it sends the full alert set, so an
@@ -557,6 +588,8 @@ export const ParentService = {
     if (hasAddressData(parent.address)) {
       await upsertParentAddress(id, parent.address);
     }
+
+    await maybeSyncParentProfileImage(id, profileImageKey, uploaderOf(ctx));
 
     // Audit client (parent) alert mutations. No-ops when alerts are unchanged or no org
     // context is available, so a plain profile update is never spuriously audited.

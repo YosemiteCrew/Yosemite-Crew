@@ -3,7 +3,7 @@ import AWS from "aws-sdk";
 import path from "node:path";
 import sanitizeFilename from "sanitize-filename";
 import { v4 as uuidv4 } from "uuid";
-import { isTempUploadKey, TEMP_UPLOAD_PREFIX } from "src/utils/upload-key";
+import { isTempUploadKey, tempUploadPrefixFor } from "src/utils/upload-key";
 
 interface UploadedFile {
   name: string;
@@ -141,7 +141,9 @@ const buildS3Key = (
   const ext = mimeType ? mimeTypeToExtension(mimeType) : "";
   switch (type) {
     case "temp":
-      return `${TEMP_UPLOAD_PREFIX}${uuidv4()}${ext}`;
+      // A fresh upload lands in its uploader's own folder (`idOrFolder`).
+      if (!idOrFolder) throw new Error("A fresh upload needs its uploader.");
+      return `${tempUploadPrefixFor(idOrFolder)}${uuidv4()}${ext}`;
     case "user":
       return `users/${idOrFolder}/${uuidv4()}${ext}`;
     case "org":
@@ -261,9 +263,14 @@ async function generatePresignedUrl(
 
 // Move File within S3
 
-async function moveFile(fromKey: string, toKey: string) {
-  // The move deletes its source, so only a fresh upload may be one.
-  if (!isTempUploadKey(fromKey)) {
+async function moveFile(
+  fromKey: string,
+  toKey: string,
+  uploaderId: string | undefined,
+) {
+  // The move deletes its source, so only a fresh upload the caller made may be
+  // one.
+  if (!isTempUploadKey(fromKey, uploaderId)) {
     throw new Error("Invalid upload key.");
   }
   const bucket = getBucketName();

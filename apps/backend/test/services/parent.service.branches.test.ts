@@ -6,6 +6,7 @@ import { AuthUserMobileService } from "../../src/services/authUserMobile.service
 import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { prisma } from "src/config/prisma";
 import { moveFile } from "../../src/middlewares/upload";
+import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 
 // Companion suite to parent.service.test.ts. It owns the edge/guard paths (timezone
 // parsing, profile-completion recomputation, mobile ownership checks) and resets every
@@ -320,18 +321,33 @@ describe("ParentService.create", () => {
     expect(mockedPrisma.parent.update).not.toHaveBeenCalled();
   });
 
-  it("moves an uploaded profile image and stores the final URL", async () => {
+  const MINE = `${tempUploadPrefixFor("prov-1")}tmp.jpg`;
+  const THEIRS = `${tempUploadPrefixFor("prov-2")}tmp.jpg`;
+
+  /** A signed-in parent creating their own profile from the app. */
+  const createFromApp = (profileImageUrl: string) => {
+    mockedAuth.getAuthUserMobileIdByProviderId.mockResolvedValue("mobile-1");
+    mockedAuth.linkParent.mockResolvedValue(undefined);
+    return ParentService.create(dto({ profileImageUrl }), {
+      source: "mobile",
+      authUserId: "prov-1",
+    });
+  };
+
+  it("moves the caller's uploaded profile image and stores the final URL", async () => {
     primeCreate();
     mockedMoveFile.mockResolvedValue("https://cdn.example.com/final.jpg");
 
-    await ParentService.create(
-      dto({ profileImageUrl: "temp/uploads/tmp.jpg" }),
-      { source: "pms" },
-    );
+    await createFromApp(MINE);
 
+    // The upload itself is never saved on the profile.
+    expect(mockedPrisma.parent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ profileImageUrl: undefined }),
+    });
     expect(mockedMoveFile).toHaveBeenCalledWith(
-      "temp/uploads/tmp.jpg",
+      MINE,
       "parent/image-key",
+      "prov-1",
     );
     expect(mockedPrisma.parent.update).toHaveBeenCalledWith({
       where: { id: "parent-1" },
@@ -343,14 +359,37 @@ describe("ParentService.create", () => {
     primeCreate();
     mockedMoveFile.mockRejectedValue(new Error("bad key"));
 
-    const result = await ParentService.create(
-      dto({ profileImageUrl: "temp/uploads/tmp.jpg" }),
-      { source: "pms" },
-    );
+    const result = await createFromApp(MINE);
 
-    expect(mockedPrisma.parent.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.parent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ profileImageUrl: undefined }),
+    });
+    expect(mockedPrisma.parent.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ profileImageUrl: expect.anything() }),
+      }),
+    );
     expect(result.response.id).toBe("parent-1");
   });
+
+  it.each([
+    ["another person's upload", THEIRS],
+    ["an upload that is not kept per person", "temp/uploads/tmp.jpg"],
+    ["an http link", "http://cdn.example.com/avatar.jpg"],
+    ["a file link", "file:///etc/hosts"],
+  ])(
+    "returns 400 for %s from the app without creating the parent",
+    async (_label, profileImageUrl) => {
+      primeCreate();
+
+      await expect(createFromApp(profileImageUrl)).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Invalid profile image key.",
+      });
+      expect(mockedPrisma.parent.create).not.toHaveBeenCalled();
+      expect(mockedMoveFile).not.toHaveBeenCalled();
+    },
+  );
 
   it("keeps a profile image link as given", async () => {
     primeCreate();
@@ -368,7 +407,12 @@ describe("ParentService.create", () => {
     expect(mockedMoveFile).not.toHaveBeenCalled();
   });
 
-  it.each(["parent/parent-2/photo.jpg", "temp/uploads/%2e%2e/photo.jpg"])(
+  it.each([
+    "parent/parent-2/photo.jpg",
+    "temp/uploads/%2e%2e/photo.jpg",
+    // A practice create names no uploader, so no fresh upload is its own.
+    `${tempUploadPrefixFor("prov-1")}tmp.jpg`,
+  ])(
     "returns 400 for the profile image %s without creating the parent",
     async (profileImageUrl) => {
       primeCreate();
@@ -568,6 +612,86 @@ describe("ParentService.update", () => {
     expect(mockedAudit.recordAlertMutation).toHaveBeenCalledWith(
       expect.objectContaining({ previousAlerts: undefined, nextAlerts: [] }),
     );
+  });
+});
+
+describe("ParentService.update profile image", () => {
+  const MINE = `${tempUploadPrefixFor("prov-1")}tmp.jpg`;
+  const THEIRS = `${tempUploadPrefixFor("prov-2")}tmp.jpg`;
+  const SAVED = "https://cdn.example.com/parent/parent-1/old.jpg";
+
+  beforeEach(() => {
+    resetAll();
+    mockedPrisma.parent.findUnique
+      .mockResolvedValueOnce({ alerts: null, profileImageUrl: SAVED })
+      .mockResolvedValue(record());
+    mockedPrisma.parent.update.mockResolvedValue(record());
+  });
+
+  const updateFromApp = (profileImageUrl: string) =>
+    ParentService.update("parent-1", dto({ profileImageUrl }), {
+      source: "pms",
+      actorId: "prov-1",
+    });
+
+  it("moves the caller's fresh upload into the parent's folder, never saving the upload", async () => {
+    mockedMoveFile.mockResolvedValue("https://cdn.example.com/final.jpg");
+
+    await updateFromApp(MINE);
+
+    expect(mockedPrisma.parent.update.mock.calls[0][0].data).toMatchObject({
+      profileImageUrl: undefined,
+    });
+    expect(mockedMoveFile).toHaveBeenCalledWith(
+      MINE,
+      "parent/image-key",
+      "prov-1",
+    );
+    expect(mockedPrisma.parent.update).toHaveBeenCalledWith({
+      where: { id: "parent-1" },
+      data: { profileImageUrl: "https://cdn.example.com/final.jpg" },
+    });
+  });
+
+  it("uses the signed-in parent as the uploader on an app update", async () => {
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "parent-1",
+    });
+    mockedMoveFile.mockResolvedValue("https://cdn.example.com/final.jpg");
+
+    await ParentService.update("parent-1", dto({ profileImageUrl: MINE }), {
+      source: "mobile",
+      authUserId: "prov-1",
+    });
+
+    expect(mockedMoveFile).toHaveBeenCalledWith(
+      MINE,
+      "parent/image-key",
+      "prov-1",
+    );
+  });
+
+  it("keeps the saved picture as it is", async () => {
+    await updateFromApp(SAVED);
+
+    expect(mockedMoveFile).not.toHaveBeenCalled();
+    expect(mockedPrisma.parent.update.mock.calls[0][0].data).toMatchObject({
+      profileImageUrl: SAVED,
+    });
+  });
+
+  it.each([
+    ["another person's upload", THEIRS],
+    ["an http link", "http://cdn.example.com/avatar.jpg"],
+    ["a script link", "javascript:alert(1)"],
+    ["a stored parent file", "parent/parent-2/photo.jpg"],
+  ])("returns 400 for %s without saving", async (_label, profileImageUrl) => {
+    await expect(updateFromApp(profileImageUrl)).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Invalid profile image key.",
+    });
+    expect(mockedPrisma.parent.update).not.toHaveBeenCalled();
+    expect(mockedMoveFile).not.toHaveBeenCalled();
   });
 });
 

@@ -509,16 +509,30 @@ describe("ParentController", () => {
 
     it("should success (200)", async () => {
       req.body = { mimeType: "image/jpeg" };
+      (req as any).userId = "u1";
       mockedUpload.generatePresignedUrl.mockResolvedValue({
         url: "http://s3",
         key: "key",
       });
       await ParentController.getProfileUploadUrl(req as any, res as Response);
+      expect(mockedUpload.generatePresignedUrl).toHaveBeenCalledWith(
+        "image/jpeg",
+        "temp",
+        "u1",
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("should 401 without a signed-in user", async () => {
+      req.body = { mimeType: "image/jpeg" };
+      await ParentController.getProfileUploadUrl(req as any, res as Response);
+      expect(mockedUpload.generatePresignedUrl).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(401);
     });
 
     it("should handle generic error", async () => {
       req.body = { mimeType: "image/jpeg" };
+      (req as any).userId = "u1";
       mockedUpload.generatePresignedUrl.mockRejectedValue(new Error("Fail"));
       await ParentController.getProfileUploadUrl(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
