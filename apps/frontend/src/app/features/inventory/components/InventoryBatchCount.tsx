@@ -61,7 +61,7 @@ const InventoryBatchCount = ({
     const match = countableBatches.find(
       (batch) => batch.barcode === value || batch.batch === value || batch.serial === value
     );
-    if (match?._id) setSelectedBatchId(match._id);
+    setSelectedBatchId(match?._id ?? '');
   };
 
   const resetCount = () => {

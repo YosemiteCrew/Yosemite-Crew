@@ -179,6 +179,20 @@ describe('InventoryBatchCount', () => {
     expect(screen.getByRole('combobox', { name: 'Batch' })).toHaveValue('batch-1');
   });
 
+  it('clears the selected batch when a scan does not match', () => {
+    render(<InventoryBatchCount {...commonProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start count' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Batch' }), {
+      target: { value: 'batch-1' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Scan or enter a batch'), {
+      target: { value: 'UNKNOWN-BATCH' },
+    });
+
+    expect(screen.getByRole('combobox', { name: 'Batch' })).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Record count' })).toBeDisabled();
+  });
+
   it('records a zero-discrepancy count without a refresh callback', async () => {
     const user = userEvent.setup();
     (recordInventoryBatchCount as jest.Mock).mockResolvedValue({ ...discrepancy, discrepancy: 0 });
