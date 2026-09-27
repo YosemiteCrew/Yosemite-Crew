@@ -336,6 +336,7 @@ export const TaskController = {
         createdBy: actorId,
         assignedBy: actorId,
       };
+      await TaskService.assertPracticeAssignee(input);
 
       const task = await TaskService.createCustom(input);
       res.status(201).json(task);
@@ -358,6 +359,7 @@ export const TaskController = {
         createdBy: actorId,
         assignedBy: actorId,
       };
+      await TaskService.assertPracticeAssignee(input);
 
       const task = await TaskService.createFromLibrary(input);
       res.status(201).json(task);
@@ -380,6 +382,10 @@ export const TaskController = {
         createdBy: actorId,
         assignedBy: actorId,
       };
+      await TaskService.assertPracticeAssignee({
+        ...input,
+        audience: input.audienceOverride,
+      });
 
       const task = await TaskService.createFromTemplate(input);
       res.status(201).json(task);
@@ -454,9 +460,31 @@ export const TaskController = {
       const parentId = authUser.parentId.toString();
       const scope = parseRecurrenceScope(req.query?.scope) ?? "THIS";
 
+      // A parent hands a task only to themselves or to another parent of its
+      // companion who may work on its tasks; staff groups are not theirs to set.
+      const requestedAssignee: unknown = req.body?.assignedTo;
+      if (requestedAssignee !== undefined && requestedAssignee !== parentId) {
+        const current = await TaskService.getById(taskId);
+        const unchanged = current && requestedAssignee === current.assignedTo;
+        if (
+          current &&
+          !unchanged &&
+          !(
+            typeof requestedAssignee === "string" &&
+            (await parentHasCompanionFeature(
+              requestedAssignee,
+              current.patientId,
+              "tasks",
+            ))
+          )
+        ) {
+          return res.status(404).json({ message: "Assignee not found" });
+        }
+      }
+
       const task = await TaskService.updateTask(
         taskId,
-        req.body,
+        { ...req.body, assignedGroupId: undefined },
         parentId,
         scope,
       );

@@ -12,8 +12,15 @@ const withTaskTemplateOrgPermissions = jest.fn(() =>
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requireSuperAdmin = jest.fn((_req, _res, next) => next());
 const bodyCompanionGuard = jest.fn((_req, _res, next) => next());
-const requireCompanionPermissionForResource = jest.fn(() => bodyCompanionGuard);
+const taskCompanionGuard = jest.fn((_req, _res, next) => next());
 const resolveBodyPatientCompanion = jest.fn();
+const resolveParentTaskCompanion = jest.fn();
+const requireCompanionPermissionForResource = jest.fn(
+  (_feature: string, resolver: unknown) =>
+    resolver === resolveParentTaskCompanion
+      ? taskCompanionGuard
+      : bodyCompanionGuard,
+);
 
 const TaskController = {
   createFromLibrary: jest.fn(),
@@ -85,6 +92,7 @@ jest.mock("../../src/middlewares/companion-access", () => ({
   },
   requireCompanionPermissionForResource,
   resolveBodyPatientCompanion,
+  resolveParentTaskCompanion,
 }));
 
 jest.mock("../../src/controllers/app/task-recommendation.controller", () => ({
@@ -221,6 +229,28 @@ describe("task.router", () => {
       requireMobileAuth,
     );
   });
+
+  it.each([
+    ["/mobile/:taskId", "get", "getById"],
+    ["/mobile/:taskId", "patch", "updateTask"],
+    ["/mobile/:taskId", "delete", "deleteTask"],
+    ["/mobile/:taskId/status", "post", "changeStatus"],
+  ] as const)(
+    "puts %s (%s) behind the companion tasks gate",
+    (path, method, handler) => {
+      expect(
+        findRoute(path, method)?.stack.map((layer) => layer.handle),
+      ).toEqual([
+        requireMobileAuth,
+        taskCompanionGuard,
+        TaskController[handler],
+      ]);
+      expect(requireCompanionPermissionForResource).toHaveBeenCalledWith(
+        "tasks",
+        resolveParentTaskCompanion,
+      );
+    },
+  );
 });
 
 describe("task.router recommendations", () => {

@@ -380,3 +380,26 @@ export const resolveAppointmentCompanion: CompanionResourceResolver = async (
     ? { kind: "patient", patientId }
     : { kind: "deny" };
 };
+
+/**
+ * Parent task routes keyed by a task id: the companion the task is for. A task
+ * with no companion belongs to whoever created it or was given it, and to no
+ * one else.
+ */
+export const resolveParentTaskCompanion: CompanionResourceResolver = async (
+  req,
+  parentId,
+) => {
+  const taskId = readIdParam(req, "taskId");
+  if (!taskId) return { kind: "deny" };
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { patientId: true, createdBy: true, assignedTo: true },
+  });
+  if (!task) return { kind: "deny" };
+  if (task.patientId) return { kind: "patient", patientId: task.patientId };
+  return task.createdBy === parentId || task.assignedTo === parentId
+    ? { kind: "allow" }
+    : { kind: "deny" };
+};

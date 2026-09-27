@@ -63,7 +63,9 @@ export const AdverseEventController = {
     res: Response,
   ) => {
     try {
-      const { organisationId } = req.params;
+      const organisationId =
+        (req as unknown as OrgRequest).organisationId ??
+        req.params.organisationId;
       const { status } = req.query;
       const reports = await AdverseEventService.listForOrganisation(
         organisationId,

@@ -57,6 +57,7 @@ const mockPrisma = {
   appointment: mockTable("appointment"),
   adverseEventReport: mockTable("adverseEventReport"),
   taskTemplate: mockTable("taskTemplate"),
+  task: mockTable("task"),
 };
 
 const mockReached = jest.fn((req: express.Request, res: express.Response) => {
@@ -144,6 +145,7 @@ const PARENTS = {
   coParent: "par-co",
   coParentWithout: "par-co-none",
   pending: "par-pending",
+  revoked: "par-revoked",
   otherParent: "par-other",
 } as const;
 type Parent = keyof typeof PARENTS;
@@ -170,6 +172,12 @@ const seed = () => {
       role: "CO_PARENT",
       permissions: ALL_ON,
       status: "PENDING",
+    },
+    {
+      parentId: PARENTS.revoked,
+      role: "CO_PARENT",
+      permissions: ALL_ON,
+      status: "REVOKED",
     },
   ];
   mockDb.parentPatient = [
@@ -221,6 +229,22 @@ const seed = () => {
   mockDb.taskTemplate = [
     { id: "tpl-a", organisationId: "org-a" },
     { id: "tpl-b", organisationId: "org-b" },
+  ];
+  // The revoked co-parent created task-1 and is its assignee, which on its own
+  // no longer lets them reach it.
+  mockDb.task = [
+    {
+      id: "task-1",
+      patientId: "pat-1",
+      createdBy: PARENTS.revoked,
+      assignedTo: PARENTS.revoked,
+    },
+    {
+      id: "task-own",
+      patientId: null,
+      createdBy: PARENTS.otherParent,
+      assignedTo: PARENTS.otherParent,
+    },
   ];
 };
 
@@ -308,6 +332,24 @@ describe("adverse-event reports: practice routes", () => {
     );
   });
 
+  it("lists reports only for members of the organisation", async () => {
+    const { status, body } = await call(
+      "GET",
+      "/ae/organisation/org-a",
+      "staffA",
+    );
+    expect(status).toBe(200);
+    expect(body?.organisationId).toBe("org-a");
+
+    mockReached.mockClear();
+    expectStopped(await call("GET", "/ae/organisation/org-a", "staffB"), 404);
+    expectStopped(await call("GET", "/ae/organisation/org-a", "staffOff"), 404);
+    expectStopped(
+      await call("GET", "/ae/organisation/org-a", "staffLimited"),
+      403,
+    );
+  });
+
   it("refuses a member without the companion permissions", async () => {
     expectStopped(await call("GET", "/ae/rep-a", "staffLimited"), 403);
     expectStopped(
@@ -371,6 +413,59 @@ describe("expenses: mobile create", () => {
     ["no companion at all", "owner", {}],
   ] as const)("answers %s as not found", async (_label, caller, body) => {
     expectStopped(await call("POST", "/expense", caller, body), 404);
+  });
+});
+
+describe("tasks: mobile routes addressed by a task id", () => {
+  const ROUTES = [
+    ["GET", "/task/mobile/task-1"],
+    ["PATCH", "/task/mobile/task-1"],
+    ["DELETE", "/task/mobile/task-1"],
+    ["POST", "/task/mobile/task-1/status"],
+  ] as const;
+
+  it.each(ROUTES)(
+    "%s %s lets a parent who may work on the companion's tasks through",
+    async (method, path) => {
+      for (const caller of ["owner", "coParent"] as const) {
+        mockReached.mockClear();
+        expect((await call(method, path, caller, {})).status).toBe(200);
+      }
+    },
+  );
+
+  it.each(ROUTES)(
+    "%s %s answers a parent whose link was revoked as not found, even as the task's creator",
+    async (method, path) => {
+      expectStopped(await call(method, path, "revoked", {}), 404);
+    },
+  );
+
+  it.each(ROUTES)(
+    "%s %s answers another parent, a pending co-parent and a missing task as not found",
+    async (method, path) => {
+      expectStopped(await call(method, path, "otherParent", {}), 404);
+      expectStopped(await call(method, path, "pending", {}), 404);
+      expectStopped(
+        await call(method, path.replace("task-1", "task-missing"), "owner", {}),
+        404,
+      );
+    },
+  );
+
+  it.each(ROUTES)(
+    "%s %s refuses a co-parent without the tasks permission",
+    async (method, path) => {
+      expectStopped(await call(method, path, "coParentWithout", {}), 403);
+    },
+  );
+
+  it("lets a task with no companion through only for its own parent", async () => {
+    expect(
+      (await call("GET", "/task/mobile/task-own", "otherParent")).status,
+    ).toBe(200);
+    mockReached.mockClear();
+    expectStopped(await call("GET", "/task/mobile/task-own", "owner"), 404);
   });
 });
 

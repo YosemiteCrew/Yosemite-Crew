@@ -60,12 +60,13 @@ const findRoute = (path: string, method: "get" | "post" | "patch") =>
   )?.route;
 
 describe("adverse-event.router", () => {
-  it("requires auth + org permissions for org listing", () => {
+  it("requires auth, org permissions and the view permission for org listing", () => {
     const route = findRoute("/organisation/:organisationId", "get");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
       requireWebAuth,
       withOrgPermissionsMiddleware,
+      viewPermission,
       AdverseEventController.listForOrg,
     ]);
   });

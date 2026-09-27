@@ -83,41 +83,49 @@ const loadConsentOrThrow = async (
 };
 
 /**
- * Resolves the pet's primary parent and proves the authenticated caller IS that
- * parent. Consent for cross-practice disclosure of clinical records is the pet
- * owner's to give (GDPR Art. 6/9), so a staff session is never sufficient.
+ * The consent a pet owner may grant: one at this practice, for a pet the
+ * signed-in caller is the ACTIVE primary parent of. Consent for cross-practice
+ * disclosure of clinical records is the owner's to give (GDPR Art. 6/9), so a
+ * staff session never qualifies.
+ *
+ * Ownership is part of the lookup, so a consent that does not exist, sits at
+ * another practice, or is for someone else's pet all answer the same.
+ *
+ * The caller's id is an auth provider id, so it is resolved to a parent through
+ * AuthUser rather than compared against Parent.linkedUserId, which holds an
+ * AuthUser primary key.
  */
-const resolveConsentingParentId = async (
-  patientId: string,
+const loadOwnConsentOrThrow = async (
+  consentId: string,
+  organisationId: string,
   grantingUserId: string | null,
-): Promise<string> => {
-  if (!grantingUserId) {
-    throw new PassportConsentError(
-      "Only the pet's owner can grant this consent.",
-      403,
-    );
+) => {
+  const parentId = grantingUserId
+    ? await findParentIdForAuthUser(grantingUserId)
+    : null;
+  const ownPets = parentId
+    ? await prisma.parentPatient.findMany({
+        where: { parentId, role: "PRIMARY", status: "ACTIVE" },
+        select: { patientId: true },
+      })
+    : [];
+  const consent =
+    parentId && ownPets.length
+      ? await prisma.passportShareConsent.findFirst({
+          where: {
+            id: consentId,
+            patientId: { in: ownPets.map((link) => link.patientId) },
+            OR: [
+              { ownerOrganisationId: organisationId },
+              { recipientOrganisationId: organisationId },
+            ],
+          },
+        })
+      : null;
+  if (!parentId || !consent) {
+    throw new PassportConsentError("Consent not found.", 404);
   }
-  const link = await prisma.parentPatient.findFirst({
-    where: { patientId, role: "PRIMARY", status: "ACTIVE" },
-    select: { parentId: true },
-  });
-  if (!link) {
-    throw new PassportConsentError(
-      "Only the pet's owner can grant this consent.",
-      403,
-    );
-  }
-  // Same id-space trap as the passport read: the caller's id is a provider id,
-  // so it has to be resolved to a parent through AuthUser rather than compared
-  // against Parent.linkedUserId, which holds an AuthUser primary key.
-  const callerParentId = await findParentIdForAuthUser(grantingUserId);
-  if (!callerParentId || callerParentId !== link.parentId) {
-    throw new PassportConsentError(
-      "Only the pet's owner can grant this consent.",
-      403,
-    );
-  }
-  return callerParentId;
+  return { consent, parentId };
 };
 
 const notifyOwnerOfConsentRequest = (patientId: string): Promise<void> =>
@@ -222,7 +230,11 @@ export const PassportConsentService = {
     actor?: Actor;
   }): Promise<PassportConsentDTO> {
     const { consentId, organisationId, method, grantingUserId } = params;
-    const consent = await loadConsentOrThrow(consentId, organisationId);
+    const { consent, parentId } = await loadOwnConsentOrThrow(
+      consentId,
+      organisationId,
+      grantingUserId,
+    );
 
     // A share the parent (or the owning practice) already revoked must not be
     // resurrected by re-granting it.
@@ -232,11 +244,6 @@ export const PassportConsentService = {
         409,
       );
     }
-
-    const parentId = await resolveConsentingParentId(
-      consent.patientId,
-      grantingUserId,
-    );
 
     const row = await prisma.passportShareConsent.update({
       where: { id: consent.id },

@@ -12,6 +12,7 @@ import { AuditTrailService } from "./audit-trail.service";
 import type { TaskWorkflowSeed } from "./task-workflow-materializer";
 import { sendEmailTemplate } from "../utils/email";
 import logger from "../utils/logger";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 
 export class TaskServiceError extends Error {
   constructor(
@@ -2127,13 +2128,76 @@ export const TaskService = {
       throw new TaskServiceError("Invalid parentId");
     }
 
+    // A parent sees a companion's tasks only while their link to it is ACTIVE
+    // and, for a co-parent, only while tasks are shared with them.
+    const links = await prisma.parentPatient.findMany({
+      where: {
+        parentId,
+        status: "ACTIVE",
+        role: { in: ["PRIMARY", "CO_PARENT"] },
+      },
+      select: { patientId: true, role: true, permissions: true },
+    });
+    const companionIds = links
+      .filter((link) =>
+        hasCompanionFeature(link.role, link.permissions, "tasks"),
+      )
+      .map((link) => link.patientId);
+
     return listTasksMatching(
       {
         audience: "PARENT_TASK",
         OR: [{ assignedTo: parentId }, { createdBy: parentId }],
+        AND: [
+          { OR: [{ patientId: null }, { patientId: { in: companionIds } }] },
+        ],
       },
       params,
     );
+  },
+
+  /**
+   * Who a practice may give a task to: a staff task goes to an active member
+   * of the organisation, a parent task to a parent with an ACTIVE link to the
+   * task's companion. When the audience is not known yet (a template decides
+   * it), either qualifies. Anyone else answers as not found.
+   */
+  async assertPracticeAssignee(input: {
+    organisationId?: string;
+    audience?: TaskAudience;
+    assignedTo?: unknown;
+    patientId?: unknown;
+  }): Promise<void> {
+    const organisationId = asNonEmptyString(input.organisationId);
+    const assignedTo = asNonEmptyString(input.assignedTo);
+    const notFound = () => new TaskServiceError("Assignee not found", 404);
+    if (!organisationId || !assignedTo) throw notFound();
+
+    if (input.audience !== "PARENT_TASK") {
+      const member = await prisma.userOrganization.findFirst({
+        where: {
+          practitionerReference: assignedTo,
+          active: true,
+          OR: [
+            { organizationReference: organisationId },
+            { organizationReference: `Organization/${organisationId}` },
+          ],
+        },
+        select: { id: true },
+      });
+      if (member) return;
+    }
+
+    const patientId = asNonEmptyString(input.patientId);
+    if (input.audience !== "EMPLOYEE_TASK" && patientId) {
+      const parent = await prisma.parentPatient.findFirst({
+        where: { parentId: assignedTo, patientId, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (parent) return;
+    }
+
+    throw notFound();
   },
 
   async listForEmployee(params: {

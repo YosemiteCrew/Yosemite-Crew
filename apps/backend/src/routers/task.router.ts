@@ -15,6 +15,7 @@ import {
   requireCompanionPermission,
   requireCompanionPermissionForResource,
   resolveBodyPatientCompanion,
+  resolveParentTaskCompanion,
 } from "src/middlewares/companion-access";
 import { requireSuperAdmin } from "src/middlewares/super-admin";
 import { TaskRecommendationController } from "src/controllers/app/task-recommendation.controller";
@@ -33,17 +34,40 @@ router.post(
   TaskController.createCustomTask,
 );
 
+// The list is limited to companions whose tasks the caller may work on.
 router.get("/mobile/task", requireMobileAuth, TaskController.listParentTasks);
 
-router.get("/mobile/:taskId", requireMobileAuth, TaskController.getById);
+// A parent reaches a task only while they may work on its companion's tasks.
+const requireParentTaskAccess = requireCompanionPermissionForResource(
+  "tasks",
+  resolveParentTaskCompanion,
+);
 
-router.patch("/mobile/:taskId", requireMobileAuth, TaskController.updateTask);
+router.get(
+  "/mobile/:taskId",
+  requireMobileAuth,
+  requireParentTaskAccess,
+  TaskController.getById,
+);
 
-router.delete("/mobile/:taskId", requireMobileAuth, TaskController.deleteTask);
+router.patch(
+  "/mobile/:taskId",
+  requireMobileAuth,
+  requireParentTaskAccess,
+  TaskController.updateTask,
+);
+
+router.delete(
+  "/mobile/:taskId",
+  requireMobileAuth,
+  requireParentTaskAccess,
+  TaskController.deleteTask,
+);
 
 router.post(
   "/mobile/:taskId/status",
   requireMobileAuth,
+  requireParentTaskAccess,
   TaskController.changeStatus,
 );
 

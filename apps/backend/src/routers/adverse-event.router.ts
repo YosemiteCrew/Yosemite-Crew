@@ -31,11 +31,12 @@ router.get(
   AdverseEventController.getRegulatoryAuthorityInof,
 );
 
-// PMS: list reports for org
+// PMS: list reports sent to the caller's organisation
 router.get(
   "/organisation/:organisationId",
   requireWebAuth,
-  withOrgPermissions(),
+  withOrgPermissions({ notFoundMessage: "Not found" }),
+  requirePermission("companions:view:any"),
   AdverseEventController.listForOrg,
 );
 
