@@ -5,6 +5,7 @@ import ServicesPackagesEditor from '@/app/features/appointments/pages/Appointmen
 import PrescriptionEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/PrescriptionEditor';
 import InpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/InpatientSchedule';
 import MedicationAdministrationPanel from '@/app/features/appointments/pages/AppointmentWorkspace/components/MedicationAdministrationPanel';
+import InpatientMonitoringPanel from '@/app/features/appointments/pages/AppointmentWorkspace/components/InpatientMonitoringPanel';
 import OutpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/OutpatientSchedule';
 import WorkspaceTreatmentSummary from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceTreatmentSummary';
 import { buildOutpatientSchedule } from '@/app/features/appointments/lib/outpatientSchedule';
@@ -1000,6 +1001,15 @@ const TreatmentStep = ({
           />
         )}
         {scheduleError && <p className="text-caption-1 text-text-error">{scheduleError}</p>}
+
+        {isInpatient && (
+          <InpatientMonitoringPanel
+            organisationId={organisationId}
+            patientId={outpatientCompanionId}
+            encounterId={encounterId}
+            readOnly={readOnly}
+          />
+        )}
 
         <ServicesPackagesEditor
           currency={encounter.currency}
