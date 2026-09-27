@@ -144,12 +144,14 @@ export const VisitPreparationDraftCard: React.FC<{
             onPress={() => {
               capture(field);
             }}
-            disabled={listeningField !== null}
+            disabled={listeningField !== null || isReading}
             accessibilityRole="button"
             accessibilityLabel={t('appointments.visitPreparation.speakFor', {
               field: t(`appointments.visitPreparation.${field}`),
             })}
-            accessibilityState={{disabled: listeningField !== null}}
+            accessibilityState={{
+              disabled: listeningField !== null || isReading,
+            }}
             style={styles.iconButton}>
             <Ionicons
               name={listeningField === field ? 'mic' : 'mic-outline'}
@@ -206,7 +208,7 @@ export const VisitPreparationDraftCard: React.FC<{
             onPress={() => {
               toggleReadBack();
             }}
-            disabled={!message}
+            disabled={!message || listeningField !== null}
             tintColor={theme.colors.secondary}
             borderRadius={theme.borderRadius.button}
             accessibilityLabel={t(

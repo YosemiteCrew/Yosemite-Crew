@@ -339,6 +339,44 @@ describe('VisitPreparationDraftCard', () => {
     );
   });
 
+  it('keeps dictation and read-back mutually exclusive', async () => {
+    let finishCapture: ((result: {status: 'ok'; text: string}) => void) | null =
+      null;
+    (visitVoice.captureVisitVoice as jest.Mock).mockReturnValueOnce(
+      new Promise(resolve => {
+        finishCapture = resolve;
+      }),
+    );
+    renderCard();
+    await waitFor(() =>
+      expect(screen.getByTestId('visit-voice-observations')).toBeTruthy(),
+    );
+    fireEvent.changeText(
+      screen.getByTestId('visit-observations-input'),
+      'Low appetite',
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('button-Read selected notes aloud'));
+    });
+    expect(
+      screen.getByTestId('visit-voice-observations').props.accessibilityState,
+    ).toEqual({disabled: true});
+
+    act(() => {
+      mockReadBackFinished?.();
+    });
+    fireEvent.press(screen.getByTestId('visit-voice-observations'));
+    expect(
+      screen.getByTestId('button-Read selected notes aloud').props
+        .accessibilityState,
+    ).toEqual({disabled: true});
+
+    await act(async () => {
+      finishCapture?.({status: 'ok', text: 'Coughed twice'});
+    });
+  });
+
   it('keeps typed input available when native speech is unavailable and stops speech on unmount', async () => {
     (visitVoice.isVisitVoiceAvailable as jest.Mock).mockResolvedValueOnce(
       false,

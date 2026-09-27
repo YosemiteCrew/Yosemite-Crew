@@ -1008,6 +1008,15 @@ describe('ViewAppointmentScreen', () => {
       );
     });
 
+    it('hides visit preparation for terminal appointments', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'CANCELLED';
+
+      renderScreen(state);
+
+      expect(screen.queryByTestId('visit-draft-review')).toBeNull();
+    });
+
     it('shows a loading state and fetches when the appointment is missing', () => {
       const state = clone(defaultState);
       state.appointments.items = [];

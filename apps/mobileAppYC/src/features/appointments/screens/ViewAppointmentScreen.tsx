@@ -1264,33 +1264,35 @@ export const ViewAppointmentScreen: React.FC = () => {
               ) : null}
             </View>
 
-            <VisitPreparationDraftCard
-              appointmentId={appointmentId}
-              onReviewInChat={initialMessage => {
-                const normalizedTime =
-                  apt.time.length === 5 ? `${apt.time}:00` : apt.time;
-                const appointmentTime =
-                  apt.start ?? `${apt.date}T${normalizedTime}Z`;
-                handleChatActivation({
-                  appointment: apt,
-                  employee,
-                  companions: companion ? [companion] : [],
-                  doctorName:
-                    employee?.name ?? apt.employeeName ?? businessName,
-                  petName: companion?.name,
-                  onOpenChat: () =>
-                    navigation.navigate('ChatChannel', {
-                      appointmentId,
-                      vetId: employee?.id ?? apt.employeeId ?? 'unknown-vet',
-                      appointmentTime,
-                      doctorName:
-                        employee?.name ?? apt.employeeName ?? businessName,
-                      petName: companion?.name,
-                      initialMessage,
-                    }),
-                });
-              }}
-            />
+            {!isTerminal ? (
+              <VisitPreparationDraftCard
+                appointmentId={appointmentId}
+                onReviewInChat={initialMessage => {
+                  const normalizedTime =
+                    apt.time.length === 5 ? `${apt.time}:00` : apt.time;
+                  const appointmentTime =
+                    apt.start ?? `${apt.date}T${normalizedTime}Z`;
+                  handleChatActivation({
+                    appointment: apt,
+                    employee,
+                    companions: companion ? [companion] : [],
+                    doctorName:
+                      employee?.name ?? apt.employeeName ?? businessName,
+                    petName: companion?.name,
+                    onOpenChat: () =>
+                      navigation.navigate('ChatChannel', {
+                        appointmentId,
+                        vetId: employee?.id ?? apt.employeeId ?? 'unknown-vet',
+                        appointmentTime,
+                        doctorName:
+                          employee?.name ?? apt.employeeName ?? businessName,
+                        petName: companion?.name,
+                        initialMessage,
+                      }),
+                  });
+                }}
+              />
+            ) : null}
 
             {apt.uploadedFiles?.length ? (
               <View style={styles.detailsCard}>

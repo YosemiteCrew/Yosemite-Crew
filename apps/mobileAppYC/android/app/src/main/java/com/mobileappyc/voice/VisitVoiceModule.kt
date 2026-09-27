@@ -173,7 +173,14 @@ class VisitVoiceModule(
         locale: String,
         promise: Promise
     ) {
-        engine.language = Locale.forLanguageTag(locale)
+        val languageResult = engine.setLanguage(Locale.forLanguageTag(locale))
+        if (
+            languageResult == TextToSpeech.LANG_MISSING_DATA ||
+            languageResult == TextToSpeech.LANG_NOT_SUPPORTED
+        ) {
+            promise.resolve(false)
+            return
+        }
         promise.resolve(
             engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "visit-preparation") ==
                 TextToSpeech.SUCCESS
