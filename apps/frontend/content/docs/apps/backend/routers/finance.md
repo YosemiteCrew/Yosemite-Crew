@@ -8,6 +8,10 @@ Covers billing: discount policy, subscriptions and usage metering, invoices and 
 
 ## Endpoints
 
+### GET /organisation/:organisationId/completed-visits/billing-review
+
+Lists completed visits with a missing or unsettled invoice. Query fields: `limit` and `cursor`. Each row includes the visit date, client and patient names when available, invoice state, and appointment id for opening the visit.
+
 ### GET /organisation/:organisationId/discount-settings
 
 - Auth: `requireWebAuth`
