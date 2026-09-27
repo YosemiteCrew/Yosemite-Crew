@@ -68,10 +68,15 @@ const describeSubmission = (
     ? `Submitted on ${getDisplayDate(submittedAt)}`
     : 'Submitted';
   if (!entry.signingRequired) return note;
-  // Theirs to sign only where the server says so; else someone else signs.
-  return entry.canSign === true
-    ? `${note}. Waiting for your signature.`
-    : `${note}. Waiting for a signature.`;
+  // Theirs to sign only where the server says so.
+  if (entry.canSign === true) return `${note}. Waiting for your signature.`;
+  // Someone else's to sign only where a signature is asked for: the server
+  // says so, or the form names who signs. A signature field alone asks no one.
+  const signatureAsked =
+    entry.signingRequested === true ||
+    entry.form.requiredSigner === 'CLIENT' ||
+    entry.form.requiredSigner === 'VET';
+  return signatureAsked ? `${note}. Waiting for a signature.` : note;
 };
 
 const SUBMITTED_FORM_STATUSES = new Set<AppointmentFormStatus>([

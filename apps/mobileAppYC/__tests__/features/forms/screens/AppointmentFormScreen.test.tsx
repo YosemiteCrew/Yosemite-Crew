@@ -1993,7 +1993,40 @@ describe('AppointmentFormScreen — final coverage push', () => {
     });
 
     // Another parent signs it: this one is not told the signature is theirs.
-    it('does not ask a parent who may not sign it for their signature', () => {
+    it.each([
+      ['the server asks for one', {signingRequested: true}],
+      [
+        'the form names who signs',
+        {form: {...baseFormEntry.form, requiredSigner: 'VET'}},
+      ],
+    ])(
+      'does not ask a parent who may not sign it for their signature where %s',
+      (_label, overrides) => {
+        route(false);
+        (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+          {
+            ...baseFormEntry,
+            status: 'submitted',
+            signingRequired: true,
+            canSign: false,
+            submission: {
+              _id: 'instance-1',
+              answers: {f1: 'Jane'},
+              submittedAt: new Date('2026-09-24T10:00:00.000Z'),
+            },
+            ...overrides,
+          },
+        ]);
+
+        const {getByText, queryByText} = render(<AppointmentFormScreen />);
+
+        expect(getByText(/Waiting for a signature\./)).toBeTruthy();
+        expect(queryByText(/Waiting for your signature/)).toBeNull();
+      },
+    );
+
+    // A signature field on a form that names no signer asks no one.
+    it('says only submitted where nobody is asked to sign', () => {
       route(false);
       (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
         {
@@ -2001,6 +2034,8 @@ describe('AppointmentFormScreen — final coverage push', () => {
           status: 'submitted',
           signingRequired: true,
           canSign: false,
+          signingRequested: null,
+          form: {...baseFormEntry.form, requiredSigner: undefined},
           submission: {
             _id: 'instance-1',
             answers: {f1: 'Jane'},
@@ -2011,8 +2046,8 @@ describe('AppointmentFormScreen — final coverage push', () => {
 
       const {getByText, queryByText} = render(<AppointmentFormScreen />);
 
-      expect(getByText(/Waiting for a signature\./)).toBeTruthy();
-      expect(queryByText(/Waiting for your signature/)).toBeNull();
+      expect(getByText(/^Submitted on /)).toBeTruthy();
+      expect(queryByText(/Waiting for/)).toBeNull();
     });
 
     it('shows a form the practice has as submitted, without Submit', () => {
