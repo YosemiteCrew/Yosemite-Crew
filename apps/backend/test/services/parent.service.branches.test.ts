@@ -648,6 +648,7 @@ describe("ParentService.update profile image", () => {
   const updateFromApp = (profileImageUrl: string) =>
     ParentService.update("parent-1", dto({ profileImageUrl }), {
       source: "pms",
+      organisationId: "org-1",
       actorId: "prov-1",
     });
 
