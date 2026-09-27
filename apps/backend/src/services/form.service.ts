@@ -258,6 +258,10 @@ const NEWEST_RECORDED_FIRST: Prisma.FormSubmissionOrderByWithRelationInput[] = [
   { id: "desc" },
 ];
 
+// Who a request made for a template linked to the appointment's service is
+// created by (FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment).
+const LINKED_TEMPLATE_SENDER = "SYSTEM";
+
 // The template instances that are an answer: submitted, not a draft.
 const SUBMITTED_INSTANCE_STATUSES = new Set(["COMPLETED", "SIGNED"]);
 
@@ -684,7 +688,7 @@ const assertRequestAnswerableByParent = async (
         templateId: params.templateId,
         status: { in: ["COMPLETED", "SIGNED"] },
       },
-      select: { authorId: true },
+      select: { authorId: true, createdAt: true },
     });
     const parentIds = await loadParentIds(
       filled.map((row) => row.authorId),
@@ -693,11 +697,54 @@ const assertRequestAnswerableByParent = async (
     if (filled.some((row) => !row.authorId || !parentIds.has(row.authorId))) {
       throwCompletedAtPractice();
     }
+    await assertNotAnsweredByAnotherParent(client, {
+      ...params,
+      appointmentId: params.appointmentId,
+      answers: filled.filter(({ authorId }) => authorId !== params.parentId),
+    });
   }
 
   // An assignment is submitted once. Once every one the parent holds is
   // SUBMITTED or SIGNED there is nothing left to submit.
   if (assignments.every(({ status }) => isSubmittedAssignmentStatus(status))) {
+    throw new FormServiceError("Form already submitted", 409);
+  }
+};
+
+/**
+ * One parent's answers per request: once another parent answered it, this
+ * one is refused as already submitted, whether or not the request reads
+ * submitted yet. Answers given before the request was last withdrawn answer
+ * no request sent after it.
+ */
+const assertNotAnsweredByAnotherParent = async (
+  client: Pick<Prisma.TransactionClient, "formAssignment">,
+  params: {
+    organisationId: string;
+    templateId: string;
+    appointmentId: string;
+    // Submitted answers another parent gave (all parents' by now).
+    answers: { createdAt: Date }[];
+  },
+) => {
+  if (!params.answers.length) return;
+  const withdrawn = await client.formAssignment.findMany({
+    where: {
+      organisationId: params.organisationId,
+      templateId: params.templateId,
+      appointmentId: params.appointmentId,
+      status: { in: ["CANCELLED", "EXPIRED"] },
+    },
+    select: { templateId: true, cancelledAt: true, expiredAt: true },
+  });
+  const cutoff =
+    withdrawalCutoffs(withdrawn).get(params.templateId) ??
+    Number.NEGATIVE_INFINITY;
+  if (
+    params.answers.some(
+      ({ createdAt }) => new Date(createdAt).getTime() >= cutoff,
+    )
+  ) {
     throw new FormServiceError("Form already submitted", 409);
   }
 };
@@ -1271,11 +1318,14 @@ const buildTemplateAppointmentFormItems = async (params: {
   if (!sent.length) {
     return null;
   }
+  // Templates linked to the appointment's service stand in for the
+  // organisation's suggested forms; one the practice sent by hand does not.
+  const fromLinkedTemplates = sent.some(
+    ({ createdBy }) => createdBy === LINKED_TEMPLATE_SENDER,
+  );
 
   // A parent sees only what the practice sent to the app and has not
-  // withdrawn, without who created or signs it or the encounter behind it. The
-  // appointment still has its own requests, so a parent left with none is
-  // shown none rather than the organisation's other forms.
+  // withdrawn, without who created or signs it or the encounter behind it.
   const viewer = params.viewer;
   const assignments = viewer
     ? sent
@@ -1298,7 +1348,11 @@ const buildTemplateAppointmentFormItems = async (params: {
         }))
     : sent;
   if (!assignments.length) {
-    return { appointmentId: params.appointmentId, items: [] };
+    return {
+      appointmentId: params.appointmentId,
+      items: [],
+      fromLinkedTemplates,
+    };
   }
 
   const uniqueTemplateIds = [
@@ -1489,6 +1543,7 @@ const buildTemplateAppointmentFormItems = async (params: {
   return {
     appointmentId: params.appointmentId,
     items,
+    fromLinkedTemplates,
   };
 };
 
@@ -2656,8 +2711,8 @@ export const FormService = {
 
     // The appointment's own forms (attached to it or answered on it) are
     // listed with the templates sent for it, never instead of them. The
-    // organisation's forms for the service are suggested only where no
-    // template was sent for the appointment.
+    // organisation's forms for the service are suggested unless the
+    // service's linked templates were sent in their place.
     const templateItems = templateBackedForms?.items ?? [];
     const templateIds = new Set(
       templateItems.map(({ templateId }) => templateId),
@@ -2675,12 +2730,15 @@ export const FormService = {
 
     const [formsById, templateForms] = await Promise.all([
       fetchFormsByIds(formIdsFromAppointment),
-      templateBackedForms
+      templateBackedForms?.fromLinkedTemplates
         ? []
         : fetchTemplateForms(orgType, appointment, params),
     ]);
 
-    const forms = mergeFormsById(formsById, templateForms);
+    const forms = mergeFormsById(
+      formsById,
+      templateForms.filter(({ _id }) => !templateIds.has(_id)),
+    );
     if (!forms.length) {
       return { appointmentId, items: templateItems };
     }

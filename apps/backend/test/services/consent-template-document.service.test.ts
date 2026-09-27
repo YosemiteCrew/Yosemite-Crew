@@ -521,13 +521,15 @@ jest.mock("src/config/prisma", () => {
         where.id === "parent-1"
           ? { email: "owner@example.com", firstName: "Jane", lastName: "Owner" }
           : null,
-      // The one client account here is parent-1.
+      // The client accounts here are parent-1 and parent-2.
       count: async ({ where }: { where: { id: string | { in: string[] } } }) =>
         (typeof where.id === "string" ? [where.id] : where.id.in).filter(
-          (id) => id === "parent-1",
+          (id) => id === "parent-1" || id === "parent-2",
         ).length,
       findMany: async ({ where }: { where: { id: { in: string[] } } }) =>
-        where.id.in.filter((id) => id === "parent-1").map((id) => ({ id })),
+        where.id.in
+          .filter((id) => id === "parent-1" || id === "parent-2")
+          .map((id) => ({ id })),
     },
     appointment: {
       findMany: async ({
@@ -1125,6 +1127,50 @@ describe("consent template documents (#3600)", () => {
 
       const instances = [...store.templateInstances.values()];
       expect(instances.map(({ authorId }) => authorId)).toEqual(["vet-1"]);
+    });
+
+    // Two parents submit at once, and the first is recorded but its request
+    // not yet marked submitted when the second takes the lock: the second is
+    // refused, so the request has one parent's answers.
+    it("takes one parent's answers when two submit at once", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      store.parentLinks.push({
+        parentId: "parent-2",
+        patientId: PATIENT,
+        role: "CO_PARENT",
+        status: "ACTIVE",
+        permissions: { appointments: true },
+      });
+      const markLater = jest
+        .spyOn(FormAssignmentService, "markSubmittedFromSubmission")
+        .mockResolvedValueOnce(null);
+      const race = beforeTheLock(() => submitFromMobile("tpl-consent"));
+
+      await expect(
+        FormService.submitFHIR(
+          toFormSubmissionResponseDTO({
+            _id: "",
+            formId: "tpl-consent",
+            formVersion: 2,
+            appointmentId: APPOINTMENT,
+            companionId: PATIENT,
+            parentId: "parent-2",
+            answers: { agree: "yes" },
+            submittedAt: new Date("2026-09-24T08:00:00.000Z"),
+          } as FormSubmission),
+          undefined,
+          "parent-2",
+          { parentId: "parent-2" },
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Form already submitted",
+      });
+      race.mockRestore();
+      markLater.mockRestore();
+
+      const answers = [...store.templateInstances.values()];
+      expect(answers.map(({ authorId }) => authorId)).toEqual([PARENT]);
     });
 
     it("is refused once the practice withdrew the request meanwhile", async () => {

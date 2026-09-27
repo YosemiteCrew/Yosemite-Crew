@@ -27,7 +27,7 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
     },
-    parentPatient: { findMany: jest.fn() },
+    parentPatient: { findMany: jest.fn(), findFirst: jest.fn() },
     parent: { findMany: jest.fn() },
     templateInstance: { findMany: jest.fn() },
   },
@@ -48,7 +48,7 @@ describe("FormAssignmentService", () => {
       update: jest.Mock;
       updateMany: jest.Mock;
     };
-    parentPatient: { findMany: jest.Mock };
+    parentPatient: { findMany: jest.Mock; findFirst: jest.Mock };
     parent: { findMany: jest.Mock };
     templateInstance: { findMany: jest.Mock };
   };
@@ -116,6 +116,11 @@ describe("FormAssignmentService", () => {
       appointmentKind: "OUTPATIENT",
       patient: { id: "comp-1" },
     });
+    // A parent a request names is the companion's primary parent unless a
+    // case says otherwise.
+    mockedPrisma.parentPatient.findFirst
+      .mockReset()
+      .mockResolvedValue({ role: "PRIMARY", permissions: {} });
     mockedPrisma.formAssignment.create.mockResolvedValue({
       id: "assignment-1",
       organisationId: "org-1",
@@ -416,6 +421,82 @@ describe("FormAssignmentService", () => {
 
   // One request per form on an appointment: sending it again hands back the
   // one the client already has, under the lock a submission of it takes.
+  // A request may name the parent who signs it, only one who may.
+  describe("naming the parent who signs", () => {
+    const sendNaming = (userId: string) =>
+      FormAssignmentService.createForAppointment({
+        organisationId: "org-1",
+        appointmentId: "appt-1",
+        templateId: "template-1",
+        createdBy: "user-1",
+        signerIdentity: { userId },
+      });
+
+    it.each([
+      ["the primary parent", { role: "PRIMARY", permissions: {} }],
+      [
+        "a co-parent with appointments and medical records",
+        {
+          role: "CO_PARENT",
+          permissions: { appointments: true, medicalRecords: true },
+        },
+      ],
+    ])("accepts %s", async (_label, link) => {
+      mockedPrisma.parentPatient.findFirst.mockResolvedValueOnce(link);
+
+      await expect(sendNaming("parent-9")).resolves.toMatchObject({
+        assignmentId: "assignment-1",
+      });
+      expect(mockedPrisma.parentPatient.findFirst).toHaveBeenCalledWith({
+        where: {
+          parentId: "parent-9",
+          patientId: "comp-1",
+          status: "ACTIVE",
+          role: { in: ["PRIMARY", "CO_PARENT"] },
+        },
+        select: { role: true, permissions: true },
+      });
+    });
+
+    it.each([
+      ["someone with no link to the companion", null],
+      [
+        "a co-parent who may not act on appointments",
+        { role: "CO_PARENT", permissions: { medicalRecords: true } },
+      ],
+      // The consent here is the client's to sign, practice answers included.
+      [
+        "a co-parent without medical records on a form the client signs",
+        { role: "CO_PARENT", permissions: { appointments: true } },
+      ],
+    ])("refuses %s", async (_label, link) => {
+      mockedPrisma.parentPatient.findFirst.mockResolvedValueOnce(link);
+
+      await expect(sendNaming("parent-9")).rejects.toMatchObject({
+        statusCode: 400,
+      });
+      expect(mockedPrisma.formAssignment.create).not.toHaveBeenCalled();
+    });
+
+    it("accepts a co-parent without medical records where the client does not sign", async () => {
+      mockedPrisma.template.findFirst.mockResolvedValueOnce({
+        id: "template-1",
+        kind: "FORM",
+        rules: { requiredSigner: "VET" },
+        latestVersion: 3,
+        publishedVersion: 2,
+      });
+      mockedPrisma.parentPatient.findFirst.mockResolvedValueOnce({
+        role: "CO_PARENT",
+        permissions: { appointments: true },
+      });
+
+      await expect(sendNaming("parent-9")).resolves.toMatchObject({
+        assignmentId: "assignment-1",
+      });
+    });
+  });
+
   describe("sending a form the client already has", () => {
     const send = () =>
       FormAssignmentService.createForAppointment({

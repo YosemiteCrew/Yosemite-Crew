@@ -6,6 +6,7 @@ import {
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 import {
   instanceNeedsClientSignature,
   lockClientRequest,
@@ -529,6 +530,41 @@ const loadAppointment = async (
 const resolveCompanionId = (appointment: AppointmentRow, fallback?: string) =>
   resolvePatientId(appointment.patient) ?? fallback ?? undefined;
 
+/**
+ * A request may name the parent who signs it: one with an ACTIVE link to the
+ * appointment's companion who may act on its appointments. Where the client
+ * signs the form, a co-parent also needs the medical records permission, since
+ * they sign the answers the practice gives. Anyone else is refused.
+ */
+const ensureNamedSigner = async (
+  signerId: string,
+  companionId: string | undefined,
+  clientSigns: boolean,
+) => {
+  const link = companionId
+    ? await prisma.parentPatient.findFirst({
+        where: {
+          parentId: signerId,
+          patientId: companionId,
+          status: "ACTIVE",
+          role: { in: ["PRIMARY", "CO_PARENT"] },
+        },
+        select: { role: true, permissions: true },
+      })
+    : null;
+  const allowed =
+    !!link &&
+    hasCompanionFeature(link.role, link.permissions, "appointments") &&
+    (!clientSigns ||
+      hasCompanionFeature(link.role, link.permissions, "medicalRecords"));
+  if (!allowed) {
+    throw new FormAssignmentServiceError(
+      "The signer must be a parent of the companion who may sign it",
+      400,
+    );
+  }
+};
+
 const ensureAssignment = async (
   assignmentId: string,
   organisationId: string,
@@ -716,6 +752,14 @@ export const FormAssignmentService = {
     const companionId = appointment
       ? resolveCompanionId(appointment, parsed.companionId)
       : (parsed.companionId ?? undefined);
+
+    if (parsed.signerIdentity?.userId) {
+      await ensureNamedSigner(
+        parsed.signerIdentity.userId,
+        companionId,
+        version.clientSigns,
+      );
+    }
 
     const createdBy = parsed.createdBy;
     const request = {

@@ -1042,7 +1042,7 @@ describe("FormService", () => {
               templateId,
               status: { in: ["COMPLETED", "SIGNED"] },
             },
-            select: { authorId: true },
+            select: { authorId: true, createdAt: true },
           });
         },
       );
@@ -1060,6 +1060,55 @@ describe("FormService", () => {
         });
         expect(prisma.templateInstance.findMany).not.toHaveBeenCalled();
       });
+
+      // One parent's answers per request, even before the request reads
+      // submitted: another parent's since the last withdrawal refuse this one.
+      it.each([
+        ["with nothing withdrawn", [], true],
+        [
+          "given after the last withdrawal",
+          [{ templateId, cancelledAt: new Date("2026-09-20T00:00:00.000Z") }],
+          true,
+        ],
+        [
+          "given before the last withdrawal",
+          [{ templateId, cancelledAt: new Date("2026-09-22T00:00:00.000Z") }],
+          false,
+        ],
+      ])(
+        "refuses an answer over another parent's %s: %s",
+        async (_label, withdrawn, refused) => {
+          arrangeAssigned();
+          (prisma.templateInstance.findMany as jest.Mock)
+            .mockResolvedValueOnce([
+              {
+                authorId: "parent-2",
+                createdAt: new Date("2026-09-21T00:00:00.000Z"),
+              },
+            ])
+            .mockResolvedValue([]);
+          (prisma.parent.findMany as jest.Mock).mockResolvedValue([
+            { id: "parent-2" },
+          ]);
+          (prisma.formAssignment.findMany as jest.Mock).mockImplementation(
+            async ({ where }: { where: { status?: { in?: string[] } } }) =>
+              where.status?.in ? withdrawn : [{ status: "SENT" }],
+          );
+
+          const submitted = submit();
+
+          if (refused) {
+            await expect(submitted).rejects.toMatchObject({
+              statusCode: 409,
+              message: "Form already submitted",
+            });
+            expect(TemplateService.createInstance).not.toHaveBeenCalled();
+          } else {
+            await submitted;
+            expect(TemplateService.createInstance).toHaveBeenCalled();
+          }
+        },
+      );
 
       it("accepts a new answer over a form a parent filled in", async () => {
         arrangeAssigned();
@@ -2165,13 +2214,15 @@ describe("FormService", () => {
         (templateMapper.templateToQuestionnaire as jest.Mock).mockReturnValue({
           id: "tpl-consent",
         });
+        // The practice's web listing reads questionnaires too.
         const res = await FormService.getFormsForAppointment({
           appointmentId: validId,
           viewerParentId,
-          isPMS: !viewerParentId,
+          isPMS: false,
         });
         return res.items as any[];
       };
+      // Sent by hand from the appointment.
       const consentRequest = {
         id: "assignment-consent",
         templateId: "tpl-consent",
@@ -2179,45 +2230,89 @@ describe("FormService", () => {
         status: "sent",
         signingRequired: true,
         mobileVisible: true,
+        createdBy: "vet-1",
         createdAt: new Date("2026-09-20T10:00:00.000Z"),
       };
+      // Made for a template linked to the appointment's service.
+      const linkedRequest = { ...consentRequest, createdBy: "SYSTEM" };
       const describeItem = (item: any) =>
         item.templateId ?? item.questionnaire?._id ?? item.questionnaire?.id;
 
-      it.each([
+      const viewers = [
         ["the practice", undefined],
         ["the parent", "parent-a"],
-      ])(
-        "lists the appointment's form with the template sent, to %s",
-        async (_label, viewerParentId) => {
-          const items = await listMixed(viewerParentId, [consentRequest]);
+      ] as const;
 
-          expect(items.map(describeItem)).toEqual(
-            viewerParentId
-              ? ["tpl-consent", "legacy-form"]
-              : ["tpl-consent", undefined],
-          );
-          expect(items).toHaveLength(2);
+      it.each(viewers)(
+        "lists the appointment's and suggested forms before anything is sent, to %s",
+        async (_label, viewerParentId) => {
+          const items = await listMixed(viewerParentId, []);
+
+          expect(items.map(describeItem)).toEqual([
+            "legacy-form",
+            "suggested-form",
+          ]);
         },
       );
 
-      it("suggests the organisation's forms only where no template was sent", async () => {
-        const withTemplate = await listMixed("parent-a", [consentRequest]);
-        const withoutTemplate = await listMixed("parent-a", []);
+      it.each(viewers)(
+        "keeps every form beside a template sent by hand, to %s",
+        async (_label, viewerParentId) => {
+          const items = await listMixed(viewerParentId, [consentRequest]);
 
-        expect(withTemplate.map(describeItem)).not.toContain("suggested-form");
-        expect(withoutTemplate.map(describeItem)).toEqual([
-          "legacy-form",
-          "suggested-form",
-        ]);
-      });
+          expect(items.map(describeItem)).toEqual([
+            "tpl-consent",
+            "legacy-form",
+            "suggested-form",
+          ]);
+        },
+      );
 
-      it("keeps the appointment's form when every template was withdrawn", async () => {
+      it.each([
+        [
+          "the practice",
+          undefined,
+          ["tpl-consent", "legacy-form", "suggested-form"],
+        ],
+        ["the parent", "parent-a", ["legacy-form", "suggested-form"]],
+      ] as const)(
+        "keeps every form once a template sent by hand is withdrawn, to %s",
+        async (_label, viewerParentId, expected) => {
+          const items = await listMixed(viewerParentId, [
+            { ...consentRequest, status: "cancelled" },
+          ]);
+
+          expect(items.map(describeItem)).toEqual(expected);
+        },
+      );
+
+      // The service's linked templates stand in for the suggestions, sent or
+      // since withdrawn, as before.
+      it.each(viewers)(
+        "suggests nothing beside the service's linked templates, to %s",
+        async (_label, viewerParentId) => {
+          const sent = await listMixed(viewerParentId, [linkedRequest]);
+          const withdrawn = await listMixed(viewerParentId, [
+            { ...linkedRequest, status: "cancelled" },
+          ]);
+
+          expect(sent.map(describeItem)).toEqual([
+            "tpl-consent",
+            "legacy-form",
+          ]);
+          expect(withdrawn.map(describeItem)).not.toContain("suggested-form");
+          expect(withdrawn.map(describeItem)).toContain("legacy-form");
+        },
+      );
+
+      it("lists a suggested form sent as a template once", async () => {
         const items = await listMixed("parent-a", [
-          { ...consentRequest, status: "cancelled" },
+          { ...consentRequest, templateId: "suggested-form" },
         ]);
 
-        expect(items.map(describeItem)).toEqual(["legacy-form"]);
+        expect(
+          items.map(describeItem).filter((id) => id === "suggested-form"),
+        ).toHaveLength(1);
       });
     });
 
@@ -2871,9 +2966,9 @@ describe("FormService", () => {
       },
     );
 
-    // Every request withdrawn: the appointment still has its own requests,
-    // so the parent sees none rather than the organisation's other forms.
-    it("shows the parent no forms once every request is withdrawn", async () => {
+    // Every request for the service's linked templates withdrawn: those
+    // templates still stand in for the organisation's other forms.
+    it("shows the parent no forms once every linked template is withdrawn", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
         organisationId: "org-template",
         patient: { id: "companion-a", parent: { id: "parent-a" } },
@@ -2893,6 +2988,7 @@ describe("FormService", () => {
             templateVersion: 1,
             status: "cancelled",
             mobileVisible: true,
+            createdBy: "SYSTEM",
           },
           {
             id: "a-2",
@@ -2900,6 +2996,7 @@ describe("FormService", () => {
             templateVersion: 1,
             status: "expired",
             mobileVisible: true,
+            createdBy: "SYSTEM",
           },
         ] as any,
       );
