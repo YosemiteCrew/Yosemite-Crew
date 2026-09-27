@@ -14,6 +14,8 @@ export interface AppointmentFormsApiItem {
   questionnaire: Questionnaire;
   questionnaireResponse?: QuestionnaireResponse;
   status?: string;
+  // Whether this parent may sign the form's submission.
+  canSign?: boolean;
 }
 
 export interface AppointmentFormsApiResponse {
@@ -44,29 +46,14 @@ export const formApi = {
       payload.species = species;
     }
 
-    try {
-      const {data} = await apiClient.post<AppointmentFormsApiResponse>(
-        `/fhir/v1/form/mobile/appointments/${appointmentId}/forms`,
-        payload,
-        {
-          headers: withAuthHeaders(accessToken),
-        },
-      );
-      return data;
-    } catch (mobileError: any) {
-      if (mobileError?.response?.status !== 404) {
-        throw mobileError;
-      }
-
-      const {data} = await apiClient.post<AppointmentFormsApiResponse>(
-        `/fhir/v1/form/appointments/${appointmentId}/forms`,
-        payload,
-        {
-          headers: withAuthHeaders(accessToken),
-        },
-      );
-      return data;
-    }
+    const {data} = await apiClient.post<AppointmentFormsApiResponse>(
+      `/fhir/v1/form/mobile/appointments/${appointmentId}/forms`,
+      payload,
+      {
+        headers: withAuthHeaders(accessToken),
+      },
+    );
+    return data;
   },
 
   async fetchFormById({
@@ -138,7 +125,12 @@ export const formApi = {
 
 export const mapAppointmentFormItem = (
   item: AppointmentFormsApiItem,
-): {form: Form; submission: FormSubmission | null; formVersion?: number} => {
+): {
+  form: Form;
+  submission: FormSubmission | null;
+  formVersion?: number;
+  canSign: boolean;
+} => {
   const form = toForm(item.questionnaire);
   const submission = item.questionnaireResponse
     ? fromFormSubmissionRequestDTO(item.questionnaireResponse, form.schema)
@@ -158,5 +150,6 @@ export const mapAppointmentFormItem = (
     form,
     submission: normalizedSubmission,
     formVersion: normalizedSubmission?.formVersion,
+    canSign: item.canSign === true,
   };
 };

@@ -63,33 +63,25 @@ describe('formService', () => {
       );
       expect(result).toEqual(mockResponse);
     });
-    it('falls back to non-mobile endpoint when mobile endpoint returns 404', async () => {
-      const payload = {isPMS: false, serviceId: 'svc-1', species: 'Dog'};
-      const mockResponse = {appointmentId: 'appt-1', items: []};
-      mockApiClient.post
-        .mockRejectedValueOnce({response: {status: 404}})
-        .mockResolvedValueOnce({data: mockResponse});
+    it('rethrows a 404 from the mobile endpoint without trying the practice route', async () => {
+      const notFound = {response: {status: 404}};
+      mockApiClient.post.mockRejectedValueOnce(notFound);
 
-      const result = await formApi.fetchFormsForAppointment({
-        appointmentId: 'appt-1',
-        serviceId: 'svc-1',
-        species: 'Dog',
-        accessToken: mockToken,
-      });
+      await expect(
+        formApi.fetchFormsForAppointment({
+          appointmentId: 'appt-1',
+          serviceId: 'svc-1',
+          species: 'Dog',
+          accessToken: mockToken,
+        }),
+      ).rejects.toBe(notFound);
 
-      expect(mockApiClient.post).toHaveBeenNthCalledWith(
-        1,
+      expect(mockApiClient.post).toHaveBeenCalledTimes(1);
+      expect(mockApiClient.post).toHaveBeenCalledWith(
         '/fhir/v1/form/mobile/appointments/appt-1/forms',
-        payload,
+        {isPMS: false, serviceId: 'svc-1', species: 'Dog'},
         {headers: mockAuthHeaders},
       );
-      expect(mockApiClient.post).toHaveBeenNthCalledWith(
-        2,
-        '/fhir/v1/form/appointments/appt-1/forms',
-        payload,
-        {headers: mockAuthHeaders},
-      );
-      expect(result).toEqual(mockResponse);
     });
 
     it('rethrows non-404 errors from the mobile endpoint without falling back', async () => {
@@ -239,6 +231,18 @@ describe('formService', () => {
       expect(result.form).toEqual(mockForm);
       expect(result.submission).toBeNull();
       expect(result.formVersion).toBeUndefined();
+    });
+
+    it('keeps whether the parent may sign, and reads anything else as no', () => {
+      const base: any = {questionnaire: mockQuestionnaire};
+
+      expect(mapAppointmentFormItem({...base, canSign: true}).canSign).toBe(
+        true,
+      );
+      expect(mapAppointmentFormItem(base).canSign).toBe(false);
+      expect(
+        mapAppointmentFormItem({...base, canSign: 'yes'} as any).canSign,
+      ).toBe(false);
     });
 
     it('maps item with questionnaire response', () => {

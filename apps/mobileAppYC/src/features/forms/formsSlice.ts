@@ -6,6 +6,7 @@ import {
 } from '@/features/auth/sessionManager';
 import type {Form, FormSubmission} from '@yosemite-crew/types';
 import {formApi, mapAppointmentFormItem} from './services/formService';
+import {toErrorMessage} from '@/shared/utils/serviceHelpers';
 import type {
   AppointmentFormEntry,
   AppointmentFormsState,
@@ -56,12 +57,14 @@ const buildEntry = ({
   source,
   formVersion,
   signingUrl,
+  canSign = false,
 }: {
   form: Form;
   submission?: FormSubmission | null;
   source: FormSource;
   formVersion?: number;
   signingUrl?: string | null;
+  canSign?: boolean;
 }): AppointmentFormEntry => {
   const normalizedForm = normalizeFormForState(form);
   const normalizedSubmission = submission
@@ -84,6 +87,7 @@ const buildEntry = ({
     submission: normalizedSubmission ?? null,
     status,
     signingRequired,
+    canSign,
     signingUrl: signingUrl ?? null,
     source,
     formVersion:
@@ -170,6 +174,7 @@ const fetchAppointmentFormsData = async ({
         submission: mapped.submission,
         formVersion: mapped.formVersion,
         source: 'appointment',
+        canSign: mapped.canSign,
       });
       entries.push(entry);
       cache.set(entry.form._id, normalizeFormForState(entry.form));
@@ -281,8 +286,7 @@ export const submitAppointmentForm = createAsyncThunk<
         submission: saved,
       };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to submit form';
+      const message = toErrorMessage(error, 'Unable to submit form');
       return rejectWithValue(message);
     }
   },
@@ -369,6 +373,8 @@ const formsSlice = createSlice({
           submission,
           source: 'appointment',
           formVersion: submission.formVersion,
+          // The parent's own submission, which they sign unless the vet does.
+          canSign: form.requiredSigner !== 'VET',
         });
         state.byAppointmentId[appointmentId] = mergeEntries(existing, [
           updatedEntry,

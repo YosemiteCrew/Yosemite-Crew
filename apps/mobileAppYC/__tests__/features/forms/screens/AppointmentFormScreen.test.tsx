@@ -1174,6 +1174,28 @@ describe('AppointmentFormScreen — final coverage push', () => {
       });
     });
 
+    it('shows the reason a submission was refused', async () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        baseFormEntry,
+      ]);
+      mockDispatch.mockReturnValueOnce(
+        promiseWithUnwrap(
+          'This form was already completed at the practice',
+          true,
+        ),
+      );
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Submit failed',
+          'This form was already completed at the practice',
+        );
+      });
+    });
+
     it('validates nested group, signature, boolean, and checkbox fields', async () => {
       const schema = [
         {
