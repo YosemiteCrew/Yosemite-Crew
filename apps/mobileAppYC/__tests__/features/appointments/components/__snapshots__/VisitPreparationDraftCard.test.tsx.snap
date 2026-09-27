@@ -1,0 +1,513 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`VisitPreparationDraftCard persists typed drafts, lets the parent choose sections, and reviews the selected text 1`] = `
+<View
+  style={
+    {
+      "gap": 10,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#1D1C1B",
+        "fontFamily": "Satoshi-Bold",
+        "fontSize": 14,
+        "fontWeight": "700",
+        "lineHeight": 16.8,
+        "opacity": 0.6,
+      }
+    }
+  >
+    Your visit notes
+  </Text>
+  <Text
+    style={
+      {
+        "color": "#5C5956",
+        "fontFamily": "Satoshi-Regular",
+        "fontSize": 12,
+        "fontWeight": "400",
+        "lineHeight": 15.6,
+      }
+    }
+  >
+    Describe the visit
+  </Text>
+  <View
+    style={
+      {
+        "gap": 8,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "justifyContent": "space-between",
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#302F2E",
+          }
+        }
+      >
+        Observations
+      </Text>
+      <View
+        accessibilityLabel="Speak Observations"
+        accessibilityRole="button"
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": undefined,
+            "disabled": false,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onBlur={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+        style={
+          [
+            {
+              "alignItems": "center",
+              "justifyContent": "center",
+              "minHeight": 44,
+              "minWidth": 44,
+            },
+            null,
+          ]
+        }
+        testID="visit-voice-observations"
+      >
+        <Ionicons
+          color="#257BED"
+          name="mic-outline"
+          size={20}
+        />
+      </View>
+    </View>
+    <TextInput
+      accessibilityLabel="Observations"
+      multiline={true}
+      onChangeText={[Function]}
+      placeholder="Observation placeholder"
+      placeholderTextColor="#8F8984"
+      style={
+        {
+          "backgroundColor": "#FBF8F2",
+          "borderColor": "#977F62",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "color": "#302F2E",
+          "minHeight": 96,
+          "padding": 12,
+        }
+      }
+      testID="visit-observations-input"
+      textAlignVertical="top"
+      value="Low appetite"
+    />
+    <View
+      style={
+        {
+          "marginBottom": 8,
+        }
+      }
+    >
+      <View
+        accessibilityHint="Include when sending"
+        accessibilityRole="checkbox"
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": true,
+            "disabled": undefined,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onBlur={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+        style={
+          [
+            {
+              "alignItems": "center",
+              "flexDirection": "row",
+            },
+            null,
+          ]
+        }
+      >
+        <View
+          style={
+            [
+              {
+                "alignItems": "center",
+                "borderColor": "transparent",
+                "borderRadius": 16,
+                "borderWidth": 1,
+                "height": 24,
+                "justifyContent": "center",
+                "marginRight": 8,
+                "width": 24,
+              },
+              undefined,
+            ]
+          }
+        >
+          <Image
+            source="FileMock"
+            style={
+              {
+                "height": "100%",
+                "resizeMode": "contain",
+                "width": "100%",
+              }
+            }
+          />
+        </View>
+        <Text
+          style={
+            [
+              {
+                "color": "#302F2E",
+                "flex": 1,
+                "fontFamily": "Satoshi-Regular",
+                "fontSize": 16,
+                "fontWeight": "400",
+                "letterSpacing": -0.32,
+                "lineHeight": 19.2,
+              },
+              undefined,
+            ]
+          }
+        >
+          Include when sending
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "gap": 8,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "justifyContent": "space-between",
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#302F2E",
+          }
+        }
+      >
+        Questions
+      </Text>
+      <View
+        accessibilityLabel="Speak Questions"
+        accessibilityRole="button"
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": undefined,
+            "disabled": false,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onBlur={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+        style={
+          [
+            {
+              "alignItems": "center",
+              "justifyContent": "center",
+              "minHeight": 44,
+              "minWidth": 44,
+            },
+            null,
+          ]
+        }
+        testID="visit-voice-questions"
+      >
+        <Ionicons
+          color="#257BED"
+          name="mic-outline"
+          size={20}
+        />
+      </View>
+    </View>
+    <TextInput
+      accessibilityLabel="Questions"
+      multiline={true}
+      onChangeText={[Function]}
+      placeholder="Question placeholder"
+      placeholderTextColor="#8F8984"
+      style={
+        {
+          "backgroundColor": "#FBF8F2",
+          "borderColor": "#977F62",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "color": "#302F2E",
+          "minHeight": 96,
+          "padding": 12,
+        }
+      }
+      testID="visit-questions-input"
+      textAlignVertical="top"
+      value="Could food be involved?"
+    />
+    <View
+      style={
+        {
+          "marginBottom": 8,
+        }
+      }
+    >
+      <View
+        accessibilityHint="Include when sending"
+        accessibilityRole="checkbox"
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": false,
+            "disabled": undefined,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onBlur={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+        style={
+          [
+            {
+              "alignItems": "center",
+              "flexDirection": "row",
+            },
+            null,
+          ]
+        }
+      >
+        <View
+          style={
+            [
+              {
+                "alignItems": "center",
+                "borderColor": "transparent",
+                "borderRadius": 16,
+                "borderWidth": 1,
+                "height": 24,
+                "justifyContent": "center",
+                "marginRight": 8,
+                "width": 24,
+              },
+              undefined,
+            ]
+          }
+        >
+          <Image
+            source="FileMock"
+            style={
+              {
+                "height": "100%",
+                "resizeMode": "contain",
+                "width": "100%",
+              }
+            }
+          />
+        </View>
+        <Text
+          style={
+            [
+              {
+                "color": "#302F2E",
+                "flex": 1,
+                "fontFamily": "Satoshi-Regular",
+                "fontSize": 16,
+                "fontWeight": "400",
+                "letterSpacing": -0.32,
+                "lineHeight": 19.2,
+              },
+              undefined,
+            ]
+          }
+        >
+          Include when sending
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "gap": 10,
+      }
+    }
+  >
+    <View
+      accessibilityRole="button"
+      accessibilityState={
+        {
+          "busy": undefined,
+          "checked": undefined,
+          "disabled": false,
+          "expanded": undefined,
+          "selected": undefined,
+        }
+      }
+      accessibilityValue={
+        {
+          "max": undefined,
+          "min": undefined,
+          "now": undefined,
+          "text": undefined,
+        }
+      }
+      accessible={true}
+      collapsable={false}
+      focusable={true}
+      onBlur={[Function]}
+      onClick={[Function]}
+      onFocus={[Function]}
+      onResponderGrant={[Function]}
+      onResponderMove={[Function]}
+      onResponderRelease={[Function]}
+      onResponderTerminate={[Function]}
+      onResponderTerminationRequest={[Function]}
+      onStartShouldSetResponder={[Function]}
+      testID="button-Read selected notes aloud"
+    >
+      <Text>
+        Read selected notes aloud
+      </Text>
+    </View>
+    <View
+      accessibilityRole="button"
+      accessibilityState={
+        {
+          "busy": undefined,
+          "checked": undefined,
+          "disabled": false,
+          "expanded": undefined,
+          "selected": undefined,
+        }
+      }
+      accessibilityValue={
+        {
+          "max": undefined,
+          "min": undefined,
+          "now": undefined,
+          "text": undefined,
+        }
+      }
+      accessible={true}
+      collapsable={false}
+      focusable={true}
+      onBlur={[Function]}
+      onClick={[Function]}
+      onFocus={[Function]}
+      onResponderGrant={[Function]}
+      onResponderMove={[Function]}
+      onResponderRelease={[Function]}
+      onResponderTerminate={[Function]}
+      onResponderTerminationRequest={[Function]}
+      onStartShouldSetResponder={[Function]}
+      testID="button-Review selected notes in chat"
+    >
+      <Text>
+        Review selected notes in chat
+      </Text>
+    </View>
+  </View>
+</View>
+`;

@@ -18,6 +18,7 @@ const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockCanGoBack = jest.fn();
 const mockGetParent = jest.fn();
+const mockSetComposerText = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
@@ -71,6 +72,9 @@ jest.mock('stream-chat-react-native', () => {
       </View>
     ),
     MessageInput: () => <View testID="MessageInput" />,
+    useMessageComposer: () => ({
+      textComposer: {setText: mockSetComposerText},
+    }),
   };
 });
 
@@ -192,6 +196,27 @@ describe('ChatChannelScreen', () => {
     jest.spyOn(Alert, 'alert');
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('prefills the message composer with selected visit notes', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {
+        ...mockRouteParams,
+        initialMessage: 'Observations:\nLow appetite',
+      },
+    });
+    (useSelector as jest.Mock).mockReturnValue(mockUser);
+    (getChatClient as jest.Mock).mockReturnValue(mockClient);
+    (connectStreamUser as jest.Mock).mockResolvedValue(undefined);
+    (getAppointmentChannel as jest.Mock).mockResolvedValue(mockChannel);
+
+    render(<ChatChannelScreen />);
+
+    await waitFor(() =>
+      expect(mockSetComposerText).toHaveBeenCalledWith(
+        'Observations:\nLow appetite',
+      ),
+    );
   });
 
   afterEach(() => {

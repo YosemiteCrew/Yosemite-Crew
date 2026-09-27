@@ -13,6 +13,7 @@ import {
   Chat,
   OverlayProvider,
   MessageInput,
+  useMessageComposer,
 } from 'stream-chat-react-native';
 import type {Channel as StreamChannel} from 'stream-chat';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -45,6 +46,7 @@ type RouteParams = {
   appointmentTime: string;
   doctorName: string;
   petName?: string;
+  initialMessage?: string;
 };
 
 const getInitials = (name: string): string => {
@@ -55,6 +57,20 @@ const getInitials = (name: string): string => {
     .map(part => part.charAt(0).toUpperCase())
     .join('');
   return initials || '?';
+};
+
+const PrefilledMessageInput: React.FC<{initialMessage?: string}> = ({
+  initialMessage,
+}) => {
+  const composer = useMessageComposer();
+  const applied = React.useRef(false);
+  React.useEffect(() => {
+    if (!applied.current && initialMessage) {
+      composer.textComposer.setText(initialMessage);
+      applied.current = true;
+    }
+  }, [composer, initialMessage]);
+  return <MessageInput />;
 };
 
 const ChatChannelHeader: React.FC<{
@@ -114,8 +130,14 @@ export const ChatChannelScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const authUser = useSelector(selectAuthUser);
-  const {appointmentId, vetId, appointmentTime, doctorName, petName} =
-    route.params as RouteParams;
+  const {
+    appointmentId,
+    vetId,
+    appointmentTime,
+    doctorName,
+    petName,
+    initialMessage,
+  } = route.params as RouteParams;
 
   const [channel, setChannel] = useState<StreamChannel | null>(null);
   const [loading, setLoading] = useState(true);
@@ -372,7 +394,7 @@ export const ChatChannelScreen: React.FC = () => {
                       }
                     }}
                   />
-                  <MessageInput />
+                  <PrefilledMessageInput initialMessage={initialMessage} />
                 </Channel>
               </Chat>
             </OverlayProvider>

@@ -5,6 +5,7 @@ import type {
   AppointmentStatus,
   Invoice,
   PaymentIntentInfo,
+  VisitPreparationDraft,
 } from './types';
 import {appointmentApi} from './services/appointmentsService';
 import {deleteCompanion} from '@/features/companion/thunks';
@@ -421,6 +422,7 @@ const initialState: AppointmentsState = {
   failedCompanions: {},
   activeRequests: {},
   lastLoadedAt: {},
+  visitPreparationDrafts: {},
 };
 
 const upsertAppointment = (
@@ -448,6 +450,17 @@ const appointmentsSlice = createSlice({
         state.invoices.push(action.payload);
       }
     },
+    saveVisitPreparationDraft: (
+      state,
+      action: PayloadAction<{
+        appointmentId: string;
+        draft: VisitPreparationDraft;
+      }>,
+    ) => {
+      state.visitPreparationDrafts ??= {};
+      state.visitPreparationDrafts[action.payload.appointmentId] =
+        action.payload.draft;
+    },
   },
   extraReducers: builder => {
     builder
@@ -463,6 +476,13 @@ const appointmentsSlice = createSlice({
       .addCase(fetchAppointmentsForCompanion.fulfilled, (state, action) => {
         state.loading = false;
         const {companionId, items} = action.payload;
+        const incomingIds = new Set(items.map(item => item.id));
+        state.items
+          .filter(
+            item =>
+              item.companionId === companionId && !incomingIds.has(item.id),
+          )
+          .forEach(item => delete state.visitPreparationDrafts?.[item.id]);
         state.items = state.items.filter(a => a.companionId !== companionId);
         state.items.push(...items);
         markCollectionHydrated(
@@ -633,6 +653,9 @@ const appointmentsSlice = createSlice({
         state.invoices = state.invoices.filter(
           inv => !deletedAppointmentIds.has(inv.appointmentId),
         );
+        deletedAppointmentIds.forEach(id => {
+          delete state.visitPreparationDrafts?.[id];
+        });
         delete state.hydratedCompanions[deletedId];
       })
       .addCase(recordPayment.fulfilled, (state, action) => {
@@ -651,6 +674,9 @@ const appointmentsSlice = createSlice({
   },
 });
 
-export const {upsertInvoice, resetAppointmentsState} =
-  appointmentsSlice.actions;
+export const {
+  upsertInvoice,
+  resetAppointmentsState,
+  saveVisitPreparationDraft,
+} = appointmentsSlice.actions;
 export default appointmentsSlice.reducer;

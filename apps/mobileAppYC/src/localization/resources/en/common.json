@@ -435,7 +435,25 @@
       "source": "Instructions from {{practice}}",
       "unavailable": "Preparation instructions are unavailable. Contact the practice if you need guidance before this visit.",
       "paperworkTitle": "Assigned paperwork",
-      "noPaperwork": "No paperwork is assigned for this appointment."
+      "noPaperwork": "No paperwork is assigned for this appointment.",
+      "notesTitle": "Your visit notes",
+      "notesDescription": "Type or speak notes, choose what to include, then review the message before sending it to the practice.",
+      "observations": "Observations",
+      "observationsPlaceholder": "Changes, symptoms, timing or anything else you noticed",
+      "questions": "Questions",
+      "questionsPlaceholder": "Questions you want to ask during the visit",
+      "includeWhenSending": "Include when sending",
+      "observationsHeading": "Observations:",
+      "questionsHeading": "Questions:",
+      "speakFor": "Speak {{field}}",
+      "readBack": "Read selected notes aloud",
+      "stopReadBack": "Stop reading",
+      "reviewInChat": "Review selected notes in chat",
+      "voiceErrorTitle": "Voice input unavailable",
+      "voicePermissionDenied": "Allow microphone and speech recognition access to dictate visit notes.",
+      "voiceUnavailable": "Voice input is not available on this device. You can still type your notes.",
+      "voiceFailed": "The app could not capture speech. Please try again or type your notes.",
+      "readBackFailed": "The app could not read these notes aloud."
     }
   },
   "account": {

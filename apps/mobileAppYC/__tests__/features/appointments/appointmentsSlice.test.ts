@@ -12,6 +12,7 @@ import appointmentsReducer, {
   fetchInvoiceForAppointment,
   upsertInvoice,
   resetAppointmentsState,
+  saveVisitPreparationDraft,
 } from '../../../src/features/appointments/appointmentsSlice';
 import {appointmentApi} from '../../../src/features/appointments/services/appointmentsService';
 import {
@@ -103,6 +104,7 @@ const initialState = {
   failedCompanions: {},
   activeRequests: {},
   lastLoadedAt: {},
+  visitPreparationDrafts: {},
 };
 
 const createTestStore = (
@@ -210,6 +212,47 @@ describe('appointmentsSlice', () => {
       expect(nextState.invoices).toHaveLength(1);
       expect(nextState.invoices[0].status).toBe('VOID');
     });
+
+    it('saves an appointment-scoped visit preparation draft', () => {
+      const nextState = appointmentsReducer(
+        initialState as any,
+        saveVisitPreparationDraft({
+          appointmentId: 'appt-1',
+          draft: {
+            observations: 'Lower appetite',
+            questions: 'Could diet be involved?',
+            includeObservations: true,
+            includeQuestions: false,
+          },
+        }),
+      );
+
+      expect(nextState.visitPreparationDrafts['appt-1']).toEqual({
+        observations: 'Lower appetite',
+        questions: 'Could diet be involved?',
+        includeObservations: true,
+        includeQuestions: false,
+      });
+    });
+
+    it('initializes the draft map when rehydrated state predates it', () => {
+      const legacyState = {...initialState, visitPreparationDrafts: undefined};
+      const nextState = appointmentsReducer(
+        legacyState as any,
+        saveVisitPreparationDraft({
+          appointmentId: 'appt-1',
+          draft: {
+            observations: '',
+            questions: 'Question',
+            includeObservations: false,
+            includeQuestions: true,
+          },
+        }),
+      );
+      expect(nextState.visitPreparationDrafts['appt-1'].questions).toBe(
+        'Question',
+      );
+    });
   });
 
   describe('auth failures through thunk path', () => {
@@ -263,6 +306,20 @@ describe('appointmentsSlice', () => {
 
       const store = createTestStore({
         items: [oldSameCompanion, otherCompanion],
+        visitPreparationDrafts: {
+          'old-appt': {
+            observations: 'old',
+            questions: '',
+            includeObservations: true,
+            includeQuestions: false,
+          },
+          'other-appt': {
+            observations: 'keep',
+            questions: '',
+            includeObservations: true,
+            includeQuestions: false,
+          },
+        },
       });
 
       const promise = store.dispatch(
@@ -281,6 +338,8 @@ describe('appointmentsSlice', () => {
       expect(state.items.find((a: any) => a.id === 'other-appt')).toBeDefined();
       expect(state.items.find((a: any) => a.id === 'appt-1')).toBeDefined();
       expect(state.hydratedCompanions['comp-1']).toBe(true);
+      expect(state.visitPreparationDrafts['old-appt']).toBeUndefined();
+      expect(state.visitPreparationDrafts['other-appt']).toBeDefined();
       expect(appointmentApi.listAppointments).toHaveBeenCalledWith({
         companionId: 'comp-1',
         accessToken: 'valid-token',
@@ -1731,6 +1790,20 @@ describe('appointmentsSlice', () => {
         ],
         hydratedCompanions: {'comp-1': true, 'comp-2': true},
         failedCompanions: {},
+        visitPreparationDrafts: {
+          'appt-1': {
+            observations: 'remove',
+            questions: '',
+            includeObservations: true,
+            includeQuestions: false,
+          },
+          'appt-2': {
+            observations: 'keep',
+            questions: '',
+            includeObservations: true,
+            includeQuestions: false,
+          },
+        },
       });
 
       store.dispatch(
@@ -1745,6 +1818,9 @@ describe('appointmentsSlice', () => {
         expect.objectContaining({id: 'inv-2', appointmentId: 'appt-2'}),
       ]);
       expect(state.hydratedCompanions).toEqual({'comp-2': true});
+      expect(state.visitPreparationDrafts).toEqual({
+        'appt-2': expect.objectContaining({observations: 'keep'}),
+      });
     });
   });
 });

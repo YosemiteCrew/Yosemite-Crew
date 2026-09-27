@@ -44,6 +44,8 @@ setup_permissions([
   'PhotoLibrary',
   'LocationWhenInUse',
   'Calendars',
+  'Microphone',
+  'SpeechRecognition',
 ])
 
 target 'mobileAppYC' do

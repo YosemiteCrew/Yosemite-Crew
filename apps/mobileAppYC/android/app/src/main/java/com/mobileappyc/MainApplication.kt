@@ -17,6 +17,7 @@ import com.facebook.appevents.AppEventsLogger
 import com.mobileappyc.applock.AppLockGuard
 import com.mobileappyc.applock.AppLockPackage
 import com.mobileappyc.assistant.AssistantPackage
+import com.mobileappyc.voice.VisitVoicePackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -28,6 +29,7 @@ class MainApplication : Application(), ReactApplication {
               // add(MyReactNativePackage())
               add(AssistantPackage())
               add(AppLockPackage())
+              add(VisitVoicePackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

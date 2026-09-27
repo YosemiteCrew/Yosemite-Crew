@@ -133,6 +133,26 @@ jest.mock(
   },
 );
 
+jest.mock(
+  '../../../../src/features/appointments/components/VisitPreparationDraftCard',
+  () => {
+    const {Text, TouchableOpacity} = require('react-native');
+    return {
+      VisitPreparationDraftCard: ({onReviewInChat}: any) => (
+        <TouchableOpacity
+          testID="visit-draft-review"
+          onPress={() => onReviewInChat('Observations:\nLow appetite')}>
+          <Text>Your visit notes</Text>
+        </TouchableOpacity>
+      ),
+    };
+  },
+);
+
+jest.mock('../../../../src/features/appointments/utils/chatActivation', () => ({
+  handleChatActivation: jest.fn((config: any) => config.onOpenChat()),
+}));
+
 jest.mock('../../../../src/features/merck/components/MerckSearchWidget', () => {
   const {Text, TouchableOpacity} = require('react-native');
   return {
@@ -968,6 +988,24 @@ describe('ViewAppointmentScreen', () => {
         ),
       ).toBeTruthy();
       expect(screen.queryByText('Instructions from Test Vet')).toBeNull();
+    });
+
+    it('reviews selected visit notes in the appointment chat composer', () => {
+      renderScreen();
+
+      fireEvent.press(screen.getByTestId('visit-draft-review'));
+
+      expect(
+        require('../../../../src/features/appointments/utils/chatActivation')
+          .handleChatActivation,
+      ).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'ChatChannel',
+        expect.objectContaining({
+          appointmentId: 'apt-1',
+          initialMessage: 'Observations:\nLow appetite',
+        }),
+      );
     });
 
     it('shows a loading state and fetches when the appointment is missing', () => {
