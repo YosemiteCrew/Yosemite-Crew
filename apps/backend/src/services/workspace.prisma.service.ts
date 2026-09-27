@@ -8,6 +8,7 @@ import {
 } from "./finance/events";
 import { InvoiceService, InvoiceServiceError } from "./invoice.service";
 import { documentWhereForOrg } from "./document-scope";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import logger from "src/utils/logger";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { roundMoney } from "./finance/pricing";
@@ -2540,18 +2541,13 @@ export const WorkspaceService = {
     organisationId: string;
     companionId: string;
   }): Promise<WorkspaceDocumentRow[]> {
-    const membership = await prisma.patientOrganisation.findFirst({
-      where: {
-        patientId: input.companionId,
-        organisationId: input.organisationId,
-        status: { in: ["ACTIVE", "PENDING"] },
+    await assertPatientOrgMembership(
+      input.companionId,
+      input.organisationId,
+      () => {
+        throw new WorkspaceServiceError("Companion not found", 404);
       },
-      select: { id: true },
-    });
-
-    if (!membership) {
-      throw new WorkspaceServiceError("Companion not found", 404);
-    }
+    );
 
     const encounters = await prisma.encounter.findMany({
       where: {

@@ -12,6 +12,7 @@ import { recomputeOrganizationVerification } from "./organization-verification.s
 import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
+import { uploadKeyToMove } from "src/utils/upload-key";
 import logger from "src/utils/logger";
 import { pruneUndefined } from "src/utils/prune-undefined";
 import { Prisma } from "@prisma/client";
@@ -748,6 +749,13 @@ export const OrganizationService = {
       await assertActiveMembership(existing.id, userId);
     }
 
+    // A new practice's logo is moved into its own folder once it exists.
+    const imageKey = existing
+      ? null
+      : uploadKeyToMove(persistable.imageURL, () => {
+          throw new OrganizationServiceError("Invalid image key.", 400);
+        });
+
     const data = buildOrganizationWriteData(persistable);
 
     const organisation = existing
@@ -824,9 +832,9 @@ export const OrganizationService = {
         }
       }
 
-      if (persistable.imageURL && !persistable.imageURL.includes("https://")) {
+      if (imageKey) {
         const finalKey = buildS3Key("org", organisation.id, "image/jpg");
-        const profileUrl = await moveFile(persistable.imageURL, finalKey);
+        const profileUrl = await moveFile(imageKey, finalKey);
         await prisma.organization.update({
           where: { id: organisation.id },
           data: { imageUrl: profileUrl },

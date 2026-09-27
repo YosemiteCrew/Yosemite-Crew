@@ -250,15 +250,50 @@ describe("Upload Middleware", () => {
     it("copies, deletes, and returns cloudfront url", async () => {
       mockCopyObject.mockResolvedValueOnce({});
       mockDeleteObject.mockResolvedValueOnce({});
-      const res = await moveFile("from.jpg", "to.jpg");
+      const res = await moveFile("temp/uploads/from.jpg", "to.jpg");
       expect(res).toBe("https://test-cf.cloudfront.net/to.jpg");
-      expect(mockCopyObject).toHaveBeenCalled();
-      expect(mockDeleteObject).toHaveBeenCalled();
+      expect(mockCopyObject).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        CopySource: "test-bucket/temp/uploads/from.jpg",
+        Key: "to.jpg",
+      });
+      expect(mockDeleteObject).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        Key: "temp/uploads/from.jpg",
+      });
+    });
+
+    it("moves a key the temporary upload URL issued", async () => {
+      mockCopyObject.mockResolvedValueOnce({});
+      mockDeleteObject.mockResolvedValueOnce({});
+      const fresh = buildS3Key("temp", undefined, "image/png");
+
+      await moveFile(fresh, "companion/pet-1/photo.png");
+
+      expect(mockDeleteObject).toHaveBeenCalledWith(
+        expect.objectContaining({ Key: fresh }),
+      );
+    });
+
+    it.each([
+      ["a stored practice file", "companion/pet-1/report.pdf"],
+      ["a relative path out of the upload folder", "temp/uploads/../orgs/x"],
+      ["an encoded path", "temp/uploads/%2e%2e%2forgs%2fx"],
+      ["a differently cased folder", "TEMP/uploads/x.jpg"],
+      ["a leading slash", "/temp/uploads/x.jpg"],
+    ])("refuses %s before any storage call", async (_label, fromKey) => {
+      delete process.env.AWS_S3_BUCKET_NAME;
+
+      await expect(moveFile(fromKey, "to.jpg")).rejects.toThrow(
+        "Invalid upload key.",
+      );
+      expect(mockCopyObject).not.toHaveBeenCalled();
+      expect(mockDeleteObject).not.toHaveBeenCalled();
     });
 
     it("handles errors", async () => {
       mockCopyObject.mockRejectedValueOnce(new Error("Move failed"));
-      await expect(moveFile("a", "b")).rejects.toThrow(
+      await expect(moveFile("temp/uploads/a", "b")).rejects.toThrow(
         "Failed to move file: Move failed",
       );
     });

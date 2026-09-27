@@ -573,3 +573,84 @@ describe("DocumentService.update from the PMS", () => {
     expect(db.document.update).not.toHaveBeenCalled();
   });
 });
+
+describe("DocumentService.update saving", () => {
+  // A transaction client of its own, so a write that bypasses the transaction
+  // lands on `prisma` instead and shows up here.
+  const tx = {
+    document: { update: jest.fn() },
+    documentAttachment: { deleteMany: jest.fn(), createMany: jest.fn() },
+  };
+  const renamed = (attachments: Row[]) => ({
+    ...documentRow(),
+    title: "Renamed",
+    attachments,
+  });
+
+  beforeEach(() => {
+    transaction.mockImplementation(async (fn: (client: unknown) => unknown) =>
+      fn(tx),
+    );
+  });
+
+  it("replaces the attachments and the fields in one transaction", async () => {
+    const saved = [{ key: key(COMPANION, "new.pdf"), mimeType: "a", size: 2 }];
+    tx.document.update.mockResolvedValue(renamed(saved));
+
+    const result = await DocumentService.update(
+      DOCUMENT,
+      {
+        title: "Renamed",
+        attachments: [
+          { key: key(COMPANION, "new.pdf"), mimeType: "a", size: 2 },
+        ],
+      } as never,
+      { parentId: PARENT },
+    );
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(tx.documentAttachment.deleteMany).toHaveBeenCalledWith({
+      where: { documentId: DOCUMENT },
+    });
+    expect(tx.documentAttachment.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ key: key(COMPANION, "new.pdf") })],
+    });
+    expect(tx.document.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: DOCUMENT } }),
+    );
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.documentAttachment.deleteMany).not.toHaveBeenCalled();
+    expect(db.documentAttachment.createMany).not.toHaveBeenCalled();
+    expect(result.attachments).toEqual([
+      expect.objectContaining({ key: key(COMPANION, "new.pdf") }),
+    ]);
+  });
+
+  it("keeps the attachments when the update does not send a list", async () => {
+    tx.document.update.mockResolvedValue(
+      renamed(documentRow().attachments as Row[]),
+    );
+
+    await DocumentService.update(DOCUMENT, { title: "Renamed" } as never, {
+      parentId: PARENT,
+    });
+
+    expect(tx.document.update).toHaveBeenCalled();
+    expect(tx.documentAttachment.deleteMany).not.toHaveBeenCalled();
+    expect(tx.documentAttachment.createMany).not.toHaveBeenCalled();
+  });
+
+  it("saves nothing when the transaction fails", async () => {
+    tx.document.update.mockRejectedValue(new Error("write failed"));
+
+    await expect(
+      DocumentService.update(
+        DOCUMENT,
+        { title: "Renamed", attachments: [] } as never,
+        { parentId: PARENT },
+      ),
+    ).rejects.toThrow("write failed");
+    expect(db.documentAttachment.deleteMany).not.toHaveBeenCalled();
+    expect(db.document.update).not.toHaveBeenCalled();
+  });
+});

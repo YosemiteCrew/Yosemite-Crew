@@ -239,10 +239,10 @@ describe("OrganizationService", () => {
       );
     });
 
-    it("uploads a local image URL during create", async () => {
+    it("moves a fresh logo upload during create", async () => {
       (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
         ...baseDto,
-        imageURL: "http://example.com/image.jpg",
+        imageURL: "temp/uploads/logo.jpg",
       });
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
@@ -260,20 +260,96 @@ describe("OrganizationService", () => {
       await OrganizationService.upsert(
         {
           ...baseDto,
-          imageURL: "http://example.com/image.jpg",
+          imageURL: "temp/uploads/logo.jpg",
         },
         userId,
       );
 
       expect(buildS3Key).toHaveBeenCalledWith("org", orgId, "image/jpg");
-      expect(moveFile).toHaveBeenCalledWith(
-        "http://example.com/image.jpg",
-        "org/key",
-      );
+      expect(moveFile).toHaveBeenCalledWith("temp/uploads/logo.jpg", "org/key");
       expect(prisma.organization.update).toHaveBeenCalledWith({
         where: { id: orgId },
         data: { imageUrl: "https://cdn.example.com/org/key" },
       });
+    });
+
+    it.each(["http://example.com/image.jpg", "https://example.com/image.jpg"])(
+      "keeps the logo link %s as given during create",
+      async (imageURL) => {
+        (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+          ...baseDto,
+          imageURL,
+        });
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+          null,
+        );
+        (prisma.organization.create as jest.Mock).mockResolvedValueOnce(
+          baseOrg,
+        );
+        (
+          prisma.organization.findUniqueOrThrow as jest.Mock
+        ).mockResolvedValueOnce(baseOrg);
+
+        await OrganizationService.upsert({ ...baseDto, imageURL }, userId);
+
+        expect(prisma.organization.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ imageUrl: imageURL }),
+          }),
+        );
+        expect(moveFile).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["orgs/org-2/logo.jpg", "temp/uploads/../orgs/org-2/logo.jpg"])(
+      "returns 400 for the logo %s without creating the organisation",
+      async (imageURL) => {
+        (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+          ...baseDto,
+          imageURL,
+        });
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+          null,
+        );
+
+        await expect(
+          OrganizationService.upsert({ ...baseDto, imageURL }, userId),
+        ).rejects.toMatchObject({
+          statusCode: 400,
+          message: "Invalid image key.",
+        });
+        expect(prisma.organization.create).not.toHaveBeenCalled();
+        expect(moveFile).not.toHaveBeenCalled();
+      },
+    );
+
+    it("leaves an existing organisation's logo key in place", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        imageURL: "orgs/org-1/logo.jpg",
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+        baseOrg,
+      );
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "mapping-1",
+      });
+      (prisma.organization.update as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+
+      await OrganizationService.upsert(
+        { ...baseDto, imageURL: "orgs/org-1/logo.jpg" },
+        userId,
+      );
+
+      expect(prisma.organization.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ imageUrl: "orgs/org-1/logo.jpg" }),
+        }),
+      );
+      expect(moveFile).not.toHaveBeenCalled();
     });
 
     it("creates an organisation from a minimal payload without optional fields", async () => {

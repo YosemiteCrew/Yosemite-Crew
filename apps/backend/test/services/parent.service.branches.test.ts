@@ -325,12 +325,12 @@ describe("ParentService.create", () => {
     mockedMoveFile.mockResolvedValue("https://cdn.example.com/final.jpg");
 
     await ParentService.create(
-      dto({ profileImageUrl: "https://cdn.example.com/tmp.jpg" }),
+      dto({ profileImageUrl: "temp/uploads/tmp.jpg" }),
       { source: "pms" },
     );
 
     expect(mockedMoveFile).toHaveBeenCalledWith(
-      "https://cdn.example.com/tmp.jpg",
+      "temp/uploads/tmp.jpg",
       "parent/image-key",
     );
     expect(mockedPrisma.parent.update).toHaveBeenCalledWith({
@@ -344,13 +344,45 @@ describe("ParentService.create", () => {
     mockedMoveFile.mockRejectedValue(new Error("bad key"));
 
     const result = await ParentService.create(
-      dto({ profileImageUrl: "https://cdn.example.com/tmp.jpg" }),
+      dto({ profileImageUrl: "temp/uploads/tmp.jpg" }),
       { source: "pms" },
     );
 
     expect(mockedPrisma.parent.update).not.toHaveBeenCalled();
     expect(result.response.id).toBe("parent-1");
   });
+
+  it("keeps a profile image link as given", async () => {
+    primeCreate();
+
+    await ParentService.create(
+      dto({ profileImageUrl: "https://cdn.example.com/avatar.jpg" }),
+      { source: "pms" },
+    );
+
+    expect(mockedPrisma.parent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        profileImageUrl: "https://cdn.example.com/avatar.jpg",
+      }),
+    });
+    expect(mockedMoveFile).not.toHaveBeenCalled();
+  });
+
+  it.each(["parent/parent-2/photo.jpg", "temp/uploads/%2e%2e/photo.jpg"])(
+    "returns 400 for the profile image %s without creating the parent",
+    async (profileImageUrl) => {
+      primeCreate();
+
+      await expect(
+        ParentService.create(dto({ profileImageUrl }), { source: "pms" }),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Invalid profile image key.",
+      });
+      expect(mockedPrisma.parent.create).not.toHaveBeenCalled();
+      expect(mockedMoveFile).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not attempt an image move when no image was supplied", async () => {
     primeCreate();

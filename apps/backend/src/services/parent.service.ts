@@ -11,6 +11,7 @@ import { getAuthService } from "@yosemite-crew/auth";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
+import { uploadKeyToMove } from "src/utils/upload-key";
 import { escapeLikePattern } from "../utils/escape-like";
 
 export class ParentServiceError extends Error {
@@ -362,15 +363,15 @@ const resolveParentExistingByLinkedUser = async (
 
 const maybeSyncParentProfileImage = async (
   parentId: string,
-  profileImageUrl: string | undefined,
+  profileImageKey: string | null,
 ) => {
-  if (!profileImageUrl) {
+  if (!profileImageKey) {
     return;
   }
 
   try {
     const finalKey = buildS3Key("parent", parentId, "image/jpg");
-    const uploadedUrl = await moveFile(profileImageUrl, finalKey);
+    const uploadedUrl = await moveFile(profileImageKey, finalKey);
     await prisma.parent.update({
       where: { id: parentId },
       data: { profileImageUrl: uploadedUrl },
@@ -403,6 +404,10 @@ export const ParentService = {
     if (existing) {
       throw new ParentServiceError("Parent already exists for this user.", 409);
     }
+
+    const profileImageKey = uploadKeyToMove(parent.profileImageUrl, () => {
+      throw new ParentServiceError("Invalid profile image key.", 400);
+    });
 
     const created = await prisma.parent.create({
       data: {
@@ -455,7 +460,7 @@ export const ParentService = {
       });
     }
 
-    await maybeSyncParentProfileImage(created.id, parent.profileImageUrl);
+    await maybeSyncParentProfileImage(created.id, profileImageKey);
 
     if (ctx.source === "mobile" && ctx.authUserId) {
       await AuthUserMobileService.linkParent(ctx.authUserId, created.id);

@@ -23,6 +23,7 @@ import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import { escapeLikePattern } from "../utils/escape-like";
 import logger from "src/utils/logger";
+import { uploadKeyToMove } from "src/utils/upload-key";
 import { TaskLibraryService } from "./taskLibrary.service";
 import { CreateFromLibraryInput, TaskService } from "./task.service";
 
@@ -421,6 +422,9 @@ export const CompanionService = {
     }
 
     const persistable = toPersistable(payload);
+    const photoKey = uploadKeyToMove(persistable.photoUrl, () => {
+      throw new CompanionServiceError("Invalid photo key.", 400);
+    });
     await validateCompanionCodes(persistable);
     persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
@@ -443,10 +447,10 @@ export const CompanionService = {
     }
 
     let updated = created;
-    if (persistable.photoUrl) {
+    if (photoKey) {
       try {
         const finalKey = buildS3Key("companion", created.id, "image/jpg");
-        const profileUrl = await moveFile(persistable.photoUrl, finalKey);
+        const profileUrl = await moveFile(photoKey, finalKey);
         updated = await prisma.patient.update({
           where: { id: created.id },
           data: { photoUrl: profileUrl },
