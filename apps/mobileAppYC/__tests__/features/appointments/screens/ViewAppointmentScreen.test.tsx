@@ -779,8 +779,31 @@ describe('ViewAppointmentScreen', () => {
           status: 'pending',
           submission: null,
           signingRequired: true,
+          canSign: true,
         } as any),
       ).toEqual({label: 'Fill & Sign', mode: 'fill', allowSign: true});
+
+      // Filled in but not signed here where the server says this parent may not.
+      for (const canSign of [false, undefined]) {
+        expect(
+          getAppointmentFormAction({
+            status: 'pending',
+            submission: null,
+            signingRequired: true,
+            canSign,
+          } as any),
+        ).toEqual({label: 'Fill form', mode: 'fill', allowSign: false});
+      }
+
+      // Submitted already by the practice's request, before this device has
+      // the submission: shown, never offered to fill again.
+      expect(
+        getAppointmentFormAction({
+          status: 'submitted',
+          submission: null,
+          signingRequired: true,
+        } as any),
+      ).toEqual({label: 'View form', mode: 'view', allowSign: false});
 
       expect(
         getAppointmentFormAction({
@@ -2148,6 +2171,7 @@ describe('ViewAppointmentScreen', () => {
         {
           status: 'pending',
           signingRequired: true,
+          canSign: true,
           form: {
             _id: 'form-3',
             name: 'Treatment Consent',

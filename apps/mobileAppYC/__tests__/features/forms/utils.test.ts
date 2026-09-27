@@ -6,6 +6,7 @@ import {
   normalizeFormForState,
   stripHtmlToPlainText,
   wrapPlainTextAsHtml,
+  isConsentForm,
 } from '../../../src/features/forms/utils';
 import {fromFormSubmissionRequestDTO} from '@yosemite-crew/types';
 
@@ -29,6 +30,19 @@ describe('Form Utils', () => {
   // =========================================================================
   // 1. hasSignatureField
   // =========================================================================
+  describe('isConsentForm', () => {
+    it.each([
+      [{category: 'Consent form'}, true],
+      [{category: 'CONSENT'}, true],
+      [{category: 'Intake'}, false],
+      [{category: null}, false],
+      [{}, false],
+      [null, false],
+    ])('reads %j as a consent: %s', (form, expected) => {
+      expect(isConsentForm(form)).toBe(expected);
+    });
+  });
+
   describe('hasSignatureField', () => {
     it('returns false for undefined or empty fields', () => {
       expect(hasSignatureField(undefined)).toBe(false);
