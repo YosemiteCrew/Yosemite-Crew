@@ -366,10 +366,15 @@ describe("ParentController", () => {
 
     it("should success (200)", async () => {
       req.params = { id: "p1" };
+      (req as any).organisationId = "org-1";
       mockedParentService.get.mockResolvedValue({
         response: { id: "p1" },
       } as any);
       await ParentController.getParentPMS(req as any, res as Response);
+      expect(mockedParentService.get).toHaveBeenCalledWith("p1", {
+        source: "pms",
+        organisationId: "org-1",
+      });
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
@@ -479,14 +484,27 @@ describe("ParentController", () => {
 
     it("should success (200)", async () => {
       req.query = { name: "John" };
+      (req as any).organisationId = "org-1";
       mockedParentService.getByName.mockResolvedValue({ responses: [] } as any);
       await ParentController.searchByName(req as any, res as Response);
-      expect(mockedParentService.getByName).toHaveBeenCalledWith("John");
+      expect(mockedParentService.getByName).toHaveBeenCalledWith(
+        "John",
+        "org-1",
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("should 400 without a verified organisation, ignoring x-org-id", async () => {
+      req.query = { name: "John" };
+      req.headers = { "x-org-id": "org-2" };
+      await ParentController.searchByName(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedParentService.getByName).not.toHaveBeenCalled();
     });
 
     it("should handle service error", async () => {
       req.query = { name: "John" };
+      (req as any).organisationId = "org-1";
       mockServiceError("getByName", 400);
       await ParentController.searchByName(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(400);
@@ -494,6 +512,7 @@ describe("ParentController", () => {
 
     it("should handle generic error", async () => {
       req.query = { name: "John" };
+      (req as any).organisationId = "org-1";
       mockGenericError("getByName");
       await ParentController.searchByName(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);

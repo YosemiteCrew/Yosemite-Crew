@@ -439,6 +439,17 @@ export const CompanionService = {
       );
     }
 
+    // A practice adds companions only for its own clients.
+    if (
+      !context.authUserId &&
+      !(await ParentService.mayOrganisationAddCompanion(
+        parentId,
+        context.organisationId,
+      ))
+    ) {
+      throw new CompanionServiceError("Parent not found.", 404);
+    }
+
     const persistable = toPersistable(payload);
     const photoKey = uploadKeyToMove(
       persistable.photoUrl,
@@ -537,6 +548,11 @@ export const CompanionService = {
 
     if (!organisationId || typeof organisationId !== "string") {
       throw new CompanionServiceError("Invalid Organisation Document Id", 400);
+    }
+
+    // Only the practice's own clients: a parent outside it reads as missing.
+    if (!(await ParentService.isInOrganisation(parentId, organisationId))) {
+      throw new CompanionServiceError("Parent not found.", 404);
     }
 
     const parentCompanionIds =
