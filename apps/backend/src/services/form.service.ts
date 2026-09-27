@@ -1794,7 +1794,14 @@ export const FormService = {
       };
     }
 
-    const submissions = await loadSoapSubmissions(appointmentKey);
+    const parentId = options?.requesterParentId;
+    // A parent sees the submitter only when that is them.
+    const submissions = (await loadSoapSubmissions(appointmentKey)).map(
+      (row) =>
+        parentId && row.submittedBy !== parentId
+          ? { ...row, submittedBy: undefined }
+          : row,
+    );
     const grouped = initSoapGroup();
 
     if (!submissions.length) {

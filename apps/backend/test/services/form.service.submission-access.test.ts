@@ -569,8 +569,36 @@ describe("FormService SOAP notes for a pet parent", () => {
 
     expect(result.soapNotes).toMatchObject({
       Subjective: [
-        expect.objectContaining({ submissionId: "soap-subjective" }),
+        expect.objectContaining({
+          submissionId: "soap-subjective",
+          submittedBy: undefined,
+        }),
       ],
+    });
+  });
+
+  it("keeps the submitter on a note the caller submitted", async () => {
+    useTables({
+      links: [link()],
+      submissions: [{ ...soapRow, submittedBy: CALLER }],
+    });
+
+    const result = await readSoap();
+
+    expect(result.soapNotes).toMatchObject({
+      Subjective: [expect.objectContaining({ submittedBy: CALLER })],
+    });
+  });
+
+  it("keeps the submitter on the practice view", async () => {
+    useTables({ links: [], submissions: [soapRow] });
+
+    const result = await FormService.getSOAPNotesByAppointment(APPOINTMENT, {
+      requesterOrgId: "org-hospital",
+    });
+
+    expect(result.soapNotes).toMatchObject({
+      Subjective: [expect.objectContaining({ submittedBy: STAFF })],
     });
   });
 
