@@ -210,6 +210,15 @@ export const requireCompanionPermissionForResource =
   (req: Request, res: Response, next: NextFunction) =>
     enforce(req, res, next, feature, resolve);
 
+/** For a route that names the companion in the request body as `patientId`. */
+export const resolveBodyPatient: CompanionResourceResolver = async (req) => {
+  const patientId: unknown = (req.body as { patientId?: unknown } | undefined)
+    ?.patientId;
+  return typeof patientId === "string" && patientId
+    ? { kind: "patient", patientId }
+    : { kind: "deny" };
+};
+
 /**
  * Expenses are keyed by a bare id, and the id space is shared: the route serves
  * both `ExternalExpense` (a parent-recorded cost) and `Invoice` (raised by a

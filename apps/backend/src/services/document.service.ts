@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type { TemplateKind } from "@yosemite-crew/database";
 import { prisma } from "src/config/prisma";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
@@ -6,6 +7,7 @@ import {
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
 import { assertSafeString } from "src/utils/sanitize";
+import { isUploadKeyIn } from "src/utils/upload-key";
 import { documentWhereForOrg } from "./document-scope";
 import { filterUserIdsInOrganisation } from "./shared/organisation-membership";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
@@ -158,23 +160,19 @@ const assertParentCanAccessCompanion = async (
   }
 };
 
+// A practice reads the documents of a companion it holds an ACTIVE link to.
 const assertPmsCanAccessCompanion = async (
   organisationId: string,
   patientId: string,
 ): Promise<void> => {
   assertSafeString(organisationId, "organisationId");
-  const link = await prisma.patientOrganisation.findFirst({
-    where: {
-      organisationId,
-      patientId: normalizeStringId(patientId, "patientId"),
-      status: { in: ["ACTIVE", "PENDING"] },
+  await assertPatientOrgMembership(
+    normalizeStringId(patientId, "patientId"),
+    organisationId,
+    () => {
+      throw new DocumentServiceError("Document not found.", 404);
     },
-    select: { id: true },
-  });
-
-  if (!link) {
-    throw new DocumentServiceError("Document not found.", 404);
-  }
+  );
 };
 
 // The companions whose documents this parent may read: the rule
@@ -581,13 +579,8 @@ const loadCaseAndEncounterIdsForPatient = async (params: {
 
 // The keys the upload-url routes issue for a companion:
 // `companion/<patientId>/<file name>`.
-const isCompanionUploadKey = (key: unknown, patientId: string): boolean => {
-  if (typeof key !== "string") return false;
-  const prefix = `companion/${patientId}/`;
-  return (
-    key.startsWith(prefix) && /^[\w-][\w.-]*$/.test(key.slice(prefix.length))
-  );
-};
+const isCompanionUploadKey = (key: unknown, patientId: string): boolean =>
+  isUploadKeyIn(`companion/${patientId}/`, key);
 
 /**
  * Attachments added from a request must be files uploaded for the document's
@@ -939,14 +932,15 @@ const recordDocumentAuditSafely = async (
 };
 
 const syncDocumentAttachmentsToPostgres = async (
+  tx: Prisma.TransactionClient,
   documentId: string,
   attachments: AttachmentInput[],
 ) => {
-  await prisma.documentAttachment.deleteMany({ where: { documentId } });
+  await tx.documentAttachment.deleteMany({ where: { documentId } });
   if (!attachments.length) {
     return;
   }
-  await prisma.documentAttachment.createMany({
+  await tx.documentAttachment.createMany({
     data: attachments.map((attachment) => ({
       documentId,
       key: attachment.key,
@@ -1290,22 +1284,26 @@ export const DocumentService = {
       doc,
     );
 
-    const updated = await prisma.document.update({
-      where: { id: documentId },
-      data: buildDocumentUpdateData(updates, category, subcategory),
-      include: { attachments: true },
+    // The fields and the attachment list change together or not at all, and
+    // the response carries the attachments as saved.
+    const updated = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(updates.attachments)) {
+        await syncDocumentAttachmentsToPostgres(
+          tx,
+          documentId,
+          updates.attachments.map((attachment) => ({
+            key: String(attachment.key),
+            mimeType: String(attachment.mimeType),
+            size: attachment.size,
+          })),
+        );
+      }
+      return tx.document.update({
+        where: { id: documentId },
+        data: buildDocumentUpdateData(updates, category, subcategory),
+        include: { attachments: true },
+      });
     });
-
-    if (Array.isArray(updates.attachments)) {
-      await syncDocumentAttachmentsToPostgres(
-        documentId,
-        updates.attachments.map((attachment) => ({
-          key: String(attachment.key),
-          mimeType: String(attachment.mimeType),
-          size: attachment.size,
-        })),
-      );
-    }
 
     await recordDocumentAuditSafely("DOCUMENT_UPDATED", updated, context);
 

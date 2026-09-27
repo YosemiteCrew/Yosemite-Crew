@@ -8,6 +8,7 @@ import {
   ParentCompanionServiceError,
 } from "../../src/services/parent-companion.service";
 import { prisma } from "src/config/prisma";
+import { moveFile } from "src/middlewares/upload";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -696,5 +697,60 @@ describe("CompanionService", () => {
         statusCode: 401,
       }),
     );
+  });
+});
+
+describe("CompanionService.create profile photo", () => {
+  const create = (photoUrl: string) =>
+    CompanionService.create(
+      { resourceType: "Patient", name: "Buddy", type: "dog", photoUrl } as any,
+      { parentId: "parent-1", organisationId: "org-1" },
+    );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedPrisma.patient.create.mockResolvedValue({ id: "patient-1" });
+    mockedPrisma.patient.update.mockResolvedValue({ id: "patient-1" });
+    (ParentCompanionService.linkParent as jest.Mock).mockResolvedValue({});
+    (moveFile as jest.Mock).mockResolvedValue(
+      "https://cdn.example.test/patient/image-key",
+    );
+  });
+
+  it("moves a fresh upload into the companion's folder", async () => {
+    await create("temp/uploads/photo.jpg");
+
+    expect(moveFile).toHaveBeenCalledWith(
+      "temp/uploads/photo.jpg",
+      "patient/image-key",
+    );
+    expect(mockedPrisma.patient.update).toHaveBeenCalledWith({
+      where: { id: "patient-1" },
+      data: { photoUrl: "https://cdn.example.test/patient/image-key" },
+    });
+  });
+
+  it.each([
+    "https://cdn.example.test/companion/pet-9/photo.jpg",
+    "data:image/png;base64,iVBORw0KGgo=",
+  ])("keeps the link %s as given", async (photoUrl) => {
+    await create(photoUrl);
+
+    expect(mockedPrisma.patient.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ photoUrl }),
+    });
+    expect(moveFile).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "companion/pet-9/photo.jpg",
+    "temp/uploads/../companion/pet-9/photo.jpg",
+  ])("returns 400 for %s without creating the companion", async (photoUrl) => {
+    await expect(create(photoUrl)).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Invalid photo key.",
+    });
+    expect(mockedPrisma.patient.create).not.toHaveBeenCalled();
+    expect(moveFile).not.toHaveBeenCalled();
   });
 });

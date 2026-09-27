@@ -1032,6 +1032,24 @@ paths:
                 properties:
                   message:
                     type: string
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         200:
           description: Response
           content:

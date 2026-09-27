@@ -719,7 +719,7 @@ describe("DocumentService", () => {
               organisations: {
                 some: {
                   organisationId: uuidOrganisationId,
-                  status: { in: ["ACTIVE", "PENDING"] },
+                  status: "ACTIVE",
                 },
               },
             },

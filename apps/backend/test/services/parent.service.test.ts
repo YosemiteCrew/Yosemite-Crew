@@ -243,13 +243,13 @@ describe("ParentService", () => {
       {
         firstName: "Jane",
         email: "jane@example.com",
-        profileImageUrl: "https://cdn.example.com/original.jpg",
+        profileImageUrl: "temp/uploads/original.jpg",
       } as any,
       { source: "pms" },
     );
 
     expect(moveFile).toHaveBeenCalledWith(
-      "https://cdn.example.com/original.jpg",
+      "temp/uploads/original.jpg",
       "parent/image-key",
     );
     expect(result.response.id).toBe("parent-1");

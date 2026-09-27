@@ -6,7 +6,11 @@ import {
   withAppointmentOrgPermissions,
   withOrgPermissions,
 } from "src/middlewares/rbac";
-import { requireCompanionPermission } from "src/middlewares/companion-access";
+import {
+  requireCompanionPermission,
+  requireCompanionPermissionForResource,
+  resolveBodyPatient,
+} from "src/middlewares/companion-access";
 
 const router = Router();
 
@@ -29,6 +33,7 @@ router.get(
 router.post(
   "/mobile/documentUpload",
   requireMobileAuth,
+  requireCompanionPermissionForResource("documents", resolveBodyPatient),
   AppointmentController.getDocumentUplaodURL,
 );
 

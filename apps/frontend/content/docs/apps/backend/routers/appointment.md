@@ -23,10 +23,11 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 ### POST /mobile/documentUpload
 
 - Auth: `requireMobileAuth`
+- RBAC: `requireCompanionPermissionForResource`
 - Body: `UploadUrlBody`
 - Body fields: `patientId`, `mimeType`
 - Controller: `AppointmentController.getDocumentUplaodURL`
-- Response: `400`: keys `message`, `200`: JSON, `500`: keys `message`
+- Response: `400`: keys `message`, `403`: keys `message`, `404`: keys `message`, `200`: JSON, `500`: keys `message`
 
 ### GET /mobile/companion/:patientId
 

@@ -383,7 +383,7 @@ describe("SearchController", () => {
               organisations: {
                 some: {
                   organisationId: "org-1",
-                  status: { in: ["ACTIVE", "PENDING"] },
+                  status: "ACTIVE",
                 },
               },
             },

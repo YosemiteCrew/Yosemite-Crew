@@ -3,6 +3,7 @@ import AWS from "aws-sdk";
 import path from "node:path";
 import sanitizeFilename from "sanitize-filename";
 import { v4 as uuidv4 } from "uuid";
+import { isTempUploadKey, TEMP_UPLOAD_PREFIX } from "src/utils/upload-key";
 
 interface UploadedFile {
   name: string;
@@ -140,7 +141,7 @@ const buildS3Key = (
   const ext = mimeType ? mimeTypeToExtension(mimeType) : "";
   switch (type) {
     case "temp":
-      return `temp/uploads/${uuidv4()}${ext}`;
+      return `${TEMP_UPLOAD_PREFIX}${uuidv4()}${ext}`;
     case "user":
       return `users/${idOrFolder}/${uuidv4()}${ext}`;
     case "org":
@@ -261,6 +262,10 @@ async function generatePresignedUrl(
 // Move File within S3
 
 async function moveFile(fromKey: string, toKey: string) {
+  // The move deletes its source, so only a fresh upload may be one.
+  if (!isTempUploadKey(fromKey)) {
+    throw new Error("Invalid upload key.");
+  }
   const bucket = getBucketName();
   const CF_BASE = getCloufrontBaeUrl();
   try {
