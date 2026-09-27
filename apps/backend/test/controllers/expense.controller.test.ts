@@ -19,6 +19,14 @@ jest.mock("src/services/expense.service", () => {
   };
 });
 
+jest.mock("src/services/shared/parent-identity", () => ({
+  findParentIdForAuthUser: jest.fn(),
+}));
+
+const { findParentIdForAuthUser: mockedFindParent } = jest.requireMock(
+  "src/services/shared/parent-identity",
+) as { findParentIdForAuthUser: jest.Mock };
+
 const mockedService = ExpenseService as unknown as {
   getTotalExpenseForCompanion: jest.Mock;
   createExpense: jest.Mock;
@@ -37,6 +45,7 @@ const mockResponse = () => ({
 describe("ExpenseController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedFindParent.mockResolvedValue("parent-1");
   });
 
   describe("getExpenseSummary", () => {
@@ -84,15 +93,41 @@ describe("ExpenseController", () => {
       mockedService.createExpense.mockResolvedValueOnce({ id: "exp-1" });
 
       await ExpenseController.createExpense(
-        { body: { expenseName: "Test" } } as any,
+        {
+          userId: "auth-1",
+          body: {
+            expenseName: "Test",
+            companionId: "pat-1",
+            parentId: "someone-else",
+          },
+        } as any,
         res as any,
       );
 
+      // The recorder is the signed-in parent, never the body's parentId, and
+      // the companion is the one the route checked.
+      expect(mockedFindParent).toHaveBeenCalledWith("auth-1");
       expect(mockedService.createExpense).toHaveBeenCalledWith({
         expenseName: "Test",
+        companionId: "pat-1",
+        patientId: "pat-1",
+        parentId: "parent-1",
       });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "exp-1" });
+    });
+
+    it("refuses a caller with no parent record", async () => {
+      const res = mockResponse();
+      mockedFindParent.mockResolvedValueOnce(null);
+
+      await ExpenseController.createExpense(
+        { userId: "auth-1", body: { patientId: "pat-1" } } as any,
+        res as any,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(mockedService.createExpense).not.toHaveBeenCalled();
     });
 
     it("returns service error", async () => {
@@ -101,7 +136,10 @@ describe("ExpenseController", () => {
         new ExternalExpenseServiceError("bad input", 400),
       );
 
-      await ExpenseController.createExpense({ body: {} } as any, res as any);
+      await ExpenseController.createExpense(
+        { userId: "auth-1", body: {} } as any,
+        res as any,
+      );
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ message: "bad input" });
@@ -114,12 +152,19 @@ describe("ExpenseController", () => {
       mockedService.updateExpense.mockResolvedValueOnce({ id: "exp-1" });
 
       await ExpenseController.updateExpense(
-        { params: { expenseId: "1" }, body: { notes: "n" } } as any,
+        {
+          userId: "auth-1",
+          params: { expenseId: "1" },
+          body: { notes: "n", patientId: "pat-other", parentId: "someone" },
+        } as any,
         res as any,
       );
 
+      // An expense stays with its companion; the editor is the caller.
       expect(mockedService.updateExpense).toHaveBeenCalledWith("1", {
         notes: "n",
+        patientId: undefined,
+        parentId: "parent-1",
       });
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ id: "exp-1" });
@@ -132,7 +177,7 @@ describe("ExpenseController", () => {
       );
 
       await ExpenseController.updateExpense(
-        { params: { expenseId: "1" }, body: {} } as any,
+        { userId: "auth-1", params: { expenseId: "1" }, body: {} } as any,
         res as any,
       );
 

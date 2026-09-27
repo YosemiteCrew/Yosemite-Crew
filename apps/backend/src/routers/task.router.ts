@@ -9,8 +9,14 @@ import {
   requirePermission,
   withOrgPermissions,
   withTaskOrgPermissions,
+  withTaskTemplateOrgPermissions,
 } from "src/middlewares/rbac";
-import { requireCompanionPermission } from "src/middlewares/companion-access";
+import {
+  requireCompanionPermission,
+  requireCompanionPermissionForResource,
+  resolveBodyPatientCompanion,
+} from "src/middlewares/companion-access";
+import { requireSuperAdmin } from "src/middlewares/super-admin";
 import { TaskRecommendationController } from "src/controllers/app/task-recommendation.controller";
 
 const router = Router();
@@ -19,7 +25,13 @@ const router = Router();
    MOBILE ROUTES  (NO PREFIX)
    ───────────────────────────────────────────────── */
 
-router.post("/mobile/", requireMobileAuth, TaskController.createCustomTask);
+// A parent adds a task for a companion whose tasks they may work on.
+router.post(
+  "/mobile/",
+  requireMobileAuth,
+  requireCompanionPermissionForResource("tasks", resolveBodyPatientCompanion),
+  TaskController.createCustomTask,
+);
 
 router.get("/mobile/task", requireMobileAuth, TaskController.listParentTasks);
 
@@ -99,15 +111,22 @@ router.get(
   TaskController.listForCompanion,
 );
 
-// Task library routes
+// Task library routes. The library is shared by every organisation, so
+// changing it is limited to platform administrators.
 
 router.get("/pms/library", requireWebAuth, TaskLibraryController.list);
 
-router.post("/pms/library", requireWebAuth, TaskLibraryController.create);
+router.post(
+  "/pms/library",
+  requireWebAuth,
+  requireSuperAdmin,
+  TaskLibraryController.create,
+);
 
 router.put(
   "/pms/library/:libraryId",
   requireWebAuth,
+  requireSuperAdmin,
   TaskLibraryController.update,
 );
 
@@ -119,10 +138,15 @@ router.get(
 
 // Task template routes
 
+// Task template routes belong to one organisation. Routes keyed by a
+// template id resolve the organisation from the template itself.
+
 // List templates
 router.get(
   "/pms/templates/organisation/:organisationId",
   requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["tasks:view:any", "tasks:view:own"]),
   TaskTemplateController.list,
 );
 
@@ -130,16 +154,26 @@ router.get(
 router.get(
   "/pms/templates/:templateId",
   requireWebAuth,
+  withTaskTemplateOrgPermissions(),
+  requirePermission(["tasks:view:any", "tasks:view:own"]),
   TaskTemplateController.getById,
 );
 
 // Create template
-router.post("/pms/templates", requireWebAuth, TaskTemplateController.create);
+router.post(
+  "/pms/templates",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("tasks:edit:any"),
+  TaskTemplateController.create,
+);
 
 // Update template
 router.patch(
   "/pms/templates/:templateId",
   requireWebAuth,
+  withTaskTemplateOrgPermissions(),
+  requirePermission("tasks:edit:any"),
   TaskTemplateController.update,
 );
 
@@ -147,6 +181,8 @@ router.patch(
 router.delete(
   "/pms/templates/:templateId",
   requireWebAuth,
+  withTaskTemplateOrgPermissions(),
+  requirePermission("tasks:edit:any"),
   TaskTemplateController.archive,
 );
 

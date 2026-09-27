@@ -1424,18 +1424,44 @@ const buildContext = async (
     episodeOfCare?.parentId ??
     undefined;
 
+  // The companion shows only while it is ACTIVE at this practice, and the
+  // client only while they are one of the practice's clients: an ACTIVE link
+  // to a companion that is ACTIVE at the practice.
   const [companion, client] = await Promise.all([
     companionId
       ? (prisma.patient.findFirst({
           where: {
             id: companionId,
+            organisations: {
+              some: { organisationId: input.organisationId, status: "ACTIVE" },
+            },
           },
         }) as Promise<PatientRow | null>)
       : Promise.resolve(null),
     parentId
-      ? (prisma.parent.findFirst({
-          where: { id: parentId },
-        }) as Promise<ParentRow | null>)
+      ? prisma.parentPatient
+          .findFirst({
+            where: {
+              parentId,
+              status: "ACTIVE",
+              patient: {
+                organisations: {
+                  some: {
+                    organisationId: input.organisationId,
+                    status: "ACTIVE",
+                  },
+                },
+              },
+            },
+            select: { id: true },
+          })
+          .then((link) =>
+            link
+              ? (prisma.parent.findFirst({
+                  where: { id: parentId },
+                }) as Promise<ParentRow | null>)
+              : null,
+          )
       : Promise.resolve(null),
   ]);
 

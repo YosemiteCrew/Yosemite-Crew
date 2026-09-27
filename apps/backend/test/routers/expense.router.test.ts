@@ -6,6 +6,7 @@ const resourceGuard = jest.fn((_req, _res, next) => next());
 const requireCompanionPermission = jest.fn(() => companionGuard);
 const requireCompanionPermissionForResource = jest.fn(() => resourceGuard);
 const resolveExpenseCompanion = jest.fn();
+const resolveBodyPatientCompanion = jest.fn();
 
 const ExpenseController = {
   createExpense: jest.fn(),
@@ -20,6 +21,7 @@ jest.mock("../../src/middlewares/auth", () => ({ requireMobileAuth }));
 jest.mock("../../src/middlewares/companion-access", () => ({
   requireCompanionPermission,
   requireCompanionPermissionForResource,
+  resolveBodyPatientCompanion,
   resolveExpenseCompanion,
 }));
 jest.mock("../../src/controllers/app/expense.controller", () => ({
@@ -88,11 +90,16 @@ describe("expense.router", () => {
     );
   });
 
-  it("leaves create unguarded by a companion check, since it has no id yet", () => {
-    // Ownership on create comes from the authenticated parent in the body path,
-    // not from a row that does not exist yet.
+  it("guards create on the companion the body names, for the expenses feature", () => {
     const route = findRoute("/", "post");
-    expect(route?.stack).toHaveLength(2);
-    expect(route?.stack.map((l) => l.handle)).toContain(requireMobileAuth);
+    expect(route?.stack.map((l) => l.handle)).toEqual([
+      requireMobileAuth,
+      resourceGuard,
+      ExpenseController.createExpense,
+    ]);
+    expect(requireCompanionPermissionForResource).toHaveBeenCalledWith(
+      "expenses",
+      resolveBodyPatientCompanion,
+    );
   });
 });

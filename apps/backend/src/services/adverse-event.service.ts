@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { sendEmailTemplate } from "../utils/email";
 import logger from "../utils/logger";
+import { readAdverseEventCompanionId } from "../middlewares/companion-access";
 
 export class AdverseEventServiceError extends Error {
   constructor(
@@ -169,9 +170,62 @@ const notifyOrganisation = async (
   }
 };
 
+/**
+ * The organisation and appointment a report names must belong to its
+ * companion: the practice through an ACTIVE link, the appointment by being
+ * booked for that companion at that practice. Anything else answers as not
+ * found, the same as an id that does not exist.
+ */
+const assertReportLinks = async (
+  input: AdverseEventReport,
+  companionId: string,
+): Promise<void> => {
+  const { organisationId, appointmentId } = input as {
+    organisationId?: unknown;
+    appointmentId?: unknown;
+  };
+  // Only a plain id names a practice or appointment; an object here would
+  // reach the query as a filter rather than a value.
+  if (
+    (organisationId && typeof organisationId !== "string") ||
+    (appointmentId && typeof appointmentId !== "string")
+  ) {
+    throw new AdverseEventServiceError("Organisation not found", 404);
+  }
+
+  if (typeof organisationId === "string" && organisationId) {
+    const link = await prisma.patientOrganisation.findFirst({
+      where: { patientId: companionId, organisationId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (!link) {
+      throw new AdverseEventServiceError("Organisation not found", 404);
+    }
+  }
+
+  if (typeof appointmentId === "string" && appointmentId) {
+    const appointment =
+      typeof organisationId === "string" && organisationId
+        ? await prisma.appointment.findFirst({
+            where: { id: appointmentId, organisationId },
+            select: { patient: true },
+          })
+        : null;
+    const bookedFor = (appointment?.patient as { id?: unknown } | null)?.id;
+    if (bookedFor !== companionId) {
+      throw new AdverseEventServiceError("Appointment not found", 404);
+    }
+  }
+};
+
 export const AdverseEventService = {
+  /**
+   * `parentId` is the signed-in caller. The route has already checked that
+   * they may report on the companion the body names.
+   */
   async createFromMobile(
     input: AdverseEventReport,
+    parentId: string,
   ): Promise<AdverseEventReport> {
     if (!input.reporter?.firstName || !input.reporter?.email) {
       throw new AdverseEventServiceError(
@@ -186,12 +240,22 @@ export const AdverseEventService = {
       throw new AdverseEventServiceError("companion name is required", 400);
     }
 
+    const companionId = readAdverseEventCompanionId(input);
+    if (!parentId || typeof companionId !== "string" || !companionId) {
+      throw new AdverseEventServiceError("Companion not found.", 404);
+    }
+    await assertReportLinks(input, companionId);
+
     const doc = await prisma.adverseEventReport.create({
       data: {
         organisationId: input.organisationId ?? undefined,
         appointmentId: input.appointmentId ?? undefined,
-        reporter: toInputJsonObject(input.reporter),
-        patient: toInputJsonObject(input.patient),
+        reporter: toInputJsonObject({ ...input.reporter, userId: parentId }),
+        patient: toInputJsonObject({
+          ...input.patient,
+          patientId: companionId,
+          companionId,
+        }),
         product: toInputJsonObject(input.product),
         destinations: toInputJsonObject(input.destinations),
         consent: {
@@ -214,8 +278,14 @@ export const AdverseEventService = {
     });
   },
 
-  async getById(id: string): Promise<AdverseEventReport | null> {
-    const row = await prisma.adverseEventReport.findUnique({ where: { id } });
+  async getById(
+    id: string,
+    organisationId: string,
+  ): Promise<AdverseEventReport | null> {
+    if (!organisationId) return null;
+    const row = await prisma.adverseEventReport.findFirst({
+      where: { id, organisationId },
+    });
     return row
       ? toDomainFromPrisma({
           ...row,
@@ -253,9 +323,22 @@ export const AdverseEventService = {
     );
   },
 
-  async updateStatus(id: string, status: AdverseEventStatus) {
+  async updateStatus(
+    id: string,
+    status: AdverseEventStatus,
+    organisationId: string,
+  ) {
+    const existing = organisationId
+      ? await prisma.adverseEventReport.findFirst({
+          where: { id, organisationId },
+          select: { id: true },
+        })
+      : null;
+    if (!existing) {
+      throw new AdverseEventServiceError("Not found", 404);
+    }
     const row = await prisma.adverseEventReport.update({
-      where: { id },
+      where: { id: existing.id },
       data: { status },
     });
     return toDomainFromPrisma({

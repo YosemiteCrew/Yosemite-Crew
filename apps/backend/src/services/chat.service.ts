@@ -159,9 +159,11 @@ const isUserInOrg = async (
   userId: string,
   organisationId: string,
 ): Promise<boolean> => {
+  // A deactivated membership is no membership, as in the permission check.
   const mapping = await prisma.userOrganization.findFirst({
     where: {
       practitionerReference: userId,
+      active: true,
       OR: [
         { organizationReference: organisationId },
         { organizationReference: `Organization/${organisationId}` },

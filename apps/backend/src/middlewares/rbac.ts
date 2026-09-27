@@ -98,7 +98,16 @@ function extractOrgIdFromBody(body: unknown): string | null {
  */
 export const REQUIRES_ORG = Symbol.for("yosemite.requiresOrgPermissions");
 
-export function withOrgPermissions() {
+type OrgPermissionOptions = {
+  /**
+   * Answer a caller who is not an active member of the organisation with this
+   * 404 instead of a 403, so a route addressed by a record id does not reveal
+   * that the record exists in another organisation.
+   */
+  notFoundMessage?: string;
+};
+
+export function withOrgPermissions(options: OrgPermissionOptions = {}) {
   const middleware = async (
     req: Request,
     res: Response,
@@ -131,9 +140,11 @@ export function withOrgPermissions() {
       });
 
       if (!mapping) {
-        return res.status(403).json({
-          message: "You are not associated with this organisation",
-        });
+        return options.notFoundMessage
+          ? res.status(404).json({ message: options.notFoundMessage })
+          : res.status(403).json({
+              message: "You are not associated with this organisation",
+            });
       }
 
       const effectivePermissions = normalizePermissions(
@@ -193,6 +204,7 @@ function withResourceOrgPermissions(
   paramName: string,
   notFoundMessage: string,
   loadOrganisationId: (resourceId: string) => Promise<unknown>,
+  hideFromNonMembers = false,
 ) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const resourceId = req.params[paramName];
@@ -214,11 +226,17 @@ function withResourceOrgPermissions(
 
     req.params.organisationId = organisationId.trim();
 
-    return withOrgPermissions()(req, res, next);
+    return withOrgPermissions(hideFromNonMembers ? { notFoundMessage } : {})(
+      req,
+      res,
+      next,
+    );
   };
 }
 
-export function withAppointmentOrgPermissions() {
+export function withAppointmentOrgPermissions(
+  options: { hideFromNonMembers?: boolean } = {},
+) {
   return withResourceOrgPermissions(
     "appointmentId",
     "Appointment not found",
@@ -229,6 +247,7 @@ export function withAppointmentOrgPermissions() {
       });
       return appointment?.organisationId ?? null;
     },
+    options.hideFromNonMembers,
   );
 }
 
@@ -285,6 +304,40 @@ export function withTaskOrgPermissions() {
       });
       return task?.organisationId ?? null;
     },
+  );
+}
+
+export function withTaskTemplateOrgPermissions() {
+  return withResourceOrgPermissions(
+    "templateId",
+    "Task template not found",
+    async (templateId) => {
+      const template = await prisma.taskTemplate.findUnique({
+        where: { id: templateId },
+        select: { organisationId: true },
+      });
+      return template?.organisationId ?? null;
+    },
+    true,
+  );
+}
+
+/**
+ * A report with no organisation was never sent to a practice, so no staff
+ * member can reach it and it answers as not found.
+ */
+export function withAdverseEventOrgPermissions() {
+  return withResourceOrgPermissions(
+    "id",
+    "Not found",
+    async (reportId) => {
+      const report = await prisma.adverseEventReport.findUnique({
+        where: { id: reportId },
+        select: { organisationId: true },
+      });
+      return report?.organisationId ?? null;
+    },
+    true,
   );
 }
 
@@ -508,7 +561,7 @@ function normalizePermissions(value: unknown): Permission[] {
   return [...set];
 }
 
-function computeEffectivePermissions(
+export function computeEffectivePermissions(
   role: RoleCode | undefined,
   extra?: string[],
   revoked?: string[],

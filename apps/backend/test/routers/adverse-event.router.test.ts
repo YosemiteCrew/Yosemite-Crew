@@ -3,6 +3,15 @@ import type { Router } from "express";
 const requireWebAuth = jest.fn((_req, _res, next) => next());
 const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
+const reportOrgMiddleware = jest.fn((_req, _res, next) => next());
+const viewPermission = jest.fn((_req, _res, next) => next());
+const editPermission = jest.fn((_req, _res, next) => next());
+const requirePermission = jest.fn((permission: string) =>
+  permission === "companions:view:any" ? viewPermission : editPermission,
+);
+const companionGuard = jest.fn((_req, _res, next) => next());
+const requireCompanionPermissionForResource = jest.fn(() => companionGuard);
+const resolveAdverseEventCompanion = jest.fn();
 
 const AdverseEventController = {
   createFromMobile: jest.fn(),
@@ -19,6 +28,13 @@ jest.mock("../../src/middlewares/auth", () => ({
 
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions: () => withOrgPermissionsMiddleware,
+  withAdverseEventOrgPermissions: () => reportOrgMiddleware,
+  requirePermission,
+}));
+
+jest.mock("../../src/middlewares/companion-access", () => ({
+  requireCompanionPermissionForResource,
+  resolveAdverseEventCompanion,
 }));
 
 jest.mock("../../src/controllers/web/adverse-event.controller", () => ({
@@ -54,19 +70,34 @@ describe("adverse-event.router", () => {
     ]);
   });
 
-  it("requires auth for reading and updating reports", () => {
+  it("scopes reading and updating a report to its organisation", () => {
     expect(
       findRoute("/:id", "get")?.stack.map((layer) => layer.handle),
-    ).toEqual([requireWebAuth, AdverseEventController.getById]);
+    ).toEqual([
+      requireWebAuth,
+      reportOrgMiddleware,
+      viewPermission,
+      AdverseEventController.getById,
+    ]);
     expect(
       findRoute("/:id/status", "patch")?.stack.map((layer) => layer.handle),
-    ).toEqual([requireWebAuth, AdverseEventController.updateStatus]);
+    ).toEqual([
+      requireWebAuth,
+      reportOrgMiddleware,
+      editPermission,
+      AdverseEventController.updateStatus,
+    ]);
   });
 
-  it("keeps the mobile report submission on mobile auth", () => {
+  it("checks the reporter may report on the companion the report names", () => {
     expect(findRoute("/", "post")?.stack.map((layer) => layer.handle)).toEqual([
       requireMobileAuth,
+      companionGuard,
       AdverseEventController.createFromMobile,
     ]);
+    expect(requireCompanionPermissionForResource).toHaveBeenCalledWith(
+      "emergencyBasedPermissions",
+      resolveAdverseEventCompanion,
+    );
   });
 });

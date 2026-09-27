@@ -1679,6 +1679,47 @@ const applyDtoPatch = (
   };
 };
 
+/**
+ * A practice edit keeps the companion and parent an appointment was booked
+ * for. Naming a different companion is accepted only for one ACTIVE at the
+ * practice, and naming a different parent only for one with an ACTIVE link to
+ * that companion; anything else answers as not found. Notifications, invoices
+ * and the visit workspace all follow the parent stored here.
+ */
+const assertPatientChangeAllowed = async (
+  row: AppointmentRow,
+  patient: AppointmentRequestInput["patient"] | undefined,
+): Promise<void> => {
+  const patientId = getPatientId(patient ?? null);
+  const parentId = getParentIdFromPatient(patient ?? null);
+  const companionChanged = patientId !== getPatientId(row.patient);
+  const parentChanged =
+    !!parentId && parentId !== getParentIdFromPatient(row.patient);
+  if (!companionChanged && !parentChanged) return;
+
+  const [practiceLink, parentLink] = patientId
+    ? await Promise.all([
+        prisma.patientOrganisation.findFirst({
+          where: {
+            patientId,
+            organisationId: row.organisationId,
+            status: "ACTIVE",
+          },
+          select: { id: true },
+        }),
+        parentId
+          ? prisma.parentPatient.findFirst({
+              where: { parentId, patientId, status: "ACTIVE" },
+              select: { id: true },
+            })
+          : { id: "no-parent-named" },
+      ])
+    : [null, null];
+  if (!practiceLink || !parentLink) {
+    throw new AppointmentPrismaServiceError("Companion not found", 404);
+  }
+};
+
 const approveRequestedFromPmsInTransaction = async (args: {
   tx: TransactionClient;
   appointmentId: string;
@@ -1833,6 +1874,7 @@ export const AppointmentPrismaService = {
       );
     }
 
+    await assertPatientChangeAllowed(row, input.patient);
     const patch = applyDtoPatch(row, dto, "UPCOMING");
     const updated = await prisma.$transaction(
       (tx) =>
@@ -2258,6 +2300,7 @@ export const AppointmentPrismaService = {
       organisationId: row.organisationId,
     });
     assertSelectionSupportsAppointmentKind(selection, appointmentKind);
+    await assertPatientChangeAllowed(row, input.patient);
     const patch = applyDtoPatch(row, dto, input.status ?? row.status);
     const updated = await prisma.$transaction(
       async (tx) => {

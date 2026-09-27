@@ -23,13 +23,19 @@ import {
 import {
   CreateTaskLibraryDefinitionInput,
   TaskLibraryService,
+  TaskLibraryServiceError,
   UpdateTaskLibraryDefinitionInput,
 } from "src/services/taskLibrary.service";
 import {
   CreateTaskTemplateInput,
   TaskTemplateService,
+  TaskTemplateServiceError,
   UpdateTaskTemplateInput,
 } from "src/services/taskTemplate.service";
+import {
+  parentHasCompanionFeature,
+  readBodyPatientId,
+} from "src/middlewares/companion-access";
 import { TaskKind, TaskStatus, TaskPriority } from "@prisma/client";
 
 type CreateCustomTaskRequestBody = Omit<
@@ -214,7 +220,11 @@ const parseTaskListQueryFilters = (query: TaskListQuery) => ({
 });
 
 const handleError = (error: unknown, res: Response) => {
-  if (error instanceof TaskServiceError) {
+  if (
+    error instanceof TaskServiceError ||
+    error instanceof TaskTemplateServiceError ||
+    error instanceof TaskLibraryServiceError
+  ) {
     return res.status(error.statusCode).json({ message: error.message });
   }
   console.error(error);
@@ -263,12 +273,46 @@ export const TaskController = {
       }
 
       const parentId = authUser.parentId.toString();
+      // The route has checked the caller may add tasks for this companion.
+      const patientId = readBodyPatientId(req.body) as string;
 
+      // A task goes to the caller or to another parent of the same companion
+      // who may work on its tasks.
+      const requestedAssignee = req.body.assignedTo;
+      const assignedTo =
+        typeof requestedAssignee === "string" && requestedAssignee.trim()
+          ? requestedAssignee.trim()
+          : parentId;
+      if (
+        assignedTo !== parentId &&
+        !(await parentHasCompanionFeature(assignedTo, patientId, "tasks"))
+      ) {
+        return res.status(404).json({ message: "Assignee not found" });
+      }
+
+      // Only the fields a parent sets on their own task. Organisation,
+      // appointment, audience and ownership are never taken from the body.
+      const body = req.body;
       const input: CreateCustomTaskInput = {
-        ...req.body,
+        audience: "PARENT_TASK",
+        patientId,
+        category: body.category,
+        subcategory: body.subcategory,
+        name: body.name,
+        description: body.description,
+        additionalNotes: body.additionalNotes,
+        dueAt: body.dueAt,
+        timezone: body.timezone,
+        medication: body.medication,
+        observationToolId: body.observationToolId,
+        recurrence: body.recurrence,
+        reminder: body.reminder,
+        syncWithCalendar: body.syncWithCalendar,
+        attachments: body.attachments,
+        priority: body.priority,
         createdBy: parentId,
         assignedBy: parentId,
-        assignedTo: req.body.assignedTo ?? parentId, // fallback
+        assignedTo,
       };
 
       const task = await TaskService.createCustom(input);
@@ -288,6 +332,7 @@ export const TaskController = {
 
       const input: CreateCustomTaskInput = {
         ...req.body,
+        organisationId: resolveOrganisationId(req),
         createdBy: actorId,
         assignedBy: actorId,
       };
@@ -309,6 +354,7 @@ export const TaskController = {
 
       const input: CreateFromLibraryInput = {
         ...req.body,
+        organisationId: resolveOrganisationId(req),
         createdBy: actorId,
         assignedBy: actorId,
       };
@@ -330,6 +376,7 @@ export const TaskController = {
 
       const input: CreateFromTemplateInput = {
         ...req.body,
+        organisationId: resolveOrganisationId(req),
         createdBy: actorId,
         assignedBy: actorId,
       };
@@ -745,6 +792,7 @@ export const TaskTemplateController = {
       const actorId = resolveUserId(req);
       const data: CreateTaskTemplateInput = {
         ...req.body,
+        organisationId: resolveOrganisationId(req) ?? "",
         createdBy: actorId,
       };
 
@@ -765,7 +813,11 @@ export const TaskTemplateController = {
   ) => {
     try {
       const id = req.params.templateId;
-      const doc = await TaskTemplateService.update(id, req.body);
+      const doc = await TaskTemplateService.update(
+        id,
+        req.body,
+        resolveOrganisationId(req) ?? "",
+      );
       res.json(doc);
     } catch (error) {
       handleError(error, res);
@@ -774,7 +826,10 @@ export const TaskTemplateController = {
 
   archive: async (req: Request, res: Response) => {
     try {
-      await TaskTemplateService.archive(req.params.templateId);
+      await TaskTemplateService.archive(
+        req.params.templateId,
+        resolveOrganisationId(req) ?? "",
+      );
       res.status(204).send();
     } catch (error) {
       handleError(error, res);
@@ -791,7 +846,8 @@ export const TaskTemplateController = {
     res: Response,
   ) => {
     try {
-      const organisationId = req.params.organisationId;
+      const organisationId =
+        resolveOrganisationId(req) ?? req.params.organisationId;
       const kind = parseTaskKind(req.query.kind);
       const inpatientOnly = parseTristateFlag(req.query.inpatientOnly);
       const docs = await TaskTemplateService.listForOrganisation(
@@ -810,7 +866,10 @@ export const TaskTemplateController = {
 
   getById: async (req: Request, res: Response) => {
     try {
-      const doc = await TaskTemplateService.getById(req.params.templateId);
+      const doc = await TaskTemplateService.getById(
+        req.params.templateId,
+        resolveOrganisationId(req) ?? "",
+      );
       res.json(doc);
     } catch (error) {
       handleError(error, res);

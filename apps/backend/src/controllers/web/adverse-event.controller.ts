@@ -10,6 +10,9 @@ import {
 } from "../../services/adverse-event.service";
 import logger from "src/utils/logger";
 import { prisma } from "src/config/prisma";
+import type { OrgRequest } from "src/middlewares/rbac";
+import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 export const AdverseEventController = {
   createFromMobile: async (
@@ -17,7 +20,15 @@ export const AdverseEventController = {
     res: Response,
   ) => {
     try {
-      const report = await AdverseEventService.createFromMobile(req.body);
+      const userId = resolveVerifiedUserId(req as Request);
+      const parentId = userId ? await findParentIdForAuthUser(userId) : null;
+      if (!parentId) {
+        return res.status(404).json({ message: "Companion not found." });
+      }
+      const report = await AdverseEventService.createFromMobile(
+        req.body,
+        parentId,
+      );
       res.status(201).json(report);
     } catch (err) {
       if (err instanceof AdverseEventServiceError) {
@@ -30,7 +41,10 @@ export const AdverseEventController = {
 
   getById: async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const report = await AdverseEventService.getById(req.params.id);
+      const report = await AdverseEventService.getById(
+        req.params.id,
+        (req as unknown as OrgRequest).organisationId ?? "",
+      );
       if (!report) return res.status(404).json({ message: "Not found" });
       res.json(report);
     } catch (err) {
@@ -69,7 +83,11 @@ export const AdverseEventController = {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      const updated = await AdverseEventService.updateStatus(id, status);
+      const updated = await AdverseEventService.updateStatus(
+        id,
+        status,
+        (req as unknown as OrgRequest).organisationId ?? "",
+      );
       res.json(updated);
     } catch (err) {
       if (err instanceof AdverseEventServiceError) {
