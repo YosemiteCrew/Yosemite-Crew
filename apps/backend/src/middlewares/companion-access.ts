@@ -287,9 +287,10 @@ export const resolveObservationTaskResultCompanion: CompanionResourceResolver =
     const taskId = readIdParam(req, "taskId");
     if (!taskId) return { kind: "deny" };
 
+    // Same row, same order as the preview handler, ties included.
     const submission = await prisma.observationToolSubmission.findFirst({
       where: { taskId },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: { patientId: true, filledBy: true },
     });
     if (!submission) return { kind: "allow" };

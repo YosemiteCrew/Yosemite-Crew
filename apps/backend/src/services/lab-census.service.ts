@@ -1,6 +1,7 @@
 import { normalizeLabProvider } from "src/labs";
 import { LabOrderServiceError } from "src/services/lab-order.service";
 import { prisma } from "src/config/prisma";
+import { assertPatientOrgMembership } from "src/services/shared/patient-org-membership";
 import {
   buildIdexxClient,
   lookupIdexxMapping,
@@ -23,28 +24,23 @@ const buildCensusPayload = async (input: {
   veterinarian?: string | null;
   ivls?: Array<{ serialNumber: string }>;
 }) => {
-  const [companionOrgLink, parentCompanionLink] = await Promise.all([
-    prisma.patientOrganisation.findFirst({
-      where: {
-        organisationId: input.organisationId,
-        patientId: input.patientId,
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-      select: { id: true },
-    }),
-    prisma.parentPatient.findFirst({
-      where: {
-        parentId: input.parentId,
-        patientId: input.patientId,
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (!companionOrgLink) {
-    throw new LabOrderServiceError("Companion not found.", 404);
-  }
+  // ACTIVE links only: a request the parent has not approved, or a link that
+  // has ended, gives the practice nothing to send.
+  await assertPatientOrgMembership(
+    input.patientId,
+    input.organisationId,
+    () => {
+      throw new LabOrderServiceError("Companion not found.", 404);
+    },
+  );
+  const parentCompanionLink = await prisma.parentPatient.findFirst({
+    where: {
+      parentId: input.parentId,
+      patientId: input.patientId,
+      status: "ACTIVE",
+    },
+    select: { id: true },
+  });
   if (!parentCompanionLink) {
     throw new LabOrderServiceError("Parent not found.", 404);
   }

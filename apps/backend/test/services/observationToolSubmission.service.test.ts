@@ -9,6 +9,7 @@ import {
 import { ObservationToolSubmissionService } from "../../src/services/observationToolSubmission.service";
 import { TaskService } from "../../src/services/task.service";
 import { prisma } from "src/config/prisma";
+import { storedRows } from "../helpers/stored-rows";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const prismaMock = prisma as any;
@@ -331,6 +332,8 @@ describe("ObservationToolSubmissionService", () => {
       patientId: companionId,
       taskId: null as string | null,
     };
+    // Raised from one of org-a's tasks, so org-a may place it.
+    const pmsSubmission = { ...submission, taskId: "task-org-a" };
     const appointmentOf = (patientId: string, orgId = orgA) => ({
       organisationId: orgId,
       patient: { id: patientId },
@@ -354,6 +357,16 @@ describe("ObservationToolSubmissionService", () => {
         id: submissionId,
         evaluationAppointmentId: appointmentId,
       });
+      useOrganisationTables();
+      (prismaMock.task.findFirst as any).mockImplementation(
+        storedRows(ORG_TASKS).findFirst,
+      );
+    });
+
+    afterEach(() => {
+      (prismaMock.task.findFirst as any).mockReset();
+      (prismaMock.task.findMany as any).mockReset();
+      (prismaMock.appointment.findMany as any).mockReset();
     });
 
     it("throws when submission not found", async () => {
@@ -389,7 +402,7 @@ describe("ObservationToolSubmissionService", () => {
 
     it("links the submission to an appointment of its companion at the caller's organisation", async () => {
       (prismaMock.observationToolSubmission.findFirst as any)
-        .mockResolvedValueOnce(submission)
+        .mockResolvedValueOnce(pmsSubmission)
         .mockResolvedValueOnce(null);
       (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
         id: "co1",
@@ -437,7 +450,7 @@ describe("ObservationToolSubmissionService", () => {
 
     it("returns 404 for an appointment of another organisation on a PMS link", async () => {
       (prismaMock.observationToolSubmission.findFirst as any).mockResolvedValue(
-        submission,
+        pmsSubmission,
       );
       (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
         id: "co1",
@@ -457,7 +470,7 @@ describe("ObservationToolSubmissionService", () => {
       async (organisationId) => {
         (
           prismaMock.observationToolSubmission.findFirst as any
-        ).mockResolvedValue(submission);
+        ).mockResolvedValue(pmsSubmission);
         (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
           id: "co1",
         });
@@ -622,6 +635,89 @@ describe("ObservationToolSubmissionService", () => {
         expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
           where: { id: "appt-org-a" },
           select: { organisationId: true },
+        });
+      });
+    });
+
+    describe("a parent's submission that no practice has yet", () => {
+      // The companion is ACTIVE at org-a and at org-b, so both can read the
+      // submission. Linking it to one practice's appointment takes it away
+      // from the other, and that is the parent's call.
+      beforeEach(() => {
+        (prismaMock.patientOrganisation.findFirst as any).mockImplementation(
+          storedRows([
+            { patientId: companionId, organisationId: orgA, status: "ACTIVE" },
+            { patientId: companionId, organisationId: orgB, status: "ACTIVE" },
+          ]).findFirst,
+        );
+        (prismaMock.appointment.findFirst as any).mockResolvedValue(
+          appointmentOf(companionId, orgA),
+        );
+      });
+
+      afterEach(() => {
+        (prismaMock.patientOrganisation.findFirst as any).mockReset();
+      });
+
+      it.each([
+        ["with no task", null],
+        ["of the parent's own task", "task-parent"],
+      ])(
+        "answers a submission %s like a missing one on a PMS link",
+        async (_label, linkedTaskId) => {
+          (
+            prismaMock.observationToolSubmission.findFirst as any
+          ).mockResolvedValue({
+            ...submission,
+            taskId: linkedTaskId,
+            evaluationAppointmentId: null,
+          });
+
+          await expectNotFound(
+            { organisationId: orgA, submissionId, appointmentId },
+            "Submission not found",
+          );
+        },
+      );
+
+      it("lets the pet parent link it", async () => {
+        (
+          prismaMock.observationToolSubmission.findFirst as any
+        ).mockResolvedValue({ ...submission, evaluationAppointmentId: null });
+
+        await ObservationToolSubmissionService.linkToAppointment({
+          organisationId: null,
+          submissionId,
+          appointmentId,
+        });
+
+        expect(prisma.observationToolSubmission.update).toHaveBeenCalledWith({
+          where: { id: submissionId },
+          data: { evaluationAppointmentId: appointmentId },
+        });
+      });
+
+      it("lets the practice whose task it answers link it", async () => {
+        (
+          prismaMock.observationToolSubmission.findFirst as any
+        ).mockResolvedValue({
+          ...pmsSubmission,
+          evaluationAppointmentId: null,
+        });
+
+        await ObservationToolSubmissionService.linkToAppointment({
+          organisationId: orgA,
+          submissionId,
+          appointmentId,
+        });
+
+        expect(prisma.task.findFirst).toHaveBeenCalledWith({
+          where: { id: "task-org-a", organisationId: orgA },
+          select: { id: true },
+        });
+        expect(prisma.observationToolSubmission.update).toHaveBeenCalledWith({
+          where: { id: submissionId },
+          data: { evaluationAppointmentId: appointmentId },
         });
       });
     });
@@ -1272,6 +1368,37 @@ describe("ObservationToolSubmissionService", () => {
         expect(res.taskId).toBe(taskId);
         expect(res.toolName).toBe("Tool");
         expect(res.answersPreview).toEqual({ q1: "ans1" });
+      });
+
+      it("breaks a tie on createdAt by id, the row the access check judged", async () => {
+        const at = new Date("2026-09-27T10:00:00.000Z");
+        (prismaMock.task.findFirst as any).mockResolvedValue({
+          id: taskId,
+          observationToolId: toolId,
+        });
+        (
+          prismaMock.observationToolDefinition.findFirst as any
+        ).mockResolvedValue({
+          id: toolId,
+          name: "Tool",
+          category: "Cat",
+          isActive: true,
+          fields: [{ key: "q1" }],
+        });
+        (
+          prismaMock.observationToolSubmission.findFirst as any
+        ).mockImplementation(
+          storedRows([
+            { id: "sub-1", taskId, createdAt: at, answers: { q1: "a" } },
+            { id: "sub-2", taskId, createdAt: at, answers: { q1: "b" } },
+          ]).findFirst,
+        );
+
+        const res =
+          await ObservationToolSubmissionService.getPreviewByTaskId(taskId);
+
+        expect(res.submissionId).toBe("sub-2");
+        expect(res.answersPreview).toEqual({ q1: "b" });
       });
     });
 

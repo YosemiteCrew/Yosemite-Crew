@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { findParentIdForAuthUser } from "./shared/parent-identity";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 import { NotificationTemplates } from "../utils/notificationTemplates";
 import {
@@ -55,18 +56,14 @@ const toDTO = (row: {
   createdAt: row.createdAt.toISOString(),
 });
 
-const assertOrgMembership = async (
+// Only a practice with an ACTIVE link to the companion may ask to share it.
+const assertOrgMembership = (
   patientId: string,
   organisationId: string,
-): Promise<void> => {
-  const membership = await prisma.patientOrganisation.findFirst({
-    where: { patientId, organisationId, status: { in: ["ACTIVE", "PENDING"] } },
-    select: { id: true },
-  });
-  if (!membership) {
+): Promise<void> =>
+  assertPatientOrgMembership(patientId, organisationId, () => {
     throw new PassportConsentError("Companion not found.", 404);
-  }
-};
+  });
 
 const loadConsentOrThrow = async (
   consentId: string,

@@ -5,6 +5,7 @@ import {
 } from "src/services/pet-passport.service";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "src/services/audit-trail.service";
+import { storedRows } from "../helpers/stored-rows";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -878,6 +879,45 @@ describe("PetPassportService.getPassportForParent", () => {
       expect.objectContaining({ where: { providerUserId: "user-1" } }),
     );
     expect(prismaMock.parent.findFirst).not.toHaveBeenCalled();
+  });
+
+  it.each(["PENDING", "REVOKED"])(
+    "404s a pet whose only practice link is %s",
+    async (status) => {
+      asParent();
+      prismaMock.patientOrganisation.findFirst.mockImplementation(
+        storedRows([{ patientId: "pat-1", organisationId: "org-1", status }])
+          .findFirst,
+      );
+      await expect(
+        PetPassportService.getPassportForParent("pat-1", "user-1"),
+      ).rejects.toMatchObject({
+        message: "Companion not found.",
+        statusCode: 404,
+      });
+      expect(prismaMock.patient.findUnique).not.toHaveBeenCalled();
+    },
+  );
+
+  it("assembles against the practice the pet is ACTIVE at, not one it is PENDING at", async () => {
+    asParent();
+    prismaMock.patientOrganisation.findFirst.mockImplementation(
+      storedRows([
+        {
+          patientId: "pat-1",
+          organisationId: "org-pending",
+          status: "PENDING",
+        },
+        { patientId: "pat-1", organisationId: "org-1", status: "ACTIVE" },
+      ]).findFirst,
+    );
+    await PetPassportService.getPassportForParent("pat-1", "user-1");
+    expect(prismaMock.organization.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "org-1" } }),
+    );
+    expect(prismaMock.organization.findUnique).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "org-pending" } }),
+    );
   });
 
   it("assembles the owner view for the pet's parent", async () => {

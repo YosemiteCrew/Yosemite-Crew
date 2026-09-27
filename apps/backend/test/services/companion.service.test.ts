@@ -553,6 +553,34 @@ describe("CompanionService", () => {
     expect(mockedPrisma.patient.deleteMany).not.toHaveBeenCalled();
   });
 
+  it.each(["PRIMARY", "CO_PARENT"])(
+    "rejects deletes through a %s link that is still PENDING",
+    async (role) => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockReset();
+      (ParentCompanionService.getLinksForCompanion as jest.Mock).mockReset();
+      (ParentService.findByLinkedUserId as jest.Mock).mockImplementation(
+        async () => ({ id: "parent-4" }),
+      );
+      (
+        ParentCompanionService.getLinksForCompanion as jest.Mock
+      ).mockImplementation(async () => [
+        {
+          id: "link-4",
+          parentId: "parent-4",
+          role,
+          status: "PENDING",
+          permissions: {},
+        },
+      ]);
+
+      await expect(
+        CompanionService.delete("patient-1", { authUserId: "provider-1" }),
+      ).rejects.toMatchObject({ statusCode: 403 });
+      expect(mockedPrisma.patient.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.parentPatient.deleteMany).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects deletes when the caller has no companion link", async () => {
     (ParentService.findByLinkedUserId as jest.Mock).mockReset();
     (ParentCompanionService.getLinksForCompanion as jest.Mock).mockReset();
