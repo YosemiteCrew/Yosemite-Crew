@@ -42,7 +42,7 @@
   overflow: hidden;
   border: 1px solid var(--divider);
   border-radius: 22px;
-  background: var(--card);
+  background: var(--color-surface-card);
   box-shadow: 0 14px 40px var(--sh08);
 }
 .dev-workspace-path-copy {
@@ -142,7 +142,7 @@
   display: grid;
   place-items: center;
   border-radius: 16px;
-  background: var(--card);
+  background: var(--color-surface-card);
   color: var(--cyan-text);
   box-shadow: 0 5px 18px var(--sh08);
 }
@@ -177,7 +177,7 @@
   width: min(520px, 100%);
   padding: 26px;
   border-radius: 22px;
-  background: var(--card);
+  background: var(--color-surface-card);
   box-shadow: 0 24px 80px var(--sh20);
   display: flex;
   flex-direction: column;
@@ -231,7 +231,7 @@
   border: 1px solid var(--divider);
   border-radius: 9999px;
   padding: 9px 14px;
-  background: var(--card);
+  background: var(--color-surface-card);
   color: var(--ink);
   text-decoration: none;
   font-size: 12px;
