@@ -43,12 +43,16 @@ const buildRequest = (
     params: Record<string, string>;
     query: Record<string, unknown>;
     body: unknown;
+    userId: string | undefined;
   }> = {},
 ): Request =>
   ({
     params: { organisationId: ORG, ...(overrides.params ?? {}) },
     query: overrides.query ?? {},
     body: overrides.body ?? {},
+    userId: Object.hasOwn(overrides, "userId")
+      ? overrides.userId
+      : "session-user",
   }) as unknown as Request;
 
 beforeEach(() => {
@@ -65,7 +69,7 @@ describe("InventoryCountController.record", () => {
       buildRequest({
         body: {
           inventoryItemId: "item-1",
-          countedBy: "user-1",
+          countedBy: "spoofed-user",
           countedAt: "2026-03-01T09:00:00.000Z",
           systemCount: 40,
           physicalCount: 37,
@@ -78,7 +82,8 @@ describe("InventoryCountController.record", () => {
     expect(service.record).toHaveBeenCalledWith({
       organisationId: ORG,
       inventoryItemId: "item-1",
-      countedBy: "user-1",
+      inventoryBatchId: undefined,
+      countedBy: "session-user",
       countedAt: new Date("2026-03-01T09:00:00.000Z"),
       systemCount: 40,
       physicalCount: 37,
@@ -88,7 +93,7 @@ describe("InventoryCountController.record", () => {
     expect(res.json).toHaveBeenCalledWith(stored);
   });
 
-  it("rejects a negative physical count with 400 and never calls the service", async () => {
+  it("rejects a negative physical count with 400", async () => {
     const res = buildResponse();
 
     await InventoryCountController.record(
@@ -106,6 +111,32 @@ describe("InventoryCountController.record", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: expect.any(Object) });
     expect(service.record).not.toHaveBeenCalled();
+  });
+
+  it("accepts a batch count without trusting a client-supplied system count", async () => {
+    service.record.mockResolvedValue({ id: COUNT_ID } as never);
+    const res = buildResponse();
+    await InventoryCountController.record(
+      buildRequest({
+        body: {
+          inventoryItemId: "item-1",
+          inventoryBatchId: "batch-1",
+          countedAt: "2026-03-01T09:00:00.000Z",
+          physicalCount: 37,
+        },
+      }),
+      res,
+    );
+    expect(service.record).toHaveBeenCalledWith({
+      organisationId: ORG,
+      inventoryItemId: "item-1",
+      inventoryBatchId: "batch-1",
+      countedBy: "session-user",
+      countedAt: new Date("2026-03-01T09:00:00.000Z"),
+      systemCount: undefined,
+      physicalCount: 37,
+      notes: undefined,
+    });
   });
 
   it("maps a service error onto its own status", async () => {
@@ -207,6 +238,7 @@ describe("InventoryCountController.list", () => {
     expect(service.list).toHaveBeenCalledWith({
       organisationId: ORG,
       inventoryItemId: "item-1",
+      inventoryBatchId: undefined,
       reconciled: false,
       fromDate: new Date("2026-02-01T00:00:00.000Z"),
       toDate: new Date("2026-03-01T00:00:00.000Z"),
@@ -222,6 +254,7 @@ describe("InventoryCountController.list", () => {
     expect(service.list).toHaveBeenCalledWith({
       organisationId: ORG,
       inventoryItemId: undefined,
+      inventoryBatchId: undefined,
       reconciled: undefined,
       fromDate: undefined,
       toDate: undefined,
@@ -240,7 +273,7 @@ describe("InventoryCountController.list", () => {
 });
 
 describe("InventoryCountController.reconcile", () => {
-  it("forwards the reconciling user and notes", async () => {
+  it("uses the verified session identity for the stock resolution", async () => {
     const stored = { id: COUNT_ID, reconciled: true };
     service.reconcile.mockResolvedValue(stored as never);
     const res = buildResponse();
@@ -248,7 +281,11 @@ describe("InventoryCountController.reconcile", () => {
     await InventoryCountController.reconcile(
       buildRequest({
         params: { countId: COUNT_ID },
-        body: { reconciledBy: "user-2", notes: "Write-off raised" },
+        body: {
+          reconciledBy: "spoofed-user",
+          resolution: "NO_CHANGE",
+          resolutionNotes: "Recounted after checking deliveries.",
+        },
       }),
       res,
     );
@@ -256,21 +293,26 @@ describe("InventoryCountController.reconcile", () => {
     expect(service.reconcile).toHaveBeenCalledWith(
       COUNT_ID,
       ORG,
-      "user-2",
-      "Write-off raised",
+      "session-user",
+      "NO_CHANGE",
+      "Recounted after checking deliveries.",
     );
     expect(res.json).toHaveBeenCalledWith(stored);
   });
 
-  it("requires a reconciling user", async () => {
+  it("rejects a request without a verified session user", async () => {
     const res = buildResponse();
 
     await InventoryCountController.reconcile(
-      buildRequest({ params: { countId: COUNT_ID }, body: {} }),
+      buildRequest({
+        params: { countId: COUNT_ID },
+        userId: undefined,
+        body: { resolution: "NO_CHANGE", resolutionNotes: "Checked" },
+      }),
       res,
     );
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(401);
     expect(service.reconcile).not.toHaveBeenCalled();
   });
 
@@ -286,7 +328,11 @@ describe("InventoryCountController.reconcile", () => {
     await InventoryCountController.reconcile(
       buildRequest({
         params: { countId: COUNT_ID },
-        body: { reconciledBy: "user-2" },
+        body: {
+          reconciledBy: "spoofed-user",
+          resolution: "NO_CHANGE",
+          resolutionNotes: "Checked",
+        },
       }),
       res,
     );

@@ -4,7 +4,7 @@ title: Inventory Count API
 slug: /apps/backend/api/inventory-count
 ---
 
-Records physical stock counts against the system count for an inventory item (a cycle count), lists and reconciles them. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
+Records physical stock counts for an inventory item or batch, lists and resolves discrepancies. A batch count captures the current system quantity when it is recorded.
 
 ## Endpoints
 
@@ -14,7 +14,7 @@ Records physical stock counts against the system count for an inventory item (a 
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Body: `RecordCountSchema`
-- Body fields: `inventoryItemId`, `countedBy`, `countedAt`, `systemCount`, `physicalCount`, `notes`
+- Body fields: `inventoryItemId`, `inventoryBatchId` (or `systemCount` for an item-level count), `countedAt`, `physicalCount`, `notes`
 - Controller: `InventoryCountController.record`
 - Response: `201`: JSON, `400`: keys `error`
 
@@ -23,7 +23,7 @@ Records physical stock counts against the system count for an inventory item (a 
 - Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
-- Query: `inventoryItemId`, `reconciled`, `fromDate`, `toDate`
+- Query: `inventoryItemId`, `inventoryBatchId`, `reconciled`, `fromDate`, `toDate`
 - Controller: `InventoryCountController.list`
 
 ### GET /pms/organisation/:organisationId/inventory-counts/unreconciled
@@ -46,6 +46,6 @@ Records physical stock counts against the system count for an inventory item (a 
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `countId`
 - Body: `ReconcileSchema`
-- Body fields: `reconciledBy`, `notes`
+- Body fields: `resolution` (`STOCK_ADJUSTED` or `NO_CHANGE`), `resolutionNotes`
 - Controller: `InventoryCountController.reconcile`
 - Response: `400`: keys `error`

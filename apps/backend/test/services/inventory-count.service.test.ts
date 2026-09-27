@@ -10,7 +10,17 @@ jest.mock("src/config/prisma", () => ({
       findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
+    inventoryItem: { findFirst: jest.fn(), update: jest.fn() },
+    inventoryBatch: {
+      findFirst: jest.fn(),
+      updateMany: jest.fn(),
+      aggregate: jest.fn(),
+    },
+    inventoryStockMovement: { create: jest.fn() },
+    $executeRaw: jest.fn(),
+    $transaction: jest.fn(),
   },
 }));
 
@@ -24,7 +34,20 @@ import { AuditTrailService } from "../../src/services/audit-trail.service";
 const mockCreate = prisma.inventoryCount.create as jest.Mock;
 const mockFindFirst = prisma.inventoryCount.findFirst as jest.Mock;
 const mockFindMany = prisma.inventoryCount.findMany as jest.Mock;
-const mockUpdate = prisma.inventoryCount.update as jest.Mock;
+const mockItemFindFirst = prisma.inventoryItem.findFirst as jest.Mock;
+const mockBatchFindFirst = prisma.inventoryBatch.findFirst as jest.Mock;
+const mockTx = {
+  inventoryCount: { findFirst: jest.fn(), updateMany: jest.fn() },
+  inventoryItem: { update: jest.fn() },
+  inventoryBatch: {
+    findFirst: jest.fn(),
+    updateMany: jest.fn(),
+    aggregate: jest.fn(),
+  },
+  inventoryStockMovement: { create: jest.fn() },
+  $executeRaw: jest.fn(),
+};
+const mockTransaction = prisma.$transaction as jest.Mock;
 const mockAudit = AuditTrailService.recordSafely as jest.Mock;
 
 const countedAt = new Date("2026-03-01T09:00:00.000Z");
@@ -33,12 +56,15 @@ const baseCount = {
   id: "count-1",
   organisationId: "org-1",
   inventoryItemId: "item-1",
+  inventoryBatchId: null,
   countedBy: "user-1",
   countedAt,
   systemCount: 40,
   physicalCount: 37,
   discrepancy: -3,
   notes: null,
+  resolution: null,
+  resolutionNotes: null,
   reconciled: false,
   reconciledAt: null,
   reconciledBy: null,
@@ -46,9 +72,55 @@ const baseCount = {
   updatedAt: countedAt,
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockItemFindFirst.mockResolvedValue({ id: "item-1" });
+  mockTransaction.mockImplementation(
+    (callback: (tx: typeof mockTx) => Promise<unknown>) => callback(mockTx),
+  );
+});
 
 describe("InventoryCountService.record", () => {
+  it("rejects items outside the requested organisation", async () => {
+    mockItemFindFirst.mockResolvedValue(null);
+    await expect(
+      InventoryCountService.record({
+        organisationId: "org-1",
+        inventoryItemId: "item-1",
+        countedAt,
+        systemCount: 10,
+        physicalCount: 10,
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown or out-of-scope batch", async () => {
+    mockBatchFindFirst.mockResolvedValue(null);
+    await expect(
+      InventoryCountService.record({
+        organisationId: "org-1",
+        inventoryItemId: "item-1",
+        inventoryBatchId: "batch-1",
+        countedAt,
+        physicalCount: 10,
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("requires a batch or trusted system count", async () => {
+    await expect(
+      InventoryCountService.record({
+        organisationId: "org-1",
+        inventoryItemId: "item-1",
+        countedAt,
+        physicalCount: 10,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   it("stores the shortfall as a negative discrepancy and leaves it unreconciled", async () => {
     mockCreate.mockResolvedValue(baseCount);
 
@@ -66,6 +138,7 @@ describe("InventoryCountService.record", () => {
       data: {
         organisationId: "org-1",
         inventoryItemId: "item-1",
+        inventoryBatchId: null,
         countedBy: "user-1",
         countedAt,
         systemCount: 40,
@@ -74,6 +147,7 @@ describe("InventoryCountService.record", () => {
         notes: "Three vials missing",
         reconciled: false,
         reconciledAt: null,
+        resolution: null,
       },
       select: expect.objectContaining({ id: true, discrepancy: true }),
     });
@@ -89,6 +163,7 @@ describe("InventoryCountService.record", () => {
         metadata: {
           countId: "count-1",
           inventoryItemId: "item-1",
+          inventoryBatchId: null,
           discrepancy: -3,
           hasDiscrepancy: true,
         },
@@ -119,6 +194,7 @@ describe("InventoryCountService.record", () => {
           discrepancy: 0,
           reconciled: true,
           reconciledAt: expect.any(Date),
+          resolution: "NO_CHANGE",
           countedBy: null,
           notes: null,
         }),
@@ -153,6 +229,43 @@ describe("InventoryCountService.record", () => {
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ discrepancy: 5, reconciled: false }),
+      }),
+    );
+  });
+
+  it("uses the current organisation-scoped batch quantity as the system count", async () => {
+    mockBatchFindFirst.mockResolvedValue({ id: "batch-1", quantity: 12 });
+    mockCreate.mockResolvedValue({
+      ...baseCount,
+      inventoryBatchId: "batch-1",
+      systemCount: 12,
+      physicalCount: 10,
+      discrepancy: -2,
+    });
+
+    await InventoryCountService.record({
+      organisationId: "org-1",
+      inventoryItemId: "item-1",
+      inventoryBatchId: "batch-1",
+      countedAt,
+      physicalCount: 10,
+    });
+
+    expect(mockBatchFindFirst).toHaveBeenCalledWith({
+      where: {
+        id: "batch-1",
+        itemId: "item-1",
+        organisationId: "org-1",
+      },
+      select: { id: true, quantity: true },
+    });
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          inventoryBatchId: "batch-1",
+          systemCount: 12,
+          discrepancy: -2,
+        }),
       }),
     );
   });
@@ -250,32 +363,69 @@ describe("InventoryCountService.list", () => {
 });
 
 describe("InventoryCountService.reconcile", () => {
-  it("marks the count reconciled, stamps the user and audits the discrepancy", async () => {
-    mockFindFirst.mockResolvedValue(baseCount);
-    mockUpdate.mockResolvedValue({
-      ...baseCount,
-      reconciled: true,
-      reconciledBy: "user-2",
-      notes: "Stock write-off raised",
+  it("updates the batch and item stock with a movement before auditing", async () => {
+    const batchCount = { ...baseCount, inventoryBatchId: "batch-1" };
+    mockTx.inventoryCount.findFirst
+      .mockResolvedValueOnce(batchCount)
+      .mockResolvedValueOnce({ ...baseCount, reconciled: true });
+    mockTx.inventoryBatch.findFirst.mockResolvedValue({
+      id: "batch-1",
+      quantity: 40,
+      allocated: 2,
+    });
+    mockTx.$executeRaw.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
+    mockTx.inventoryBatch.aggregate.mockResolvedValue({
+      _sum: { quantity: 37 },
     });
 
     const result = await InventoryCountService.reconcile(
       "count-1",
       "org-1",
       "user-2",
-      "Stock write-off raised",
+      "STOCK_ADJUSTED",
     );
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "count-1" },
-      data: {
-        reconciled: true,
-        reconciledAt: expect.any(Date),
-        reconciledBy: "user-2",
-        notes: "Stock write-off raised",
-      },
-      select: expect.objectContaining({ id: true }),
+    expect(mockTx.$executeRaw).toHaveBeenCalledTimes(2);
+    expect(mockTx.$executeRaw.mock.calls[0].slice(1)).toEqual([
+      37,
+      expect.any(Date),
+      "batch-1",
+      "org-1",
+      40,
+      37,
+    ]);
+    expect(mockTx.$executeRaw.mock.calls[0][0].join(" ")).toContain(
+      '"allocated" <=',
+    );
+    expect(mockTx.$executeRaw.mock.calls[0][0].join(" ")).toContain(
+      '"quantity" =',
+    );
+    expect(mockTx.inventoryItem.update).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: { onHand: 37 },
     });
+    expect(mockTx.inventoryStockMovement.create).toHaveBeenCalledWith({
+      data: {
+        itemId: "item-1",
+        batchId: "batch-1",
+        change: -3,
+        reason: "INVENTORY_COUNT_ADJUSTMENT",
+        userId: "user-2",
+        referenceId: "count-1",
+      },
+    });
+    expect(mockTx.$executeRaw.mock.calls[1].slice(1)).toEqual([
+      expect.any(Date),
+      "user-2",
+      "STOCK_ADJUSTED",
+      null,
+      expect.any(Date),
+      "count-1",
+      "org-1",
+    ]);
+    expect(mockTx.$executeRaw.mock.calls[1][0].join(" ")).toContain(
+      '"reconciled" = false',
+    );
     expect(mockAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         organisationId: "org-1",
@@ -286,50 +436,224 @@ describe("InventoryCountService.reconcile", () => {
         metadata: {
           countId: "count-1",
           inventoryItemId: "item-1",
+          inventoryBatchId: "batch-1",
           discrepancy: -3,
+          resolution: "STOCK_ADJUSTED",
+          resolutionNotes: null,
         },
       }),
     );
     expect(result.reconciled).toBe(true);
   });
 
-  it("leaves the existing notes alone when none are supplied", async () => {
-    mockFindFirst.mockResolvedValue(baseCount);
-    mockUpdate.mockResolvedValue({ ...baseCount, reconciled: true });
+  it("requires an explanation when a discrepancy is left unchanged", async () => {
+    await expect(
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "NO_CHANGE",
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
 
-    await InventoryCountService.reconcile("count-1", "org-1", "user-2");
+  it("records the explanation for an unchanged discrepancy", async () => {
+    mockTx.inventoryCount.findFirst
+      .mockResolvedValueOnce(baseCount)
+      .mockResolvedValueOnce({ ...baseCount, reconciled: true });
+    mockTx.$executeRaw.mockResolvedValue(1);
 
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: {
-          reconciled: true,
-          reconciledAt: expect.any(Date),
-          reconciledBy: "user-2",
-        },
-      }),
+    await InventoryCountService.reconcile(
+      "count-1",
+      "org-1",
+      "user-2",
+      "NO_CHANGE",
+      " Checked delivery timing and recounted. ",
     );
+
+    expect(mockTx.$executeRaw.mock.calls[0].slice(1)).toEqual([
+      expect.any(Date),
+      "user-2",
+      "NO_CHANGE",
+      "Checked delivery timing and recounted.",
+      expect.any(Date),
+      "count-1",
+      "org-1",
+    ]);
+    expect(mockTx.inventoryStockMovement.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects stock adjustment for legacy counts that have no batch", async () => {
+    mockTx.inventoryCount.findFirst.mockResolvedValue(baseCount);
+    await expect(
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "STOCK_ADJUSTED",
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockTx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it("rejects a deleted or out-of-scope batch", async () => {
+    mockTx.inventoryCount.findFirst.mockResolvedValue({
+      ...baseCount,
+      inventoryBatchId: "batch-1",
+    });
+    mockTx.inventoryBatch.findFirst.mockResolvedValue(null);
+    await expect(
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "STOCK_ADJUSTED",
+      ),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(mockTx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["stock changed since count", 41, 2],
+    ["allocated stock exceeds count", 40, 38],
+  ])("rejects adjustment when %s", async (_reason, quantity, allocated) => {
+    mockTx.inventoryCount.findFirst.mockResolvedValue({
+      ...baseCount,
+      inventoryBatchId: "batch-1",
+    });
+    mockTx.inventoryBatch.findFirst.mockResolvedValue({
+      id: "batch-1",
+      quantity,
+      allocated,
+    });
+    await expect(
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "STOCK_ADJUSTED",
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockTx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it("rejects a concurrent stock change after reading the batch", async () => {
+    mockTx.inventoryCount.findFirst.mockResolvedValue({
+      ...baseCount,
+      inventoryBatchId: "batch-1",
+    });
+    mockTx.inventoryBatch.findFirst.mockResolvedValue({
+      id: "batch-1",
+      quantity: 40,
+      allocated: 2,
+    });
+    mockTx.$executeRaw.mockResolvedValue(0);
+    await expect(
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "STOCK_ADJUSTED",
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockTx.inventoryItem.update).not.toHaveBeenCalled();
+  });
+
+  it("sets item on-hand to zero when no batches remain", async () => {
+    mockTx.inventoryCount.findFirst
+      .mockResolvedValueOnce({ ...baseCount, inventoryBatchId: "batch-1" })
+      .mockResolvedValueOnce({ ...baseCount, reconciled: true });
+    mockTx.inventoryBatch.findFirst.mockResolvedValue({
+      id: "batch-1",
+      quantity: 40,
+      allocated: 0,
+    });
+    mockTx.$executeRaw.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
+    mockTx.inventoryBatch.aggregate.mockResolvedValue({
+      _sum: { quantity: null },
+    });
+
+    await InventoryCountService.reconcile(
+      "count-1",
+      "org-1",
+      "user-2",
+      "STOCK_ADJUSTED",
+    );
+
+    expect(mockTx.inventoryItem.update).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: { onHand: 0 },
+    });
+  });
+
+  it("does not audit if a concurrent request already reconciled the count", async () => {
+    mockTx.inventoryCount.findFirst.mockResolvedValue(baseCount);
+    mockTx.$executeRaw.mockResolvedValue(0);
+    await expect(
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "NO_CHANGE",
+        "Recounted and checked the movement log.",
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing count returned after the write", async () => {
+    mockTx.inventoryCount.findFirst
+      .mockResolvedValueOnce(baseCount)
+      .mockResolvedValueOnce(null);
+    mockTx.$executeRaw.mockResolvedValue(1);
+    await expect(
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "NO_CHANGE",
+        "Recounted and checked the movement log.",
+      ),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(mockAudit).not.toHaveBeenCalled();
   });
 
   it("refuses to reconcile the same count twice", async () => {
-    mockFindFirst.mockResolvedValue({ ...baseCount, reconciled: true });
+    mockTx.inventoryCount.findFirst.mockResolvedValue({
+      ...baseCount,
+      reconciled: true,
+    });
 
     await expect(
-      InventoryCountService.reconcile("count-1", "org-1", "user-2"),
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "NO_CHANGE",
+        "Already checked",
+      ),
     ).rejects.toMatchObject({
       statusCode: 409,
       message: "Inventory count is already reconciled.",
     });
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockTx.$executeRaw).not.toHaveBeenCalled();
     expect(mockAudit).not.toHaveBeenCalled();
   });
 
   it("refuses to reconcile a count from another organisation", async () => {
-    mockFindFirst.mockResolvedValue(null);
+    mockTx.inventoryCount.findFirst.mockResolvedValue(null);
 
     await expect(
-      InventoryCountService.reconcile("count-1", "org-2", "user-2"),
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-2",
+        "user-2",
+        "NO_CHANGE",
+        "Checked",
+      ),
     ).rejects.toMatchObject({ statusCode: 404 });
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockTx.$executeRaw).not.toHaveBeenCalled();
   });
 });
 

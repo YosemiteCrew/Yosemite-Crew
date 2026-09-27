@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 import { z } from "zod";
 import {
   InventoryCountService,
@@ -6,18 +7,25 @@ import {
 } from "src/services/inventory-count.service";
 import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
-const RecordCountSchema = z.object({
-  inventoryItemId: z.string().min(1),
-  countedBy: z.string().optional(),
-  countedAt: z.iso.datetime(),
-  systemCount: z.number().int().min(0),
-  physicalCount: z.number().int().min(0),
-  notes: z.string().optional(),
-});
+const RecordCountSchema = z
+  .object({
+    inventoryItemId: z.string().min(1),
+    inventoryBatchId: z.string().min(1).optional(),
+    countedAt: z.iso.datetime(),
+    systemCount: z.number().int().min(0).optional(),
+    physicalCount: z.number().int().min(0),
+    notes: z.string().optional(),
+  })
+  .refine(
+    (value) => value.inventoryBatchId || value.systemCount !== undefined,
+    {
+      message: "A batch or system count is required.",
+    },
+  );
 
 const ReconcileSchema = z.object({
-  reconciledBy: z.string().min(1),
-  notes: z.string().optional(),
+  resolution: z.enum(["STOCK_ADJUSTED", "NO_CHANGE"]),
+  resolutionNotes: z.string().max(1000).optional(),
 });
 
 const handleError = (res: Response, err: unknown) => {
@@ -29,6 +37,8 @@ const handleError = (res: Response, err: unknown) => {
 
 export const InventoryCountController = {
   record: async (req: Request, res: Response) => {
+    const userId = (req as AuthenticatedRequest).userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized." });
     const parsed = RecordCountSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: z.flattenError(parsed.error) });
@@ -37,7 +47,8 @@ export const InventoryCountController = {
       const count = await InventoryCountService.record({
         organisationId: req.params.organisationId,
         inventoryItemId: parsed.data.inventoryItemId,
-        countedBy: parsed.data.countedBy,
+        inventoryBatchId: parsed.data.inventoryBatchId,
+        countedBy: userId,
         countedAt: new Date(parsed.data.countedAt),
         systemCount: parsed.data.systemCount,
         physicalCount: parsed.data.physicalCount,
@@ -63,6 +74,7 @@ export const InventoryCountController = {
 
   list: async (req: Request, res: Response) => {
     const inventoryItemId = req.query.inventoryItemId as string | undefined;
+    const inventoryBatchId = req.query.inventoryBatchId as string | undefined;
     const reconciled = parseOptionalBooleanFlag(req.query.reconciled);
     const fromDate = req.query.fromDate
       ? new Date(req.query.fromDate as string)
@@ -75,6 +87,7 @@ export const InventoryCountController = {
       const counts = await InventoryCountService.list({
         organisationId: req.params.organisationId,
         inventoryItemId,
+        inventoryBatchId,
         reconciled,
         fromDate,
         toDate,
@@ -86,6 +99,8 @@ export const InventoryCountController = {
   },
 
   reconcile: async (req: Request, res: Response) => {
+    const userId = (req as AuthenticatedRequest).userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized." });
     const parsed = ReconcileSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: z.flattenError(parsed.error) });
@@ -94,8 +109,9 @@ export const InventoryCountController = {
       const count = await InventoryCountService.reconcile(
         req.params.countId,
         req.params.organisationId,
-        parsed.data.reconciledBy,
-        parsed.data.notes,
+        userId,
+        parsed.data.resolution,
+        parsed.data.resolutionNotes,
       );
       return res.json(count);
     } catch (err) {

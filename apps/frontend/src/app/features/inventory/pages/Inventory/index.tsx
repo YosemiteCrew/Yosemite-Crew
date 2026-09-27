@@ -1468,6 +1468,7 @@ const useInventoryContent = () => {
             stockLocationOptions={stockLocationOptions}
             initialSection={infoInitialSection}
             organisationId={primaryOrgId ?? undefined}
+            onRefresh={() => inventoryModule.loadInventory(primaryOrgId ?? undefined)}
           />
         )}
       </PermissionGate>

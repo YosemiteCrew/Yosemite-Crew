@@ -15,23 +15,29 @@ export class InventoryCountError extends Error {
 export interface CreateCountParams {
   organisationId: string;
   inventoryItemId: string;
+  inventoryBatchId?: string;
   countedBy?: string;
   countedAt: Date;
-  systemCount: number;
+  systemCount?: number;
   physicalCount: number;
   notes?: string;
 }
+
+export type InventoryCountResolution = "STOCK_ADJUSTED" | "NO_CHANGE";
 
 const countSelect = {
   id: true,
   organisationId: true,
   inventoryItemId: true,
+  inventoryBatchId: true,
   countedBy: true,
   countedAt: true,
   systemCount: true,
   physicalCount: true,
   discrepancy: true,
   notes: true,
+  resolution: true,
+  resolutionNotes: true,
   reconciled: true,
   reconciledAt: true,
   reconciledBy: true,
@@ -51,20 +57,49 @@ const assertCount = async (id: string, organisationId: string) => {
 
 export const InventoryCountService = {
   async record(params: CreateCountParams) {
-    const discrepancy = params.physicalCount - params.systemCount;
+    const item = await prisma.inventoryItem.findFirst({
+      where: {
+        id: params.inventoryItemId,
+        organisationId: params.organisationId,
+      },
+      select: { id: true },
+    });
+    if (!item) throw new InventoryCountError("Inventory item not found.", 404);
+
+    const batch = params.inventoryBatchId
+      ? await prisma.inventoryBatch.findFirst({
+          where: {
+            id: params.inventoryBatchId,
+            itemId: params.inventoryItemId,
+            organisationId: params.organisationId,
+          },
+          select: { id: true, quantity: true },
+        })
+      : null;
+    if (params.inventoryBatchId && !batch) {
+      throw new InventoryCountError("Inventory batch not found.", 404);
+    }
+
+    const systemCount = batch?.quantity ?? params.systemCount;
+    if (systemCount === undefined) {
+      throw new InventoryCountError("A batch is required for this count.", 400);
+    }
+    const discrepancy = params.physicalCount - systemCount;
 
     const count = await prisma.inventoryCount.create({
       data: {
         organisationId: params.organisationId,
         inventoryItemId: params.inventoryItemId,
+        inventoryBatchId: batch?.id ?? null,
         countedBy: params.countedBy ?? null,
         countedAt: params.countedAt,
-        systemCount: params.systemCount,
+        systemCount,
         physicalCount: params.physicalCount,
         discrepancy,
         notes: params.notes ?? null,
         reconciled: discrepancy === 0,
         reconciledAt: discrepancy === 0 ? new Date() : null,
+        resolution: discrepancy === 0 ? "NO_CHANGE" : null,
       },
       select: countSelect,
     });
@@ -80,6 +115,7 @@ export const InventoryCountService = {
       metadata: {
         countId: count.id,
         inventoryItemId: params.inventoryItemId,
+        inventoryBatchId: batch?.id ?? null,
         discrepancy,
         hasDiscrepancy: discrepancy !== 0,
       },
@@ -95,12 +131,19 @@ export const InventoryCountService = {
   async list(params: {
     organisationId: string;
     inventoryItemId?: string;
+    inventoryBatchId?: string;
     reconciled?: boolean;
     fromDate?: Date;
     toDate?: Date;
   }) {
-    const { organisationId, inventoryItemId, reconciled, fromDate, toDate } =
-      params;
+    const {
+      organisationId,
+      inventoryItemId,
+      inventoryBatchId,
+      reconciled,
+      fromDate,
+      toDate,
+    } = params;
     let dateFilter = {};
     if (fromDate || toDate) {
       dateFilter = {
@@ -115,6 +158,7 @@ export const InventoryCountService = {
       where: {
         organisationId,
         ...(inventoryItemId ? { inventoryItemId } : {}),
+        ...(inventoryBatchId ? { inventoryBatchId } : {}),
         ...(reconciled !== undefined ? { reconciled } : {}),
         ...dateFilter,
       },
@@ -127,25 +171,128 @@ export const InventoryCountService = {
     id: string,
     organisationId: string,
     reconciledBy: string,
-    notes?: string,
+    resolution: InventoryCountResolution,
+    resolutionNotes?: string,
   ) {
-    const existing = await assertCount(id, organisationId);
-    if (existing.reconciled) {
+    const reason = resolutionNotes?.trim();
+    if (resolution === "NO_CHANGE" && !reason) {
       throw new InventoryCountError(
-        "Inventory count is already reconciled.",
-        409,
+        "Explain why the counted stock was left unchanged.",
+        400,
       );
     }
 
-    const count = await prisma.inventoryCount.update({
-      where: { id },
-      data: {
-        reconciled: true,
-        reconciledAt: new Date(),
-        reconciledBy,
-        ...(notes ? { notes } : {}),
-      },
-      select: countSelect,
+    const { existing, count } = await prisma.$transaction(async (tx) => {
+      const existing = await tx.inventoryCount.findFirst({
+        where: { id, organisationId },
+        select: countSelect,
+      });
+      if (!existing) {
+        throw new InventoryCountError("Inventory count record not found.", 404);
+      }
+      if (existing.reconciled) {
+        throw new InventoryCountError(
+          "Inventory count is already reconciled.",
+          409,
+        );
+      }
+
+      if (resolution === "STOCK_ADJUSTED") {
+        if (!existing.inventoryBatchId) {
+          throw new InventoryCountError(
+            "Stock adjustments require a batch count.",
+            400,
+          );
+        }
+        const batch = await tx.inventoryBatch.findFirst({
+          where: {
+            id: existing.inventoryBatchId,
+            itemId: existing.inventoryItemId,
+            organisationId,
+          },
+          select: { id: true, quantity: true, allocated: true },
+        });
+        if (!batch) {
+          throw new InventoryCountError("Inventory batch not found.", 404);
+        }
+        if (batch.quantity !== existing.systemCount) {
+          throw new InventoryCountError(
+            "Stock changed after this count was recorded. Record a new count.",
+            409,
+          );
+        }
+        if (existing.physicalCount < batch.allocated) {
+          throw new InventoryCountError(
+            "The count is below stock already allocated for use.",
+            409,
+          );
+        }
+
+        const updatedBatchCount = await tx.$executeRaw`
+          UPDATE "InventoryBatch"
+          SET "quantity" = ${existing.physicalCount}, "updatedAt" = ${new Date()}
+          WHERE "id" = ${batch.id}
+            AND "organisationId" = ${organisationId}
+            AND "quantity" = ${existing.systemCount}
+            AND "allocated" <= ${existing.physicalCount}
+        `;
+        if (updatedBatchCount !== 1) {
+          throw new InventoryCountError(
+            "Stock changed after this count was recorded. Record a new count.",
+            409,
+          );
+        }
+
+        const totals = await tx.inventoryBatch.aggregate({
+          where: {
+            itemId: existing.inventoryItemId,
+            organisationId,
+          },
+          _sum: { quantity: true },
+        });
+        await tx.inventoryItem.update({
+          where: { id: existing.inventoryItemId },
+          data: { onHand: totals._sum.quantity ?? 0 },
+        });
+        await tx.inventoryStockMovement.create({
+          data: {
+            itemId: existing.inventoryItemId,
+            batchId: batch.id,
+            change: existing.discrepancy,
+            reason: "INVENTORY_COUNT_ADJUSTMENT",
+            userId: reconciledBy,
+            referenceId: id,
+          },
+        });
+      }
+
+      const reconciledAt = new Date();
+      const updatedCount = await tx.$executeRaw`
+        UPDATE "InventoryCount"
+        SET "reconciled" = true,
+            "reconciledAt" = ${reconciledAt},
+            "reconciledBy" = ${reconciledBy},
+            "resolution" = ${resolution}::"InventoryCountResolution",
+            "resolutionNotes" = ${reason ?? null},
+            "updatedAt" = ${reconciledAt}
+        WHERE "id" = ${id}
+          AND "organisationId" = ${organisationId}
+          AND "reconciled" = false
+      `;
+      if (updatedCount !== 1) {
+        throw new InventoryCountError(
+          "Inventory count is already reconciled.",
+          409,
+        );
+      }
+      const count = await tx.inventoryCount.findFirst({
+        where: { id, organisationId },
+        select: countSelect,
+      });
+      if (!count) {
+        throw new InventoryCountError("Inventory count record not found.", 404);
+      }
+      return { existing, count };
     });
 
     await AuditTrailService.recordSafely({
@@ -159,7 +306,10 @@ export const InventoryCountService = {
       metadata: {
         countId: id,
         inventoryItemId: existing.inventoryItemId,
+        inventoryBatchId: existing.inventoryBatchId,
         discrepancy: existing.discrepancy,
+        resolution,
+        resolutionNotes: reason ?? null,
       },
     });
 
