@@ -1,5 +1,11 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import {
+  fromLedgerMinorUnits,
+  resolveLedgerExponent,
+  toLedgerMinorUnits,
+} from "src/services/finance/currency";
 import { toWinAnsiSafe } from "src/services/passport-record-pdf";
 
 export type PaymentActivityRow = {
@@ -34,6 +40,7 @@ const REPORT_COLUMNS = [
   "Status",
   "Provider",
   "Amount",
+  "Currency",
   "Invoice",
 ];
 const statusLabel = (status: string): string =>
@@ -47,49 +54,62 @@ const statusLabel = (status: string): string =>
   })[status] ?? "Needs review";
 const providerLabel = (provider: string): string =>
   ({ STRIPE: "Online", MANUAL: "Manual" })[provider] ?? "Other";
+const normalizeCurrency = (currency: string): string =>
+  currency.trim().toUpperCase();
+const addMinorUnits = (total: number, amount: number): number => {
+  const sum = total + amount;
+  if (!Number.isSafeInteger(sum)) {
+    throw new RangeError("Payment activity total exceeds exact integer range");
+  }
+  return sum;
+};
 
 export const getPaymentActivityReport = async (
   organisationId: string,
   from: Date,
   to: Date,
 ): Promise<PaymentActivityReport> => {
-  const [payments, refunds] = await Promise.all([
-    prisma.payment.findMany({
-      where: {
-        status: { in: [...CAPTURED_PAYMENT_STATUSES] },
-        invoice: { is: { organisationId } },
-        OR: [
-          { paidAt: { gte: from, lte: to } },
-          { paidAt: null, createdAt: { gte: from, lte: to } },
-        ],
-      },
-      select: {
-        id: true,
-        amount: true,
-        currency: true,
-        status: true,
-        provider: true,
-        paidAt: true,
-        createdAt: true,
-        invoiceId: true,
-      },
-    }),
-    prisma.refund.findMany({
-      where: {
-        createdAt: { gte: from, lte: to },
-        payment: { is: { invoice: { is: { organisationId } } } },
-      },
-      select: {
-        id: true,
-        amount: true,
-        currency: true,
-        status: true,
-        provider: true,
-        createdAt: true,
-        payment: { select: { invoiceId: true } },
-      },
-    }),
-  ]);
+  const [payments, refunds] = await prisma.$transaction(
+    async (tx) =>
+      Promise.all([
+        tx.payment.findMany({
+          where: {
+            status: { in: [...CAPTURED_PAYMENT_STATUSES] },
+            invoice: { is: { organisationId } },
+            OR: [
+              { paidAt: { gte: from, lte: to } },
+              { paidAt: null, createdAt: { gte: from, lte: to } },
+            ],
+          },
+          select: {
+            id: true,
+            amount: true,
+            currency: true,
+            status: true,
+            provider: true,
+            paidAt: true,
+            createdAt: true,
+            invoiceId: true,
+          },
+        }),
+        tx.refund.findMany({
+          where: {
+            createdAt: { gte: from, lte: to },
+            payment: { is: { invoice: { is: { organisationId } } } },
+          },
+          select: {
+            id: true,
+            amount: true,
+            currency: true,
+            status: true,
+            provider: true,
+            createdAt: true,
+            payment: { select: { invoiceId: true } },
+          },
+        }),
+      ]),
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+  );
 
   const rows: PaymentActivityRow[] = [
     ...payments.map((payment) => ({
@@ -98,7 +118,7 @@ export const getPaymentActivityReport = async (
       type: "Payment" as const,
       status: payment.status,
       provider: payment.provider,
-      currency: payment.currency,
+      currency: normalizeCurrency(payment.currency),
       amount: payment.amount,
       invoiceId: payment.invoiceId,
     })),
@@ -108,7 +128,7 @@ export const getPaymentActivityReport = async (
       type: "Refund" as const,
       status: refund.status,
       provider: refund.provider,
-      currency: refund.currency,
+      currency: normalizeCurrency(refund.currency),
       amount: refund.amount,
       invoiceId: refund.payment.invoiceId,
     })),
@@ -116,24 +136,40 @@ export const getPaymentActivityReport = async (
 
   const totalsByCurrency = new Map<
     string,
-    { payments: number; refunds: number }
+    { exponent: number; payments: number; refunds: number }
   >();
   for (const row of rows) {
-    const totals = totalsByCurrency.get(row.currency) ?? {
+    const currency = normalizeCurrency(row.currency);
+    const exponent = resolveLedgerExponent(currency);
+    const totals = totalsByCurrency.get(currency) ?? {
+      exponent,
       payments: 0,
       refunds: 0,
     };
-    if (row.type === "Payment") totals.payments += row.amount;
-    else if (row.status === "SUCCEEDED") totals.refunds += row.amount;
-    totalsByCurrency.set(row.currency, totals);
+    if (row.type === "Payment") {
+      totals.payments = addMinorUnits(
+        totals.payments,
+        toLedgerMinorUnits(row.amount, exponent),
+      );
+    } else if (row.status === "SUCCEEDED") {
+      totals.refunds = addMinorUnits(
+        totals.refunds,
+        toLedgerMinorUnits(row.amount, exponent),
+      );
+    }
+    totalsByCurrency.set(currency, totals);
   }
 
   return {
     rows,
     totals: [...totalsByCurrency].map(([currency, totals]) => ({
       currency,
-      ...totals,
-      net: totals.payments - totals.refunds,
+      payments: fromLedgerMinorUnits(totals.payments, totals.exponent),
+      refunds: fromLedgerMinorUnits(totals.refunds, totals.exponent),
+      net: fromLedgerMinorUnits(
+        totals.payments - totals.refunds,
+        totals.exponent,
+      ),
     })),
   };
 };
@@ -154,6 +190,7 @@ export const buildPaymentActivityCsv = (
       statusLabel(row.status),
       providerLabel(row.provider),
       String(row.amount),
+      normalizeCurrency(row.currency),
       row.invoiceId,
     ]),
   ]
@@ -202,7 +239,7 @@ export const buildPaymentActivityPdf = async (
       row.type,
       statusLabel(row.status),
       providerLabel(row.provider),
-      `${row.type === "Refund" ? "-" : ""}${row.amount.toString()} ${row.currency}`,
+      `${row.type === "Refund" && row.status === "SUCCEEDED" ? "-" : ""}${row.amount.toString()} ${normalizeCurrency(row.currency)}`,
       row.invoiceId,
     ];
     values.forEach((value, index) => {

@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFPage } from "pdf-lib";
 import { prisma } from "src/config/prisma";
 import {
   buildPaymentActivityCsv,
@@ -10,6 +10,7 @@ import {
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
     payment: { findMany: jest.fn() },
     refund: { findMany: jest.fn() },
   },
@@ -40,6 +41,9 @@ const report = (rows: PaymentActivityRow[]): PaymentActivityReport => ({
 describe("payment activity report", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      (callback: (tx: typeof prisma) => unknown) => callback(prisma),
+    );
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.refund.findMany as jest.Mock).mockResolvedValue([]);
   });
@@ -48,7 +52,7 @@ describe("payment activity report", () => {
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([
       {
         id: "payment-1",
-        amount: 100,
+        amount: 0.1,
         currency: "EUR",
         status: "SUCCEEDED",
         provider: "STRIPE",
@@ -58,8 +62,8 @@ describe("payment activity report", () => {
       },
       {
         id: "payment-2",
-        amount: 25,
-        currency: "USD",
+        amount: 0.2,
+        currency: "eur",
         status: "REFUNDED",
         provider: "CASH",
         paidAt: null,
@@ -80,7 +84,7 @@ describe("payment activity report", () => {
       {
         id: "refund-2",
         amount: 4,
-        currency: "EUR",
+        currency: "Eur",
         status: "PENDING",
         provider: "STRIPE",
         createdAt: new Date("2026-09-12T00:00:00.000Z"),
@@ -104,6 +108,9 @@ describe("payment activity report", () => {
         }),
       }),
     );
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "RepeatableRead",
+    });
     expect(result.rows.map((entry) => entry.type)).toEqual([
       "Refund",
       "Refund",
@@ -113,8 +120,7 @@ describe("payment activity report", () => {
     expect(result.rows[2]?.date).toEqual(new Date("2026-09-10T00:00:00.000Z"));
     expect(result.rows[3]?.date).toEqual(new Date("2026-09-08T00:00:00.000Z"));
     expect(result.totals).toEqual([
-      { currency: "EUR", payments: 100, refunds: 30, net: 70 },
-      { currency: "USD", payments: 25, refunds: 0, net: 25 },
+      { currency: "EUR", payments: 0.3, refunds: 30, net: -29.7 },
     ]);
   });
 
@@ -132,12 +138,12 @@ describe("payment activity report", () => {
     );
 
     expect(csv).toContain(
-      '"Date (UTC)","Type","Status","Provider","Amount","Invoice"',
+      '"Date (UTC)","Type","Status","Provider","Amount","Currency","Invoice"',
     );
     expect(csv).toContain(
-      '"Refund","Completed","Online","25.5","\'=HYPERLINK(""bad"")"',
+      '"Refund","Completed","Online","25.5","EUR","\'=HYPERLINK(""bad"")"',
     );
-    expect(csv).toContain('"25.5","\'-1+2"');
+    expect(csv).toContain('"25.5","EUR","\'-1+2"');
     expect(csv).toContain('"Needs review","Other"');
   });
 
@@ -162,5 +168,23 @@ describe("payment activity report", () => {
 
     const document = await PDFDocument.load(pdf);
     expect(document.getPageCount()).toBe(1);
+  });
+
+  it("shows only completed refunds as debits in the PDF", async () => {
+    const drawText = jest.spyOn(PDFPage.prototype, "drawText");
+
+    await buildPaymentActivityPdf(
+      report([
+        row({ type: "Refund", status: "PENDING", amount: 5 }),
+        row({ type: "Refund", status: "SUCCEEDED", amount: 7 }),
+      ]),
+      from,
+      to,
+    );
+
+    const renderedText = drawText.mock.calls.map(([text]) => text);
+    expect(renderedText).toContain("5 EUR");
+    expect(renderedText).toContain("-7 EUR");
+    drawText.mockRestore();
   });
 });

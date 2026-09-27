@@ -193,6 +193,9 @@ describe('Finance page', () => {
       'href',
       '/finance/reports'
     );
+    expect(screen.getByRole('link', { name: 'View payment reports' }).parentElement).toHaveClass(
+      'flex-wrap'
+    );
     expect(screen.queryByTestId('invoice-table')).not.toBeInTheDocument();
     expect(phoneListSpy).toHaveBeenCalledWith(
       expect.objectContaining({

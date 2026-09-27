@@ -49,6 +49,7 @@ const providerLabels: Record<string, string> = {
   STRIPE: 'Online',
   MANUAL: 'Manual',
 };
+const MAX_REPORT_RANGE_MS = 366 * 24 * 60 * 60 * 1000;
 
 const reportColumns: Column<PaymentActivityReportData['rows'][number]>[] = [
   {
@@ -84,7 +85,7 @@ const reportColumns: Column<PaymentActivityReportData['rows'][number]>[] = [
     width: '145px',
     render: (row) => (
       <span className="whitespace-nowrap tabular-nums text-text-primary">
-        {row.type === 'Refund' ? '−' : ''}
+        {row.type === 'Refund' && row.status === 'SUCCEEDED' ? '−' : ''}
         {formatMoneyPrecise(row.amount, row.currency)}
       </span>
     ),
@@ -136,8 +137,19 @@ const PaymentActivityReportContent = () => {
 
   const runReport = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!fromDate || !toDate || fromDate > toDate) {
-      if (reportKey) setErrorState({ key: reportKey, message: 'Choose a valid date range.' });
+    if (
+      !fromDate ||
+      !toDate ||
+      fromDate > toDate ||
+      new Date(`${toDate}T00:00:00.000Z`).getTime() -
+        new Date(`${fromDate}T00:00:00.000Z`).getTime() >=
+        MAX_REPORT_RANGE_MS
+    ) {
+      if (reportKey)
+        setErrorState({
+          key: reportKey,
+          message: 'Choose a valid date range of 366 days or less.',
+        });
       return;
     }
     setErrorState(null);

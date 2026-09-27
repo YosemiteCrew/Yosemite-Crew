@@ -283,6 +283,22 @@ describe("FinanceController", () => {
       expect(mockedGetPaymentActivityReport).not.toHaveBeenCalled();
     });
 
+    it("rejects a report range longer than 366 days", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query: {
+          from: "2025-01-01T00:00:00.000Z",
+          to: "2026-01-02T00:00:00.000Z",
+        },
+      });
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedGetPaymentActivityReport).not.toHaveBeenCalled();
+    });
+
     it("sends a CSV attachment with a date-based filename", async () => {
       setReq({
         params: { organisationId: "org-1" },

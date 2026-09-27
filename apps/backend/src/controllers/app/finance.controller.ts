@@ -291,6 +291,15 @@ const PaymentActivityReportQuerySchema = z
       path: ["to"],
       message: "The end date must be on or after the start date.",
     },
+  )
+  .refine(
+    ({ from, to }) =>
+      new Date(to).getTime() - new Date(from).getTime() <
+      366 * 24 * 60 * 60 * 1000,
+    {
+      path: ["to"],
+      message: "The selected date range must be 366 days or less.",
+    },
   );
 
 /**

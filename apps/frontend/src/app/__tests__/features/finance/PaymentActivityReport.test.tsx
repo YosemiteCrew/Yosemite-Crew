@@ -105,6 +105,16 @@ const report = {
       invoiceId: 'inv-1',
     },
     {
+      id: 'refund-2',
+      date: '2026-09-27T11:30:00.000Z',
+      type: 'Refund',
+      status: 'SUCCEEDED',
+      provider: 'MANUAL',
+      currency: 'USD',
+      amount: 3,
+      invoiceId: 'inv-1',
+    },
+    {
       id: 'future-1',
       date: '2026-09-27T12:00:00.000Z',
       type: 'Payment',
@@ -132,14 +142,20 @@ describe('PaymentActivityReportPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'Payments and refunds' })
     ).toBeInTheDocument();
-    await screen.findByText('Completed');
+    await screen.findAllByText('Completed');
     expect(screen.getAllByText('USD 25.00')).toHaveLength(3);
-    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.getAllByText('Completed')).toHaveLength(2);
     expect(screen.getByText('Online')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
-    expect(screen.getByText('Manual')).toBeInTheDocument();
+    expect(screen.getAllByText('Manual')).toHaveLength(2);
     expect(screen.getByText('Needs review')).toBeInTheDocument();
     expect(screen.getByText('Other')).toBeInTheDocument();
+    expect(screen.getByText('USD 5.00').closest('span')).not.toHaveTextContent('−');
+    expect(
+      screen.getByText(
+        (_, element) => element?.tagName === 'SPAN' && element.textContent === '−USD 3.00'
+      )
+    ).toBeInTheDocument();
     expect(mockFetch).toHaveBeenCalledWith(
       'org-1',
       expect.stringContaining('T00:00:00.000Z'),
@@ -156,7 +172,22 @@ describe('PaymentActivityReportPage', () => {
     fireEvent.change(to, { target: { value: '2026-09-01' } });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Run report' })));
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Choose a valid date range.');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Choose a valid date range of 366 days or less.'
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a date range longer than 366 days before requesting data', async () => {
+    render(<PaymentActivityReportPage />);
+    await screen.findByRole('heading', { name: 'Payments and refunds' });
+    fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2025-01-01' } });
+    fireEvent.change(screen.getByLabelText('To date'), { target: { value: '2026-01-02' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Run report' })));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Choose a valid date range of 366 days or less.'
+    );
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
@@ -202,7 +233,7 @@ describe('PaymentActivityReportPage', () => {
       .mockImplementation(() => undefined);
     render(<PaymentActivityReportPage />);
     await screen.findByRole('heading', { name: 'Payments and refunds' });
-    await screen.findByText('Completed');
+    await screen.findAllByText('Completed');
 
     await act(async () =>
       fireEvent.click(screen.getByRole('button', { name: 'Download CSV report' }))
