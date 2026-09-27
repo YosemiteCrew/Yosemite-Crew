@@ -55,6 +55,7 @@ https://github.com/user-attachments/assets/3f26baf9-5012-4026-90f9-bf64fc40284d
 - [Local Development](#local-development)
 - [Security and Quality](#security-and-quality)
 - [Documentation](#documentation)
+- [Current capabilities](./docs/current-capabilities.md)
 - [Contributing and Community](#contributing-and-community)
 - [License](#license)
 
@@ -359,6 +360,7 @@ Contribution requirements: [engineering standards](./docs/engineering-standards.
 | Resource                                                                          | What it covers                                                   |
 | --------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | [Developer documentation](./apps/frontend/content/docs)                           | Platform and API documentation, served by the web app at `/docs` |
+| [Current capabilities](./docs/current-capabilities.md)                            | Shipped product surfaces and links to their source and guides    |
 | [User skills](#skills-for-users)                                                  | Standalone workflows for buyers, practice teams, and pet owners  |
 | [Database guide](./packages/database/README.md)                                   | Prisma setup, migrations, and existing-database precautions      |
 | [MCP server guide](./packages/mcp-server/README.md)                               | Optional read-only developer API tools                           |
