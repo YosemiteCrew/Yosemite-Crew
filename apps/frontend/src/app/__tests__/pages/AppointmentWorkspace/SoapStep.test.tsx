@@ -152,6 +152,33 @@ describe('SoapStep', () => {
     });
   });
 
+  it('inserts saved section wording into a SOAP draft without replacing existing text', async () => {
+    const base = seedAndGet();
+    const encounter = {
+      ...base,
+      soap: [{ ...base.soap[0], subjective: '<p>Existing history</p>' }],
+      soapTemplates: [
+        {
+          id: 'tpl-snippet',
+          name: 'Recheck wording',
+          content: { subjective: '<p>Mobility has improved.</p>' },
+        },
+      ],
+    };
+    renderSoapStep(encounter);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Insert saved text into Subjective history' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Recheck wording' }));
+
+    const editor = screen.getByRole('textbox', { name: 'Subjective history' });
+    await waitFor(() => {
+      expect(editor).toHaveTextContent('Existing history');
+      expect(editor).toHaveTextContent('Mobility has improved.');
+    });
+  });
+
   it('uses the resolved template payload so SOAP content refreshes when selecting a template from search', async () => {
     const encounter = seedAndGet();
     (getWorkspaceTemplateById as jest.Mock).mockResolvedValue({

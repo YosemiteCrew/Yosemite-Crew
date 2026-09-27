@@ -201,6 +201,7 @@ type SoapDraftEditorProps = {
   chipTemplateOptions: ReturnType<typeof buildSoapTemplateOptions>['options'];
   resolvedTemplateName?: string;
   onTemplateChipSelect: (templateId: string) => void;
+  templates: SoapTemplate[];
   saveState?: { status?: 'idle' | 'saving' | 'saved' | 'offline'; at?: string };
   templateSearchRef: React.RefObject<HTMLDivElement | null>;
   templateQuery: string;
@@ -229,6 +230,7 @@ const SoapDraftEditor = ({
   chipTemplateOptions,
   resolvedTemplateName,
   onTemplateChipSelect,
+  templates,
   saveState,
   templateSearchRef,
   templateQuery,
@@ -280,6 +282,7 @@ const SoapDraftEditor = ({
             objective={note.objective}
             assessment={note.assessment}
             plan={note.plan}
+            templates={templates}
             codedProblems={note.codedProblems}
             codedTermSpecies={resolveClinicalTermSpecies(companionSpecies)}
             terminologyText={terminologyText}
@@ -568,6 +571,7 @@ const SoapStep = ({
           chipTemplateOptions={chipTemplateOptions}
           resolvedTemplateName={resolvedTemplateName}
           onTemplateChipSelect={handleTemplateChipSelect}
+          templates={encounter.soapTemplates}
           saveState={saveState}
           templateSearchRef={templateSearchRef}
           templateQuery={templateQuery}

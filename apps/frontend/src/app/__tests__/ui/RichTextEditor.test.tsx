@@ -47,6 +47,27 @@ describe('RichTextEditor', () => {
     );
   });
 
+  it('inserts new template content without replacing existing rich text', () => {
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <RichTextEditor value="<p>Care plan</p>" onChange={onChange} ariaLabel="Subjective" />
+    );
+    const textbox = screen.getByRole('textbox', { name: 'Subjective' });
+    fireEvent.focus(textbox);
+    rerender(
+      <RichTextEditor
+        value="<p>Care plan</p>"
+        onChange={onChange}
+        ariaLabel="Subjective"
+        insertRequest={{ id: 1, html: '<p>saved phrase</p>' }}
+      />
+    );
+
+    expect(textbox).toHaveTextContent('Care plan');
+    expect(textbox).toHaveTextContent('saved phrase');
+    expect(onChange).toHaveBeenCalled();
+  });
+
   it('docks the toolbar inside the field and shows the placeholder', () => {
     render(
       <RichTextEditor

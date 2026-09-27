@@ -163,7 +163,20 @@ const meta = {
     appointmentReason: 'Limping on the front left leg since yesterday evening.',
     appointmentSpeciality: 'Orthopaedics',
     appointmentService: 'Lameness consultation',
-    encounter: encounter(),
+    encounter: encounter({
+      soapTemplates: [
+        {
+          id: 'soap-recheck',
+          name: 'Recheck wording',
+          content: {
+            subjective: '<p>Owner reports improved mobility.</p>',
+            objective: '<p>Gait is improved on examination.</p>',
+            assessment: '<p>Clinical signs are resolving.</p>',
+            plan: '<p>Continue the current care plan and recheck as needed.</p>',
+          },
+        },
+      ],
+    }),
     visitStarted: true,
     onRecordVitals: fn(),
     onSaveAndNext: fn(),

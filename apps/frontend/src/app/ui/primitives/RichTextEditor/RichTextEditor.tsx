@@ -10,6 +10,7 @@ import './RichTextEditor.css';
 type RichTextEditorProps = {
   value: string;
   onChange: (html: string) => void;
+  insertRequest?: { id: number; html: string };
   placeholder?: string;
   readOnly?: boolean;
   ariaLabel: string;
@@ -27,6 +28,7 @@ type RichTextEditorProps = {
 const RichTextEditor = ({
   value,
   onChange,
+  insertRequest,
   placeholder,
   readOnly = false,
   ariaLabel,
@@ -38,6 +40,7 @@ const RichTextEditor = ({
   // `value`) must not destroy and rebuild the editor, which reset DOM focus and
   // the cursor after a single keystroke (the reported bug).
   const onChangeRef = useRef(onChange);
+  const lastInsertIdRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     onChangeRef.current = onChange;
   });
@@ -83,6 +86,17 @@ const RichTextEditor = ({
   useEffect(() => {
     editor?.setEditable(!readOnly);
   }, [editor, readOnly]);
+
+  useEffect(() => {
+    if (!editor || readOnly || !insertRequest || lastInsertIdRef.current === insertRequest.id)
+      return;
+    lastInsertIdRef.current = insertRequest.id;
+    editor
+      .chain()
+      .focus(undefined, { scrollIntoView: false })
+      .insertContent(insertRequest.html)
+      .run();
+  }, [editor, insertRequest, readOnly]);
 
   const label = (
     <span id={labelId} className="sr-only">
