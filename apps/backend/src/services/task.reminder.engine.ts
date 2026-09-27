@@ -1,9 +1,11 @@
 // src/services/task.reminder.engine.ts
 import dayjs from "dayjs";
+import type { Task } from "@prisma/client";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 
 import { prisma } from "src/config/prisma";
+import { parentHasCompanionFeature } from "src/middlewares/companion-access";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 
@@ -16,6 +18,35 @@ export class TaskReminderEngineError extends Error {
     this.name = "TaskReminderEngineError";
   }
 }
+
+/**
+ * The companion a task's reminder names, or null when there is no one to
+ * remind: no companion, or a parent who may no longer work on its tasks.
+ */
+const companionToRemindAbout = async (
+  task: Pick<Task, "id" | "patientId" | "audience" | "assignedTo">,
+): Promise<{ name: string } | null> => {
+  // A task without a companion has no one to name; an unset id must
+  // never reach the query, where it would match any companion.
+  const companion = task.patientId
+    ? await prisma.patient.findFirst({
+        where: { id: task.patientId },
+        select: { name: true },
+      })
+    : null;
+  if (!companion) {
+    console.warn(`Skipping reminder for task ${task.id}; companion not found`);
+    return null;
+  }
+
+  if (
+    task.audience === "PARENT_TASK" &&
+    !(await parentHasCompanionFeature(task.assignedTo, task.patientId, "tasks"))
+  ) {
+    return null;
+  }
+  return companion;
+};
 
 export const TaskReminderEngine = {
   /**
@@ -61,20 +92,8 @@ export const TaskReminderEngine = {
 
         const humanTime = dueAtLocal.format("MMM D, h:mm A");
 
-        // A task without a companion has no one to name; an unset id must
-        // never reach the query, where it would match any companion.
-        const companion = task.patientId
-          ? await prisma.patient.findFirst({
-              where: { id: task.patientId },
-              select: { name: true },
-            })
-          : null;
-        if (!companion) {
-          console.warn(
-            `Skipping reminder for task ${task.id}; companion not found`,
-          );
-          continue;
-        }
+        const companion = await companionToRemindAbout(task);
+        if (!companion) continue;
 
         const payload = NotificationTemplates.Task.TASK_DUE_REMINDER(
           companion.name,

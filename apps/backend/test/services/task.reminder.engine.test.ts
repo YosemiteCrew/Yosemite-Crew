@@ -6,6 +6,9 @@ const prismaMock = {
   patient: {
     findFirst: jest.fn(),
   },
+  parentPatient: {
+    findFirst: jest.fn(),
+  },
 };
 
 jest.mock("src/config/prisma", () => ({
@@ -149,6 +152,75 @@ describe("TaskReminderEngine", () => {
       await TaskReminderEngine.run();
 
       expect(sendToUserMock).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  describe("a parent task", () => {
+    const parentTask = () =>
+      dueTask({ audience: "PARENT_TASK", assignedTo: "parent-1" });
+
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date("2026-01-01T12:00:01.000Z") });
+      prismaMock.task.findMany.mockResolvedValue([parentTask()]);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      prismaMock.parentPatient.findFirst.mockReset();
+    });
+
+    it("reminds a parent who may work on the companion's tasks", async () => {
+      prismaMock.parentPatient.findFirst.mockResolvedValue({
+        role: "CO_PARENT",
+        permissions: { tasks: true },
+      });
+
+      await TaskReminderEngine.run();
+
+      expect(prismaMock.parentPatient.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            parentId: "parent-1",
+            patientId: "patient-1",
+            status: "ACTIVE",
+          }),
+        }),
+      );
+      expect(sendToUserMock).toHaveBeenCalledWith(
+        "parent-1",
+        expect.objectContaining({ taskName: "Give medication" }),
+      );
+    });
+
+    it.each([
+      [
+        "a co-parent whose tasks access is off",
+        { role: "CO_PARENT", permissions: { tasks: false } },
+      ],
+      ["a parent no longer linked to the companion", null],
+    ])("does not remind %s", async (_label, link) => {
+      prismaMock.parentPatient.findFirst.mockResolvedValue(link);
+
+      await TaskReminderEngine.run();
+
+      expect(sendToUserMock).not.toHaveBeenCalled();
+      expect(prismaMock.task.update).not.toHaveBeenCalled();
+    });
+  });
+
+  it("reminds a staff assignee without a parent access check", async () => {
+    jest.useFakeTimers({ now: new Date("2026-01-01T12:00:01.000Z") });
+    try {
+      prismaMock.task.findMany.mockResolvedValue([
+        dueTask({ audience: "EMPLOYEE_TASK", assignedTo: "vet-1" }),
+      ]);
+
+      await TaskReminderEngine.run();
+
+      expect(prismaMock.parentPatient.findFirst).not.toHaveBeenCalled();
+      expect(sendToUserMock).toHaveBeenCalledWith("vet-1", expect.anything());
     } finally {
       jest.useRealTimers();
     }

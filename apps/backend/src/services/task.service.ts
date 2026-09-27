@@ -12,7 +12,10 @@ import { AuditTrailService } from "./audit-trail.service";
 import type { TaskWorkflowSeed } from "./task-workflow-materializer";
 import { sendEmailTemplate } from "../utils/email";
 import logger from "../utils/logger";
-import { hasCompanionFeature } from "src/middlewares/companion-access";
+import {
+  hasCompanionFeature,
+  parentHasCompanionFeature,
+} from "src/middlewares/companion-access";
 
 export class TaskServiceError extends Error {
   constructor(
@@ -1464,55 +1467,63 @@ const listTasksMatching = async (
   return tasks.map(toTaskLike);
 };
 
-/**
- * Who a task may be given to. A staff task goes to an active member of the
- * task's organisation, or to no one yet; a parent task goes to a parent with
- * an ACTIVE link to the task's companion. Anyone else answers as not found.
- * Every create and every change of assignee goes through here.
- */
-const assertTaskAssignee = async (input: {
+type TaskAssigneeInput = {
   organisationId?: string | null;
   audience: TaskAudience;
   assignedTo: unknown;
   patientId?: string | null;
-}): Promise<void> => {
-  const notFound = () => new TaskServiceError("Assignee not found", 404);
+};
+
+/**
+ * Who a task may be given to. A staff task goes to an active member of the
+ * task's organisation, or to no one yet; a parent task goes to a parent with
+ * an ACTIVE link to the task's companion who may work on its tasks: a primary
+ * parent always, a co-parent only while their tasks access is on.
+ */
+const isPermittedTaskAssignee = async (
+  input: TaskAssigneeInput,
+): Promise<boolean> => {
   const blank =
     input.assignedTo === undefined ||
     input.assignedTo === null ||
     (typeof input.assignedTo === "string" && !input.assignedTo.trim());
-  if (blank && input.audience === "EMPLOYEE_TASK") return;
+  if (blank && input.audience === "EMPLOYEE_TASK") return true;
 
   const assignedTo = asNonEmptyString(input.assignedTo);
-  if (!assignedTo) throw notFound();
+  if (!assignedTo) return false;
 
   if (input.audience === "PARENT_TASK") {
-    const patientId = asNonEmptyString(input.patientId);
-    const link = patientId
-      ? await prisma.parentPatient.findFirst({
-          where: { parentId: assignedTo, patientId, status: "ACTIVE" },
-          select: { id: true },
-        })
-      : null;
-    if (!link) throw notFound();
-    return;
+    return parentHasCompanionFeature(
+      assignedTo,
+      asNonEmptyString(input.patientId),
+      "tasks",
+    );
   }
 
   const organisationId = asNonEmptyString(input.organisationId);
-  const member = organisationId
-    ? await prisma.userOrganization.findFirst({
-        where: {
-          practitionerReference: assignedTo,
-          active: true,
-          OR: [
-            { organizationReference: organisationId },
-            { organizationReference: `Organization/${organisationId}` },
-          ],
-        },
-        select: { id: true },
-      })
-    : null;
-  if (!member) throw notFound();
+  if (!organisationId) return false;
+  const member = await prisma.userOrganization.findFirst({
+    where: {
+      practitionerReference: assignedTo,
+      active: true,
+      OR: [
+        { organizationReference: organisationId },
+        { organizationReference: `Organization/${organisationId}` },
+      ],
+    },
+    select: { id: true },
+  });
+  return !!member;
+};
+
+const assigneeNotFound = () => new TaskServiceError("Assignee not found", 404);
+
+/**
+ * Every create and every change of assignee goes through here. Anyone the
+ * task may not be given to answers as not found.
+ */
+const assertTaskAssignee = async (input: TaskAssigneeInput): Promise<void> => {
+  if (!(await isPermittedTaskAssignee(input))) throw assigneeNotFound();
 };
 
 /**
@@ -1840,13 +1851,22 @@ export const TaskService = {
     });
     await assertCompanionInOrganisation(input.patientId, input.organisationId);
 
+    // The assignee comes from the appointment. A staff member who is no longer
+    // with the practice leaves the task unassigned rather than failing the
+    // submission; a parent task still needs a parent who may work on it.
+    let assignedTo = input.assignedTo;
+    if (!(await isPermittedTaskAssignee(input))) {
+      if (input.audience !== "EMPLOYEE_TASK") throw assigneeNotFound();
+      assignedTo = "";
+    }
+
     const mapped = await createTaskRow(options?.client ?? prisma, {
       organisationId: input.organisationId,
       appointmentId: input.appointmentId,
       patientId: input.patientId,
       createdBy: input.createdBy,
       assignedBy: input.assignedBy,
-      assignedTo: input.assignedTo,
+      assignedTo,
       audience: input.audience,
       source: input.source,
       libraryTaskId: input.libraryTaskId,
