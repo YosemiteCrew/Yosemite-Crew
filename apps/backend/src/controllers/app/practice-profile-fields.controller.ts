@@ -9,8 +9,8 @@ import {
 } from "src/services/practice-profile-fields.service";
 
 const entityTypeSchema = z.enum(["CLIENT", "PATIENT"]);
-const entityIdSchema = z.string().uuid();
-const fieldIdSchema = z.string().uuid();
+const entityIdSchema = z.uuid();
+const fieldIdSchema = z.uuid();
 const fieldTypeSchema = z.enum(["TEXT", "NUMBER", "DATE", "BOOLEAN", "SELECT"]);
 const fieldSchema = z.object({
   label: z.string().trim().min(1).max(80),

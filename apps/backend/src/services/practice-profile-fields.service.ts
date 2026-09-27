@@ -31,7 +31,7 @@ const invalidRequest = () =>
   new PracticeProfileFieldsError("Invalid request.", 400);
 const notFound = () =>
   new PracticeProfileFieldsError("Profile not found.", 404);
-const uuidSchema = z.string().uuid();
+const uuidSchema = z.uuid();
 const parseUuid = (value: unknown) =>
   uuidSchema.parse(typeof value === "string" ? value : "");
 
