@@ -1785,6 +1785,37 @@ describe("consent template documents (#3600)", () => {
       ]);
     });
 
+    // A form the appointment's templates send the client, filled in by the
+    // practice first: the request is answered, and no longer the client's.
+    it("is answered by a practice save of a form sent with the appointment's templates", async () => {
+      seedTemplate("tpl-intake", "FORM", {
+        category: "Custom",
+        assigned: false,
+      });
+      await FormAssignmentService.createForAppointment({
+        organisationId: ORG,
+        appointmentId: APPOINTMENT,
+        templateId: "tpl-intake",
+        createdBy: "SYSTEM",
+      });
+
+      await submitFromPms("tpl-intake");
+
+      expect(store.formAssignments).toEqual([
+        expect.objectContaining({
+          createdBy: "SYSTEM",
+          signingRequired: false,
+          status: "SUBMITTED",
+        }),
+      ]);
+      await expect(formSummaries()).resolves.toEqual([
+        expect.objectContaining({ status: "completed" }),
+      ]);
+      await expect(submitFromMobile("tpl-intake")).rejects.toMatchObject({
+        statusCode: 409,
+      });
+    });
+
     it("stays the client's after a staff save that follows it", async () => {
       seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
       const parentSubmit = await submitFromMobile("tpl-consent");

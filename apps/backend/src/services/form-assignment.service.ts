@@ -753,10 +753,12 @@ export const FormAssignmentService = {
       ? resolveCompanionId(appointment, parsed.companionId)
       : (parsed.companionId ?? undefined);
 
+    // The signer is checked against the appointment's own companion, never
+    // one the caller names.
     if (parsed.signerIdentity?.userId) {
       await ensureNamedSigner(
         parsed.signerIdentity.userId,
-        companionId,
+        resolvePatientId(appointment.patient),
         version.clientSigns,
       );
     }

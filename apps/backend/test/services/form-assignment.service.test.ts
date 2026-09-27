@@ -495,6 +495,42 @@ describe("FormAssignmentService", () => {
         assignmentId: "assignment-1",
       });
     });
+
+    // The signer is a parent of the appointment's companion; a companion the
+    // caller names does not stand in for it.
+    it("checks the signer against the appointment's companion, not the caller's", async () => {
+      mockedPrisma.parentPatient.findFirst.mockResolvedValue({
+        role: "PRIMARY",
+        permissions: {},
+      });
+      const sendFor = (companionId: string) =>
+        FormAssignmentService.createForAppointment({
+          organisationId: "org-1",
+          appointmentId: "appt-1",
+          templateId: "template-1",
+          createdBy: "user-1",
+          companionId,
+          signerIdentity: { userId: "parent-9" },
+        });
+
+      await sendFor("comp-other");
+      expect(mockedPrisma.parentPatient.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ patientId: "comp-1" }),
+        }),
+      );
+
+      mockedPrisma.parentPatient.findFirst.mockClear();
+      mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+        id: "appt-1",
+        organisationId: "org-1",
+        patient: {},
+      });
+      await expect(sendFor("comp-other")).rejects.toMatchObject({
+        statusCode: 400,
+      });
+      expect(mockedPrisma.parentPatient.findFirst).not.toHaveBeenCalled();
+    });
   });
 
   describe("sending a form the client already has", () => {
