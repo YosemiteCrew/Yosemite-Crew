@@ -15,6 +15,12 @@ type NavTile = {
 
 const NAV_TILES: NavTile[] = [
   {
+    href: '/developers/integrations',
+    icon: 'ion:cube-outline',
+    title: 'Integrations',
+    meta: 'Build and release',
+  },
+  {
     href: '/developers/connect',
     icon: 'ion:code-slash-outline',
     title: 'Connect',

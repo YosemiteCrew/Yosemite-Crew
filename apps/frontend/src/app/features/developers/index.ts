@@ -7,3 +7,4 @@ export { default as DeveloperSettings } from '@/app/features/developers/pages/De
 export { default as DeveloperPlugins } from '@/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins';
 export { default as DeveloperPlayground } from '@/app/features/developers/pages/DeveloperPlayground/DeveloperPlayground';
 export { default as DeveloperWebsiteBuilder } from '@/app/features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder';
+export { default as DeveloperMyIntegrations } from '@/app/features/developers/pages/DeveloperMyIntegrations/DeveloperMyIntegrations';
