@@ -245,20 +245,23 @@ describe("Upload Middleware", () => {
       expect(mockGetSignedUrlPromise).not.toHaveBeenCalled();
     });
 
-    it.each(["image/jpeg", "image/png", "application/pdf"])(
-      "mints an upload URL for the allowed type %s",
-      async (mimeType) => {
-        mockGetSignedUrlPromise.mockResolvedValueOnce("https://presigned");
-        await expect(
-          generatePresignedUrl(mimeType, "temp", "user-1"),
-        ).resolves.toMatchObject({
-          url: "https://presigned",
-          key: expect.stringMatching(
-            new RegExp(`^${tempUploadPrefixFor("user-1")}mock-uuid`),
-          ),
-        });
-      },
-    );
+    it.each([
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+    ])("mints an upload URL for the allowed type %s", async (mimeType) => {
+      mockGetSignedUrlPromise.mockResolvedValueOnce("https://presigned");
+      await expect(
+        generatePresignedUrl(mimeType, "temp", "user-1"),
+      ).resolves.toMatchObject({
+        url: "https://presigned",
+        key: expect.stringMatching(
+          new RegExp(`^${tempUploadPrefixFor("user-1")}mock-uuid`),
+        ),
+      });
+    });
   });
 
   describe("moveFile", () => {
@@ -480,6 +483,12 @@ describe("presigned upload mime allowlists", () => {
     "image/webp",
   ])("accepts %s for a document upload", (mimeType) => {
     expect(isAllowedMimeType(mimeType)).toBe(true);
+  });
+
+  it("takes a gif wherever a picture is taken", () => {
+    expect(isAllowedMimeType("image/gif")).toBe(true);
+    expect(isAllowedMimeType("image/gif", ATTACHMENT_MIME_TYPES)).toBe(true);
+    expect(isAllowedMimeType("image/gif", IMAGE_ONLY_MIME_TYPES)).toBe(true);
   });
 
   it.each(["text/html", "application/javascript", "image/svg+xml"])(

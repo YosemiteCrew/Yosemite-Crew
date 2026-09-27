@@ -19,6 +19,7 @@ const IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
   "image/png",
+  "image/gif",
   "image/heic",
   "image/heif",
   "image/webp",
