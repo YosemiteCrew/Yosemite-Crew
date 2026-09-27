@@ -435,7 +435,26 @@
       "source": "Instrucciones de {{practice}}",
       "unavailable": "Las instrucciones de preparación no están disponibles. Contacta con la clínica si necesitas indicaciones antes de la visita.",
       "paperworkTitle": "Documentación asignada",
-      "noPaperwork": "No hay documentación asignada para esta cita."
+      "noPaperwork": "No hay documentación asignada para esta cita.",
+      "notesTitle": "Tus notas para la visita",
+      "notesDescription": "Escribe o dicta notas, elige qué incluir y revisa el mensaje antes de enviarlo a la clínica.",
+      "observations": "Observaciones",
+      "observationsPlaceholder": "Cambios, síntomas, cuándo ocurrieron u otros detalles que hayas notado",
+      "questions": "Preguntas",
+      "questionsPlaceholder": "Preguntas que quieras hacer durante la visita",
+      "includeWhenSending": "Incluir al enviar",
+      "includeWhenSendingField": "Incluir {{field}} al enviar",
+      "observationsHeading": "Observaciones:",
+      "questionsHeading": "Preguntas:",
+      "speakFor": "Dictar {{field}}",
+      "readBack": "Leer en voz alta las notas seleccionadas",
+      "stopReadBack": "Detener lectura",
+      "reviewInChat": "Revisar las notas seleccionadas en el chat",
+      "voiceErrorTitle": "Entrada de voz no disponible",
+      "voicePermissionDenied": "Permite el acceso al micrófono y al reconocimiento de voz para dictar notas de la visita.",
+      "voiceUnavailable": "La entrada de voz no está disponible en este dispositivo. Puedes escribir las notas.",
+      "voiceFailed": "La aplicación no pudo reconocer la voz. Inténtalo de nuevo o escribe las notas.",
+      "readBackFailed": "La aplicación no pudo leer estas notas en voz alta."
     }
   },
   "account": {

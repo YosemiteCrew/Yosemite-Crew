@@ -261,6 +261,14 @@ export interface AppointmentsState {
    * say how old what the user is reading actually is.
    */
   lastLoadedAt: Record<string, number>;
+  visitPreparationDrafts: Record<string, VisitPreparationDraft>;
+}
+
+export interface VisitPreparationDraft {
+  observations: string;
+  questions: string;
+  includeObservations: boolean;
+  includeQuestions: boolean;
 }
 
 export interface BusinessesState {
