@@ -27,6 +27,13 @@ router.get(
   DocumentController.searchDocumentMobile,
 );
 
+// Registered before "/mobile/:patientId", which would otherwise match "view".
+router.post(
+  "/mobile/view",
+  requireMobileAuth,
+  DocumentController.getSignedDownloadUrl,
+);
+
 router.post(
   "/mobile/:patientId",
   requireMobileAuth,
@@ -59,12 +66,6 @@ router.get(
   DocumentController.getDocumentDownloadUrl,
 );
 
-router.post(
-  "/mobile/view",
-  requireMobileAuth,
-  DocumentController.getSignedDownloadUrl,
-);
-
 router.delete(
   "/mobile/:documentId",
   requireMobileAuth,
@@ -89,6 +90,16 @@ router.post(
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   DocumentController.getUploadUrl,
+);
+
+// Signed download URL (PMS). Registered before "/pms/:patientId", which would
+// otherwise match "view".
+router.post(
+  "/pms/view",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("document:view:any"),
+  DocumentController.getSignedDownloadUrl,
 );
 
 // Create document (PMS)
@@ -143,15 +154,6 @@ router.get(
   withOrgPermissions(),
   requirePermission("document:view:any"),
   DocumentController.getDocumentDownloadUrl,
-);
-
-// Signed download URL (PMS)
-router.post(
-  "/pms/view",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("document:view:any"),
-  DocumentController.getSignedDownloadUrl,
 );
 
 // List documents for appointment (PMS)

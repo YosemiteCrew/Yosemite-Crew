@@ -123,16 +123,30 @@ describe("FormSigningController", () => {
   });
 
   describe("getSignedDocument", () => {
-    it("returns the signed document for the submission", async () => {
+    beforeEach(() => {
+      req.organisationId = "org-1";
+    });
+
+    it("returns the signed document for the submission in the caller's organisation", async () => {
       mockedSigning.getSignedDocument.mockResolvedValue({ url: "x" } as never);
 
       await FormSigningController.getSignedDocument(req as Request, res);
 
       expect(mockedSigning.getSignedDocument).toHaveBeenCalledWith({
         submissionId: "sub-1",
+        organisationId: "org-1",
       });
       expect(statusMock).toHaveBeenCalledWith(200);
       expect(jsonMock).toHaveBeenCalledWith({ url: "x" });
+    });
+
+    it("returns 403 without an authorised organisation and reads nothing", async () => {
+      req.organisationId = undefined;
+
+      await FormSigningController.getSignedDocument(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(mockedSigning.getSignedDocument).not.toHaveBeenCalled();
     });
 
     it("returns 400 when retrieval fails", async () => {

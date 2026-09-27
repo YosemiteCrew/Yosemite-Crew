@@ -1,4 +1,5 @@
 export { default as DeveloperDocs } from '@/app/features/developers/pages/DeveloperDocs/DeveloperDocs';
+export { default as DeveloperConnect } from '@/app/features/developers/pages/DeveloperConnect/DeveloperConnect';
 export { default as DeveloperPortalHome } from '@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome';
 export { default as DeveloperApiKeys } from '@/app/features/developers/pages/DeveloperApiKeys/DeveloperApiKeys';
 export { default as DeveloperFormDraftImport } from '@/app/features/developers/pages/DeveloperFormDraftImport/DeveloperFormDraftImport';

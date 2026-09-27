@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import nextConfig from '../../../../next.config';
 import { buildContentSecurityPolicy, buildSecurityHeaders } from '@/securityHeaders';
 
@@ -83,10 +86,36 @@ describe('security headers', () => {
 
     const directives = parseCspDirectives(csp as string);
     expect(directives.get('default-src')).toBe("'self'");
-    expect(directives.get('script-src')).toBe("'self' https://cdn.redoc.ly");
     expect(directives.get('object-src')).toBe("'none'");
     expect(directives.get('base-uri')).toBe("'self'");
     expect(directives.get('frame-ancestors')).toBe("'self'");
+  });
+
+  /*
+   * Framed with scripts only, the viewer runs in an opaque origin, which some
+   * browsers never match to 'self'. Its inline script is allowed by hash
+   * instead. The hash is recomputed from the shipped file, so editing the
+   * script without updating next.config.ts fails here rather than rendering an
+   * empty viewer.
+   */
+  test('allows the viewer its inline script by hash, and nothing wider', async () => {
+    const html = readFileSync(join(process.cwd(), 'public/static/openapi/viewer.html'), 'utf8');
+    // Parsed rather than matched: the browser hashes the script element's text
+    // exactly as its HTML parser reads it.
+    const viewerDocument = new DOMParser().parseFromString(html, 'text/html');
+    const inline = [...viewerDocument.querySelectorAll('script:not([src])')].map(
+      (script) => script.textContent ?? ''
+    );
+    expect(inline).toHaveLength(1);
+    const hash = createHash('sha256').update(inline[0], 'utf8').digest('base64');
+
+    const routes = await nextConfig.headers?.();
+    const viewer = routes?.find((route) => route.source === '/static/openapi/:path*');
+    const directives = parseCspDirectives(
+      findHeader(viewer?.headers as HeaderEntry[], 'Content-Security-Policy') as string
+    );
+    expect(directives.get('script-src')).toBe(`'self' https://cdn.redoc.ly 'sha256-${hash}'`);
+    expect(directives.get('connect-src')).toBe("'self'");
   });
 
   test('applies HSTS in production headers', () => {

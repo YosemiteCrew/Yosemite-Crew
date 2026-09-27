@@ -6,7 +6,13 @@ export const SIDEBAR_COLLAPSED_KEY = 'yc_sidebar_collapsed';
 // default (>=1280px); tablet widths start on the collapsed 76px icon rail.
 export const SIDEBAR_DESKTOP_MIN_WIDTH = 1280;
 
+// A choice storage could not keep (blocked or full). Held only until a write
+// succeeds or the preference is reset, so the toggle still works for this page
+// while stored values stay the source of truth everywhere else.
+let unsavedPreference: boolean | null = null;
+
 export const isSidebarCollapsedByDefault = (): boolean => {
+  if (unsavedPreference !== null) return unsavedPreference;
   const stored = getStorageItem('local', SIDEBAR_COLLAPSED_KEY);
   if (stored != null) return stored === '1';
   // No stored preference: follow the viewport — expanded on desktop, collapsed
@@ -17,13 +23,44 @@ export const isSidebarCollapsedByDefault = (): boolean => {
   return false;
 };
 
+// Fired after this tab changes the preference. The browser's own `storage`
+// event only reaches other tabs, so mounted sidebars in this one listen for this.
+export const SIDEBAR_PREFERENCE_EVENT = 'yc-sidebar-preference';
+
+const notifySidebarPreferenceChange = () => {
+  globalThis.window?.dispatchEvent(new Event(SIDEBAR_PREFERENCE_EVENT));
+};
+
 export const setSidebarCollapsedPreference = (collapsed: boolean): void => {
-  setStorageItem('local', SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+  const value = collapsed ? '1' : '0';
+  setStorageItem('local', SIDEBAR_COLLAPSED_KEY, value);
+  // Read back rather than trusting the write: blocked storage can fail silently.
+  unsavedPreference = getStorageItem('local', SIDEBAR_COLLAPSED_KEY) === value ? null : collapsed;
+  notifySidebarPreferenceChange();
 };
 
 // Clear any stored preference so the viewport-aware default applies again.
 // Called on auth transitions so a returning user lands on the expanded desktop
 // shell instead of a pinned collapsed rail.
 export const resetSidebarPreference = (): void => {
+  unsavedPreference = null;
   removeStorageItem('local', SIDEBAR_COLLAPSED_KEY);
+  notifySidebarPreferenceChange();
+};
+
+const PREFERENCE_CHANGE_EVENTS = [SIDEBAR_PREFERENCE_EVENT, 'storage', 'resize'];
+
+/**
+ * Subscribes to everything that can change `isSidebarCollapsedByDefault()`: a
+ * write in this tab, a write in another tab, and a resize (the viewport default
+ * applies while nothing is stored). Shaped for `useSyncExternalStore`, which
+ * only subscribes in the browser.
+ */
+export const subscribeSidebarPreference = (onChange: () => void): (() => void) => {
+  for (const name of PREFERENCE_CHANGE_EVENTS) globalThis.window.addEventListener(name, onChange);
+  return () => {
+    for (const name of PREFERENCE_CHANGE_EVENTS) {
+      globalThis.window.removeEventListener(name, onChange);
+    }
+  };
 };

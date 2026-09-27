@@ -96,6 +96,10 @@ jest.mock("src/config/prisma", () => ({
     },
     parentPatient: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    patientOrganisation: {
+      findFirst: jest.fn(),
     },
     organization: {
       findUnique: jest.fn(),
@@ -478,19 +482,15 @@ describe("FormService", () => {
   describe("update", () => {
     const validId = "form-1";
 
-    it("throws if not found or org mismatch", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    it("throws if not found in the caller's organisation", async () => {
+      (prisma.form.findFirst as jest.Mock).mockResolvedValueOnce(null);
       await expect(
         FormService.update(validId, {} as any, "u", "o"),
       ).rejects.toThrow("Form not found");
-
-      (prisma.form.findUnique as jest.Mock).mockResolvedValueOnce({
-        id: validId,
-        orgId: "other",
+      expect(prisma.form.findFirst).toHaveBeenCalledWith({
+        where: { id: validId, orgId: "o" },
       });
-      await expect(
-        FormService.update(validId, {} as any, "u", "o"),
-      ).rejects.toThrow("Form is not part of your organisation");
+      expect(prisma.form.update).not.toHaveBeenCalled();
     });
 
     it("throws if signature field exists but no requiredSigner", async () => {
@@ -504,7 +504,7 @@ describe("FormService", () => {
     });
 
     it("updates form successfully and resolves user names", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({
         id: validId,
         orgId: "o",
         name: "Old",
@@ -565,14 +565,14 @@ describe("FormService", () => {
     const validId = "form-1";
 
     it("publish: throws if not found", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(FormService.publish(validId, "u")).rejects.toThrow(
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue(null);
+      await expect(FormService.publish(validId, "u", "o")).rejects.toThrow(
         "Form not found",
       );
     });
 
     it("publish: increments version and marks published", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({
         id: validId,
         schema: [],
       });
@@ -582,7 +582,7 @@ describe("FormService", () => {
       (prisma.formVersion.create as jest.Mock).mockResolvedValue({});
       (prisma.form.update as jest.Mock).mockResolvedValue({});
 
-      const res = await FormService.publish(validId, "u");
+      const res = await FormService.publish(validId, "u", "o");
       expect(res.version).toBe(2);
       expect(prisma.formVersion.create).toHaveBeenCalled();
       expect(prisma.form.update).toHaveBeenCalledWith(
@@ -593,24 +593,24 @@ describe("FormService", () => {
     });
 
     it("unpublish: sets status to draft", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue({ id: validId });
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({ id: validId });
       (prisma.form.update as jest.Mock).mockResolvedValue({
         id: validId,
         status: "draft",
       });
 
-      const res = await FormService.unpublish(validId, "u");
+      const res = await FormService.unpublish(validId, "u", "o");
       expect((res as any).status).toBe("draft");
     });
 
     it("archive: sets status to archived", async () => {
-      (prisma.form.findUnique as jest.Mock).mockResolvedValue({ id: validId });
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({ id: validId });
       (prisma.form.update as jest.Mock).mockResolvedValue({
         id: validId,
         status: "archived",
       });
 
-      const res = await FormService.archive(validId, "u");
+      const res = await FormService.archive(validId, "u", "o");
       expect((res as any).status).toBe("archived");
     });
   });
@@ -631,6 +631,14 @@ describe("FormService", () => {
         name: "Form",
       });
 
+      (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+        patient: { id: validId },
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        role: "PRIMARY",
+        permissions: {},
+      });
+
       await FormService.submitFHIR(
         {
           formId: validId,
@@ -639,6 +647,8 @@ describe("FormService", () => {
           parentId: validId,
         } as any,
         [],
+        validId,
+        { parentId: validId },
       );
 
       expect(prisma.formSubmission.create).toHaveBeenCalled();
@@ -666,12 +676,18 @@ describe("FormService", () => {
         name: "Form",
       });
 
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-sys",
+      });
+
       await FormService.submitFHIR(
         {
           formId: validId,
           patientId: validId,
         } as any,
         [],
+        "pms-user",
+        { organisationId: "org-sys" },
       );
 
       expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
@@ -692,17 +708,26 @@ describe("FormService", () => {
         id: "sub-sign",
       });
 
-      await FormService.submitFHIR({
-        formId: validId,
-        formVersion: 1,
-        patientId: validId,
-        signing: {
-          required: true,
-          status: "SIGNED",
-          provider: "DOCUMENSO",
-          documentId: "9999",
-        },
-      } as any);
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-sign",
+      });
+
+      await FormService.submitFHIR(
+        {
+          formId: validId,
+          formVersion: 1,
+          patientId: validId,
+          signing: {
+            required: true,
+            status: "SIGNED",
+            provider: "DOCUMENSO",
+            documentId: "9999",
+          },
+        } as any,
+        undefined,
+        "pms-user",
+        { organisationId: "org-sign" },
+      );
 
       expect(prisma.formSubmission.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -731,15 +756,31 @@ describe("FormService", () => {
         name: "Postgres form",
       });
 
-      await FormService.submitFHIR({
-        formId: uuid,
-        formVersion: 1,
-        appointmentId: "appt-1",
-        patientId: "patient-1",
-        parentId: "parent-1",
-        answers: {},
-        submittedAt: new Date("2026-06-25T00:00:00.000Z"),
-      } as any);
+      (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+        patient: { id: "patient-1" },
+      });
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-uuid",
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        role: "PRIMARY",
+        permissions: {},
+      });
+
+      await FormService.submitFHIR(
+        {
+          formId: uuid,
+          formVersion: 1,
+          appointmentId: "appt-1",
+          patientId: "patient-1",
+          parentId: "parent-1",
+          answers: {},
+          submittedAt: new Date("2026-06-25T00:00:00.000Z"),
+        } as any,
+        undefined,
+        "pms-user",
+        { organisationId: "org-uuid" },
+      );
 
       expect(prisma.formVersion.findFirst).toHaveBeenCalledWith({
         where: {
@@ -938,15 +979,25 @@ describe("FormService", () => {
         templateVersion: 1,
       });
 
-      const result = await FormService.submitFHIR({
-        formId: templateId,
-        formVersion: 1,
-        appointmentId: "appt-1",
-        patientId: "patient-1",
-        parentId: "parent-1",
-        answers: { field1: "value" },
-        submittedAt: new Date("2026-06-25T00:00:00.000Z"),
-      } as any);
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        role: "PRIMARY",
+        permissions: {},
+      });
+
+      const result = await FormService.submitFHIR(
+        {
+          formId: templateId,
+          formVersion: 1,
+          appointmentId: "appt-1",
+          patientId: "patient-1",
+          parentId: "parent-1",
+          answers: { field1: "value" },
+          submittedAt: new Date("2026-06-25T00:00:00.000Z"),
+        } as any,
+        undefined,
+        undefined,
+        { organisationId: "org-template" },
+      );
 
       expect(TemplateService.createInstance).toHaveBeenCalledWith({
         templateId,
@@ -982,9 +1033,9 @@ describe("FormService", () => {
 
     it("getSubmission: throws if not found", async () => {
       (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(FormService.getSubmission(validId)).rejects.toThrow(
-        "Submission not found",
-      );
+      await expect(
+        FormService.getSubmission(validId, "parent-1"),
+      ).rejects.toThrow("Submission not found");
     });
 
     it("getSubmission: returns the normalized submission", async () => {
@@ -993,14 +1044,17 @@ describe("FormService", () => {
         id: "sub-1",
         formId: validId,
         formVersion: 1,
+        parentId: "parent-1",
+        submittedBy: "parent-1",
         submittedAt,
         answers: { a: 1 },
       });
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
         schemaSnapshot: [],
       });
 
-      const res = await FormService.getSubmission(validId);
+      const res = await FormService.getSubmission(validId, "parent-1");
       expect(res).toEqual(
         expect.objectContaining({
           _id: "sub-1",
@@ -1012,13 +1066,27 @@ describe("FormService", () => {
       );
     });
 
-    it("listSubmissions: returns prisma rows", async () => {
+    it("listSubmissions: maps the caller's rows like getSubmission", async () => {
       (prisma.formSubmission.findMany as jest.Mock).mockResolvedValue([
-        { id: "sub-1" },
+        {
+          id: "sub-1",
+          formId: validId,
+          formVersion: 1,
+          parentId: "parent-1",
+          submittedBy: "parent-1",
+          answers: {},
+          signing: { status: "SIGNED" },
+        },
       ]);
+      (prisma.formVersion.findMany as jest.Mock).mockResolvedValue([]);
 
-      const res = await FormService.listSubmissions(validId);
-      expect(res).toEqual([{ id: "sub-1" }]);
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res = await FormService.listSubmissions(validId, "parent-1");
+      expect(res).toEqual([
+        expect.objectContaining({ _id: "sub-1", formId: validId }),
+      ]);
+      expect(res[0]).not.toHaveProperty("signing");
     });
 
     it("getAutoSendForms: returns published forms", async () => {
@@ -1082,17 +1150,21 @@ describe("FormService", () => {
       ).rejects.toThrow("Appointment not found");
     });
 
-    it("throws forbidden when requester parent does not own appointment", async () => {
+    it("returns 404 when the requester parent has no link to the companion", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
         organisationId: "org-h",
-        patient: { parent: { id: "parent-a" } },
+        patient: { id: "companion-a", parent: { id: "parent-a" } },
       });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(
         FormService.getSOAPNotesByAppointment(validId, {
           requesterParentId: "parent-b",
         }),
-      ).rejects.toThrow("Forbidden");
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Appointment not found",
+      });
     });
 
     it("throws forbidden when requester organisation does not match appointment organisation", async () => {
@@ -1299,30 +1371,36 @@ describe("FormService", () => {
   describe("generatePDFForSubmission", () => {
     const validId = "sub-1";
 
+    const ownRow = {
+      id: validId,
+      formId: "form-1",
+      formVersion: 1,
+      parentId: "parent-1",
+      submittedBy: "parent-1",
+    };
+
+    beforeEach(() => {
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([]);
+    });
+
     it("throws if submission missing", async () => {
       (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue(null);
       await expect(
-        FormService.generatePDFForSubmission(validId),
+        FormService.generatePDFForSubmission(validId, "parent-1"),
       ).rejects.toThrow("Submission not found");
     });
 
     it("throws if version missing", async () => {
-      (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue({
-        id: validId,
-        formId: "form-1",
-        formVersion: 1,
-      });
+      (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue(ownRow);
       (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue(null);
       await expect(
-        FormService.generatePDFForSubmission(validId),
+        FormService.generatePDFForSubmission(validId, "parent-1"),
       ).rejects.toThrow("Form version not found");
     });
 
     it("generates a pdf buffer", async () => {
       (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue({
-        id: validId,
-        formId: "form-1",
-        formVersion: 1,
+        ...ownRow,
         submittedAt: new Date(),
         answers: {},
       });
@@ -1332,7 +1410,10 @@ describe("FormService", () => {
       (buildPdfViewModel as jest.Mock).mockReturnValue({} as any);
       (renderPdf as jest.Mock).mockResolvedValue(Buffer.from("pdf"));
 
-      const res = await FormService.generatePDFForSubmission(validId);
+      const res = await FormService.generatePDFForSubmission(
+        validId,
+        "parent-1",
+      );
       expect(res).toBeInstanceOf(Buffer);
     });
   });

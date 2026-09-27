@@ -19,10 +19,17 @@ import { securityHeaders } from './src/securityHeaders';
  * /dev-docs/:path*, which covered the whole Docusaurus mirror; now that the
  * documentation is rendered by the app under the normal strict policy, only
  * the viewer needs the exception.
+ *
+ * The docs frame the viewer with scripts only, so there it runs in an opaque
+ * origin, which some browsers never match to 'self', and gets the spec from the
+ * parent page rather than fetching it (see viewer.html). Its one inline script
+ * is allowed by hash, which matches whatever the document's origin.
  */
+const OPENAPI_VIEWER_SCRIPT_HASH = "'sha256-W7fTtwv4P93hOvWPzxB+pzs1TAb4swAQkkRODA9bKTo='";
+
 const OPENAPI_VIEWER_CSP = [
   "default-src 'self'",
-  "script-src 'self' https://cdn.redoc.ly",
+  `script-src 'self' https://cdn.redoc.ly ${OPENAPI_VIEWER_SCRIPT_HASH}`,
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",

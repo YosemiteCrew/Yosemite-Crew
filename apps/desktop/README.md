@@ -193,7 +193,7 @@ apps/desktop/
 ├─ resources/      # icons, entitlements, fonts
 ├─ scripts/        # build / fuses / notarize / static-copy helpers
 ├─ tests/          # Jest unit tests   ·   e2e/  Playwright tests
-└─ docs/           # architecture, perf, threat-model, release notes
+└─ docs/           # architecture, perf, release notes
 ```
 
 ## 🤝 Contributing

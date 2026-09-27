@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { createRef } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import Input, { Textarea } from '@/app/ui/Input';
@@ -42,5 +43,19 @@ describe('Input', () => {
     expect(handleChange).toHaveBeenCalled();
     expect(textarea).not.toHaveAttribute('placeholder');
     expect(textarea).toHaveClass('min-h-22', 'rounded-xl', 'bg-[var(--field-bg)]');
+  });
+
+  test('hands a ref to the underlying input element', () => {
+    const ref = createRef<HTMLInputElement>();
+    render(<Input ref={ref} aria-label="Work email" placeholder="name@clinic.com" />);
+
+    expect(ref.current).toBe(screen.getByRole('textbox', { name: 'Work email' }));
+  });
+
+  test('hands a ref to the underlying textarea element', () => {
+    const ref = createRef<HTMLTextAreaElement>();
+    render(<Textarea ref={ref} aria-label="Notes" />);
+
+    expect(ref.current).toBe(screen.getByRole('textbox', { name: 'Notes' }));
   });
 });

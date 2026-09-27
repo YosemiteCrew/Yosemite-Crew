@@ -62,12 +62,16 @@ describe('DocsShell', () => {
     expect(container.querySelector('iframe.DocsOpenApiFrame')).toBeNull();
   });
 
-  it('sandboxes the OpenAPI viewer iframe to scripts and same-origin only', async () => {
+  it('sandboxes the OpenAPI viewer iframe to scripts only, in an opaque origin', async () => {
     const { container } = await shell('x', { embedOpenApi: true });
     const frame = container.querySelector('iframe.DocsOpenApiFrame');
     expect(frame).not.toBeNull();
-    // Redoc needs to run and to fetch the same-origin spec; nothing more.
-    expect(frame!.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
+    expect(frame!.getAttribute('src')).toBe('/static/openapi/viewer.html');
+    // The viewer is served from this origin, so allow-same-origin next to
+    // allow-scripts would let it lift its own sandbox. Redoc needs to run;
+    // nothing more.
+    expect(frame!.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(frame!.getAttribute('sandbox')?.split(/\s+/)).not.toContain('allow-same-origin');
   });
 
   it('renders the sidebar and the search box', async () => {
