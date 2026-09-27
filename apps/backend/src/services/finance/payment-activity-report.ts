@@ -184,7 +184,7 @@ export const getPaymentActivityReport = async (
 
 const csvCell = (value: string): string => {
   const safeValue = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return `"${safeValue.replace(/"/g, '""')}"`;
+  return `"${safeValue.replaceAll('"', '""')}"`;
 };
 
 export const buildPaymentActivityCsv = (

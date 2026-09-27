@@ -204,7 +204,7 @@ const PaymentActivityReportContent = () => {
         onSubmit={runReport}
       >
         <label className="flex min-w-40 flex-col gap-1 text-caption-2 font-bold text-text-secondary">
-          From (UTC)
+          {'From (UTC)'}
           <input
             aria-label="From date"
             type="date"
@@ -215,7 +215,7 @@ const PaymentActivityReportContent = () => {
           />
         </label>
         <label className="flex min-w-40 flex-col gap-1 text-caption-2 font-bold text-text-secondary">
-          To (UTC)
+          {'To (UTC)'}
           <input
             aria-label="To date"
             type="date"
