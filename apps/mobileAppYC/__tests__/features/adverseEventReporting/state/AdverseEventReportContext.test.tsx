@@ -28,6 +28,9 @@ const TestConsumer = () => {
         {draft.productInfo ? JSON.stringify(draft.productInfo) : 'No Product'}
       </Text>
       <Text testID="draft-companion-id">{draft.companionId ?? 'null'}</Text>
+      <Text testID="draft-linked-business-id">
+        {draft.linkedBusinessId ?? 'null'}
+      </Text>
 
       <TouchableOpacity
         testID="btn-set-reporter-vet"
@@ -45,6 +48,26 @@ const TestConsumer = () => {
         testID="btn-update-draft-companion"
         onPress={() => updateDraft({companionId: '123'})}>
         <Text>Set Companion</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        testID="btn-update-draft-other-companion"
+        onPress={() => updateDraft({companionId: '456'})}>
+        <Text>Set Other Companion</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        testID="btn-update-draft-hospital"
+        onPress={() => updateDraft({linkedBusinessId: 'hospital-1'})}>
+        <Text>Pick Hospital</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        testID="btn-update-draft-companion-and-hospital"
+        onPress={() =>
+          updateDraft({companionId: '789', linkedBusinessId: 'hospital-2'})
+        }>
+        <Text>Set Companion And Hospital</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -116,6 +139,44 @@ describe('AdverseEventReportContext', () => {
 
     fireEvent.press(getByTestId('btn-update-draft-companion'));
     expect(getByTestId('draft-companion-id').props.children).toBe('123');
+  });
+
+  it('clears the picked hospital when another companion is chosen', () => {
+    const {getByTestId} = render(
+      <AdverseEventReportProvider>
+        <TestConsumer />
+      </AdverseEventReportProvider>,
+    );
+    const hospital = () =>
+      getByTestId('draft-linked-business-id').props.children;
+
+    fireEvent.press(getByTestId('btn-update-draft-companion'));
+    fireEvent.press(getByTestId('btn-update-draft-hospital'));
+    expect(hospital()).toBe('hospital-1');
+
+    // The same companion again keeps the hospital.
+    fireEvent.press(getByTestId('btn-update-draft-companion'));
+    expect(hospital()).toBe('hospital-1');
+
+    fireEvent.press(getByTestId('btn-update-draft-other-companion'));
+    expect(getByTestId('draft-companion-id').props.children).toBe('456');
+    expect(hospital()).toBe('null');
+  });
+
+  it('keeps a hospital picked together with the new companion', () => {
+    const {getByTestId} = render(
+      <AdverseEventReportProvider>
+        <TestConsumer />
+      </AdverseEventReportProvider>,
+    );
+
+    fireEvent.press(getByTestId('btn-update-draft-hospital'));
+    fireEvent.press(getByTestId('btn-update-draft-companion-and-hospital'));
+
+    expect(getByTestId('draft-companion-id').props.children).toBe('789');
+    expect(getByTestId('draft-linked-business-id').props.children).toBe(
+      'hospital-2',
+    );
   });
 
   it('updates productInfo correctly via setProductInfo', () => {

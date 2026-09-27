@@ -38,10 +38,18 @@ export const AdverseEventReportProvider: React.FC<{
     () => ({
       draft,
       updateDraft: patch =>
-        setDraft(prev => ({
-          ...prev,
-          ...patch,
-        })),
+        setDraft(prev => {
+          const next = {...prev, ...patch};
+          // A hospital is picked for one companion, so choosing another
+          // companion clears it.
+          if (
+            'companionId' in patch &&
+            patch.companionId !== prev.companionId
+          ) {
+            next.linkedBusinessId = patch.linkedBusinessId ?? null;
+          }
+          return next;
+        }),
       setProductInfo: info =>
         setDraft(prev => ({
           ...prev,
