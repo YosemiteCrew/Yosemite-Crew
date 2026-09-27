@@ -432,7 +432,7 @@ describe("DocumentService.deleteForParent", () => {
 
     expect(s3Delete).toHaveBeenCalledWith(key());
     expect(db.document.deleteMany).toHaveBeenCalledWith({
-      where: { id: DOCUMENT },
+      where: { id: { equals: DOCUMENT } },
     });
   });
 
@@ -490,7 +490,7 @@ describe("DocumentService.deleteForParent", () => {
 
     expect(s3Delete.mock.calls).toEqual([[key(COMPANION, "only-mine.pdf")]]);
     expect(db.document.deleteMany).toHaveBeenCalledWith({
-      where: { id: DOCUMENT },
+      where: { id: { equals: DOCUMENT } },
     });
   });
 });
@@ -529,7 +529,7 @@ describe("DocumentService.update from the PMS", () => {
       expect.objectContaining({ where: { id: DOCUMENT } }),
     );
     expect(db.documentAttachment.deleteMany).toHaveBeenCalledWith({
-      where: { documentId: DOCUMENT },
+      where: { documentId: { equals: DOCUMENT } },
     });
   });
 
@@ -608,7 +608,7 @@ describe("DocumentService.update saving", () => {
 
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(tx.documentAttachment.deleteMany).toHaveBeenCalledWith({
-      where: { documentId: DOCUMENT },
+      where: { documentId: { equals: DOCUMENT } },
     });
     expect(tx.documentAttachment.createMany).toHaveBeenCalledWith({
       data: [expect.objectContaining({ key: key(COMPANION, "new.pdf") })],
