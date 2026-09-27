@@ -212,14 +212,7 @@ const useBillingReviewList = (
           });
       }
     };
-    void load().catch(() => {
-      console.error('Unexpected billing review load failure.');
-      if (active)
-        dispatch({
-          type: 'load-error',
-          message: 'We could not load the billing review list. Try again.',
-        });
-    });
+    void load();
     return () => {
       active = false;
     };
