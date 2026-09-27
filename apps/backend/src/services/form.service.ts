@@ -1125,9 +1125,6 @@ const assertParentMaySubmitFor = async (
 ) => {
   if (appointment) {
     await assertParentCanViewAppointment(appointment, parentId);
-    if (patientId && patientId !== resolveAppointmentPatientId(appointment)) {
-      throwForbidden();
-    }
     return;
   }
   if (!patientId) {
@@ -1168,6 +1165,14 @@ const assertFormSubmittableBy = async (
       })
     : null;
   if (appointmentId && !appointment) {
+    throwForbidden();
+  }
+  // Answers go on an appointment only for that appointment's companion.
+  if (
+    appointment &&
+    patientId &&
+    resolveAppointmentPatientId(appointment) !== patientId
+  ) {
     throwForbidden();
   }
 

@@ -56,6 +56,8 @@ const OTHER_ORG_FORM = "form-b";
 const PARENT = "parent-caller";
 const COMPANION = "companion-caller";
 const OTHER_COMPANION = "companion-other";
+// Another companion the practice may also act for.
+const SECOND_COMPANION = "companion-second";
 const APPOINTMENT = "appt-caller";
 
 // Applies a Prisma `where` the way Prisma does - an omitted field matches
@@ -310,6 +312,24 @@ describe("FormService.submitFHIR from the PMS (concrete form)", () => {
   it("returns 403 for a companion that is not the organisation's", async () => {
     await expectRefused(submit({ patientId: OTHER_COMPANION }, asPractice));
     await expectRefused(submit({ patientId: "companion-pending" }, asPractice));
+  });
+
+  it("returns 403 for one of the organisation's companions on another companion's appointment", async () => {
+    tables.memberships.push({
+      patientId: SECOND_COMPANION,
+      organisationId: ORG,
+      status: "ACTIVE",
+    });
+
+    await expectRefused(
+      submit(
+        { appointmentId: APPOINTMENT, patientId: SECOND_COMPANION },
+        asPractice,
+      ),
+    );
+    await expect(
+      submit({ patientId: SECOND_COMPANION }, asPractice),
+    ).resolves.toBeDefined();
   });
 
   const recordedParent = () =>
