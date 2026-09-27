@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, within } from 'storybook/test';
 
-import PluginSlot, { PluginContributionsContext } from './PluginSlot';
+import { PluginContributionsContext } from './PluginContributionsContext';
+import PluginSlot from './PluginSlot';
 import type { PluginContribution } from './extensionPoints';
 
 const CONTRIBUTIONS: PluginContribution[] = [

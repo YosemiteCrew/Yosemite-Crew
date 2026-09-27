@@ -32,7 +32,7 @@ import { useParentStore } from '@/app/stores/parentStore';
 import { useAuthStore } from '@/app/stores/authStore';
 import { persistEncounterTreatmentLine } from '@/app/features/appointments/services/workspaceAggregateService';
 import { buildEmptyEncounter } from '@/app/features/appointments/services/workspaceInitialData';
-import { PluginContributionsContext } from '@/app/features/plugins/PluginSlot';
+import { PluginContributionsContext } from '@/app/features/plugins/PluginContributionsContext';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();

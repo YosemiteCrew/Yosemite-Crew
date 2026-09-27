@@ -8,7 +8,7 @@ import { loadForms } from '@/app/features/forms/services/formService';
 expect.extend(toHaveNoViolations);
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { PluginContributionsContext } from '@/app/features/plugins/PluginSlot';
+import { PluginContributionsContext } from '@/app/features/plugins/PluginContributionsContext';
 
 // Controllable mocks (prefixed with `mock` so jest hoisting permits references).
 const mockCan = jest.fn(() => true);

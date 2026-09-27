@@ -1,18 +1,12 @@
 'use client';
-import React, { createContext, useContext } from 'react';
+import React, { useContext } from 'react';
 
 import {
   EXTENSION_POINTS,
   contributionsFor,
   type ExtensionPointId,
-  type PluginContribution,
 } from '@/app/features/plugins/extensionPoints';
-
-const NO_CONTRIBUTIONS: readonly PluginContribution[] = [];
-
-/** Supplies the contributions of the plugins the practice has installed. */
-export const PluginContributionsContext =
-  createContext<readonly PluginContribution[]>(NO_CONTRIBUTIONS);
+import { PluginContributionsContext } from '@/app/features/plugins/PluginContributionsContext';
 
 type PluginSlotProps = {
   point: ExtensionPointId;

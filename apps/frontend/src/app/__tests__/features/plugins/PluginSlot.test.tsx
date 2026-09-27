@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 
-import PluginSlot, { PluginContributionsContext } from '@/app/features/plugins/PluginSlot';
+import { PluginContributionsContext } from '@/app/features/plugins/PluginContributionsContext';
+import PluginSlot from '@/app/features/plugins/PluginSlot';
 import {
   EXTENSION_POINTS,
   contributionsFor,
