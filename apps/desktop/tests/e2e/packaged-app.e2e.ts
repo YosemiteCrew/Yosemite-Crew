@@ -160,7 +160,7 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
 
   test('persists window state across relaunches', async () => {
     const profileDir = userDataDir as string;
-    const expectedBounds = { width: 1024, height: 720 };
+    const expectedBounds = { width: 1024, height: 700 };
 
     await app?.evaluate(async ({ BrowserWindow }, expectedBounds) => {
       const win = BrowserWindow.getAllWindows()[0];
