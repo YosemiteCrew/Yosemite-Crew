@@ -1015,7 +1015,8 @@ describe("FormService", () => {
         for (const [query] of lookups) {
           expect(query.where).toMatchObject({ mobileVisible: true });
         }
-        expect(lookups).toHaveLength(2);
+        // Before the lock, again under it, and for the one with no appointment.
+        expect(lookups).toHaveLength(3);
       });
 
       it.each([
@@ -2091,6 +2092,135 @@ describe("FormService", () => {
       });
     });
 
+    // The appointment's own forms are listed with the templates sent for it,
+    // never hidden by them; the organisation's forms for the service are
+    // suggested only where no template was sent.
+    describe("forms and templates on one appointment", () => {
+      const legacyForm = {
+        id: "legacy-form",
+        orgId: "org-mixed",
+        businessType: null,
+        name: "Intake form",
+        category: "Custom",
+        description: null,
+        visibilityType: "External",
+        serviceId: [],
+        speciesFilter: [],
+        requiredSigner: null,
+        status: "published",
+        schema: [],
+        createdBy: "u1",
+        updatedBy: "u1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const listMixed = async (
+        viewerParentId: string | undefined,
+        requests: Record<string, unknown>[],
+      ) => {
+        (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+          organisationId: "org-mixed",
+          formIds: ["legacy-form"],
+          patient: { id: "companion-a", parent: { id: "parent-a" } },
+        });
+        (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+          role: "PRIMARY",
+          permissions: {},
+          parentId: "parent-a",
+        });
+        (prisma.parentPatient.findMany as jest.Mock).mockResolvedValue([
+          { patientId: "companion-a", role: "PRIMARY", permissions: {} },
+        ]);
+        (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+          type: "GROOMER",
+        });
+        (
+          FormAssignmentService.listForAppointment as jest.Mock
+        ).mockResolvedValue(requests as any);
+        (TemplateService.getById as jest.Mock).mockResolvedValue({
+          id: "tpl-consent",
+          organisationId: "org-mixed",
+          kind: "CONSENT",
+          rules: null,
+          name: "Consent",
+          status: "PUBLISHED",
+          versions: [],
+        } as any);
+        (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.form.findMany as jest.Mock).mockImplementation(
+          async ({ where }: { where: { id?: unknown } }) =>
+            where.id
+              ? [legacyForm]
+              : [{ ...legacyForm, id: "suggested-form", name: "Suggested" }],
+        );
+        (prisma.formVersion.findMany as jest.Mock).mockResolvedValue([
+          { id: "v1", formId: "legacy-form", version: 1, schemaSnapshot: [] },
+          {
+            id: "v2",
+            formId: "suggested-form",
+            version: 1,
+            schemaSnapshot: [],
+          },
+        ]);
+        (templateMapper.templateToQuestionnaire as jest.Mock).mockReturnValue({
+          id: "tpl-consent",
+        });
+        const res = await FormService.getFormsForAppointment({
+          appointmentId: validId,
+          viewerParentId,
+          isPMS: !viewerParentId,
+        });
+        return res.items as any[];
+      };
+      const consentRequest = {
+        id: "assignment-consent",
+        templateId: "tpl-consent",
+        templateVersion: 1,
+        status: "sent",
+        signingRequired: true,
+        mobileVisible: true,
+        createdAt: new Date("2026-09-20T10:00:00.000Z"),
+      };
+      const describeItem = (item: any) =>
+        item.templateId ?? item.questionnaire?._id ?? item.questionnaire?.id;
+
+      it.each([
+        ["the practice", undefined],
+        ["the parent", "parent-a"],
+      ])(
+        "lists the appointment's form with the template sent, to %s",
+        async (_label, viewerParentId) => {
+          const items = await listMixed(viewerParentId, [consentRequest]);
+
+          expect(items.map(describeItem)).toEqual(
+            viewerParentId
+              ? ["tpl-consent", "legacy-form"]
+              : ["tpl-consent", undefined],
+          );
+          expect(items).toHaveLength(2);
+        },
+      );
+
+      it("suggests the organisation's forms only where no template was sent", async () => {
+        const withTemplate = await listMixed("parent-a", [consentRequest]);
+        const withoutTemplate = await listMixed("parent-a", []);
+
+        expect(withTemplate.map(describeItem)).not.toContain("suggested-form");
+        expect(withoutTemplate.map(describeItem)).toEqual([
+          "legacy-form",
+          "suggested-form",
+        ]);
+      });
+
+      it("keeps the appointment's form when every template was withdrawn", async () => {
+        const items = await listMixed("parent-a", [
+          { ...consentRequest, status: "cancelled" },
+        ]);
+
+        expect(items.map(describeItem)).toEqual(["legacy-form"]);
+      });
+    });
+
     it("prefers template-backed forms when postgres assignments exist", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
         organisationId: "org-template",
@@ -2285,12 +2415,18 @@ describe("FormService", () => {
         requests: Record<string, unknown>[],
         instances: Record<string, unknown>[],
         link: Record<string, unknown> = { role: "PRIMARY", permissions: {} },
+        primaryParentId = "parent-a",
       ) => {
         (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
           organisationId: "org-template",
           patient: { id: "companion-a", parent: { id: "parent-a" } },
         });
-        (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue(link);
+        // The viewer's link, and parent-a as the primary parent unless a case
+        // names another.
+        (prisma.parentPatient.findFirst as jest.Mock).mockImplementation(
+          async ({ where }: { where: { role?: unknown } }) =>
+            where.role === "PRIMARY" ? { parentId: primaryParentId } : link,
+        );
         (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
           type: "HOSPITAL",
         });
@@ -2504,15 +2640,21 @@ describe("FormService", () => {
           ).resolves.toBe(false);
         });
 
-        it("does not let them sign answers not yet submitted", async () => {
-          await expect(
-            signable([
+        // A draft is not an answer: the row waits for them to fill it in.
+        it("treats answers not yet submitted as nothing filled in", async () => {
+          const item = await listAs(
+            "parent-a",
+            [request()],
+            [
               {
                 ...answer("own", "parent-a", "2026-09-20T12:00:00.000Z"),
                 status: "IN_PROGRESS",
               },
-            ]),
-          ).resolves.toBe(false);
+            ],
+          );
+
+          expect(item).toMatchObject({ status: "pending", canSign: true });
+          expect(item?.questionnaireResponse).toBeUndefined();
         });
 
         it("lets them sign the practice's answers the client signs", async () => {
@@ -2532,20 +2674,34 @@ describe("FormService", () => {
           ).resolves.toBe(false);
         });
 
+        // Only the one parent the answers name signs them: for the
+        // practice's, the parent the request is for, by default the primary.
         it.each([
-          ["without medical records", {}, false],
-          ["with medical records", { medicalRecords: true }, true],
+          [
+            "with medical records, not named",
+            { medicalRecords: true },
+            null,
+            false,
+          ],
+          ["named, without medical records", {}, "parent-a", false],
+          [
+            "named, with medical records",
+            { medicalRecords: true },
+            "parent-a",
+            true,
+          ],
         ])(
           "lets a co-parent %s sign the practice's answers: %s",
-          async (_label, permissions, expected) => {
+          async (_label, permissions, signerUserId, expected) => {
             const items = await listItems(
               "parent-a",
-              [request()],
+              [request({ signerUserId })],
               [answer("practice", "vet-1", "2026-09-15T12:00:00.000Z")],
               {
                 role: "CO_PARENT",
                 permissions: { appointments: true, ...permissions },
               },
+              "parent-primary",
             );
 
             expect(
@@ -2553,6 +2709,31 @@ describe("FormService", () => {
             ).toBe(expected);
           },
         );
+
+        it("does not let a parent sign another parent's answers", async () => {
+          const items = await listItems(
+            "parent-a",
+            [request()],
+            [answer("theirs", "parent-b", "2026-09-20T12:00:00.000Z")],
+          );
+          // parent-b fills in as a client too.
+          (prisma.parent.findMany as jest.Mock).mockImplementation(
+            async ({ where }: { where: { id: { in: string[] } } }) =>
+              where.id.in
+                .filter((id) => ["parent-a", "parent-b"].includes(id))
+                .map((id) => ({ id })),
+          );
+          const res = await FormService.getFormsForAppointment({
+            appointmentId: validId,
+            viewerParentId: "parent-a",
+          });
+          const item = (res.items as any[]).find(
+            ({ id }) => id === "assignment-open",
+          );
+
+          expect(items).toBeDefined();
+          expect(item).toMatchObject({ status: "completed", canSign: false });
+        });
 
         it("says nothing of it to the practice", async () => {
           const item = await listAs(undefined, [request()], []);
@@ -2789,6 +2970,7 @@ describe("FormService", () => {
             id: "staff-1",
             templateId: "template-1",
             authorId: "vet-1",
+            status: "COMPLETED",
             generatedPdf: { signer },
           },
         ]);
@@ -2837,8 +3019,9 @@ describe("FormService", () => {
           status: "PUBLISHED",
           versions: [],
         } as any);
+        // Submitted, unless a case says otherwise.
         (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue(
-          instances,
+          instances.map((instance) => ({ status: "COMPLETED", ...instance })),
         );
         (
           templateMapper.templateInstanceToQuestionnaireResponse as jest.Mock
@@ -2912,7 +3095,12 @@ describe("FormService", () => {
         versions: [],
       } as any);
       (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue([
-        { id: "instance-v2", templateId: "template-1", templateVersion: 2 },
+        {
+          id: "instance-v2",
+          templateId: "template-1",
+          templateVersion: 2,
+          status: "COMPLETED",
+        },
       ]);
       (
         templateMapper.templateInstanceToQuestionnaireResponse as jest.Mock

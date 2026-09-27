@@ -35,6 +35,7 @@ import { isWorkflowKind } from "src/services/task-workflow-blueprints";
 import {
   instanceNeedsClientSignature,
   lockClientRequest,
+  pickNamedClientSigner,
   templateNeedsClientSignature,
   withdrawalCutoffs,
 } from "src/services/client-signature.helpers";
@@ -257,14 +258,20 @@ const NEWEST_RECORDED_FIRST: Prisma.FormSubmissionOrderByWithRelationInput[] = [
   { id: "desc" },
 ];
 
+// The template instances that are an answer: submitted, not a draft.
+const SUBMITTED_INSTANCE_STATUSES = new Set(["COMPLETED", "SIGNED"]);
+
 // Template kinds a pet parent fills in; every other kind is the practice's.
 const PARENT_TEMPLATE_KINDS = new Set(["FORM", "CONSENT"]);
 
 // Which of these user ids are pet parents.
-const loadParentIds = async (ids: (string | null)[]) => {
+const loadParentIds = async (
+  ids: (string | null)[],
+  client: Pick<Prisma.TransactionClient, "parent"> = prisma,
+) => {
   const unique = [...new Set(ids.filter(Boolean))] as string[];
   if (!unique.length) return new Set<string>();
-  const rows = await prisma.parent.findMany({
+  const rows = await client.parent.findMany({
     where: { id: { in: unique } },
     select: { id: true },
   });
@@ -626,11 +633,32 @@ const assertTemplateSubmittableByParent = async (params: {
     await assertParentCanViewAppointment(appointment, params.parentId);
   }
 
-  // With an appointment the parent link is already proven above, so the
-  // assignment only has to exist for it. Without one there is no such anchor and
-  // the assignment itself must name the parent as the signer. Either way it
-  // must have been sent to the app.
-  const assignments = await prisma.formAssignment.findMany({
+  await assertRequestAnswerableByParent(prisma, params);
+};
+
+/**
+ * Whether the parent may answer the practice's request for the form: one sent
+ * to the app and still open, on a form the practice has not already filled in
+ * for the appointment. Checked again under the request's lock, so a
+ * withdrawal or a practice save that lands meanwhile is seen.
+ */
+const assertRequestAnswerableByParent = async (
+  client: Pick<
+    Prisma.TransactionClient,
+    "formAssignment" | "templateInstance" | "parent"
+  >,
+  params: {
+    organisationId: string;
+    templateId: string;
+    parentId: string;
+    appointmentId?: string;
+  },
+) => {
+  // With an appointment the parent link is already proven, so the assignment
+  // only has to exist for it. Without one there is no such anchor and the
+  // assignment itself must name the parent as the signer. Either way it must
+  // have been sent to the app.
+  const assignments = await client.formAssignment.findMany({
     where: {
       organisationId: params.organisationId,
       templateId: params.templateId,
@@ -649,7 +677,7 @@ const assertTemplateSubmittableByParent = async (params: {
 
   if (params.appointmentId) {
     // A form the practice filled in is signed by the parent, never replaced.
-    const filled = await prisma.templateInstance.findMany({
+    const filled = await client.templateInstance.findMany({
       where: {
         organisationId: params.organisationId,
         appointmentId: params.appointmentId,
@@ -658,7 +686,10 @@ const assertTemplateSubmittableByParent = async (params: {
       },
       select: { authorId: true },
     });
-    const parentIds = await loadParentIds(filled.map((row) => row.authorId));
+    const parentIds = await loadParentIds(
+      filled.map((row) => row.authorId),
+      client,
+    );
     if (filled.some((row) => !row.authorId || !parentIds.has(row.authorId))) {
       throwCompletedAtPractice();
     }
@@ -680,6 +711,9 @@ type InstanceSubmissionParams = {
   appointmentId?: string;
   authorId?: string;
   byParent: boolean;
+  // The parent submitting, whose right to answer is checked again under the
+  // request's lock.
+  parentId?: string;
   answers: FormSubmission["answers"];
 };
 
@@ -788,6 +822,14 @@ const submitInstanceForSubmission = async (
         templateId: params.templateId,
         appointmentId,
       });
+      if (params.byParent && params.parentId) {
+        await assertRequestAnswerableByParent(tx, {
+          organisationId: params.organisationId,
+          templateId: params.templateId,
+          parentId: params.parentId,
+          appointmentId,
+        });
+      }
       const instance = await resolveInstanceForSubmission(params, tx);
       // Submitting through TemplateService renders the document a consent (or
       // any other document-backed template) owes.
@@ -1171,6 +1213,9 @@ const parentMaySignTemplateRow = (row: {
   parentId: string;
   signingRequired: boolean;
   assignment: { createdAt: Date | string };
+  // Who the request is for, when it names someone.
+  requestSignerId?: string | null;
+  primaryParentId?: string | null;
   instance?: {
     authorId: string | null;
     createdAt: Date | string;
@@ -1181,6 +1226,7 @@ const parentMaySignTemplateRow = (row: {
 }) => {
   const { instance } = row;
   if (!row.signingRequired) return false;
+  // Nothing submitted yet: whoever fills it in signs it.
   if (!instance) return true;
   if (instance.status !== "COMPLETED") return false;
   if (instance.authorId !== row.parentId && !row.mayReadPracticeRows) {
@@ -1188,10 +1234,18 @@ const parentMaySignTemplateRow = (row: {
   }
   const byParent =
     !!instance.authorId && row.parentAuthors.has(instance.authorId);
+  // Only the one parent the answers name signs them.
+  const named = pickNamedClientSigner({
+    authorId: instance.authorId,
+    authorIsParent: byParent,
+    requestSignerId: row.requestSignerId,
+    primaryParentId: row.primaryParentId,
+  });
   return (
-    !byParent ||
-    new Date(row.assignment.createdAt).getTime() <=
-      new Date(instance.createdAt).getTime()
+    named === row.parentId &&
+    (!byParent ||
+      new Date(row.assignment.createdAt).getTime() <=
+        new Date(instance.createdAt).getTime())
   );
 };
 
@@ -1318,10 +1372,12 @@ const buildTemplateAppointmentFormItems = async (params: {
   );
   // Any version at or after the one the request was sent with: a template
   // published again after it was sent is answered at the newer version.
+  // Only submitted answers answer it: a draft is not filled in yet.
   const answersFor = (templateId: string, templateVersion: number) =>
     answering.filter(
       (instance) =>
         instance.templateId === templateId &&
+        SUBMITTED_INSTANCE_STATUSES.has(instance.status) &&
         (instance.templateVersion >= templateVersion ||
           !(instance.authorId && parentAuthors.has(instance.authorId))),
     );
@@ -1339,8 +1395,9 @@ const buildTemplateAppointmentFormItems = async (params: {
     return latest;
   };
 
-  // What the viewing parent is shown of each instance they may be shown.
-  const [shownInstances, mayReadPracticeRows] = viewer
+  // What the viewing parent is shown of each instance they may be shown, and
+  // who signs the practice's answers when a request names no one.
+  const [shownInstances, mayReadPracticeRows, primaryParent] = viewer
     ? await Promise.all([
         templateInstancesForParent(answering, viewer),
         parentHasCompanionFeature(
@@ -1348,8 +1405,22 @@ const buildTemplateAppointmentFormItems = async (params: {
           viewer.patientId,
           "medicalRecords",
         ),
+        viewer.patientId
+          ? prisma.parentPatient.findFirst({
+              where: {
+                patientId: viewer.patientId,
+                role: "PRIMARY",
+                status: "ACTIVE",
+              },
+              select: { parentId: true },
+            })
+          : null,
       ])
-    : [answering, false];
+    : [answering, false, null];
+  // Who each request is for, which a parent's listing does not show.
+  const requestSigner = new Map(
+    sent.map(({ id, signerUserId }) => [id, signerUserId ?? null]),
+  );
   const shownToViewer = new Map(
     answering.map((instance, index) => [instance.id, shownInstances[index]]),
   );
@@ -1397,6 +1468,8 @@ const buildTemplateAppointmentFormItems = async (params: {
                 parentId: viewer.parentId,
                 signingRequired,
                 assignment,
+                requestSignerId: requestSigner.get(assignment.id),
+                primaryParentId: primaryParent?.parentId,
                 instance,
                 parentAuthors,
                 mayReadPracticeRows,
@@ -1841,6 +1914,7 @@ const submitViaTemplateInstance = async (
     appointmentId: submission.appointmentId ?? undefined,
     authorId: submittedBy ?? undefined,
     byParent,
+    parentId: actor && "parentId" in actor ? actor.parentId : undefined,
     answers: submission.answers,
   });
 
@@ -2580,27 +2654,35 @@ export const FormService = {
         : undefined,
     });
 
-    if (templateBackedForms) {
-      return templateBackedForms;
-    }
+    // The appointment's own forms (attached to it or answered on it) are
+    // listed with the templates sent for it, never instead of them. The
+    // organisation's forms for the service are suggested only where no
+    // template was sent for the appointment.
+    const templateItems = templateBackedForms?.items ?? [];
+    const templateIds = new Set(
+      templateItems.map(({ templateId }) => templateId),
+    );
 
     const attachedFormIds = (appointment.formIds ?? []).map(String);
     const submissionFormIdStrings =
       await loadSubmissionFormIdStringsForAppointment(appointmentId);
 
-    const formIdsFromAppointment = new Set<string>([
-      ...attachedFormIds,
-      ...submissionFormIdStrings,
-    ]);
+    const formIdsFromAppointment = new Set<string>(
+      [...attachedFormIds, ...submissionFormIdStrings].filter(
+        (formId) => !templateIds.has(formId),
+      ),
+    );
 
     const [formsById, templateForms] = await Promise.all([
       fetchFormsByIds(formIdsFromAppointment),
-      fetchTemplateForms(orgType, appointment, params),
+      templateBackedForms
+        ? []
+        : fetchTemplateForms(orgType, appointment, params),
     ]);
 
     const forms = mergeFormsById(formsById, templateForms);
     if (!forms.length) {
-      return { appointmentId, items: [] };
+      return { appointmentId, items: templateItems };
     }
 
     // 2️⃣ Load latest form versions
@@ -2625,7 +2707,7 @@ export const FormService = {
 
     return {
       appointmentId,
-      items,
+      items: [...templateItems, ...items],
     };
   },
 };

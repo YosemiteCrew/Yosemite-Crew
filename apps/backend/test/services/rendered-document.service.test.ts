@@ -62,6 +62,7 @@ jest.mock("src/config/prisma", () => {
     formAssignment: {
       updateMany: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       count: jest.fn(),
     },
     // The lock a signature completing on a client's form takes.
@@ -124,6 +125,7 @@ describe("rendered-document service", () => {
     formAssignment: {
       updateMany: jest.Mock;
       findMany: jest.Mock;
+      findFirst: jest.Mock;
       count: jest.Mock;
     };
     $executeRaw: jest.Mock;
@@ -169,9 +171,16 @@ describe("rendered-document service", () => {
     mockedPrisma.templateInstance.findUnique.mockReset();
     // A client who signed may still act for the companion unless a case says
     // otherwise.
-    mockedPrisma.parentPatient.findFirst
+    mockedPrisma.parentPatient.findFirst.mockReset().mockResolvedValue({
+      role: "PRIMARY",
+      permissions: {},
+      parentId: "parent-1",
+    });
+    // The request names no one, so the primary parent signs the practice's
+    // answers, unless a case says otherwise.
+    mockedPrisma.formAssignment.findFirst
       .mockReset()
-      .mockResolvedValue({ role: "PRIMARY", permissions: {} });
+      .mockResolvedValue({ signerUserId: null });
     // Documenso takes the envelope unless a case says otherwise.
     mockedDocumensoService.sendEnvelope.mockReset().mockResolvedValue("sent");
     // The practice's request for the client's signature is still open unless
@@ -2243,6 +2252,8 @@ describe("rendered-document service", () => {
         mockedPrisma.formAssignment.updateMany.mockReset();
         // No correction saved since, unless a case says so.
         mockedPrisma.templateInstance.count.mockReset().mockResolvedValue(0);
+        // No author is a client account unless a case says so.
+        mockedPrisma.parent.count.mockReset().mockResolvedValue(0);
       });
       afterEach(() => {
         mockedPrisma.encounter.findUnique.mockReset();
@@ -2352,6 +2363,110 @@ describe("rendered-document service", () => {
           }),
         );
       });
+
+      // Only the one parent the answers name signs them: the practice's
+      // answers are signed by the parent the request is for, by default the
+      // primary parent. A co-parent who may read them does not sign them.
+      it.each([
+        ["another parent than the request names", "parent-2", false],
+        ["the parent the request names", "parent-1", true],
+      ])(
+        "keeps the signature of %s: %s",
+        async (_label, requestSignerId, kept) => {
+          storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });
+          signedPdfAvailable();
+          mockedPrisma.templateInstance.findUnique
+            .mockResolvedValueOnce(onAppointment("appt-9"))
+            .mockResolvedValueOnce(onAppointment("appt-9"));
+          mockedPrisma.encounter.findUnique.mockResolvedValue({
+            patientId: "patient-9",
+          });
+          mockedPrisma.formAssignment.findFirst.mockResolvedValue({
+            signerUserId: requestSignerId,
+          });
+
+          const result =
+            await completePersistedRenderedDocumentSigning("doc-9");
+
+          expect(result.status === "SIGNED").toBe(kept);
+        },
+      );
+
+      it("keeps a co-parent's signature only as the primary parent's is kept", async () => {
+        storeTemplateSigning({ signerId: "co-parent-1", signerType: "PARENT" });
+        signedPdfAvailable();
+        mockedPrisma.templateInstance.findUnique
+          .mockResolvedValueOnce(onAppointment("appt-9"))
+          .mockResolvedValueOnce(onAppointment("appt-9"));
+        mockedPrisma.encounter.findUnique.mockResolvedValue({
+          patientId: "patient-9",
+        });
+        // A co-parent who may read the practice's answers, not the primary.
+        mockedPrisma.parentPatient.findFirst.mockImplementation(
+          async ({ where }: { where: { role?: unknown } }) =>
+            where.role === "PRIMARY"
+              ? { parentId: "parent-1" }
+              : {
+                  role: "CO_PARENT",
+                  permissions: { appointments: true, medicalRecords: true },
+                },
+        );
+
+        const result = await completePersistedRenderedDocumentSigning("doc-9");
+
+        expect(result.status).not.toBe("SIGNED");
+        expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+          expect.objectContaining({
+            metadata: expect.objectContaining({
+              reason: "SIGNER_NOT_PERMITTED",
+            }),
+          }),
+        );
+      });
+
+      // Answers they did not give need medical records, as to start it.
+      it.each([
+        ["the practice's answers without medical records", "vet-1", false],
+        ["their own answers without medical records", "co-parent-1", true],
+      ])(
+        "keeps a co-parent's signature on %s: %s",
+        async (_label, authorId, kept) => {
+          storeTemplateSigning({
+            signerId: "co-parent-1",
+            signerType: "PARENT",
+          });
+          signedPdfAvailable();
+          mockedPrisma.templateInstance.findUnique
+            .mockResolvedValueOnce({
+              ...onAppointment("appt-9"),
+              authorId,
+            })
+            .mockResolvedValueOnce({ ...onAppointment("appt-9"), authorId });
+          mockedPrisma.encounter.findUnique.mockResolvedValue({
+            patientId: "patient-9",
+          });
+          mockedPrisma.parent.count.mockResolvedValue(
+            authorId === "co-parent-1" ? 1 : 0,
+          );
+          // Nothing withdrawn since they gave their answers.
+          mockedPrisma.formAssignment.count.mockImplementation(
+            async ({ where }: { where: { status?: { in?: string[] } } }) =>
+              where.status?.in ? 0 : 1,
+          );
+          mockedPrisma.formAssignment.findFirst.mockResolvedValue({
+            signerUserId: "co-parent-1",
+          });
+          mockedPrisma.parentPatient.findFirst.mockResolvedValue({
+            role: "CO_PARENT",
+            permissions: { appointments: true },
+          });
+
+          const result =
+            await completePersistedRenderedDocumentSigning("doc-9");
+
+          expect(result.status === "SIGNED").toBe(kept);
+        },
+      );
 
       it("keeps the signature of a client who may still act", async () => {
         storeTemplateSigning({ signerId: "parent-1", signerType: "PARENT" });

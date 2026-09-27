@@ -13,6 +13,7 @@ import {
   instanceNeedsClientSignature,
   isOpenSigning,
   requestsAnsweredBy,
+  resolveNamedClientSigner,
 } from "src/services/client-signature.helpers";
 import { TemplateService } from "src/services/template.service";
 
@@ -376,9 +377,21 @@ export class FormSigningService {
       answered &&
       (await prisma.formAssignment.findFirst({
         where: { ...answered, signingRequired: true, mobileVisible: true },
-        select: { id: true },
+        select: { id: true, signerUserId: true },
       }));
-    if (!assignment) {
+    // Only the parent the answers name signs them: the one who filled them
+    // in, or for the practice's, the one the request is for.
+    if (
+      !assignment ||
+      (await resolveNamedClientSigner(
+        prisma,
+        {
+          authorId: instance.authorId,
+          patientId: resolvePatientIdOf(appointment),
+        },
+        assignment,
+      )) !== parentId
+    ) {
       throw new Error("Form submission not found");
     }
 

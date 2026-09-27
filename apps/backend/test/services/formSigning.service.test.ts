@@ -1467,7 +1467,7 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
           signingRequired: true,
           mobileVisible: true,
         },
-        select: { id: true },
+        select: { id: true, signerUserId: true },
       });
     });
 
@@ -1514,7 +1514,7 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
         mobileVisible: true,
         status: { notIn: ["CANCELLED", "EXPIRED"] },
       },
-      select: { id: true },
+      select: { id: true, signerUserId: true },
     });
     expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
       where: { templateInstanceId: "instance-1" },
@@ -1641,13 +1641,41 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
     );
   });
 
-  // A co-parent signs answers they did not give only with medical records.
+  // Only the one parent the answers name signs them: for the practice's, the
+  // parent the request is for, by default the primary parent. A co-parent
+  // signs them only when the request names them, and with medical records.
   it.each([
-    ["without medical records", {}, "Form submission not found"],
-    ["with medical records", { medicalRecords: true }, null],
+    [
+      "a co-parent, when the request names no one",
+      {},
+      null,
+      "parent-other",
+      false,
+    ],
+    [
+      "a co-parent the request names, without medical records",
+      {},
+      "parent-1",
+      "parent-other",
+      false,
+    ],
+    [
+      "a co-parent the request names, with medical records",
+      { medicalRecords: true },
+      "parent-1",
+      "parent-other",
+      true,
+    ],
+    [
+      "a co-parent with medical records the request does not name",
+      { medicalRecords: true },
+      null,
+      "parent-other",
+      false,
+    ],
   ])(
-    "lets a co-parent sign the practice's answers %s",
-    async (_label, permissions, error) => {
+    "lets %s sign the practice's answers",
+    async (_label, permissions, requestSignerId, primaryParentId, signs) => {
       arrange({
         instance: {
           id: "instance-1",
@@ -1658,6 +1686,11 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
           template: CONSENT_TEMPLATE,
         },
       });
+      mockedPrisma.formAssignment.findFirst.mockReset();
+      mockedPrisma.formAssignment.findFirst.mockResolvedValueOnce({
+        id: "assignment-1",
+        signerUserId: requestSignerId,
+      });
       companionLinks = [
         companionLink({
           parentId: "parent-1",
@@ -1665,16 +1698,71 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
           role: "CO_PARENT",
           permissions: { appointments: true, ...permissions },
         }),
+        companionLink({ parentId: primaryParentId, patientId: "patient-1" }),
       ];
 
       const started = startAsParent();
-      if (error) {
-        await expect(started).rejects.toThrow(error);
-      } else {
+      if (signs) {
         await expect(started).resolves.toMatchObject({ documentId: "77" });
+      } else {
+        await expect(started).rejects.toThrow("Form submission not found");
+        expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
       }
     },
   );
+
+  // The primary parent signs the practice's answers when the request names
+  // no one.
+  it("lets the primary parent sign the practice's answers", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "vet-1",
+        template: CONSENT_TEMPLATE,
+      },
+    });
+
+    await expect(startAsParent()).resolves.toMatchObject({ documentId: "77" });
+    expect(mockedPrisma.parentPatient.findFirst).toHaveBeenCalledWith({
+      where: { patientId: "patient-1", role: "PRIMARY", status: "ACTIVE" },
+      select: { parentId: true },
+    });
+  });
+
+  // Answers a parent filled in are signed by that parent alone.
+  it("refuses a parent the answers of another parent", async () => {
+    arrange({
+      instance: {
+        id: "instance-1",
+        organisationId: "org-1",
+        templateId: "tpl-consent",
+        appointmentId: "appt-1",
+        authorId: "parent-other",
+        template: CONSENT_TEMPLATE,
+      },
+    });
+    mockedPrisma.parent.count.mockResolvedValue(1);
+    mockedPrisma.formAssignment.count.mockResolvedValue(0);
+    // Even the parent the request is for.
+    mockedPrisma.formAssignment.findFirst.mockReset();
+    mockedPrisma.formAssignment.findFirst.mockResolvedValueOnce({
+      id: "assignment-1",
+      signerUserId: "parent-1",
+    });
+    companionLinks = [
+      companionLink({
+        parentId: "parent-1",
+        patientId: "patient-1",
+        permissions: { appointments: true, medicalRecords: true },
+      }),
+    ];
+
+    await expect(startAsParent()).rejects.toThrow("Form submission not found");
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
 
   it("sends the parent a form whose template names the client", async () => {
     arrange({

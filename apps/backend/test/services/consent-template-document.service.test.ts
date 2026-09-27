@@ -1099,6 +1099,55 @@ describe("consent template documents (#3600)", () => {
     expect(store.templateInstances.get("inst-void")?.status).toBe("VOID");
   });
 
+  // What lets a parent answer is checked again once their submission holds
+  // the request's lock, so a practice save or a withdrawal that lands between
+  // the first check and the lock is seen.
+  describe("a parent's submission racing the practice", () => {
+    const beforeTheLock = (practiceStep: () => Promise<unknown>) => {
+      const transaction = prisma.$transaction.bind(prisma);
+      return jest.spyOn(prisma, "$transaction").mockImplementationOnce((async (
+        ...args: unknown[]
+      ) => {
+        await practiceStep();
+        return (transaction as (...a: unknown[]) => unknown)(...args);
+      }) as never);
+    };
+
+    it("is refused over a form the practice filled in meanwhile", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const race = beforeTheLock(() => submitFromPms("tpl-consent"));
+
+      await expect(submitFromMobile("tpl-consent")).rejects.toMatchObject({
+        statusCode: 409,
+        message: "This form was already completed at the practice",
+      });
+      race.mockRestore();
+
+      const instances = [...store.templateInstances.values()];
+      expect(instances.map(({ authorId }) => authorId)).toEqual(["vet-1"]);
+    });
+
+    it("is refused once the practice withdrew the request meanwhile", async () => {
+      seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });
+      const race = beforeTheLock(() =>
+        FormAssignmentService.cancel(
+          store.formAssignments[0].id as string,
+          ORG,
+          "vet-1",
+        ),
+      );
+
+      await expect(submitFromMobile("tpl-consent")).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Form not found",
+      });
+      race.mockRestore();
+
+      expect(store.templateInstances.size).toBe(0);
+      expect(store.formAssignments[0].status).toBe("CANCELLED");
+    });
+  });
+
   describe("resubmitting on the mobile (pet parent) route", () => {
     it("is refused and renders no second document", async () => {
       seedTemplate("tpl-consent", "CONSENT", { name: "Anaesthesia consent" });

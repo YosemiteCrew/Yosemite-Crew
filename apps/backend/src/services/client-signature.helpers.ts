@@ -141,6 +141,50 @@ export const requestsAnsweredBy = async (
 };
 
 /**
+ * The one parent who signs a client-signed form on its appointment: the parent
+ * who filled it in, or else, for answers the practice gave, the parent the
+ * request names, by default the companion's primary parent. `null` when there
+ * is none. Any other parent, a co-parent who may read it included, never signs
+ * it.
+ */
+export const pickNamedClientSigner = (named: {
+  authorId: string | null;
+  authorIsParent: boolean;
+  requestSignerId?: string | null;
+  primaryParentId?: string | null;
+}): string | null => {
+  if (named.authorId && named.authorIsParent) return named.authorId;
+  return named.requestSignerId || named.primaryParentId || null;
+};
+
+/** `pickNamedClientSigner`, reading who the author and primary parent are. */
+export const resolveNamedClientSigner = async (
+  client: Pick<Prisma.TransactionClient, "parent" | "parentPatient">,
+  answers: { authorId: string | null; patientId?: string | null },
+  request: { signerUserId?: string | null } | null,
+): Promise<string | null> => {
+  const authorIsParent =
+    !!answers.authorId &&
+    (await client.parent.count({ where: { id: answers.authorId } })) > 0;
+  if (authorIsParent || request?.signerUserId || !answers.patientId) {
+    return pickNamedClientSigner({
+      authorId: answers.authorId,
+      authorIsParent,
+      requestSignerId: request?.signerUserId,
+    });
+  }
+  const primary = await client.parentPatient.findFirst({
+    where: { patientId: answers.patientId, role: "PRIMARY", status: "ACTIVE" },
+    select: { parentId: true },
+  });
+  return pickNamedClientSigner({
+    authorId: answers.authorId,
+    authorIsParent,
+    primaryParentId: primary?.parentId,
+  });
+};
+
+/**
  * When the last request for each form on an appointment was withdrawn: a
  * parent's answers given before then answer no request. A form with no
  * withdrawn request has no cut-off.

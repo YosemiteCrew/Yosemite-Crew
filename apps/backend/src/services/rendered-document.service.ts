@@ -10,6 +10,7 @@ import {
   lockClientRequest,
   readRecordField,
   requestsAnsweredBy,
+  resolveNamedClientSigner,
 } from "src/services/client-signature.helpers";
 import axios from "axios";
 import {
@@ -1405,14 +1406,18 @@ const answeringInstanceOf = (
 });
 
 /**
- * Whether a client who signed may still act for the companion on this
- * appointment: their link is active with the appointments permission, the
- * rule that let them start the signing. A link revoked, or the permission
- * taken away, while the signature was outstanding discards it. Other signers,
- * and documents with no companion to check against, are not affected.
+ * Whether a client who signed may still sign it, by the rules that let them
+ * start the signing: their link to the companion is active, with the
+ * appointments permission for answers they gave and medical records for any
+ * others, and for a form filled in on an appointment they are still the one
+ * parent it names. A link revoked, a permission taken away, or the request
+ * sent to another parent while the signature was outstanding discards it.
+ * Other signers, and documents with no companion to check against, are not
+ * affected.
  */
 const signerMayStillSign = async (
   tx: Prisma.TransactionClient,
+  existing: PersistedRenderedDocument,
   linked: LinkedRecord | null,
   signing: PinnedRenderedDocumentSigning,
 ): Promise<boolean> => {
@@ -1430,8 +1435,34 @@ const signerMayStillSign = async (
     },
     select: { role: true, permissions: true },
   });
-  return Boolean(
-    link && hasCompanionFeature(link.role, link.permissions, "appointments"),
+  const feature =
+    linked.authorId === signing.signerId ? "appointments" : "medicalRecords";
+  if (!link || !hasCompanionFeature(link.role, link.permissions, feature)) {
+    return false;
+  }
+  if (
+    !existing.templateId ||
+    !existing.templateInstanceId ||
+    !linked.appointmentId
+  ) {
+    return true;
+  }
+  const answered = await requestsAnsweredBy(
+    tx,
+    answeringInstanceOf(existing, linked),
+  );
+  const request =
+    answered &&
+    (await tx.formAssignment.findFirst({
+      where: { ...answered, signingRequired: true },
+      select: { signerUserId: true },
+    }));
+  return (
+    (await resolveNamedClientSigner(
+      tx,
+      { authorId: linked.authorId, patientId },
+      request ?? null,
+    )) === signing.signerId
   );
 };
 
@@ -1609,7 +1640,7 @@ const commitSigningCompletion = async (
       const linked = await findLinkedRecord(tx, existing);
       // Checked on the record as signed; a refusal rolls every write above
       // back with it.
-      if (!(await signerMayStillSign(tx, linked, signing))) {
+      if (!(await signerMayStillSign(tx, existing, linked, signing))) {
         throw new SigningCompletionSkipped("SIGNER_NOT_PERMITTED");
       }
       if (!(await clientRequestStillOpen(tx, existing, linked, signing))) {
