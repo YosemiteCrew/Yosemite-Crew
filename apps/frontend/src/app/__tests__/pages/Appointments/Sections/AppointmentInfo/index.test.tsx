@@ -13,6 +13,7 @@ import {
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import { useAuthStore } from '@/app/stores/authStore';
 import { postData } from '@/app/services/axios';
+import { usePermissions } from '@/app/hooks/usePermissions';
 
 const labelsSpy = jest.fn();
 let labelsRenderCount = 0;
@@ -367,20 +368,21 @@ jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
+jest.mock('@/app/ui/primitives/Buttons', () => {
+  const Button = ({ text, onClick, isDisabled }: any) => (
     <button type="button" onClick={onClick} disabled={isDisabled} aria-disabled={isDisabled}>
       {text}
     </button>
-  ),
-}));
+  );
+  return { Primary: Button, Secondary: Button };
+});
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer', () => ({
   __esModule: true,
-  default: ({ onChange }: any) => (
+  default: ({ onChange, readOnly }: any) => (
     <div>
       <span>form-renderer</span>
-      <button type="button" onClick={() => onChange?.('field-1', 'val-1')}>
+      <button type="button" disabled={readOnly} onClick={() => onChange?.('field-1', 'val-1')}>
         trigger-form-change
       </button>
     </div>
@@ -1377,18 +1379,151 @@ describe('AppointmentInfo modal', () => {
       expect(screen.getByText('Completed')).toBeInTheDocument();
     });
 
-    it.each([
-      [true, 'Sent to pet parent. It will update when they sign the document.'],
-      [false, 'Sent to pet parent. It will update when they fill it in.'],
-    ])(
-      'offers no practice save while the request is open (signs: %s)',
-      async (signingRequired, note) => {
-        await listWith([requestRow({ signingRequired })]);
+    const signNote = 'Sent to pet parent. It will update when they sign the document.';
+    const fillNote = 'Sent to pet parent. It will update when they fill it in.';
 
-        expect(screen.getByText(note)).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-      }
-    );
+    it('offers no practice save while the pet parent is asked to sign', async () => {
+      await listWith([requestRow({ signingRequired: true })]);
+
+      expect(screen.getByText(signNote)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'trigger-form-change' })).toBeDisabled();
+    });
+
+    // A request the pet parent does not sign, such as a form the appointment's
+    // templates sent them: the practice may fill it in, and that answers it.
+    it('lets the practice fill in a request the pet parent does not sign', async () => {
+      await listWith([
+        requestRow({
+          form: { _id: 'tpl-intake', name: 'Anaesthesia consent', schema: [] },
+          signingRequired: false,
+        }),
+      ]);
+
+      expect(screen.getByText(fillNote)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'trigger-form-change' })).toBeEnabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() =>
+        expect(createSubmission).toHaveBeenCalledWith(
+          expect.objectContaining({ formId: 'tpl-intake', appointmentId: 'appt-1' })
+        )
+      );
+      expect(await screen.findByText('Completed')).toBeInTheDocument();
+      expect(screen.queryByText(fillNote)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Withdraw request' })).not.toBeInTheDocument();
+    });
+
+    it('says nothing is with the pet parent when the request is not in their app', async () => {
+      await listWith([requestRow({ signingRequired: false, mobileVisible: false })]);
+
+      expect(screen.queryByText(fillNote)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    });
+
+    it('says nothing is with the pet parent for a form not sent to them', async () => {
+      await listWith([
+        {
+          form: { _id: 'tpl-consent', name: 'Anaesthesia consent', schema: [] },
+          submission: null,
+          status: 'pending',
+        },
+      ]);
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+      expect(screen.queryByText(fillNote)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Withdraw request' })).not.toBeInTheDocument();
+    });
+
+    describe('withdrawing it', () => {
+      const cancelUrl = '/v1/forms/organisations/org-1/assignments/assignment-1/$cancel';
+      beforeEach(() => {
+        (postData as jest.Mock).mockReset();
+      });
+      afterEach(() => {
+        (usePermissions as jest.Mock).mockImplementation(() => ({ can: jest.fn(() => true) }));
+      });
+
+      it.each([
+        ['to sign', { signingRequired: true }],
+        ['to fill in', { signingRequired: false }],
+        [
+          'to sign what they submitted',
+          { submission: answered, status: 'completed', assignmentStatus: 'submitted' },
+        ],
+      ])('withdraws a request the pet parent is asked %s, once confirmed', async (_label, row) => {
+        (postData as jest.Mock).mockResolvedValue({
+          data: { assignmentId: 'assignment-1', status: 'cancelled' },
+        });
+        await listWith([requestRow(row)]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Withdraw request' }));
+        expect(screen.getByText('Withdraw request?')).toBeInTheDocument();
+        expect(postData).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+
+        expect(await screen.findByText('Withdrawn')).toBeInTheDocument();
+        expect(postData).toHaveBeenCalledWith(cancelUrl);
+        expect(screen.queryByText(signNote)).not.toBeInTheDocument();
+        expect(screen.queryByText('Pending parent signature')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Withdraw request' })).not.toBeInTheDocument();
+      });
+
+      it('leaves the request with the pet parent when not confirmed', async () => {
+        await listWith([requestRow({})]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Withdraw request' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+        await waitFor(() =>
+          expect(screen.queryByText('Withdraw request?')).not.toBeInTheDocument()
+        );
+        expect(postData).not.toHaveBeenCalled();
+        expect(screen.getByText(signNote)).toBeInTheDocument();
+        expect(screen.queryByText('Withdrawn')).not.toBeInTheDocument();
+      });
+
+      it('keeps the request and says so when withdrawing fails', async () => {
+        (postData as jest.Mock).mockRejectedValue(new Error('offline'));
+        await listWith([requestRow({})]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Withdraw request' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+
+        expect(
+          await screen.findByText('Failed to withdraw the request. Please try again.')
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Withdrawn')).not.toBeInTheDocument();
+        expect(screen.getByText(signNote)).toBeInTheDocument();
+      });
+
+      it.each([
+        ['signed', { submission: answered, status: 'completed', assignmentStatus: 'signed' }],
+        [
+          'answered, with nothing to sign',
+          {
+            submission: answered,
+            status: 'completed',
+            assignmentStatus: 'submitted',
+            signingRequired: false,
+          },
+        ],
+      ])('is not offered once the request is %s', async (_label, row) => {
+        await listWith([requestRow(row)]);
+
+        expect(screen.queryByRole('button', { name: 'Withdraw request' })).not.toBeInTheDocument();
+      });
+
+      it('is not offered to staff who may not edit forms', async () => {
+        (usePermissions as jest.Mock).mockImplementation(() => ({
+          can: jest.fn((permission: string) => permission !== 'forms:edit:any'),
+        }));
+        await listWith([requestRow({})]);
+
+        expect(screen.getByText(signNote)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Withdraw request' })).not.toBeInTheDocument();
+      });
+    });
 
     // Withdrawn: read-only, with no answers and nothing to save, so no
     // consent is saved that nobody could sign.

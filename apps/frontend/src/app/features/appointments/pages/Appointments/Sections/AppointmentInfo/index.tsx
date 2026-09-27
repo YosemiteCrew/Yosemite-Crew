@@ -25,7 +25,10 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { fetchAppointmentForms } from '@/app/features/forms/services/appointmentFormsService';
-import { sendFormToParent } from '@/app/features/forms/services/formAssignmentService';
+import {
+  cancelFormAssignment,
+  sendFormToParent,
+} from '@/app/features/forms/services/formAssignmentService';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { AppointmentFormEntry } from '@/app/features/appointments/types/appointmentForms';
 import { FormField, appointmentFormSigner } from '@/app/features/forms/types/forms';
@@ -38,7 +41,8 @@ import { useFormsStore } from '@/app/stores/formsStore';
 import { useLoadFormsForPrimaryOrg } from '@/app/hooks/useForms';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 import { SoapNoteSubmission } from '@/app/features/appointments/types/soap';
 import SignatureActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions';
 import { hasSignatureField } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils';
@@ -278,11 +282,103 @@ const WithdrawnFormEntry = ({ entry }: { entry: AppointmentFormEntry }) => (
   </Accordion>
 );
 
-// What the row says while the pet parent has the form.
-const sentToParentNote = (isClientSigner: boolean, openRequest: boolean) => {
+// What the row says while the pet parent is asked for the form: to sign it,
+// or, where it was sent to their app and is not answered yet, to fill it in.
+const sentToParentNote = (entry: AppointmentFormEntry, isClientSigner: boolean) => {
   if (isClientSigner) return 'Sent to pet parent. It will update when they sign the document.';
-  if (openRequest) return 'Sent to pet parent. It will update when they fill it in.';
+  const awaitingAnswer = entry.assignmentStatus === 'sent' || entry.assignmentStatus === 'viewed';
+  if (awaitingAnswer && entry.mobileVisible !== false) {
+    return 'Sent to pet parent. It will update when they fill it in.';
+  }
   return null;
+};
+
+// A request the practice can withdraw: one still waiting on the pet parent to
+// fill it in or to sign it.
+const isWithdrawable = (entry: AppointmentFormEntry) => {
+  if (!entry.assignmentId) return false;
+  const status = entry.assignmentStatus;
+  if (status === 'sent' || status === 'viewed') return true;
+  return status === 'submitted' && entry.signingRequired === true;
+};
+
+// The row after the practice saves the form: a request the client does not
+// sign is answered by that save.
+const savedEntry = (
+  entry: AppointmentFormEntry,
+  submission: FormSubmission,
+  openRequest: boolean
+): AppointmentFormEntry => ({
+  ...entry,
+  submission,
+  status: 'completed',
+  ...(openRequest ? { assignmentStatus: 'submitted' } : {}),
+});
+
+type WithdrawPermission = {
+  confirm: ReturnType<typeof useConfirm>['confirm'];
+  onWithdrawn?: (entry: AppointmentFormEntry) => void;
+};
+
+type WithdrawRequestProps = {
+  entry: AppointmentFormEntry;
+  activeAppointment: Appointment | null;
+  // Set for staff who may withdraw a request from the pet parent.
+  withdraw?: WithdrawPermission;
+  setSubmitError: React.Dispatch<React.SetStateAction<string | null>>;
+};
+
+/**
+ * Withdraws a request from the pet parent, once confirmed: it is no longer
+ * theirs to fill in or sign, and the visit no longer waits on it.
+ */
+const WithdrawRequestAction = ({
+  entry,
+  activeAppointment,
+  withdraw,
+  setSubmitError,
+}: WithdrawRequestProps) => {
+  const [withdrawing, setWithdrawing] = useState(false);
+  if (!withdraw || !isWithdrawable(entry)) return null;
+  const { confirm, onWithdrawn } = withdraw;
+  const withdrawRequest = async () => {
+    const orgId = activeAppointment?.organisationId;
+    if (!orgId || !entry.assignmentId) return;
+    const confirmed = await confirm({
+      title: 'Withdraw request?',
+      body: `${entry.form.name} will no longer be with the pet parent to fill in or sign, and the visit will not wait for it.`,
+      confirmLabel: 'Withdraw',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+    setSubmitError(null);
+    setWithdrawing(true);
+    try {
+      await cancelFormAssignment(orgId, entry.assignmentId);
+      onWithdrawn?.({
+        ...entry,
+        submission: null,
+        status: 'pending',
+        assignmentStatus: 'cancelled',
+      });
+    } catch (e) {
+      console.error('Failed to withdraw form request', e);
+      setSubmitError('Failed to withdraw the request. Please try again.');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+  return (
+    <div className="flex justify-end">
+      <Secondary
+        danger
+        size="compact"
+        text={withdrawing ? 'Withdrawing...' : 'Withdraw request'}
+        isDisabled={withdrawing}
+        onClick={withdrawRequest}
+      />
+    </div>
+  );
 };
 
 /**
@@ -321,6 +417,7 @@ type SubmittedFormEntryProps = {
     submissionId: string,
     updates: Partial<FormSubmission> & { signatureRequired?: boolean }
   ) => void;
+  withdraw?: WithdrawPermission;
 };
 
 const SubmittedFormEntry = ({
@@ -336,6 +433,7 @@ const SubmittedFormEntry = ({
   setSubmitError,
   onSubmission,
   onSubmissionUpdate,
+  withdraw,
 }: SubmittedFormEntryProps) => {
   const answers = entry.submission?.answers ?? {};
   const { openRequest, isClientSigner, signatureRequired } = entrySigners(entry);
@@ -350,7 +448,15 @@ const SubmittedFormEntry = ({
     : null;
   const isSigned = isEntrySigned(entry, openRequest);
   const needsSignature = submissionWithMeta?.signatureRequired;
-  const sentNote = sentToParentNote(isClientSigner, openRequest);
+  const sentNote = sentToParentNote(entry, isClientSigner);
+  const withdrawAction = (
+    <WithdrawRequestAction
+      entry={entry}
+      activeAppointment={activeAppointment}
+      withdraw={withdraw}
+      setSubmitError={setSubmitError}
+    />
+  );
   const { label, badgeClass } = getFormBadge(entry, needsSignature, isSigned, isClientSigner);
   const shouldOpenByDefault = label === 'Signature Pending';
   const signatureActions = submissionWithMeta?.signatureRequired ? (
@@ -388,6 +494,7 @@ const SubmittedFormEntry = ({
                 : 'Sent to pet parent. It will update when they sign the document.'}
             </div>
           ) : null}
+          {withdrawAction}
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -401,12 +508,12 @@ const SubmittedFormEntry = ({
                   [formId]: { ...(prev[formId] ?? formValues), [id]: value },
                 }))
               }
-              // The pet parent answers an open request; the practice does not
-              // save over it.
-              readOnly={!canEdit || isClientSigner || openRequest}
+              // The pet parent signs a request that asks them to; the practice
+              // does not save over it. Any other the practice may fill in.
+              readOnly={!canEdit || isClientSigner}
             />
           </div>
-          {canEdit && !isClientSigner && !openRequest && (
+          {canEdit && !isClientSigner && (
             <Primary
               href="#"
               text={submittingId === formId ? 'Saving...' : 'Save'}
@@ -455,11 +562,7 @@ const SubmittedFormEntry = ({
                         },
                       }
                     : created;
-                  onSubmission?.({
-                    form: entry.form,
-                    submission: submissionWithSigning,
-                    status: 'completed',
-                  });
+                  onSubmission?.(savedEntry(entry, submissionWithSigning, openRequest));
                 } catch (e) {
                   console.error('Failed to submit form', e);
                   setSubmitError('Failed to submit form. Please try again.');
@@ -470,6 +573,7 @@ const SubmittedFormEntry = ({
             />
           )}
           {sentNote ? <div className="text-xs text-text-secondary">{sentNote}</div> : null}
+          {withdrawAction}
         </div>
       )}
     </Accordion>
@@ -551,6 +655,12 @@ export const CustomFormsView = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [selectedTemplateLabel, setSelectedTemplateLabel] = useState<string>('');
+  const { can } = usePermissions();
+  const { confirm, confirmDialog } = useConfirm();
+  // Staff who may edit forms may withdraw a request from the pet parent.
+  const withdraw = can(PERMISSIONS.FORMS_EDIT_ANY)
+    ? { confirm, onWithdrawn: onFormLinked }
+    : undefined;
 
   if (loading) {
     return <div className="text-body-3 text-text-primary">Loading forms…</div>;
@@ -743,6 +853,7 @@ export const CustomFormsView = ({
               setSubmitError={setSubmitError}
               onSubmission={onSubmission}
               onSubmissionUpdate={onSubmissionUpdate}
+              withdraw={withdraw}
             />
           );
         })}
@@ -758,6 +869,7 @@ export const CustomFormsView = ({
         ) : null}
         {submitError ? <div className="text-text-error text-body-4">{submitError}</div> : null}
       </div>
+      {confirmDialog}
     </Accordion>
   );
 };

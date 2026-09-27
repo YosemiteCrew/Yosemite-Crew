@@ -10,6 +10,8 @@ export type AppointmentFormEntry = {
   assignmentStatus?: string;
   /** Whether that request asks the pet parent to sign. */
   signingRequired?: boolean;
+  /** Whether that request was sent to the pet parent's app. */
+  mobileVisible?: boolean;
 };
 
 export type AppointmentFormsResponse = {

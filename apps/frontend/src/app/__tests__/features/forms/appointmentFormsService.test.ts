@@ -85,6 +85,7 @@ describe('fetchAppointmentForms', () => {
             assignmentId: 'assignment-2',
             assignmentStatus: 'sent',
             signingRequired: false,
+            mobileVisible: false,
           },
           {
             questionnaire: { id: 'form-1', title: 'Legacy form' },
@@ -101,10 +102,13 @@ describe('fetchAppointmentForms', () => {
       assignmentId: 'assignment-1',
       assignmentStatus: 'submitted',
       signingRequired: true,
+      mobileVisible: true,
     });
+    // Kept off the pet parent's app: nothing there for them to fill in.
     expect(res.forms[1]).toMatchObject({
       assignmentStatus: 'sent',
       signingRequired: false,
+      mobileVisible: false,
     });
     expect(res.forms[2]).not.toHaveProperty('assignmentStatus');
     expect(res.forms[2]).not.toHaveProperty('signingRequired');

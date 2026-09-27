@@ -19,6 +19,7 @@ type AppointmentFormsApiItem = {
   assignmentId?: string;
   assignmentStatus?: string;
   signingRequired?: boolean;
+  mobileVisible?: boolean;
 };
 
 // Where the request sent to the pet parent stands, so a reload shows it as the
@@ -29,6 +30,7 @@ const requestOf = (item: AppointmentFormsApiItem) =>
         assignmentId: item.assignmentId,
         assignmentStatus: item.assignmentStatus,
         signingRequired: item.signingRequired === true,
+        mobileVisible: item.mobileVisible !== false,
       }
     : {};
 
