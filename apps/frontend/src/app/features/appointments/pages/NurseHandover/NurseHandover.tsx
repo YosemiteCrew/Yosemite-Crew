@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { IoChevronDownOutline, IoChevronForwardOutline, IoClipboardOutline } from 'react-icons/io5';
 import type { AppointmentWithCompanion } from '@/app/features/appointments/types/appointments';
@@ -24,52 +24,18 @@ import {
 } from '@/app/features/appointments/lib/vitalsUnits';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
+import { getHandoverVisits } from './handoverUtils';
+import { getPreferredTimeZone } from '@/app/lib/timezone';
 
 type HandoverRecords = { vitals: Vitals[]; observations: ObservationRecord[] };
-type HandoverAppointment = AppointmentWithCompanion & { id: string };
-type HandoverVisit = { appointment: HandoverAppointment; openTasks: Task[] };
+type HandoverVisit = { appointment: AppointmentWithCompanion & { id: string }; openTasks: Task[] };
 
-const OPEN_TASK_STATUSES = new Set<Task['status']>(['PENDING', 'IN_PROGRESS']);
-const ACTIVE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
-
-export const getHandoverVisits = (
-  appointments: AppointmentWithCompanion[],
-  tasks: Task[]
-): HandoverVisit[] => {
-  const appointmentsWithIds = appointments.filter(
-    (appointment): appointment is HandoverAppointment => Boolean(appointment.id)
-  );
-  const openTasksByAppointment = new Map<string, Task[]>(
-    appointmentsWithIds.map(({ id }) => [id, []])
-  );
-
-  tasks.forEach((task) => {
-    if (
-      task.audience !== 'EMPLOYEE_TASK' ||
-      !task.appointmentId ||
-      !OPEN_TASK_STATUSES.has(task.status) ||
-      !openTasksByAppointment.has(task.appointmentId)
-    )
-      return;
-    openTasksByAppointment.get(task.appointmentId)!.push(task);
-  });
-
-  return appointmentsWithIds
-    .filter(
-      (appointment) =>
-        ACTIVE_APPOINTMENT_STATUSES.has(appointment.status) ||
-        openTasksByAppointment.get(appointment.id)!.length > 0
-    )
-    .map((appointment) => ({
-      appointment,
-      openTasks: openTasksByAppointment.get(appointment.id)!,
-    }))
-    .sort(
-      (left, right) =>
-        new Date(left.appointment.startTime).getTime() -
-        new Date(right.appointment.startTime).getTime()
-    );
+const subscribeToTimezoneChanges = (listener: () => void) => {
+  window.addEventListener('yc:timezone-changed', listener);
+  return () => window.removeEventListener('yc:timezone-changed', listener);
 };
+
+const getServerTimezone = () => 'Europe/Berlin';
 
 const getVisitStatusLabel = (status: AppointmentWithCompanion['status']) => {
   if (status === 'IN_PROGRESS') return 'In progress';
@@ -77,18 +43,33 @@ const getVisitStatusLabel = (status: AppointmentWithCompanion['status']) => {
   return 'Open work';
 };
 
-const formatVisitTime = (value: Date | string) => {
+const LocalizedTimestamp = ({
+  value,
+  includeDate = false,
+}: {
+  value: Date | string;
+  includeDate?: boolean;
+}) => {
+  const timeZone = useSyncExternalStore(
+    subscribeToTimezoneChanges,
+    getPreferredTimeZone,
+    getServerTimezone
+  );
   const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? 'Time unavailable'
-    : new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date);
-};
+  const formatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        ...(includeDate
+          ? { dateStyle: 'medium', timeStyle: 'short' }
+          : { hour: 'numeric', minute: '2-digit' }),
+      }),
+    [includeDate, timeZone]
+  );
 
-const formatRecordTime = (value: string) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? 'Time not recorded'
-    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  if (Number.isNaN(date.getTime()))
+    return <>{includeDate ? 'Time not recorded' : 'Time unavailable'}</>;
+  return <>{formatter.format(date)}</>;
 };
 
 const vitalSummary = (vital: Vitals) => {
@@ -149,7 +130,8 @@ const HandoverVisitCard = ({
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
         <div className="min-w-0">
           <p className="text-caption-2 font-semibold text-[var(--ink-muted)]">
-            {formatVisitTime(appointment.startTime)} · {getVisitStatusLabel(appointment.status)}
+            <LocalizedTimestamp value={appointment.startTime} /> ·{' '}
+            {getVisitStatusLabel(appointment.status)}
           </p>
           <h2 className="mt-1 truncate text-body-2 font-bold text-[var(--ink)]">
             {appointment.patient.name}
@@ -212,9 +194,9 @@ const HandoverVisitCard = ({
           {expanded && (
             <div id={`handover-records-${appointmentId}`} className="mt-2 space-y-3">
               {loading && (
-                <p role="status" className="text-caption-1 text-[var(--ink-muted)]">
+                <output className="text-caption-1 text-[var(--ink-muted)]">
                   Loading saved records…
-                </p>
+                </output>
               )}
               {error && (
                 <div
@@ -243,7 +225,8 @@ const HandoverVisitCard = ({
                 >
                   <p className="font-semibold text-[var(--ink)]">Vitals · {vitalSummary(vital)}</p>
                   <p className="mt-0.5 text-[var(--ink-muted)]">
-                    Recorded by {vital.recordedByName} · {formatRecordTime(vital.recordedAt)}
+                    Recorded by {vital.recordedByName} ·{' '}
+                    <LocalizedTimestamp value={vital.recordedAt} includeDate />
                   </p>
                 </div>
               ))}
@@ -258,7 +241,7 @@ const HandoverVisitCard = ({
                   </p>
                   <p className="mt-0.5 text-[var(--ink-muted)]">
                     Recorded by {observation.recordedByName} ·{' '}
-                    {formatRecordTime(observation.recordedAt)}
+                    <LocalizedTimestamp value={observation.recordedAt} includeDate />
                   </p>
                 </div>
               ))}

@@ -1,9 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import '@testing-library/jest-dom';
-import NurseHandover, {
-  getHandoverVisits,
-} from '@/app/features/appointments/pages/NurseHandover/NurseHandover';
+import NurseHandover from '@/app/features/appointments/pages/NurseHandover/NurseHandover';
+import { getHandoverVisits } from '@/app/features/appointments/pages/NurseHandover/handoverUtils';
 import type { AppointmentWithCompanion } from '@/app/features/appointments/types/appointments';
 import type { Task } from '@/app/features/tasks/types/task';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
@@ -135,6 +135,12 @@ describe('getHandoverVisits', () => {
 });
 
 describe('NurseHandover', () => {
+  it('renders timestamps in the stable server timezone before browser preferences load', () => {
+    mockStoreHooks([appointment('appt-1', 'CHECKED_IN')], []);
+
+    expect(renderToString(<NurseHandover />)).toContain('11:00 AM');
+  });
+
   it('shows open work and loads only saved vitals and observations when expanded', async () => {
     const visit = appointment('appt-1', 'IN_PROGRESS');
     mockStoreHooks([visit], [task('Give medication', 'appt-1', 'IN_PROGRESS')]);
@@ -181,6 +187,17 @@ describe('NurseHandover', () => {
       'appt-1',
       expect.objectContaining({ authorId: 'staff-1', authorName: 'Mira Patel' })
     );
+  });
+
+  it('announces loading saved records with an output element', () => {
+    const visit = appointment('appt-1', 'CHECKED_IN');
+    mockStoreHooks([visit], []);
+    (listVitalRecordsForAppointment as jest.Mock).mockReturnValue(new Promise(() => {}));
+
+    render(<NurseHandover />);
+    fireEvent.click(screen.getByRole('button', { name: 'Recorded observations' }));
+
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
   });
 
   it('distinguishes no saved records from a failed request and lets staff retry', async () => {
@@ -231,7 +248,7 @@ describe('NurseHandover', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Recorded observations' }));
     expect(await screen.findByText('Vitals · No readings recorded')).toBeInTheDocument();
     expect(screen.getByText('Comfort check')).toBeInTheDocument();
-    expect(screen.getAllByText(/Time not recorded/)).toHaveLength(2);
+    expect(await screen.findAllByText(/Time not recorded/)).toHaveLength(2);
   });
 
   it('uses a generic appointment label, shows a room, and falls back to the current user name', async () => {
