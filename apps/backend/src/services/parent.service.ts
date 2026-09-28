@@ -310,7 +310,7 @@ const upsertParentAddress = async (
 
 const deleteParentAddress = async (parentId: string) => {
   await prisma.parentAddress.deleteMany({
-    where: { parentId: { equals: parentId } },
+    where: { parentId: { equals: String(parentId) } },
   });
 };
 
