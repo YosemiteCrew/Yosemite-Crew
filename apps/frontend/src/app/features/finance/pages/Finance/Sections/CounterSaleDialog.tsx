@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
@@ -102,7 +102,7 @@ const CounterSaleDialog = ({
   const [createdInvoice, setCreatedInvoice] = useState<Invoice | null>(null);
   const [receiptReady, setReceiptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nextKey, setNextKey] = useState(1);
+  const nextKey = useRef(1);
   const loadingInventory = Boolean(
     open && organisationId && loadedOrganisationId !== organisationId
   );
@@ -161,8 +161,8 @@ const CounterSaleDialog = ({
   };
 
   const addLine = () => {
-    setLines((current) => [...current, { key: nextKey, inventoryItemId: '', quantity: '1' }]);
-    setNextKey((current) => current + 1);
+    const key = nextKey.current++;
+    setLines((current) => [...current, { key, inventoryItemId: '', quantity: '1' }]);
   };
 
   const removeLine = (key: number) => {
