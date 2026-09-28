@@ -38,7 +38,10 @@ const STAGES = [
 const DeveloperMyIntegrations = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
-  const closeDraft = () => setIsCreating(false);
+  const closeDraft = () => {
+    setName('');
+    setIsCreating(false);
+  };
 
   return (
     <DevRouteGuard>
@@ -63,7 +66,7 @@ const DeveloperMyIntegrations = () => {
         </header>
 
         <Card
-          className="grid grid-cols-1 overflow-hidden shadow-[0_14px_40px_var(--sh08)] md:grid-cols-[minmax(220px,0.75fr)_minmax(420px,1.55fr)]"
+          className="grid grid-cols-1 overflow-hidden shadow-[0_14px_40px_var(--sh08)] lg:grid-cols-[minmax(220px,0.75fr)_minmax(420px,1.55fr)]"
           aria-labelledby="build-path-title"
         >
           <div className="flex flex-col items-start justify-center gap-2.5 bg-[var(--spot)] p-6 text-[var(--spot-ink)] md:p-7">
@@ -140,6 +143,7 @@ const DeveloperMyIntegrations = () => {
         <ModalBase
           showModal={isCreating}
           setShowModal={setIsCreating}
+          onClose={closeDraft}
           aria-labelledby="new-integration-title"
           overlayClassName={`fixed inset-0 z-5000 bg-[var(--sh55)] backdrop-blur-sm transition-opacity duration-200 ${
             isCreating ? 'opacity-100' : 'pointer-events-none opacity-0'
