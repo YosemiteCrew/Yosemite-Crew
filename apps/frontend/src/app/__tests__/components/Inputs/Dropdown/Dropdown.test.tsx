@@ -75,7 +75,7 @@ describe('Dropdown Component', () => {
     // instruction rather than an empty box, and never repeats the label.
     expect(screen.getByText('Select Item')).toBeInTheDocument();
     expect(screen.getByText('Select an option')).toBeInTheDocument();
-    expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument();
+    expect(screen.getByTestId('IoChevronDown')).toBeInTheDocument();
   });
 
   it('renders with a selected value (String option)', () => {
@@ -121,7 +121,7 @@ describe('Dropdown Component', () => {
     fireEvent.click(button);
     // Should not open (query for dropdown content should fail)
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument(); // assuming standard role or just absence of options
-    expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument(); // Icon stays
+    expect(screen.getByTestId('IoChevronDown')).toBeInTheDocument(); // Icon stays
   });
 
   // --- 2. Interaction: Opening & Closing ---

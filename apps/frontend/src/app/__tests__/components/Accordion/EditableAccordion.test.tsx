@@ -821,7 +821,7 @@ describe('EditableAccordion Component', () => {
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Changed' } });
       fireEvent.click(screen.getByText('Cancel'));
 
-      expect(screen.queryByText('Toggle Edit')).toBeInTheDocument();
+      expect(screen.getByText('Toggle Edit')).toBeInTheDocument();
       expect(screen.getByText('Rex')).toBeInTheDocument();
     });
   });
