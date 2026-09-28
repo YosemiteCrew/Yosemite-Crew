@@ -8348,6 +8348,142 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/counter-sales':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/finance/counter-sales'
+      operationId: post_v1_finance_counter_sales
+      description: Complete a counter sale without creating an appointment.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation identifier for the request.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - organisationId
+                - items
+              properties:
+                organisationId:
+                  type: string
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - inventoryItemId
+                      - quantity
+                    properties:
+                      inventoryItemId:
+                        type: string
+                      quantity:
+                        type: integer
+                        minimum: 1
+      responses:
+        201:
+          description: Counter sale invoice created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - error
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - id
+                      - items
+                      - subtotal
+                      - totalAmount
+                      - currency
+                      - status
+                    properties:
+                      id:
+                        type: string
+                      organisationId:
+                        type: string
+                      appointmentId:
+                        type: string
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - name
+                            - quantity
+                            - unitPrice
+                            - total
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            description:
+                              type: string
+                            quantity:
+                              type: number
+                            unitPrice:
+                              type: number
+                            total:
+                              type: number
+                      subtotal:
+                        type: number
+                      totalAmount:
+                        type: number
+                      taxPercent:
+                        type: number
+                      taxTotal:
+                        type: number
+                      discountTotal:
+                        type: number
+                      currency:
+                        type: string
+                      paymentCollectionMethod:
+                        type: string
+                      status:
+                        type: string
+                  meta:
+                    nullable: true
+                  error:
+                    nullable: true
+        400:
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        403:
+          description: Permission denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        409:
+          description: One or more items cannot be sold or are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Request failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
   '/v1/finance/mobile/appointments/{appointmentId}/invoices':
     post:
       tags:
