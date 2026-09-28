@@ -44,6 +44,8 @@ describe('DeveloperMyIntegrations', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(opener).toHaveFocus();
+    fireEvent.click(opener);
+    expect(screen.getByLabelText('Integration name')).toHaveValue('');
   });
 
   test('keeps keyboard focus in the draft dialog and closes it with Escape', () => {
@@ -59,18 +61,43 @@ describe('DeveloperMyIntegrations', () => {
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
     expect(lastFocusable).toHaveFocus();
 
+    fireEvent.change(screen.getByLabelText('Integration name'), {
+      target: { value: 'Lab bridge' },
+    });
+
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(opener).toHaveFocus();
     expect(dialog).not.toBeVisible();
+    fireEvent.click(opener);
+    expect(screen.getByLabelText('Integration name')).toHaveValue('');
   });
 
   test('opens the draft from the empty state and cancels it', () => {
     render(<DeveloperMyIntegrations />);
     fireEvent.click(screen.getByRole('button', { name: 'Start a draft' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Integration name'), {
+      target: { value: 'Lab bridge' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'New integration' }));
+    expect(screen.getByLabelText('Integration name')).toHaveValue('');
+  });
+
+  test('clears a draft dismissed from the backdrop', () => {
+    render(<DeveloperMyIntegrations />);
+    fireEvent.click(screen.getByRole('button', { name: 'New integration' }));
+    fireEvent.change(screen.getByLabelText('Integration name'), {
+      target: { value: 'Lab bridge' },
+    });
+
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'New integration' }));
+    expect(screen.getByLabelText('Integration name')).toHaveValue('');
   });
 
   test('has no accessibility violations', async () => {

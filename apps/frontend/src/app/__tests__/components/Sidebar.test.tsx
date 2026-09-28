@@ -305,6 +305,10 @@ describe('Sidebar', () => {
     );
     expect(screen.getByText('Developers')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'API Keys' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'My Integrations' })).toHaveAttribute(
+      'href',
+      '/developers/integrations'
+    );
     // Developer routes are always enabled.
     expect(screen.getByRole('link', { name: 'API Keys' })).not.toHaveClass('route-disabled');
   });
