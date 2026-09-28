@@ -48,6 +48,22 @@ const runAxe = (page: Page) =>
  */
 const runAxeWithContrast = (page: Page) => new AxeBuilder({ page }).withTags(WCAG_AA).analyze();
 
+const settlePageAnimations = async (page: Page) => {
+  await page.addStyleTag({
+    content: `
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+      [style*="opacity: 0"] {
+        opacity: 1 !important;
+      }
+    `,
+  });
+};
+
 // Public pages pull logos/data from third-party hosts (GitHub API, CloudFront,
 // laika.aitemsolutions.com, unsplash, wikimedia). When any of those is slow or
 // unreachable from CI the request stays in flight and `networkidle` never settles,
@@ -73,6 +89,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('home / marketing page has no axe violations', async ({ page }) => {
     await page.goto('/');
+    await settlePageAnimations(page);
 
     const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
@@ -94,6 +111,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('pricing page has no axe violations', async ({ page }) => {
     await page.goto('/pricing');
+    await settlePageAnimations(page);
 
     const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
@@ -101,6 +119,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('contact page has no axe violations', async ({ page }) => {
     await page.goto('/contact-us');
+    await settlePageAnimations(page);
 
     const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
@@ -108,6 +127,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('developer page has no axe violations', async ({ page }) => {
     await page.goto('/developers');
+    await settlePageAnimations(page);
 
     const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
@@ -116,6 +136,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
   for (const path of ['/accessibility', '/trust-center']) {
     test(`${path} has no axe violations`, async ({ page }) => {
       await page.goto(path);
+      await settlePageAnimations(page);
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -127,6 +148,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('home has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/');
+      await settlePageAnimations(page);
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -134,6 +156,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('pricing has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/pricing');
+      await settlePageAnimations(page);
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -141,6 +164,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('contact has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/contact-us');
+      await settlePageAnimations(page);
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -148,6 +172,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('developer page has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/developers');
+      await settlePageAnimations(page);
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -156,6 +181,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
     for (const path of ['/accessibility', '/trust-center']) {
       test(`${path} has no dark-theme axe violations`, async ({ page }) => {
         await page.goto(path);
+        await settlePageAnimations(page);
 
         const results = await runAxeWithContrast(page);
         expect(results.violations).toEqual([]);
