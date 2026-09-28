@@ -142,7 +142,7 @@ const DeveloperMyIntegrations = () => {
               <button type="button" onClick={closeDraft}>
                 Cancel
               </button>
-              {name.trim().length > 0 ? (
+              {name.trim() ? (
                 <Link href="/developers/playground">Open API playground</Link>
               ) : (
                 <button type="button" disabled>
