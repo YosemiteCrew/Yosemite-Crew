@@ -247,6 +247,14 @@ router.post(
 );
 
 router.post(
+  "/counter-sales",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.createCounterSale,
+);
+
+router.post(
   "/invoices/:invoiceId/lines",
   requireWebAuth,
   withInvoiceOrgPermissions(),

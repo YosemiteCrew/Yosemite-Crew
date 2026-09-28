@@ -46,6 +46,7 @@ jest.mock("../../src/services/invoice.service", () => ({
   __esModule: true,
   InvoiceService: {
     createDraftForAppointment: jest.fn(),
+    createCounterSale: jest.fn(),
     listForOrganisation: jest.fn(),
     getByAppointmentId: jest.fn(),
     listForParent: jest.fn(),
@@ -612,6 +613,57 @@ describe("FinanceController", () => {
       meta: null,
       error: null,
     });
+  });
+
+  it("creates a counter sale for the authorized organisation", async () => {
+    (InvoiceService.createCounterSale as jest.Mock).mockResolvedValueOnce({
+      id: "inv_counter",
+      appointmentId: null,
+    });
+    const req = {
+      body: {
+        organisationId: "org_1",
+        items: [{ inventoryItemId: "item_1", quantity: 2 }],
+      },
+      organisationId: "org_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createCounterSale(req, res);
+
+    expect(InvoiceService.createCounterSale).toHaveBeenCalledWith({
+      organisationId: "org_1",
+      items: [{ inventoryItemId: "item_1", quantity: 2 }],
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      data: { id: "inv_counter", appointmentId: null },
+      meta: null,
+      error: null,
+    });
+  });
+
+  it("rejects invalid counter-sale lines", async () => {
+    const req = {
+      body: {
+        organisationId: "org_1",
+        items: [{ inventoryItemId: "item_1", quantity: 0 }],
+      },
+      organisationId: "org_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createCounterSale(req, res);
+
+    expect(InvoiceService.createCounterSale).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: "Invalid request body" });
   });
 
   it("lists invoices using organisation filters", async () => {

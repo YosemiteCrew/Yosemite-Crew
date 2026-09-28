@@ -23,6 +23,8 @@ import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 import StripeStatusPill from '@/app/features/finance/pages/Finance/Sections/StripeStatusPill';
+import CounterSaleDialog from '@/app/features/finance/pages/Finance/Sections/CounterSaleDialog';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 const FINANCE_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -43,6 +45,7 @@ const PhoneInvoiceList = dynamic(
 
 const Finance = () => {
   const invoices = useInvoicesForPrimaryOrg();
+  const organisationId = useOrgStore((s) => s.primaryOrgId);
   const subscription = useSubscriptionForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
   const query = useSearchStore((s) => s.query);
@@ -50,6 +53,7 @@ const Finance = () => {
   const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState('all');
   const [viewInvoice, setViewInvoice] = useState(false);
+  const [counterSaleOpen, setCounterSaleOpen] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(invoices[0] || null);
   const isPhone = useIsPhone();
   const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
@@ -144,6 +148,14 @@ const Finance = () => {
               would only be reachable by typing the URL.
             */}
             <div className="flex flex-wrap items-center justify-end gap-2">
+              <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
+                <Secondary
+                  text="Counter sale"
+                  size="compact"
+                  onClick={() => setCounterSaleOpen(true)}
+                  ariaLabel="Create a counter sale"
+                />
+              </PermissionGate>
               <Secondary
                 href="/finance/estimates"
                 text="Estimates"
@@ -224,6 +236,13 @@ const Finance = () => {
               */}
               <div className="flex flex-col items-end gap-2">
                 <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
+                    <Secondary
+                      text="Counter sale"
+                      onClick={() => setCounterSaleOpen(true)}
+                      ariaLabel="Create a counter sale"
+                    />
+                  </PermissionGate>
                   <Secondary
                     href="/finance/estimates"
                     text="Estimates"
@@ -275,6 +294,15 @@ const Finance = () => {
             activeInvoice={activeInvoice}
           />
         )}
+        {counterSaleOpen ? (
+          <CounterSaleDialog
+            open
+            setOpen={setCounterSaleOpen}
+            organisationId={organisationId}
+            currency={currency}
+            onCreated={openInvoice}
+          />
+        ) : null}
       </PermissionGate>
     </div>
   );

@@ -52,6 +52,11 @@ type CreateFinanceInvoiceInput = {
   notes?: string;
 };
 
+type CreateCounterSaleInput = {
+  organisationId: string;
+  items: Array<{ inventoryItemId: string; quantity: number }>;
+};
+
 type ManualPaymentInput = {
   provider?: 'MANUAL';
   settlementChannel: 'CASH' | 'CARD_PRESENT' | 'BANK_TRANSFER' | 'DEPOSIT';
@@ -728,6 +733,14 @@ export const createFinanceInvoice = async (input: CreateFinanceInvoiceInput): Pr
   return invoice;
 };
 
+export const createCounterSale = async (input: CreateCounterSaleInput): Promise<Invoice> => {
+  if (!input.organisationId) throw new Error('Organisation ID missing');
+  const res = await postData<FinanceResponse>(`${FINANCE_BASE_PATH}/counter-sales`, input);
+  const invoice = normalizeFinanceInvoice(unwrapFinanceData(res.data), input.organisationId);
+  useInvoiceStore.getState().upsertInvoice(invoice);
+  return invoice;
+};
+
 export const getFinanceInvoiceById = async (invoiceId: string): Promise<Invoice> => {
   if (!invoiceId) throw new Error('Invoice ID missing');
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
@@ -739,14 +752,10 @@ export const getFinanceInvoiceById = async (invoiceId: string): Promise<Invoice>
 
 export const finalizeFinanceInvoice = async (invoiceId: string): Promise<Invoice> => {
   if (!invoiceId) throw new Error('Invoice ID missing');
-  const primaryOrgId = useOrgStore.getState().primaryOrgId;
-  const res = await postData<FinanceResponse>(
-    `${FINANCE_BASE_PATH}/invoices/${invoiceId}/finalize`,
-    { taxProvider: 'STRIPE' }
-  );
-  const invoice = normalizeFinanceInvoice(unwrapFinanceData(res.data), primaryOrgId ?? undefined);
-  useInvoiceStore.getState().upsertInvoice(invoice);
-  return invoice;
+  await postData<FinanceResponse>(`${FINANCE_BASE_PATH}/invoices/${invoiceId}/finalize`, {
+    taxProvider: 'STRIPE',
+  });
+  return getFinanceInvoiceById(invoiceId);
 };
 
 export const recordManualInvoicePayment = async (

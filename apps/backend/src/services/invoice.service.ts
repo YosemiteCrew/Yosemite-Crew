@@ -36,9 +36,21 @@ import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { randomUUID } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
+import { consumeNormalStockInTransaction } from "./inventory.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { AuditTrailService } from "./audit-trail.service";
+
+const cancelUnfinishedPaymentAttempts = (invoiceId: string) =>
+  prisma.$executeRaw`
+    UPDATE "PaymentAttempt"
+    SET "status" = 'CANCELED'::"PaymentAttemptStatus"
+    WHERE "invoiceId" = ${invoiceId}
+      AND "status" NOT IN (
+        'SUCCEEDED'::"PaymentAttemptStatus",
+        'CANCELED'::"PaymentAttemptStatus"
+      )
+  `;
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import type { AuditEventType } from "src/models/audit-trail";
@@ -150,6 +162,20 @@ type CreateInvoiceInput = {
   paymentCollectionMethod:
     "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC";
 };
+
+type CounterSaleInput = {
+  organisationId: string;
+  items: Array<{ inventoryItemId: string; quantity: number }>;
+};
+
+type InvoiceNormalizationInput = Pick<
+  CreateInvoiceInput,
+  | "items"
+  | "notes"
+  | "invoiceDiscount"
+  | "paymentCollectionMethod"
+  | "organisationId"
+> & { appointmentId?: string | null };
 
 type IssueCreditNoteInput = {
   amount: number;
@@ -1202,9 +1228,9 @@ const assertOverallDiscountWithinOrgCap = async (
 };
 
 const normalizeCreateInput = async (
-  input: CreateInvoiceInput,
-  patientId: string,
-  parentId: string,
+  input: InvoiceNormalizationInput,
+  patientId: string | null,
+  parentId: string | null,
   currency: string,
   taxBehavior: PrismaTaxBehavior = DEFAULT_TAX_BEHAVIOR,
   taxContext?: {
@@ -1227,7 +1253,7 @@ const normalizeCreateInput = async (
     items,
     totals,
     data: {
-      appointmentId: input.appointmentId,
+      appointmentId: input.appointmentId ?? null,
       parentId,
       organisationId: input.organisationId,
       patientId,
@@ -1386,6 +1412,130 @@ const computeInvoiceTaxTotals = async (
 };
 
 export const InvoiceService = {
+  async createCounterSale(input: CounterSaleInput) {
+    if (!input.items.length) {
+      throw new InvoiceServiceError("At least one item is required", 400);
+    }
+    const quantities = new Map<string, number>();
+    for (const line of input.items) {
+      const inventoryItemId = line.inventoryItemId.trim();
+      if (
+        !inventoryItemId ||
+        !Number.isSafeInteger(line.quantity) ||
+        line.quantity <= 0
+      ) {
+        throw new InvoiceServiceError("Invalid sale item", 400);
+      }
+      const quantity = (quantities.get(inventoryItemId) ?? 0) + line.quantity;
+      if (!Number.isSafeInteger(quantity)) {
+        throw new InvoiceServiceError("Invalid sale quantity", 400);
+      }
+      quantities.set(inventoryItemId, quantity);
+    }
+
+    const currency = await resolveOrganisationCurrency(input.organisationId);
+    const taxContext = await resolveInvoiceTaxContext(input.organisationId);
+    const createdInvoice = await prisma.$transaction(async (tx) => {
+      const inventoryItems = await tx.inventoryItem.findMany({
+        where: {
+          id: { in: [...quantities.keys()] },
+          organisationId: input.organisationId,
+          status: "ACTIVE",
+        },
+      });
+      if (inventoryItems.length !== quantities.size) {
+        throw new InvoiceServiceError(
+          "One or more sale items are unavailable",
+          409,
+        );
+      }
+
+      const items = inventoryItems.map((item) => {
+        if (item.controlledItem || item.prescriptionRequired) {
+          throw new InvoiceServiceError(
+            `${item.name} cannot be sold over the counter`,
+            409,
+          );
+        }
+        if (
+          item.sellingPrice == null ||
+          !Number.isFinite(item.sellingPrice) ||
+          item.sellingPrice < 0
+        ) {
+          throw new InvoiceServiceError(
+            `${item.name} has no valid sale price`,
+            409,
+          );
+        }
+        if (
+          item.currency &&
+          item.currency.toLowerCase() !== currency.toLowerCase()
+        ) {
+          throw new InvoiceServiceError(
+            `${item.name} uses a different currency`,
+            409,
+          );
+        }
+        return {
+          id: item.id,
+          name: item.name,
+          description: item.description ?? item.name,
+          quantity: quantities.get(item.id)!,
+          unitPrice: item.sellingPrice,
+        };
+      });
+      const { data, taxSnapshot } = await normalizeCreateInput(
+        {
+          organisationId: input.organisationId,
+          items,
+          paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+        },
+        null,
+        null,
+        currency,
+        DEFAULT_TAX_BEHAVIOR,
+        taxContext,
+        { skipTaxCalculation: true },
+      );
+      const invoice = await tx.invoice.create({
+        data: {
+          ...data,
+          ...(taxSnapshot ? { taxSnapshot: { create: taxSnapshot } } : {}),
+        },
+      });
+
+      for (const [inventoryItemId, quantity] of quantities) {
+        await consumeNormalStockInTransaction(
+          tx,
+          {
+            itemId: inventoryItemId,
+            quantity,
+            reason: "COUNTER_SALE",
+            referenceId: invoice.id,
+          },
+          input.organisationId,
+        );
+      }
+      await tx.financeEvent.create({
+        data: {
+          organisationId: invoice.organisationId ?? undefined,
+          eventType: "INVOICE_CREATED",
+          entityType: "INVOICE",
+          entityId: invoice.id,
+          payload: {
+            status: invoice.status,
+            totalAmount: invoice.totalAmount,
+            currency: invoice.currency,
+          },
+          occurredAt: invoice.createdAt,
+        },
+      });
+      return invoice;
+    });
+
+    return toInvoiceRecord(createdInvoice);
+  },
+
   async createDraftForAppointment(input: CreateInvoiceInput) {
     await assertAppointmentInOrganisation(
       input.appointmentId,
@@ -1654,13 +1804,7 @@ export const InvoiceService = {
     // the link the parent holds working, and by then there is no open attempt
     // for the webhook to reconcile the payment against.
     await cancelOpenCheckoutSessionAttempts(doc.id);
-    await prisma.paymentAttempt.updateMany({
-      where: {
-        invoiceId: doc.id,
-        status: { notIn: ["SUCCEEDED", "CANCELED"] },
-      },
-      data: { status: "CANCELED" },
-    });
+    await cancelUnfinishedPaymentAttempts(doc.id);
 
     const updated = await prisma.invoice.update({
       where: { id: doc.id },
@@ -1749,13 +1893,7 @@ export const InvoiceService = {
     // wrote CANCELED locally, so the link the client already had kept working
     // and still charged the pre-credit amount (#2598).
     await cancelOpenCheckoutSessionAttempts(invoice.id);
-    await prisma.paymentAttempt.updateMany({
-      where: {
-        invoiceId: invoice.id,
-        status: { notIn: ["SUCCEEDED", "CANCELED"] },
-      },
-      data: { status: "CANCELED" },
-    });
+    await cancelUnfinishedPaymentAttempts(invoice.id);
 
     const creditNote = await prisma.creditNote.create({
       data: {
@@ -2304,10 +2442,7 @@ export const InvoiceService = {
     // stayed live, `createCheckoutSessionForInvoice` kept handing it back, and
     // completing it wrote the old, lower total onto the invoice and marked it
     // settled - underpaying an invoice that had since grown.
-    await prisma.paymentAttempt.updateMany({
-      where: { invoiceId, status: { notIn: ["SUCCEEDED", "CANCELED"] } },
-      data: { status: "CANCELED" },
-    });
+    await cancelUnfinishedPaymentAttempts(invoiceId);
 
     const targets = await resolveAuditTargetsForInvoiceRow(updated);
     await recordInvoiceAuditEvent(targets, {

@@ -79,6 +79,18 @@ const CreateInvoiceBodySchema = z.object({
   notes: z.string().trim().min(1).optional(),
 });
 
+const CreateCounterSaleBodySchema = z.object({
+  organisationId: z.string().trim().min(1),
+  items: z
+    .array(
+      z.object({
+        inventoryItemId: z.string().trim().min(1),
+        quantity: z.number().int().positive(),
+      }),
+    )
+    .min(1),
+});
+
 const UpdateDiscountSettingsBodySchema = z.object({
   maxOverallDiscountPercent: z.number().min(0).max(100).nullable(),
 });
@@ -651,6 +663,37 @@ export const FinanceController = {
           : "Internal server error";
 
       logger.error("Error creating invoice", error);
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async createCounterSale(this: void, req: Request, res: Response) {
+    try {
+      const body = CreateCounterSaleBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        body.data.organisationId,
+      );
+      if (!organisationId) return;
+
+      const invoice = await InvoiceService.createCounterSale({
+        organisationId,
+        items: body.data.items,
+      });
+      return res.status(201).json(toFinanceSuccess(invoice));
+    } catch (error) {
+      const statusCode =
+        error instanceof InvoiceServiceError ? error.statusCode : 500;
+      const message =
+        error instanceof InvoiceServiceError
+          ? error.message
+          : "Internal server error";
+      logger.error("Error creating counter sale", error);
       return res.status(statusCode).json({ message });
     }
   },
