@@ -23,6 +23,10 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 const PAGE_SIZE = 50;
 const cellClass = 'px-4 py-3 text-left align-top text-body-4 text-text-primary';
 
+type OrganisationAuditContentProps = {
+  loadFeed?: typeof getOrganisationAuditTrail;
+};
+
 const downloadCsv = (entries: OrganisationAuditEntry[]) => {
   const blob = new Blob([organisationAuditCsv(entries)], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -33,7 +37,9 @@ const downloadCsv = (entries: OrganisationAuditEntry[]) => {
   URL.revokeObjectURL(url);
 };
 
-const OrganisationAuditContent = () => {
+export const OrganisationAuditContent = ({
+  loadFeed = getOrganisationAuditTrail,
+}: OrganisationAuditContentProps) => {
   const organisationId = useOrgStore((state) => state.primaryOrgId);
   const [feed, setFeed] = useState<{
     organisationId: string | null;
@@ -65,7 +71,7 @@ const OrganisationAuditContent = () => {
         error: false,
       }));
       try {
-        const page = await getOrganisationAuditTrail({ cursor, limit: PAGE_SIZE });
+        const page = await loadFeed({ cursor, limit: PAGE_SIZE });
         if (requestGeneration !== generation.current) return;
         setFeed((current) => ({
           organisationId: requestedOrganisationId,
@@ -84,14 +90,14 @@ const OrganisationAuditContent = () => {
         }
       }
     },
-    [organisationId]
+    [loadFeed, organisationId]
   );
 
   useEffect(() => {
     generation.current += 1;
     const requestGeneration = generation.current;
     if (!organisationId) return;
-    getOrganisationAuditTrail({ limit: PAGE_SIZE })
+    loadFeed({ limit: PAGE_SIZE })
       .then((page) => {
         if (requestGeneration !== generation.current) return;
         setFeed({
@@ -117,7 +123,7 @@ const OrganisationAuditContent = () => {
     return () => {
       generation.current += 1;
     };
-  }, [organisationId]);
+  }, [loadFeed, organisationId]);
 
   const currentFeed =
     feed.organisationId === organisationId

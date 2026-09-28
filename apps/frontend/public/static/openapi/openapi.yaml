@@ -1495,6 +1495,79 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppointmentEnvelope'
+  '/v1/audit-trail/organisation':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: List organisation audit activity
+      operationId: post_v1_audit_trail_organisation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                cursor:
+                  type: string
+      responses:
+        200:
+          description: A page of organisation audit activity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - entries
+                  - nextCursor
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - patientId
+                        - eventType
+                        - occurredAt
+                      properties:
+                        id:
+                          type: string
+                        patientId:
+                          type: string
+                        eventType:
+                          type: string
+                        actorType:
+                          type: string
+                          nullable: true
+                          enum:
+                            - PMS_USER
+                            - PARENT
+                            - SYSTEM
+                        actorName:
+                          type: string
+                          nullable: true
+                        entityType:
+                          type: string
+                          nullable: true
+                        occurredAt:
+                          type: string
+                          format: date-time
+                  nextCursor:
+                    type: string
+                    nullable: true
   '/v1/audit-trail/companion/{patientId}':
     get:
       tags:
