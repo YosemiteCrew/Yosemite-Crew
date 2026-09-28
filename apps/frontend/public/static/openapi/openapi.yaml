@@ -22014,6 +22014,45 @@ paths:
                     type: string
                     format: date-time
   /v1/task/mobile/task:
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: List parent tasks
+      operationId: get_v1_task_mobile_task
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: patientId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: companionId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: fromDueAt
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: toDueAt
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: status
+          in: query
+          required: false
+          description: Comma-separated task statuses.
+          schema:
+            type: string
+      responses:
+        200:
+          $ref: '#/paths/~1v1~1task~1mobile~1task/post/responses/200'
     post:
       tags:
         - 'Non-FHIR'

@@ -16,6 +16,10 @@ Manages tasks and the libraries and templates they are created from: creating, l
 - Controller: `TaskController.createCustomTask`
 - Response: `403`: keys `message`, `201`: JSON
 
+### GET /mobile/task
+
+Lists parent tasks using optional patient, date, and status filters.
+
 ### POST /mobile/task
 
 - Auth: `requireMobileAuth`

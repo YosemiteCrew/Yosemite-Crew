@@ -22,8 +22,15 @@ import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { isSpeciesCompatible } from "./shared/normalize-tokens";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
+import { z } from "zod";
 
 type AppointmentStatus = AppointmentDomain["status"];
+
+const OccupancyScopeSchema = z.object({
+  appointmentId: z.string().min(1),
+  organisationId: z.string().min(1),
+  leadId: z.string().min(1).optional(),
+});
 
 type AppointmentRow = {
   id: string;
@@ -1139,35 +1146,48 @@ const upsertAppointmentOccupancy = async (args: {
   startTime: Date;
   endTime: Date;
 }) => {
+  const parsedScope = OccupancyScopeSchema.safeParse(args);
+  if (!parsedScope.success) {
+    const missingAppointmentId = parsedScope.error.issues.some(
+      (issue) => issue.path[0] === "appointmentId",
+    );
+    throw new AppointmentPrismaServiceError(
+      missingAppointmentId
+        ? "Appointment ID is required"
+        : "Invalid appointment occupancy",
+      500,
+    );
+  }
+  const { appointmentId, organisationId, leadId } = parsedScope.data;
   await args.tx.occupancy.deleteMany({
     where: {
-      organisationId: { equals: args.organisationId },
+      organisationId,
       sourceType: "APPOINTMENT",
-      referenceId: { equals: args.appointmentId },
+      referenceId: appointmentId,
     },
   });
 
-  if (!args.leadId) {
+  if (!leadId) {
     return;
   }
 
   await assertLeadAvailability({
     tx: args.tx,
-    organisationId: args.organisationId,
-    leadId: args.leadId,
+    organisationId,
+    leadId,
     startTime: args.startTime,
     endTime: args.endTime,
-    excludeAppointmentId: args.appointmentId,
+    excludeAppointmentId: appointmentId,
   });
 
   await args.tx.occupancy.create({
     data: {
-      userId: args.leadId,
-      organisationId: args.organisationId,
+      userId: leadId,
+      organisationId,
       startTime: args.startTime,
       endTime: args.endTime,
       sourceType: "APPOINTMENT",
-      referenceId: args.appointmentId,
+      referenceId: appointmentId,
     },
   });
 };

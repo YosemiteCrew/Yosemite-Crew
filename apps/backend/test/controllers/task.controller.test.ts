@@ -649,8 +649,9 @@ describe("Task Controllers", () => {
 
       it("should list with full filters", async () => {
         (req as any).userId = "u1";
+        req.method = "GET";
         req.query = {
-          patientId: "c1",
+          companionId: "c1",
           fromDueAt: "2023-01-01",
           toDueAt: "2023-01-31",
           status: "PENDING,IN_PROGRESS",
@@ -672,8 +673,9 @@ describe("Task Controllers", () => {
         });
       });
 
-      it("should list with invalid date query (returns undefined)", async () => {
+      it("should reject an invalid date query", async () => {
         (req as any).userId = "u1";
+        req.method = "GET";
         req.query = { fromDueAt: "invalid" };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
@@ -683,11 +685,8 @@ describe("Task Controllers", () => {
         (mockedTaskService.listForParent as any).mockResolvedValue([]);
 
         await TaskController.listParentTasks(req as any, res as Response);
-        expect(mockedTaskService.listForParent).toHaveBeenCalledWith(
-          expect.objectContaining({
-            fromDueAt: undefined,
-          }),
-        );
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(mockedTaskService.listForParent).not.toHaveBeenCalled();
       });
 
       it("should handle error", async () => {
