@@ -636,9 +636,28 @@ model Patient {
   parentLinks          ParentPatient[]
   companionShareTokens CompanionShareToken[]
   petPassports         PetPassport[]
+  duplicateReviewAsA   PatientDuplicateDismissal[] @relation("PatientDuplicateReviewA")
+  duplicateReviewAsB   PatientDuplicateDismissal[] @relation("PatientDuplicateReviewB")
 
   @@index([type])
   @@index([status])
+}
+
+model PatientDuplicateDismissal {
+  id             String   @id @default(uuid())
+  organisationId String
+  patientAId     String
+  patientBId     String
+  dismissedById  String
+  dismissedAt    DateTime @default(now())
+
+  patientA Patient @relation("PatientDuplicateReviewA", fields: [patientAId], references: [id], onDelete: Cascade)
+  patientB Patient @relation("PatientDuplicateReviewB", fields: [patientBId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, patientAId, patientBId])
+  @@index([organisationId, dismissedAt])
+  @@index([patientAId])
+  @@index([patientBId])
 }
 
 model Document {
