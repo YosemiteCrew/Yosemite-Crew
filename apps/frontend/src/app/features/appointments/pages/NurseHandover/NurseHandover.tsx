@@ -386,9 +386,7 @@ const NurseHandoverContent = () => {
   let handoverContent: React.ReactNode;
   if (loading) {
     handoverContent = (
-      <output role="status" className="text-body-4 text-[var(--ink-muted)]">
-        Loading shift handover…
-      </output>
+      <output className="text-body-4 text-[var(--ink-muted)]">Loading shift handover…</output>
     );
   } else if (!organisationId) {
     handoverContent = (
