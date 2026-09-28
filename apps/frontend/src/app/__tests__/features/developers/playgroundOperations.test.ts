@@ -243,7 +243,7 @@ describe('exports', () => {
     expect(py).toContain('requests.request');
     expect(py).toContain('response.raise_for_status()');
     expect(py).toContain(url);
-    expect(py).toContain('"x-org-id": "o'1"');
+    expect(py).toContain('"x-org-id": "o\'1"');
   });
 });
 
