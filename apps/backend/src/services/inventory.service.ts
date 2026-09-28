@@ -1388,6 +1388,40 @@ const decrementBatchStock = async (
   }
 };
 
+const consumeBatchStockInTransaction = async (
+  tx: Prisma.TransactionClient,
+  input: ConsumeStockInput,
+  itemId: string,
+): Promise<InventoryItemLike> => {
+  const batches = await tx.inventoryBatch.findMany({
+    where: { itemId },
+    orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+  });
+  const plan = planFifoConsumption(batches, input.quantity);
+  for (const { index, newQuantity } of plan) {
+    const batch = batches[index];
+    const consumed = (batch.quantity ?? 0) - newQuantity;
+    await decrementBatchStock(tx, batch.id, consumed);
+    await logMovement(
+      {
+        itemId,
+        batchId: batch.id,
+        change: -consumed,
+        reason: input.reason,
+        referenceId: input.referenceId,
+      },
+      tx,
+    );
+  }
+
+  const { onHand } = await recomputeStockFromBatches(itemId, tx);
+  const updated = await tx.inventoryItem.update({
+    where: { id: itemId },
+    data: { onHand },
+  });
+  return { ...updated, _id: toMongoId(updated.id) };
+};
+
 export const consumeNormalStockInTransaction = async (
   tx: Prisma.TransactionClient,
   input: ConsumeStockInput,
@@ -1413,34 +1447,7 @@ export const consumeNormalStockInTransaction = async (
   if (available < input.quantity) {
     throw new InventoryServiceError("Insufficient stock", 400);
   }
-
-  const batches = await tx.inventoryBatch.findMany({
-    where: { itemId: safeItemId },
-    orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
-  });
-  const plan = planFifoConsumption(batches, input.quantity);
-  for (const { index, newQuantity } of plan) {
-    const batch = batches[index];
-    const consumed = (batch.quantity ?? 0) - newQuantity;
-    await decrementBatchStock(tx, batch.id, consumed);
-    await logMovement(
-      {
-        itemId: safeItemId,
-        batchId: batch.id,
-        change: -consumed,
-        reason: input.reason,
-        referenceId: input.referenceId,
-      },
-      tx,
-    );
-  }
-
-  const { onHand } = await recomputeStockFromBatches(safeItemId, tx);
-  const updated = await tx.inventoryItem.update({
-    where: { id: safeItemId },
-    data: { onHand },
-  });
-  return { ...updated, _id: toMongoId(updated.id) };
+  return consumeBatchStockInTransaction(tx, input, safeItemId);
 };
 
 const buildInventoryListItem = (
@@ -2135,41 +2142,12 @@ export const InventoryService = {
         }
       }
 
-      const batches = await tx.inventoryBatch.findMany({
-        where: { itemId: safeItemId },
-        orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
-      });
-
-      const plan = planFifoConsumption(batches, input.quantity);
-      for (const { index, newQuantity } of plan) {
-        const batch = batches[index];
-        const consumed = (batch.quantity ?? 0) - newQuantity;
-        await decrementBatchStock(tx, batch.id, consumed);
-        await logMovement(
-          {
-            itemId: safeItemId,
-            batchId: batch.id,
-            change: -consumed,
-            reason: input.reason,
-            referenceId: input.referenceId,
-          },
-          tx,
-        );
-      }
-
       // Reservations are tracked on the item (see allocateStock), not on batches,
       // so consumption must not recompute `allocated` from the batch rows.
-      const { onHand } = await recomputeStockFromBatches(safeItemId, tx);
-      return tx.inventoryItem.update({
-        where: { id: safeItemId },
-        data: { onHand },
-      });
+      return consumeBatchStockInTransaction(tx, input, safeItemId);
     });
 
-    return {
-      ...updated,
-      _id: toMongoId(updated.id),
-    };
+    return updated;
   },
 
   // ─────────────────────────────────────────────

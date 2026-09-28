@@ -218,14 +218,12 @@ const CounterSaleDialog = ({
         </div>
 
         {createdInvoice ? (
-          <p role="status" className="text-body-4 text-text-secondary">
+          <output className="text-body-4 text-text-secondary">
             {getSavedSaleMessage(receiptReady, saving)}
-          </p>
+          </output>
         ) : null}
         {!createdInvoice && loadingInventory ? (
-          <p role="status" className="text-body-4 text-text-secondary">
-            Loading inventory…
-          </p>
+          <output className="text-body-4 text-text-secondary">Loading inventory…</output>
         ) : null}
         {!createdInvoice && inventoryError ? (
           <div

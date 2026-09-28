@@ -138,7 +138,9 @@ describe('CounterSaleDialog', () => {
     expect(finalizeFinanceInvoice).toHaveBeenCalledWith(invoice.id);
     expect(onCreated).toHaveBeenCalledWith({ ...invoice, pdfUrl: 'receipt.pdf' });
     expect(setOpen).toHaveBeenCalledWith(false);
-    expect(await screen.findByRole('status')).toHaveTextContent('Receipt ready');
+    const receiptStatus = await screen.findByRole('status');
+    expect(receiptStatus).toHaveTextContent('Receipt ready');
+    expect(receiptStatus.tagName).toBe('OUTPUT');
   });
 
   it('does not create a second sale when receipt generation can be retried', async () => {
