@@ -758,7 +758,7 @@ describe("ParentService.delete", () => {
       data: { parentId: null },
     });
     expect(mockedPrisma.parentAddress.deleteMany).toHaveBeenCalledWith({
-      where: { parentId: { equals: "parent-1" } },
+      where: { parentId: "parent-1" },
     });
     expect(mockedPrisma.parent.deleteMany).toHaveBeenCalledWith({
       where: { id: { equals: "parent-1" } },
