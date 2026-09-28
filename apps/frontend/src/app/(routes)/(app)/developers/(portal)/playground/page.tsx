@@ -4,8 +4,18 @@ import React from 'react';
 
 import DeveloperPlayground from '@/app/features/developers/pages/DeveloperPlayground/DeveloperPlayground';
 
-function Page() {
-  return <DeveloperPlayground />;
+type PageProps = {
+  searchParams?: Promise<{ operation?: string | string[]; export?: string | string[] }>;
+};
+
+async function Page({ searchParams }: PageProps) {
+  const params = searchParams ? await searchParams : {};
+  return (
+    <DeveloperPlayground
+      initialOperationId={typeof params.operation === 'string' ? params.operation : undefined}
+      initialExportTab={params.export === 'mcp' ? 'mcp' : 'curl'}
+    />
+  );
 }
 
 export default Page;

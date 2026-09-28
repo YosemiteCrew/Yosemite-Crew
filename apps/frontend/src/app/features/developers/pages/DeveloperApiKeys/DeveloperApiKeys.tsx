@@ -5,6 +5,7 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 import { logger } from '@/app/lib/logger';
 import { isKeyLimitReached, MAX_ACTIVE_API_KEYS } from '@/app/services/developerApiKeyStatus';
+import { PLAYGROUND_OPERATIONS } from '@/app/features/developers/pages/DeveloperPlayground/playgroundOperations';
 import {
   createApiKey,
   listApiKeys,
@@ -26,11 +27,17 @@ import '@/app/features/organizations/styles/Organizations.css';
  * is the server-backed state the page coordinates - the key list, whether a
  * create is in flight, the one issued key, and the last error.
  */
-const DeveloperApiKeys = () => {
+type DeveloperApiKeysProps = { guidedAppointmentTest?: boolean };
+
+const APPOINTMENT_TEST_SCOPE = PLAYGROUND_OPERATIONS.find(
+  (operation) => operation.id === 'listAppointments'
+)?.scope;
+
+const DeveloperApiKeys = ({ guidedAppointmentTest = false }: DeveloperApiKeysProps) => {
   const [keys, setKeys] = useState<DeveloperApiKey[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(guidedAppointmentTest);
   const [creating, setCreating] = useState(false);
   const [issued, setIssued] = useState<IssuedApiKey | null>(null);
 
@@ -123,6 +130,10 @@ const DeveloperApiKeys = () => {
             creating={creating}
             onCreate={handleCreate}
             onCancel={() => setShowForm(false)}
+            initialEnvironment={guidedAppointmentTest ? 'test' : undefined}
+            initialScopes={
+              guidedAppointmentTest && APPOINTMENT_TEST_SCOPE ? [APPOINTMENT_TEST_SCOPE] : undefined
+            }
           />
         )}
 

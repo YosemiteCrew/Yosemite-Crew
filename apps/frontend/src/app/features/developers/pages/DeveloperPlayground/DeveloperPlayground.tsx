@@ -133,6 +133,8 @@ const sendRequest = async (
 type Props = {
   /** The API origin. Defaults to the build's NEXT_PUBLIC_BASE_URL. */
   baseUrl?: string;
+  initialOperationId?: string;
+  initialExportTab?: ExportTab;
 };
 
 type DraftsSetter = React.Dispatch<React.SetStateAction<Record<string, ParamValues>>>;
@@ -224,9 +226,10 @@ const useExport = (
   request: BuiltRequest,
   url: string | null,
   values: ParamValues,
-  apiBase: string | null
+  apiBase: string | null,
+  initialExportTab: ExportTab
 ) => {
-  const [exportTab, setExportTab] = useState<ExportTab>('curl');
+  const [exportTab, setExportTab] = useState<ExportTab>(initialExportTab);
   const [copied, setCopied] = useState(false);
   const exportText = useMemo(() => {
     if (!url || !apiBase) return '';
@@ -475,9 +478,18 @@ const PlaygroundExport = ({
   </section>
 );
 
-const DeveloperPlayground = ({ baseUrl = process.env.NEXT_PUBLIC_BASE_URL }: Props) => {
+const DeveloperPlayground = ({
+  baseUrl = process.env.NEXT_PUBLIC_BASE_URL,
+  initialOperationId,
+  initialExportTab = 'curl',
+}: Props) => {
   const idPrefix = useId();
-  const [operationId, setOperationId] = useState(PLAYGROUND_OPERATIONS[0].id);
+  const [operationId, setOperationId] = useState(() => {
+    const initialOperation = PLAYGROUND_OPERATIONS.find(
+      (candidate) => candidate.id === initialOperationId
+    );
+    return initialOperation?.id ?? PLAYGROUND_OPERATIONS[0].id;
+  });
   // Drafts are kept per operation, so switching away and back loses nothing.
   const [drafts, setDrafts] = useState<Record<string, ParamValues>>({});
   const [apiKey, setApiKey] = useState('');
@@ -489,7 +501,14 @@ const DeveloperPlayground = ({ baseUrl = process.env.NEXT_PUBLIC_BASE_URL }: Pro
   const url = resolveUrl(baseUrl, request.path);
   const apiHost = url ? new URL(url).host : null;
   const runner = useRequestRunner({ baseUrl, operation, values, apiKey, setDrafts });
-  const requestExport = useExport(operation, request, url, values, resolveUrl(baseUrl, ''));
+  const requestExport = useExport(
+    operation,
+    request,
+    url,
+    values,
+    resolveUrl(baseUrl, ''),
+    initialExportTab
+  );
 
   const handleOperationChange = (nextOperationId: string) => {
     setOperationId(nextOperationId);

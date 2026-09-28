@@ -41,6 +41,8 @@ jest.mock('@/app/lib/logger', () => ({
 
 import DeveloperApiKeys from '@/app/features/developers/pages/DeveloperApiKeys/DeveloperApiKeys';
 import { listApiKeys, createApiKey, revokeApiKey } from '@/app/services/developerApiKeys';
+import { PLAYGROUND_OPERATIONS } from '@/app/features/developers/pages/DeveloperPlayground/playgroundOperations';
+import ApiKeysPage from '@/app/(routes)/(app)/developers/(portal)/api-keys/page';
 
 const listApiKeysMock = listApiKeys as jest.Mock;
 const createApiKeyMock = createApiKey as jest.Mock;
@@ -92,6 +94,28 @@ describe('DeveloperApiKeys page', () => {
     expect(await screen.findByText('Prod')).toBeInTheDocument();
     expect(screen.getByText('active')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
+  });
+
+  it('opens a preconfigured test key form from the guided setup', async () => {
+    const user = userEvent.setup();
+    createApiKeyMock.mockResolvedValue({ apiKey: 'test-key' });
+    const page = await ApiKeysPage({
+      searchParams: Promise.resolve({ setup: 'appointment-test' }),
+    });
+    render(page);
+
+    expect(await screen.findByRole('button', { name: 'Environment: Test' })).toBeInTheDocument();
+    const scope = PLAYGROUND_OPERATIONS.find(({ id }) => id === 'listAppointments')?.scope;
+    expect(screen.getByLabelText(/Scopes/)).toHaveValue(scope);
+
+    await user.type(screen.getByLabelText('Key name'), 'Guided test');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(createApiKeyMock).toHaveBeenCalledWith({
+      name: 'Guided test',
+      environment: 'test',
+      scopes: scope ? [scope] : undefined,
+    });
   });
 
   it('shows an expired key as expired, with its expiry, and still offers revoke', async () => {
