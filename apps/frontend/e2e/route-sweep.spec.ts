@@ -413,7 +413,6 @@ test('every operational route holds its page invariants', async ({ page }) => {
   // silently.
   let derived: string[] = [];
   await page.goto('/companions', { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
   const overview = await resolveCompanionOverview(page);
   // Opening the overview is a client-side navigation, so its loads are still in
   // flight here, and the first route's page.goto would abort every one of them.
@@ -455,7 +454,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
     // page still showing its loading skeleton, find no violations, and report an
     // unusable route as healthy.
     const settled = await page
-      .waitForLoadState('networkidle', { timeout: 30_000 })
+      .waitForLoadState('load', { timeout: 30_000 })
       .then(() => true)
       .catch(() => false);
     if (!settled) {

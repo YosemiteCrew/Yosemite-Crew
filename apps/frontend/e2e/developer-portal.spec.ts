@@ -52,8 +52,6 @@ test('a non-developer keeps their session after visiting a developer route', asy
   expect(signedInPath).toMatch(APP_ROUTE_PATTERN);
 
   await page.goto('/developers/api-keys', { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
   // Blocked, and told why. The guard used to call signout() here instead.
   await expect(page.getByText(/isn'?t a developer account/i)).toBeVisible({ timeout: 30_000 });
 
@@ -61,8 +59,6 @@ test('a non-developer keeps their session after visiting a developer route', asy
      Being signed out of everything for opening a /developers/* URL is what made
      this look like broken credentials. */
   await page.goto(signedInPath, { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
   expect(new URL(page.url()).pathname).not.toBe(LOGIN_PATH);
   await expect(page.locator('input[name="password"]')).toHaveCount(0);
 });

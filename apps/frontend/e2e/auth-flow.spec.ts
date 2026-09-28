@@ -40,7 +40,7 @@ test('sign in lands on an app route and survives a reload', async ({ page }) => 
   await expect(page.locator('input[name="password"]')).toHaveCount(0);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  await expect(page.locator('input[name="email"]')).toHaveCount(0);
 
   const secondPath = new URL(page.url()).pathname;
   expect(secondPath).toMatch(APP_ROUTE_PATTERN);

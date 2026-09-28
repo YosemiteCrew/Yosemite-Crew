@@ -261,7 +261,7 @@ test('waits for a request that starts after the load settled', async ({ page }) 
     await route.fulfill({ body: 'ok' });
   });
   await serveCompanions(page, RETRIED_LATE_LOAD);
-  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('button', { name: 'Open overview' })).toBeVisible();
   await page.getByRole('button', { name: 'Open overview' }).click();
 
   expect(await network.settle({ timeoutMs: 5_000 })).toEqual([]);

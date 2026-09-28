@@ -17,7 +17,6 @@ const WCAG_AA = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 
 const openDocs = async (page: Page) => {
   await page.goto('/docs');
-  await page.waitForLoadState('networkidle').catch(() => {});
   await expect(page.locator('.DocsTopBar')).toBeVisible();
   await page.waitForFunction(() => {
     const input = document.querySelector('.DocsSearchInput');
@@ -74,7 +73,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('home / marketing page has no axe violations', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
@@ -82,7 +80,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('sign-in page has no axe violations', async ({ page }) => {
     await page.goto('/signin');
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     const results = await runAxe(page);
     expect(results.violations).toEqual([]);
@@ -90,7 +87,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('sign-up page has no axe violations', async ({ page }) => {
     await page.goto('/signup');
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     const results = await runAxe(page);
     expect(results.violations).toEqual([]);
@@ -98,7 +94,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('pricing page has no axe violations', async ({ page }) => {
     await page.goto('/pricing');
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
@@ -106,7 +101,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('contact page has no axe violations', async ({ page }) => {
     await page.goto('/contact-us');
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
@@ -114,7 +108,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
   test('developer page has no axe violations', async ({ page }) => {
     await page.goto('/developers');
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
@@ -123,7 +116,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
   for (const path of ['/accessibility', '/trust-center']) {
     test(`${path} has no axe violations`, async ({ page }) => {
       await page.goto(path);
-      await page.waitForLoadState('networkidle').catch(() => {});
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -135,7 +127,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('home has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle').catch(() => {});
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -143,7 +134,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('pricing has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/pricing');
-      await page.waitForLoadState('networkidle').catch(() => {});
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -151,7 +141,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('contact has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/contact-us');
-      await page.waitForLoadState('networkidle').catch(() => {});
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -159,7 +148,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('developer page has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/developers');
-      await page.waitForLoadState('networkidle').catch(() => {});
 
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
@@ -168,7 +156,6 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
     for (const path of ['/accessibility', '/trust-center']) {
       test(`${path} has no dark-theme axe violations`, async ({ page }) => {
         await page.goto(path);
-        await page.waitForLoadState('networkidle').catch(() => {});
 
         const results = await runAxeWithContrast(page);
         expect(results.violations).toEqual([]);
@@ -389,7 +376,6 @@ for (const theme of ['light', 'dark'] as const) {
 
     test(`the shared pet passport has no axe violations in ${theme}`, async ({ page }) => {
       await page.goto('/passport/e2e-a11y');
-      await page.waitForLoadState('networkidle').catch(() => {});
       // The content floor: the passport rendered, not its not-found state.
       await expect(page.getByText('Luna')).toBeVisible();
       await expect(page.getByText(/expired/i).first()).toBeVisible();
@@ -406,7 +392,6 @@ for (const theme of ['light', 'dark'] as const) {
       // inside them - stay unexercised, and a broken one would leave the suite
       // green.
       await page.goto('/passport/e2e-a11y');
-      await page.waitForLoadState('networkidle').catch(() => {});
       await expect(page.getByText('Luna')).toBeVisible();
 
       // Before the toggle the attribute is absent: the page follows the root.
@@ -438,7 +423,6 @@ for (const theme of ['light', 'dark'] as const) {
 
     test(`the shared companion card has no axe violations in ${theme}`, async ({ page }) => {
       await page.goto('/card/e2e-a11y');
-      await page.waitForLoadState('networkidle').catch(() => {});
       await expect(page.getByText('Luna')).toBeVisible();
       await expect(page.getByText('Allergic to penicillin')).toBeVisible();
 
@@ -453,7 +437,6 @@ for (const theme of ['light', 'dark'] as const) {
       // reaches from a revoked link, and it exercises the (book) layout, the
       // card surface and the footer.
       await page.goto('/book/no-such-practice-e2e');
-      await page.waitForLoadState('networkidle').catch(() => {});
       await expect(
         page.getByRole('heading', { name: /this booking page is not available/i })
       ).toBeVisible();
@@ -506,7 +489,6 @@ for (const theme of ['light', 'dark'] as const) {
     for (const path of ['/insights', '/pet-businesses', '/pet-parents', '/dmca']) {
       test(`${path} has no axe violations in ${theme}`, async ({ page }) => {
         await page.goto(path);
-        await page.waitForLoadState('networkidle').catch(() => {});
         // The content floor: the page rendered rather than an error boundary.
         await expect(page.locator('main')).toBeVisible();
         await revealEverything(page);
