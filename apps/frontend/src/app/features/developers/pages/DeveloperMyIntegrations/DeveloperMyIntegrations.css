@@ -160,17 +160,11 @@
 }
 .dev-workspace-dialog {
   position: fixed;
-  inset: 0;
-  z-index: 5000;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 20px;
-  border: 0;
-  background: color-mix(in srgb, var(--spot) 72%, transparent);
-  display: grid;
-  place-items: center;
+  top: 50%;
+  left: 50%;
+  z-index: 5001;
+  width: min(520px, calc(100vw - 40px));
+  transform: translate(-50%, -50%);
 }
 .dev-workspace-dialog-card {
   position: relative;
@@ -241,6 +235,11 @@
   background: var(--blue-strong);
   color: white;
   border-color: var(--blue-strong);
+}
+.dev-workspace-dialog-actions button:disabled {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+  background: var(--inset);
 }
 @media (max-width: 767px) {
   .dev-workspace-head {

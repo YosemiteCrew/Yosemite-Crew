@@ -26,8 +26,13 @@ describe('DeveloperMyIntegrations', () => {
 
   test('opens and closes the draft dialog', () => {
     render(<DeveloperMyIntegrations />);
-    fireEvent.click(screen.getByRole('button', { name: 'New integration' }));
+    const opener = screen.getByRole('button', { name: 'New integration' });
+    opener.focus();
+    fireEvent.click(opener);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const playgroundButton = screen.getByRole('button', { name: 'Open API playground' });
+    expect(playgroundButton).toBeDisabled();
+    expect(screen.queryByRole('link', { name: 'Open API playground' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Integration name'), {
       target: { value: 'Lab bridge' },
     });
@@ -38,6 +43,26 @@ describe('DeveloperMyIntegrations', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  test('keeps keyboard focus in the draft dialog and closes it with Escape', () => {
+    render(<DeveloperMyIntegrations />);
+    const opener = screen.getByRole('button', { name: 'New integration' });
+    opener.focus();
+    fireEvent.click(opener);
+
+    const dialog = screen.getByRole('dialog');
+    const firstFocusable = screen.getByRole('button', { name: 'Close' });
+    const lastFocusable = screen.getByRole('button', { name: 'Cancel' });
+    expect(firstFocusable).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(lastFocusable).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+    expect(dialog).not.toBeVisible();
   });
 
   test('opens the draft from the empty state and cancels it', () => {

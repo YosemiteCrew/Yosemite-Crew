@@ -31,6 +31,9 @@ export const EmptyWorkspace: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText('Install at a practice')).toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Start a draft' }));
-    await expect(canvas.getByRole('dialog')).toBeInTheDocument();
+    await expect(within(document.body).getByRole('dialog')).toBeInTheDocument();
+    await expect(
+      within(document.body).getByRole('button', { name: 'Open API playground' })
+    ).toBeDisabled();
   },
 };

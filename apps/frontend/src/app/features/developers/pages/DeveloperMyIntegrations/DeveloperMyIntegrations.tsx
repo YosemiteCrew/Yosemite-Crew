@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/app/ui/icons/Icon';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
+import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import './DeveloperMyIntegrations.css';
 import '@/app/features/organizations/styles/Organizations.css';
 
@@ -37,6 +38,7 @@ const STAGES = [
 const DeveloperMyIntegrations = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
+  const closeDraft = () => setIsCreating(false);
 
   return (
     <DevRouteGuard>
@@ -100,44 +102,56 @@ const DeveloperMyIntegrations = () => {
           </button>
         </section>
 
-        {isCreating && (
-          <dialog open className="dev-workspace-dialog" aria-labelledby="new-integration-title">
-            <div className="dev-workspace-dialog-card">
-              <button
-                type="button"
-                className="dev-workspace-close"
-                aria-label="Close"
-                onClick={() => setIsCreating(false)}
-              >
-                ×
+        <ModalBase
+          showModal={isCreating}
+          setShowModal={setIsCreating}
+          aria-labelledby="new-integration-title"
+          overlayClassName={`fixed inset-0 z-[5000] backdrop-blur-[2px] transition-opacity duration-200 ${
+            isCreating ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          overlayStyle={{ backgroundColor: 'var(--sh55)' }}
+          containerClassName={`dev-workspace-dialog ${
+            isCreating ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          <div className="dev-workspace-dialog-card">
+            <button
+              type="button"
+              className="dev-workspace-close"
+              aria-label="Close"
+              onClick={closeDraft}
+            >
+              ×
+            </button>
+            <span className="dev-workspace-kicker">New draft</span>
+            <h2 id="new-integration-title" className="font-newsreader">
+              What are you building?
+            </h2>
+            <label htmlFor="integration-name">Integration name</label>
+            <input
+              id="integration-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Example: Lab result bridge"
+            />
+            <p>
+              Draft persistence and the full editor depend on the integration project service. You
+              can continue in the API playground today.
+            </p>
+            <div className="dev-workspace-dialog-actions">
+              <button type="button" onClick={closeDraft}>
+                Cancel
               </button>
-              <span className="dev-workspace-kicker">New draft</span>
-              <h2 id="new-integration-title" className="font-newsreader">
-                What are you building?
-              </h2>
-              <label htmlFor="integration-name">Integration name</label>
-              <input
-                id="integration-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Example: Lab result bridge"
-                autoFocus
-              />
-              <p>
-                Draft persistence and the full editor depend on the integration project service. You
-                can continue in the API playground today.
-              </p>
-              <div className="dev-workspace-dialog-actions">
-                <button type="button" onClick={() => setIsCreating(false)}>
-                  Cancel
-                </button>
-                <Link href="/developers/playground" aria-disabled={name.trim().length === 0}>
+              {name.trim().length > 0 ? (
+                <Link href="/developers/playground">Open API playground</Link>
+              ) : (
+                <button type="button" disabled>
                   Open API playground
-                </Link>
-              </div>
+                </button>
+              )}
             </div>
-          </dialog>
-        )}
+          </div>
+        </ModalBase>
       </div>
     </DevRouteGuard>
   );
