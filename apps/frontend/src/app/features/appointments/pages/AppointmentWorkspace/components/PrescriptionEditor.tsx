@@ -341,13 +341,13 @@ const FillAuthorisationControl = ({
     <div className="flex flex-wrap items-end gap-3 border-t border-card-border pt-3">
       <div className="w-full sm:w-72">
         <label
-          htmlFor={`refill-valid-until-${itemId}`}
+          htmlFor={`refill-valid-until-${item.id}`}
           className="mb-1 block text-caption-2 text-text-secondary"
         >
           Authorisation expires
         </label>
         <input
-          id={`refill-valid-until-${itemId}`}
+          id={`refill-valid-until-${item.id}`}
           type="datetime-local"
           value={item.refillValidUntil ?? toDateTimeLocal(eligibility?.expiresAt)}
           onChange={(event) => onUpdateItem(item.id, { refillValidUntil: event.target.value })}

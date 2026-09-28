@@ -93,7 +93,9 @@ describe('PrescriptionEditor refill authorisation', () => {
 
   it('stores expiry on a draft line so the treatment save can authorise it before finalising', () => {
     const onUpdateItem = renderEditor({ prescriptionItemId: undefined });
-    fireEvent.change(screen.getByLabelText('Authorisation expires'), {
+    const expiry = screen.getByLabelText('Authorisation expires');
+    expect(expiry).toHaveAttribute('id', 'refill-valid-until-artifact-1');
+    fireEvent.change(expiry, {
       target: { value: '2027-04-02T15:30' },
     });
     expect(onUpdateItem).toHaveBeenCalledWith('artifact-1', {
