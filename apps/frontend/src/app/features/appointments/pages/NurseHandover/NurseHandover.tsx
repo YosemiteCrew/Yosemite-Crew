@@ -82,20 +82,14 @@ const vitalSummary = (vital: Vitals) => {
   return readings.join(' · ') || 'No readings recorded';
 };
 
-const HandoverVisitCard = ({
-  visit,
-  organisationId,
-  actor,
-}: {
-  visit: HandoverVisit;
-  organisationId: string | null;
-  actor: { id?: string; name: string };
-}) => {
-  const [expanded, setExpanded] = useState(false);
+const useHandoverRecords = (
+  appointment: HandoverVisit['appointment'],
+  organisationId: string | null,
+  actor: { id?: string; name: string }
+) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [records, setRecords] = useState<HandoverRecords | null>(null);
-  const { appointment, openTasks } = visit;
   const appointmentId = appointment.id;
 
   const loadRecords = useCallback(async () => {
@@ -119,11 +113,149 @@ const HandoverVisitCard = ({
     }
   }, [actor.id, actor.name, appointment.encounterId, appointmentId, organisationId]);
 
+  return { loading, error, records, loadRecords };
+};
+
+const HandoverRecords = ({
+  loading,
+  error,
+  records,
+  onRetry,
+}: {
+  loading: boolean;
+  error: boolean;
+  records: HandoverRecords | null;
+  onRetry: () => void;
+}) => (
+  <>
+    {loading && (
+      <output className="text-caption-1 text-[var(--ink-muted)]">Loading saved records…</output>
+    )}
+    {error && (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center gap-2 text-caption-1 text-[var(--ink-body)]"
+      >
+        <span>Saved records could not be loaded.</span>
+        <button type="button" onClick={onRetry} className="font-semibold text-blue-text underline">
+          Try again
+        </button>
+      </div>
+    )}
+    {records && records.vitals.length + records.observations.length === 0 && (
+      <p className="text-caption-1 text-[var(--ink-muted)]">
+        No observations have been recorded for this visit.
+      </p>
+    )}
+    {records?.vitals.map((vital) => (
+      <div key={vital.id} className="rounded-xl bg-[var(--inset)] px-3 py-2 text-caption-1">
+        <p className="font-semibold text-[var(--ink)]">Vitals · {vitalSummary(vital)}</p>
+        <p className="mt-0.5 text-[var(--ink-muted)]">
+          Recorded by {vital.recordedByName} ·{' '}
+          <LocalizedTimestamp value={vital.recordedAt} includeDate />
+        </p>
+      </div>
+    ))}
+    {records?.observations.map((observation) => (
+      <div key={observation.id} className="rounded-xl bg-[var(--inset)] px-3 py-2 text-caption-1">
+        <p className="font-semibold text-[var(--ink)]">
+          {observation.toolName}
+          {observation.total === undefined ? '' : ` · Score ${observation.total}`}
+        </p>
+        <p className="mt-0.5 text-[var(--ink-muted)]">
+          Recorded by {observation.recordedByName} ·{' '}
+          <LocalizedTimestamp value={observation.recordedAt} includeDate />
+        </p>
+      </div>
+    ))}
+  </>
+);
+
+const HandoverObservations = ({
+  appointment,
+  organisationId,
+  actor,
+}: {
+  appointment: HandoverVisit['appointment'];
+  organisationId: string | null;
+  actor: { id?: string; name: string };
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const { loading, error, records, loadRecords } = useHandoverRecords(
+    appointment,
+    organisationId,
+    actor
+  );
   const toggleRecords = () => {
     const nextExpanded = !expanded;
     setExpanded(nextExpanded);
     if (nextExpanded && !records && !error) void loadRecords();
   };
+
+  return (
+    <section aria-label="Recorded observations">
+      <button
+        type="button"
+        onClick={toggleRecords}
+        aria-expanded={expanded}
+        aria-controls={`handover-records-${appointment.id}`}
+        className="flex min-h-8 items-center gap-2 text-left text-caption-1 font-bold text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      >
+        {expanded ? (
+          <IoChevronDownOutline aria-hidden="true" />
+        ) : (
+          <IoChevronForwardOutline aria-hidden="true" />
+        )}
+        Recorded observations
+      </button>
+      {expanded && (
+        <div id={`handover-records-${appointment.id}`} className="mt-2 space-y-3">
+          <HandoverRecords
+            loading={loading}
+            error={error}
+            records={records}
+            onRetry={() => void loadRecords()}
+          />
+        </div>
+      )}
+    </section>
+  );
+};
+
+const HandoverOpenWork = ({ tasks }: { tasks: Task[] }) => (
+  <section aria-label="Open work">
+    <h3 className="mb-2 flex items-center gap-2 text-caption-1 font-bold text-[var(--ink)]">
+      <IoClipboardOutline aria-hidden="true" /> Open work{' '}
+      <span className="text-[var(--ink-muted)]">{tasks.length}</span>
+    </h3>
+    {tasks.length ? (
+      <ul className="space-y-2">
+        {tasks.map((task) => (
+          <li key={task._id} className="flex items-start justify-between gap-3 text-caption-1">
+            <span className="text-[var(--ink-body)]">{task.name}</span>
+            <span className="shrink-0 text-[var(--ink-muted)]">
+              {task.status === 'IN_PROGRESS' ? 'In progress' : 'Not started'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-caption-1 text-[var(--ink-muted)]">No open work linked to this visit.</p>
+    )}
+  </section>
+);
+
+const HandoverVisitCard = ({
+  visit,
+  organisationId,
+  actor,
+}: {
+  visit: HandoverVisit;
+  organisationId: string | null;
+  actor: { id?: string; name: string };
+}) => {
+  const { appointment, openTasks } = visit;
+  const appointmentId = appointment.id;
 
   return (
     <article className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_3px_var(--sh03)]">
@@ -150,104 +282,12 @@ const HandoverVisitCard = ({
       </div>
 
       <div className="grid gap-4 border-t border-[var(--hairline)] px-4 py-4 sm:grid-cols-2 sm:px-5">
-        <section aria-label="Open work">
-          <h3 className="mb-2 flex items-center gap-2 text-caption-1 font-bold text-[var(--ink)]">
-            <IoClipboardOutline aria-hidden="true" /> Open work{' '}
-            <span className="text-[var(--ink-muted)]">{openTasks.length}</span>
-          </h3>
-          {openTasks.length ? (
-            <ul className="space-y-2">
-              {openTasks.map((task) => (
-                <li
-                  key={task._id}
-                  className="flex items-start justify-between gap-3 text-caption-1"
-                >
-                  <span className="text-[var(--ink-body)]">{task.name}</span>
-                  <span className="shrink-0 text-[var(--ink-muted)]">
-                    {task.status === 'IN_PROGRESS' ? 'In progress' : 'Not started'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-caption-1 text-[var(--ink-muted)]">
-              No open work linked to this visit.
-            </p>
-          )}
-        </section>
-
-        <section aria-label="Recorded observations">
-          <button
-            type="button"
-            onClick={toggleRecords}
-            aria-expanded={expanded}
-            aria-controls={`handover-records-${appointmentId}`}
-            className="flex min-h-8 items-center gap-2 text-left text-caption-1 font-bold text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-          >
-            {expanded ? (
-              <IoChevronDownOutline aria-hidden="true" />
-            ) : (
-              <IoChevronForwardOutline aria-hidden="true" />
-            )}
-            Recorded observations
-          </button>
-          {expanded && (
-            <div id={`handover-records-${appointmentId}`} className="mt-2 space-y-3">
-              {loading && (
-                <output className="text-caption-1 text-[var(--ink-muted)]">
-                  Loading saved records…
-                </output>
-              )}
-              {error && (
-                <div
-                  role="alert"
-                  className="flex flex-wrap items-center gap-2 text-caption-1 text-[var(--ink-body)]"
-                >
-                  <span>Saved records could not be loaded.</span>
-                  <button
-                    type="button"
-                    onClick={() => void loadRecords()}
-                    className="font-semibold text-blue-text underline"
-                  >
-                    Try again
-                  </button>
-                </div>
-              )}
-              {records && records.vitals.length + records.observations.length === 0 && (
-                <p className="text-caption-1 text-[var(--ink-muted)]">
-                  No observations have been recorded for this visit.
-                </p>
-              )}
-              {records?.vitals.map((vital) => (
-                <div
-                  key={vital.id}
-                  className="rounded-xl bg-[var(--inset)] px-3 py-2 text-caption-1"
-                >
-                  <p className="font-semibold text-[var(--ink)]">Vitals · {vitalSummary(vital)}</p>
-                  <p className="mt-0.5 text-[var(--ink-muted)]">
-                    Recorded by {vital.recordedByName} ·{' '}
-                    <LocalizedTimestamp value={vital.recordedAt} includeDate />
-                  </p>
-                </div>
-              ))}
-              {records?.observations.map((observation) => (
-                <div
-                  key={observation.id}
-                  className="rounded-xl bg-[var(--inset)] px-3 py-2 text-caption-1"
-                >
-                  <p className="font-semibold text-[var(--ink)]">
-                    {observation.toolName}
-                    {observation.total === undefined ? '' : ` · Score ${observation.total}`}
-                  </p>
-                  <p className="mt-0.5 text-[var(--ink-muted)]">
-                    Recorded by {observation.recordedByName} ·{' '}
-                    <LocalizedTimestamp value={observation.recordedAt} includeDate />
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        <HandoverOpenWork tasks={openTasks} />
+        <HandoverObservations
+          appointment={appointment}
+          organisationId={organisationId}
+          actor={actor}
+        />
       </div>
     </article>
   );
