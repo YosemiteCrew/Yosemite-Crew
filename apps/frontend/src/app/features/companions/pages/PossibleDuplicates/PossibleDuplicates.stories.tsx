@@ -63,9 +63,9 @@ const meta = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('Poppy')).toBeInTheDocument());
-    expect(canvas.getByText('Same name and birth date')).toBeInTheDocument();
-    expect(canvas.getByText('Same microchip')).toBeInTheDocument();
+    await waitFor(() => expect(canvas.getAllByText('Poppy')).toHaveLength(2));
+    expect(canvas.getAllByText('Same name and birth date')).toHaveLength(2);
+    expect(canvas.getAllByText('Same microchip')).toHaveLength(2);
   },
 } satisfies Meta<typeof PossibleDuplicates>;
 
