@@ -527,6 +527,114 @@ export const PrescriptionFillAuthorisationService = {
     return describeEligibility(authority, allocated, now);
   },
 
+  /** Complete an authorised fill in the caller's dispense transaction. */
+  async recordDispensedFillInTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      organisationId: string;
+      itemId: string;
+      dispenseRequestId: string;
+      quantity: Prisma.Decimal.Value;
+      dispensedBy?: string | null;
+      now?: Date;
+    },
+  ) {
+    const organisationId = requireField(
+      asNonEmptyString(params.organisationId),
+      "organisationId",
+    );
+    const itemId = requireField(asNonEmptyString(params.itemId), "itemId");
+    const dispenseRequestId = requireField(
+      asNonEmptyString(params.dispenseRequestId),
+      "dispenseRequestId",
+    );
+    const now = params.now ?? new Date();
+    const quantity = new Prisma.Decimal(params.quantity);
+    const idempotencyKey = `dispense:${dispenseRequestId}:${itemId}`;
+
+    if (quantity.lessThanOrEqualTo(0)) {
+      throw new PrescriptionFillAuthorisationServiceError(
+        "quantity must be greater than zero",
+        400,
+      );
+    }
+
+    await lockItem(tx, organisationId, itemId);
+    const replay = await tx.prescriptionFillReservation.findUnique({
+      where: {
+        organisationId_idempotencyKey: { organisationId, idempotencyKey },
+      },
+    });
+    if (replay) {
+      if (
+        replay.itemId !== itemId ||
+        !new Prisma.Decimal(replay.quantity).equals(quantity)
+      ) {
+        throw new PrescriptionFillAuthorisationServiceError(
+          "Dispense request conflicts with its recorded fill",
+          409,
+        );
+      }
+      return replay;
+    }
+
+    const authority = await loadActiveAuthorization(tx, organisationId, itemId);
+    if (!authority) {
+      const latest = await tx.prescriptionFillAuthorization.findFirst({
+        where: { organisationId, itemId },
+        orderBy: { version: "desc" },
+        select: { status: true },
+      });
+      if (
+        latest?.status === PrescriptionFillAuthorizationStatus.REVOKED ||
+        latest?.status === PrescriptionFillAuthorizationStatus.SUPERSEDED
+      ) {
+        throw new PrescriptionFillAuthorisationServiceError(
+          "Fill authorisation is no longer active",
+          409,
+        );
+      }
+      return null;
+    }
+    const allocated = await countAllocatedFills(tx, authority.id);
+    const eligibility = describeEligibility(authority, allocated, now);
+    if (!eligibility.eligible) {
+      throw new PrescriptionFillAuthorisationServiceError(
+        `Fill not permitted: ${eligibility.reasonCodes.join(", ")}`,
+        409,
+      );
+    }
+    if (!new Prisma.Decimal(authority.perFillQuantity).equals(quantity)) {
+      throw new PrescriptionFillAuthorisationServiceError(
+        "Dispensed quantity does not match the authorised quantity",
+        409,
+      );
+    }
+
+    const highest = await tx.prescriptionFillReservation.findFirst({
+      where: { authorizationId: authority.id },
+      orderBy: { fillOrdinal: "desc" },
+      select: { fillOrdinal: true },
+    });
+    return tx.prescriptionFillReservation.create({
+      data: {
+        organisationId,
+        authorizationId: authority.id,
+        itemId,
+        dispenseRequestId,
+        fillOrdinal: (highest?.fillOrdinal ?? -1) + 1,
+        quantity,
+        fulfilledQuantity: quantity,
+        quantityUnit: authority.perFillQuantityUnit,
+        idempotencyKey,
+        reservedBy: asNonEmptyString(params.dispensedBy),
+        reservedAt: now,
+        status: PrescriptionFillReservationStatus.COMPLETED,
+        completedAt: now,
+      },
+    });
+  },
+
   /**
    * Allocate one fill against the active authority.
    *

@@ -28,6 +28,7 @@ import { AdminstrationOptions, FormOptions } from '@/app/features/inventory/page
 import {
   DURATION_UNIT_OPTIONS,
   FREQUENCY_OPTIONS,
+  resolvePrescriptionFillQuantity,
   validatePrescriptionItem,
 } from '@/app/features/appointments/lib/inventoryPrescription';
 import type {
@@ -35,8 +36,14 @@ import type {
   PrescriptionItem,
 } from '@/app/features/appointments/types/workspace';
 import type { PrescriptionTemplateOption } from '@/app/features/appointments/services/workspaceTemplateService';
+import {
+  authoriseFills,
+  getFillEligibility,
+  type FillEligibility,
+} from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
 
 type PrescriptionEditorProps = {
+  organisationId?: string;
   items: PrescriptionItem[];
   catalogItems?: Omit<PrescriptionItem, 'id'>[];
   templateItems?: PrescriptionTemplateOption[];
@@ -223,9 +230,154 @@ const InstructionsField = ({
   </div>
 );
 
+const refillEligibilityLabel = (
+  itemId: string | undefined,
+  eligibility: FillEligibility | null | undefined
+) => {
+  if (!itemId) return 'Saving with an expiry will authorise the entered refills.';
+  if (eligibility === undefined) return 'Loading refill status…';
+  if (eligibility === null) return 'Refill status unavailable.';
+  if (!eligibility.authorizationId) return 'No active refill authorisation';
+  const noun = eligibility.remainingFills === 1 ? 'fill' : 'fills';
+  return `${eligibility.remainingFills} authorised ${noun} remaining`;
+};
+
+const toDateTimeLocal = (value?: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+
+const FillAuthorisationControl = ({
+  organisationId,
+  item,
+  onUpdateItem,
+}: {
+  organisationId?: string;
+  item: PrescriptionItem;
+  onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
+}) => {
+  const [eligibilityState, setEligibilityState] = useState<{
+    itemId: string;
+    value: FillEligibility | null;
+    error: string;
+  } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const itemId = item.prescriptionItemId;
+  const currentEligibility = eligibilityState?.itemId === itemId ? eligibilityState : null;
+  const eligibility = currentEligibility?.value;
+  const error = currentEligibility?.error ?? '';
+
+  useEffect(() => {
+    if (!organisationId || !itemId) return;
+    let cancelled = false;
+    getFillEligibility(organisationId, itemId)
+      .then((result) => {
+        if (!cancelled) setEligibilityState({ itemId, value: result, error: '' });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEligibilityState({
+            itemId,
+            value: null,
+            error: 'Unable to load refill authorisation.',
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organisationId, itemId]);
+
+  if (!organisationId) return null;
+
+  const refillCount = item.refill?.trim() ? Number(item.refill) : NaN;
+  const quantity = resolvePrescriptionFillQuantity(item);
+  const unit = item.doseUnit?.trim() || item.dosageForm?.trim() || '';
+  const validUntil = item.refillValidUntil || toDateTimeLocal(eligibility?.expiresAt);
+  const canAuthorise =
+    Boolean(itemId && validUntil && unit) &&
+    Number.isInteger(refillCount) &&
+    refillCount >= 0 &&
+    quantity !== undefined &&
+    !saving;
+  const statusText = refillEligibilityLabel(itemId, eligibility);
+  let buttonText = 'Authorise on save';
+  if (itemId) buttonText = 'Authorise refills';
+  if (saving) buttonText = 'Authorising…';
+
+  const save = async () => {
+    if (!canAuthorise) return;
+    setSaving(true);
+    setEligibilityState((current) => {
+      if (current && current.itemId === itemId) return { ...current, error: '' };
+      return { itemId: itemId!, value: eligibility ?? null, error: '' };
+    });
+    try {
+      await authoriseFills(organisationId, itemId!, {
+        validUntil: new Date(validUntil).toISOString(),
+        maxAdditionalFills: refillCount,
+        perFillQuantity: quantity!,
+        perFillQuantityUnit: unit,
+      });
+      setEligibilityState({
+        itemId: itemId!,
+        value: await getFillEligibility(organisationId, itemId!),
+        error: '',
+      });
+    } catch {
+      setEligibilityState((current) => ({
+        itemId: itemId!,
+        value: current && current.itemId === itemId ? current.value : (eligibility ?? null),
+        error: 'Unable to authorise refills. Check your access and try again.',
+      }));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-end gap-3 border-t border-card-border pt-3">
+      <div className="w-full sm:w-72">
+        <label
+          htmlFor={`refill-valid-until-${itemId}`}
+          className="mb-1 block text-caption-2 text-text-secondary"
+        >
+          Authorisation expires
+        </label>
+        <input
+          id={`refill-valid-until-${itemId}`}
+          type="datetime-local"
+          value={item.refillValidUntil ?? toDateTimeLocal(eligibility?.expiresAt)}
+          onChange={(event) => onUpdateItem(item.id, { refillValidUntil: event.target.value })}
+          className="w-full rounded-lg border border-card-border bg-card px-3 py-2 text-body-4 text-text-primary"
+        />
+      </div>
+      <p aria-live="polite" className="text-caption-1 text-text-secondary">
+        {statusText}
+      </p>
+      <button
+        type="button"
+        onClick={() => void save()}
+        disabled={!canAuthorise}
+        className="rounded-lg border border-card-border px-3 py-2 text-body-4 font-medium text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {buttonText}
+      </button>
+      {error && (
+        <p role="alert" className="w-full text-caption-2 text-text-error">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+};
+
 const PrescriptionRow = ({
   item,
   index,
+  organisationId,
   readOnly,
   deleteLocked,
   onUpdateItem,
@@ -234,6 +386,7 @@ const PrescriptionRow = ({
 }: {
   item: PrescriptionItem;
   index: number;
+  organisationId?: string;
   readOnly: boolean;
   deleteLocked: boolean;
   onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
@@ -401,6 +554,11 @@ const PrescriptionRow = ({
           {item.priceCents == null ? '-' : formatCents(item.priceCents, currency)}
         </span>
       </div>
+      <FillAuthorisationControl
+        organisationId={organisationId}
+        item={item}
+        onUpdateItem={onUpdateItem}
+      />
     </li>
   );
 };
@@ -468,6 +626,7 @@ const useAtcvetSuggestions = (query: string, readOnly: boolean, species?: string
 };
 
 const PrescriptionEditor = ({
+  organisationId,
   items,
   catalogItems = EMPTY_CATALOG_ITEMS,
   templateItems = EMPTY_TEMPLATE_ITEMS,
@@ -619,6 +778,7 @@ const PrescriptionEditor = ({
           <ul className="flex flex-col gap-3">
             {items.map((item, index) => (
               <PrescriptionRow
+                organisationId={organisationId}
                 currency={currency}
                 key={item.id}
                 item={item}

@@ -300,6 +300,146 @@ describe("authoriseFills", () => {
   });
 });
 
+describe("recordDispensedFillInTx", () => {
+  const input = {
+    organisationId: ORG,
+    itemId: ITEM,
+    dispenseRequestId: "dispense-1",
+    quantity: "10",
+    dispensedBy: "staff-1",
+    now: NOW,
+  };
+
+  it("completes one fill against the active authority in the caller transaction", async () => {
+    db.prescriptionFillAuthorization.findFirst.mockResolvedValueOnce(
+      authority(),
+    );
+    db.prescriptionFillReservation.count.mockResolvedValueOnce(1);
+    db.prescriptionFillReservation.findFirst.mockResolvedValueOnce({
+      fillOrdinal: 0,
+    });
+
+    const result =
+      await PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+        db as never,
+        input,
+      );
+
+    expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(db.prescriptionFillReservation.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        organisationId: ORG,
+        itemId: ITEM,
+        dispenseRequestId: "dispense-1",
+        fillOrdinal: 1,
+        quantity: new Prisma.Decimal("10"),
+        fulfilledQuantity: new Prisma.Decimal("10"),
+        status: "COMPLETED",
+        idempotencyKey: "dispense:dispense-1:item-1",
+        reservedBy: "staff-1",
+      }),
+    });
+    expect(result).toMatchObject({ itemId: ITEM, status: "COMPLETED" });
+  });
+
+  it("does not create tracking rows for prescriptions without an active authority", async () => {
+    db.prescriptionFillAuthorization.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+        db as never,
+        input,
+      ),
+    ).resolves.toBeNull();
+    expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
+  });
+
+  it.each(["REVOKED", "SUPERSEDED"])(
+    "refuses a dispense when the latest authority is %s",
+    async (status) => {
+      db.prescriptionFillAuthorization.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ status });
+
+      await expect(
+        PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+          db as never,
+          input,
+        ),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it("returns a matching completed dispense idempotently", async () => {
+    const existing = reservation({
+      quantity: new Prisma.Decimal("10"),
+      status: "COMPLETED",
+      dispenseRequestId: "dispense-1",
+      idempotencyKey: "dispense:dispense-1:item-1",
+    });
+    db.prescriptionFillReservation.findUnique.mockResolvedValueOnce(existing);
+
+    await expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+        db as never,
+        input,
+      ),
+    ).resolves.toBe(existing);
+    expect(db.prescriptionFillAuthorization.findFirst).not.toHaveBeenCalled();
+    expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a duplicate idempotency key with a different quantity", async () => {
+    db.prescriptionFillReservation.findUnique.mockResolvedValueOnce(
+      reservation({
+        quantity: new Prisma.Decimal("8"),
+        dispenseRequestId: "dispense-1",
+        idempotencyKey: "dispense:dispense-1:item-1",
+      }),
+    );
+
+    await expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+        db as never,
+        input,
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a dispense after the authorised fills are exhausted", async () => {
+    db.prescriptionFillAuthorization.findFirst.mockResolvedValueOnce(
+      authority({ maxAdditionalFills: 0 }),
+    );
+    db.prescriptionFillReservation.count.mockResolvedValueOnce(1);
+
+    await expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+        db as never,
+        input,
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects quantities that differ from the authorised course", async () => {
+    db.prescriptionFillAuthorization.findFirst.mockResolvedValueOnce(
+      authority(),
+    );
+    db.prescriptionFillReservation.count.mockResolvedValueOnce(0);
+    await expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+        db as never,
+        {
+          ...input,
+          quantity: "9",
+        },
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
+  });
+});
+
 describe("revokeAuthorization", () => {
   const input = {
     organisationId: ORG,

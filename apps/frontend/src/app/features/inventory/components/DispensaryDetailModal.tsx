@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { IoCheckmarkCircle, IoPrintOutline } from 'react-icons/io5';
 import Modal from '@/app/ui/overlays/Modal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
@@ -11,6 +11,10 @@ import {
   notDispensedPrescription,
 } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
+import {
+  getFillEligibility,
+  type FillEligibility,
+} from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
 
 type Props = {
   record: DispensaryRecord | null;
@@ -92,9 +96,21 @@ const getDispensaryItemKey = (item: DispensaryItem, index: number): string =>
 type DispensaryItemRowProps = {
   item: DispensaryItem;
   idx: number;
+  eligibility?: FillEligibility | null;
 };
 
-const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
+const fillEligibilityLabel = (eligibility: FillEligibility | null | undefined) => {
+  if (eligibility === undefined) return 'Loading authorised fills…';
+  if (eligibility === null) return 'Unable to load refill authorisation.';
+  if (eligibility.reasonCodes.includes('AUTHORITY_REVOKED')) return 'Refill authorisation revoked';
+  if (eligibility.reasonCodes.includes('AUTHORITY_SUPERSEDED'))
+    return 'Replaced by a newer refill authorisation';
+  if (!eligibility.authorizationId) return 'No active refill authorisation';
+  const noun = eligibility.remainingFills === 1 ? 'fill' : 'fills';
+  return `${eligibility.remainingFills} authorised ${noun} remaining`;
+};
+
+const DispensaryItemRow = ({ item, idx, eligibility }: Readonly<DispensaryItemRowProps>) => {
   const effectiveFreqPerDay = item.frequencyPerDay ?? parseFrequencyPerDay(item.frequency);
   const totalUnits = calcTotalUnits(item, effectiveFreqPerDay);
   const packs = calcPacks(totalUnits, item.stockUnitQty);
@@ -150,11 +166,16 @@ const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
                 </span>
               </>
             )}
-            <span className="text-text-secondary">Refill</span>
+            <span className="text-text-secondary">Prescription refills</span>
             <span className="text-text-primary font-medium">
-              {item.refillsRemaining == null ? '—' : `${item.refillsRemaining} remaining`}
+              {item.refillsRemaining == null ? '—' : `${item.refillsRemaining} listed`}
             </span>
           </div>
+          {item.prescriptionItemId && (
+            <p aria-live="polite" className="mt-2 text-caption-1 text-text-secondary">
+              {fillEligibilityLabel(eligibility)}
+            </p>
+          )}
         </div>
 
         {/* Dispense calculation */}
@@ -290,8 +311,11 @@ const useDispensaryActions = ({
     try {
       const blob = await fetchPrescriptionLabelPdf(organisationId, prescriptionId);
       const url = URL.createObjectURL(blob);
-      const win = window.open(url, '_blank');
-      if (win) win.focus();
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.click();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } finally {
       setPrinting(false);
@@ -317,6 +341,7 @@ type DispensaryFooterProps = {
   isPending: boolean;
   itemCount: number;
   canDispense: boolean;
+  fillBlocked: boolean;
   actions: ReturnType<typeof useDispensaryActions>;
 };
 
@@ -325,6 +350,7 @@ const DispensaryFooter = ({
   isPending,
   itemCount,
   canDispense,
+  fillBlocked,
   actions,
 }: Readonly<DispensaryFooterProps>) => {
   if (isDispensed) {
@@ -345,11 +371,13 @@ const DispensaryFooter = ({
 
   if (!isPending) return null;
 
-  if (!canDispense) {
+  if (!canDispense || fillBlocked) {
     return (
       <ModalFooter align="start">
         <p className="text-caption-1 text-text-secondary">
-          Only staff who can edit all prescriptions and inventory can dispense this request.
+          {fillBlocked
+            ? 'This prescription is not eligible for another authorised fill.'
+            : 'Only staff who can edit all prescriptions and inventory can dispense this request.'}
         </p>
       </ModalFooter>
     );
@@ -381,6 +409,40 @@ const DispensaryDetailModal = ({
   onActionComplete,
   canDispense,
 }: Props) => {
+  const [fillEligibility, setFillEligibility] = useState<{
+    key: string;
+    values: Record<string, FillEligibility | null>;
+  } | null>(null);
+  const itemIds = (record?.items ?? [])
+    .map((item) => item.prescriptionItemId)
+    .filter((itemId): itemId is string => Boolean(itemId));
+  const itemIdsKey = itemIds.join('|');
+  const recordId = record?.id;
+
+  useEffect(() => {
+    if (!organisationId || !recordId || !itemIdsKey) return;
+    let cancelled = false;
+    const ids = itemIdsKey.split('|');
+    Promise.all(
+      ids.map(async (itemId) => {
+        try {
+          return [itemId, await getFillEligibility(organisationId, itemId)] as const;
+        } catch {
+          return [itemId, null] as const;
+        }
+      })
+    ).then((entries) => {
+      if (!cancelled)
+        setFillEligibility({
+          key: `${recordId}:${itemIdsKey}`,
+          values: Object.fromEntries(entries),
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [organisationId, recordId, itemIdsKey]);
+
   const actions = useDispensaryActions({
     organisationId,
     prescriptionId: record?.prescriptionId ?? '',
@@ -392,6 +454,18 @@ const DispensaryDetailModal = ({
   const isDispensed = record.status === 'DISPENSED';
   const isPending = record.status === 'PENDING';
   const items = record.items ?? [];
+  const fillBlocked = items.some((item) => {
+    if (!item.prescriptionItemId) return false;
+    const eligibility =
+      fillEligibility?.key === `${recordId}:${itemIdsKey}`
+        ? fillEligibility.values[item.prescriptionItemId]
+        : undefined;
+    return Boolean(
+      (eligibility?.authorizationId && !eligibility.eligible) ||
+      eligibility?.reasonCodes.includes('AUTHORITY_REVOKED') ||
+      eligibility?.reasonCodes.includes('AUTHORITY_SUPERSEDED')
+    );
+  });
 
   const ownerName = record.petParentName || null;
   const ownerLastName = ownerName ? ownerName.trim().split(/\s+/).at(-1) : null;
@@ -430,7 +504,16 @@ const DispensaryDetailModal = ({
           {items.length > 0 ? (
             <div className="flex flex-col gap-4">
               {items.map((item, idx) => (
-                <DispensaryItemRow key={getDispensaryItemKey(item, idx)} item={item} idx={idx} />
+                <DispensaryItemRow
+                  key={getDispensaryItemKey(item, idx)}
+                  item={item}
+                  idx={idx}
+                  eligibility={
+                    item.prescriptionItemId && fillEligibility?.key === `${recordId}:${itemIdsKey}`
+                      ? fillEligibility.values[item.prescriptionItemId]
+                      : undefined
+                  }
+                />
               ))}
             </div>
           ) : (
@@ -445,6 +528,7 @@ const DispensaryDetailModal = ({
           isPending={isPending}
           itemCount={items.length}
           canDispense={canDispense}
+          fillBlocked={fillBlocked}
           actions={actions}
         />
       </div>

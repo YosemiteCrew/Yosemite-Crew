@@ -17,8 +17,13 @@ jest.mock('@/app/features/inventory/services/dispensaryService', () => ({
   fetchPrescriptionLabelPdf: jest.fn(),
 }));
 
+jest.mock('@/app/features/appointments/services/prescriptionFillAuthorisationService', () => ({
+  getFillEligibility: jest.fn(),
+}));
+
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
 import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
+import { getFillEligibility } from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
 import {
   dispensePrescription,
   notDispensedPrescription,
@@ -59,6 +64,16 @@ const defaultProps = {
 describe('DispensaryDetailModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (getFillEligibility as jest.Mock).mockResolvedValue({
+      authorizationId: null,
+      version: null,
+      eligible: false,
+      reasonCodes: ['NOT_AUTHORISED'],
+      remainingFills: 0,
+      remainingQuantity: null,
+      unit: null,
+      expiresAt: null,
+    });
     Object.defineProperty(global.URL, 'createObjectURL', {
       writable: true,
       value: jest.fn(() => 'blob:mock-url'),
@@ -68,6 +83,63 @@ describe('DispensaryDetailModal', () => {
       value: jest.fn(),
     });
   });
+
+  it('shows the current authorisation and blocks an exhausted repeat', async () => {
+    (getFillEligibility as jest.Mock).mockResolvedValue({
+      authorizationId: 'authority-1',
+      version: 1,
+      eligible: false,
+      reasonCodes: ['FILLS_EXHAUSTED'],
+      remainingFills: 0,
+      remainingQuantity: '0',
+      unit: 'tablet',
+      expiresAt: '2027-01-01T00:00:00.000Z',
+    });
+    const record = {
+      ...baseRecord,
+      status: 'PENDING' as const,
+      items: [{ name: 'Medication', quantity: 1, priceCents: 100, prescriptionItemId: 'line-1' }],
+    };
+
+    render(<DispensaryDetailModal {...defaultProps} record={record} />);
+
+    expect(await screen.findByText('0 authorised fills remaining')).toBeInTheDocument();
+    expect(
+      screen.getByText('This prescription is not eligible for another authorised fill.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /dispense all/i })).not.toBeInTheDocument();
+  });
+
+  it.each(['AUTHORITY_REVOKED', 'AUTHORITY_SUPERSEDED'])(
+    'blocks a fill when the authorisation is %s',
+    async (reasonCode) => {
+      (getFillEligibility as jest.Mock).mockResolvedValue({
+        authorizationId: null,
+        version: null,
+        eligible: false,
+        reasonCodes: [reasonCode],
+        remainingFills: 0,
+        remainingQuantity: null,
+        unit: null,
+        expiresAt: null,
+      });
+      const record = {
+        ...baseRecord,
+        status: 'PENDING' as const,
+        items: [{ name: 'Medication', quantity: 1, priceCents: 100, prescriptionItemId: 'line-1' }],
+      };
+
+      render(<DispensaryDetailModal {...defaultProps} record={record} />);
+
+      expect(
+        await screen.findByText(/authorisation revoked|newer refill authorisation/)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('This prescription is not eligible for another authorised fill.')
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /dispense all/i })).not.toBeInTheDocument();
+    }
+  );
 
   describe('Label button (dispensed state)', () => {
     it('renders the Label button when status is DISPENSED', () => {
@@ -81,10 +153,13 @@ describe('DispensaryDetailModal', () => {
       expect(screen.queryByText(/not dispensed/i)).not.toBeInTheDocument();
     });
 
-    it('opens the label PDF in a new tab on click', async () => {
+    it('opens the label PDF with a safe new-tab link', async () => {
       const mockBlob = new Blob(['%PDF'], { type: 'application/pdf' });
       fetchLabelMock.mockResolvedValue(mockBlob);
-      const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
+      const createElementSpy = jest.spyOn(document, 'createElement');
+      const clickSpy = jest
+        .spyOn(HTMLAnchorElement.prototype, 'click')
+        .mockImplementation(() => {});
 
       render(<DispensaryDetailModal {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: /label/i }));
@@ -93,27 +168,20 @@ describe('DispensaryDetailModal', () => {
         expect(fetchLabelMock).toHaveBeenCalledWith('org-123', 'rx-abc');
       });
       expect(URL.createObjectURL).toHaveBeenCalledWith(mockBlob);
-      expect(openSpy).toHaveBeenCalledWith('blob:mock-url', '_blank');
-
-      openSpy.mockRestore();
-    });
-
-    it('focuses the new window when window.open returns a window reference', async () => {
-      const mockBlob = new Blob(['%PDF'], { type: 'application/pdf' });
-      fetchLabelMock.mockResolvedValue(mockBlob);
-      const focusMock = jest.fn();
-      const openSpy = jest
-        .spyOn(window, 'open')
-        .mockReturnValue({ focus: focusMock } as unknown as Window);
-
-      render(<DispensaryDetailModal {...defaultProps} />);
-      fireEvent.click(screen.getByRole('button', { name: /label/i }));
-
-      await waitFor(() => {
-        expect(focusMock).toHaveBeenCalled();
+      const openedLink = createElementSpy.mock.results
+        .map((result) => result.value)
+        .find(
+          (element): element is HTMLAnchorElement =>
+            element instanceof HTMLAnchorElement && element.href === 'blob:mock-url'
+        );
+      expect(openedLink).toMatchObject({
+        href: 'blob:mock-url',
+        target: '_blank',
+        rel: 'noopener noreferrer',
       });
 
-      openSpy.mockRestore();
+      createElementSpy.mockRestore();
+      clickSpy.mockRestore();
     });
 
     it('shows Loading… while fetching and re-enables after', async () => {
@@ -330,7 +398,7 @@ describe('DispensaryDetailModal', () => {
       render(<DispensaryDetailModal {...defaultProps} record={record} />);
       expect(screen.getByText('Freq.')).toBeInTheDocument();
       expect(screen.getByText('BID (twice daily)')).toBeInTheDocument();
-      expect(screen.getByText('4 remaining')).toBeInTheDocument();
+      expect(screen.getByText('4 listed')).toBeInTheDocument();
     });
 
     it('shows a dash for refill when refillsRemaining is null', () => {

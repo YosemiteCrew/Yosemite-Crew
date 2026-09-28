@@ -16,6 +16,7 @@ import {
   resolveDrugUnit,
   resolveItemDeaSchedule,
 } from "./controlled-substance-dispense";
+import { PrescriptionFillAuthorisationService } from "./prescription-fill-authorisation.service";
 
 export class InventoryConsumptionServiceError extends Error {
   constructor(
@@ -2398,6 +2399,25 @@ export const InventoryConsumptionService = {
       const metadata = request.metadata ?? params.metadata;
       const stockSource =
         resolveDispenseStockSourceFromMetadata(metadata) ?? "NORMAL";
+
+      if (Array.isArray(medications)) {
+        for (const medication of medications) {
+          const line = toRecord(medication);
+          const itemId = asNonEmptyString(line.prescriptionItemId);
+          const quantity = resolveDispenseTotalUnits(line);
+          if (!itemId || quantity === undefined) continue;
+          await PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+            tx,
+            {
+              organisationId,
+              itemId,
+              dispenseRequestId: request.id,
+              quantity,
+              dispensedBy: params.reviewedBy,
+            },
+          );
+        }
+      }
 
       const inventoryEvents = await consumePrescriptionMedications(tx, {
         organisationId,

@@ -24,6 +24,7 @@ import {
   resolveScheduleTasksFromTemplate,
   resolvePrescriptionTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
+import { authoriseFills } from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
 import {
   changeTaskStatus,
   createTask,
@@ -61,6 +62,20 @@ jest.mock('@/app/features/appointments/services/workspaceClinicalService', () =>
 
 jest.mock('@/app/features/appointments/services/prescriptionWorkflowService', () => ({
   finalizePrescription: jest.fn().mockResolvedValue({}),
+}));
+
+jest.mock('@/app/features/appointments/services/prescriptionFillAuthorisationService', () => ({
+  authoriseFills: jest.fn().mockResolvedValue({ id: 'authority-1' }),
+  getFillEligibility: jest.fn().mockResolvedValue({
+    authorizationId: null,
+    version: null,
+    eligible: false,
+    reasonCodes: ['NOT_AUTHORISED'],
+    remainingFills: 0,
+    remainingQuantity: null,
+    unit: null,
+    expiresAt: null,
+  }),
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
@@ -370,9 +385,11 @@ describe('TreatmentStep', () => {
       Promise.resolve({
         resourceType: 'MedicationRequest',
         id: rx.id,
+        prescriptionItemId: `line-${rx.id}`,
         meta: { versionId: String(rx.artifactVersion ?? 1) },
       })
     );
+    (authoriseFills as jest.Mock).mockClear().mockResolvedValue({ id: 'authority-1' });
     (finalizePrescription as jest.Mock).mockClear();
     (finalizePrescription as jest.Mock).mockResolvedValue({});
     (listScheduleTaskTemplates as jest.Mock).mockClear();
@@ -472,6 +489,51 @@ describe('TreatmentStep', () => {
     expect(screen.getAllByText('In-house fulfilled').length).toBeGreaterThan(0);
     // The old "Medication" tag no longer appears on the cards.
     expect(screen.queryByText('Medication')).not.toBeInTheDocument();
+  });
+
+  it('authorises the full course before finalising when an expiry is selected', async () => {
+    const onOpenInvoice = jest.fn();
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-new',
+          medicineName: 'Amoxicillin',
+          dosageForm: 'Tablet',
+          route: 'Oral',
+          frequency: 'BID (twice daily)',
+          durationDays: '5',
+          durationUnit: 'days',
+          qty: '10',
+          refill: '2',
+          refillValidUntil: '2026-09-29T10:00',
+          doseUnit: 'tablet',
+          instructions: 'Give with food',
+          fulfillment: 'IN_HOUSE' as const,
+        },
+      ],
+    };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() =>
+      expect(authoriseFills).toHaveBeenCalledWith(ORG, 'line-rx-new', {
+        validUntil: new Date('2026-09-29T10:00').toISOString(),
+        maxAdditionalFills: 2,
+        perFillQuantity: '100',
+        perFillQuantityUnit: 'tablet',
+      })
+    );
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-new', { expectedVersion: 1 });
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
   });
 
   it('locks a finalized (unbilled) prescription so its edits cannot be silently dropped', () => {

@@ -5,6 +5,7 @@ import {
   InventoryConsumptionService,
   InventoryConsumptionServiceError,
 } from "../../src/services/inventory-consumption.service";
+import { PrescriptionFillAuthorisationService } from "../../src/services/prescription-fill-authorisation.service";
 
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
@@ -66,6 +67,12 @@ jest.mock("src/config/prisma", () => ({
   },
 }));
 
+jest.mock("../../src/services/prescription-fill-authorisation.service", () => ({
+  PrescriptionFillAuthorisationService: {
+    recordDispensedFillInTx: jest.fn(),
+  },
+}));
+
 type MockedPrisma = typeof prisma & {
   $transaction: jest.Mock;
   $executeRaw: jest.Mock;
@@ -122,6 +129,9 @@ describe("InventoryConsumptionService", () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    (
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx as jest.Mock
+    ).mockResolvedValue(null);
     mockedPrisma.$transaction.mockImplementation(async (callback: unknown) => {
       if (typeof callback === "function") {
         return callback(prisma);
@@ -957,6 +967,7 @@ describe("InventoryConsumptionService", () => {
           stockUnitQuantity: 10,
           stockUnitQty: 10,
           sourceLineKey: "line-1",
+          prescriptionItemId: "prescription-item-approve-1",
         },
       ],
       metadata: {
@@ -1001,6 +1012,18 @@ describe("InventoryConsumptionService", () => {
       });
 
     expect(events).toHaveLength(1);
+    expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx,
+    ).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        organisationId: "org-1",
+        itemId: "prescription-item-approve-1",
+        dispenseRequestId: "request-approve-1",
+        quantity: 24,
+        dispensedBy: "user-1",
+      }),
+    );
     expect(
       mockedPrisma.prescriptionDispenseRequest.update,
     ).toHaveBeenCalledWith(
