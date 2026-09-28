@@ -85,7 +85,7 @@ overrides:
   ws@6: 6.2.5
   ws@7: 7.5.12
   ws@8: 8.21.1
-  multer: 2.3.0
+  multer: 2.4.0
   aws-cdk-lib: 2.270.0
   '@babel/core@7.29.0': 7.29.6
   next: 15.5.25
@@ -124,7 +124,7 @@ overrides:
   adm-zip: 0.6.1
   http-proxy-middleware: 2.0.10
   proxy-addr: 2.0.8
-  stream-chat: 9.52.1
+  stream-chat: 9.53.0
   zod: 4.6.5
   toml: 4.2.0
   stream-json: 3.5.0
@@ -294,8 +294,8 @@ importers:
         specifier: ^0.6.4
         version: 0.6.4
       multer:
-        specifier: 2.3.0
-        version: 2.3.0
+        specifier: 2.4.0
+        version: 2.4.0
       node-forge:
         specifier: 1.4.0
         version: 1.4.0
@@ -590,11 +590,11 @@ importers:
         specifier: ^11.1.2
         version: 11.1.2
       stream-chat:
-        specifier: 9.52.1
-        version: 9.52.1
+        specifier: 9.53.0
+        version: 9.53.0
       stream-chat-react:
         specifier: ^13.14.6
-        version: 13.14.6(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(stream-chat@9.52.1)(typescript@5.9.3)
+        version: 13.14.6(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(stream-chat@9.53.0)(typescript@5.9.3)
       supertokens-web-js:
         specifier: ^0.16.0
         version: 0.16.0
@@ -1218,8 +1218,8 @@ importers:
         specifier: 4.21.2
         version: 4.21.2
       multer:
-        specifier: 2.3.0
-        version: 2.3.0
+        specifier: 2.4.0
+        version: 2.4.0
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -10270,7 +10270,7 @@ packages:
   /@types/graceful-fs@4.1.9:
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
     dependencies:
-      '@types/node': 26.6.3
+      '@types/node': 26.5.1
 
   /@types/hammerjs@2.0.46:
     resolution: {integrity: sha512-ynRvcq6wvqexJ9brDMS4BnBLzmr0e14d6ZJTEShTBWKymQiHwlAyGu0ZPEFI2Fh1U53F7tN9ufClWM5KvqkKOw==}
@@ -12582,7 +12582,7 @@ packages:
     engines: {node: '>=12.13.0'}
     hasBin: true
     dependencies:
-      '@types/node': 26.6.3
+      '@types/node': 26.5.1
       escape-string-regexp: 4.0.0
       is-wsl: 2.2.0
       lighthouse-logger: 1.4.2
@@ -12603,7 +12603,7 @@ packages:
   /chromium-edge-launcher@0.2.0:
     resolution: {integrity: sha512-JfJjUnq25y9yg4FABRRVPmBGWPZZi+AQXT4mxupb67766/0UlhG8PAZCz6xzEMXTbW3CsSoE8PcCWA49n35mKg==}
     dependencies:
-      '@types/node': 26.6.3
+      '@types/node': 26.5.1
       escape-string-regexp: 4.0.0
       is-wsl: 2.2.0
       lighthouse-logger: 1.4.2
@@ -12884,15 +12884,6 @@ packages:
 
   /concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
-
-  /concat-stream@2.0.0:
-    resolution: {integrity: sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A==}
-    engines: {'0': node >= 6.0}
-    dependencies:
-      buffer-from: 1.1.2
-      inherits: 2.0.4
-      readable-stream: 3.6.2
-      typedarray: 0.0.6
 
   /concurrently@10.0.5:
     resolution: {integrity: sha512-JaP/CoftUrCcAFW/g//RbgEGwlelnEae6cfBLgH6ZdO6s8jPkn6p9SB9u6pdVxYXoiSnFqseOlHfrEfF82TVOg==}
@@ -18223,7 +18214,7 @@ packages:
     resolution: {integrity: sha512-eIz2msL/EzL9UFTFFx7jBTkeZfku0yUAyZZZmJ93H2TYEiroIx2PQjEXcwYtYl8zXCxb+PAmA2hLIt/6ZEkPHw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
-      '@types/node': 26.6.3
+      '@types/node': 26.5.1
       jest-util: 29.7.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
@@ -19890,13 +19881,12 @@ packages:
     optionalDependencies:
       msgpackr-extract: 3.0.4
 
-  /multer@2.3.0:
-    resolution: {integrity: sha512-cjNbm3sttszgZeGfJR124D+jFEfkXCVAsoPBmFn9X7UxmDSFHWqE2CoEj0vrmSpuAFnqWR1Szcm9QTsiHr60Xw==}
+  /multer@2.4.0:
+    resolution: {integrity: sha512-7dqa0ZcFfzbefdTuIkzOSMvZWC0J7FLqBOjJUZvDCXShIURWKxAyTT1wHhnE5q19c7jOJf43IYYKjBmZVZmvhg==}
     engines: {node: '>= 10.16.0'}
     dependencies:
       append-field: 1.0.0
       busboy: 1.6.0
-      concat-stream: 2.0.0
       type-is: 1.6.18
 
   /multi-sort-stream@1.0.4:
@@ -23643,7 +23633,7 @@ packages:
       react-native-safe-area-context: 5.10.0(react-native@0.81.6)(react@19.1.4)
       react-native-svg: 15.15.5(react-native@0.81.6)(react@19.1.4)
       react-native-url-polyfill: 2.0.0(react-native@0.81.6)
-      stream-chat: 9.52.1
+      stream-chat: 9.53.0
       use-sync-external-store: 1.7.0(react@19.1.4)
     transitivePeerDependencies:
       - '@types/react'
@@ -23727,7 +23717,7 @@ packages:
       - utf-8-validate
     dev: false
 
-  /stream-chat-react@13.14.6(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(stream-chat@9.52.1)(typescript@5.9.3):
+  /stream-chat-react@13.14.6(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(stream-chat@9.53.0)(typescript@5.9.3):
     resolution: {integrity: sha512-MLkEt+rpZDkdGV1IZlzDwj6e/Z749v9LTvvT/fPfBuXlWg7JAD/O3EiA7Rr5ex9D/MF+foumpnR2fYifdLzwJQ==}
     peerDependencies:
       '@breezystack/lamejs': ^1.2.7
@@ -23736,7 +23726,7 @@ packages:
       emoji-mart: ^5.4.0
       react: ^19.0.0 || ^18.0.0 || ^17.0.0
       react-dom: ^19.0.0 || ^18.0.0 || ^17.0.0
-      stream-chat: 9.52.1
+      stream-chat: 9.53.0
     peerDependenciesMeta:
       '@breezystack/lamejs':
         optional: true
@@ -23772,7 +23762,7 @@ packages:
       react-textarea-autosize: 8.5.9(@types/react@19.3.0)(react@19.3.0)
       react-virtuoso: 2.19.1(react-dom@19.3.0)(react@19.3.0)
       remark-gfm: 4.0.1
-      stream-chat: 9.52.1
+      stream-chat: 9.53.0
       tslib: 2.8.1
       unist-builder: 4.0.0
       unist-util-visit: 5.1.0
@@ -23785,8 +23775,8 @@ packages:
       - typescript
     dev: false
 
-  /stream-chat@9.52.1:
-    resolution: {integrity: sha512-FwPmxvvlazGO94/kc3wGpVaDMwVwXRxJINibsyY8DeOpX6YduXquycSnvXuqYEQvQWe5pLZeD6ePeHfyUjHVEw==}
+  /stream-chat@9.53.0:
+    resolution: {integrity: sha512-nhNOETirVBq+1fboxYi0ycOUKHOdSlKUd7mvv3nLSmNSKpZuVZYKHzvMXkRkZPOb0z4rCHcpQv8+U+0XLB9i2w==}
     engines: {node: '>=18'}
     requiresBuild: true
     dependencies:
@@ -24842,9 +24832,6 @@ packages:
     dependencies:
       is-typedarray: 1.0.0
     dev: true
-
-  /typedarray@0.0.6:
-    resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
   /typescript-eslint@8.70.0(eslint@9.39.2)(typescript@5.9.3):
     resolution: {integrity: sha512-P/W5cz70/cQAuKfY3xwQMWWTV7BvJ0mAQmi+9mBcsVPaBUpd6Ohpa+fECv9rBFrQcig86jAiNBFNWUqnTjr4pw==}
