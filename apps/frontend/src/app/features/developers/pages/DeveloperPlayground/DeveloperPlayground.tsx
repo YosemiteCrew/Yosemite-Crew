@@ -17,6 +17,7 @@ import {
   resolveUrl,
   toCurl,
   toMcp,
+  toPython,
   toRequestFixture,
   toTypeScript,
   validateParams,
@@ -43,11 +44,12 @@ type RunResult =
       nextCursor: string | null;
     };
 
-type ExportTab = 'curl' | 'typescript' | 'fixture' | 'mcp';
+type ExportTab = 'curl' | 'typescript' | 'fixture' | 'mcp' | 'python';
 
 const EXPORT_TABS: { id: ExportTab; label: string }[] = [
   { id: 'curl', label: 'cURL' },
   { id: 'typescript', label: 'TypeScript' },
+  { id: 'python', label: 'Python' },
   { id: 'fixture', label: 'Request fixture' },
   { id: 'mcp', label: 'MCP' },
 ];
@@ -229,6 +231,7 @@ const useExport = (
   const exportText = useMemo(() => {
     if (!url || !apiBase) return '';
     if (exportTab === 'mcp') return toMcp(operation, values, apiBase);
+    if (exportTab === 'python') return toPython(request, url);
     if (exportTab === 'typescript') return toTypeScript(request, url);
     if (exportTab === 'fixture') return toRequestFixture(operation, request, url);
     return toCurl(request, url);

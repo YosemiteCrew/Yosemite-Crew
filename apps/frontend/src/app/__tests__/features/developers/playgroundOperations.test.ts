@@ -12,6 +12,7 @@ import {
   resolveUrl,
   toCurl,
   toMcp,
+  toPython,
   toRequestFixture,
   toTypeScript,
   validateParams,
@@ -234,6 +235,15 @@ describe('exports', () => {
         arguments: { organisationId: 'o1', limit: 25, cursor: 'c2' },
       },
     });
+  });
+
+  it('Python reads the key from os.environ and uses requests', () => {
+    const py = toPython(built, url);
+    expect(py).toContain("os.environ.get('YC_API_KEY')");
+    expect(py).toContain('requests.request');
+    expect(py).toContain('response.raise_for_status()');
+    expect(py).toContain(url);
+    expect(py).toContain('"x-org-id": "o\'1"');
   });
 });
 

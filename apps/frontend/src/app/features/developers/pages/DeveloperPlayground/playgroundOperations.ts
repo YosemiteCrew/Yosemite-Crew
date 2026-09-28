@@ -280,6 +280,28 @@ export const toTypeScript = (request: BuiltRequest, url: string): string => {
   ].join('\n');
 };
 
+export const toPython = (request: BuiltRequest, url: string): string => {
+  const headerLines = [
+    ...Object.entries(request.headers).map(
+      ([k, v]) => `    ${JSON.stringify(k)}: ${JSON.stringify(v)},`
+    ),
+  ];
+  return [
+    `import os`,
+    `import requests`,
+    ``,
+    `url = ${JSON.stringify(url)}`,
+    `headers = {`,
+    `    "Authorization": f"Bearer {os.environ.get('${API_KEY_ENV_VAR}')}",`,
+    ...headerLines,
+    `}`,
+    ``,
+    `response = requests.request(${JSON.stringify(request.method)}, url, headers=headers)`,
+    `response.raise_for_status()`,
+    `print(response.json())`,
+  ].join('\n');
+};
+
 /** A request description safe to save or share: the key is a placeholder. */
 export const toRequestFixture = (
   operation: PlaygroundOperation,
