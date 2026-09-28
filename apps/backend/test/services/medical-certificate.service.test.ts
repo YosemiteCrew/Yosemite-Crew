@@ -1,6 +1,7 @@
 jest.mock("src/config/prisma", () => ({
   prisma: {
     patientOrganisation: { findFirst: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
     medicalCertificate: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -54,6 +55,9 @@ describe("MedicalCertificateService", () => {
     (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
       id: "patient-org-1",
     });
+    (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+      id: "patient-parent-1",
+    });
   });
 
   describe("create", () => {
@@ -71,6 +75,15 @@ describe("MedicalCertificateService", () => {
       const data = (mockedPrisma.medicalCertificate.create as jest.Mock).mock
         .calls[0][0].data;
       expect(data.status).toBe("DRAFT");
+      expect(prisma.parentPatient.findFirst).toHaveBeenCalledWith({
+        where: {
+          parentId: "client-1",
+          patientId: "patient-1",
+          role: { in: ["PRIMARY", "CO_PARENT"] },
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
     });
   });
 
@@ -240,6 +253,16 @@ describe("MedicalCertificateService", () => {
 });
 
 describe("MedicalCertificateService cross-tenant protection", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+      id: "patient-org-1",
+    });
+    (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+      id: "patient-parent-1",
+    });
+  });
+
   it("refuses to write against a companion in another organisation", async () => {
     // The caller is a legitimate member of org-1; the companion is not.
     (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
@@ -257,5 +280,20 @@ describe("MedicalCertificateService cross-tenant protection", () => {
     expect(
       prisma.medicalCertificate.create as jest.Mock,
     ).not.toHaveBeenCalled();
+  });
+
+  it("refuses to write a certificate for an unrelated client", async () => {
+    (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      MedicalCertificateService.create({
+        organisationId: "org-1",
+        patientId: "patient-1",
+        clientId: "unrelated-client",
+        certificateType: "HEALTH_CERTIFICATE",
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    expect(prisma.medicalCertificate.create).not.toHaveBeenCalled();
   });
 });

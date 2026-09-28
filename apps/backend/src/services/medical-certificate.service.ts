@@ -36,7 +36,6 @@ export interface CreateCertificateParams {
   encounterId?: string;
   appointmentId?: string;
   certificateType: MedicalCertificateType;
-  issuedBy?: string;
   validForTravel?: boolean;
   destinationCountry?: string;
   clinicalFindings?: string;
@@ -96,6 +95,18 @@ export const MedicalCertificateService = {
         throw new MedicalCertificateError("Companion not found.", 404);
       },
     );
+    const clientLink = await prisma.parentPatient.findFirst({
+      where: {
+        parentId: params.clientId,
+        patientId: params.patientId,
+        role: { in: ["PRIMARY", "CO_PARENT"] },
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+    if (!clientLink) {
+      throw new MedicalCertificateError("Companion not found.", 404);
+    }
     return prisma.medicalCertificate.create({
       data: {
         organisationId: params.organisationId,
@@ -105,7 +116,7 @@ export const MedicalCertificateService = {
         appointmentId: params.appointmentId ?? null,
         certificateType: params.certificateType,
         status: "DRAFT",
-        issuedBy: params.issuedBy ?? null,
+        issuedBy: null,
         validForTravel: params.validForTravel ?? false,
         destinationCountry: params.destinationCountry ?? null,
         clinicalFindings: params.clinicalFindings ?? null,

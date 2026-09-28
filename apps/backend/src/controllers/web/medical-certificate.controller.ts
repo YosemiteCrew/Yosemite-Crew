@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { z } from "zod";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 import {
   MedicalCertificateService,
   MedicalCertificateError,
@@ -23,7 +24,6 @@ const CreateSchema = z.object({
   encounterId: z.string().optional(),
   appointmentId: z.string().optional(),
   certificateType: CertTypeEnum,
-  issuedBy: z.string().optional(),
   validForTravel: z.boolean().optional(),
   destinationCountry: z.string().optional(),
   clinicalFindings: z.string().optional(),
@@ -32,7 +32,6 @@ const CreateSchema = z.object({
 });
 
 const IssueSchema = z.object({
-  issuedBy: z.string().min(1),
   expiresAt: z.iso.datetime().optional(),
   clinicalFindings: z.string().optional(),
   restrictions: z.string().optional(),
@@ -40,9 +39,13 @@ const IssueSchema = z.object({
 });
 
 const RevokeSchema = z.object({
-  revokedBy: z.string().min(1),
   revokedReason: z.string().optional(),
 });
+
+const authenticatedUserId = (req: Request): string | null => {
+  const userId = (req as AuthenticatedRequest).userId?.trim();
+  return userId || null;
+};
 
 const handleError = (err: unknown, res: Response) => {
   if (err instanceof MedicalCertificateError) {
@@ -99,6 +102,9 @@ export const MedicalCertificateController = {
   },
 
   issue: async (req: Request, res: Response) => {
+    const userId = authenticatedUserId(req);
+    if (!userId)
+      return res.status(401).json({ message: "Authentication required." });
     const parsed = IssueSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.issues });
@@ -107,6 +113,7 @@ export const MedicalCertificateController = {
         req.params.certId,
         req.params.organisationId,
         {
+          issuedBy: userId,
           ...parsed.data,
           expiresAt: parsed.data.expiresAt
             ? new Date(parsed.data.expiresAt)
@@ -120,6 +127,9 @@ export const MedicalCertificateController = {
   },
 
   revoke: async (req: Request, res: Response) => {
+    const userId = authenticatedUserId(req);
+    if (!userId)
+      return res.status(401).json({ message: "Authentication required." });
     const parsed = RevokeSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.issues });
@@ -127,7 +137,7 @@ export const MedicalCertificateController = {
       const cert = await MedicalCertificateService.revoke(
         req.params.certId,
         req.params.organisationId,
-        parsed.data.revokedBy,
+        userId,
         parsed.data.revokedReason,
       );
       return res.json(cert);

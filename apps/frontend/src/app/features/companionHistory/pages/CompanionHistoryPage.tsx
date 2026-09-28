@@ -59,6 +59,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import AllergyListPanel from '@/app/features/companionHistory/components/AllergyListPanel';
 import ConsentListPanel from '@/app/features/companionHistory/components/ConsentListPanel';
 import DocumentsListPanel from '@/app/features/companionHistory/components/DocumentsListPanel';
+import MedicalCertificatesPanel from '@/app/features/companionHistory/components/MedicalCertificatesPanel';
 import FlagListPanel from '@/app/features/companionHistory/components/FlagListPanel';
 import PocLabListPanel from '@/app/features/companionHistory/components/PocLabListPanel';
 import VitalsHistoryPanel from '@/app/features/companionHistory/components/VitalsHistoryPanel';
@@ -714,7 +715,17 @@ const CompanionHistoryDesktopBody = ({
     ) : null}
     {hasCompanionId ? (
       <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]}>
-        <DocumentsListPanel companionId={companionId} />
+        <>
+          <DocumentsListPanel companionId={companionId} />
+          {activeCompanion ? (
+            <MedicalCertificatesPanel
+              key={companionId}
+              companionId={companionId}
+              clientId={activeCompanion.parent.id}
+              patientName={activeCompanion.companion.name}
+            />
+          ) : null}
+        </>
       </PermissionGate>
     ) : null}
     {hasCompanionId ? (
