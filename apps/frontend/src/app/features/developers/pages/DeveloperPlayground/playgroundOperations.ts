@@ -281,7 +281,11 @@ export const toTypeScript = (request: BuiltRequest, url: string): string => {
 };
 
 export const toPython = (request: BuiltRequest, url: string): string => {
-  const headerLines = [...Object.entries(request.headers).map(([k, v]) => `    "${k}": "${v}",`)];
+  const headerLines = [
+    ...Object.entries(request.headers).map(
+      ([k, v]) => `    ${JSON.stringify(k)}: ${JSON.stringify(v)},`
+    ),
+  ];
   return [
     `import os`,
     `import requests`,
