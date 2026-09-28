@@ -726,13 +726,20 @@ export const TaskController = {
     res: Response,
   ) => {
     try {
-      const tasks = await TaskService.listForCompanion({
-        ...parseTaskListQueryFilters(req.query),
+      const authUser = await AuthUserMobileService.getByProviderUserId(
+        resolveUserId(req),
+      );
+      const parentId = authUser?.parentId?.toString();
+      if (!parentId) {
+        return res.status(403).json({ message: "Parent not found" });
+      }
+
+      const tasks = await TaskService.listForParent({
+        parentId,
         patientId: req.params.patientId,
-        organisationId: undefined,
-        audience: "PARENT_TASK",
-        assignedRole: undefined,
-        assignedTo: pickFirstQueryValue(req.query.assignedTo),
+        fromDueAt: parseDateQuery(req.query.fromDueAt),
+        toDueAt: parseDateQuery(req.query.toDueAt),
+        status: parseStatusList(req.query.status),
       });
 
       res.json(tasks);

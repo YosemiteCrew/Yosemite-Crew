@@ -15,6 +15,7 @@ jest.mock("../../src/services/contact-us.service", () => {
   return {
     ...actual,
     ContactService: {
+      keepOwnCompanion: jest.fn(),
       createRequest: jest.fn(),
       createWebRequest: jest.fn(),
       listRequests: jest.fn(),
@@ -30,14 +31,6 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
   },
 }));
 
-jest.mock("../../src/config/prisma", () => ({
-  prisma: { parentPatient: { findFirst: jest.fn() } },
-}));
-
-const { prisma: mockedPrisma } = jest.requireMock(
-  "../../src/config/prisma",
-) as { prisma: { parentPatient: { findFirst: jest.Mock } } };
-
 jest.mock("../../src/middlewares/upload", () => ({
   // The real allowlists, so the controller's rejection of a disallowed type is
   // exercised rather than restated by the mock.
@@ -47,6 +40,7 @@ jest.mock("../../src/middlewares/upload", () => ({
 }));
 
 const mockedContactService = ContactService as unknown as {
+  keepOwnCompanion: jest.Mock;
   createRequest: jest.Mock;
   createWebRequest: jest.Mock;
   listRequests: jest.Mock;
@@ -172,21 +166,22 @@ describe("ContactController", () => {
       expect(payload.parentId).toBeUndefined();
       expect(payload.userId).toBe("user-1");
       expect(payload.patientId).toBeUndefined();
-      expect(mockedPrisma.parentPatient.findFirst).not.toHaveBeenCalled();
+      expect(mockedContactService.keepOwnCompanion).toHaveBeenCalledWith(
+        undefined,
+        "pat-1",
+      );
     });
 
     it.each([
-      [
-        "keeps a companion the caller has an ACTIVE link to",
-        { id: "l-1" },
-        "pat-1",
-      ],
-      ["drops a companion the caller is not linked to", null, undefined],
-    ])("%s", async (_label, link, expected) => {
+      ["keeps a companion the caller has an ACTIVE link to", "pat-1"],
+      ["drops a companion the caller is not linked to", undefined],
+    ])("%s", async (_label, expected) => {
       mockedAuthUserMobileService.getByProviderUserId.mockResolvedValueOnce({
         parentId: "parent-123",
       });
-      mockedPrisma.parentPatient.findFirst.mockResolvedValueOnce(link);
+      mockedContactService.keepOwnCompanion.mockResolvedValueOnce(
+        expected ? "pat-1" : undefined,
+      );
       mockedContactService.createRequest.mockResolvedValueOnce({ id: "c-3" });
       const req = {
         userId: "user-1",
@@ -196,10 +191,10 @@ describe("ContactController", () => {
 
       await ContactController.create(req, createResponse() as any);
 
-      expect(mockedPrisma.parentPatient.findFirst).toHaveBeenCalledWith({
-        where: { parentId: "parent-123", patientId: "pat-1", status: "ACTIVE" },
-        select: { id: true },
-      });
+      expect(mockedContactService.keepOwnCompanion).toHaveBeenCalledWith(
+        "parent-123",
+        "pat-1",
+      );
       expect(
         mockedContactService.createRequest.mock.calls[0][0].patientId,
       ).toBe(expected);

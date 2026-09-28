@@ -14,12 +14,54 @@ jest.mock("src/config/prisma", () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    parentPatient: { findFirst: jest.fn() },
   },
 }));
 
 describe("ContactService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("keepOwnCompanion", () => {
+    it("keeps a companion with an active link", async () => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-1",
+      });
+
+      await expect(
+        ContactService.keepOwnCompanion("parent-1", "patient-1"),
+      ).resolves.toBe("patient-1");
+      expect(prisma.parentPatient.findFirst).toHaveBeenCalledWith({
+        where: {
+          parentId: "parent-1",
+          patientId: "patient-1",
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+    });
+
+    it.each([
+      [undefined, "patient-1"],
+      ["parent-1", undefined],
+      ["parent-1", { id: "patient-1" }],
+      ["parent-1", "patient-1"],
+    ])(
+      "drops an unavailable companion (%s, %s)",
+      async (parentId, patientId) => {
+        if (parentId && typeof patientId === "string" && patientId) {
+          (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue(null);
+        }
+
+        await expect(
+          ContactService.keepOwnCompanion(parentId, patientId),
+        ).resolves.toBeUndefined();
+        expect(prisma.parentPatient.findFirst).toHaveBeenCalledTimes(
+          parentId && typeof patientId === "string" && patientId ? 1 : 0,
+        );
+      },
+    );
   });
 
   // 1. createRequest

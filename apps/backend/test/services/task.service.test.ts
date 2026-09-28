@@ -141,7 +141,11 @@ describe("TaskService", () => {
     // Every assignee is a valid one (an active member, or an actively linked
     // parent) unless a test says otherwise.
     mockedPrisma.userOrganization.findFirst.mockResolvedValue({ id: "member" });
-    mockedPrisma.parentPatient.findFirst.mockResolvedValue({ id: "link" });
+    mockedPrisma.parentPatient.findFirst.mockResolvedValue({
+      id: "link",
+      role: "PRIMARY",
+      permissions: {},
+    });
     // Assignment emails only reach staff who work at the task's organisation.
     mockedPrisma.userOrganization.findMany.mockImplementation(
       async (args: {
@@ -3656,8 +3660,27 @@ describe("TaskService", () => {
       },
     ];
     const PARENT_LINKS = [
-      { parentId: "par-1", patientId: "pat-1", status: "ACTIVE" },
-      { parentId: "par-old", patientId: "pat-1", status: "REVOKED" },
+      {
+        parentId: "par-1",
+        patientId: "pat-1",
+        status: "ACTIVE",
+        role: "PRIMARY",
+        permissions: {},
+      },
+      {
+        parentId: "par-old",
+        patientId: "pat-1",
+        status: "REVOKED",
+        role: "CO_PARENT",
+        permissions: { tasks: true },
+      },
+      {
+        parentId: "par-disabled",
+        patientId: "pat-1",
+        status: "ACTIVE",
+        role: "CO_PARENT",
+        permissions: { tasks: false },
+      },
     ];
 
     beforeEach(() => {
@@ -3676,9 +3699,12 @@ describe("TaskService", () => {
       mockedPrisma.parentPatient.findFirst.mockImplementation(
         async ({ where }: { where: Record<string, unknown> }) =>
           PARENT_LINKS.find((row) =>
-            Object.entries(where).every(
-              ([key, value]) => (row as Record<string, unknown>)[key] === value,
-            ),
+            Object.entries(where).every(([key, value]) => {
+              if (key === "role" && typeof value === "object" && value) {
+                return (value as { in?: string[] }).in?.includes(row.role);
+              }
+              return (row as Record<string, unknown>)[key] === value;
+            }),
           ) ?? null,
       );
       mockedPrisma.task.create.mockImplementation(
@@ -3740,6 +3766,14 @@ describe("TaskService", () => {
       [
         "a parent whose link was revoked",
         { audience: "PARENT_TASK", assignedTo: "par-old", patientId: "pat-1" },
+      ],
+      [
+        "a co-parent whose task access is disabled",
+        {
+          audience: "PARENT_TASK",
+          assignedTo: "par-disabled",
+          patientId: "pat-1",
+        },
       ],
       [
         "no one for a parent task",

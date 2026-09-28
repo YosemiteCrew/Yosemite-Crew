@@ -28,6 +28,8 @@ jest.mock("../../../src/services/task.service", () => {
       changeStatus: jest.fn(),
       getById: jest.fn(),
       listForEmployee: jest.fn(),
+      listForCompanion: jest.fn(),
+      listForParent: jest.fn(),
     },
   };
 });
@@ -68,6 +70,47 @@ describe("TaskController", () => {
     } as unknown as Response;
 
     jest.clearAllMocks();
+  });
+
+  describe("listForCompanionMobile", () => {
+    it("uses the signed-in parent instead of identifiers from query parameters", async () => {
+      req.userId = "user-1";
+      req.params = { patientId: "patient-1" } as any;
+      req.query = {
+        assignedTo: "other-parent",
+        companionId: "other-patient",
+        status: "PENDING,COMPLETED",
+        fromDueAt: "2026-01-01T00:00:00.000Z",
+      } as any;
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValueOnce({
+        parentId: "parent-1",
+      } as any);
+      mockedTaskService.listForParent.mockResolvedValueOnce([] as any);
+
+      await TaskController.listForCompanionMobile(req as Request, res);
+
+      expect(mockedTaskService.listForParent).toHaveBeenCalledWith({
+        parentId: "parent-1",
+        patientId: "patient-1",
+        fromDueAt: new Date("2026-01-01T00:00:00.000Z"),
+        toDueAt: undefined,
+        status: ["PENDING", "COMPLETED"],
+      });
+      expect(mockedTaskService.listForCompanion).not.toHaveBeenCalled();
+    });
+
+    it("does not list tasks when the signed-in user has no parent record", async () => {
+      req.userId = "user-1";
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValueOnce({
+        parentId: null,
+      } as any);
+
+      await TaskController.listForCompanionMobile(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Parent not found" });
+      expect(mockedTaskService.listForParent).not.toHaveBeenCalled();
+    });
   });
 
   describe("changeStatusPMS", () => {

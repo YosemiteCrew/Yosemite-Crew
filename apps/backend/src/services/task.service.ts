@@ -1491,10 +1491,12 @@ const assertTaskAssignee = async (input: {
     const link = patientId
       ? await prisma.parentPatient.findFirst({
           where: { parentId: assignedTo, patientId, status: "ACTIVE" },
-          select: { id: true },
+          select: { id: true, role: true, permissions: true },
         })
       : null;
-    if (!link) throw notFound();
+    if (!link || !hasCompanionFeature(link.role, link.permissions, "tasks")) {
+      throw notFound();
+    }
     return;
   }
 

@@ -80,6 +80,20 @@ const buildComplaintContext = (input: { fullName: string; phone?: string }) =>
   }) as Prisma.InputJsonValue;
 
 export const ContactService = {
+  async keepOwnCompanion(
+    parentId: string | undefined,
+    patientId: unknown,
+  ): Promise<string | undefined> {
+    if (!parentId || typeof patientId !== "string" || !patientId) {
+      return undefined;
+    }
+    const link = await prisma.parentPatient.findFirst({
+      where: { parentId, patientId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    return link ? patientId : undefined;
+  },
+
   async createRequest(input: CreateContactRequestInput) {
     // Basic validations
     if (!input.subject || !input.message) {
