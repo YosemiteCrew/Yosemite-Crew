@@ -35,6 +35,12 @@ export const appRoutes: RouteItem[] = [
     requiredAnyPermissions: [PERMISSIONS.COMMUNICATION_VIEW_ANY],
   },
   {
+    name: 'Audit log',
+    href: '/audit-trail',
+    verify: true,
+    requiredAnyPermissions: [PERMISSIONS.AUDIT_VIEW_ANY],
+  },
+  {
     name: 'Finance',
     href: '/finance',
     verify: true,

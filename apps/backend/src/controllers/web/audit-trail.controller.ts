@@ -6,6 +6,14 @@ import {
 } from "src/services/audit-trail.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
+import { z } from "zod";
+
+const OrganisationAuditFeedSchema = z
+  .object({
+    limit: z.coerce.number().int().positive().optional(),
+    cursor: z.string().optional(),
+  })
+  .strict();
 
 const parseListQuery = (payload: Record<string, unknown> | undefined) => {
   const limitRaw = payload?.limit;
@@ -47,6 +55,37 @@ const parseListQuery = (payload: Record<string, unknown> | undefined) => {
 };
 
 export const AuditTrailController = {
+  listForOrganisation: async (req: Request, res: Response) => {
+    try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId is required" });
+      }
+      const bodyResult = OrganisationAuditFeedSchema.safeParse(
+        req.body === undefined ? {} : req.body,
+      );
+      if (!bodyResult.success) {
+        return res.status(400).json({ message: "Invalid audit request." });
+      }
+      const { limit, cursor } = bodyResult.data;
+
+      const results = await AuditTrailService.listOrganisationFeed({
+        organisationId,
+        limit,
+        cursor,
+      });
+      return res.status(200).json(results);
+    } catch (error) {
+      if (error instanceof AuditTrailServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Failed to list organisation audit trail", error);
+      return res.status(500).json({ message: "Unable to fetch audit trail." });
+    }
+  },
+
   listForCompanion: async (
     req: Request<{ patientId: string }>,
     res: Response,

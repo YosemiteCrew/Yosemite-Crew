@@ -1,6 +1,7 @@
 import {
   getAppointmentAuditTrail,
   getCompanionAuditTrail,
+  getOrganisationAuditTrail,
 } from '@/app/features/audit/services/auditService';
 
 import { http } from '@/app/services/http';
@@ -83,6 +84,21 @@ describe('audit service', () => {
 
       await expect(getCompanionAuditTrail('companion-456')).rejects.toThrow('API error');
       expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('getOrganisationAuditTrail', () => {
+    it('requests a page from the current organisation audit feed', async () => {
+      const page = { entries: [{ id: '1' }], nextCursor: 'cursor-1' };
+      postMock.mockResolvedValue({ data: page });
+
+      await expect(getOrganisationAuditTrail({ cursor: 'cursor-0', limit: 50 })).resolves.toEqual(
+        page
+      );
+      expect(postMock).toHaveBeenCalledWith('/v1/audit-trail/organisation', {
+        cursor: 'cursor-0',
+        limit: 50,
+      });
     });
   });
 
