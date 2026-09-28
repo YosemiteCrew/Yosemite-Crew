@@ -36,7 +36,10 @@ import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { randomUUID } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
-import { consumeNormalStockInTransaction } from "./inventory.service";
+import {
+  consumeNormalStockInTransaction,
+  InventoryServiceError,
+} from "./inventory.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { AuditTrailService } from "./audit-trail.service";
@@ -1505,16 +1508,23 @@ export const InvoiceService = {
       });
 
       for (const [inventoryItemId, quantity] of quantities) {
-        await consumeNormalStockInTransaction(
-          tx,
-          {
-            itemId: inventoryItemId,
-            quantity,
-            reason: "COUNTER_SALE",
-            referenceId: invoice.id,
-          },
-          input.organisationId,
-        );
+        try {
+          await consumeNormalStockInTransaction(
+            tx,
+            {
+              itemId: inventoryItemId,
+              quantity,
+              reason: "COUNTER_SALE",
+              referenceId: invoice.id,
+            },
+            input.organisationId,
+          );
+        } catch (error) {
+          if (error instanceof InventoryServiceError) {
+            throw new InvoiceServiceError(error.message, error.statusCode);
+          }
+          throw error;
+        }
       }
       await tx.financeEvent.create({
         data: {

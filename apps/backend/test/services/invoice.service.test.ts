@@ -299,9 +299,13 @@ describe("InvoiceService", () => {
         onHand: 1,
       });
 
-      await expect(InvoiceService.createCounterSale(saleInput)).rejects.toThrow(
-        "Insufficient stock",
-      );
+      await expect(
+        InvoiceService.createCounterSale(saleInput),
+      ).rejects.toMatchObject({
+        name: "InvoiceServiceError",
+        message: "Insufficient stock",
+        statusCode: 400,
+      });
       expect(prisma.invoice.create).toHaveBeenCalled();
       expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
     });
