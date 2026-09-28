@@ -254,16 +254,19 @@ export const TerminologyProjectionService = {
             AND m."equivalence" = ANY(${USABLE_EQUIVALENCES}::"MappingEquivalence"[])
         ))`;
 
-    const [row] = await prisma.$queryRaw<
-      Array<{ terms: bigint; mapped: bigint }>
-    >`
-      SELECT COUNT(*) AS terms, ${mappedExpression} AS mapped
-      FROM "CodeEntry" e
+    const selectClause = Prisma.sql`SELECT COUNT(*) AS terms, ${mappedExpression} AS mapped`;
+    const fromClause = Prisma.sql`FROM "CodeEntry" e`;
+    const whereClause = Prisma.sql`
       WHERE e."system" = 'YOSEMITECODE'::"CodeSystem"
         AND e."type" = 'CLINICAL_TERM'::"CodeType"
         AND e."active"
         ${speciesFilter}
     `;
+
+    const query = Prisma.sql`${selectClause} ${fromClause} ${whereClause}`;
+
+    const [row] =
+      await prisma.$queryRaw<Array<{ terms: bigint; mapped: bigint }>>(query);
 
     const terms = Number(row?.terms ?? 0);
     const mapped = Number(row?.mapped ?? 0);
