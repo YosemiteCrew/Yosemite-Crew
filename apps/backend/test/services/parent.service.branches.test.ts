@@ -14,6 +14,7 @@ import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 // `mockResolvedValueOnce` values and stale implementations behind.
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $queryRaw: jest.fn(),
     parent: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -66,6 +67,7 @@ jest.mock("@yosemite-crew/types", () => ({
 }));
 
 const mockedPrisma = prisma as unknown as {
+  $queryRaw: jest.Mock;
   parent: {
     create: jest.Mock;
     findFirst: jest.Mock;
@@ -121,6 +123,7 @@ const record = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const resetAll = () => {
+  mockedPrisma.$queryRaw.mockReset();
   Object.values(mockedPrisma.parent).forEach((mock) => mock.mockReset());
   Object.values(mockedPrisma.parentAddress).forEach((mock) => mock.mockReset());
   Object.values(mockedPrisma.parentPatient).forEach((mock) => mock.mockReset());
@@ -751,14 +754,14 @@ describe("ParentService.delete", () => {
 
     expect(result?.id).toBe("parent-1");
     expect(mockedPrisma.authUserMobile.updateMany).toHaveBeenCalledWith({
-      where: { parentId: "parent-1" },
+      where: { parentId: { equals: "parent-1" } },
       data: { parentId: null },
     });
     expect(mockedPrisma.parentAddress.deleteMany).toHaveBeenCalledWith({
-      where: { parentId: "parent-1" },
+      where: { parentId: { equals: "parent-1" } },
     });
     expect(mockedPrisma.parent.deleteMany).toHaveBeenCalledWith({
-      where: { id: "parent-1" },
+      where: { id: { equals: "parent-1" } },
     });
   });
 
@@ -823,25 +826,29 @@ describe("ParentService lookups", () => {
       statusCode: 400,
     } satisfies Partial<ParentServiceError>);
 
-    expect(mockedPrisma.parent.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.$queryRaw).not.toHaveBeenCalled();
   });
 
   it("escapes LIKE wildcards in the search term", async () => {
-    mockedPrisma.parent.findMany.mockResolvedValue([]);
+    mockedPrisma.$queryRaw.mockResolvedValue([]);
 
     const result = await ParentService.getByName("  100%_a  ", "org-1");
 
-    expect(mockedPrisma.parent.findMany).toHaveBeenCalledWith({
-      where: {
-        id: { in: ["parent-1"] },
-        OR: [
-          { firstName: { contains: "100\\%\\_a", mode: "insensitive" } },
-          { lastName: { contains: "100\\%\\_a", mode: "insensitive" } },
-          { email: { contains: "100\\%\\_a", mode: "insensitive" } },
-        ],
-      },
-      include: { address: true },
-    });
+    const sqlObj = mockedPrisma.$queryRaw.mock.calls[0][0] as {
+      sql: string;
+      values: unknown[];
+    };
+    expect(sqlObj.sql.match(/ILIKE/g)).toHaveLength(3);
+    expect(sqlObj.sql).toContain('FROM "ParentPatient" AS parentLink');
+    expect(sqlObj.sql).toContain(
+      'INNER JOIN "PatientOrganisation" AS patientOrganisation',
+    );
+    expect(sqlObj.values).toEqual([
+      "%100\\%\\_a%",
+      "%100\\%\\_a%",
+      "%100\\%\\_a%",
+      "org-1",
+    ]);
     expect(result.responses).toEqual([]);
   });
 });
