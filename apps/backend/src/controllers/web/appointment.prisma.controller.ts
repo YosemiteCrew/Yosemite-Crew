@@ -406,7 +406,7 @@ export const AppointmentController = {
           occurrences,
           parsed.data.timeZone,
           undefined,
-          resolveVerifiedUserId(req as Request),
+          resolveVerifiedUserId(req),
         );
       return res
         .status(201)
