@@ -158,7 +158,12 @@ type ChartProps = {
 };
 
 /** Species without a built-in chart still use Modified Triadan numbers, typed in. */
-const ManualToothEntry = ({ selectedTooth, findings, disabled, onSelect }: ChartProps) => {
+const ManualToothEntry = ({
+  selectedTooth,
+  findings,
+  disabled,
+  onSelect,
+}: Omit<ChartProps, 'species'>) => {
   const [manualTooth, setManualTooth] = useState('');
   const [invalid, setInvalid] = useState(false);
   const chartedTeeth = Object.keys(findings).sort((a, b) => a.localeCompare(b));
@@ -239,12 +244,20 @@ const ManualToothEntry = ({ selectedTooth, findings, disabled, onSelect }: Chart
   );
 };
 
-const DentalToothChart = (props: ChartProps) => {
-  const { species, selectedTooth, findings, disabled, onSelect } = props;
+const DentalToothChart = ({ species, selectedTooth, findings, disabled, onSelect }: ChartProps) => {
   const [dentition, setDentition] = useState<Dentition>('PERMANENT');
   const quadrants = useMemo(() => getDentalQuadrants(species, dentition), [species, dentition]);
 
-  if (quadrants.length === 0) return <ManualToothEntry {...props} />;
+  if (quadrants.length === 0) {
+    return (
+      <ManualToothEntry
+        selectedTooth={selectedTooth}
+        findings={findings}
+        disabled={disabled}
+        onSelect={onSelect}
+      />
+    );
+  }
 
   const speciesLabel = resolveDentalSpecies(species) === 'cat' ? 'Feline' : 'Canine';
 
