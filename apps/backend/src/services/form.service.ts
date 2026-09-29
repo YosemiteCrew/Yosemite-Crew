@@ -1325,20 +1325,17 @@ const practiceSavesAfterWithdrawal = (params: {
       return [];
     }
     const since = params.cutoffs.get(templateId) ?? Number.NEGATIVE_INFINITY;
-    // The newest matching save, found from the end. `findLast` is ES2023 and
-    // this package compiles against ES2022.
+    // An older draft keeps its creation time when the practice completes it,
+    // so the last saved time decides whether it followed the withdrawal.
     let saved: (typeof params.instances)[number] | undefined;
-    for (
-      let index = params.instances.length - 1;
-      index >= 0 && !saved;
-      index -= 1
-    ) {
-      const instance = params.instances[index];
+    for (const instance of params.instances) {
+      const savedAt = new Date(instance.updatedAt).getTime();
       if (
         instance.templateId === templateId &&
         SUBMITTED_INSTANCE_STATUSES.has(instance.status) &&
         !(instance.authorId && params.parentAuthors.has(instance.authorId)) &&
-        new Date(instance.createdAt).getTime() >= since
+        savedAt >= since &&
+        (!saved || savedAt > new Date(saved.updatedAt).getTime())
       ) {
         saved = instance;
       }

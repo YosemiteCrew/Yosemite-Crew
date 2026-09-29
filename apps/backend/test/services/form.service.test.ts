@@ -2497,6 +2497,7 @@ describe("FormService", () => {
         authorId: string | null,
         createdAt: string,
         templateVersion = 2,
+        updatedAt = createdAt,
       ) => ({
         id,
         templateId: "template-1",
@@ -2504,6 +2505,7 @@ describe("FormService", () => {
         authorId,
         status: "COMPLETED",
         createdAt: new Date(createdAt),
+        updatedAt: new Date(updatedAt),
       });
       const listItems = async (
         viewerParentId: string | undefined,
@@ -2717,6 +2719,26 @@ describe("FormService", () => {
 
           expect(items[1]).toMatchObject({
             questionnaireResponse: { id: "practice-latest" },
+          });
+        });
+
+        it("lists an older draft the practice completed after withdrawal", async () => {
+          const items = await listItems(
+            undefined,
+            [withdrawn],
+            [
+              answer(
+                "older-draft",
+                "vet-1",
+                "2026-09-17T12:00:00.000Z",
+                2,
+                "2026-09-20T12:00:00.000Z",
+              ),
+            ],
+          );
+
+          expect(items[1]).toMatchObject({
+            questionnaireResponse: { id: "older-draft" },
           });
         });
 
