@@ -1166,7 +1166,10 @@ model PracticeProfileField {
   organisation Organization                @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   values       PracticeProfileFieldValue[]
 
-  @@unique([organisationId, entityType, fieldKey])
+  // Partial unique index over ACTIVE rows is maintained via SQL migration
+  // because Prisma schema cannot express `WHERE isActive = true`. A removed
+  // field keeps its key so its stored values stay attached to it, and reusing
+  // that key has to be allowed rather than blocked for ever.
   @@unique([id, organisationId, entityType])
   @@index([organisationId, entityType, isActive, sortOrder])
 }

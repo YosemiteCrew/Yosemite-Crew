@@ -106,7 +106,7 @@ describe('PracticeProfileFields', () => {
     await user.click(screen.getByRole('button', { name: 'Clear practice values' }));
     await waitFor(() =>
       expect(saveValuesMock).toHaveBeenLastCalledWith('PATIENT', 'patient-1', [
-        { fieldId: 'field-color', value: '' },
+        { fieldId: 'field-color', value: null },
         { fieldId: 'field-weight', value: null },
         { fieldId: 'field-insured', value: false },
       ])
@@ -155,6 +155,53 @@ describe('PracticeProfileFields', () => {
       })
     );
     expect(await screen.findByTestId('profile-fields')).toHaveTextContent('Contact time');
+  });
+
+  it('leaves an unanswered yes/no question unanswered instead of answering it for the user', async () => {
+    getFieldsMock.mockResolvedValue([
+      {
+        id: 'field-insured',
+        fieldKey: 'insured',
+        label: 'Insured',
+        type: 'BOOLEAN',
+        options: [],
+        value: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<PracticeProfileFields entityType="PATIENT" entityId="patient-1" />);
+
+    await screen.findByText('Practice fields');
+    await user.click(screen.getByRole('button', { name: 'Clear practice values' }));
+
+    expect(saveValuesMock).not.toHaveBeenCalled();
+  });
+
+  it('does not show one profile values under another profile when the load fails', async () => {
+    getFieldsMock.mockResolvedValueOnce([
+      {
+        id: 'field-color',
+        fieldKey: 'color',
+        label: 'Coat color',
+        type: 'TEXT',
+        options: [],
+        value: 'Blue',
+      },
+    ]);
+    getFieldsMock.mockRejectedValueOnce(new Error('load failed'));
+    const { rerender } = render(
+      <PracticeProfileFields entityType="PATIENT" entityId="patient-1" />
+    );
+
+    expect(await screen.findByTestId('profile-values')).toHaveTextContent('Blue');
+    rerender(<PracticeProfileFields entityType="PATIENT" entityId="patient-2" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Practice fields could not be loaded.'
+    );
+    // Nothing from the profile that loaded first is left on screen.
+    expect(screen.getByTestId('profile-values')).toHaveTextContent('{}');
+    expect(screen.getByTestId('profile-fields')).toHaveTextContent('');
   });
 
   it('shows load, create, and deactivate errors', async () => {

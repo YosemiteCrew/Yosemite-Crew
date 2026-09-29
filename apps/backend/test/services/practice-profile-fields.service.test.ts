@@ -294,4 +294,67 @@ describe("PracticeProfileFieldsService", () => {
       }),
     );
   });
+
+  // The two reads below carry the tenant boundary. Every other test here mocks
+  // the return value, so a dropped organisationId would leave the suite green
+  // while handing every practice's field definitions to every caller.
+  it("scopes the field definitions it lists to the caller's organisation", async () => {
+    db.practiceProfileField.findMany.mockResolvedValue([]);
+
+    await PracticeProfileFieldsService.list("PATIENT", patientId, orgId);
+
+    expect(db.practiceProfileField.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: orgId,
+          entityType: "PATIENT",
+        }),
+      }),
+    );
+  });
+
+  it("scopes the field lookup behind a value write to the caller's organisation", async () => {
+    db.practiceProfileField.findMany.mockResolvedValue([
+      { id: "7fd4c410-5191-49c4-a7f9-9283f6ec9100", type: "TEXT", options: [] },
+    ]);
+
+    await PracticeProfileFieldsService.saveValues("PATIENT", patientId, orgId, [
+      { fieldId: "7fd4c410-5191-49c4-a7f9-9283f6ec9100", value: "note" },
+    ]);
+
+    expect(db.practiceProfileField.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: orgId,
+          entityType: "PATIENT",
+        }),
+      }),
+    );
+  });
+
+  it("refuses to write a value against another organisation's field", async () => {
+    db.practiceProfileField.findMany.mockResolvedValue([]);
+
+    await expect(
+      PracticeProfileFieldsService.saveValues("PATIENT", patientId, orgId, [
+        { fieldId: "7fd4c410-5191-49c4-a7f9-9283f6ec9100", value: "note" },
+      ]),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("ignores an organisation supplied in the field definition", async () => {
+    db.practiceProfileField.create.mockResolvedValue({ id: "f-1" });
+
+    await PracticeProfileFieldsService.create("PATIENT", orgId, {
+      label: "Coat color",
+      type: "TEXT",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      options: [],
+      ...({ organisationId: "other-org" } as any),
+    });
+
+    expect(db.practiceProfileField.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ organisationId: orgId }),
+    });
+  });
 });

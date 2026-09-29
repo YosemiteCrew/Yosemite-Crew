@@ -27,7 +27,7 @@ const respondError = (error: unknown, res: Response, action: string) => {
   if (error instanceof PracticeProfileFieldsError) {
     return res.status(error.statusCode).json({ message: error.message });
   }
-  logger.error(action, error);
+  logger.error(action, { error });
   return res.status(500).json({ message: "Unable to update profile fields." });
 };
 

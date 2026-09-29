@@ -55,12 +55,51 @@ const toStoredValue = (field: PracticeProfileField, value: unknown) => {
   return value;
 };
 
+const isBlank = (value: unknown) => value === null || value === undefined || value === '';
+
+type ChangedEntry = { fieldId: string; value: unknown } | null;
+
+const UNCHANGED: ChangedEntry = null;
+
+const isAnsweredBoolean = (value: unknown) => value === true || value === false;
+
+/**
+ * The checkbox is binary, so a Yes/No field that was never answered always
+ * reads back as unchecked. Writing that straight through would answer every
+ * question on the practice's behalf the first time anyone saved anything, and a
+ * stored `false` could never be cleared again. So each field reports only what
+ * really moved. A null value here is a real answer that clears the stored
+ * value; anything UNCHANGED is left out of the request entirely.
+ */
+const toChangedEntry = (field: PracticeProfileField, next: unknown): ChangedEntry => {
+  const stored = field.value;
+  const value = toStoredValue(field, next);
+
+  if (field.type === 'BOOLEAN' && !isAnsweredBoolean(stored)) {
+    return value === true ? { fieldId: field.id, value } : UNCHANGED;
+  }
+  if (isBlank(value)) {
+    return isBlank(stored) ? UNCHANGED : { fieldId: field.id, value: null };
+  }
+  if (isBlank(stored)) return { fieldId: field.id, value };
+  return stored === value ? UNCHANGED : { fieldId: field.id, value };
+};
+
+const changedEntries = (fields: PracticeProfileField[], nextValues: Record<string, unknown>) =>
+  fields
+    .map((field) => toChangedEntry(field, nextValues[field.fieldKey]))
+    .filter((entry): entry is { fieldId: string; value: unknown } => entry !== UNCHANGED);
+
 const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsProps) => {
   const canEdit = useHasPermission('companions:edit:any');
   const [fields, setFields] = useState<PracticeProfileField[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [loadedEntityId, setLoadedEntityId] = useState('');
+  // Which profile the loaded fields belong to. The render guard compares this
+  // against the current profile, so a failed load cannot leave the previous
+  // profile's values on screen under this one's name - where a save would
+  // copy them onto the wrong record.
+  const [fieldsEntityId, setFieldsEntityId] = useState('');
   const [isManaging, setIsManaging] = useState(false);
   const [label, setLabel] = useState('');
   const [type, setType] = useState<PracticeProfileFieldType>('TEXT');
@@ -73,15 +112,21 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
       .then((nextFields) => {
         if (!isCurrent) return;
         setFields(nextFields);
+        setFieldsEntityId(entityId);
         setError('');
       })
       .catch(() => {
-        if (isCurrent) setError('Practice fields could not be loaded.');
+        if (!isCurrent) return;
+        // Claim the identity anyway: the fields are cleared, so nothing from
+        // the previous profile can render, and the error replaces the spinner
+        // instead of leaving it turning for ever.
+        setFields([]);
+        setFieldsEntityId(entityId);
+        setError('Practice fields could not be loaded.');
       })
       .finally(() => {
         if (!isCurrent) return;
         setLoading(false);
-        setLoadedEntityId(entityId);
       });
     return () => {
       isCurrent = false;
@@ -105,19 +150,14 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
 
   const handleSave = useCallback(
     async (nextValues: Record<string, unknown>) => {
-      await savePracticeProfileFieldValues(
-        entityType,
-        entityId,
-        fields.map((field) => ({
-          fieldId: field.id,
-          value: toStoredValue(field, nextValues[field.fieldKey]),
-        }))
-      );
+      const changed = changedEntries(fields, nextValues);
+      if (changed.length === 0) return;
+      await savePracticeProfileFieldValues(entityType, entityId, changed);
+      const stored = new Map(changed.map((entry) => [entry.fieldId, entry.value]));
       setFields((current) =>
-        current.map((field) => ({
-          ...field,
-          value: toStoredValue(field, nextValues[field.fieldKey]),
-        }))
+        current.map((field) =>
+          stored.has(field.id) ? { ...field, value: stored.get(field.id) ?? null } : field
+        )
       );
       setError('');
     },
@@ -168,7 +208,7 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
           {error}
         </Text>
       ) : null}
-      {loading || loadedEntityId !== entityId ? (
+      {loading || fieldsEntityId !== entityId ? (
         <Text role="status" variant="caption-1" className="text-[var(--ink-muted)]">
           Loading practice fields…
         </Text>
@@ -179,7 +219,7 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
           data={values}
           defaultOpen={true}
           showEditIcon={canEdit}
-          readOnly={fieldConfigs.length === 0}
+          readOnly={!canEdit || fieldConfigs.length === 0}
           rightElement={
             canEdit ? (
               <Secondary
