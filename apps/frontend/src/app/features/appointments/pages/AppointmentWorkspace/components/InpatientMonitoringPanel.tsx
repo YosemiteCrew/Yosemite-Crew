@@ -21,18 +21,19 @@ const localDateTime = (date: Date) => {
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 };
 
+const observedAtFormatter = new Intl.DateTimeFormat('en-GB', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'UTC',
+});
+
 const sortedNewestFirst = (records: HospitalizationObservation[]) =>
   [...records].sort((a, b) => b.observedAt.localeCompare(a.observedAt));
 
 const display = (value: number | string | null | undefined, unit = '') =>
   value === null || value === undefined || value === '' ? '—' : `${value}${unit}`;
 
-const formatObservedAt = (value: string) =>
-  `${new Intl.DateTimeFormat('en-GB', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  }).format(new Date(value))} UTC`;
+const formatObservedAt = (value: string) => `${observedAtFormatter.format(new Date(value))} UTC`;
 
 const numericValue = (form: FormData, name: string) => {
   const value = form.get(name);
