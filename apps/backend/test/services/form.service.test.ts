@@ -2705,6 +2705,21 @@ describe("FormService", () => {
           });
         });
 
+        it("lists the newest practice save when there are several", async () => {
+          const items = await listItems(
+            undefined,
+            [withdrawn],
+            [
+              answer("practice-first", "vet-1", "2026-09-19T12:00:00.000Z"),
+              answer("practice-latest", "vet-1", "2026-09-21T12:00:00.000Z"),
+            ],
+          );
+
+          expect(items[1]).toMatchObject({
+            questionnaireResponse: { id: "practice-latest" },
+          });
+        });
+
         it("lists no practice save from before the withdrawal", async () => {
           const items = await listItems(
             undefined,

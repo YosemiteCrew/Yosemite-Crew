@@ -1325,15 +1325,24 @@ const practiceSavesAfterWithdrawal = (params: {
       return [];
     }
     const since = params.cutoffs.get(templateId) ?? Number.NEGATIVE_INFINITY;
-    const saved = params.instances
-      .filter(
-        (instance) =>
-          instance.templateId === templateId &&
-          SUBMITTED_INSTANCE_STATUSES.has(instance.status) &&
-          !(instance.authorId && params.parentAuthors.has(instance.authorId)) &&
-          new Date(instance.createdAt).getTime() >= since,
-      )
-      .at(-1);
+    // The newest matching save, found from the end. `findLast` is ES2023 and
+    // this package compiles against ES2022.
+    let saved: (typeof params.instances)[number] | undefined;
+    for (
+      let index = params.instances.length - 1;
+      index >= 0 && !saved;
+      index -= 1
+    ) {
+      const instance = params.instances[index];
+      if (
+        instance.templateId === templateId &&
+        SUBMITTED_INSTANCE_STATUSES.has(instance.status) &&
+        !(instance.authorId && params.parentAuthors.has(instance.authorId)) &&
+        new Date(instance.createdAt).getTime() >= since
+      ) {
+        saved = instance;
+      }
+    }
     if (!saved) return [];
     return [
       {
