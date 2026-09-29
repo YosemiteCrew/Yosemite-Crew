@@ -1005,7 +1005,7 @@ const TreatmentStep = ({
         {isInpatient && (
           <InpatientMonitoringPanel
             organisationId={organisationId}
-            patientId={outpatientCompanionId}
+            patientId={companionId}
             encounterId={encounterId}
             readOnly={readOnly}
           />
