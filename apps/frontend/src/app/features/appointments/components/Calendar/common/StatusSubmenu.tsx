@@ -29,27 +29,34 @@ const StatusSubmenu = ({
     style={submenuStyle}
   >
     <div className="flex flex-col gap-0.5">
-      {statusOptions
-        .filter((status) => !(cancelSeriesOnly && status === 'CANCELLED'))
-        .map((status, index) => (
-          <React.Fragment key={status}>
-            {index > 0 ? (
-              <div className="mx-1 border-t border-[var(--hairline)]" aria-hidden="true" />
+      {statusOptions.reduce<React.ReactNode[]>((items, status) => {
+        if (cancelSeriesOnly && status === 'CANCELLED') return items;
+        if (items.length > 0) {
+          items.push(
+            <div
+              key={`separator-${status}`}
+              className="mx-1 border-t border-[var(--hairline)]"
+              aria-hidden="true"
+            />
+          );
+        }
+        items.push(
+          <button
+            key={status}
+            type="button"
+            role="menuitem"
+            className={getMenuItemClassName(false)}
+            onClick={() => onSelectStatus(status)}
+            disabled={savingKey === `status-${status}`}
+          >
+            <span className="truncate">{toStatusLabel(status)}</span>
+            {savingKey === `status-${status}` ? (
+              <span className="shrink-0 text-[8px]">Saving</span>
             ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              className={getMenuItemClassName(false)}
-              onClick={() => onSelectStatus(status)}
-              disabled={savingKey === `status-${status}`}
-            >
-              <span className="truncate">{toStatusLabel(status)}</span>
-              {savingKey === `status-${status}` ? (
-                <span className="shrink-0 text-[8px]">Saving</span>
-              ) : null}
-            </button>
-          </React.Fragment>
-        ))}
+          </button>
+        );
+        return items;
+      }, [])}
       {cancelSeriesOnly ? (
         <>
           {statusOptions.length > 0 ? (

@@ -55,7 +55,10 @@ const FONT = 'var(--font-satoshi), sans-serif';
 const NEUTRAL_900 = 'var(--color-neutral-900)';
 const INPUT_PLACEHOLDER = 'var(--color-input-text-placeholder)';
 const INPUT_PLACEHOLDER_ACTIVE = 'var(--color-input-text-placeholder-active)';
-const SERIES_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
+const SERIES_DATE_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  dateStyle: 'medium',
+  timeZone: 'UTC',
+});
 
 // 16-R: values / selected text / input content
 const text16R: CSSProperties = {
@@ -113,6 +116,12 @@ type ModalUiState = {
   clientQuery: string;
   selectedClientId: string | null;
   prefillDismissed: boolean;
+  weeklySeriesEnabled: boolean;
+  weeklySeriesCount: number;
+  weeklySeriesPreview: WeeklySeriesPreview | null;
+  weeklySeriesPreviewKey: string | null;
+  weeklySeriesError?: string;
+  isPreviewingWeeklySeries: boolean;
 };
 
 type ModalUiAction =
@@ -125,6 +134,13 @@ type ModalUiAction =
   | { type: 'setPatientQuery'; value: string }
   | { type: 'setClientQuery'; value: string }
   | { type: 'setSelectedClientId'; value: string | null }
+  | { type: 'setWeeklySeriesEnabled'; value: boolean }
+  | { type: 'setWeeklySeriesCount'; value: number }
+  | { type: 'setWeeklySeriesPreview'; value: WeeklySeriesPreview | null }
+  | { type: 'setWeeklySeriesPreviewKey'; value: string | null }
+  | { type: 'setWeeklySeriesError'; value: string | undefined }
+  | { type: 'setIsPreviewingWeeklySeries'; value: boolean }
+  | { type: 'clearWeeklySeriesPreview' }
   | { type: 'dismissPrefill' };
 
 const createInitialModalUiState = (): ModalUiState => ({
@@ -137,6 +153,12 @@ const createInitialModalUiState = (): ModalUiState => ({
   clientQuery: '',
   selectedClientId: null,
   prefillDismissed: false,
+  weeklySeriesEnabled: false,
+  weeklySeriesCount: 4,
+  weeklySeriesPreview: null,
+  weeklySeriesPreviewKey: null,
+  weeklySeriesError: undefined,
+  isPreviewingWeeklySeries: false,
 });
 
 const modalUiReducer = (state: ModalUiState, action: ModalUiAction): ModalUiState => {
@@ -159,6 +181,32 @@ const modalUiReducer = (state: ModalUiState, action: ModalUiAction): ModalUiStat
       return { ...state, clientQuery: action.value };
     case 'setSelectedClientId':
       return { ...state, selectedClientId: action.value };
+    case 'setWeeklySeriesEnabled':
+      return {
+        ...state,
+        weeklySeriesEnabled: action.value,
+        weeklySeriesPreview: null,
+        weeklySeriesPreviewKey: null,
+        weeklySeriesError: undefined,
+      };
+    case 'setWeeklySeriesCount':
+      return {
+        ...state,
+        weeklySeriesCount: action.value,
+        weeklySeriesPreview: null,
+        weeklySeriesPreviewKey: null,
+        weeklySeriesError: undefined,
+      };
+    case 'setWeeklySeriesPreview':
+      return { ...state, weeklySeriesPreview: action.value };
+    case 'setWeeklySeriesPreviewKey':
+      return { ...state, weeklySeriesPreviewKey: action.value };
+    case 'setWeeklySeriesError':
+      return { ...state, weeklySeriesError: action.value };
+    case 'setIsPreviewingWeeklySeries':
+      return { ...state, isPreviewingWeeklySeries: action.value };
+    case 'clearWeeklySeriesPreview':
+      return { ...state, weeklySeriesPreview: null, weeklySeriesPreviewKey: null };
     case 'dismissPrefill':
       return state.prefillDismissed ? state : { ...state, prefillDismissed: true };
     /* v8 ignore next 2 -- exhaustive ModalUiAction union; the default arm is unreachable */
@@ -773,242 +821,36 @@ type AppointmentFormContentProps = {
   variant?: 'modal' | 'sheet';
 };
 
-export const AppointmentFormContent = ({
-  patientLabel,
-  selectedPatientName,
-  selectedPatientPhoto,
-  patientQuery,
-  setPatientQuery,
-  patientOptions,
-  handlePatientSelect,
-  handlePatientClear,
-  selectedClientName,
-  clientQuery,
-  setClientQuery,
-  clientOptions,
-  handleClientSelect,
-  handleClientClear,
-  setAddCompanionTarget,
-  selectedDate,
-  handleDateChange,
-  today,
-  timeSlots,
-  selectedSlot,
-  onSlotSelect,
-  formState,
-  noSlotsMessage,
-  prefillTimeLabel,
-  durationDisplay,
-  visitType,
-  handleVisitTypeSelect,
-  LeadOptions,
-  formData,
-  formDataErrors,
-  handleLeadSelectWithReset,
-  leadEmptyStateMessage,
-  supportOptions,
-  handleSupportStaffChange,
-  SpecialitiesOptions,
-  handleSpecialitySelect,
-  ServicesOptions,
-  handleServiceSelect,
-  setFormData,
-  ServiceInfoData,
-  showError,
-  handleSubmit,
-  weeklySeriesEnabled = false,
-  setWeeklySeriesEnabled = () => undefined,
-  weeklySeriesCount = 4,
-  setWeeklySeriesCount = () => undefined,
-  weeklySeriesPreview,
-  weeklySeriesError,
-  isPreviewingWeeklySeries = false,
-  onPreviewWeeklySeries = () => undefined,
-  weeklySeriesSubmitLabel = 'Book appointment',
-  onCancel,
-  variant = 'modal',
-}: AppointmentFormContentProps) => (
-  // Rebind --field-bg to the warm surface so every field (Date/Time/Slot/Type and
-  // the person pickers) shares one warm token instead of the cool #fafafa default.
-  <div className="relative [--field-bg:var(--color-neutral-0)]">
-    <div
-      className={
-        variant === 'sheet'
-          ? 'grid grid-cols-1 gap-y-4'
-          : 'grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2'
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <PersonRow
-          fieldId="central-patient"
-          label={patientLabel}
-          icon={<IoPaw size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-          selectedName={selectedPatientName}
-          selectedPhotoUrl={selectedPatientPhoto}
-          query={patientQuery}
-          setQuery={setPatientQuery}
-          options={patientOptions}
-          onSelect={handlePatientSelect}
-          onClear={handlePatientClear}
-          onNew={() => setAddCompanionTarget('patient')}
-          error={showError('companionId')}
-        />
+export const WeeklySeriesPreviewList = ({ preview }: { preview: WeeklySeriesPreview }) => (
+  <ol className="mt-3 grid gap-2 sm:grid-cols-2">
+    {preview.map((occurrence) => (
+      <li
+        key={occurrence.index}
+        className="flex items-center justify-between gap-3 rounded-xl bg-[var(--screen-2)] px-3 py-2 text-[12px] text-[var(--ink-body)]"
+      >
+        <span>{SERIES_DATE_FORMATTER.format(new Date(occurrence.startTime))}</span>
+        <span className={occurrence.hasConflict ? 'text-text-error' : 'text-[var(--ink-soft)]'}>
+          {occurrence.hasConflict ? 'Conflict' : 'Available'}
+        </span>
+      </li>
+    ))}
+  </ol>
+);
 
-        <PersonRow
-          fieldId="central-client"
-          label="Client"
-          icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-          selectedName={selectedClientName}
-          query={clientQuery}
-          setQuery={setClientQuery}
-          options={clientOptions}
-          onSelect={handleClientSelect}
-          onClear={handleClientClear}
-          onNew={() => setAddCompanionTarget('client')}
-        />
+const AppointmentSeriesFields = ({ props }: { props: AppointmentFormContentProps }) => {
+  const {
+    formState,
+    weeklySeriesEnabled = false,
+    setWeeklySeriesEnabled = () => undefined,
+    weeklySeriesCount = 4,
+    setWeeklySeriesCount = () => undefined,
+    weeklySeriesPreview,
+    weeklySeriesError,
+    isPreviewingWeeklySeries = false,
+    onPreviewWeeklySeries = () => undefined,
+  } = props;
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="flex-1">
-            <Datepicker
-              currentDate={selectedDate}
-              setCurrentDate={handleDateChange}
-              placeholder="Date"
-              type="input"
-              portal
-              minDate={today}
-            />
-          </div>
-
-          <div className="flex-1">
-            <TimeSlotDropdown
-              timeSlots={timeSlots}
-              selectedSlot={selectedSlot}
-              setSelectedSlot={onSlotSelect}
-              isLoading={
-                (formState.loadingTimeSlots && formState.serviceSelected) ||
-                formState.loadingSlotScopedOptions
-              }
-              hasService={formState.serviceSelected}
-              noSlotsMessage={noSlotsMessage}
-              prefillLabel={prefillTimeLabel}
-              error={showError('slot') ?? showError('duration')}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="flex-1">
-            <SlotBadge label={durationDisplay} />
-          </div>
-          <div className="flex-1">
-            <LabelDropdown
-              placeholder="Type of visit"
-              options={VISIT_TYPE_OPTIONS}
-              defaultOption={visitType}
-              onSelect={handleVisitTypeSelect}
-              searchable={false}
-              portal
-            />
-          </div>
-        </div>
-
-        <div>
-          <LabelDropdown
-            placeholder="Lead"
-            options={LeadOptions}
-            defaultOption={formData.lead?.id ?? ''}
-            onSelect={handleLeadSelectWithReset}
-            error={showError('leadId')}
-            searchable
-            portal
-            icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-            noOptionsMessage={leadEmptyStateMessage}
-          />
-        </div>
-
-        <MultiSelectDropdown
-          placeholder="Support"
-          options={supportOptions}
-          value={formData.supportStaff?.map((s: { id?: string }) => s.id ?? '') ?? []}
-          onChange={handleSupportStaffChange}
-          portal
-          icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-        />
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <LabelDropdown
-          placeholder="Speciality"
-          options={SpecialitiesOptions}
-          defaultOption={formData.appointmentType?.speciality?.id ?? ''}
-          onSelect={handleSpecialitySelect}
-          error={showError('specialityId')}
-          searchable
-          portal
-          icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-        />
-
-        <LabelDropdown
-          placeholder="Services / packages"
-          options={ServicesOptions}
-          defaultOption={formData.appointmentType?.id ?? ''}
-          onSelect={handleServiceSelect}
-          error={showError('serviceId')}
-          searchable
-          portal
-          icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-        />
-
-        <FormDesc
-          intype="text"
-          inlabel="Chief complaint"
-          value={formData.concern ?? ''}
-          onChange={(e) => setFormData((prev: any) => ({ ...prev, concern: e.target.value }))}
-          error={showError('concern')}
-          className="min-h-20"
-        />
-
-        <AppointmentEstimatePanel
-          cost={ServiceInfoData?.cost}
-          maxDiscount={ServiceInfoData?.maxDiscount}
-        />
-
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
-          <label className="flex cursor-pointer select-none items-center gap-2.5">
-            <input
-              type="checkbox"
-              aria-label="Mark appointment as emergency"
-              checked={formData.isEmergency ?? false}
-              onChange={(e) =>
-                setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))
-              }
-              className="peer sr-only"
-            />
-            <span
-              aria-hidden="true"
-              className="relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-text-brand"
-              style={{
-                backgroundColor: (formData.isEmergency ?? false) ? 'var(--cta)' : 'var(--divider)',
-              }}
-            >
-              <span
-                /* Fixed white: --screen flips with the theme, so in espresso the
-                   knob was #2f271e on a #3a3128 track, a contrast of 1.15. */
-                className="absolute top-[3px] size-[18px] rounded-full bg-white transition-all duration-150"
-                style={{ left: (formData.isEmergency ?? false) ? '19px' : '3px' }}
-              />
-            </span>
-            <span className="text-[13px] font-semibold text-[var(--ink-body)]">
-              Mark as emergency
-            </span>
-          </label>
-          <span className="text-[12.5px] text-[var(--ink-faint)]">
-            {selectedClientName?.split(' ')[0] ?? 'The client'} will be notified by push + email
-          </span>
-        </div>
-      </div>
-    </div>
-
+  return (
     <fieldset className="mt-5 rounded-2xl border border-card-border p-4">
       <legend className="px-1 text-[13px] font-semibold text-[var(--ink-body)]">
         Appointment series
@@ -1055,56 +897,280 @@ export const AppointmentFormContent = ({
           {weeklySeriesError}
         </p>
       )}
-      {weeklySeriesPreview && (
-        <ol className="mt-3 grid gap-2 sm:grid-cols-2">
-          {weeklySeriesPreview.map((occurrence) => (
-            <li
-              key={occurrence.index}
-              className="flex items-center justify-between gap-3 rounded-xl bg-[var(--screen-2)] px-3 py-2 text-[12px] text-[var(--ink-body)]"
-            >
-              <span>{SERIES_DATE_FORMATTER.format(new Date(occurrence.startTime))}</span>
-              <span
-                className={occurrence.hasConflict ? 'text-text-error' : 'text-[var(--ink-soft)]'}
-              >
-                {occurrence.hasConflict ? 'Conflict' : 'Available'}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
+      {weeklySeriesPreview && <WeeklySeriesPreviewList preview={weeklySeriesPreview} />}
     </fieldset>
+  );
+};
 
-    {formState.submitted && formDataErrors.booking && (
+const AppointmentScheduleFields = ({ props }: { props: AppointmentFormContentProps }) => {
+  const {
+    patientLabel,
+    selectedPatientName,
+    selectedPatientPhoto,
+    patientQuery,
+    setPatientQuery,
+    patientOptions,
+    handlePatientSelect,
+    handlePatientClear,
+    selectedClientName,
+    clientQuery,
+    setClientQuery,
+    clientOptions,
+    handleClientSelect,
+    handleClientClear,
+    setAddCompanionTarget,
+    selectedDate,
+    handleDateChange,
+    today,
+    timeSlots,
+    selectedSlot,
+    onSlotSelect,
+    formState,
+    noSlotsMessage,
+    prefillTimeLabel,
+    durationDisplay,
+    visitType,
+    handleVisitTypeSelect,
+    LeadOptions,
+    formData,
+    showError,
+    handleLeadSelectWithReset,
+    leadEmptyStateMessage,
+    supportOptions,
+    handleSupportStaffChange,
+  } = props;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <PersonRow
+        fieldId="central-patient"
+        label={patientLabel}
+        icon={<IoPaw size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+        selectedName={selectedPatientName}
+        selectedPhotoUrl={selectedPatientPhoto}
+        query={patientQuery}
+        setQuery={setPatientQuery}
+        options={patientOptions}
+        onSelect={handlePatientSelect}
+        onClear={handlePatientClear}
+        onNew={() => setAddCompanionTarget('patient')}
+        error={showError('companionId')}
+      />
+      <PersonRow
+        fieldId="central-client"
+        label="Client"
+        icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+        selectedName={selectedClientName}
+        query={clientQuery}
+        setQuery={setClientQuery}
+        options={clientOptions}
+        onSelect={handleClientSelect}
+        onClear={handleClientClear}
+        onNew={() => setAddCompanionTarget('client')}
+      />
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex-1">
+          <Datepicker
+            currentDate={selectedDate}
+            setCurrentDate={handleDateChange}
+            placeholder="Date"
+            type="input"
+            portal
+            minDate={today}
+          />
+        </div>
+        <div className="flex-1">
+          <TimeSlotDropdown
+            timeSlots={timeSlots}
+            selectedSlot={selectedSlot}
+            setSelectedSlot={onSlotSelect}
+            isLoading={
+              (formState.loadingTimeSlots && formState.serviceSelected) ||
+              formState.loadingSlotScopedOptions
+            }
+            hasService={formState.serviceSelected}
+            noSlotsMessage={noSlotsMessage}
+            prefillLabel={prefillTimeLabel}
+            error={showError('slot') ?? showError('duration')}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex-1">
+          <SlotBadge label={durationDisplay} />
+        </div>
+        <div className="flex-1">
+          <LabelDropdown
+            placeholder="Type of visit"
+            options={VISIT_TYPE_OPTIONS}
+            defaultOption={visitType}
+            onSelect={handleVisitTypeSelect}
+            searchable={false}
+            portal
+          />
+        </div>
+      </div>
+      <LabelDropdown
+        placeholder="Lead"
+        options={LeadOptions}
+        defaultOption={formData.lead?.id ?? ''}
+        onSelect={handleLeadSelectWithReset}
+        error={showError('leadId')}
+        searchable
+        portal
+        icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+        noOptionsMessage={leadEmptyStateMessage}
+      />
+      <MultiSelectDropdown
+        placeholder="Support"
+        options={supportOptions}
+        value={formData.supportStaff?.map((s: { id?: string }) => s.id ?? '') ?? []}
+        onChange={handleSupportStaffChange}
+        portal
+        icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+      />
+    </div>
+  );
+};
+
+const AppointmentServiceFields = ({ props }: { props: AppointmentFormContentProps }) => {
+  const {
+    SpecialitiesOptions,
+    handleSpecialitySelect,
+    ServicesOptions,
+    handleServiceSelect,
+    formData,
+    setFormData,
+    ServiceInfoData,
+    showError,
+    selectedClientName,
+  } = props;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <LabelDropdown
+        placeholder="Speciality"
+        options={SpecialitiesOptions}
+        defaultOption={formData.appointmentType?.speciality?.id ?? ''}
+        onSelect={handleSpecialitySelect}
+        error={showError('specialityId')}
+        searchable
+        portal
+        icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+      />
+      <LabelDropdown
+        placeholder="Services / packages"
+        options={ServicesOptions}
+        defaultOption={formData.appointmentType?.id ?? ''}
+        onSelect={handleServiceSelect}
+        error={showError('serviceId')}
+        searchable
+        portal
+        icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+      />
+      <FormDesc
+        intype="text"
+        inlabel="Chief complaint"
+        value={formData.concern ?? ''}
+        onChange={(e) => setFormData((prev: any) => ({ ...prev, concern: e.target.value }))}
+        error={showError('concern')}
+        className="min-h-20"
+      />
+      <AppointmentEstimatePanel
+        cost={ServiceInfoData?.cost}
+        maxDiscount={ServiceInfoData?.maxDiscount}
+      />
+      <label className="flex cursor-pointer select-none items-center gap-2.5">
+        <input
+          type="checkbox"
+          aria-label="Mark appointment as emergency"
+          checked={formData.isEmergency ?? false}
+          onChange={(e) => setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))}
+          className="peer sr-only"
+        />
+        <span
+          aria-hidden="true"
+          className="relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-text-brand"
+          style={{
+            backgroundColor: (formData.isEmergency ?? false) ? 'var(--cta)' : 'var(--divider)',
+          }}
+        >
+          <span
+            /* Fixed white: --screen flips with the theme, so in espresso the
+               knob was #2f271e on a #3a3128 track, a contrast of 1.15. */
+            className="absolute top-[3px] size-[18px] rounded-full bg-white transition-all duration-150"
+            style={{ left: (formData.isEmergency ?? false) ? '19px' : '3px' }}
+          />
+        </span>
+        <span className="text-[13px] font-semibold text-[var(--ink-body)]">Mark as emergency</span>
+      </label>
+      <span className="text-[12.5px] text-[var(--ink-faint)]">
+        {selectedClientName?.split(' ')[0] ?? 'The client'} will be notified by push + email
+      </span>
+    </div>
+  );
+};
+
+const AppointmentFormActions = ({ props }: { props: AppointmentFormContentProps }) => {
+  const {
+    formState,
+    isPreviewingWeeklySeries = false,
+    weeklySeriesPreview,
+    weeklySeriesSubmitLabel = 'Book appointment',
+    onCancel,
+    handleSubmit,
+    variant = 'modal',
+  } = props;
+  if (variant === 'sheet') return null;
+
+  return (
+    <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
+      <Secondary
+        text="Cancel"
+        onClick={onCancel}
+        isDisabled={formState.loading || isPreviewingWeeklySeries}
+        className="h-10 justify-center px-5 py-0 text-[13.5px] font-semibold"
+      />
+      <Primary
+        text={weeklySeriesSubmitLabel}
+        onClick={handleSubmit}
+        isDisabled={
+          formState.loading ||
+          isPreviewingWeeklySeries ||
+          Boolean(weeklySeriesPreview?.some(({ hasConflict }) => hasConflict))
+        }
+        icon={<IoArrowForward aria-hidden="true" />}
+        iconPosition="right"
+        className="h-10 justify-center gap-[7px] px-5 py-0 text-[13.5px] font-semibold hover:scale-100"
+      />
+    </div>
+  );
+};
+
+export const AppointmentFormContent = (props: AppointmentFormContentProps) => (
+  // Rebind --field-bg to the warm surface so every field (Date/Time/Slot/Type and
+  // the person pickers) shares one warm token instead of the cool #fafafa default.
+  <div className="relative [--field-bg:var(--color-neutral-0)]">
+    <div
+      className={
+        props.variant === 'sheet'
+          ? 'grid grid-cols-1 gap-y-4'
+          : 'grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2'
+      }
+    >
+      <AppointmentScheduleFields props={props} />
+      <AppointmentServiceFields props={props} />
+    </div>
+    <AppointmentSeriesFields props={props} />
+    {props.formState.submitted && props.formDataErrors.booking && (
       <div className="mt-4 flex items-center gap-2 rounded-2xl border border-input-border-error px-4 py-3">
         <IoIosWarning className="shrink-0 text-text-error" size={16} aria-hidden="true" />
         <span style={{ ...text14M, color: 'var(--color-text-error)' }}>
-          {formDataErrors.booking}
+          {props.formDataErrors.booking}
         </span>
       </div>
     )}
-
-    {variant === 'sheet' ? null : (
-      <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
-        <Secondary
-          text="Cancel"
-          onClick={onCancel}
-          isDisabled={formState.loading || isPreviewingWeeklySeries}
-          className="h-10 justify-center px-5 py-0 text-[13.5px] font-semibold"
-        />
-        <Primary
-          text={weeklySeriesSubmitLabel}
-          onClick={handleSubmit}
-          isDisabled={
-            formState.loading ||
-            isPreviewingWeeklySeries ||
-            Boolean(weeklySeriesPreview?.some(({ hasConflict }) => hasConflict))
-          }
-          icon={<IoArrowForward aria-hidden="true" />}
-          iconPosition="right"
-          className="h-10 justify-center gap-[7px] px-5 py-0 text-[13.5px] font-semibold hover:scale-100"
-        />
-      </div>
-    )}
+    <AppointmentFormActions props={props} />
   </div>
 );
 
@@ -1228,10 +1294,10 @@ const previewWeeklySeries = async ({
   validateForm: ReturnType<typeof useAppointmentForm>['validateForm'];
   setFormDataErrors: ReturnType<typeof useAppointmentForm>['setFormDataErrors'];
   getDraft: () => ReturnType<typeof getWeeklySeriesDraft>;
-  setPreview: Dispatch<SetStateAction<WeeklySeriesPreview | null>>;
-  setPreviewKey: Dispatch<SetStateAction<string | null>>;
-  setError: Dispatch<SetStateAction<string | undefined>>;
-  setIsPreviewing: Dispatch<SetStateAction<boolean>>;
+  setPreview: (value: WeeklySeriesPreview | null) => void;
+  setPreviewKey: (value: string | null) => void;
+  setError: (value: string | undefined) => void;
+  setIsPreviewing: (value: boolean) => void;
 }) => {
   dispatchUi({ type: 'setSubmitAttempted', value: true });
   const errors = validateForm(true);
@@ -1275,7 +1341,7 @@ const submitAppointment = async ({
   getDraft: () => ReturnType<typeof getWeeklySeriesDraft>;
   weeklySeriesPreview: WeeklySeriesPreview | null;
   weeklySeriesPreviewKey: string | null;
-  setWeeklySeriesError: Dispatch<SetStateAction<string | undefined>>;
+  setWeeklySeriesError: (value: string | undefined) => void;
   handlePreviewWeeklySeries: () => Promise<void>;
   handleCreate: ReturnType<typeof useAppointmentForm>['handleCreate'];
 }) => {
@@ -1317,6 +1383,14 @@ const useAddAppointmentCentralModalView = ({
   const companions = useCompanionsParentsForPrimaryOrg();
   const isPhone = useIsPhone();
   const [uiState, dispatchUi] = useReducer(modalUiReducer, undefined, createInitialModalUiState);
+  const {
+    weeklySeriesEnabled,
+    weeklySeriesCount,
+    weeklySeriesPreview,
+    weeklySeriesPreviewKey,
+    weeklySeriesError,
+    isPreviewingWeeklySeries,
+  } = uiState;
   const [visitType, setVisitType] = useState('Outpatient');
   const prefillActive = Boolean(prefill) && !uiState.prefillDismissed;
   const calendarSlotFlowActive = false;
@@ -1359,12 +1433,6 @@ const useAddAppointmentCentralModalView = ({
     resetForm,
     validateForm,
   } = appointmentForm;
-  const [weeklySeriesEnabled, setWeeklySeriesEnabled] = useState(false);
-  const [weeklySeriesCount, setWeeklySeriesCount] = useState(4);
-  const [weeklySeriesPreview, setWeeklySeriesPreview] = useState<WeeklySeriesPreview | null>(null);
-  const [weeklySeriesPreviewKey, setWeeklySeriesPreviewKey] = useState<string | null>(null);
-  const [weeklySeriesError, setWeeklySeriesError] = useState<string | undefined>();
-  const [isPreviewingWeeklySeries, setIsPreviewingWeeklySeries] = useState(false);
   const syncedVisitType = appointmentKindToVisitType(formData.appointmentKind);
   if (visitType !== syncedVisitType) {
     setVisitType(syncedVisitType);
@@ -1384,11 +1452,6 @@ const useAddAppointmentCentralModalView = ({
     if (!showModal && prevShowModalRef.current) {
       dispatchUi({ type: 'reset' });
       resetForm();
-      setWeeklySeriesEnabled(false);
-      setWeeklySeriesCount(4);
-      setWeeklySeriesPreview(null);
-      setWeeklySeriesPreviewKey(null);
-      setWeeklySeriesError(undefined);
     }
     prevShowModalRef.current = showModal;
   }, [resetForm, showModal]);
@@ -1569,10 +1632,10 @@ const useAddAppointmentCentralModalView = ({
       validateForm,
       setFormDataErrors,
       getDraft,
-      setPreview: setWeeklySeriesPreview,
-      setPreviewKey: setWeeklySeriesPreviewKey,
-      setError: setWeeklySeriesError,
-      setIsPreviewing: setIsPreviewingWeeklySeries,
+      setPreview: (value) => dispatchUi({ type: 'setWeeklySeriesPreview', value }),
+      setPreviewKey: (value) => dispatchUi({ type: 'setWeeklySeriesPreviewKey', value }),
+      setError: (value) => dispatchUi({ type: 'setWeeklySeriesError', value }),
+      setIsPreviewing: (value) => dispatchUi({ type: 'setIsPreviewingWeeklySeries', value }),
     });
   const handleSubmit = () =>
     submitAppointment({
@@ -1583,7 +1646,7 @@ const useAddAppointmentCentralModalView = ({
       getDraft,
       weeklySeriesPreview,
       weeklySeriesPreviewKey,
-      setWeeklySeriesError,
+      setWeeklySeriesError: (value) => dispatchUi({ type: 'setWeeklySeriesError', value }),
       handlePreviewWeeklySeries,
       handleCreate,
     });
@@ -1620,8 +1683,7 @@ const useAddAppointmentCentralModalView = ({
     (date: SetStateAction<Date>) => {
       exitPrefillMode();
       setSelectedDate(date);
-      setWeeklySeriesPreview(null);
-      setWeeklySeriesPreviewKey(null);
+      dispatchUi({ type: 'clearWeeklySeriesPreview' });
     },
     [exitPrefillMode, setSelectedDate]
   );
@@ -1713,8 +1775,7 @@ const useAddAppointmentCentralModalView = ({
     onSlotSelect: (slot) => {
       dispatchUi({ type: 'dismissPrefill' });
       setSelectedSlot(slot);
-      setWeeklySeriesPreview(null);
-      setWeeklySeriesPreviewKey(null);
+      dispatchUi({ type: 'clearWeeklySeriesPreview' });
     },
     formState: {
       loadingTimeSlots: uiState.isLoadingTimeSlots,
@@ -1733,8 +1794,7 @@ const useAddAppointmentCentralModalView = ({
     formDataErrors,
     handleLeadSelectWithReset: (option) => {
       handleLeadSelectWithReset(option);
-      setWeeklySeriesPreview(null);
-      setWeeklySeriesPreviewKey(null);
+      dispatchUi({ type: 'clearWeeklySeriesPreview' });
     },
     leadEmptyStateMessage,
     supportOptions,
@@ -1748,19 +1808,9 @@ const useAddAppointmentCentralModalView = ({
     showError: (field) => showError(field as keyof typeof formDataErrors),
     handleSubmit,
     weeklySeriesEnabled,
-    setWeeklySeriesEnabled: (value) => {
-      setWeeklySeriesEnabled(value);
-      setWeeklySeriesPreview(null);
-      setWeeklySeriesPreviewKey(null);
-      setWeeklySeriesError(undefined);
-    },
+    setWeeklySeriesEnabled: (value) => dispatchUi({ type: 'setWeeklySeriesEnabled', value }),
     weeklySeriesCount,
-    setWeeklySeriesCount: (value) => {
-      setWeeklySeriesCount(value);
-      setWeeklySeriesPreview(null);
-      setWeeklySeriesPreviewKey(null);
-      setWeeklySeriesError(undefined);
-    },
+    setWeeklySeriesCount: (value) => dispatchUi({ type: 'setWeeklySeriesCount', value }),
     weeklySeriesPreview,
     weeklySeriesError,
     isPreviewingWeeklySeries,

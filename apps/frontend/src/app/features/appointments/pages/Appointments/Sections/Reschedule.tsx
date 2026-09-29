@@ -144,7 +144,8 @@ const SeriesReschedulePreview = ({
   );
 };
 
-const Reschedule = ({ showModal, setShowModal, activeAppointment }: RescheduleProp) => {
+const useRescheduleForm = (props: RescheduleProp) => {
+  const { showModal, setShowModal, activeAppointment } = props;
   const { notify } = useNotify();
   const teams = useTeamForPrimaryOrg();
   const [seriesScope, setSeriesScope] = useState<'this' | 'following'>('this');
@@ -392,6 +393,56 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
       formDataErrors: { leadId: undefined },
     });
   };
+
+  return {
+    formData,
+    formDataErrors,
+    handleAppointmentUpdate,
+    handleCancel,
+    handleLeadSelect,
+    hasSeriesConflict,
+    isRecurringAppointment,
+    isSeriesPreviewLoading,
+    LeadOptions,
+    selectedDate,
+    selectedSlot,
+    seriesPreview,
+    seriesPreviewError,
+    seriesScope,
+    setSelectedDate,
+    setSelectedSlot,
+    setSeriesScope,
+    setSeriesPreviewState,
+    setShowModal,
+    showModal,
+    timeSlots,
+  };
+};
+
+const Reschedule = (props: RescheduleProp) => {
+  const {
+    formData,
+    formDataErrors,
+    handleAppointmentUpdate,
+    handleCancel,
+    handleLeadSelect,
+    hasSeriesConflict,
+    isRecurringAppointment,
+    isSeriesPreviewLoading,
+    LeadOptions,
+    selectedDate,
+    selectedSlot,
+    seriesPreview,
+    seriesPreviewError,
+    seriesScope,
+    setSelectedDate,
+    setSelectedSlot,
+    setSeriesScope,
+    setSeriesPreviewState,
+    setShowModal,
+    showModal,
+    timeSlots,
+  } = useRescheduleForm(props);
 
   return (
     <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleCancel}>

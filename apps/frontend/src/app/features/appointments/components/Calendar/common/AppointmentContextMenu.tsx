@@ -52,15 +52,16 @@ type AppointmentContextMenuProps = {
   onClose: () => void;
 };
 
-const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = ({
-  appointment,
-  canEditAppointments,
-  menuRef,
-  menuStyle,
-  handleViewAppointment,
-  handleRescheduleAppointment,
-  onClose,
-}) => {
+const useAppointmentContextMenu = (props: AppointmentContextMenuProps) => {
+  const {
+    appointment,
+    canEditAppointments,
+    menuRef,
+    menuStyle,
+    handleViewAppointment,
+    handleRescheduleAppointment,
+    onClose,
+  } = props;
   const router = useRouter();
   useLoadRoomsForPrimaryOrg({ force: true, silent: true });
   const rooms = useRoomsForPrimaryOrg();
@@ -317,6 +318,45 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
     setMenuError(null);
     showSubmenu(submenu, key, itemRefs);
   };
+
+  return {
+    actions,
+    activeSubmenu,
+    handleSeriesCancellation,
+    handleStatusChange,
+    itemRefs,
+    menuError,
+    menuPositionStyle,
+    menuRef,
+    openSubmenu,
+    roomOptions,
+    savingKey,
+    setActiveSubmenu,
+    statusOptions,
+    submenuPosition,
+    submenuRef,
+    submenuStyle,
+  };
+};
+
+const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (props) => {
+  const {
+    actions,
+    activeSubmenu,
+    handleSeriesCancellation,
+    handleStatusChange,
+    itemRefs,
+    menuError,
+    menuPositionStyle,
+    menuRef,
+    openSubmenu,
+    roomOptions,
+    savingKey,
+    setActiveSubmenu,
+    statusOptions,
+    submenuRef,
+    submenuStyle,
+  } = useAppointmentContextMenu(props);
 
   return (
     <>
