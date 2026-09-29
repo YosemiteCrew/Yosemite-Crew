@@ -413,6 +413,12 @@ describe("DocumentService.update attachments", () => {
   it("returns 400 for a null attachment entry", async () => {
     await expectUnchanged(update([null as never]));
   });
+
+  it("returns 400 for a null entry beside a valid attachment", async () => {
+    await expectUnchanged(
+      update([{ key: key(), mimeType: "application/pdf" }, null as never]),
+    );
+  });
 });
 
 describe("DocumentService.deleteForParent", () => {
