@@ -25,7 +25,6 @@ import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { isSpeciesCompatible } from "./shared/normalize-tokens";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
-import { z } from "zod";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -1959,9 +1958,14 @@ const createAppointment = async (
   bookedBy: BookedBy,
 ): Promise<AppointmentResponseDTO> => {
   const input = fromAppointmentRequestDTO(dto);
-  const [created] = await createAppointments(dto, status, [
-    { startTime: input.startTime, endTime: input.endTime },
-  ], undefined, undefined, bookedBy);
+  const [created] = await createAppointments(
+    dto,
+    status,
+    [{ startTime: input.startTime, endTime: input.endTime }],
+    undefined,
+    undefined,
+    bookedBy,
+  );
   return created;
 };
 
