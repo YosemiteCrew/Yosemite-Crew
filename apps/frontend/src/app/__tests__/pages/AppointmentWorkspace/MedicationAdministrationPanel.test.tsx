@@ -284,7 +284,7 @@ describe('MedicationAdministrationPanel', () => {
         ...scheduledEntry,
         status: 'HELD',
         notes: 'Dose held after the patient refused food.',
-        updatedAt: '2026-09-27T10:10:00.000Z',
+        updatedAt: new Date().toISOString(),
       },
     ]);
     renderPanel();

@@ -285,7 +285,7 @@ const MedicationAdministrationPanel = ({
             className="flex flex-col gap-3 rounded-xl border border-card-border p-4"
           >
             <label className="flex flex-col gap-1 text-body-4 font-medium text-text-primary">
-              Medication
+              {'Medication'}
               <select
                 required
                 value={prescriptionId}
@@ -307,7 +307,7 @@ const MedicationAdministrationPanel = ({
               </Text>
             )}
             <label className="flex flex-col gap-1 text-body-4 font-medium text-text-primary">
-              Scheduled time
+              {'Scheduled time'}
               <input
                 required
                 type="datetime-local"

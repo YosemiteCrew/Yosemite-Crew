@@ -27205,6 +27205,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SupplierBillError'
+  /v1/pms/organisation/{organisationId}/mar-entries/{marEntryId}/refuse:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Record a refused medication dose
+      operationId: post_v1_pms_organisation_mar_entries_refuse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: marEntryId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '200':
+          description: The updated medication administration entry.
+        '400':
+          description: The request was invalid.
+        '404':
+          description: The medication administration entry was not found.
+        '409':
+          description: The medication administration entry already has an outcome.
 components:
   securitySchemes:
     BearerAuth:
