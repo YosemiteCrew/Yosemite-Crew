@@ -9,6 +9,8 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    patientOrganisation: { findFirst: jest.fn() },
+    encounter: { findFirst: jest.fn() },
   },
 }));
 
@@ -23,6 +25,8 @@ const mockFindFirst = prisma.dentalExamination.findFirst as jest.Mock;
 const mockFindMany = prisma.dentalExamination.findMany as jest.Mock;
 const mockUpdate = prisma.dentalExamination.update as jest.Mock;
 const mockDelete = prisma.dentalExamination.delete as jest.Mock;
+const mockMembership = prisma.patientOrganisation.findFirst as jest.Mock;
+const mockEncounter = prisma.encounter.findFirst as jest.Mock;
 
 const baseExam = {
   id: "de-1",
@@ -42,7 +46,11 @@ const baseExam = {
   updatedAt: new Date(),
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockMembership.mockResolvedValue({ id: "link-1" });
+  mockEncounter.mockResolvedValue({ id: "enc-1" });
+});
 
 describe("DentalExaminationService.create", () => {
   it("creates an exam with overallGrade", async () => {
@@ -61,6 +69,62 @@ describe("DentalExaminationService.create", () => {
       }),
     );
     expect(result.overallGrade).toBe("GRADE_2");
+    expect(mockMembership).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          patientId: "pat-1",
+          organisationId: "org-1",
+          status: "ACTIVE",
+        },
+      }),
+    );
+    expect(mockEncounter).not.toHaveBeenCalled();
+  });
+
+  const createInput = {
+    organisationId: "org-1",
+    patientId: "pat-1",
+    encounterId: "enc-1",
+    examinedAt: new Date("2026-06-30T10:00:00Z"),
+    overallGrade: "GRADE_2" as const,
+    findings: [],
+  };
+
+  it("ties the exam to an encounter of the same patient and organisation", async () => {
+    mockCreate.mockResolvedValue({ ...baseExam, encounterId: "enc-1" });
+    await DentalExaminationService.create(createInput);
+    expect(mockEncounter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "enc-1", organisationId: "org-1", patientId: "pat-1" },
+      }),
+    );
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ encounterId: "enc-1" }),
+      }),
+    );
+  });
+
+  it("answers 404 and writes nothing for a companion outside the organisation", async () => {
+    mockMembership.mockResolvedValue(null);
+    await expect(
+      DentalExaminationService.create(createInput),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Companion not found.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 and writes nothing for an encounter of another patient or organisation", async () => {
+    mockEncounter.mockResolvedValue(null);
+    await expect(
+      DentalExaminationService.create(createInput),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Encounter not found.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
 

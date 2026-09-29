@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import type { Prisma } from "@prisma/client";
 
 export class DentalExaminationError extends Error {
@@ -94,6 +95,30 @@ const assertExam = async (id: string, organisationId: string) => {
   return record;
 };
 
+/**
+ * DentalExamination carries bare patientId/encounterId columns, so a body naming
+ * another tenant's companion or visit would be stored as-is. The encounter must
+ * also belong to the same patient, or the chart would surface on the wrong visit.
+ * Uniform 404s so this cannot be used to probe which ids exist.
+ */
+const assertExamTargets = async (
+  patientId: string,
+  organisationId: string,
+  encounterId?: string,
+) => {
+  await assertPatientOrgMembership(patientId, organisationId, () => {
+    throw new DentalExaminationError("Companion not found.", 404);
+  });
+  if (!encounterId) return;
+  const encounter = await prisma.encounter.findFirst({
+    where: { id: encounterId, organisationId, patientId },
+    select: { id: true },
+  });
+  if (!encounter) {
+    throw new DentalExaminationError("Encounter not found.", 404);
+  }
+};
+
 export const DentalExaminationService = {
   async create(params: CreateDentalExamParams) {
     const {
@@ -104,6 +129,8 @@ export const DentalExaminationService = {
       procedures,
       ...rest
     } = params;
+
+    await assertExamTargets(patientId, organisationId, rest.encounterId);
 
     const exam = await prisma.dentalExamination.create({
       data: {

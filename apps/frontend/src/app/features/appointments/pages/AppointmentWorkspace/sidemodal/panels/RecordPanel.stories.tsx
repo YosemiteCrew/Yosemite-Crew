@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios';
 
+import type { UserOrganization } from '@yosemite-crew/types';
 import api from '@/app/services/axios';
+import { useOrgStore } from '@/app/stores/orgStore';
 import type {
   AppointmentEncounter,
   ObservationRecord,
@@ -92,9 +94,26 @@ const seedDentalEncounter = () => {
     config,
   });
   api.defaults.adapter = adapter;
+  /* The dental tab checks appointments:view:any and appointments:edit:any against
+     the real org store, so a clinician membership is seeded rather than mocked. */
+  const orgSnapshot = useOrgStore.getState();
+  const membership: UserOrganization = {
+    practitionerReference: 'Practitioner/prac-amara',
+    organizationReference: `Organization/${ORG_ID}`,
+    roleCode: 'OWNER',
+    roleDisplay: 'Owner',
+    active: true,
+  };
+  useOrgStore.setState({
+    primaryOrgId: ORG_ID,
+    orgIds: [ORG_ID],
+    membershipsByOrgId: { [ORG_ID]: membership },
+    status: 'loaded',
+  });
 
   return () => {
     api.defaults.adapter = previousAdapter;
+    useOrgStore.setState(orgSnapshot);
     restoreEncounter();
   };
 };
@@ -309,8 +328,12 @@ export const DentalTab: Story = {
     await expect(
       within(panel).getByRole('heading', { name: 'Dental examination' })
     ).toBeInTheDocument();
-    await expect(within(panel).getByRole('button', { name: /Tooth 104/ })).toBeInTheDocument();
+    const canine = await within(panel).findByRole('button', {
+      name: 'Tooth 104, right maxillary canine, not charted',
+    });
+    await waitFor(() => expect(canine).toBeEnabled());
     await expect(within(panel).getByRole('group', { name: 'Dentition' })).toBeInTheDocument();
+    await expect(within(panel).getByRole('button', { name: 'Save examination' })).toBeVisible();
   },
 };
 
