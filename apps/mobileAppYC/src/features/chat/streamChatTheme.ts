@@ -9,6 +9,15 @@ import type {DeepPartial, Theme as StreamTheme} from 'stream-chat-react-native';
 
 import type {Theme} from '@/theme';
 
+// Stream rebuilds `semantics` from its own defaults before applying the
+// my-message theme, so both themes carry the full bubble palette.
+const chatSemantics = (theme: Theme) => ({
+  chatBgIncoming: theme.colors.screen2,
+  chatBgOutgoing: theme.colors.cta,
+  chatTextIncoming: theme.colors.inkBody,
+  chatTextOutgoing: theme.colors.ctaText,
+});
+
 /**
  * Global Stream theme: receiver (incoming) bubble surface, asymmetric bubble
  * radii, warm input row, and the dark send button. Receiver text uses body ink.
@@ -16,11 +25,7 @@ import type {Theme} from '@/theme';
 export const createStreamChatTheme = (
   theme: Theme,
 ): DeepPartial<StreamTheme> => ({
-  semantics: {
-    chatBgIncoming: theme.colors.screen2,
-    chatBgOutgoing: theme.colors.cta,
-    chatTextIncoming: theme.colors.inkBody,
-  },
+  semantics: chatSemantics(theme),
   messageItemView: {
     content: {
       container: {
@@ -44,15 +49,13 @@ export const createStreamChatTheme = (
 });
 
 /**
- * Applied only to the current user's messages so their text reads on the dark
- * CTA bubble.
+ * Applied only to the current user's messages so they keep the dark CTA
+ * bubble with readable text.
  */
 export const createMyMessageTheme = (
   theme: Theme,
 ): DeepPartial<StreamTheme> => ({
-  semantics: {
-    chatTextOutgoing: theme.colors.ctaText,
-  },
+  semantics: chatSemantics(theme),
   messageItemView: {
     content: {
       container: {

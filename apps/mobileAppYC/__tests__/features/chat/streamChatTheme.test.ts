@@ -31,8 +31,16 @@ describe('streamChatTheme', () => {
     expect(semantics?.chatTextIncoming).toBe(mockTheme.colors.inkBody);
   });
 
-  it('overrides only the sender message text colour for readability on the CTA', () => {
+  it('pairs the CTA outgoing bubble with CTA text in the global theme', () => {
+    const semantics = createStreamChatTheme(mockTheme as never).semantics;
+    expect(semantics?.chatTextOutgoing).toBe(mockTheme.colors.ctaText);
+  });
+
+  it('keeps the CTA bubble and its text colour on the sender message theme', () => {
+    // Stream swaps in its default semantics before merging this theme, so the
+    // outgoing bubble colour has to be repeated here.
     const themeOverride = createMyMessageTheme(mockTheme as never);
+    expect(themeOverride.semantics?.chatBgOutgoing).toBe(mockTheme.colors.cta);
     expect(themeOverride.semantics?.chatTextOutgoing).toBe(
       mockTheme.colors.ctaText,
     );
