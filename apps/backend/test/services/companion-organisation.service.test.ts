@@ -822,7 +822,7 @@ describe("CompanionOrganisationService", () => {
   });
 
   describe("assertOrganisationMayLinkCompanion", () => {
-    type Row = Record<string, string>;
+    type Row = Record<string, string | null>;
     // Prisma's matching for the `where` shapes this check uses: plain
     // equality, and `{ in: [...] }`.
     const matches = (row: Row, where: Record<string, unknown>) =>
@@ -841,11 +841,16 @@ describe("CompanionOrganisationService", () => {
           (world.parentLinks ?? []).filter((row) => matches(row, where)),
       );
     };
-    const orgLink = (status: string, companion = patientId): Row => ({
+    const orgLink = (
+      status: string,
+      companion = patientId,
+      rejectedAt: string | null = null,
+    ): Row => ({
       id: `link-${companion}-${status}`,
       patientId: companion,
       organisationId,
       status,
+      rejectedAt,
     });
     // The companion's parent also has a sibling companion ACTIVE here.
     const siblingKnown = [
@@ -891,6 +896,18 @@ describe("CompanionOrganisationService", () => {
         statusCode: 404,
         message: "Companion not found.",
       });
+    });
+
+    it("lets a practice that turned down the parent's emailed invite ask through a known sibling", async () => {
+      given({
+        orgLinks: [
+          orgLink("REVOKED", patientId, "2026-01-01T00:00:00.000Z"),
+          orgLink("ACTIVE", "sibling-companion"),
+        ],
+        parentLinks: siblingKnown,
+      });
+
+      await expect(assertMayLink()).resolves.toBeUndefined();
     });
 
     it("allows a companion linked again after an earlier link was turned down", async () => {

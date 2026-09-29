@@ -282,9 +282,10 @@ export const CompanionOrganisationService = {
    * that is already ACTIVE here. `linkByPmsUser` itself creates a PENDING link
    * without parent consent, so without this an authenticated staff member could
    * name any companion id and read the parent back off the organisation's link
-   * list. A link the parent turned down or revoked is not raised again from
-   * the practice side. Failures report "not found" so the endpoint cannot be
-   * used to confirm that a companion id exists.
+   * list. A link request the parent turned down is not raised again from the
+   * practice side; a practice that turned down a parent's emailed invite may
+   * still ask. Failures report "not found" so the endpoint cannot be used to
+   * confirm that a companion id exists.
    */
   async assertOrganisationMayLinkCompanion(
     patientId: string,
@@ -302,11 +303,14 @@ export const CompanionOrganisationService = {
       return;
     }
 
+    // `rejectInvite` stamps `rejectedAt` when the practice itself declines;
+    // a parent's decline (`parentRejectLink`) leaves it null.
     const turnedDown = await prisma.patientOrganisation.findFirst({
       where: {
         patientId: companion,
         organisationId: org,
         status: PatientOrganisationStatus.REVOKED,
+        rejectedAt: null,
       },
       select: { id: true },
     });
