@@ -125,14 +125,16 @@ describe('PracticeProfileFields', () => {
 
   it('creates a choice field with one choice per line', async () => {
     const user = userEvent.setup();
-    createFieldMock.mockResolvedValue({
+    const created = {
       id: 'field-contact',
       fieldKey: 'contact-time',
       label: 'Contact time',
-      type: 'SELECT',
+      type: 'SELECT' as const,
       options: ['Morning', 'Evening'],
       value: null,
-    });
+    };
+    createFieldMock.mockResolvedValue(created);
+    getFieldsMock.mockResolvedValueOnce([]).mockResolvedValueOnce([created]);
     render(<PracticeProfileFields entityType="CLIENT" entityId="client-1" />);
 
     await user.click(await screen.findByRole('button', { name: 'Add field' }));
@@ -155,6 +157,79 @@ describe('PracticeProfileFields', () => {
       })
     );
     expect(await screen.findByTestId('profile-fields')).toHaveTextContent('Contact time');
+  });
+
+  it('explains that removing a field keeps its saved answers', async () => {
+    getFieldsMock.mockResolvedValue([
+      {
+        id: 'field-color',
+        fieldKey: 'color',
+        label: 'Coat color',
+        type: 'TEXT',
+        options: [],
+        value: 'Blue',
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<PracticeProfileFields entityType="PATIENT" entityId="patient-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add field' }));
+    expect(
+      within(screen.getByRole('dialog')).getByText(
+        /Saved answers are kept and come back if you add a field with the same name and type/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('shows the saved answers of a field that is added back', async () => {
+    const user = userEvent.setup();
+    const restored = {
+      id: 'field-contact',
+      fieldKey: 'contact-time',
+      label: 'Contact time',
+      type: 'SELECT' as const,
+      options: ['Morning', 'Evening'],
+      value: null,
+    };
+    createFieldMock.mockResolvedValue(restored);
+    getFieldsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ ...restored, value: 'Morning' }]);
+    render(<PracticeProfileFields entityType="CLIENT" entityId="client-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add field' }));
+    const dialog = screen.getByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Field name'), 'Contact time');
+    await user.click(within(dialog).getByRole('button', { name: 'Add field' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('profile-values')).toHaveTextContent('"contact-time":"Morning"')
+    );
+    expect(getFieldsMock).toHaveBeenLastCalledWith('CLIENT', 'client-1');
+  });
+
+  it('does not show an added field as empty when its saved answers cannot be read', async () => {
+    const user = userEvent.setup();
+    createFieldMock.mockResolvedValue({
+      id: 'field-contact',
+      fieldKey: 'contact-time',
+      label: 'Contact time',
+      type: 'TEXT',
+      options: [],
+      value: null,
+    });
+    getFieldsMock.mockResolvedValueOnce([]).mockRejectedValueOnce(new Error('load failed'));
+    render(<PracticeProfileFields entityType="CLIENT" entityId="client-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add field' }));
+    const dialog = screen.getByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Field name'), 'Contact time');
+    await user.click(within(dialog).getByRole('button', { name: 'Add field' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Practice fields could not be loaded.'
+    );
+    expect(screen.getByTestId('profile-fields')).toHaveTextContent(/^$/);
   });
 
   it('drops blank and padded choice lines instead of saving them as choices', async () => {

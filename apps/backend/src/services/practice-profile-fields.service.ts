@@ -150,6 +150,30 @@ export const PracticeProfileFieldsService = {
   ) {
     const normalized = normalizeFieldInput(input);
     try {
+      // Removing a field hides it and keeps every saved answer. Adding a field
+      // with the same name and type brings that field back with its answers,
+      // rather than starting an empty one beside them.
+      const removed = await prisma.practiceProfileField.findFirst({
+        where: {
+          organisationId,
+          entityType,
+          fieldKey: normalized.fieldKey,
+          type: normalized.type,
+          isActive: false,
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
+      if (removed) {
+        return await prisma.practiceProfileField.update({
+          where: { id: removed.id },
+          data: {
+            label: normalized.label,
+            options: normalized.options,
+            isActive: true,
+          },
+        });
+      }
       return await prisma.practiceProfileField.create({
         data: { ...normalized, entityType, organisationId },
       });

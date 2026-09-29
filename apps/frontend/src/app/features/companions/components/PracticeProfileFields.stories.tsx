@@ -102,5 +102,6 @@ export const PatientProfile: Story = {
     await expect(canvas.getByText('Preferred contact time')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Add field' }));
     await expect(canvas.getByRole('dialog', { name: 'Manage practice fields' })).toBeVisible();
+    await expect(canvas.getByText(/Saved answers are kept/)).toBeVisible();
   },
 };

@@ -11,7 +11,9 @@ jest.mock("src/config/prisma", () => ({
     parentPatient: { findFirst: jest.fn() },
     practiceProfileField: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn(),
     },
     practiceProfileFieldValue: {
@@ -28,7 +30,9 @@ const db = prisma as unknown as {
   parentPatient: { findFirst: jest.Mock };
   practiceProfileField: {
     findMany: jest.Mock;
+    findFirst: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
     updateMany: jest.Mock;
   };
   practiceProfileFieldValue: { deleteMany: jest.Mock; upsert: jest.Mock };
@@ -45,6 +49,7 @@ describe("PracticeProfileFieldsService", () => {
     jest.clearAllMocks();
     db.patientOrganisation.findFirst.mockResolvedValue(active);
     db.parentPatient.findFirst.mockResolvedValue(active);
+    db.practiceProfileField.findFirst.mockResolvedValue(null);
     db.$transaction.mockImplementation((operations: Promise<unknown>[]) =>
       Promise.all(operations),
     );
@@ -124,6 +129,60 @@ describe("PracticeProfileFieldsService", () => {
         organisationId: orgId,
       },
     });
+  });
+
+  it("restores a removed field of the same name and type with its saved values", async () => {
+    db.practiceProfileField.findFirst.mockResolvedValue({ id: "f-removed" });
+    db.practiceProfileField.update.mockResolvedValue({
+      id: "f-removed",
+      isActive: true,
+    });
+
+    await expect(
+      PracticeProfileFieldsService.create("CLIENT", orgId, {
+        label: "Contact time",
+        type: "SELECT",
+        options: ["Morning", "Evening"],
+      }),
+    ).resolves.toEqual({ id: "f-removed", isActive: true });
+    expect(db.practiceProfileField.findFirst).toHaveBeenCalledWith({
+      where: {
+        organisationId: orgId,
+        entityType: "CLIENT",
+        fieldKey: "contact-time",
+        type: "SELECT",
+        isActive: false,
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true },
+    });
+    expect(db.practiceProfileField.update).toHaveBeenCalledWith({
+      where: { id: "f-removed" },
+      data: {
+        label: "Contact time",
+        options: ["Morning", "Evening"],
+        isActive: true,
+      },
+    });
+    expect(db.practiceProfileField.create).not.toHaveBeenCalled();
+  });
+
+  it("reports a restore that races an active field as a conflict", async () => {
+    db.practiceProfileField.findFirst.mockResolvedValue({ id: "f-removed" });
+    db.practiceProfileField.update.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Duplicate", {
+        code: "P2002",
+        clientVersion: "test",
+      }),
+    );
+
+    await expect(
+      PracticeProfileFieldsService.create("CLIENT", orgId, {
+        label: "Contact time",
+        type: "TEXT",
+        options: [],
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
   });
 
   it.each([
@@ -229,6 +288,7 @@ describe("PracticeProfileFieldsService", () => {
     { type: "TEXT", options: [], value: 3 },
     { type: "NUMBER", options: [], value: Number.NaN },
     { type: "DATE", options: [], value: "2026-02-30" },
+    { type: "DATE", options: [], value: "27/09/2026" },
     { type: "BOOLEAN", options: [], value: "true" },
     { type: "SELECT", options: ["Morning"], value: "Afternoon" },
   ])(
@@ -345,13 +405,13 @@ describe("PracticeProfileFieldsService", () => {
   it("ignores an organisation supplied in the field definition", async () => {
     db.practiceProfileField.create.mockResolvedValue({ id: "f-1" });
 
-    await PracticeProfileFieldsService.create("PATIENT", orgId, {
+    const input = {
       label: "Coat color",
-      type: "TEXT",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      options: [],
-      ...({ organisationId: "other-org" } as any),
-    });
+      type: "TEXT" as const,
+      options: [] as string[],
+      organisationId: "other-org",
+    };
+    await PracticeProfileFieldsService.create("PATIENT", orgId, input);
 
     expect(db.practiceProfileField.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ organisationId: orgId }),

@@ -264,18 +264,28 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
             return trimmed ? [trimmed] : [];
           })
         : [];
+    let field: PracticeProfileField;
     try {
-      const field = await createPracticeProfileField(entityType, {
+      field = await createPracticeProfileField(entityType, {
         label: draftLabel,
         type: draftType,
         options: normalizedOptions,
       });
-      dispatch({ type: 'fieldAdded', field });
     } catch {
       dispatch({
         type: 'failed',
         error: 'This field could not be added. Check the label and choices, then try again.',
       });
+      return;
+    }
+    dispatch({ type: 'fieldAdded', field });
+    // A field removed earlier comes back with the answers it kept, so read the
+    // profile again instead of showing that field empty.
+    try {
+      const nextFields = await getPracticeProfileFields(entityType, entityId);
+      dispatch({ type: 'loadSucceeded', entityId, fields: nextFields });
+    } catch {
+      dispatch({ type: 'loadFailed', entityId });
     }
   };
 
@@ -343,6 +353,10 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
           {fields.length > 0 ? (
             <div className="flex flex-col gap-2">
               <Text variant="body-4-emphasis">Current fields</Text>
+              <Text variant="caption-1" className="text-[var(--ink-muted)]">
+                Removing a field hides it from every profile. Saved answers are kept and come back
+                if you add a field with the same name and type.
+              </Text>
               {fields.map((field) => (
                 <div key={field.id} className="flex items-center justify-between gap-3">
                   <Text variant="body-4">{field.label}</Text>
