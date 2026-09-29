@@ -367,6 +367,91 @@ describe("TaskScheduleEngine", () => {
     );
   });
 
+  describe("a seed that raises no task", () => {
+    const seed = (name: string) => ({
+      source: "ORG_TEMPLATE",
+      organisationId: "org-1",
+      patientId: "pat-1",
+      createdBy: "creator-1",
+      assignedTo: "co-parent-1",
+      audience: "PARENT_TASK",
+      category: "Care",
+      name,
+      dueAt: "2026-01-01T08:00:00.000Z",
+    });
+    const schedule = (over: Record<string, unknown> = {}) => ({
+      id: "schedule-skip",
+      templateKind: "CARE_PATHWAY",
+      status: "ACTIVE",
+      generatedTaskIds: null,
+      materializedSeeds: [seed("First"), seed("Second"), seed("Third")],
+      metadata: { templateKind: "CARE_PATHWAY" },
+      ...over,
+    });
+
+    beforeEach(() => {
+      mockedPrisma.taskSchedule.update.mockResolvedValue({});
+    });
+
+    it("moves on to the next seeds and records the skip", async () => {
+      mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([schedule()]);
+      mockedTaskService.createFromWorkflowSeed
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "second-task-id" })
+        .mockResolvedValueOnce({ id: "third-task-id" });
+
+      await TaskScheduleEngine.run();
+
+      expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledTimes(3);
+      // The skip is stored with the first write, before the next seed runs.
+      expect(mockedPrisma.taskSchedule.update).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          where: { id: "schedule-skip" },
+          data: expect.objectContaining({
+            metadata: { templateKind: "CARE_PATHWAY", skippedSeeds: 1 },
+          }),
+        }),
+      );
+      expect(mockedPrisma.taskSchedule.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            generatedTaskIds: ["second-task-id", "third-task-id"],
+            status: "ACTIVE",
+          }),
+        }),
+      );
+    });
+
+    it("resumes after the skipped seeds, and stops once every seed is done", async () => {
+      mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
+        schedule({
+          generatedTaskIds: ["second-task-id"],
+          metadata: { skippedSeeds: 1 },
+        }),
+        schedule({
+          id: "schedule-done",
+          generatedTaskIds: ["second-task-id", "third-task-id"],
+          metadata: { skippedSeeds: 1 },
+        }),
+      ]);
+      mockedTaskService.createFromWorkflowSeed.mockResolvedValueOnce({
+        id: "third-task-id",
+      });
+
+      await TaskScheduleEngine.run();
+
+      expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledTimes(1);
+      expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Third" }),
+        expect.objectContaining({ notify: false }),
+      );
+      expect(mockedPrisma.taskSchedule.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "schedule-done" } }),
+      );
+    });
+  });
+
   it("skips schedules that already have generated task ids", async () => {
     mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
       {

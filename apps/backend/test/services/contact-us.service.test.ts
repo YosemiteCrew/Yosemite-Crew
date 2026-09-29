@@ -14,12 +14,54 @@ jest.mock("src/config/prisma", () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    parentPatient: {
+      findMany: jest.fn(),
+    },
   },
 }));
 
 describe("ContactService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("ownCompanionFor", () => {
+    const findLinks = prisma.parentPatient.findMany as jest.Mock;
+
+    it("keeps a companion the parent is actively linked to", async () => {
+      findLinks.mockResolvedValueOnce([
+        { patientId: "pat-2" },
+        { patientId: "pat-1" },
+      ]);
+
+      await expect(
+        ContactService.ownCompanionFor("parent-1", "pat-1"),
+      ).resolves.toBe("pat-1");
+      expect(findLinks).toHaveBeenCalledWith({
+        where: { parentId: "parent-1", status: "ACTIVE" },
+        select: { patientId: true },
+      });
+    });
+
+    it("drops a companion the parent is not actively linked to", async () => {
+      findLinks.mockResolvedValueOnce([{ patientId: "pat-2" }]);
+
+      await expect(
+        ContactService.ownCompanionFor("parent-1", "pat-1"),
+      ).resolves.toBeUndefined();
+    });
+
+    it.each([
+      ["no parent", undefined, "pat-1"],
+      ["no companion", "parent-1", undefined],
+      ["a blank companion", "parent-1", ""],
+      ["a companion that is not an id", "parent-1", { in: ["pat-1"] }],
+    ])("names no companion for %s, without a lookup", async (_l, p, c) => {
+      await expect(
+        ContactService.ownCompanionFor(p, c),
+      ).resolves.toBeUndefined();
+      expect(findLinks).not.toHaveBeenCalled();
+    });
   });
 
   // 1. createRequest

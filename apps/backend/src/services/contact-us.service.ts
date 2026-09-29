@@ -8,6 +8,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { CONTACT_MESSAGE_MAX_LENGTH } from "@yosemite-crew/types";
 import { prisma } from "../config/prisma";
+import { ParentCompanionService } from "./parent-companion.service";
 
 export class ContactServiceError extends Error {
   constructor(
@@ -80,6 +81,22 @@ const buildComplaintContext = (input: { fullName: string; phone?: string }) =>
   }) as Prisma.InputJsonValue;
 
 export const ContactService = {
+  /**
+   * The companion a parent's request may name: one they are actively linked
+   * to. Any other companion is left off the request rather than refused.
+   */
+  async ownCompanionFor(
+    parentId: string | undefined,
+    patientId: unknown,
+  ): Promise<string | undefined> {
+    if (!parentId || typeof patientId !== "string" || !patientId) {
+      return undefined;
+    }
+    const own =
+      await ParentCompanionService.getActiveCompanionIdsForParent(parentId);
+    return own.includes(patientId) ? patientId : undefined;
+  },
+
   async createRequest(input: CreateContactRequestInput) {
     // Basic validations
     if (!input.subject || !input.message) {

@@ -54,6 +54,13 @@ export type CompanionFeature =
 export type CompanionResourceScope =
   { kind: "patient"; patientId: string } | { kind: "allow" } | { kind: "deny" };
 
+/**
+ * The companion a request was granted, set once access is allowed. A handler
+ * behind the middleware reads the companion from here rather than from the
+ * request again, so it acts on exactly the one that was checked.
+ */
+export type CompanionAccessRequest = Request & { grantedPatientId?: string };
+
 export type CompanionResourceResolver = (
   req: Request,
   parentId: string,
@@ -176,6 +183,7 @@ const enforce = async (
     if (!link) return notFound(res);
 
     if (hasCompanionFeature(link.role, link.permissions, feature)) {
+      (req as CompanionAccessRequest).grantedPatientId = scope.patientId;
       return next();
     }
 
