@@ -3689,6 +3689,29 @@ describe("TaskService", () => {
         role: "CO_PARENT",
         permissions: { tasks: false, appointments: true },
       },
+      // pat-3: a co-parent who may work on tasks is found before the primary.
+      {
+        parentId: "co-3-tasks",
+        patientId: "pat-3",
+        status: "ACTIVE",
+        role: "CO_PARENT",
+        permissions: { tasks: true },
+      },
+      {
+        parentId: "par-3",
+        patientId: "pat-3",
+        status: "ACTIVE",
+        role: "PRIMARY",
+        permissions: {},
+      },
+      // pat-4: the only primary link has ended.
+      {
+        parentId: "par-4-old",
+        patientId: "pat-4",
+        status: "REVOKED",
+        role: "PRIMARY",
+        permissions: {},
+      },
     ];
 
     beforeEach(() => {
@@ -4062,6 +4085,34 @@ describe("TaskService", () => {
           expect(createdAssignee()).toBe("par-1");
         },
       );
+
+      it("falls back to the primary parent, never to a co-parent", async () => {
+        await TaskService.createFromWorkflowSeed(
+          seed({
+            audience: "PARENT_TASK",
+            patientId: "pat-3",
+            assignedTo: "vet-1",
+          }),
+          { notify: false },
+        );
+
+        expect(createdAssignee()).toBe("par-3");
+      });
+
+      it("never falls back to a primary parent whose link has ended", async () => {
+        await expect(
+          TaskService.createFromWorkflowSeed(
+            seed({
+              audience: "PARENT_TASK",
+              patientId: "pat-4",
+              assignedTo: "vet-1",
+            }),
+            { notify: false },
+          ),
+        ).resolves.toBeNull();
+
+        expect(mockedPrisma.task.create).not.toHaveBeenCalled();
+      });
 
       it("leaves out a parent task when no parent may work on it", async () => {
         await expect(
