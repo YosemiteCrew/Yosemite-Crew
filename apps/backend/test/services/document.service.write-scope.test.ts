@@ -410,7 +410,11 @@ describe("DocumentService.update attachments", () => {
     await expectUnchanged(update([{ key: PHOTO, mimeType: "image/jpeg" }]));
   });
 
-  it("returns 400 for an attachment entry that is not an object", async () => {
+  it("returns 400 for a null attachment entry", async () => {
+    await expectUnchanged(update([null as never]));
+  });
+
+  it("returns 400 for a null entry beside a valid attachment", async () => {
     await expectUnchanged(
       update([{ key: key(), mimeType: "application/pdf" }, null as never]),
     );
@@ -434,7 +438,7 @@ describe("DocumentService.deleteForParent", () => {
 
     expect(s3Delete).toHaveBeenCalledWith(key());
     expect(db.document.deleteMany).toHaveBeenCalledWith({
-      where: { id: DOCUMENT },
+      where: { id: { equals: DOCUMENT } },
     });
   });
 
@@ -492,7 +496,7 @@ describe("DocumentService.deleteForParent", () => {
 
     expect(s3Delete.mock.calls).toEqual([[key(COMPANION, "only-mine.pdf")]]);
     expect(db.document.deleteMany).toHaveBeenCalledWith({
-      where: { id: DOCUMENT },
+      where: { id: { equals: DOCUMENT } },
     });
   });
 });
@@ -531,7 +535,7 @@ describe("DocumentService.update from the PMS", () => {
       expect.objectContaining({ where: { id: DOCUMENT } }),
     );
     expect(db.documentAttachment.deleteMany).toHaveBeenCalledWith({
-      where: { documentId: DOCUMENT },
+      where: { documentId: { equals: DOCUMENT } },
     });
   });
 
@@ -610,7 +614,7 @@ describe("DocumentService.update saving", () => {
 
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(tx.documentAttachment.deleteMany).toHaveBeenCalledWith({
-      where: { documentId: DOCUMENT },
+      where: { documentId: { equals: DOCUMENT } },
     });
     expect(tx.documentAttachment.createMany).toHaveBeenCalledWith({
       data: [expect.objectContaining({ key: key(COMPANION, "new.pdf") })],
