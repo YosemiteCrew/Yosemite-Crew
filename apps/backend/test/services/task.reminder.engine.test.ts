@@ -206,7 +206,17 @@ describe("TaskReminderEngine", () => {
       await TaskReminderEngine.run();
 
       expect(sendToUserMock).not.toHaveBeenCalled();
-      expect(prismaMock.task.update).not.toHaveBeenCalled();
+      // Marked handled, as a sent one is, so it is not re-checked every
+      // minute or sent late if access comes back before it is due.
+      expect(prismaMock.task.update).toHaveBeenCalledWith({
+        where: { id: parentTask().id },
+        data: {
+          reminder: expect.objectContaining({
+            enabled: true,
+            scheduledNotificationId: "skipped",
+          }),
+        },
+      });
     });
   });
 

@@ -20,11 +20,10 @@ export class TaskReminderEngineError extends Error {
 }
 
 /**
- * The companion a task's reminder names, or null when there is no one to
- * remind: no companion, or a parent who may no longer work on its tasks.
+ * The companion a task's reminder names, or null when there is none.
  */
 const companionToRemindAbout = async (
-  task: Pick<Task, "id" | "patientId" | "audience" | "assignedTo">,
+  task: Pick<Task, "id" | "patientId">,
 ): Promise<{ name: string } | null> => {
   // A task without a companion has no one to name; an unset id must
   // never reach the query, where it would match any companion.
@@ -38,15 +37,15 @@ const companionToRemindAbout = async (
     console.warn(`Skipping reminder for task ${task.id}; companion not found`);
     return null;
   }
-
-  if (
-    task.audience === "PARENT_TASK" &&
-    !(await parentHasCompanionFeature(task.assignedTo, task.patientId, "tasks"))
-  ) {
-    return null;
-  }
   return companion;
 };
+
+/** A parent task's assignee must still be a parent who may work on it. */
+const mayRemindAssignee = async (
+  task: Pick<Task, "patientId" | "audience" | "assignedTo">,
+): Promise<boolean> =>
+  task.audience !== "PARENT_TASK" ||
+  parentHasCompanionFeature(task.assignedTo, task.patientId, "tasks");
 
 export const TaskReminderEngine = {
   /**
@@ -94,6 +93,17 @@ export const TaskReminderEngine = {
 
         const companion = await companionToRemindAbout(task);
         if (!companion) continue;
+
+        // Handled like a sent reminder, so it is never re-checked or sent late.
+        if (!(await mayRemindAssignee(task))) {
+          await prisma.task.update({
+            where: { id: task.id },
+            data: {
+              reminder: { ...reminder, scheduledNotificationId: "skipped" },
+            },
+          });
+          continue;
+        }
 
         const payload = NotificationTemplates.Task.TASK_DUE_REMINDER(
           companion.name,
