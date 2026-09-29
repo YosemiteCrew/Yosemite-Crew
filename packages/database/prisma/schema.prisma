@@ -1859,15 +1859,19 @@ model OrganisationInvite {
 }
 
 model OrganisationRating {
-  id             String   @id @default(uuid())
-  organizationId String
-  userId         String
-  rating         Int
-  review         String?  @default("")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(uuid())
+  organizationId   String?
+  userId           String
+  appointmentId    String?
+  practitionerId   String?
+  practitionerName String?
+  rating           Int
+  review           String?  @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@unique([organizationId, userId])
+  @@unique([appointmentId, userId])
 }
 
 model OrganizationUsageCounter {
