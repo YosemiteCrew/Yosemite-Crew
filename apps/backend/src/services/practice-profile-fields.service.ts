@@ -79,10 +79,10 @@ const validateValue = (
 
 const assertProfileAccess = async (
   entityType: ProfileEntityType,
-  entityId: string,
+  rawEntityId: string,
   organisationId: string,
 ) => {
-  entityId = parseUuid(entityId);
+  const entityId = parseUuid(rawEntityId);
   const found =
     entityType === "PATIENT"
       ? await prisma.patientOrganisation.findFirst({
@@ -191,8 +191,8 @@ export const PracticeProfileFieldsService = {
     }
   },
 
-  async deactivate(fieldId: string, organisationId: string) {
-    fieldId = parseUuid(fieldId);
+  async deactivate(rawFieldId: string, organisationId: string) {
+    const fieldId = parseUuid(rawFieldId);
     const count = await prisma.$executeRaw`
       UPDATE "PracticeProfileField"
       SET "isActive" = false, "updatedAt" = NOW()
@@ -207,10 +207,10 @@ export const PracticeProfileFieldsService = {
     entityType: ProfileEntityType,
     entityId: string,
     organisationId: string,
-    values: ProfileFieldValueInput[],
+    input: ProfileFieldValueInput[],
   ) {
     await assertProfileAccess(entityType, entityId, organisationId);
-    values = values.map((item) => ({
+    const values = input.map((item) => ({
       ...item,
       fieldId: parseUuid(item.fieldId),
     }));

@@ -42,6 +42,13 @@ const EDITOR_TYPE: Record<PracticeProfileFieldType, string> = {
   SELECT: 'select',
 };
 
+const toFieldConfig = (field: PracticeProfileField): FieldConfig => ({
+  key: field.fieldKey,
+  label: field.label,
+  type: EDITOR_TYPE[field.type],
+  options: field.options,
+});
+
 const displayValue = (value: unknown) => {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
@@ -197,53 +204,86 @@ const reducer = (state: State, action: Action): State => {
   }
 };
 
-const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsProps) => {
-  const canEdit = useHasPermission('companions:edit:any');
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const {
-    fields,
-    fieldsEntityId,
-    loading,
-    error,
-    isManaging,
-    draftLabel,
-    draftType,
-    draftOptions,
-  } = state;
+type Dispatch = (action: Action) => void;
 
+// Blank and padded lines are dropped rather than saved as choices.
+const readChoices = (draftType: PracticeProfileFieldType, draftOptions: string) =>
+  draftType === 'SELECT'
+    ? draftOptions.split('\n').flatMap((option) => {
+        const trimmed = option.trim();
+        return trimmed ? [trimmed] : [];
+      })
+    : [];
+
+const addField = async (
+  entityType: PracticeProfileEntityType,
+  entityId: string,
+  state: State,
+  dispatch: Dispatch
+) => {
+  let field: PracticeProfileField;
+  try {
+    field = await createPracticeProfileField(entityType, {
+      label: state.draftLabel,
+      type: state.draftType,
+      options: readChoices(state.draftType, state.draftOptions),
+    });
+  } catch {
+    dispatch({
+      type: 'failed',
+      error: 'This field could not be added. Check the label and choices, then try again.',
+    });
+    return;
+  }
+  dispatch({ type: 'fieldAdded', field });
+  // A field removed earlier comes back with the answers it kept, so read the
+  // profile again instead of showing that field empty.
+  try {
+    const nextFields = await getPracticeProfileFields(entityType, entityId);
+    dispatch({ type: 'loadSucceeded', entityId, fields: nextFields });
+  } catch {
+    dispatch({ type: 'loadFailed', entityId });
+  }
+};
+
+const removeField = async (field: PracticeProfileField, dispatch: Dispatch) => {
+  try {
+    await deactivatePracticeProfileField(field.id);
+    dispatch({ type: 'fieldRemoved', fieldId: field.id });
+  } catch {
+    dispatch({ type: 'failed', error: 'This field could not be removed. Please try again.' });
+  }
+};
+
+const useProfileFieldsLoader = (
+  entityType: PracticeProfileEntityType,
+  entityId: string,
+  dispatch: Dispatch
+) => {
   useEffect(() => {
     if (!entityId) return;
     let isCurrent = true;
     void getPracticeProfileFields(entityType, entityId)
       .then((nextFields) => {
-        if (!isCurrent) return;
-        dispatch({ type: 'loadSucceeded', entityId, fields: nextFields });
+        if (isCurrent) dispatch({ type: 'loadSucceeded', entityId, fields: nextFields });
       })
       .catch(() => {
-        if (!isCurrent) return;
-        dispatch({ type: 'loadFailed', entityId });
+        if (isCurrent) dispatch({ type: 'loadFailed', entityId });
       });
     return () => {
       isCurrent = false;
     };
-  }, [entityId, entityType]);
+  }, [entityId, entityType, dispatch]);
+};
 
-  const fieldConfigs = useMemo<FieldConfig[]>(
-    () =>
-      fields.map((field) => ({
-        key: field.fieldKey,
-        label: field.label,
-        type: EDITOR_TYPE[field.type],
-        options: field.options,
-      })),
-    [fields]
-  );
-  const values = useMemo(
-    () => Object.fromEntries(fields.map((field) => [field.fieldKey, displayValue(field.value)])),
-    [fields]
-  );
-
-  const handleSave = useCallback(
+// Only fields whose value really moved are sent, see toChangedEntry.
+const useSaveValues = (
+  entityType: PracticeProfileEntityType,
+  entityId: string,
+  fields: PracticeProfileField[],
+  dispatch: Dispatch
+) =>
+  useCallback(
     async (nextValues: Record<string, unknown>) => {
       const changed = changedEntries(fields, nextValues);
       if (changed.length === 0) return;
@@ -253,50 +293,135 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
         stored: new Map(changed.map((entry) => [entry.fieldId, entry.value])),
       });
     },
-    [entityId, entityType, fields]
+    [entityId, entityType, fields, dispatch]
   );
 
-  const handleCreate = async () => {
-    const normalizedOptions =
-      draftType === 'SELECT'
-        ? draftOptions.split('\n').flatMap((option) => {
-            const trimmed = option.trim();
-            return trimmed ? [trimmed] : [];
-          })
-        : [];
-    let field: PracticeProfileField;
-    try {
-      field = await createPracticeProfileField(entityType, {
-        label: draftLabel,
-        type: draftType,
-        options: normalizedOptions,
-      });
-    } catch {
-      dispatch({
-        type: 'failed',
-        error: 'This field could not be added. Check the label and choices, then try again.',
-      });
-      return;
-    }
-    dispatch({ type: 'fieldAdded', field });
-    // A field removed earlier comes back with the answers it kept, so read the
-    // profile again instead of showing that field empty.
-    try {
-      const nextFields = await getPracticeProfileFields(entityType, entityId);
-      dispatch({ type: 'loadSucceeded', entityId, fields: nextFields });
-    } catch {
-      dispatch({ type: 'loadFailed', entityId });
-    }
-  };
+type ManageFieldsProps = {
+  state: State;
+  dispatch: Dispatch;
+};
 
-  const handleDeactivate = async (field: PracticeProfileField) => {
-    try {
-      await deactivatePracticeProfileField(field.id);
-      dispatch({ type: 'fieldRemoved', fieldId: field.id });
-    } catch {
-      dispatch({ type: 'failed', error: 'This field could not be removed. Please try again.' });
-    }
-  };
+const CurrentFields = ({ state, dispatch }: ManageFieldsProps) =>
+  state.fields.length > 0 ? (
+    <div className="flex flex-col gap-2">
+      <Text variant="body-4-emphasis">Current fields</Text>
+      <Text variant="caption-1" className="text-[var(--ink-muted)]">
+        Removing a field hides it from every profile. Saved answers are kept and come back if you
+        add a field with the same name and type.
+      </Text>
+      {state.fields.map((field) => (
+        <div key={field.id} className="flex items-center justify-between gap-3">
+          <Text variant="body-4">{field.label}</Text>
+          <Secondary
+            href="#"
+            danger
+            size="compact"
+            text={`Remove ${field.label}`}
+            onClick={() => void removeField(field, dispatch)}
+          />
+        </div>
+      ))}
+    </div>
+  ) : null;
+
+const NewFieldForm = ({ state, dispatch }: ManageFieldsProps) => (
+  <>
+    <label
+      className="flex flex-col gap-2 text-body-4-emphasis text-text-primary"
+      htmlFor="practice-field-label"
+    >
+      Field name
+      <Input
+        id="practice-field-label"
+        placeholder="For example, preferred contact time"
+        value={state.draftLabel}
+        maxLength={80}
+        onChange={(event) => dispatch({ type: 'draftLabelChanged', label: event.target.value })}
+      />
+    </label>
+    <div className="flex flex-col gap-2">
+      <Text variant="body-4-emphasis">Field type</Text>
+      <LabelDropdown
+        placeholder="Choose a type"
+        defaultOption={state.draftType}
+        options={TYPE_OPTIONS}
+        onSelect={(option) =>
+          dispatch({
+            type: 'draftTypeChanged',
+            fieldType: option.value as PracticeProfileFieldType,
+          })
+        }
+      />
+    </div>
+    {state.draftType === 'SELECT' ? (
+      <label
+        className="flex flex-col gap-2 text-body-4-emphasis text-text-primary"
+        htmlFor="practice-field-options"
+      >
+        Choices, one per line
+        <Textarea
+          id="practice-field-options"
+          placeholder={'Morning\nAfternoon\nEvening'}
+          value={state.draftOptions}
+          maxLength={4000}
+          onChange={(event) =>
+            dispatch({ type: 'draftOptionsChanged', options: event.target.value })
+          }
+        />
+      </label>
+    ) : null}
+  </>
+);
+
+const ManageFieldsModal = ({
+  state,
+  dispatch,
+  onAdd,
+}: ManageFieldsProps & { onAdd: () => void }) => {
+  const close = () => dispatch({ type: 'managingChanged', isManaging: false });
+  return (
+    <Modal
+      showModal={state.isManaging}
+      setShowModal={(next) =>
+        dispatch({
+          type: 'managingChanged',
+          isManaging: typeof next === 'function' ? next(state.isManaging) : next,
+        })
+      }
+      variant="centered"
+      size="sm"
+      aria-labelledby="practice-profile-fields-title"
+    >
+      <div className="flex flex-col gap-5">
+        <ModalHeader
+          title="Manage practice fields"
+          titleId="practice-profile-fields-title"
+          onClose={close}
+        />
+        <CurrentFields state={state} dispatch={dispatch} />
+        <NewFieldForm state={state} dispatch={dispatch} />
+        <div className="flex justify-end gap-3">
+          <Secondary href="#" text="Cancel" onClick={close} />
+          <Primary href="#" text="Add field" onClick={onAdd} />
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsProps) => {
+  const canEdit = useHasPermission('companions:edit:any');
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const { fields, fieldsEntityId, loading, error } = state;
+  useProfileFieldsLoader(entityType, entityId, dispatch);
+
+  const fieldConfigs = useMemo(() => fields.map(toFieldConfig), [fields]);
+  const values = useMemo(
+    () => Object.fromEntries(fields.map((field) => [field.fieldKey, displayValue(field.value)])),
+    [fields]
+  );
+
+  const handleSave = useSaveValues(entityType, entityId, fields, dispatch);
 
   if (!entityId) return null;
 
@@ -332,101 +457,11 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
           onSave={handleSave}
         />
       )}
-      <Modal
-        showModal={isManaging}
-        setShowModal={(next) =>
-          dispatch({
-            type: 'managingChanged',
-            isManaging: typeof next === 'function' ? next(isManaging) : next,
-          })
-        }
-        variant="centered"
-        size="sm"
-        aria-labelledby="practice-profile-fields-title"
-      >
-        <div className="flex flex-col gap-5">
-          <ModalHeader
-            title="Manage practice fields"
-            titleId="practice-profile-fields-title"
-            onClose={() => dispatch({ type: 'managingChanged', isManaging: false })}
-          />
-          {fields.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              <Text variant="body-4-emphasis">Current fields</Text>
-              <Text variant="caption-1" className="text-[var(--ink-muted)]">
-                Removing a field hides it from every profile. Saved answers are kept and come back
-                if you add a field with the same name and type.
-              </Text>
-              {fields.map((field) => (
-                <div key={field.id} className="flex items-center justify-between gap-3">
-                  <Text variant="body-4">{field.label}</Text>
-                  <Secondary
-                    href="#"
-                    danger
-                    size="compact"
-                    text={`Remove ${field.label}`}
-                    onClick={() => void handleDeactivate(field)}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-          <label
-            className="flex flex-col gap-2 text-body-4-emphasis text-text-primary"
-            htmlFor="practice-field-label"
-          >
-            Field name
-            <Input
-              id="practice-field-label"
-              placeholder="For example, preferred contact time"
-              value={draftLabel}
-              maxLength={80}
-              onChange={(event) =>
-                dispatch({ type: 'draftLabelChanged', label: event.target.value })
-              }
-            />
-          </label>
-          <div className="flex flex-col gap-2">
-            <Text variant="body-4-emphasis">Field type</Text>
-            <LabelDropdown
-              placeholder="Choose a type"
-              defaultOption={draftType}
-              options={TYPE_OPTIONS}
-              onSelect={(option) =>
-                dispatch({
-                  type: 'draftTypeChanged',
-                  fieldType: option.value as PracticeProfileFieldType,
-                })
-              }
-            />
-          </div>
-          {draftType === 'SELECT' ? (
-            <label
-              className="flex flex-col gap-2 text-body-4-emphasis text-text-primary"
-              htmlFor="practice-field-options"
-            >
-              Choices, one per line
-              <Textarea
-                id="practice-field-options"
-                placeholder={'Morning\nAfternoon\nEvening'}
-                value={draftOptions}
-                maxLength={4000}
-                onChange={(event) =>
-                  dispatch({ type: 'draftOptionsChanged', options: event.target.value })
-                }
-              />
-            </label>
-          ) : null}
-          <div className="flex justify-end gap-3">
-            <Secondary
-              href="#"
-              text="Cancel"
-              onClick={() => dispatch({ type: 'managingChanged', isManaging: false })}
-            />
-            <Primary href="#" text="Add field" onClick={handleCreate} />
-          </div>
-        </div>
-      </Modal>
+      <ManageFieldsModal
+        state={state}
+        dispatch={dispatch}
+        onAdd={() => void addField(entityType, entityId, state, dispatch)}
+      />
     </div>
   );
 };
