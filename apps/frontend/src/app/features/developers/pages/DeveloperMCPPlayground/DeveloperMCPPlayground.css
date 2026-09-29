@@ -222,7 +222,7 @@
   overflow-x: auto;
   max-height: 400px;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .MCPTools {
