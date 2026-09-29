@@ -1,30 +1,8 @@
-import {
-  IntegrationAdapter,
-  IntegrationValidationResult,
-  DischargeBuilderCredentials,
-} from "../types";
-
-const ensureNonEmpty = (
-  value: string | undefined,
-  field: string,
-): IntegrationValidationResult => {
-  if (!value?.trim()) {
-    return { ok: false, reason: `${field} is required.` };
-  }
-  return { ok: true };
-};
+import { IntegrationAdapter, DischargeBuilderCredentials } from "../types";
+import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class DischargeBuilderAdapter implements IntegrationAdapter {
-  validateCredentials(
-    credentials: DischargeBuilderCredentials,
-  ): Promise<IntegrationValidationResult> {
-    if (!credentials || Object.keys(credentials).length === 0) {
-      return Promise.resolve({ ok: false, reason: "Missing credentials." });
-    }
-
-    const apiKeyCheck = ensureNonEmpty(credentials.apiKey, "apiKey");
-    if (!apiKeyCheck.ok) return Promise.resolve(apiKeyCheck);
-
-    return Promise.resolve({ ok: true });
+  validateCredentials(credentials: DischargeBuilderCredentials) {
+    return validateRequiredCredentials(credentials, ["apiKey"]);
   }
 }

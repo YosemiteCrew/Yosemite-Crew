@@ -1,37 +1,12 @@
-import {
-  IntegrationAdapter,
-  IntegrationValidationResult,
-  XeroCredentials,
-} from "../types";
-
-const ensureNonEmpty = (
-  value: string | undefined,
-  field: string,
-): IntegrationValidationResult => {
-  if (!value?.trim()) {
-    return { ok: false, reason: `${field} is required.` };
-  }
-  return { ok: true };
-};
+import { IntegrationAdapter, XeroCredentials } from "../types";
+import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class XeroAdapter implements IntegrationAdapter {
-  validateCredentials(
-    credentials: XeroCredentials,
-  ): Promise<IntegrationValidationResult> {
-    if (!credentials || Object.keys(credentials).length === 0) {
-      return Promise.resolve({ ok: false, reason: "Missing credentials." });
-    }
-
-    const clientIdCheck = ensureNonEmpty(credentials.clientId, "clientId");
-    if (!clientIdCheck.ok) return Promise.resolve(clientIdCheck);
-    const clientSecretCheck = ensureNonEmpty(
-      credentials.clientSecret,
+  validateCredentials(credentials: XeroCredentials) {
+    return validateRequiredCredentials(credentials, [
+      "clientId",
       "clientSecret",
-    );
-    if (!clientSecretCheck.ok) return Promise.resolve(clientSecretCheck);
-    const tenantIdCheck = ensureNonEmpty(credentials.tenantId, "tenantId");
-    if (!tenantIdCheck.ok) return Promise.resolve(tenantIdCheck);
-
-    return Promise.resolve({ ok: true });
+      "tenantId",
+    ]);
   }
 }

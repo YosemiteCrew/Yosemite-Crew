@@ -1,32 +1,8 @@
-import {
-  IntegrationAdapter,
-  IntegrationValidationResult,
-  DigitalIntakeCredentials,
-} from "../types";
-
-const ensureNonEmpty = (
-  value: string | undefined,
-  field: string,
-): IntegrationValidationResult => {
-  if (!value?.trim()) {
-    return { ok: false, reason: `${field} is required.` };
-  }
-  return { ok: true };
-};
+import { IntegrationAdapter, DigitalIntakeCredentials } from "../types";
+import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class DigitalIntakeAdapter implements IntegrationAdapter {
-  validateCredentials(
-    credentials: DigitalIntakeCredentials,
-  ): Promise<IntegrationValidationResult> {
-    if (!credentials || Object.keys(credentials).length === 0) {
-      return Promise.resolve({ ok: false, reason: "Missing credentials." });
-    }
-
-    const apiKeyCheck = ensureNonEmpty(credentials.apiKey, "apiKey");
-    if (!apiKeyCheck.ok) return Promise.resolve(apiKeyCheck);
-    const orgIdCheck = ensureNonEmpty(credentials.orgId, "orgId");
-    if (!orgIdCheck.ok) return Promise.resolve(orgIdCheck);
-
-    return Promise.resolve({ ok: true });
+  validateCredentials(credentials: DigitalIntakeCredentials) {
+    return validateRequiredCredentials(credentials, ["apiKey", "orgId"]);
   }
 }

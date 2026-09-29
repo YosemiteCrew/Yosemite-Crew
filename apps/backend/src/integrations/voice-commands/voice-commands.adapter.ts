@@ -1,30 +1,8 @@
-import {
-  IntegrationAdapter,
-  IntegrationValidationResult,
-  VoiceCommandsCredentials,
-} from "../types";
-
-const ensureNonEmpty = (
-  value: string | undefined,
-  field: string,
-): IntegrationValidationResult => {
-  if (!value?.trim()) {
-    return { ok: false, reason: `${field} is required.` };
-  }
-  return { ok: true };
-};
+import { IntegrationAdapter, VoiceCommandsCredentials } from "../types";
+import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class VoiceCommandsAdapter implements IntegrationAdapter {
-  validateCredentials(
-    credentials: VoiceCommandsCredentials,
-  ): Promise<IntegrationValidationResult> {
-    if (!credentials || Object.keys(credentials).length === 0) {
-      return Promise.resolve({ ok: false, reason: "Missing credentials." });
-    }
-
-    const apiKeyCheck = ensureNonEmpty(credentials.apiKey, "apiKey");
-    if (!apiKeyCheck.ok) return Promise.resolve(apiKeyCheck);
-
-    return Promise.resolve({ ok: true });
+  validateCredentials(credentials: VoiceCommandsCredentials) {
+    return validateRequiredCredentials(credentials, ["apiKey"]);
   }
 }
