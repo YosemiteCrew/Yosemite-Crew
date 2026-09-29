@@ -1,5 +1,7 @@
 import {
+  DEFAULT_LEDGER_EXPONENT,
   fromLedgerMinorUnits,
+  isLedgerCurrencySupported,
   quantizeMoney,
   resolveLedgerExponent,
   toLedgerMinorUnits,
@@ -54,9 +56,18 @@ export type InvoicePricingBreakdown = {
   lines: InvoicePricingLineBreakdown[];
 };
 
-/** Round a monetary amount exactly at its ledger currency's precision. */
+/**
+ * Round a monetary amount exactly at its ledger currency's precision. A
+ * currency the ledger refuses to price keeps the two decimals its invoices are
+ * still totalled at, so recording a payment or refund on one never fails.
+ */
 export const roundMoney = (value: number, currency?: string | null): number =>
-  quantizeMoney(value, resolveLedgerExponent(currency));
+  quantizeMoney(
+    value,
+    isLedgerCurrencySupported(currency)
+      ? resolveLedgerExponent(currency)
+      : DEFAULT_LEDGER_EXPONENT,
+  );
 
 export const getNetPaymentAmount = (
   payment: {

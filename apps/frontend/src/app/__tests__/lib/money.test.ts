@@ -57,6 +57,17 @@ describe('roundMoney', () => {
   it('rejects non-finite amounts', () => {
     expect(() => roundMoney(Number.NaN, 'USD')).toThrow(RangeError);
   });
+
+  it('rounds five-figure and larger amounts without refusing them', () => {
+    expect(roundMoney(10000.37, 'GBP')).toBe(10000.37);
+    expect(roundMoney(1234567.89, 'USD')).toBe(1234567.89);
+    expect(roundMoney(250000, 'JPY')).toBe(250000);
+  });
+
+  it('clears float dust left by subtraction', () => {
+    expect(roundMoney(10.01 - 0.05, 'GBP')).toBe(9.96);
+    expect(roundMoney(0.1 + 0.2, 'GBP')).toBe(0.3);
+  });
 });
 
 describe('formatMoneyPrecise', () => {

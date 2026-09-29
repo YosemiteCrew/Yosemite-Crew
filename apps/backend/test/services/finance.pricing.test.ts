@@ -1,6 +1,7 @@
 import {
   calculateInvoiceDiscountPercentOfBase,
   calculateInvoicePricing,
+  getNetPaymentAmount,
   roundMoney,
 } from "../../src/services/finance/pricing";
 import {
@@ -19,6 +20,18 @@ describe("finance/pricing", () => {
     expect(roundMoney(-2.675)).toBe(-2.68);
     expect(roundMoney(1.5, "JPY")).toBe(2);
     expect(roundMoney(1.2345, "KWD")).toBe(1.235);
+  });
+
+  it("keeps two decimals for a currency the ledger does not price", () => {
+    expect(roundMoney(1234.565, "HUF")).toBe(1234.57);
+    expect(roundMoney(10.005, "idr")).toBe(10.01);
+    expect(roundMoney(10.005, "ZZZ")).toBe(10.01);
+    expect(
+      getNetPaymentAmount(
+        { amount: 5000.5, refunds: [{ amount: 0.255, status: "SUCCEEDED" }] },
+        "HUF",
+      ),
+    ).toBe(5000.24);
   });
 
   describe("calculateInvoiceDiscountPercentOfBase", () => {
