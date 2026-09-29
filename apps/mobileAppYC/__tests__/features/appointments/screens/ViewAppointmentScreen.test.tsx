@@ -1052,6 +1052,18 @@ describe('ViewAppointmentScreen', () => {
       },
     );
 
+    it.each(['UNPAID', 'FAILED'])(
+      'hides visit preparation while payment is %s on an upcoming visit',
+      paymentStatus => {
+        const state = clone(defaultState);
+        state.appointments.items[0].paymentStatus = paymentStatus;
+
+        renderScreen(state);
+
+        expect(screen.queryByTestId('visit-draft-review')).toBeNull();
+      },
+    );
+
     it('hides visit preparation when no practice recipient is assigned', () => {
       const state = clone(defaultState);
       state.appointments.items[0].employeeId = null;

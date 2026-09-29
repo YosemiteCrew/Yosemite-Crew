@@ -295,22 +295,44 @@ describe('appointmentsSlice', () => {
         includeObservations: true,
         includeQuestions: false,
       };
-      const state = appointmentsReducer(
-        {
-          ...initialState,
-          items: [{...mockAppointment, id: 'new-appt', companionId: 'comp-1'}],
-          activeRequests: {'comp-1': 'newer-request'},
-          visitPreparationDrafts: {'new-appt': draft},
-        } as any,
-        fetchAppointmentsForCompanion.fulfilled(
-          {companionId: 'comp-1', items: []},
-          'older-request',
-          {companionId: 'comp-1'},
-        ),
+      const arg = {companionId: 'comp-1'};
+      const newAppt = {
+        ...mockAppointment,
+        id: 'new-appt',
+        companionId: 'comp-1',
+      };
+      const start = {
+        ...initialState,
+        items: [newAppt],
+        visitPreparationDrafts: {'new-appt': draft},
+      } as any;
+      const olderFulfilled = fetchAppointmentsForCompanion.fulfilled(
+        {companionId: 'comp-1', items: []},
+        'older-request',
+        arg,
       );
 
+      // The older request is still overtaken while the newer one is in flight.
+      const racing = [
+        fetchAppointmentsForCompanion.pending('older-request', arg),
+        fetchAppointmentsForCompanion.pending('newer-request', arg),
+      ].reduce(appointmentsReducer, start);
+      const whilePending = appointmentsReducer(racing, olderFulfilled);
+      expect(whilePending.visitPreparationDrafts['new-appt']).toEqual(draft);
+      expect(whilePending.activeRequests['comp-1']).toBe('newer-request');
+
+      // The newer response lands first; the older one that omits the visit arrives after.
+      const afterNewer = appointmentsReducer(
+        racing,
+        fetchAppointmentsForCompanion.fulfilled(
+          {companionId: 'comp-1', items: [newAppt]},
+          'newer-request',
+          arg,
+        ),
+      );
+      const state = appointmentsReducer(afterNewer, olderFulfilled);
+
       expect(state.visitPreparationDrafts['new-appt']).toEqual(draft);
-      expect(state.activeRequests['comp-1']).toBe('newer-request');
     });
 
     it('sets loading on pending and replaces hydrated companion appointments on fulfilled', async () => {
