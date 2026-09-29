@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
 import { Secondary } from '@/app/ui/primitives/Buttons';
@@ -53,25 +53,35 @@ const SavedTextPicker = ({
 }) => {
   const [open, setOpen] = useState(false);
   const menuId = useId();
-  const options = templates.filter((template) => template.content?.[section]?.trim());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const options = templates.flatMap((template) => {
+    const html = template.content?.[section];
+    return html?.trim() ? [{ id: template.id, name: template.name, html }] : [];
+  });
+  // Shared by the trigger and every option (all native buttons): close when focus
+  // leaves the picker, and on Escape hand focus back to the trigger.
+  const closeOnBlur = (event: React.FocusEvent) => {
+    if (!containerRef.current?.contains(event.relatedTarget as Node | null)) setOpen(false);
+  };
+  const closeOnEscape = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
 
   return (
-    <div
-      className="relative text-caption-2"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') setOpen(false);
-      }}
-    >
+    <div ref={containerRef} className="relative text-caption-2">
       <button
+        ref={triggerRef}
         type="button"
         aria-label={`Insert saved text into ${sectionLabel}`}
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((current) => !current)}
-        className="cursor-pointer list-none rounded-lg px-2 py-1 text-text-brand hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        onBlur={closeOnBlur}
+        onKeyDown={closeOnEscape}
+        className="cursor-pointer rounded-lg px-2 py-1 text-text-brand hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
       >
         Insert saved text
       </button>
@@ -83,19 +93,19 @@ const SavedTextPicker = ({
           {options.length === 0 ? (
             <li className="px-3 py-2 text-text-secondary">No saved text for {sectionLabel}.</li>
           ) : (
-            options.map((template) => (
-              <li key={template.id}>
+            options.map((option) => (
+              <li key={option.id}>
                 <button
                   type="button"
                   onClick={() => {
-                    const html = template.content?.[section];
-                    if (!html) return;
-                    onInsert(html);
+                    onInsert(option.html);
                     setOpen(false);
                   }}
+                  onBlur={closeOnBlur}
+                  onKeyDown={closeOnEscape}
                   className="w-full rounded-lg px-3 py-2 text-left text-text-primary hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
                 >
-                  {template.name}
+                  {option.name}
                 </button>
               </li>
             ))

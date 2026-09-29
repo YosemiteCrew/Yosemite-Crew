@@ -41,6 +41,7 @@ const RichTextEditor = ({
   // the cursor after a single keystroke (the reported bug).
   const onChangeRef = useRef(onChange);
   const lastInsertIdRef = useRef<number | undefined>(undefined);
+  const hadCaretRef = useRef(false);
   useEffect(() => {
     onChangeRef.current = onChange;
   });
@@ -66,6 +67,9 @@ const RichTextEditor = ({
         class: 'yc-rte-content',
       },
     },
+    onFocus: () => {
+      hadCaretRef.current = true;
+    },
     onUpdate: ({ editor: instance }) => {
       onChangeRef.current(sanitizeRichText(instance.getHTML()));
     },
@@ -87,14 +91,18 @@ const RichTextEditor = ({
     editor?.setEditable(!readOnly);
   }, [editor, readOnly]);
 
+  // Saved text lands after the caret (or after a highlighted range, which is kept),
+  // or at the end when the field was never focused, so existing wording is never
+  // replaced. The snippet passes the same allowlist as stored notes first.
   useEffect(() => {
     if (!editor || readOnly || !insertRequest || lastInsertIdRef.current === insertRequest.id)
       return;
     lastInsertIdRef.current = insertRequest.id;
+    const at = hadCaretRef.current ? editor.state.selection.to : 'end';
     editor
       .chain()
-      .focus(undefined, { scrollIntoView: false })
-      .insertContent(insertRequest.html)
+      .focus(at, { scrollIntoView: false })
+      .insertContent(sanitizeRichText(insertRequest.html))
       .run();
   }, [editor, insertRequest, readOnly]);
 

@@ -179,6 +179,43 @@ describe('SoapStep', () => {
     });
   });
 
+  it('lists only templates with wording for the section and closes the saved-text menu on Escape or leaving it', () => {
+    const base = seedAndGet();
+    renderSoapStep({
+      ...base,
+      soapTemplates: [
+        {
+          id: 'tpl-plan-only',
+          name: 'Plan wording',
+          content: { plan: '<p>Recheck in 7 days.</p>' },
+        },
+        { id: 'tpl-blank', name: 'Blank wording', content: { plan: '   ' } },
+      ],
+    });
+
+    const trigger = screen.getByRole('button', {
+      name: 'Insert saved text into Subjective history',
+    });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('No saved text for Subjective history.')).toBeInTheDocument();
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveFocus();
+
+    const planTrigger = screen.getByRole('button', { name: 'Insert saved text into Plan' });
+    fireEvent.click(planTrigger);
+    const option = screen.getByRole('button', { name: 'Plan wording' });
+    expect(screen.queryByRole('button', { name: 'Blank wording' })).not.toBeInTheDocument();
+    // Moving focus within the picker keeps it open; leaving it closes it.
+    fireEvent.blur(planTrigger, { relatedTarget: option });
+    expect(planTrigger).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(option, { key: 'Enter' });
+    expect(planTrigger).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.blur(option, { relatedTarget: document.body });
+    expect(planTrigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('uses the resolved template payload so SOAP content refreshes when selecting a template from search', async () => {
     const encounter = seedAndGet();
     (getWorkspaceTemplateById as jest.Mock).mockResolvedValue({
