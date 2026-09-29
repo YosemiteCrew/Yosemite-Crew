@@ -1,5 +1,6 @@
 'use client';
 
+// no-story: Exercised through InpatientMonitoringPanel.stories.tsx with the full data flow.
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Text } from '@/app/ui';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';

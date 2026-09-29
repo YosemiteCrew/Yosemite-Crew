@@ -1,3 +1,4 @@
+// no-story: Exercised through InpatientMonitoringPanel.stories.tsx as part of the panel flow.
 import type { FormEvent } from 'react';
 import { Button, Text, Textarea } from '@/app/ui';
 import { MEASUREMENT_FIELDS } from './inpatientObservationFields';
