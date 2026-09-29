@@ -25,6 +25,21 @@ export type FillAuthorisation = {
   maxAdditionalFills: number;
 };
 
+/**
+ * What a reader is told about an item's repeats. An expired or withdrawn
+ * authority never reports a count, so a fill that cannot be dispensed is not
+ * shown as remaining.
+ */
+export const describeFillEligibility = (eligibility: FillEligibility): string => {
+  const reasons = eligibility.reasonCodes;
+  if (reasons.includes('AUTHORITY_REVOKED')) return 'Refill authorisation revoked';
+  if (reasons.includes('AUTHORITY_SUPERSEDED')) return 'Replaced by a newer refill authorisation';
+  if (!eligibility.authorizationId) return 'No active refill authorisation';
+  if (reasons.includes('AUTHORITY_EXPIRED')) return 'Refill authorisation expired';
+  const noun = eligibility.remainingFills === 1 ? 'fill' : 'fills';
+  return `${eligibility.remainingFills} authorised ${noun} remaining`;
+};
+
 const itemPath = (organisationId: string, itemId: string) =>
   `/v1/prescriptions/organisations/${encodeURIComponent(organisationId)}/items/${encodeURIComponent(itemId)}`;
 

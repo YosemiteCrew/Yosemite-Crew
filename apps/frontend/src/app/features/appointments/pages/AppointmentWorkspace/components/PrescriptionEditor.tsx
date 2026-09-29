@@ -38,6 +38,7 @@ import type {
 import type { PrescriptionTemplateOption } from '@/app/features/appointments/services/workspaceTemplateService';
 import {
   authoriseFills,
+  describeFillEligibility,
   getFillEligibility,
   type FillEligibility,
 } from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
@@ -237,9 +238,7 @@ const refillEligibilityLabel = (
   if (!itemId) return 'Saving with an expiry will authorise the entered refills.';
   if (eligibility === undefined) return 'Loading refill status…';
   if (eligibility === null) return 'Refill status unavailable.';
-  if (!eligibility.authorizationId) return 'No active refill authorisation';
-  const noun = eligibility.remainingFills === 1 ? 'fill' : 'fills';
-  return `${eligibility.remainingFills} authorised ${noun} remaining`;
+  return describeFillEligibility(eligibility);
 };
 
 const toDateTimeLocal = (value?: string | null) => {
@@ -252,10 +251,12 @@ const toDateTimeLocal = (value?: string | null) => {
 const FillAuthorisationControl = ({
   organisationId,
   item,
+  readOnly,
   onUpdateItem,
 }: {
   organisationId?: string;
   item: PrescriptionItem;
+  readOnly: boolean;
   onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
 }) => {
   const [eligibilityState, setEligibilityState] = useState<{
@@ -292,7 +293,7 @@ const FillAuthorisationControl = ({
 
   if (!organisationId) return null;
 
-  const refillCount = item.refill?.trim() ? Number(item.refill) : NaN;
+  const refillCount = item.refill?.trim() ? Number(item.refill) : Number.NaN;
   const quantity = resolvePrescriptionFillQuantity(item);
   const unit = item.doseUnit?.trim() || item.dosageForm?.trim() || '';
   const validUntil = item.refillValidUntil || toDateTimeLocal(eligibility?.expiresAt);
@@ -306,6 +307,17 @@ const FillAuthorisationControl = ({
   let buttonText = 'Authorise on save';
   if (itemId) buttonText = 'Authorise refills';
   if (saving) buttonText = 'Authorising…';
+
+  if (readOnly) {
+    return itemId ? (
+      <p
+        aria-live="polite"
+        className="border-t border-card-border pt-3 text-caption-1 text-text-secondary"
+      >
+        {statusText}
+      </p>
+    ) : null;
+  }
 
   const save = async () => {
     if (!canAuthorise) return;
@@ -557,6 +569,7 @@ const PrescriptionRow = ({
       <FillAuthorisationControl
         organisationId={organisationId}
         item={item}
+        readOnly={readOnly}
         onUpdateItem={onUpdateItem}
       />
     </li>

@@ -1042,6 +1042,47 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  it("moves no stock when the fill is refused in the same transaction", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-refused-1",
+      prescriptionId: "rx-refused-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [
+        { inventoryItemId: "item-plain-1", quantity: 1, sourceLineKey: "a" },
+        {
+          inventoryItemId: "item-refused-1",
+          quantity: 5,
+          sourceLineKey: "b",
+          prescriptionItemId: "prescription-item-refused-1",
+        },
+      ],
+      metadata: { appointmentKind: "OUTPATIENT" },
+    });
+    const refusal = new Error("Fill not permitted: FILLS_EXHAUSTED");
+    (
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx as jest.Mock
+    ).mockRejectedValueOnce(refusal);
+
+    await expect(
+      InventoryConsumptionService.approvePrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-refused-1",
+        medications: [],
+        reviewedBy: "user-1",
+      }),
+    ).rejects.toBe(refusal);
+
+    // Only the line that names a prescription item is tracked as a fill.
+    expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx,
+    ).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.update,
+    ).not.toHaveBeenCalled();
+  });
+
   it("approves an inpatient dispense request from allocated stock", async () => {
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
       id: "request-approve-2",

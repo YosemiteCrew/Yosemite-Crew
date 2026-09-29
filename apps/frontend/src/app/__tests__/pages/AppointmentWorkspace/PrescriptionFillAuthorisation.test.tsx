@@ -12,6 +12,9 @@ jest.mock('@/app/features/appointments/services/clinicalTermsService', () => ({
   suggestMedications: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@/app/features/appointments/services/prescriptionFillAuthorisationService', () => ({
+  ...jest.requireActual(
+    '@/app/features/appointments/services/prescriptionFillAuthorisationService'
+  ),
   authoriseFills: jest.fn(),
   getFillEligibility: jest.fn(),
 }));
@@ -27,7 +30,7 @@ const eligibility = {
   expiresAt: '2027-01-01T00:00:00.000Z',
 };
 
-const renderEditor = (itemOverrides: Partial<PrescriptionItem> = {}) => {
+const renderEditor = (itemOverrides: Partial<PrescriptionItem> = {}, readOnly = false) => {
   const onUpdateItem = jest.fn();
   const initialItem: PrescriptionItem = {
     id: 'artifact-1',
@@ -48,7 +51,7 @@ const renderEditor = (itemOverrides: Partial<PrescriptionItem> = {}) => {
         items={items}
         catalogItems={[]}
         templateItems={[]}
-        readOnly={false}
+        readOnly={readOnly}
         onAddItem={jest.fn()}
         onUpdateItem={(id, patch) => {
           onUpdateItem(id, patch);
@@ -104,6 +107,23 @@ describe('PrescriptionEditor refill authorisation', () => {
     expect(
       screen.getByText('Saving with an expiry will authorise the entered refills.')
     ).toBeInTheDocument();
+  });
+
+  it('shows the status but no authorisation controls to a read-only viewer', async () => {
+    renderEditor({}, true);
+
+    expect(await screen.findByText('3 authorised fills remaining')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Authorisation expires')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Authorise refills' })).not.toBeInTheDocument();
+  });
+
+  it('shows nothing to a read-only viewer on a line that was never saved', () => {
+    renderEditor({ prescriptionItemId: undefined }, true);
+
+    expect(screen.queryByLabelText('Authorisation expires')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Saving with an expiry will authorise the entered refills.')
+    ).not.toBeInTheDocument();
   });
 
   it('does not allow authorisation without a dispense unit', async () => {

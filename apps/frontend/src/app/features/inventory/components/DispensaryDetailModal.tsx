@@ -12,6 +12,7 @@ import {
 } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
 import {
+  describeFillEligibility,
   getFillEligibility,
   type FillEligibility,
 } from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
@@ -102,12 +103,7 @@ type DispensaryItemRowProps = {
 const fillEligibilityLabel = (eligibility: FillEligibility | null | undefined) => {
   if (eligibility === undefined) return 'Loading authorised fills…';
   if (eligibility === null) return 'Unable to load refill authorisation.';
-  if (eligibility.reasonCodes.includes('AUTHORITY_REVOKED')) return 'Refill authorisation revoked';
-  if (eligibility.reasonCodes.includes('AUTHORITY_SUPERSEDED'))
-    return 'Replaced by a newer refill authorisation';
-  if (!eligibility.authorizationId) return 'No active refill authorisation';
-  const noun = eligibility.remainingFills === 1 ? 'fill' : 'fills';
-  return `${eligibility.remainingFills} authorised ${noun} remaining`;
+  return describeFillEligibility(eligibility);
 };
 
 const DispensaryItemRow = ({ item, idx, eligibility }: Readonly<DispensaryItemRowProps>) => {

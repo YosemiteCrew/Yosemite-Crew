@@ -18,6 +18,9 @@ jest.mock('@/app/features/inventory/services/dispensaryService', () => ({
 }));
 
 jest.mock('@/app/features/appointments/services/prescriptionFillAuthorisationService', () => ({
+  ...jest.requireActual(
+    '@/app/features/appointments/services/prescriptionFillAuthorisationService'
+  ),
   getFillEligibility: jest.fn(),
 }));
 
@@ -140,6 +143,32 @@ describe('DispensaryDetailModal', () => {
       expect(screen.queryByRole('button', { name: /dispense all/i })).not.toBeInTheDocument();
     }
   );
+
+  it('shows an expired authority as expired rather than as fills remaining', async () => {
+    (getFillEligibility as jest.Mock).mockResolvedValue({
+      authorizationId: 'authority-1',
+      version: 1,
+      eligible: false,
+      reasonCodes: ['AUTHORITY_EXPIRED'],
+      remainingFills: 2,
+      remainingQuantity: '20',
+      unit: 'tablet',
+      expiresAt: '2026-01-01T00:00:00.000Z',
+    });
+    const record = {
+      ...baseRecord,
+      status: 'PENDING' as const,
+      items: [{ name: 'Medication', quantity: 1, priceCents: 100, prescriptionItemId: 'line-1' }],
+    };
+
+    render(<DispensaryDetailModal {...defaultProps} record={record} />);
+
+    expect(await screen.findByText('Refill authorisation expired')).toBeInTheDocument();
+    expect(screen.queryByText(/fills remaining/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText('This prescription is not eligible for another authorised fill.')
+    ).toBeInTheDocument();
+  });
 
   describe('Label button (dispensed state)', () => {
     it('renders the Label button when status is DISPENSED', () => {

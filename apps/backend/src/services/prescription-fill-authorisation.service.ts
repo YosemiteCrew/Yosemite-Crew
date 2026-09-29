@@ -170,7 +170,11 @@ const loadOwnedItem = async (
       id: true,
       prescriptionId: true,
       prescription: {
-        select: { artifact: { select: { encounterId: true, authorId: true } } },
+        select: {
+          artifact: {
+            select: { encounterId: true, authorId: true, status: true },
+          },
+        },
       },
     },
   });
@@ -210,6 +214,14 @@ const resolvePatientId = async (
   return encounter?.patientId ?? null;
 };
 
+/**
+ * The authority fills are counted against, or null.
+ *
+ * A voided prescription (cancelled, or retired by a revision) keeps its
+ * authority row ACTIVE, because retiring the artifact does not touch it. The
+ * artifact status is therefore part of what "active" means here, so a retired
+ * prescription never reports repeats left or accepts another fill.
+ */
 const loadActiveAuthorization = (
   tx: Prisma.TransactionClient,
   organisationId: string,
@@ -220,17 +232,29 @@ const loadActiveAuthorization = (
       organisationId,
       itemId,
       status: PrescriptionFillAuthorizationStatus.ACTIVE,
+      item: {
+        prescription: {
+          artifact: { organisationId, status: { not: "VOID" } },
+        },
+      },
     },
     orderBy: { version: "desc" },
   });
 
+/**
+ * Fills already given or held for this item, under ANY version of its
+ * authority. A correction supersedes the authority but not the fills already
+ * handed over, so counting per version would hand every repeat back each time
+ * the clinician edits the expiry or the refill count.
+ */
 const countAllocatedFills = (
   tx: Prisma.TransactionClient,
-  authorizationId: string,
+  authority: { organisationId: string; itemId: string },
 ) =>
   tx.prescriptionFillReservation.count({
     where: {
-      authorizationId,
+      organisationId: authority.organisationId,
+      itemId: authority.itemId,
       status: { not: PrescriptionFillReservationStatus.CANCELLED },
     },
   });
@@ -356,6 +380,12 @@ export const PrescriptionFillAuthorisationService = {
         actorId: authorisedBy,
         canEditAny: params.canEditAny,
       });
+      if (item.prescription.artifact.status === "VOID") {
+        throw new PrescriptionFillAuthorisationServiceError(
+          "Refills cannot be authorised on a cancelled prescription",
+          409,
+        );
+      }
       const patientId = await resolvePatientId(
         tx,
         organisationId,
@@ -374,6 +404,14 @@ export const PrescriptionFillAuthorisationService = {
           data: { status: PrescriptionFillAuthorizationStatus.SUPERSEDED },
         });
       }
+      // Numbered after the newest row of any status: re-authorising after a
+      // revoke has no ACTIVE predecessor, and restarting at 1 would collide
+      // with the revoked version on the (itemId, version) key.
+      const newest = await tx.prescriptionFillAuthorization.findFirst({
+        where: { organisationId, itemId },
+        orderBy: { version: "desc" },
+        select: { version: true },
+      });
 
       return tx.prescriptionFillAuthorization.create({
         data: {
@@ -381,7 +419,7 @@ export const PrescriptionFillAuthorisationService = {
           patientId,
           prescriptionId: item.prescriptionId,
           itemId,
-          version: (previous?.version ?? 0) + 1,
+          version: (newest?.version ?? 0) + 1,
           validUntil: params.validUntil,
           maxAdditionalFills: params.maxAdditionalFills,
           perFillQuantity,
@@ -523,7 +561,7 @@ export const PrescriptionFillAuthorisationService = {
       return NOT_AUTHORISED;
     }
 
-    const allocated = await countAllocatedFills(prisma, authority.id);
+    const allocated = await countAllocatedFills(prisma, authority);
     return describeEligibility(authority, allocated, now);
   },
 
@@ -580,15 +618,15 @@ export const PrescriptionFillAuthorisationService = {
 
     const authority = await loadActiveAuthorization(tx, organisationId, itemId);
     if (!authority) {
+      // Any authority row without a usable one means refills were authorised
+      // and then withdrawn (revoked, or the prescription retired), so the
+      // dispense is refused rather than going through untracked.
       const latest = await tx.prescriptionFillAuthorization.findFirst({
         where: { organisationId, itemId },
         orderBy: { version: "desc" },
         select: { status: true },
       });
-      if (
-        latest?.status === PrescriptionFillAuthorizationStatus.REVOKED ||
-        latest?.status === PrescriptionFillAuthorizationStatus.SUPERSEDED
-      ) {
+      if (latest) {
         throw new PrescriptionFillAuthorisationServiceError(
           "Fill authorisation is no longer active",
           409,
@@ -596,7 +634,7 @@ export const PrescriptionFillAuthorisationService = {
       }
       return null;
     }
-    const allocated = await countAllocatedFills(tx, authority.id);
+    const allocated = await countAllocatedFills(tx, authority);
     const eligibility = describeEligibility(authority, allocated, now);
     if (!eligibility.eligible) {
       throw new PrescriptionFillAuthorisationServiceError(
@@ -604,12 +642,10 @@ export const PrescriptionFillAuthorisationService = {
         409,
       );
     }
-    if (!new Prisma.Decimal(authority.perFillQuantity).equals(quantity)) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        "Dispensed quantity does not match the authorised quantity",
-        409,
-      );
-    }
+    // The fill records what this dispense actually issues. That figure comes
+    // from the signed prescription line, which is also what the stock movement
+    // in the same transaction consumes, so the fill history and the stock
+    // ledger cannot disagree.
 
     const highest = await tx.prescriptionFillReservation.findFirst({
       where: { authorizationId: authority.id },
@@ -705,7 +741,7 @@ export const PrescriptionFillAuthorisationService = {
         );
       }
 
-      const allocated = await countAllocatedFills(tx, authority.id);
+      const allocated = await countAllocatedFills(tx, authority);
       const eligibility = describeEligibility(authority, allocated, now);
 
       if (!eligibility.eligible) {

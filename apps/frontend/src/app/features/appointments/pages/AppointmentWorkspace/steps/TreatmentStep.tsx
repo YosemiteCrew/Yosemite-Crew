@@ -37,6 +37,7 @@ import {
   DEFAULT_DURATION_UNIT,
   getPrescriptionSaveErrors,
   inventoryToPrescriptionItem,
+  resolvePrescriptionFillQuantity,
 } from '@/app/features/appointments/lib/inventoryPrescription';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
@@ -72,7 +73,6 @@ import {
 } from './treatmentStepUtils';
 import { getInvoiceErrorMessage } from './invoiceStepUtils';
 import { authoriseFills } from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
-import { resolvePrescriptionFillQuantity } from '@/app/features/appointments/lib/inventoryPrescription';
 
 type TreatmentStepProps = {
   appointmentId: string;

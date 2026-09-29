@@ -65,6 +65,9 @@ jest.mock('@/app/features/appointments/services/prescriptionWorkflowService', ()
 }));
 
 jest.mock('@/app/features/appointments/services/prescriptionFillAuthorisationService', () => ({
+  ...jest.requireActual(
+    '@/app/features/appointments/services/prescriptionFillAuthorisationService'
+  ),
   authoriseFills: jest.fn().mockResolvedValue({ id: 'authority-1' }),
   getFillEligibility: jest.fn().mockResolvedValue({
     authorizationId: null,

@@ -1,6 +1,7 @@
 import { getData, postData } from '@/app/services/axios';
 import {
   authoriseFills,
+  describeFillEligibility,
   getFillEligibility,
 } from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
 
@@ -73,5 +74,27 @@ describe('prescription fill authorisation service', () => {
         perFillQuantityUnit: 'tablet',
       })
     ).rejects.toBe(failure);
+  });
+});
+
+describe('describeFillEligibility', () => {
+  it.each([
+    [{ remainingFills: 3 }, '3 authorised fills remaining'],
+    [{ remainingFills: 1 }, '1 authorised fill remaining'],
+    [
+      { remainingFills: 2, eligible: false, reasonCodes: ['AUTHORITY_EXPIRED'] },
+      'Refill authorisation expired',
+    ],
+    [{ authorizationId: null, remainingFills: 0 }, 'No active refill authorisation'],
+    [
+      { authorizationId: null, remainingFills: 0, reasonCodes: ['AUTHORITY_REVOKED'] },
+      'Refill authorisation revoked',
+    ],
+    [
+      { authorizationId: null, remainingFills: 0, reasonCodes: ['AUTHORITY_SUPERSEDED'] },
+      'Replaced by a newer refill authorisation',
+    ],
+  ])('describes %o as %p', (overrides, expected) => {
+    expect(describeFillEligibility({ ...eligibility, ...overrides })).toBe(expected);
   });
 });

@@ -193,6 +193,40 @@ describe("authoriseFills", () => {
     expect(created).toMatchObject({ version: 4, supersedesId: "auth-old" });
   });
 
+  it("numbers a re-authorisation after the newest version, even a revoked one", async () => {
+    db.prescriptionFillAuthorization.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ version: 2 });
+
+    const created =
+      await PrescriptionFillAuthorisationService.authoriseFills(input);
+
+    expect(db.prescriptionFillAuthorization.update).not.toHaveBeenCalled();
+    expect(created).toMatchObject({ version: 3 });
+    expect(created.supersedesId).toBeUndefined();
+  });
+
+  it("refuses to authorise refills on a cancelled prescription", async () => {
+    db.prescriptionItem.findFirst.mockResolvedValue({
+      id: ITEM,
+      prescriptionId: "rx-1",
+      prescription: {
+        artifact: {
+          encounterId: "enc-1",
+          authorId: "clinician-1",
+          status: "VOID",
+        },
+      },
+    });
+
+    await expectRefusal(
+      () => PrescriptionFillAuthorisationService.authoriseFills(input),
+      409,
+      "Refills cannot be authorised on a cancelled prescription",
+    );
+    expect(db.prescriptionFillAuthorization.create).not.toHaveBeenCalled();
+  });
+
   it("records no patient when the artifact has no encounter", async () => {
     db.prescriptionItem.findFirst.mockResolvedValue({
       id: ITEM,
@@ -340,6 +374,14 @@ describe("recordDispensedFillInTx", () => {
       }),
     });
     expect(result).toMatchObject({ itemId: ITEM, status: "COMPLETED" });
+    // Counted per item, so fills given under an earlier version still count.
+    expect(db.prescriptionFillReservation.count).toHaveBeenCalledWith({
+      where: {
+        organisationId: ORG,
+        itemId: ITEM,
+        status: { not: "CANCELLED" },
+      },
+    });
   });
 
   it("does not create tracking rows for prescriptions without an active authority", async () => {
@@ -353,8 +395,10 @@ describe("recordDispensedFillInTx", () => {
     expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
   });
 
-  it.each(["REVOKED", "SUPERSEDED"])(
-    "refuses a dispense when the latest authority is %s",
+  // ACTIVE here is an authority whose prescription was voided: it is not
+  // returned as the active one, but refills were still authorised once.
+  it.each(["REVOKED", "SUPERSEDED", "ACTIVE"])(
+    "refuses a dispense when the latest authority is %s but none is usable",
     async (status) => {
       db.prescriptionFillAuthorization.findFirst
         .mockResolvedValueOnce(null)
@@ -422,21 +466,34 @@ describe("recordDispensedFillInTx", () => {
     expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
   });
 
-  it("rejects quantities that differ from the authorised course", async () => {
+  it("records the quantity the dispense issues, not the authority's estimate", async () => {
     db.prescriptionFillAuthorization.findFirst.mockResolvedValueOnce(
       authority(),
     );
     db.prescriptionFillReservation.count.mockResolvedValueOnce(0);
+
+    await PrescriptionFillAuthorisationService.recordDispensedFillInTx(
+      db as never,
+      { ...input, quantity: "9" },
+    );
+
+    expect(db.prescriptionFillReservation.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        quantity: new Prisma.Decimal("9"),
+        fulfilledQuantity: new Prisma.Decimal("9"),
+        status: "COMPLETED",
+      }),
+    });
+  });
+
+  it("refuses a zero quantity before taking the lock", async () => {
     await expect(
       PrescriptionFillAuthorisationService.recordDispensedFillInTx(
         db as never,
-        {
-          ...input,
-          quantity: "9",
-        },
+        { ...input, quantity: "0" },
       ),
-    ).rejects.toMatchObject({ statusCode: 409 });
-    expect(db.prescriptionFillReservation.create).not.toHaveBeenCalled();
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.$executeRaw).not.toHaveBeenCalled();
   });
 });
 
@@ -592,6 +649,34 @@ describe("getFillEligibility", () => {
     expect(eligibility.eligible).toBe(false);
   });
 
+  it("only treats an authority on a prescription that is not void as active", async () => {
+    db.prescriptionFillAuthorization.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ status: "ACTIVE" });
+
+    const eligibility =
+      await PrescriptionFillAuthorisationService.getFillEligibility(input);
+
+    expect(db.prescriptionFillAuthorization.findFirst).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "ACTIVE",
+          item: {
+            prescription: {
+              artifact: { organisationId: ORG, status: { not: "VOID" } },
+            },
+          },
+        }),
+      }),
+    );
+    expect(eligibility).toMatchObject({
+      eligible: false,
+      remainingFills: 0,
+      reasonCodes: ["NOT_AUTHORISED"],
+    });
+  });
+
   it("counts the initial fill plus the authorised repeats", async () => {
     db.prescriptionFillAuthorization.findFirst.mockResolvedValue(authority());
     db.prescriptionFillReservation.count.mockResolvedValue(0);
@@ -619,7 +704,11 @@ describe("getFillEligibility", () => {
       await PrescriptionFillAuthorisationService.getFillEligibility(input);
 
     expect(db.prescriptionFillReservation.count).toHaveBeenCalledWith({
-      where: { authorizationId: "auth-1", status: { not: "CANCELLED" } },
+      where: {
+        organisationId: ORG,
+        itemId: ITEM,
+        status: { not: "CANCELLED" },
+      },
     });
     expect(eligibility.remainingFills).toBe(2);
     expect(eligibility.remainingQuantity).toBe("20");
