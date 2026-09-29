@@ -57,34 +57,37 @@ export const createMedicationAdministration = async (
   return response.data;
 };
 
-export const administerMedication = async (organisationId: string, entryId: string) => {
+export const MEDICATION_OUTCOME_ACTIONS = ['administer', 'hold', 'miss', 'refuse'] as const;
+
+export type MedicationOutcomeAction = (typeof MEDICATION_OUTCOME_ACTIONS)[number];
+
+/**
+ * Post one dose outcome and return the entry as the server stored it.
+ *
+ * Every outcome is the same request against the same entry, differing only in
+ * the trailing action, so the four exported functions below are named wrappers
+ * over this one call.
+ */
+const recordMedicationOutcome = async (
+  organisationId: string,
+  entryId: string,
+  outcome: MedicationOutcomeAction
+) => {
   const response = await postData<MedicationAdministrationEntry>(
-    `${marEndpoint(organisationId)}/${entryId}/administer`,
+    `${marEndpoint(organisationId)}/${entryId}/${outcome}`,
     {}
   );
   return response.data;
 };
 
-export const holdMedication = async (organisationId: string, entryId: string) => {
-  const response = await postData<MedicationAdministrationEntry>(
-    `${marEndpoint(organisationId)}/${entryId}/hold`,
-    {}
-  );
-  return response.data;
-};
+export const administerMedication = (organisationId: string, entryId: string) =>
+  recordMedicationOutcome(organisationId, entryId, 'administer');
 
-export const missMedication = async (organisationId: string, entryId: string) => {
-  const response = await postData<MedicationAdministrationEntry>(
-    `${marEndpoint(organisationId)}/${entryId}/miss`,
-    {}
-  );
-  return response.data;
-};
+export const holdMedication = (organisationId: string, entryId: string) =>
+  recordMedicationOutcome(organisationId, entryId, 'hold');
 
-export const refuseMedication = async (organisationId: string, entryId: string) => {
-  const response = await postData<MedicationAdministrationEntry>(
-    `${marEndpoint(organisationId)}/${entryId}/refuse`,
-    {}
-  );
-  return response.data;
-};
+export const missMedication = (organisationId: string, entryId: string) =>
+  recordMedicationOutcome(organisationId, entryId, 'miss');
+
+export const refuseMedication = (organisationId: string, entryId: string) =>
+  recordMedicationOutcome(organisationId, entryId, 'refuse');

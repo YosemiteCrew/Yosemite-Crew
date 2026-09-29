@@ -3,6 +3,7 @@ import {
   createMedicationAdministration,
   holdMedication,
   listMedicationAdministrations,
+  MEDICATION_OUTCOME_ACTIONS,
   missMedication,
   refuseMedication,
 } from '@/app/features/appointments/services/medicationAdministrationService';
@@ -33,6 +34,13 @@ const entry = {
   createdAt: '2026-09-27T09:00:00.000Z',
   updatedAt: '2026-09-27T09:00:00.000Z',
 };
+
+const OUTCOME_FUNCTIONS = {
+  administer: administerMedication,
+  hold: holdMedication,
+  miss: missMedication,
+  refuse: refuseMedication,
+} as const;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -77,18 +85,23 @@ describe('medicationAdministrationService', () => {
     });
   });
 
-  it.each([
-    ['administers', administerMedication, 'administer'],
-    ['holds', holdMedication, 'hold'],
-    ['marks missed', missMedication, 'miss'],
-    ['records refusal', refuseMedication, 'refuse'],
-  ])('records when a nurse %s a scheduled dose', async (_action, action, endpoint) => {
-    postDataMock.mockResolvedValue({ data: entry });
+  it.each(MEDICATION_OUTCOME_ACTIONS)(
+    'posts a single %s request for one scheduled dose and returns the saved entry',
+    async (outcome) => {
+      postDataMock.mockResolvedValue({ data: entry });
 
-    await expect(action('org-1', 'mar-1')).resolves.toEqual(entry);
-    expect(postDataMock).toHaveBeenCalledWith(
-      `/v1/pms/organisation/org-1/mar-entries/mar-1/${endpoint}`,
-      {}
+      await expect(OUTCOME_FUNCTIONS[outcome]('org-1', 'mar-1')).resolves.toEqual(entry);
+      expect(postDataMock).toHaveBeenCalledTimes(1);
+      expect(postDataMock).toHaveBeenCalledWith(
+        `/v1/pms/organisation/org-1/mar-entries/mar-1/${outcome}`,
+        {}
+      );
+    }
+  );
+
+  it('exports a request function for every outcome the API accepts', () => {
+    expect(Object.keys(OUTCOME_FUNCTIONS).toSorted()).toEqual(
+      [...MEDICATION_OUTCOME_ACTIONS].toSorted()
     );
   });
 });
