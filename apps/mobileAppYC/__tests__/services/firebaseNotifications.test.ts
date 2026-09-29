@@ -13,8 +13,11 @@ jest.mock('@/features/notifications', () => ({
 }));
 
 // 3. Mock Firebase App
+const mockFirebaseApps = {
+  getApps: jest.fn(() => [{name: '[DEFAULT]'}]),
+};
 jest.mock('@react-native-firebase/app', () => ({
-  getApp: jest.fn(() => ({})),
+  getApps: mockFirebaseApps.getApps,
 }));
 
 // 4. Mock React Native (Explicit mock to prevent TurboModule crashes)
@@ -109,6 +112,7 @@ describe('firebaseNotifications Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules();
+    mockFirebaseApps.getApps.mockReturnValue([{name: '[DEFAULT]'}]);
 
     // Reset Platform
     Platform = require('react-native').Platform;
@@ -139,6 +143,21 @@ describe('firebaseNotifications Service', () => {
   });
 
   describe('Initialization', () => {
+    it('skips push setup when no native Firebase app is configured', async () => {
+      mockFirebaseApps.getApps.mockReturnValue([]);
+      const {initializeNotifications, areNotificationsInitialized} =
+        loadService();
+
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      expect(mockMessaging.getToken).not.toHaveBeenCalled();
+      expect(mockNotifee.getNotificationSettings).not.toHaveBeenCalled();
+      expect(areNotificationsInitialized()).toBe(false);
+    });
+
     it('initializes correctly on Android', async () => {
       const {initializeNotifications, areNotificationsInitialized} =
         loadService();

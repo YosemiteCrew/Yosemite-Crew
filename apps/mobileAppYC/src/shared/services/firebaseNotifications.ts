@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {getApp} from '@react-native-firebase/app';
+import {getApps} from '@react-native-firebase/app';
 import {
   getInitialNotification as getMessagingInitialNotification,
   getMessaging,
@@ -29,7 +29,10 @@ import type {
 } from '@/features/notifications/types';
 import {PermissionsAndroid, Platform} from 'react-native';
 
-const messagingInstance = getMessaging(getApp());
+const defaultFirebaseApp = getApps().find(app => app.name === '[DEFAULT]');
+const messagingInstance = defaultFirebaseApp
+  ? getMessaging(defaultFirebaseApp)
+  : null;
 
 const ANDROID_CHANNEL_ID = 'yc_general_notifications';
 const ANDROID_CHANNEL_NAME = 'Yosemite Crew';
@@ -72,6 +75,10 @@ type AndroidNotificationConfig = NonNullable<
 export async function initializeNotifications(
   options: InitializeOptions,
 ): Promise<void> {
+  if (!messagingInstance) {
+    return;
+  }
+
   if (listenersConfigured && cachedDispatch) {
     navigationHandler = options.onNavigate;
     cachedDispatch = options.dispatch;
@@ -626,6 +633,10 @@ export async function clearAllSystemNotifications(): Promise<void> {
  * Access current device token; requires initializeNotifications to have run.
  */
 export async function getCurrentFcmToken(): Promise<string | null> {
+  if (!messagingInstance) {
+    return null;
+  }
+
   try {
     await ensureDeviceRegistration();
     return await getMessagingToken(messagingInstance);
@@ -636,7 +647,7 @@ export async function getCurrentFcmToken(): Promise<string | null> {
 }
 
 async function ensureDeviceRegistration(): Promise<void> {
-  if (Platform.OS !== 'ios') {
+  if (!messagingInstance || Platform.OS !== 'ios') {
     return;
   }
 
