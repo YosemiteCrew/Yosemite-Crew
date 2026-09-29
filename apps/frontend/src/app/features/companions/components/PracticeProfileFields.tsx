@@ -324,7 +324,12 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
       )}
       <Modal
         showModal={isManaging}
-        setShowModal={(next) => dispatch({ type: 'managingChanged', isManaging: next })}
+        setShowModal={(next) =>
+          dispatch({
+            type: 'managingChanged',
+            isManaging: typeof next === 'function' ? next(isManaging) : next,
+          })
+        }
         variant="centered"
         size="sm"
         aria-labelledby="practice-profile-fields-title"
