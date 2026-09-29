@@ -1,6 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 export class MARError extends Error {
   constructor(
@@ -79,6 +79,74 @@ const guardTransition = (current: MARStatus, next: MARStatus) => {
   }
 };
 
+const assertScheduledTransition = async (
+  id: string,
+  organisationId: string,
+  next: Exclude<MARStatus, "SCHEDULED">,
+) => {
+  const entry = await assertMAREntry(id, organisationId);
+  guardTransition(entry.status, next);
+  return entry;
+};
+
+const throwTransitionConflict = (error: unknown): never => {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2025"
+  ) {
+    throw new MARError("MAR entry has already been updated.", 409);
+  }
+  throw error;
+};
+
+const updateTransition = async <T>(update: () => Promise<T>): Promise<T> => {
+  try {
+    return await update();
+  } catch (error) {
+    return throwTransitionConflict(error);
+  }
+};
+
+type CloseMAREntryParams = {
+  id: string;
+  organisationId: string;
+  status: "HELD" | "MISSED" | "REFUSED";
+  eventType: "MAR_ENTRY_HELD" | "MAR_ENTRY_MISSED" | "MAR_ENTRY_REFUSED";
+  notes?: string;
+  actorId?: string;
+};
+
+const closeMAREntry = async ({
+  id,
+  organisationId,
+  status,
+  eventType,
+  notes,
+  actorId,
+}: CloseMAREntryParams) => {
+  const entry = await assertScheduledTransition(id, organisationId, status);
+  const updated = await updateTransition(() =>
+    prisma.mAREntry.update({
+      where: { id, organisationId, status: "SCHEDULED" },
+      data: { status, notes: notes ?? null },
+      select: marSelect,
+    }),
+  );
+
+  await AuditTrailService.recordSafely({
+    organisationId,
+    patientId: entry.patientId,
+    eventType,
+    actorType: "PMS_USER",
+    actorId: actorId ?? null,
+    entityType: "COMPANION",
+    entityId: id,
+    metadata: { medicationName: entry.medicationName, notes: notes ?? null },
+  });
+
+  return updated;
+};
+
 export const MARService = {
   async create(params: CreateMAREntryParams) {
     const {
@@ -153,19 +221,19 @@ export const MARService = {
     organisationId: string,
     params: AdministerMAREntryParams,
   ) {
-    const entry = await assertMAREntry(id, organisationId);
-    guardTransition(entry.status, "GIVEN");
-
-    const updated = await prisma.mAREntry.update({
-      where: { id },
-      data: {
-        status: "GIVEN",
-        administeredAt: params.administeredAt ?? new Date(),
-        administeredBy: params.administeredBy ?? null,
-        notes: params.notes ?? null,
-      },
-      select: marSelect,
-    });
+    const entry = await assertScheduledTransition(id, organisationId, "GIVEN");
+    const updated = await updateTransition(() =>
+      prisma.mAREntry.update({
+        where: { id, organisationId, status: "SCHEDULED" },
+        data: {
+          status: "GIVEN",
+          administeredAt: params.administeredAt ?? new Date(),
+          administeredBy: params.administeredBy ?? null,
+          notes: params.notes ?? null,
+        },
+        select: marSelect,
+      }),
+    );
 
     await AuditTrailService.recordSafely({
       organisationId,
@@ -187,27 +255,14 @@ export const MARService = {
     notes: string | undefined,
     heldBy?: string,
   ) {
-    const entry = await assertMAREntry(id, organisationId);
-    guardTransition(entry.status, "HELD");
-
-    const updated = await prisma.mAREntry.update({
-      where: { id },
-      data: { status: "HELD", notes: notes ?? null },
-      select: marSelect,
-    });
-
-    await AuditTrailService.recordSafely({
+    return closeMAREntry({
+      id,
       organisationId,
-      patientId: entry.patientId,
+      status: "HELD",
       eventType: "MAR_ENTRY_HELD",
-      actorType: "PMS_USER",
-      actorId: heldBy ?? null,
-      entityType: "COMPANION",
-      entityId: id,
-      metadata: { medicationName: entry.medicationName, notes: notes ?? null },
+      actorId: heldBy,
+      notes,
     });
-
-    return updated;
   },
 
   async markMissed(
@@ -216,26 +271,29 @@ export const MARService = {
     notes: string | undefined,
     actorId?: string,
   ) {
-    const entry = await assertMAREntry(id, organisationId);
-    guardTransition(entry.status, "MISSED");
-
-    const updated = await prisma.mAREntry.update({
-      where: { id },
-      data: { status: "MISSED", notes: notes ?? null },
-      select: marSelect,
-    });
-
-    await AuditTrailService.recordSafely({
+    return closeMAREntry({
+      id,
       organisationId,
-      patientId: entry.patientId,
+      status: "MISSED",
       eventType: "MAR_ENTRY_MISSED",
-      actorType: "PMS_USER",
-      actorId: actorId ?? null,
-      entityType: "COMPANION",
-      entityId: id,
-      metadata: { medicationName: entry.medicationName },
+      actorId,
+      notes,
     });
+  },
 
-    return updated;
+  async refuse(
+    id: string,
+    organisationId: string,
+    notes: string | undefined,
+    actorId?: string,
+  ) {
+    return closeMAREntry({
+      id,
+      organisationId,
+      status: "REFUSED",
+      eventType: "MAR_ENTRY_REFUSED",
+      actorId,
+      notes,
+    });
   },
 };
