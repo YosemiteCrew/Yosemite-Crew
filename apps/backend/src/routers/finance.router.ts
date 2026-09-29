@@ -55,6 +55,14 @@ router.get(
   FinanceController.listProviderReceipts,
 );
 
+router.get(
+  "/organisation/:organisationId/reports/payment-activity",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.getPaymentActivityReport,
+);
+
 // The historical mismatch audit (#3170 delivery 4) is deliberately read-only.
 router.get(
   "/organisation/:organisationId/provider-receipts/audit",

@@ -143,7 +143,7 @@ const Finance = () => {
               /finance/estimates anywhere in the app on a phone, so the screen
               would only be reachable by typing the URL.
             */}
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <Secondary
                 href="/finance/estimates"
                 text="Estimates"
@@ -167,6 +167,12 @@ const Finance = () => {
                 text="Reconciliation"
                 size="compact"
                 ariaLabel="Review captured payments"
+              />
+              <Secondary
+                href="/finance/reports"
+                text="Reports"
+                size="compact"
+                ariaLabel="View payment reports"
               />
             </div>
             <PhoneInvoiceList
@@ -237,6 +243,11 @@ const Finance = () => {
                     href="/finance/payment-reconciliation"
                     text="Reconciliation"
                     ariaLabel="Review captured payments"
+                  />
+                  <Secondary
+                    href="/finance/reports"
+                    text="Reports"
+                    ariaLabel="View payment reports"
                   />
                   <StripeStatusPill />
                 </div>

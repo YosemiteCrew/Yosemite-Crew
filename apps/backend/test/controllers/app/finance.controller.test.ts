@@ -27,6 +27,12 @@ import {
 import { StripeController } from "../../../src/controllers/web/stripe.controller";
 import { resolveVerifiedUserId } from "../../../src/utils/request";
 import logger from "../../../src/utils/logger";
+import {
+  buildPaymentActivityCsv,
+  buildPaymentActivityPdf,
+  getPaymentActivityReport,
+  PaymentActivityReportTooLargeError,
+} from "../../../src/services/finance/payment-activity-report";
 
 jest.mock("../../../src/services/stripe.service", () => ({
   StripeService: {
@@ -79,6 +85,16 @@ jest.mock("../../../src/services/finance/payment", () => ({
     createCheckoutSessionForInvoice: jest.fn(),
     createPaymentIntentForInvoice: jest.fn(),
   },
+}));
+
+jest.mock("../../../src/services/finance/payment-activity-report", () => ({
+  buildPaymentActivityCsv: jest.fn(),
+  buildPaymentActivityPdf: jest.fn(),
+  getPaymentActivityReport: jest.fn(),
+  PaymentActivityReportTooLargeError: jest.requireActual<
+    typeof import("../../../src/services/finance/payment-activity-report")
+  >("../../../src/services/finance/payment-activity-report")
+    .PaymentActivityReportTooLargeError,
 }));
 
 jest.mock("../../../src/services/finance/subscription", () => ({
@@ -151,6 +167,9 @@ describe("FinanceController", () => {
   const mockedStripeService = jest.mocked(StripeService);
   const mockedInvoiceService = jest.mocked(InvoiceService);
   const mockedPaymentService = jest.mocked(FinancePaymentService);
+  const mockedGetPaymentActivityReport = jest.mocked(getPaymentActivityReport);
+  const mockedBuildPaymentActivityCsv = jest.mocked(buildPaymentActivityCsv);
+  const mockedBuildPaymentActivityPdf = jest.mocked(buildPaymentActivityPdf);
   const mockedSubscriptionService = jest.mocked(FinanceSubscriptionService);
   const mockedEventService = jest.mocked(FinanceEventService);
   const mockedResolveActorDisplayName = jest.mocked(resolveActorDisplayName);
@@ -164,6 +183,8 @@ describe("FinanceController", () => {
   let res: Partial<Response>;
   let statusMock: jest.Mock;
   let jsonMock: jest.Mock;
+  let sendMock: jest.Mock;
+  let setHeaderMock: jest.Mock;
 
   const setReq = (overrides: {
     params?: Record<string, string>;
@@ -190,11 +211,186 @@ describe("FinanceController", () => {
     total: 100,
   };
 
+  describe("getPaymentActivityReport", () => {
+    const query = {
+      from: "2026-09-01T00:00:00.000Z",
+      to: "2026-09-30T23:59:59.999Z",
+    };
+    const report = { rows: [], totals: [] };
+
+    it("returns the report for the authorized organisation", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query,
+      });
+      mockedGetPaymentActivityReport.mockResolvedValueOnce(report);
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(mockedGetPaymentActivityReport).toHaveBeenCalledWith(
+        "org-1",
+        new Date(query.from),
+        new Date(query.to),
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ data: report, error: null });
+    });
+
+    it("rejects malformed ranges without echoing caller input", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query: { from: "bad\r\nvalue", to: query.to },
+      });
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Provide a valid start date, end date and file format.",
+      });
+      expect(mockedGetPaymentActivityReport).not.toHaveBeenCalled();
+    });
+
+    it("rejects a mismatched organisation before reading report data", async () => {
+      setReq({
+        params: { organisationId: "org-2" },
+        organisationId: "org-1",
+        query,
+      });
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(mockedGetPaymentActivityReport).not.toHaveBeenCalled();
+    });
+
+    it("does not proceed without an authorized organisation", async () => {
+      setReq({ params: { organisationId: "org-1" }, query });
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedGetPaymentActivityReport).not.toHaveBeenCalled();
+    });
+
+    it("rejects a range whose start is after its end", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query: { from: query.to, to: query.from },
+      });
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedGetPaymentActivityReport).not.toHaveBeenCalled();
+    });
+
+    it("rejects a report range longer than 366 days", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query: {
+          from: "2025-01-01T00:00:00.000Z",
+          to: "2026-01-02T00:00:00.000Z",
+        },
+      });
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedGetPaymentActivityReport).not.toHaveBeenCalled();
+    });
+
+    it("sends a CSV attachment with a date-based filename", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query: { ...query, format: "csv" },
+      });
+      mockedGetPaymentActivityReport.mockResolvedValueOnce(report);
+      mockedBuildPaymentActivityCsv.mockReturnValueOnce("Date,Type");
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(setHeaderMock).toHaveBeenCalledWith(
+        "Content-Type",
+        "text/csv; charset=utf-8",
+      );
+      expect(setHeaderMock).toHaveBeenCalledWith(
+        "Content-Disposition",
+        'attachment; filename="payments-refunds-2026-09-01-2026-09-30.csv"',
+      );
+      expect(sendMock).toHaveBeenCalledWith("Date,Type");
+    });
+
+    it("sends a PDF attachment", async () => {
+      const pdf = Buffer.from("pdf");
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query: { ...query, format: "pdf" },
+      });
+      mockedGetPaymentActivityReport.mockResolvedValueOnce(report);
+      mockedBuildPaymentActivityPdf.mockResolvedValueOnce(pdf);
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(setHeaderMock).toHaveBeenCalledWith(
+        "Content-Type",
+        "application/pdf",
+      );
+      expect(sendMock).toHaveBeenCalledWith(pdf);
+    });
+
+    it("asks for a shorter range when the period has too many entries", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query: { ...query, format: "pdf" },
+      });
+      mockedGetPaymentActivityReport.mockRejectedValueOnce(
+        new PaymentActivityReportTooLargeError(),
+      );
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(422);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message:
+          "The selected period has too many entries. Choose a shorter date range.",
+      });
+      expect(mockedBuildPaymentActivityPdf).not.toHaveBeenCalled();
+    });
+
+    it("returns a generic error when report generation fails", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query,
+      });
+      mockedGetPaymentActivityReport.mockRejectedValueOnce(
+        new Error("private detail"),
+      );
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
+    });
+  });
+
   beforeEach(() => {
     jest.resetAllMocks();
 
     jsonMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+    sendMock = jest.fn();
+    setHeaderMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
 
     req = {
       params: {},
@@ -204,6 +400,8 @@ describe("FinanceController", () => {
     res = {
       status: statusMock,
       json: jsonMock,
+      send: sendMock,
+      setHeader: setHeaderMock,
     } as unknown as Response;
   });
 

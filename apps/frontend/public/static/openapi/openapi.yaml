@@ -9226,6 +9226,158 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/reports/payment-activity':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/organisation/{organisationId}/reports/payment-activity'
+      description: Returns payment and refund activity for a date range in JSON, CSV, or PDF format.
+      operationId: get_v1_finance_organisation_organisationId_reports_payment_activity
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on.
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: true
+          description: Inclusive start date and time.
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          description: Inclusive end date and time.
+          schema:
+            type: string
+            format: date-time
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - json
+              - csv
+              - pdf
+            default: json
+      responses:
+        200:
+          description: Payment and refund activity report.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - rows
+                      - totals
+                    properties:
+                      rows:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - id
+                            - date
+                            - type
+                            - status
+                            - provider
+                            - currency
+                            - amount
+                            - invoiceId
+                          properties:
+                            id:
+                              type: string
+                            date:
+                              type: string
+                              format: date-time
+                            type:
+                              type: string
+                              enum:
+                                - Payment
+                                - Refund
+                            status:
+                              type: string
+                            provider:
+                              type: string
+                            currency:
+                              type: string
+                            amount:
+                              type: number
+                            invoiceId:
+                              type: string
+                      totals:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - currency
+                            - payments
+                            - refunds
+                            - net
+                          properties:
+                            currency:
+                              type: string
+                            payments:
+                              type: number
+                            refunds:
+                              type: number
+                            net:
+                              type: number
+                  error:
+                    nullable: true
+                    type: object
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        400:
+          description: Invalid date range or format.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        422:
+          description: The selected period has more than 10000 entries; choose a shorter date range.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Report could not be generated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
   '/v1/finance/organisation/{organisationId}/provider-receipts':
     get:
       tags:
