@@ -189,7 +189,7 @@ describe('prevention cover after hydration from the API', () => {
   });
 
   it('keeps parasite-prevention from the API response through to covered', async () => {
-    (apiClient.get as jest.Mock).mockResolvedValue({
+    (apiClient.post as jest.Mock).mockResolvedValue({
       data: [
         {
           _id: 'api-task-1',
@@ -231,7 +231,7 @@ describe('prevention cover after hydration from the API', () => {
   it('keeps a monthly series covered after a dose when the next one is not generated yet', async () => {
     // Occurrences after the first arrive with isMaster false; the next one is
     // only generated once it falls inside the 30 day horizon.
-    (apiClient.get as jest.Mock).mockResolvedValue({
+    (apiClient.post as jest.Mock).mockResolvedValue({
       data: [
         {
           _id: 'master',

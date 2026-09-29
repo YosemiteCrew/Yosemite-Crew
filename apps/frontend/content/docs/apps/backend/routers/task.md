@@ -18,7 +18,12 @@ Manages tasks and the libraries and templates they are created from: creating, l
 
 ### GET /mobile/task
 
+Lists parent tasks using optional patient, date, and status filters.
+
+### POST /mobile/task
+
 - Auth: `requireMobileAuth`
+- Body: `patientId`, `fromDueAt`, `toDueAt`, `status`
 - Controller: `TaskController.listParentTasks`
 
 ### GET /mobile/:taskId

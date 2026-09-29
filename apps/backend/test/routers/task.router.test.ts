@@ -156,6 +156,21 @@ describe("task.router", () => {
     );
   });
 
+  it("keeps the parent task list available to existing GET clients", () => {
+    expect(
+      findRoute("/mobile/task", "get")?.stack.map((layer) => layer.handle),
+    ).toEqual([requireMobileAuth, TaskController.listParentTasks]);
+    expect(
+      findRoute("/mobile/task", "post")?.stack.map((layer) => layer.handle),
+    ).toEqual([requireMobileAuth, TaskController.listParentTasks]);
+    const routes = (taskRouter as unknown as { stack: Layer[] }).stack;
+    expect(
+      routes.findIndex((entry) => entry.route?.path === "/mobile/task"),
+    ).toBeLessThan(
+      routes.findIndex((entry) => entry.route?.path === "/mobile/:taskId"),
+    );
+  });
+
   it.each([
     ["/pms/templates/organisation/:organisationId", "get"],
     ["/pms/templates/:templateId", "get"],

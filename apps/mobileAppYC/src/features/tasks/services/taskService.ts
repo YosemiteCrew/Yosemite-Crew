@@ -507,15 +507,18 @@ export const buildTaskDraftFromForm = ({
 export const taskApi = {
   async list(params?: {companionId?: string; status?: TaskStatusApi[]}) {
     const {accessToken} = await ensureAccessToken();
-    const response = await apiClient.get('/v1/task/mobile/task', {
-      params: {
-        companionId: params?.companionId,
+    const response = await apiClient.post(
+      '/v1/task/mobile/task',
+      {
+        patientId: params?.companionId,
         status: params?.status?.join(','),
       },
-      headers: {
-        ...withAuthHeaders(accessToken),
+      {
+        headers: {
+          ...withAuthHeaders(accessToken),
+        },
       },
-    });
+    );
     const data = Array.isArray(response.data) ? response.data : [];
     return data.map(mapApiTaskToTask);
   },

@@ -22,8 +22,15 @@ import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { isSpeciesCompatible } from "./shared/normalize-tokens";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
+import { z } from "zod";
 
 type AppointmentStatus = AppointmentDomain["status"];
+
+const OccupancyScopeSchema = z.object({
+  appointmentId: z.string().min(1),
+  organisationId: z.string().min(1),
+  leadId: z.string().min(1).optional(),
+});
 
 type AppointmentRow = {
   id: string;
@@ -1139,35 +1146,48 @@ const upsertAppointmentOccupancy = async (args: {
   startTime: Date;
   endTime: Date;
 }) => {
+  const parsedScope = OccupancyScopeSchema.safeParse(args);
+  if (!parsedScope.success) {
+    const missingAppointmentId = parsedScope.error.issues.some(
+      (issue) => issue.path[0] === "appointmentId",
+    );
+    throw new AppointmentPrismaServiceError(
+      missingAppointmentId
+        ? "Appointment ID is required"
+        : "Invalid appointment occupancy",
+      500,
+    );
+  }
+  const { appointmentId, organisationId, leadId } = parsedScope.data;
   await args.tx.occupancy.deleteMany({
     where: {
-      organisationId: args.organisationId,
+      organisationId,
       sourceType: "APPOINTMENT",
-      referenceId: args.appointmentId,
+      referenceId: appointmentId,
     },
   });
 
-  if (!args.leadId) {
+  if (!leadId) {
     return;
   }
 
   await assertLeadAvailability({
     tx: args.tx,
-    organisationId: args.organisationId,
-    leadId: args.leadId,
+    organisationId,
+    leadId,
     startTime: args.startTime,
     endTime: args.endTime,
-    excludeAppointmentId: args.appointmentId,
+    excludeAppointmentId: appointmentId,
   });
 
   await args.tx.occupancy.create({
     data: {
-      userId: args.leadId,
-      organisationId: args.organisationId,
+      userId: leadId,
+      organisationId,
       startTime: args.startTime,
       endTime: args.endTime,
       sourceType: "APPOINTMENT",
-      referenceId: args.appointmentId,
+      referenceId: appointmentId,
     },
   });
 };
@@ -1717,11 +1737,17 @@ const assertPatientChangeAllowed = async (
   const patientId = getPatientId(patient ?? null);
   const parentId = getParentIdFromPatient(patient ?? null);
   const companionChanged = patientId !== getPatientId(row.patient);
-  const parentChanged =
-    !!parentId && parentId !== getParentIdFromPatient(row.patient);
+  const parentChanged = parentId !== getParentIdFromPatient(row.patient);
   if (!companionChanged && !parentChanged) return;
 
-  const [practiceLink, parentLink] = patientId
+  const parentLinkQuery =
+    patientId && parentId
+      ? prisma.parentPatient.findFirst({
+          where: { parentId, patientId, status: "ACTIVE" },
+          select: { id: true },
+        })
+      : Promise.resolve(null);
+  const [practiceLink, linkedParent] = patientId
     ? await Promise.all([
         prisma.patientOrganisation.findFirst({
           where: {
@@ -1731,14 +1757,13 @@ const assertPatientChangeAllowed = async (
           },
           select: { id: true },
         }),
-        parentId
-          ? prisma.parentPatient.findFirst({
-              where: { parentId, patientId, status: "ACTIVE" },
-              select: { id: true },
-            })
-          : { id: "no-parent-named" },
+        parentLinkQuery,
       ])
     : [null, null];
+  let parentLink = linkedParent;
+  if (patientId && !parentId && !parentChanged) {
+    parentLink = { id: "no-parent-named" };
+  }
   if (!practiceLink || !parentLink) {
     throw new AppointmentPrismaServiceError("Companion not found", 404);
   }
