@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer } from 'react';
 import EditableAccordion, {
   type FieldConfig,
 } from '@/app/ui/primitives/Accordion/EditableAccordion';
@@ -90,20 +90,126 @@ const changedEntries = (fields: PracticeProfileField[], nextValues: Record<strin
     .map((field) => toChangedEntry(field, nextValues[field.fieldKey]))
     .filter((entry): entry is { fieldId: string; value: unknown } => entry !== UNCHANGED);
 
-const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsProps) => {
-  const canEdit = useHasPermission('companions:edit:any');
-  const [fields, setFields] = useState<PracticeProfileField[]>([]);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+type State = {
+  fields: PracticeProfileField[];
   // Which profile the loaded fields belong to. The render guard compares this
   // against the current profile, so a failed load cannot leave the previous
   // profile's values on screen under this one's name - where a save would
-  // copy them onto the wrong record.
-  const [fieldsEntityId, setFieldsEntityId] = useState('');
-  const [isManaging, setIsManaging] = useState(false);
-  const [label, setLabel] = useState('');
-  const [type, setType] = useState<PracticeProfileFieldType>('TEXT');
-  const [options, setOptions] = useState('');
+  // copy them onto the wrong record. It is claimed in the same transition that
+  // replaces the fields, never on its own.
+  fieldsEntityId: string;
+  loading: boolean;
+  error: string;
+  isManaging: boolean;
+  draftLabel: string;
+  draftType: PracticeProfileFieldType;
+  draftOptions: string;
+};
+
+type Action =
+  | { type: 'loadSucceeded'; entityId: string; fields: PracticeProfileField[] }
+  | { type: 'loadFailed'; entityId: string }
+  | { type: 'valuesSaved'; stored: Map<string, unknown> }
+  | { type: 'fieldAdded'; field: PracticeProfileField }
+  | { type: 'fieldRemoved'; fieldId: string }
+  | { type: 'managingChanged'; isManaging: boolean }
+  | { type: 'draftLabelChanged'; label: string }
+  | { type: 'draftTypeChanged'; fieldType: PracticeProfileFieldType }
+  | { type: 'draftOptionsChanged'; options: string }
+  | { type: 'failed'; error: string };
+
+// The blank form a new field starts from. Reused as a reset so "open an empty
+// form" and "start the next field from scratch" cannot drift apart.
+const BLANK_DRAFT = {
+  draftLabel: '',
+  draftType: 'TEXT' as PracticeProfileFieldType,
+  draftOptions: '',
+};
+
+const initialState: State = {
+  fields: [],
+  fieldsEntityId: '',
+  loading: true,
+  error: '',
+  isManaging: false,
+  ...BLANK_DRAFT,
+};
+
+const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case 'loadSucceeded':
+      return {
+        ...state,
+        fields: action.fields,
+        fieldsEntityId: action.entityId,
+        loading: false,
+        error: '',
+      };
+    // The identity is claimed even on failure: the fields are cleared, so
+    // nothing from the previous profile can render, and the error replaces the
+    // spinner instead of leaving it turning for ever.
+    case 'loadFailed':
+      return {
+        ...state,
+        fields: [],
+        fieldsEntityId: action.entityId,
+        loading: false,
+        error: 'Practice fields could not be loaded.',
+      };
+    case 'valuesSaved':
+      return {
+        ...state,
+        fields: state.fields.map((field) =>
+          action.stored.has(field.id)
+            ? { ...field, value: action.stored.get(field.id) ?? null }
+            : field
+        ),
+        error: '',
+      };
+    // Adding a field closes the modal and blanks the form together, so the next
+    // one starts empty instead of showing what was just submitted.
+    case 'fieldAdded':
+      return {
+        ...state,
+        fields: [...state.fields, { ...action.field, value: null }],
+        error: '',
+        isManaging: false,
+        ...BLANK_DRAFT,
+      };
+    case 'fieldRemoved':
+      return {
+        ...state,
+        fields: state.fields.filter((field) => field.id !== action.fieldId),
+        error: '',
+      };
+    case 'managingChanged':
+      return { ...state, isManaging: action.isManaging };
+    case 'draftLabelChanged':
+      return { ...state, draftLabel: action.label };
+    case 'draftTypeChanged':
+      return { ...state, draftType: action.fieldType };
+    case 'draftOptionsChanged':
+      return { ...state, draftOptions: action.options };
+    case 'failed':
+      return { ...state, error: action.error };
+    default:
+      return state;
+  }
+};
+
+const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsProps) => {
+  const canEdit = useHasPermission('companions:edit:any');
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const {
+    fields,
+    fieldsEntityId,
+    loading,
+    error,
+    isManaging,
+    draftLabel,
+    draftType,
+    draftOptions,
+  } = state;
 
   useEffect(() => {
     if (!entityId) return;
@@ -111,22 +217,11 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
     void getPracticeProfileFields(entityType, entityId)
       .then((nextFields) => {
         if (!isCurrent) return;
-        setFields(nextFields);
-        setFieldsEntityId(entityId);
-        setError('');
+        dispatch({ type: 'loadSucceeded', entityId, fields: nextFields });
       })
       .catch(() => {
         if (!isCurrent) return;
-        // Claim the identity anyway: the fields are cleared, so nothing from
-        // the previous profile can render, and the error replaces the spinner
-        // instead of leaving it turning for ever.
-        setFields([]);
-        setFieldsEntityId(entityId);
-        setError('Practice fields could not be loaded.');
-      })
-      .finally(() => {
-        if (!isCurrent) return;
-        setLoading(false);
+        dispatch({ type: 'loadFailed', entityId });
       });
     return () => {
       isCurrent = false;
@@ -153,49 +248,43 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
       const changed = changedEntries(fields, nextValues);
       if (changed.length === 0) return;
       await savePracticeProfileFieldValues(entityType, entityId, changed);
-      const stored = new Map(changed.map((entry) => [entry.fieldId, entry.value]));
-      setFields((current) =>
-        current.map((field) =>
-          stored.has(field.id) ? { ...field, value: stored.get(field.id) ?? null } : field
-        )
-      );
-      setError('');
+      dispatch({
+        type: 'valuesSaved',
+        stored: new Map(changed.map((entry) => [entry.fieldId, entry.value])),
+      });
     },
     [entityId, entityType, fields]
   );
 
   const handleCreate = async () => {
     const normalizedOptions =
-      type === 'SELECT'
-        ? options
-            .split('\n')
-            .map((option) => option.trim())
-            .filter(Boolean)
+      draftType === 'SELECT'
+        ? draftOptions.split('\n').flatMap((option) => {
+            const trimmed = option.trim();
+            return trimmed ? [trimmed] : [];
+          })
         : [];
     try {
       const field = await createPracticeProfileField(entityType, {
-        label,
-        type,
+        label: draftLabel,
+        type: draftType,
         options: normalizedOptions,
       });
-      setFields((current) => [...current, { ...field, value: null }]);
-      setLabel('');
-      setOptions('');
-      setType('TEXT');
-      setIsManaging(false);
-      setError('');
+      dispatch({ type: 'fieldAdded', field });
     } catch {
-      setError('This field could not be added. Check the label and choices, then try again.');
+      dispatch({
+        type: 'failed',
+        error: 'This field could not be added. Check the label and choices, then try again.',
+      });
     }
   };
 
   const handleDeactivate = async (field: PracticeProfileField) => {
     try {
       await deactivatePracticeProfileField(field.id);
-      setFields((current) => current.filter((item) => item.id !== field.id));
-      setError('');
+      dispatch({ type: 'fieldRemoved', fieldId: field.id });
     } catch {
-      setError('This field could not be removed. Please try again.');
+      dispatch({ type: 'failed', error: 'This field could not be removed. Please try again.' });
     }
   };
 
@@ -226,7 +315,7 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
                 href="#"
                 size="compact"
                 text="Add field"
-                onClick={() => setIsManaging(true)}
+                onClick={() => dispatch({ type: 'managingChanged', isManaging: true })}
               />
             ) : undefined
           }
@@ -235,7 +324,7 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
       )}
       <Modal
         showModal={isManaging}
-        setShowModal={setIsManaging}
+        setShowModal={(next) => dispatch({ type: 'managingChanged', isManaging: next })}
         variant="centered"
         size="sm"
         aria-labelledby="practice-profile-fields-title"
@@ -244,7 +333,7 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
           <ModalHeader
             title="Manage practice fields"
             titleId="practice-profile-fields-title"
-            onClose={() => setIsManaging(false)}
+            onClose={() => dispatch({ type: 'managingChanged', isManaging: false })}
           />
           {fields.length > 0 ? (
             <div className="flex flex-col gap-2">
@@ -271,21 +360,28 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
             <Input
               id="practice-field-label"
               placeholder="For example, preferred contact time"
-              value={label}
+              value={draftLabel}
               maxLength={80}
-              onChange={(event) => setLabel(event.target.value)}
+              onChange={(event) =>
+                dispatch({ type: 'draftLabelChanged', label: event.target.value })
+              }
             />
           </label>
           <div className="flex flex-col gap-2">
             <Text variant="body-4-emphasis">Field type</Text>
             <LabelDropdown
               placeholder="Choose a type"
-              defaultOption={type}
+              defaultOption={draftType}
               options={TYPE_OPTIONS}
-              onSelect={(option) => setType(option.value as PracticeProfileFieldType)}
+              onSelect={(option) =>
+                dispatch({
+                  type: 'draftTypeChanged',
+                  fieldType: option.value as PracticeProfileFieldType,
+                })
+              }
             />
           </div>
-          {type === 'SELECT' ? (
+          {draftType === 'SELECT' ? (
             <label
               className="flex flex-col gap-2 text-body-4-emphasis text-text-primary"
               htmlFor="practice-field-options"
@@ -294,14 +390,20 @@ const PracticeProfileFields = ({ entityType, entityId }: PracticeProfileFieldsPr
               <Textarea
                 id="practice-field-options"
                 placeholder={'Morning\nAfternoon\nEvening'}
-                value={options}
+                value={draftOptions}
                 maxLength={4000}
-                onChange={(event) => setOptions(event.target.value)}
+                onChange={(event) =>
+                  dispatch({ type: 'draftOptionsChanged', options: event.target.value })
+                }
               />
             </label>
           ) : null}
           <div className="flex justify-end gap-3">
-            <Secondary href="#" text="Cancel" onClick={() => setIsManaging(false)} />
+            <Secondary
+              href="#"
+              text="Cancel"
+              onClick={() => dispatch({ type: 'managingChanged', isManaging: false })}
+            />
             <Primary href="#" text="Add field" onClick={handleCreate} />
           </div>
         </div>

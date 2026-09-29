@@ -157,6 +157,38 @@ describe('PracticeProfileFields', () => {
     expect(await screen.findByTestId('profile-fields')).toHaveTextContent('Contact time');
   });
 
+  it('drops blank and padded choice lines instead of saving them as choices', async () => {
+    const user = userEvent.setup();
+    createFieldMock.mockResolvedValue({
+      id: 'field-contact',
+      fieldKey: 'contact-time',
+      label: 'Contact time',
+      type: 'SELECT',
+      options: ['Morning', 'Evening'],
+      value: null,
+    });
+    render(<PracticeProfileFields entityType="CLIENT" entityId="client-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add field' }));
+    const dialog = screen.getByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Field name'), 'Contact time');
+    await user.click(within(dialog).getByRole('button', { name: /choose a type/i }));
+    await user.click(screen.getByRole('option', { name: 'Choice list' }));
+    await user.type(
+      within(dialog).getByLabelText('Choices, one per line'),
+      '  Morning  \n\n   \nEvening\n'
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Add field' }));
+
+    await waitFor(() =>
+      expect(createFieldMock).toHaveBeenCalledWith('CLIENT', {
+        label: 'Contact time',
+        type: 'SELECT',
+        options: ['Morning', 'Evening'],
+      })
+    );
+  });
+
   it('leaves an unanswered yes/no question unanswered instead of answering it for the user', async () => {
     getFieldsMock.mockResolvedValue([
       {
