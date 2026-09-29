@@ -23,6 +23,7 @@ import {
   buildPaymentActivityCsv,
   buildPaymentActivityPdf,
   getPaymentActivityReport,
+  PaymentActivityReportTooLargeError,
 } from "src/services/finance/payment-activity-report";
 import {
   ClientAccountService,
@@ -2054,6 +2055,12 @@ export const FinanceController = {
 
       return res.status(200).json({ data: report, error: null });
     } catch (error) {
+      if (error instanceof PaymentActivityReportTooLargeError) {
+        return res.status(422).json({
+          message:
+            "The selected period has too many entries. Choose a shorter date range.",
+        });
+      }
       logger.error("Error generating payment activity report", error);
       return res.status(500).json({ message: "Internal server error" });
     }

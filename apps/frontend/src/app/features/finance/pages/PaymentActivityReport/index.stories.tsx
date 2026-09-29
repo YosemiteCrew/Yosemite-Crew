@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, within } from 'storybook/test';
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import type { Organisation, UserOrganization } from '@yosemite-crew/types';
 
@@ -103,14 +104,33 @@ const respond = (config: InternalAxiosRequestConfig, data: unknown): AxiosRespon
   config,
 });
 const REAL_ADAPTER = api.defaults.adapter;
-const adapter: AxiosAdapter = (config) => {
-  if (String(config.url ?? '').includes('/reports/payment-activity')) {
-    return Promise.resolve(respond(config, { data: REPORT }));
-  }
-  return Promise.resolve(respond(config, []));
-};
+type ReportFixture = { kind: 'resolves'; report: typeof REPORT } | { kind: 'too-many' };
 
-const prepare = () => {
+const buildAdapter =
+  (fixture: ReportFixture): AxiosAdapter =>
+  (config) => {
+    if (String(config.url ?? '').includes('/reports/payment-activity')) {
+      if (fixture.kind === 'too-many') {
+        return Promise.reject(
+          Object.assign(new Error('Request failed with status code 422'), {
+            isAxiosError: true,
+            config,
+            response: {
+              status: 422,
+              statusText: 'Unprocessable Entity',
+              data: { message: 'The selected period has too many entries.' },
+              headers: {},
+              config,
+            },
+          })
+        );
+      }
+      return Promise.resolve(respond(config, { data: fixture.report }));
+    }
+    return Promise.resolve(respond(config, []));
+  };
+
+const prepare = (fixture: ReportFixture) => () => {
   clearInFlightGetRequests();
   const snapshots = {
     appointment: useAppointmentStore.getState(),
@@ -130,7 +150,7 @@ const prepare = () => {
     task: useTaskStore.getState(),
     team: useTeamStore.getState(),
   };
-  api.defaults.adapter = adapter;
+  api.defaults.adapter = buildAdapter(fixture);
   const emptyIndex = { [ORG_ID]: [] as string[] };
   const fetchedAt = { [ORG_ID]: new Date().toISOString() };
   useAuthStore.setState({ status: 'authenticated' });
@@ -199,10 +219,45 @@ const meta = {
     layout: 'fullscreen',
     nextjs: { appDirectory: true, navigation: { pathname: '/finance/reports' } },
   },
-  beforeEach: prepare,
+  beforeEach: prepare({ kind: 'resolves', report: REPORT }),
 } satisfies Meta<typeof PaymentActivityReport>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Populated: Story = {};
+export const Populated: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByRole('heading', { level: 1, name: 'Payments and refunds' })
+    ).toBeVisible();
+    const totals = within(canvas.getByRole('region', { name: 'Report totals' }));
+    await expect(totals.getByText('GBP activity')).toBeVisible();
+    await expect(totals.getByText('£100.50')).toBeVisible();
+    const table = within(await canvas.findByRole('table'));
+    // Only a completed refund reads as money going out.
+    await expect(table.getByText('−£25.00')).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Download CSV report' })).toBeEnabled();
+  },
+};
+
+export const Empty: Story = {
+  beforeEach: prepare({ kind: 'resolves', report: { rows: [], totals: [] } }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText('No payments or refunds were recorded in this period.')
+    ).toBeVisible();
+  },
+};
+
+export const TooManyEntries: Story = {
+  beforeEach: prepare({ kind: 'too-many' }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole('alert')).toHaveTextContent(
+      'The selected period has too many entries. Choose a shorter date range.'
+    );
+    await expect(canvas.getByRole('button', { name: 'Download PDF report' })).toBeDisabled();
+  },
+};

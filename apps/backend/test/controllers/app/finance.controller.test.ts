@@ -31,6 +31,7 @@ import {
   buildPaymentActivityCsv,
   buildPaymentActivityPdf,
   getPaymentActivityReport,
+  PaymentActivityReportTooLargeError,
 } from "../../../src/services/finance/payment-activity-report";
 
 jest.mock("../../../src/services/stripe.service", () => ({
@@ -90,6 +91,10 @@ jest.mock("../../../src/services/finance/payment-activity-report", () => ({
   buildPaymentActivityCsv: jest.fn(),
   buildPaymentActivityPdf: jest.fn(),
   getPaymentActivityReport: jest.fn(),
+  PaymentActivityReportTooLargeError: jest.requireActual<
+    typeof import("../../../src/services/finance/payment-activity-report")
+  >("../../../src/services/finance/payment-activity-report")
+    .PaymentActivityReportTooLargeError,
 }));
 
 jest.mock("../../../src/services/finance/subscription", () => ({
@@ -338,6 +343,26 @@ describe("FinanceController", () => {
         "application/pdf",
       );
       expect(sendMock).toHaveBeenCalledWith(pdf);
+    });
+
+    it("asks for a shorter range when the period has too many entries", async () => {
+      setReq({
+        params: { organisationId: "org-1" },
+        organisationId: "org-1",
+        query: { ...query, format: "pdf" },
+      });
+      mockedGetPaymentActivityReport.mockRejectedValueOnce(
+        new PaymentActivityReportTooLargeError(),
+      );
+
+      await run(FinanceController.getPaymentActivityReport);
+
+      expect(statusMock).toHaveBeenCalledWith(422);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message:
+          "The selected period has too many entries. Choose a shorter date range.",
+      });
+      expect(mockedBuildPaymentActivityPdf).not.toHaveBeenCalled();
     });
 
     it("returns a generic error when report generation fails", async () => {

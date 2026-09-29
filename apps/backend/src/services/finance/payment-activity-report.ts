@@ -2,7 +2,9 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import {
+  DEFAULT_LEDGER_EXPONENT,
   fromLedgerMinorUnits,
+  isLedgerCurrencySupported,
   resolveLedgerExponent,
   toLedgerMinorUnits,
 } from "src/services/finance/currency";
@@ -28,6 +30,18 @@ export type PaymentActivityReport = {
     net: number;
   }>;
 };
+
+/** The most entries one report returns, so a busy period cannot exhaust memory. */
+export const MAX_PAYMENT_ACTIVITY_ROWS = 10_000;
+
+export class PaymentActivityReportTooLargeError extends Error {
+  constructor() {
+    super(
+      `The selected period has more than ${MAX_PAYMENT_ACTIVITY_ROWS} entries.`,
+    );
+    this.name = "PaymentActivityReportTooLargeError";
+  }
+}
 
 const CAPTURED_PAYMENT_STATUSES = [
   "SUCCEEDED",
@@ -64,6 +78,20 @@ const providerLabel = (provider: string): string =>
   ({ STRIPE: "Online", MANUAL: "Manual" })[provider] ?? "Other";
 const normalizeCurrency = (currency: string): string =>
   currency.trim().toUpperCase();
+// A currency the ledger refuses to price keeps the two decimals its invoices
+// are still totalled at, as `roundMoney` does, so one such payment cannot make
+// the whole report fail.
+const ledgerExponent = (currency: string): number =>
+  isLedgerCurrencySupported(currency)
+    ? resolveLedgerExponent(currency)
+    : DEFAULT_LEDGER_EXPONENT;
+const formatAmount = (amount: number, currency: string): string => {
+  const exponent = ledgerExponent(currency);
+  return fromLedgerMinorUnits(
+    toLedgerMinorUnits(amount, exponent),
+    exponent,
+  ).toFixed(exponent);
+};
 const addMinorUnits = (total: number, amount: number): number => {
   const sum = total + amount;
   if (!Number.isSafeInteger(sum)) {
@@ -99,6 +127,7 @@ export const getPaymentActivityReport = async (
             createdAt: true,
             invoiceId: true,
           },
+          take: MAX_PAYMENT_ACTIVITY_ROWS + 1,
         }),
         tx.refund.findMany({
           where: {
@@ -114,10 +143,15 @@ export const getPaymentActivityReport = async (
             createdAt: true,
             payment: { select: { invoiceId: true } },
           },
+          take: MAX_PAYMENT_ACTIVITY_ROWS + 1,
         }),
       ]),
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
   );
+
+  if (payments.length + refunds.length > MAX_PAYMENT_ACTIVITY_ROWS) {
+    throw new PaymentActivityReportTooLargeError();
+  }
 
   const rows: PaymentActivityRow[] = [
     ...payments.map((payment) => ({
@@ -148,7 +182,7 @@ export const getPaymentActivityReport = async (
   >();
   for (const row of rows) {
     const currency = normalizeCurrency(row.currency);
-    const exponent = resolveLedgerExponent(currency);
+    const exponent = ledgerExponent(currency);
     const totals = totalsByCurrency.get(currency) ?? {
       exponent,
       payments: 0,
@@ -197,7 +231,7 @@ export const buildPaymentActivityCsv = (
       row.type,
       statusLabel(row.status),
       providerLabel(row.provider),
-      String(row.amount),
+      formatAmount(row.amount, row.currency),
       normalizeCurrency(row.currency),
       row.invoiceId,
     ]),
@@ -235,19 +269,23 @@ export const buildPaymentActivityPdf = async (
     y -= lineHeight;
   };
 
-  drawHeader();
-  for (const row of report.rows) {
+  const ensureRoom = () => {
     if (y < 36) {
       page = document.addPage(pageSize);
       y = 550;
       drawHeader();
     }
+  };
+
+  drawHeader();
+  for (const row of report.rows) {
+    ensureRoom();
     const values = [
       row.date.toISOString().slice(0, 10),
       row.type,
       statusLabel(row.status),
       providerLabel(row.provider),
-      `${row.type === "Refund" && row.status === "SUCCEEDED" ? "-" : ""}${row.amount.toString()} ${normalizeCurrency(row.currency)}`,
+      `${row.type === "Refund" && row.status === "SUCCEEDED" ? "-" : ""}${formatAmount(row.amount, row.currency)} ${normalizeCurrency(row.currency)}`,
       row.invoiceId,
     ];
     values.forEach((value, index) => {
@@ -259,6 +297,19 @@ export const buildPaymentActivityPdf = async (
         maxWidth: index === values.length - 1 ? 300 : 100,
       });
     });
+    y -= lineHeight;
+  }
+
+  y -= lineHeight;
+  for (const total of report.totals) {
+    ensureRoom();
+    const { currency } = total;
+    page.drawText(
+      toWinAnsiSafe(
+        `${currency} totals: payments ${formatAmount(total.payments, currency)}, refunds ${formatAmount(total.refunds, currency)}, net ${formatAmount(total.net, currency)}`,
+      ),
+      { x: 28, y, size: 8, font: bold },
+    );
     y -= lineHeight;
   }
 

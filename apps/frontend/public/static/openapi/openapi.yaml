@@ -9360,6 +9360,15 @@ paths:
                 properties:
                   message:
                     type: string
+        422:
+          description: The selected period has more than 10000 entries; choose a shorter date range.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         500:
           description: Report could not be generated.
           content:

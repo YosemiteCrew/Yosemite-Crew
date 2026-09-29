@@ -201,6 +201,15 @@ describe('PaymentActivityReportPage', () => {
     expect(screen.queryByText('private backend detail')).not.toBeInTheDocument();
   });
 
+  it('asks for a shorter range when the period has too many entries', async () => {
+    mockFetch.mockRejectedValue({ isAxiosError: true, response: { status: 422 } });
+    render(<PaymentActivityReportPage />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The selected period has too many entries. Choose a shorter date range.'
+    );
+  });
+
   it('does not request or expose report data when no organisation is selected', () => {
     mockOrgId.mockReturnValue(null);
     render(<PaymentActivityReportPage />);

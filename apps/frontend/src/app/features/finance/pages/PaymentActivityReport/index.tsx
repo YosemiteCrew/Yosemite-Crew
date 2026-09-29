@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -34,7 +35,12 @@ const getDefaultDateRange = () => {
 const dateStart = (date: string) => `${date}T00:00:00.000Z`;
 const dateEnd = (date: string) => `${date}T23:59:59.999Z`;
 
-const errorMessage = (_error: unknown) => 'The report could not be loaded. Try again.';
+// The API refuses a period with more entries than one report returns; trying
+// again would fail the same way, so say what to change instead.
+const errorMessage = (error: unknown) =>
+  axios.isAxiosError(error) && error.response?.status === 422
+    ? 'The selected period has too many entries. Choose a shorter date range.'
+    : 'The report could not be loaded. Try again.';
 
 const statusLabels: Record<string, string> = {
   SUCCEEDED: 'Completed',
@@ -248,7 +254,6 @@ const PaymentActivityReportContent = () => {
         <Text
           as="p"
           variant="body-4"
-
           role="alert"
           className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-body-4 text-[var(--danger-text)]"
         >
