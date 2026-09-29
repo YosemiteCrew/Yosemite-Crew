@@ -9,8 +9,8 @@ const meta = {
     backgrounds: {
       default: 'light',
       values: [
-        { name: 'light', value: '#faf9f6' },
-        { name: 'dark', value: '#1a1a1a' },
+        { name: 'light', value: 'var(--screen)' },
+        { name: 'dark', value: 'var(--ink)' },
       ],
     },
   },

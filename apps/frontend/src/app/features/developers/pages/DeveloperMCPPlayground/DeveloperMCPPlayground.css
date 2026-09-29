@@ -177,7 +177,7 @@
 .MCPExportTab.is-active {
   color: var(--ink);
   background: var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px var(--sh05);
 }
 
 .MCPExportTab .tab-icon {
