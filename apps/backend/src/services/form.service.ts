@@ -1296,6 +1296,61 @@ const parentMaySignTemplateRow = (row: {
   );
 };
 
+const isWithdrawnRequest = (status: string) =>
+  status === "cancelled" || status === "expired";
+
+/**
+ * The practice's answers saved since the last request for a template was
+ * withdrawn, when every request for it was: listed on a row of their own with
+ * no request, as any practice save is. The withdrawn row stays as it is.
+ */
+const practiceSavesAfterWithdrawal = (params: {
+  templateIds: string[];
+  requests: { templateId: string; status: string }[];
+  cutoffs: Map<string, number>;
+  instances: AppointmentTemplateInstance[];
+  parentAuthors: Set<string>;
+  templateMap: Map<string, Awaited<ReturnType<typeof TemplateService.getById>>>;
+  includeQuestionnaire: boolean;
+}) =>
+  params.templateIds.flatMap((templateId) => {
+    const template = params.templateMap.get(templateId);
+    const requests = params.requests.filter(
+      (request) => request.templateId === templateId,
+    );
+    if (
+      !template ||
+      !requests.every(({ status }) => isWithdrawnRequest(status))
+    ) {
+      return [];
+    }
+    const since = params.cutoffs.get(templateId) ?? Number.NEGATIVE_INFINITY;
+    const saved = params.instances
+      .filter(
+        (instance) =>
+          instance.templateId === templateId &&
+          SUBMITTED_INSTANCE_STATUSES.has(instance.status) &&
+          !(instance.authorId && params.parentAuthors.has(instance.authorId)) &&
+          new Date(instance.createdAt).getTime() >= since,
+      )
+      .at(-1);
+    if (!saved) return [];
+    return [
+      {
+        templateId,
+        status: "completed",
+        questionnaire: params.includeQuestionnaire
+          ? templateMapper.templateToQuestionnaire(template)
+          : undefined,
+        questionnaireResponse:
+          templateMapper.templateInstanceToQuestionnaireResponse(
+            saved,
+            template,
+          ),
+      },
+    ];
+  });
+
 const buildTemplateAppointmentFormItems = async (params: {
   appointmentId: string;
   organisationId: string;
@@ -1408,8 +1463,7 @@ const buildTemplateAppointmentFormItems = async (params: {
       .filter(
         (instance) =>
           viewer ||
-          new Date(instance.createdAt).getTime() <
-            (cutoffs.get(instance.templateId) ?? Number.NEGATIVE_INFINITY) ||
+          cutoffs.has(instance.templateId) ||
           instance.templateVersion <
             (latestSentVersion.get(instance.templateId) ?? 0),
       )
@@ -1489,9 +1543,7 @@ const buildTemplateAppointmentFormItems = async (params: {
         ? templateMapper.templateToQuestionnaire(template)
         : undefined;
       // A withdrawn request carries no answers.
-      const withdrawn =
-        assignment.status === "cancelled" || assignment.status === "expired";
-      const instance = withdrawn
+      const instance = isWithdrawnRequest(assignment.status)
         ? undefined
         : answerFor(assignment.templateId, assignment.templateVersion);
       const listed = instance && shownToViewer.get(instance.id);
@@ -1539,10 +1591,21 @@ const buildTemplateAppointmentFormItems = async (params: {
       };
     })
     .filter((item) => item !== null);
+  const practiceSaves = viewer
+    ? []
+    : practiceSavesAfterWithdrawal({
+        templateIds: uniqueTemplateIds,
+        requests: sent,
+        cutoffs,
+        instances: answering,
+        parentAuthors,
+        templateMap,
+        includeQuestionnaire,
+      });
 
   return {
     appointmentId: params.appointmentId,
-    items,
+    items: [...items, ...practiceSaves],
     fromLinkedTemplates,
   };
 };

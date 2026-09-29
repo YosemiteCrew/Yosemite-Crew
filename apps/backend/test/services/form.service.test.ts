@@ -2681,6 +2681,74 @@ describe("FormService", () => {
         ).toBeUndefined();
       });
 
+      // Staff withdrew every request, then saved the form themselves.
+      describe("a practice save after every request was withdrawn", () => {
+        const savedAfter = [
+          answer("parent-withdrawn", "parent-a", "2026-09-18T12:00:00.000Z"),
+          answer("practice-after", "vet-1", "2026-09-20T12:00:00.000Z"),
+        ];
+
+        it("lists the practice its answers on a row of their own", async () => {
+          const items = await listItems(undefined, [withdrawn], savedAfter);
+
+          expect(items).toHaveLength(2);
+          expect(items[0]).toMatchObject({
+            id: "assignment-withdrawn",
+            assignmentStatus: "cancelled",
+          });
+          expect(items[0].questionnaireResponse).toBeUndefined();
+          expect(items[1]).toEqual({
+            templateId: "template-1",
+            status: "completed",
+            questionnaire: undefined,
+            questionnaireResponse: { id: "practice-after" },
+          });
+        });
+
+        it("lists no practice save from before the withdrawal", async () => {
+          const items = await listItems(
+            undefined,
+            [withdrawn],
+            [answer("practice-before", "vet-1", "2026-09-18T12:00:00.000Z")],
+          );
+
+          expect(items.map(({ id }) => id)).toStrictEqual([
+            "assignment-withdrawn",
+          ]);
+        });
+
+        it("never lists a parent's answers as the practice's", async () => {
+          const items = await listItems(
+            undefined,
+            [withdrawn],
+            [answer("parent-after", "parent-a", "2026-09-20T12:00:00.000Z")],
+          );
+
+          expect(items.map(({ id }) => id)).toStrictEqual([
+            "assignment-withdrawn",
+          ]);
+        });
+
+        it("lists no row of its own while a request is open", async () => {
+          const items = await listItems(
+            undefined,
+            [request(), withdrawn],
+            savedAfter,
+          );
+
+          expect(items.map(({ id }) => id)).toStrictEqual([
+            "assignment-open",
+            "assignment-withdrawn",
+          ]);
+        });
+
+        it("shows the parent neither the withdrawn request nor the save", async () => {
+          await expect(
+            listItems("parent-a", [withdrawn], savedAfter),
+          ).resolves.toEqual([]);
+        });
+      });
+
       // A template published again after the request was sent is answered at
       // the newer version; a parent's answers at an older one are not its.
       it.each(viewers)(
