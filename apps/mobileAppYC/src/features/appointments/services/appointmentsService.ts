@@ -1644,12 +1644,14 @@ export const appointmentApi = {
     review: string | null;
     practitionerName: string | null;
   }> {
-    const url = buildUrl(
-      `/v1/organisation-rating/appointment/${encodeURIComponent(appointmentId)}/practitioner-feedback`,
+    const url = buildUrl('/v1/organisation-rating/practitioner-feedback');
+    const {data} = await apiClient.post(
+      url,
+      {appointmentId},
+      {
+        headers: withAuthHeaders(accessToken),
+      },
     );
-    const {data} = await apiClient.get(url, {
-      headers: withAuthHeaders(accessToken),
-    });
     const payload = data.feedback ?? {};
     return {
       isRated: Boolean(payload.isRated),

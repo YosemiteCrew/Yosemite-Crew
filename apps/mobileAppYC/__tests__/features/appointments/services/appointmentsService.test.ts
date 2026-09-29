@@ -1497,7 +1497,7 @@ describe('appointmentsService', () => {
     it('normalizes veterinarian feedback responses', async () => {
       const {appointmentApi} = getModule();
       const client = getApiClient();
-      client.get.mockResolvedValue({
+      client.post.mockResolvedValue({
         data: {
           feedback: {
             isRated: true,
@@ -1519,12 +1519,19 @@ describe('appointmentsService', () => {
         review: 'Clear explanations',
         practitionerName: 'Dr Chen',
       });
+      expect(client.post).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/v1/organisation-rating/practitioner-feedback',
+        ),
+        {appointmentId: 'appointment-1'},
+        {headers: {Authorization: `Bearer ${mockToken}`}},
+      );
     });
 
     it('returns empty defaults when no feedback is present', async () => {
       const {appointmentApi} = getModule();
       const client = getApiClient();
-      client.get.mockResolvedValue({data: {}});
+      client.post.mockResolvedValue({data: {}});
 
       await expect(
         appointmentApi.getPractitionerFeedback({

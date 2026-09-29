@@ -63,7 +63,7 @@ describe("PractitionerFeedbackController", () => {
     ).mockResolvedValue(feedback);
 
     await PractitionerFeedbackController.getForAppointment(
-      makeRequest({ appointmentId: "appointment-1" }),
+      makeRequest({}, { appointmentId: "appointment-1" }),
       response,
     );
 
@@ -83,7 +83,7 @@ describe("PractitionerFeedbackController", () => {
     const response = makeResponse();
 
     await PractitionerFeedbackController.getForAppointment(
-      makeRequest({ appointmentId: "appointment-1" }),
+      makeRequest({}, { appointmentId: "appointment-1" }),
       response,
     );
 
@@ -100,7 +100,7 @@ describe("PractitionerFeedbackController", () => {
     const response = makeResponse();
 
     await PractitionerFeedbackController.getForAppointment(
-      makeRequest({ appointmentId: "appointment-1" }),
+      makeRequest({}, { appointmentId: "appointment-1" }),
       response,
     );
 
@@ -195,7 +195,7 @@ describe("PractitionerFeedbackController", () => {
     ).mockRejectedValue(new Error("database detail"));
 
     await PractitionerFeedbackController.getForAppointment(
-      makeRequest({ appointmentId: "appointment-1" }),
+      makeRequest({}, { appointmentId: "appointment-1" }),
       response,
     );
 
@@ -203,6 +203,20 @@ describe("PractitionerFeedbackController", () => {
     expect(response.json).toHaveBeenCalledWith({
       message: "Unable to load feedback.",
     });
+  });
+
+  it("rejects malformed feedback lookups", async () => {
+    const response = makeResponse();
+
+    await PractitionerFeedbackController.getForAppointment(
+      makeRequest({}, { appointmentId: "" }),
+      response,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(
+      PractitionerFeedbackService.getForAppointment,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns a safe server error when saving fails unexpectedly", async () => {

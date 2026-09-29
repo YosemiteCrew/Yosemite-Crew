@@ -4,8 +4,8 @@ import { PractitionerFeedbackController } from "src/controllers/app/practitioner
 import { requireMobileAuth } from "src/middlewares/auth";
 const router = Router();
 
-router.get(
-  "/appointment/:appointmentId/practitioner-feedback",
+router.post(
+  "/practitioner-feedback",
   requireMobileAuth,
   PractitionerFeedbackController.getForAppointment,
 );

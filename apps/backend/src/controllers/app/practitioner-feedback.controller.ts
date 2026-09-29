@@ -14,6 +14,9 @@ const FeedbackBodySchema = z
     review: z.string().max(1000).optional(),
   })
   .strict();
+const FeedbackLookupSchema = z
+  .object({ appointmentId: z.string().min(1) })
+  .strict();
 
 const resolveParentId = async (req: Request, res: Response) => {
   const verifiedUserId = resolveVerifiedUserId(req);
@@ -52,8 +55,13 @@ export const PractitionerFeedbackController = {
       const parentId = await resolveParentId(req, res);
       if (!parentId) return;
 
+      const result = FeedbackLookupSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid feedback request." });
+      }
+
       const feedback = await PractitionerFeedbackService.getForAppointment(
-        req.params.appointmentId,
+        result.data.appointmentId,
         parentId,
       );
       return res.status(200).json({ feedback });

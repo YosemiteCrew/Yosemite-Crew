@@ -46,16 +46,19 @@ const formatVisitDate = (value?: string | null): string => {
 };
 
 export const ReviewScreen: React.FC = () => {
+  const {params} = useRoute<RouteProp<AppointmentStackParamList, 'Review'>>();
+  return <ReviewForm key={params.appointmentId} {...params} />;
+};
+
+const ReviewForm: React.FC<AppointmentStackParamList['Review']> = ({
+  appointmentId,
+  isEditing,
+  existingRating,
+  existingReview,
+  practitionerName,
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const route = useRoute<RouteProp<AppointmentStackParamList, 'Review'>>();
-  const {
-    appointmentId,
-    isEditing,
-    existingRating,
-    existingReview,
-    practitionerName,
-  } = route.params;
   const [review, setReview] = useState(existingReview ?? '');
   const [rating, setRating] = useState(existingRating ?? 4);
   const [submitting, setSubmitting] = useState(false);
@@ -71,11 +74,6 @@ export const ReviewScreen: React.FC = () => {
   const companion = useSelector((s: RootState) =>
     s.companion?.companions?.find(c => c.id === apt?.companionId),
   );
-
-  useEffect(() => {
-    setReview(existingReview ?? '');
-    setRating(existingRating ?? 4);
-  }, [appointmentId, existingRating, existingReview]);
 
   useEffect(() => {
     if (!business && apt?.businessId) {
