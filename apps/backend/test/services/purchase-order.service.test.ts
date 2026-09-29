@@ -302,6 +302,33 @@ describe("PurchaseOrderService.receiveDelivery", () => {
     );
   });
 
+  it("posts every line of a multi-line delivery", async () => {
+    db.purchaseOrderLine.findMany.mockResolvedValue([
+      orderLine(),
+      orderLine({ id: "line-2", itemId: "item-2", batchNumber: "lot-2" }),
+    ]);
+
+    await PurchaseOrderService.receiveDelivery({
+      ...input,
+      lines: [
+        { purchaseOrderLineId: "line-1", quantityReceived: 2 },
+        { purchaseOrderLineId: "line-2", quantityReceived: 4 },
+      ],
+    });
+
+    expect(
+      db.inventoryItem.update.mock.calls.map(([arg]) => [
+        arg.where.id,
+        arg.data.onHand.increment,
+      ]),
+    ).toEqual([
+      ["item-1", 2],
+      ["item-2", 4],
+    ]);
+    expect(db.purchaseOrderDeliveryLine.create).toHaveBeenCalledTimes(2);
+    expect(db.purchaseOrderDelivery.create).toHaveBeenCalledTimes(1);
+  });
+
   it("returns the recorded delivery for a repeated key without moving stock again", async () => {
     db.purchaseOrderDelivery.findFirst.mockResolvedValue(delivery());
     db.purchaseOrder.findFirst.mockResolvedValue(order({ status: "RECEIVED" }));

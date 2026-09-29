@@ -361,16 +361,20 @@ const receiveDeliveryInTransaction = async (
     },
   });
 
-  for (const line of lines) {
-    await applyReceiptLine(
-      delivery.id,
-      organisationId,
-      receivedBy,
-      line,
-      orderLineById.get(line.purchaseOrderLineId)!,
-      tx,
-    );
-  }
+  // Each line touches its own order line, and every stock change is an
+  // atomic increment or a guarded update, so the lines need no ordering.
+  await Promise.all(
+    lines.map((line) =>
+      applyReceiptLine(
+        delivery.id,
+        organisationId,
+        receivedBy,
+        line,
+        orderLineById.get(line.purchaseOrderLineId)!,
+        tx,
+      ),
+    ),
+  );
 
   await syncStatusFromLines(purchaseOrderId, tx);
 
@@ -549,16 +553,18 @@ const returnDeliveryInTransaction = async (
     data: { deliveryId, idempotencyKey, returnedBy, notes: input.notes },
   });
 
-  for (const line of lines) {
-    await applyReturnLine(
-      purchaseReturn.id,
-      organisationId,
-      returnedBy,
-      deliveryLineById.get(line.deliveryLineId)!,
-      line.quantityReturned,
-      tx,
-    );
-  }
+  await Promise.all(
+    lines.map((line) =>
+      applyReturnLine(
+        purchaseReturn.id,
+        organisationId,
+        returnedBy,
+        deliveryLineById.get(line.deliveryLineId)!,
+        line.quantityReturned,
+        tx,
+      ),
+    ),
+  );
 
   await syncStatusFromLines(delivery.purchaseOrderId, tx);
 
