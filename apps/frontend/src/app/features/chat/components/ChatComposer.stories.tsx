@@ -156,10 +156,7 @@ export const Resting: Story = {
     await expect(canvas.getByRole('button', { name: 'Emoji' })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Send message' })).toBeEnabled();
 
-    /* The mic is permanently disabled and always has been - it is a placeholder
-       for a feature that does not exist. It reads as an available control at a
-       glance, which is exactly why it belongs in the resting story. */
-    await expect(canvas.getByRole('button', { name: 'Voice message' })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: 'Voice message' })).toBeEnabled();
 
     await expect(canvas.queryByText('Share from PIMS')).not.toBeInTheDocument();
     await expect(document.querySelector('button[aria-label="Close menu"]')).toBeNull();
@@ -169,7 +166,7 @@ export const Resting: Story = {
       description: {
         story:
           'The default state. The field is a 42px-min pill on `--field-bg` holding the textarea, ' +
-          'the emoji glyph and the disabled mic; the paperclip sits outside it on the left and ' +
+          'the emoji glyph and the voice-capture control; the paperclip sits outside it on the left and ' +
           'the send circle outside it on the right.',
       },
     },

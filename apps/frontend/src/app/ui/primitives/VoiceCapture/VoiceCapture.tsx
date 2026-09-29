@@ -104,7 +104,7 @@ const VoiceCaptureControls = ({
           {state === 'listening' && (
             <span
               ref={waveRef}
-              className="absolute inset-0 rounded-full bg-[var(--danger)] opacity-30 animate-ping"
+              className="absolute inset-0 rounded-full bg-[var(--danger)] animate-ping"
               aria-hidden="true"
             />
           )}

@@ -41,9 +41,12 @@ describe('ChatComposer', () => {
     expect(screen.getByLabelText('Send message')).toBeInTheDocument();
   });
 
-  it('renders a disabled voice-message affordance', () => {
+  it('opens voice capture from the voice-message button', async () => {
     render(<ChatComposer />);
-    expect(screen.getByLabelText('Voice message')).toBeDisabled();
+    const button = screen.getByLabelText('Voice message');
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(await screen.findByRole('region', { name: 'Voice capture' })).toBeInTheDocument();
   });
 
   it('sends on the send button', () => {

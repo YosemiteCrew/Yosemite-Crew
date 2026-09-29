@@ -11,6 +11,7 @@
  */
 
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import {
   useMessageInputContext,
   useMessageComposer,
@@ -32,7 +33,10 @@ import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { useChatShare } from './chatShareContext';
 import { partitionUploadFiles } from '../lib/uploadSafety';
-import { VoiceCapture } from '@/app/ui/primitives/VoiceCapture/VoiceCapture';
+
+const LazyVoiceCapture = dynamic(() =>
+  import('@/app/ui/primitives/VoiceCapture/VoiceCapture').then(({ VoiceCapture }) => VoiceCapture)
+);
 
 const EMOJIS = ['👍', '🙏', '❤️', '😊', '🎉', '✅', '⏰', '🐾', '💊', '📎'];
 
@@ -145,7 +149,7 @@ export function ChatComposer() {
       </div>
       {voiceOpen && (
         <div className="mb-3" role="region" aria-label="Voice capture">
-          <VoiceCapture
+          <LazyVoiceCapture
             onTranscript={handleVoiceTranscript}
             placeholder="Press microphone to record…"
           />
