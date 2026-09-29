@@ -56,6 +56,9 @@ const withPaymentIntentOrgPermissions = jest.fn(
 const requirePermission = jest.fn((permission: string) =>
   permissionGuard(permission),
 );
+const requireAllPermissions = jest.fn((permissions: string[]) =>
+  permissionGuard(`all:${permissions.join("+")}`),
+);
 
 const FinanceController = {
   webhook: jest.fn(),
@@ -121,6 +124,7 @@ jest.mock("../../src/middlewares/rbac", () => ({
   withPaymentOrgPermissions,
   withPaymentIntentOrgPermissions,
   requirePermission,
+  requireAllPermissions,
 }));
 
 jest.mock("../../src/controllers/app/finance.controller", () => ({
@@ -376,10 +380,7 @@ describe("finance.router", () => {
     ).toContain(withOrgPermissionsMiddleware);
     expect(
       createCounterSaleRoute?.stack.map((layer) => layer.handle),
-    ).toContain(permissionGuard("billing:edit:any"));
-    expect(
-      createCounterSaleRoute?.stack.map((layer) => layer.handle),
-    ).toContain(permissionGuard("inventory:edit:any"));
+    ).toContain(permissionGuard("all:billing:edit:any+inventory:edit:any"));
     expect(
       createCounterSaleRoute?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.createCounterSale);
