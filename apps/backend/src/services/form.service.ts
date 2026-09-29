@@ -1501,12 +1501,8 @@ const buildTemplateAppointmentFormItems = async (params: {
     if (viewerParentId) {
       return pickParentInstances(candidates, viewerParentId).get(templateId);
     }
-    // The practice sees the latest that was not voided.
-    let latest: (typeof candidates)[number] | undefined;
-    for (const candidate of candidates) {
-      if (candidate.status !== "VOID") latest = candidate;
-    }
-    return latest;
+    // The practice sees the latest submitted answer.
+    return candidates.at(-1);
   };
 
   // What the viewing parent is shown of each instance they may be shown, and
