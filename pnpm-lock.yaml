@@ -9,7 +9,7 @@ overrides:
   '@protobufjs/utf8': 1.1.1
   qs: 6.16.0
   serialize-javascript: 7.0.5
-  undici: 7.29.0
+  undici: 7.29.1
   svgo: 3.3.5
   '@hono/node-server': 2.0.11
   hono: 4.13.7
@@ -79,7 +79,7 @@ overrides:
   qs@6.14.2: 6.16.0
   shell-quote@1.8.3: 1.9.0
   tmp@0.2.5: 0.2.7
-  undici@7.24.0: 7.29.0
+  undici@7.24.0: 7.29.1
   vite@7.3.3: 7.3.5
   webpack-dev-server@5.2.3: 5.2.6
   ws@6: 6.2.5
@@ -3570,7 +3570,7 @@ packages:
       semver: 7.8.5
       sumchecker: 3.0.1
     optionalDependencies:
-      undici: 7.29.0
+      undici: 7.29.1
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -20267,7 +20267,7 @@ packages:
       semver: 7.8.5
       tar: 7.5.22
       tinyglobby: 0.2.17
-      undici: 7.29.0
+      undici: 7.29.1
       which: 6.0.1
     dev: true
 
@@ -25153,8 +25153,8 @@ packages:
   /undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
-  /undici@7.29.0:
-    resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
+  /undici@7.29.1:
+    resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
     engines: {node: '>=20.18.1'}
     dev: true
 
