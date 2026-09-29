@@ -245,7 +245,7 @@ const InventoryBatchCount = ({
             </>
           )}
 
-          {pendingCount && (
+          {pendingCount ? (
             <div className="flex flex-col gap-3 rounded-xl bg-[var(--inset)] p-4">
               <Text as="h4" variant="body-4-emphasis" className="text-text-primary">
                 {itemName}: {pendingCount.systemCount} in stock, {pendingCount.physicalCount}{' '}
@@ -281,7 +281,7 @@ const InventoryBatchCount = ({
                 />
               </div>
             </div>
-          )}
+          ) : null}
 
           {message && (
             <div role="status" className="flex flex-wrap items-center justify-between gap-3">

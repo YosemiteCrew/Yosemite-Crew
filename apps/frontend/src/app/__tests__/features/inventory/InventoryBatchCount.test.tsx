@@ -232,6 +232,20 @@ describe('InventoryBatchCount', () => {
     );
   });
 
+  it('does not render a numeric zero when the count response is empty', async () => {
+    const user = userEvent.setup();
+    (recordInventoryBatchCount as jest.Mock).mockResolvedValue(0);
+    render(<InventoryBatchCount {...commonProps} />);
+
+    await user.click(screen.getByRole('button', { name: 'Start count' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Batch' }), 'batch-1');
+    await user.type(screen.getByPlaceholderText('Enter the physical count'), '7');
+    await user.click(screen.getByRole('button', { name: 'Record count' }));
+
+    await waitFor(() => expect(recordInventoryBatchCount).toHaveBeenCalled());
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
   it('shows a signed positive discrepancy when the physical count is higher', async () => {
     const user = userEvent.setup();
     (recordInventoryBatchCount as jest.Mock).mockResolvedValue({
