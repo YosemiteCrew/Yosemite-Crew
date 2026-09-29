@@ -55,7 +55,7 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-jest.mock('../src/navigation', () => ({
+jest.mock('../src/navigation/AppNavigator', () => ({
   AppNavigator: () => null,
 }));
 

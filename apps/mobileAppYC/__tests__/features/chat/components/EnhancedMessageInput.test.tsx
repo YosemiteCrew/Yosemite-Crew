@@ -35,7 +35,7 @@ jest.mock('stream-chat-react-native', () => {
   // Error 5 Fixed: Removed unused 'const React = require("react")'
   const {View} = require('react-native');
   return {
-    MessageInput: () => <View testID="StreamMessageInput" />,
+    MessageComposer: () => <View testID="StreamMessageInput" />,
     useChannelContext: jest.fn(),
   };
 });

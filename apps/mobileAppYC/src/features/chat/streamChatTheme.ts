@@ -16,22 +16,21 @@ import type {Theme} from '@/theme';
 export const createStreamChatTheme = (
   theme: Theme,
 ): DeepPartial<StreamTheme> => ({
-  messageSimple: {
+  semantics: {
+    chatBgIncoming: theme.colors.screen2,
+    chatBgOutgoing: theme.colors.cta,
+    chatTextIncoming: theme.colors.inkBody,
+  },
+  messageItemView: {
     content: {
-      receiverMessageBackgroundColor: theme.colors.screen2,
-      senderMessageBackgroundColor: theme.colors.cta,
       container: {
-        borderRadiusL: 18,
-        borderRadiusS: 6,
-      },
-      markdown: {
-        text: {
-          color: theme.colors.inkBody,
-        },
+        borderTopLeftRadius: 18,
+        borderTopRightRadius: 18,
+        borderBottomLeftRadius: 6,
       },
     },
   },
-  messageInput: {
+  messageComposer: {
     container: {
       backgroundColor: theme.colors.screen,
     },
@@ -51,12 +50,14 @@ export const createStreamChatTheme = (
 export const createMyMessageTheme = (
   theme: Theme,
 ): DeepPartial<StreamTheme> => ({
-  messageSimple: {
+  semantics: {
+    chatTextOutgoing: theme.colors.ctaText,
+  },
+  messageItemView: {
     content: {
-      markdown: {
-        text: {
-          color: theme.colors.ctaText,
-        },
+      container: {
+        borderBottomLeftRadius: 18,
+        borderBottomRightRadius: 6,
       },
     },
   },

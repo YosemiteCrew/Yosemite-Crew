@@ -839,7 +839,7 @@ importers:
         version: 7.88.0(react@19.1.4)
       react-i18next:
         specifier: ^17.0.14
-        version: 17.0.14(i18next@26.4.2)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3)
+        version: 17.0.14(i18next@26.4.2)(react-dom@19.1.4)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3)
       react-native:
         specifier: 0.81.6
         version: 0.81.6(patch_hash=m4qqoly5dlwssem2g7gghw2o44)(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.3.0)(react@19.1.4)
@@ -924,6 +924,9 @@ importers:
       react-native-svg-transformer:
         specifier: ^1.5.0
         version: 1.5.3(react-native-svg@15.15.5)(react-native@0.81.6)(typescript@5.9.3)
+      react-native-teleport:
+        specifier: 0.5.4
+        version: 0.5.4(react-dom@19.1.4)(react-native@0.81.6)(react@19.1.4)
       react-native-url-polyfill:
         specifier: ^4.0.0
         version: 4.0.0(react-native@0.81.6)
@@ -945,9 +948,12 @@ importers:
       semver:
         specifier: ^7.7.4
         version: 7.8.5
+      stream-chat:
+        specifier: 9.53.0
+        version: 9.53.0
       stream-chat-react-native:
-        specifier: ^8.14.0
-        version: 8.14.1(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@12.0.1)(@react-native-documents/picker@11.0.4)(@types/react@19.3.0)(react-native-blob-util@0.25.0)(react-native-gesture-handler@2.33.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.10.0)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.3)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3)
+        specifier: ^9.7.0
+        version: 9.7.0(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@12.0.1)(@react-native-documents/picker@11.0.4)(@types/react@19.3.0)(react-native-blob-util@0.25.0)(react-native-gesture-handler@2.33.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.10.0)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-teleport@0.5.4)(react-native-video@6.19.3)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3)
       supertokens-react-native:
         specifier: ^5.1.5
         version: 5.1.5(@react-native-async-storage/async-storage@2.2.0)(axios@1.20.0)(react-native@0.81.6)
@@ -996,7 +1002,7 @@ importers:
         version: 5.4.3(react-native@0.81.6)(react-test-renderer@19.1.4)(react@19.1.4)
       '@testing-library/react-hooks':
         specifier: ^8.0.1
-        version: 8.0.1(@types/react@19.3.0)(react-test-renderer@19.1.4)(react@19.1.4)
+        version: 8.0.1(@types/react@19.3.0)(react-dom@19.1.4)(react-test-renderer@19.1.4)(react@19.1.4)
       '@testing-library/react-native':
         specifier: ^13.3.3
         version: 13.3.3(jest@30.5.2)(react-native@0.81.6)(react-test-renderer@19.1.4)(react@19.1.4)
@@ -1036,6 +1042,9 @@ importers:
       prettier:
         specifier: 3.9.8
         version: 3.9.8
+      react-dom:
+        specifier: 19.1.4
+        version: 19.1.4(react@19.1.4)
       react-test-renderer:
         specifier: 19.1.4
         version: 19.1.4(react@19.1.4)
@@ -9569,7 +9578,7 @@ packages:
       redent: 3.0.0
     dev: true
 
-  /@testing-library/react-hooks@8.0.1(@types/react@19.3.0)(react-test-renderer@19.1.4)(react@19.1.4):
+  /@testing-library/react-hooks@8.0.1(@types/react@19.3.0)(react-dom@19.1.4)(react-test-renderer@19.1.4)(react@19.1.4):
     resolution: {integrity: sha512-Aqhl2IVmLt8IovEVarNDFuJDVWVvhnr9/GCU6UUnrYXwgDFF9h2L2o2P9KBni1AST5sT6riAyoukFLyjQUgD/g==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -9588,6 +9597,7 @@ packages:
       '@babel/runtime': 7.29.7
       '@types/react': 19.3.0
       react: 19.1.4
+      react-dom: 19.1.4(react@19.1.4)
       react-error-boundary: 3.1.4(react@19.1.4)
       react-test-renderer: 19.1.4(react@19.1.4)
     dev: true
@@ -21700,6 +21710,14 @@ packages:
       - vite-plus
     dev: true
 
+  /react-dom@19.1.4(react@19.1.4):
+    resolution: {integrity: sha512-s2868ab/xo2SI6H4106A7aFI8Mrqa4xC6HZT/pBzYyQ3cBLqa88hu47xYD8xf+uECleN698Awn7RCWlkTiKnqQ==}
+    peerDependencies:
+      react: ^19.1.4
+    dependencies:
+      react: 19.1.4
+      scheduler: 0.26.0
+
   /react-dom@19.3.0(react@19.3.0):
     resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
     peerDependencies:
@@ -21752,7 +21770,7 @@ packages:
       react: 19.1.4
     dev: false
 
-  /react-i18next@17.0.14(i18next@26.4.2)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3):
+  /react-i18next@17.0.14(i18next@26.4.2)(react-dom@19.1.4)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3):
     resolution: {integrity: sha512-ZpMBfJL3BiXPuYHj5QMY1GwvKJNhE1vCxOJQ8BoMBdHP5XONTfi/Qss1nuRlnFdIl72PKo2jPmw+fxuLjRFgaQ==}
     peerDependencies:
       i18next: '>= 26.2.0'
@@ -21772,6 +21790,7 @@ packages:
       html-parse-stringify: 4.0.1
       i18next: 26.4.2(typescript@5.9.3)
       react: 19.1.4
+      react-dom: 19.1.4(react@19.1.4)
       react-native: 0.81.6(patch_hash=m4qqoly5dlwssem2g7gghw2o44)(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.3.0)(react@19.1.4)
       typescript: 5.9.3
       use-sync-external-store: 1.7.0(react@19.1.4)
@@ -22192,6 +22211,18 @@ packages:
       css-select: 5.2.2
       css-tree: 1.1.3
       react: 19.1.4
+      react-native: 0.81.6(patch_hash=m4qqoly5dlwssem2g7gghw2o44)(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.3.0)(react@19.1.4)
+    dev: false
+
+  /react-native-teleport@0.5.4(react-dom@19.1.4)(react-native@0.81.6)(react@19.1.4):
+    resolution: {integrity: sha512-kiNbB27lJHAO7DdG7LlPi6DaFnYusVQV9rqp0q5WoRpnqKNckIvzXULox6QpZBstaTF/jkO+xmlkU+pnQqKSAQ==}
+    peerDependencies:
+      react: '*'
+      react-dom: '*'
+      react-native: '*'
+    dependencies:
+      react: 19.1.4
+      react-dom: 19.1.4(react@19.1.4)
       react-native: 0.81.6(patch_hash=m4qqoly5dlwssem2g7gghw2o44)(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.3.0)(react@19.1.4)
     dev: false
 
@@ -23777,20 +23808,20 @@ packages:
     engines: {node: '>=22'}
     dev: true
 
-  /stream-chat-react-native-core@8.14.1(@react-native-community/netinfo@12.0.1)(@types/react@19.3.0)(react-native-gesture-handler@2.33.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.10.0)(react-native-svg@15.15.5)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3):
-    resolution: {integrity: sha512-q0TW3Ddweh1B/Z7yoghghxM6rQlPvLCyaGZgzsdp56W0NuxiM1G3Dgbq5AwpvRYZI+g8xzJ1rlDXQTuhBpPBSg==}
-    requiresBuild: true
+  /stream-chat-react-native-core@9.7.0(@react-native-community/netinfo@12.0.1)(@types/react@19.3.0)(react-native-gesture-handler@2.33.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.10.0)(react-native-svg@15.15.5)(react-native-teleport@0.5.4)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3):
+    resolution: {integrity: sha512-5HInl00ABjCBjN4Hp3GM+iuM8ugAjHzZaJG/haL2IaE2bqw+3G/dGsp9j5icjb1aRp/SP0ZcR7Nn3NebpA9uUA==}
     peerDependencies:
       '@emoji-mart/data': '>=1.1.0'
       '@op-engineering/op-sqlite': '>=14.0.0'
       '@react-native-community/netinfo': '>=11.3.1'
       '@shopify/flash-list': '>=2.1.0'
       emoji-mart: '>=5.4.0'
-      react-native: '>=0.73.0'
+      react-native: '>=0.76.0'
       react-native-gesture-handler: '>=2.18.0'
       react-native-reanimated: '>=3.16.0'
       react-native-safe-area-context: '>=5.4.1'
       react-native-svg: '>=15.8.0'
+      react-native-teleport: '>=0.5.4'
     peerDependenciesMeta:
       '@emoji-mart/data':
         optional: true
@@ -23818,6 +23849,7 @@ packages:
       react-native-reanimated: 4.2.3(react-native-worklets@0.7.4)(react-native@0.81.6)(react@19.1.4)
       react-native-safe-area-context: 5.10.0(react-native@0.81.6)(react@19.1.4)
       react-native-svg: 15.15.5(react-native@0.81.6)(react@19.1.4)
+      react-native-teleport: 0.5.4(react-dom@19.1.4)(react-native@0.81.6)(react@19.1.4)
       react-native-url-polyfill: 2.0.0(react-native@0.81.6)
       stream-chat: 9.53.0
       use-sync-external-store: 1.7.0(react@19.1.4)
@@ -23832,29 +23864,26 @@ packages:
       - utf-8-validate
     dev: false
 
-  /stream-chat-react-native@8.14.1(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@12.0.1)(@react-native-documents/picker@11.0.4)(@types/react@19.3.0)(react-native-blob-util@0.25.0)(react-native-gesture-handler@2.33.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.10.0)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.3)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3):
-    resolution: {integrity: sha512-eJVW7/noyaeZAkv0O/hO8Qg+4EPCB2z+glU4VuFghlxJpF4WiuCyBWAnP3tIk3BSmfA1wyG7ndxu2NT3QucxEA==}
+  /stream-chat-react-native@9.7.0(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@12.0.1)(@react-native-documents/picker@11.0.4)(@types/react@19.3.0)(react-native-blob-util@0.25.0)(react-native-gesture-handler@2.33.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.10.0)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-teleport@0.5.4)(react-native-video@6.19.3)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3):
+    resolution: {integrity: sha512-oRBhDQIgGhN2idwuNx78iH6lW6rLmr8ZYgFdSGxYor1OmPzItQWQXF0lDXXNXOtBB/VZ715tz7REjHrqsiO0+Q==}
     peerDependencies:
-      '@react-native-camera-roll/camera-roll': '>=7.8.0'
-      '@react-native-clipboard/clipboard': '>=1.14.1'
+      '@react-native-camera-roll/camera-roll': '>=7.9.0'
+      '@react-native-clipboard/clipboard': '>=1.16.0'
       '@react-native-documents/picker': '>=10.1.1'
-      '@stream-io/flat-list-mvcp': '>=0.10.3'
-      react-native: '>=0.73.0'
+      react-native: '>=0.76.0'
       react-native-audio-recorder-player: '>=3.6.13'
-      react-native-blob-util: '>=0.21.1'
+      react-native-blob-util: '>=0.22.0'
       react-native-haptic-feedback: '>=2.3.0'
       react-native-image-picker: '>=7.1.2'
       react-native-nitro-sound: '>=0.2.9'
       react-native-share: '>=11.0.0'
-      react-native-video: '>=6.4.2'
+      react-native-video: '>=6.18.0'
     peerDependenciesMeta:
       '@react-native-camera-roll/camera-roll':
         optional: true
       '@react-native-clipboard/clipboard':
         optional: true
       '@react-native-documents/picker':
-        optional: true
-      '@stream-io/flat-list-mvcp':
         optional: true
       react-native-audio-recorder-player:
         optional: true
@@ -23882,7 +23911,7 @@ packages:
       react-native-nitro-sound: 0.2.17(react-native-nitro-modules@0.36.5)(react-native@0.81.6)(react@19.1.4)
       react-native-share: 12.3.1
       react-native-video: 6.19.3(react-native@0.81.6)(react@19.1.4)
-      stream-chat-react-native-core: 8.14.1(@react-native-community/netinfo@12.0.1)(@types/react@19.3.0)(react-native-gesture-handler@2.33.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.10.0)(react-native-svg@15.15.5)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3)
+      stream-chat-react-native-core: 9.7.0(@react-native-community/netinfo@12.0.1)(@types/react@19.3.0)(react-native-gesture-handler@2.33.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.10.0)(react-native-svg@15.15.5)(react-native-teleport@0.5.4)(react-native@0.81.6)(react@19.1.4)(typescript@5.9.3)
     transitivePeerDependencies:
       - '@emoji-mart/data'
       - '@op-engineering/op-sqlite'
@@ -23898,6 +23927,7 @@ packages:
       - react-native-reanimated
       - react-native-safe-area-context
       - react-native-svg
+      - react-native-teleport
       - supports-color
       - typescript
       - utf-8-validate
