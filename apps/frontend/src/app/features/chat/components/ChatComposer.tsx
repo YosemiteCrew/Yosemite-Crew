@@ -32,7 +32,7 @@ import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { useChatShare } from './chatShareContext';
 import { partitionUploadFiles } from '../lib/uploadSafety';
-import { VoiceCapture } from '@/app/ui/primitives/VoiceCapture';
+import { VoiceCapture } from '@/app/ui/primitives/VoiceCapture/VoiceCapture';
 
 const EMOJIS = ['👍', '🙏', '❤️', '😊', '🎉', '✅', '⏰', '🐾', '💊', '📎'];
 

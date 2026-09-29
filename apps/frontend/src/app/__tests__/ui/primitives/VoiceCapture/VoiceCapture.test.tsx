@@ -1,6 +1,11 @@
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { VoiceCapture } from '@/app/ui/primitives/VoiceCapture';
+import { animate } from 'framer-motion';
+import { VoiceCapture } from '@/app/ui/primitives/VoiceCapture/VoiceCapture';
+
+jest.mock('framer-motion', () => ({
+  animate: jest.fn(() => ({ stop: jest.fn() })),
+}));
 
 const mockMediaDevices = {
   getUserMedia: jest.fn(),
@@ -45,13 +50,6 @@ const createMockAudio = () => {
 global.MediaRecorder = jest
   .fn()
   .mockImplementation(() => createMockMediaRecorder()) as unknown as typeof MediaRecorder;
-global.Blob = jest
-  .fn()
-  .mockImplementation((chunks) => ({
-    chunks,
-    size: chunks.reduce((a, c) => a + (c.size || 0), 0),
-    type: 'audio/webm',
-  })) as unknown as typeof Blob;
 global.URL.createObjectURL = jest.fn(() => 'blob:mock-url');
 global.URL.revokeObjectURL = jest.fn();
 global.Audio = jest.fn().mockImplementation(() => createMockAudio()) as unknown as typeof Audio;
@@ -65,6 +63,7 @@ const defaultProps = {
 };
 
 function resetMocks() {
+  jest.restoreAllMocks();
   jest.clearAllMocks();
   mockMediaRecorderInstance = null;
   mockAudioInstance = null;
@@ -75,6 +74,29 @@ function resetMocks() {
   mockMediaDevices.getUserMedia.mockResolvedValue({
     getTracks: () => [{ stop: jest.fn() }],
   });
+}
+
+function mockMotionPreference(matches: boolean) {
+  let onMediaChange: ((event: MediaQueryListEvent) => void) | undefined;
+  const removeEventListener = jest.fn();
+  jest.spyOn(window, 'matchMedia').mockReturnValue({
+    matches,
+    media: '(prefers-reduced-motion: reduce)',
+    onchange: null,
+    addEventListener: (_type: string, listener: EventListener) => {
+      onMediaChange = listener as (event: MediaQueryListEvent) => void;
+    },
+    removeEventListener,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  } as unknown as MediaQueryList);
+
+  return {
+    removeEventListener,
+    setMatches: (nextMatches: boolean) =>
+      onMediaChange?.({ matches: nextMatches } as MediaQueryListEvent),
+  };
 }
 
 function triggerOnStop() {
@@ -120,6 +142,46 @@ describe('VoiceCapture', () => {
     expect(screen.getByRole('button', { name: 'Stop recording' })).toBeInTheDocument();
     expect(screen.getByText('Listening…')).toBeInTheDocument();
     expect(screen.getByText('Speak now. Press stop to finish recording')).toBeInTheDocument();
+  });
+
+  it('keeps recorded audio chunks and stops animation when reduced motion is enabled', async () => {
+    const mediaQuery = mockMotionPreference(false);
+    const { unmount } = render(<VoiceCapture {...defaultProps} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start recording' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Stop recording' })).toBeInTheDocument()
+    );
+    expect(animate).toHaveBeenCalledTimes(1);
+
+    const chunk = new Blob(['spoken note']);
+    act(() => {
+      mockMediaRecorderInstance.ondataavailable?.({ data: chunk } as BlobEvent);
+      mediaQuery.setMatches(true);
+    });
+
+    const animationControls = (animate as unknown as jest.Mock).mock.results[0].value;
+    expect(animationControls.stop).toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+    triggerOnStop();
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.objectContaining({ size: chunk.size }));
+
+    unmount();
+    expect(mediaQuery.removeEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+  });
+
+  it('does not animate the recording indicator when reduced motion is already enabled', async () => {
+    mockMotionPreference(true);
+    render(<VoiceCapture {...defaultProps} />);
+
+    await act(async () => new Promise((resolve) => window.setTimeout(resolve, 0)));
+    await userEvent.click(screen.getByRole('button', { name: 'Start recording' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Stop recording' })).toBeInTheDocument()
+    );
+    expect(animate).not.toHaveBeenCalled();
   });
 
   it('stops recording and shows processing state', async () => {
