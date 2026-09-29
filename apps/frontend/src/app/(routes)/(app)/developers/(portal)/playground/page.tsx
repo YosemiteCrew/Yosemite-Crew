@@ -8,7 +8,7 @@ type PageProps = {
   searchParams?: Promise<{ operation?: string | string[]; export?: string | string[] }>;
 };
 
-async function Page({ searchParams }: PageProps) {
+async function Page({ searchParams }: Readonly<PageProps>) {
   const params = searchParams ? await searchParams : {};
   return (
     <DeveloperPlayground

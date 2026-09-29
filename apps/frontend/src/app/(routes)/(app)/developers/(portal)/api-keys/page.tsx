@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'API Keys — Yosemite Crew' };
 
 type PageProps = { searchParams?: Promise<{ setup?: string | string[] }> };
 
-async function Page({ searchParams }: PageProps) {
+async function Page({ searchParams }: Readonly<PageProps>) {
   const params = searchParams ? await searchParams : {};
   return <DeveloperApiKeys guidedAppointmentTest={params.setup === 'appointment-test'} />;
 }
