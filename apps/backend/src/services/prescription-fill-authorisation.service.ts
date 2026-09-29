@@ -313,6 +313,38 @@ const describeEligibility = (
   };
 };
 
+/** Refuses a fill the authority no longer allows, counted under the item's lock. */
+const assertFillAvailable = async (
+  tx: Prisma.TransactionClient,
+  authority: AuthorityRow & { organisationId: string; itemId: string },
+  now: Date,
+) => {
+  const allocated = await countAllocatedFills(tx, authority);
+  const eligibility = describeEligibility(authority, allocated, now);
+  if (!eligibility.eligible) {
+    throw new PrescriptionFillAuthorisationServiceError(
+      `Fill not permitted: ${eligibility.reasonCodes.join(", ")}`,
+      409,
+    );
+  }
+};
+
+/**
+ * The allocation sequence, not the repeat number: a cancelled ordinal is never
+ * reused, so this only ever moves forward.
+ */
+const nextFillOrdinal = async (
+  tx: Prisma.TransactionClient,
+  authorizationId: string,
+) => {
+  const highest = await tx.prescriptionFillReservation.findFirst({
+    where: { authorizationId },
+    orderBy: { fillOrdinal: "desc" },
+    select: { fillOrdinal: true },
+  });
+  return (highest?.fillOrdinal ?? -1) + 1;
+};
+
 export const PrescriptionFillAuthorisationService = {
   /**
    * Issue a clinician's repeat authority for one prescription item.
@@ -634,31 +666,18 @@ export const PrescriptionFillAuthorisationService = {
       }
       return null;
     }
-    const allocated = await countAllocatedFills(tx, authority);
-    const eligibility = describeEligibility(authority, allocated, now);
-    if (!eligibility.eligible) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        `Fill not permitted: ${eligibility.reasonCodes.join(", ")}`,
-        409,
-      );
-    }
+    await assertFillAvailable(tx, authority, now);
     // The fill records what this dispense actually issues. That figure comes
     // from the signed prescription line, which is also what the stock movement
     // in the same transaction consumes, so the fill history and the stock
     // ledger cannot disagree.
-
-    const highest = await tx.prescriptionFillReservation.findFirst({
-      where: { authorizationId: authority.id },
-      orderBy: { fillOrdinal: "desc" },
-      select: { fillOrdinal: true },
-    });
     return tx.prescriptionFillReservation.create({
       data: {
         organisationId,
         authorizationId: authority.id,
         itemId,
         dispenseRequestId,
-        fillOrdinal: (highest?.fillOrdinal ?? -1) + 1,
+        fillOrdinal: await nextFillOrdinal(tx, authority.id),
         quantity,
         fulfilledQuantity: quantity,
         quantityUnit: authority.perFillQuantityUnit,
@@ -741,23 +760,7 @@ export const PrescriptionFillAuthorisationService = {
         );
       }
 
-      const allocated = await countAllocatedFills(tx, authority);
-      const eligibility = describeEligibility(authority, allocated, now);
-
-      if (!eligibility.eligible) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          `Fill not permitted: ${eligibility.reasonCodes.join(", ")}`,
-          409,
-        );
-      }
-
-      // The allocation sequence, not the repeat number: a cancelled ordinal is
-      // never reused, so this only ever moves forward.
-      const highest = await tx.prescriptionFillReservation.findFirst({
-        where: { authorizationId: authority.id },
-        orderBy: { fillOrdinal: "desc" },
-        select: { fillOrdinal: true },
-      });
+      await assertFillAvailable(tx, authority, now);
 
       return tx.prescriptionFillReservation.create({
         data: {
@@ -765,7 +768,7 @@ export const PrescriptionFillAuthorisationService = {
           authorizationId: authority.id,
           itemId,
           dispenseRequestId: asNonEmptyString(params.dispenseRequestId),
-          fillOrdinal: (highest?.fillOrdinal ?? -1) + 1,
+          fillOrdinal: await nextFillOrdinal(tx, authority.id),
           quantity: authority.perFillQuantity,
           quantityUnit: authority.perFillQuantityUnit,
           idempotencyKey,
