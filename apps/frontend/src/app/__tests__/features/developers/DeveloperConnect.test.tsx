@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import CreateKeyForm from '@/app/features/developers/pages/DeveloperApiKeys/CreateKeyForm';
 
 jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
   __esModule: true,
@@ -91,5 +92,26 @@ describe('DeveloperConnect', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Confirm sign-in and create access/ }));
     expect(screen.getByRole('link', { name: /Create a test key/ })).toBeInTheDocument();
+  });
+});
+
+describe('CreateKeyForm', () => {
+  it('initializes the scopes text only on the first render', () => {
+    const initialScopes = ['appointments:read'];
+    const join = jest.spyOn(initialScopes, 'join');
+    const props = {
+      creating: false,
+      onCreate: jest.fn(),
+      onCancel: jest.fn(),
+      initialScopes,
+    };
+    const { rerender } = render(<CreateKeyForm {...props} />);
+
+    expect(screen.getByLabelText('Scopes (optional, comma-separated)')).toHaveValue(
+      'appointments:read'
+    );
+    rerender(<CreateKeyForm {...props} />);
+
+    expect(join).toHaveBeenCalledTimes(1);
   });
 });
