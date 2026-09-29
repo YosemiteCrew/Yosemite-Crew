@@ -263,6 +263,53 @@ export class DocumensoService {
     }
   }
 
+  /**
+   * Sends an envelope to its recipients and reports what became of it:
+   * - "sent": Documenso took it. A success reply the SDK's strict response
+   *   schemas reject counts, since the production Documenso answers without
+   *   fields those schemas require (see the note above DocumentCreatedSchema).
+   * - "rejected": Documenso refused it with a 4xx reply, or no request was
+   *   made; nothing reached the signer.
+   * - "unconfirmed": a 5xx reply, a timeout or a dropped connection. The
+   *   envelope may have gone, so the caller must not treat it as unsent.
+   */
+  static async sendEnvelope({
+    envelopeId,
+    apiKey,
+  }: {
+    envelopeId: string;
+    apiKey?: string;
+  }): Promise<"sent" | "rejected" | "unconfirmed"> {
+    let documenso: Documenso;
+    try {
+      documenso = getDocumensoClient(apiKey);
+    } catch (error) {
+      logDocumensoFailure(error);
+      return "rejected";
+    }
+    try {
+      await documenso.envelopes.distribute({ envelopeId });
+      logger.info("Documenso envelope distributed", { envelopeId });
+      return "sent";
+    } catch (error) {
+      const statusCode =
+        error instanceof errors.DocumensoError ? error.statusCode : undefined;
+      if (
+        error instanceof errors.ResponseValidationError &&
+        statusCode !== undefined &&
+        statusCode >= 200 &&
+        statusCode < 300
+      ) {
+        logger.info("Documenso envelope distributed", { envelopeId });
+        return "sent";
+      }
+      logDocumensoFailure(error);
+      return statusCode !== undefined && statusCode >= 400 && statusCode < 500
+        ? "rejected"
+        : "unconfirmed";
+    }
+  }
+
   static async distributeDocument({
     envelopeId,
     apiKey,

@@ -823,6 +823,24 @@ describe('Forms Utils', () => {
       expect(normalized.status).toBe('draft');
     });
 
+    // A form record names only who signs: no signature is no signer.
+    it.each([
+      ['CLIENT', 'CLIENT'],
+      ['VET', 'VET'],
+      ['NONE', undefined],
+      ['', undefined],
+    ])('sends the signer %s as %s', (requiredSigner, expected) => {
+      (toFormResponseDTO as jest.Mock).mockClear();
+      buildFHIRPayload({
+        form: { ...mockUIForm, requiredSigner },
+        orgId: 'org-1',
+        userId: 'user-1',
+      });
+
+      const normalized = (toFormResponseDTO as jest.Mock).mock.calls[0][0];
+      expect(normalized.requiredSigner).toBe(expected);
+    });
+
     it('uses template schema if fallbackToTemplate is true and schema is empty', () => {
       // MockUIForm has empty schema and category "Medical" (which has a template in our mock)
       buildFHIRPayload({

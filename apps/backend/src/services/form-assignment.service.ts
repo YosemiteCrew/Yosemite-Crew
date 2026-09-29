@@ -6,6 +6,12 @@ import {
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
+import {
+  instanceNeedsClientSignature,
+  lockClientRequest,
+  templateNeedsClientSignature,
+} from "src/services/client-signature.helpers";
 import type {
   FormAssignmentCreateInput,
   FormAssignmentLike,
@@ -392,13 +398,22 @@ const findAssignmentForSubmission = async (params: {
   appointmentId?: string | null;
   companionId?: string | null;
   parentId?: string | null;
+  // When the answers were given: a request sent after them is not theirs.
+  answeredAt?: Date;
 }) => {
-  const assignments = await prisma.formAssignment.findMany({
+  // With an appointment the template identifies the assignment on its own. A
+  // template published again after it was sent submits at the newer version,
+  // and matching on the version as well left that assignment open for good.
+  // A request withdrawn or lapsed is never the one a submission answers.
+  const found = await prisma.formAssignment.findMany({
     where: {
       organisationId: params.organisationId,
       templateId: params.templateId,
-      templateVersion: params.templateVersion,
-      ...(params.appointmentId ? { appointmentId: params.appointmentId } : {}),
+      status: { notIn: ["CANCELLED", "EXPIRED"] },
+      ...(params.answeredAt ? { createdAt: { lte: params.answeredAt } } : {}),
+      ...(params.appointmentId
+        ? { appointmentId: params.appointmentId }
+        : { templateVersion: params.templateVersion }),
       ...(params.companionId ? { companionId: params.companionId } : {}),
     },
     include: {
@@ -410,11 +425,19 @@ const findAssignmentForSubmission = async (params: {
     },
   });
 
-  if (!assignments.length) {
+  if (!found.length) {
     return null;
   }
 
-  if (!params.parentId) {
+  // The assignment sent at the submitted version first.
+  const assignments = [
+    ...found.filter((row) => row.templateVersion === params.templateVersion),
+    ...found.filter((row) => row.templateVersion !== params.templateVersion),
+  ];
+
+  // On an appointment the request is the appointment's, whichever parent
+  // (a co-parent included) submitted it; access was checked on the way in.
+  if (!params.parentId || params.appointmentId) {
     return assignments[0] ?? null;
   }
 
@@ -429,6 +452,10 @@ const findAssignmentForSubmission = async (params: {
   );
 };
 
+// The kinds a client can be asked to fill in. CONSENT became a storage kind of
+// its own (1c3c790f0), so a FORM-only lookup refused every consent template.
+const ASSIGNABLE_TEMPLATE_KINDS = [TemplateKind.FORM, TemplateKind.CONSENT];
+
 const ensureTemplate = async (
   organisationId: string,
   templateId: string,
@@ -438,10 +465,12 @@ const ensureTemplate = async (
     where: {
       id: templateId,
       organisationId,
-      kind: TemplateKind.FORM,
+      kind: { in: ASSIGNABLE_TEMPLATE_KINDS },
     },
     select: {
       id: true,
+      kind: true,
+      rules: true,
       latestVersion: true,
       publishedVersion: true,
     },
@@ -469,7 +498,7 @@ const ensureTemplate = async (
     throw new FormAssignmentServiceError("Template version not found", 404);
   }
 
-  return version;
+  return { ...version, clientSigns: templateNeedsClientSignature(template) };
 };
 
 const loadAppointment = async (
@@ -501,11 +530,47 @@ const loadAppointment = async (
 const resolveCompanionId = (appointment: AppointmentRow, fallback?: string) =>
   resolvePatientId(appointment.patient) ?? fallback ?? undefined;
 
+/**
+ * A request may name the parent who signs it: one with an ACTIVE link to the
+ * appointment's companion who may act on its appointments. Where the client
+ * signs the form, a co-parent also needs the medical records permission, since
+ * they sign the answers the practice gives. Anyone else is refused.
+ */
+const ensureNamedSigner = async (
+  signerId: string,
+  companionId: string | undefined,
+  clientSigns: boolean,
+) => {
+  const link = companionId
+    ? await prisma.parentPatient.findFirst({
+        where: {
+          parentId: signerId,
+          patientId: companionId,
+          status: "ACTIVE",
+          role: { in: ["PRIMARY", "CO_PARENT"] },
+        },
+        select: { role: true, permissions: true },
+      })
+    : null;
+  const allowed =
+    !!link &&
+    hasCompanionFeature(link.role, link.permissions, "appointments") &&
+    (!clientSigns ||
+      hasCompanionFeature(link.role, link.permissions, "medicalRecords"));
+  if (!allowed) {
+    throw new FormAssignmentServiceError(
+      "The signer must be a parent of the companion who may sign it",
+      400,
+    );
+  }
+};
+
 const ensureAssignment = async (
   assignmentId: string,
   organisationId: string,
+  client: Pick<Prisma.TransactionClient, "formAssignment"> = prisma,
 ) => {
-  const assignment = await prisma.formAssignment.findFirst({
+  const assignment = await client.formAssignment.findFirst({
     where: {
       id: assignmentId,
       organisationId,
@@ -535,11 +600,18 @@ const ensureResendable = (
   }
 };
 
+// A submitted request is withdrawn only while it waits for the client's
+// signature; one answered in full is complete (`isCompleted`).
 const ensureCancellable = (
   status: FormAssignmentDbStatus | FormAssignmentLike["status"],
+  awaitsClientSignature: boolean,
 ) => {
   const normalized = normalizeAssignmentStatus(status);
-  if (normalized === "signed" || normalized === "expired") {
+  if (
+    normalized === "signed" ||
+    normalized === "expired" ||
+    (normalized === "submitted" && !awaitsClientSignature)
+  ) {
     throw new FormAssignmentServiceError(
       "Assignment can no longer be cancelled",
       409,
@@ -547,16 +619,51 @@ const ensureCancellable = (
   }
 };
 
+const SUBMITTABLE_STATUSES: FormAssignmentDbStatus[] = ["SENT", "VIEWED"];
+const SIGNABLE_STATUSES: FormAssignmentDbStatus[] = [
+  "SENT",
+  "VIEWED",
+  "SUBMITTED",
+];
+// Every status but CANCELLED, SIGNED and EXPIRED (ensureResendable).
+const RESENDABLE_STATUSES: FormAssignmentDbStatus[] = [
+  "DRAFT",
+  "SENT",
+  "VIEWED",
+  "SUBMITTED",
+];
+
 const isSubmittableAssignmentStatus = (status: FormAssignmentDbStatus) =>
-  status === "SENT" || status === "VIEWED";
+  SUBMITTABLE_STATUSES.includes(status);
 
 const isSignableAssignmentStatus = (status: FormAssignmentDbStatus) =>
-  status === "SENT" || status === "VIEWED" || status === "SUBMITTED";
+  SIGNABLE_STATUSES.includes(status);
 
-const AUTO_ASSIGN_TEMPLATE_KINDS: Array<"FORM" | "CONSENT"> = [
-  "FORM",
-  "CONSENT",
-];
+/**
+ * Moves a request on, only from the statuses it may move from, in one write:
+ * a cancel or signature that lands between reading the request and writing it
+ * stands instead of being overwritten. `null` when it had moved on meanwhile.
+ */
+const moveAssignment = async (
+  id: string,
+  from: FormAssignmentDbStatus[],
+  data: Prisma.FormAssignmentUpdateInput,
+): Promise<FormAssignmentRow | null> => {
+  try {
+    return await prisma.formAssignment.update({
+      where: { id, status: { in: from } },
+      data,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return null;
+    }
+    throw error;
+  }
+};
 
 /**
  * Materialise the form/consent assignments a linked template implies for an
@@ -598,17 +705,16 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
     species,
   };
 
-  for (const kind of AUTO_ASSIGN_TEMPLATE_KINDS) {
+  for (const kind of ASSIGNABLE_TEMPLATE_KINDS) {
     try {
       const resolved = await TemplateService.resolve({
         ...resolveInput,
         kind,
       });
 
-      // Re-checked immediately before the create, and the create itself is
-      // wrapped: there is no unique constraint behind this pair, so two
-      // concurrent requests could both read "absent" and both insert. Losing
-      // that race is not an error - the other request created the row we wanted.
+      // Any request already made for the template, a withdrawn one included,
+      // is left as it is. A concurrent sync that creates it first is handed
+      // back that request by the create.
       const existing = await prisma.formAssignment.findFirst({
         where: {
           organisationId: params.organisationId,
@@ -654,31 +760,54 @@ export const FormAssignmentService = {
       ? resolveCompanionId(appointment, parsed.companionId)
       : (parsed.companionId ?? undefined);
 
+    // The signer is checked against the appointment's own companion, never
+    // one the caller names.
+    if (parsed.signerIdentity?.userId) {
+      await ensureNamedSigner(
+        parsed.signerIdentity.userId,
+        resolvePatientId(appointment.patient),
+        version.clientSigns,
+      );
+    }
+
     const createdBy = parsed.createdBy;
-    const now = new Date();
+    const request = {
+      organisationId: parsed.organisationId,
+      templateId: version.templateId,
+      appointmentId: appointment.id,
+    };
 
-    const row = await prisma.formAssignment.create({
-      data: {
-        organisationId: parsed.organisationId,
-        templateId: version.templateId,
-        templateVersion: version.version,
-        appointmentId: appointment.id,
-        encounterId: appointment.encounterId ?? undefined,
-        companionId,
-        signerUserId: parsed.signerIdentity?.userId ?? undefined,
-        signerName: parsed.signerIdentity?.name ?? undefined,
-        signerEmail: parsed.signerIdentity?.email ?? undefined,
-        signerRole: parsed.signerIdentity?.role ?? undefined,
-        mobileVisible: parsed.mobileVisible ?? true,
-        signingRequired: parsed.signingRequired ?? true,
-        status: "SENT",
-        sentAt: now,
-        createdBy,
-        updatedBy: createdBy,
-      },
+    // One request per form on an appointment: sending a form the client
+    // already has open hands back that request instead of a second copy.
+    return prisma.$transaction(async (tx) => {
+      await lockClientRequest(tx, request);
+      const open = await tx.formAssignment.findFirst({
+        where: { ...request, status: { notIn: ["CANCELLED", "EXPIRED"] } },
+      });
+      if (open) return toAssignmentLike(open);
+
+      const row = await tx.formAssignment.create({
+        data: {
+          ...request,
+          templateVersion: version.version,
+          encounterId: appointment.encounterId ?? undefined,
+          companionId,
+          signerUserId: parsed.signerIdentity?.userId ?? undefined,
+          signerName: parsed.signerIdentity?.name ?? undefined,
+          signerEmail: parsed.signerIdentity?.email ?? undefined,
+          signerRole: parsed.signerIdentity?.role ?? undefined,
+          mobileVisible: parsed.mobileVisible ?? true,
+          // The client is asked to sign only what the template says they sign.
+          signingRequired: parsed.signingRequired ?? version.clientSigns,
+          status: "SENT",
+          sentAt: new Date(),
+          createdBy,
+          updatedBy: createdBy,
+        },
+      });
+
+      return toAssignmentLike(row);
     });
-
-    return toAssignmentLike(row);
   },
 
   async listForAppointment(organisationId: string, appointmentId: string) {
@@ -815,15 +944,19 @@ export const FormAssignmentService = {
     ensureResendable(assignment.status);
 
     const now = new Date();
-    const row = await prisma.formAssignment.update({
-      where: { id: assignment.id },
-      data: {
-        status: "SENT",
-        sentAt: now,
-        updatedBy,
-        updatedAt: now,
-      },
+    const row = await moveAssignment(assignment.id, RESENDABLE_STATUSES, {
+      status: "SENT",
+      sentAt: now,
+      updatedBy,
+      updatedAt: now,
     });
+    // Signed, cancelled or lapsed since it was read.
+    if (!row) {
+      throw new FormAssignmentServiceError(
+        "Assignment can no longer be resent",
+        409,
+      );
+    }
 
     return toAssignmentLike(row);
   },
@@ -853,6 +986,7 @@ export const FormAssignmentService = {
     companionId?: string | null;
     parentId?: string | null;
     submittedAt?: Date;
+    answeredAt?: Date;
   }) {
     const assignment = await findAssignmentForSubmission({
       organisationId: params.organisationId,
@@ -861,6 +995,7 @@ export const FormAssignmentService = {
       appointmentId: params.appointmentId,
       companionId: params.companionId,
       parentId: params.parentId,
+      answeredAt: params.answeredAt,
     });
 
     if (!assignment) {
@@ -871,14 +1006,13 @@ export const FormAssignmentService = {
       return assignment;
     }
 
-    return prisma.formAssignment.update({
-      where: { id: assignment.id },
-      data: {
+    return (
+      (await moveAssignment(assignment.id, SUBMITTABLE_STATUSES, {
         status: "SUBMITTED",
         submittedAt: params.submittedAt ?? new Date(),
         updatedAt: new Date(),
-      },
-    });
+      })) ?? assignment
+    );
   },
 
   async markSignedFromSubmission(params: {
@@ -906,14 +1040,13 @@ export const FormAssignmentService = {
       return assignment;
     }
 
-    return prisma.formAssignment.update({
-      where: { id: assignment.id },
-      data: {
+    return (
+      (await moveAssignment(assignment.id, SIGNABLE_STATUSES, {
         status: "SIGNED",
         signedAt: new Date(),
         updatedAt: new Date(),
-      },
-    });
+      })) ?? assignment
+    );
   },
 
   async cancel(
@@ -921,24 +1054,58 @@ export const FormAssignmentService = {
     organisationId: string,
     updatedBy: string,
   ) {
-    const assignment = await ensureAssignment(assignmentId, organisationId);
-    if (normalizeAssignmentStatus(assignment.status) === "cancelled") {
-      return toAssignmentLike(assignment);
-    }
-    ensureCancellable(normalizeAssignmentStatus(assignment.status));
+    const found = await ensureAssignment(assignmentId, organisationId);
 
-    const now = new Date();
-    const row = await prisma.formAssignment.update({
-      where: { id: assignment.id },
-      data: {
-        status: "CANCELLED",
-        cancelledAt: now,
-        updatedBy,
-        updatedAt: now,
-      },
+    // Under the lock a signature completing on the request takes, so the two
+    // never interleave: a cancel sees the request as signed, or the signature
+    // sees it cancelled. The status read is the one the write is made on.
+    return prisma.$transaction(async (tx) => {
+      if (found.appointmentId) {
+        await lockClientRequest(tx, {
+          organisationId: found.organisationId,
+          templateId: found.templateId,
+          appointmentId: found.appointmentId,
+        });
+      }
+      const assignment = await ensureAssignment(
+        assignmentId,
+        organisationId,
+        tx,
+      );
+      const status = normalizeAssignmentStatus(assignment.status);
+      if (status === "cancelled") {
+        return toAssignmentLike(assignment);
+      }
+      ensureCancellable(
+        status,
+        status === "submitted" && (await asksClientToSign(assignment, tx)),
+      );
+
+      const now = new Date();
+      try {
+        const row = await tx.formAssignment.update({
+          where: { id: assignment.id, status: assignment.status },
+          data: {
+            status: "CANCELLED",
+            cancelledAt: now,
+            updatedBy,
+            updatedAt: now,
+          },
+        });
+        return toAssignmentLike(row);
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2025"
+        ) {
+          throw new FormAssignmentServiceError(
+            "Assignment changed while it was being cancelled",
+            409,
+          );
+        }
+        throw error;
+      }
     });
-
-    return toAssignmentLike(row);
   },
 
   async listAppointmentFormSummaries(
@@ -949,13 +1116,103 @@ export const FormAssignmentService = {
       organisationId,
       appointmentId,
     );
+    const clientSigns = await loadClientSignedTemplateIds(
+      assignments.map(({ templateId }) => templateId),
+      { organisationId, appointmentId },
+    );
 
-    return assignments.map((assignment) => ({
-      ...assignment,
-      status: isCompleted(assignment) ? "completed" : "pending",
-      assignmentStatus: assignment.status,
-    }));
+    return assignments.map((assignment) => {
+      const effective = {
+        ...assignment,
+        signingRequired:
+          assignment.signingRequired && clientSigns.has(assignment.templateId),
+      };
+      return {
+        ...effective,
+        status: isCompleted(effective) ? "completed" : "pending",
+        assignmentStatus: assignment.status,
+      };
+    });
   },
+};
+
+/**
+ * Whether a request still asks the client to sign, as the appointment's
+ * listing and finalisation read it.
+ */
+const asksClientToSign = async (
+  request: {
+    organisationId: string;
+    templateId: string;
+    appointmentId: string | null;
+    signingRequired: boolean;
+  },
+  client: Pick<Prisma.TransactionClient, "template" | "templateInstance">,
+) =>
+  request.signingRequired &&
+  (!request.appointmentId ||
+    (
+      await loadClientSignedTemplateIds(
+        [request.templateId],
+        {
+          organisationId: request.organisationId,
+          appointmentId: request.appointmentId,
+        },
+        client,
+      )
+    ).has(request.templateId));
+
+/**
+ * The templates among these whose forms the client signs on the appointment.
+ * A request asks for a signature only where the form does: requests saved
+ * when every one asked for a signature still complete on submission for any
+ * other form. Once a form is submitted, who signs is the one pinned with the
+ * latest submission, so a later edit to its template changes nothing.
+ */
+export const loadClientSignedTemplateIds = async (
+  templateIds: string[],
+  appointment: { organisationId: string; appointmentId: string },
+  client: Pick<
+    Prisma.TransactionClient,
+    "template" | "templateInstance"
+  > = prisma,
+): Promise<Set<string>> => {
+  if (!templateIds.length) return new Set();
+  const ids = [...new Set(templateIds)];
+  const [templates, submitted] = await Promise.all([
+    client.template.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, kind: true, rules: true },
+    }),
+    client.templateInstance.findMany({
+      where: {
+        organisationId: appointment.organisationId,
+        appointmentId: appointment.appointmentId,
+        templateId: { in: ids },
+        status: { in: ["COMPLETED", "SIGNED"] },
+      },
+      select: { templateId: true, generatedPdf: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const latestSubmission = new Map<string, unknown>();
+  for (const instance of submitted) {
+    if (!latestSubmission.has(instance.templateId)) {
+      latestSubmission.set(instance.templateId, instance.generatedPdf);
+    }
+  }
+  return new Set(
+    templates
+      .filter((template) =>
+        latestSubmission.has(template.id)
+          ? instanceNeedsClientSignature({
+              generatedPdf: latestSubmission.get(template.id),
+              template,
+            })
+          : templateNeedsClientSignature(template),
+      )
+      .map(({ id }) => id),
+  );
 };
 
 const isCompleted = (assignment: FormAssignmentLike) =>

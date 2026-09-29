@@ -7,12 +7,12 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { useFormsForPrimaryOrgByCategory } from '@/app/hooks/useForms';
-import { FormsCategory, FormsProps } from '@/app/features/forms/types/forms';
+import { FormsCategory, FormsProps, appointmentFormSigner } from '@/app/features/forms/types/forms';
 import { buildInitialValues } from '@/app/features/forms/pages/Forms/Sections/AddForm/reviewUtils';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
 import { createSubmission } from '@/app/features/appointments/services/soapService';
 import { useAuthStore } from '@/app/stores/authStore';
-import { linkAppointmentForms } from '@/app/features/forms/services/appointmentFormsService';
+import { sendFormToParent } from '@/app/features/forms/services/formAssignmentService';
 import { hasSignatureField } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils';
 import { FormDataProps } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/appointmentInfoTypes';
 import SoapSubmissions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SoapSubmissions';
@@ -87,12 +87,14 @@ const PrescriptionFormSection = <K extends SoapKey>({
     }));
   };
 
+  // A template-backed form is signed on its document, not from here.
+  const signer = appointmentFormSigner(active ?? undefined);
+
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
-      if (active.requiredSigner === 'CLIENT') return;
-      const signatureRequired =
-        active.requiredSigner === 'VET' && hasSignatureField(active.schema as any);
+      if (signer === 'CLIENT') return;
+      const signatureRequired = signer === 'VET' && hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: '',
         formVersion: 1,
@@ -142,15 +144,15 @@ const PrescriptionFormSection = <K extends SoapKey>({
 
   const handleSendToParent = async () => {
     if (!active?._id || !activeAppointment.id) return;
-    if (active.requiredSigner !== 'CLIENT') return;
+    if (signer !== 'CLIENT') return;
     const orgId = activeAppointment.organisationId;
     if (!orgId) return;
     setSending(true);
     try {
-      await linkAppointmentForms({
-        organisationId: orgId,
-        appointmentId: activeAppointment.id,
-        formIds: [active._id],
+      await sendFormToParent(orgId, activeAppointment.id, {
+        id: active._id,
+        templateId: active.templateId,
+        isTemplateBacked: active.isTemplateBacked,
       });
       setActive(null);
       setQuery('');
@@ -162,7 +164,7 @@ const PrescriptionFormSection = <K extends SoapKey>({
     }
   };
 
-  const isClientSigner = active?.requiredSigner === 'CLIENT';
+  const isClientSigner = signer === 'CLIENT';
   let actionText = 'Save';
   if (isClientSigner) {
     actionText = sending ? 'Sending' : 'Send to parent';

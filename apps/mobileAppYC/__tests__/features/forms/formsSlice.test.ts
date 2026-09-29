@@ -36,6 +36,8 @@ jest.mock('../../../src/features/auth/sessionManager', () => ({
 jest.mock('../../../src/features/forms/utils', () => ({
   deriveFormStatus: jest.fn(),
   hasSignatureField: jest.fn(),
+  isConsentForm: jest.requireActual('../../../src/features/forms/utils')
+    .isConsentForm,
   normalizeFormForState: jest.fn(),
   normalizeSubmissionFromApi: jest.fn(),
   resolveFormVersion: jest.fn(),
@@ -136,6 +138,52 @@ describe('formsSlice', () => {
         formsCache: {},
       });
     });
+  });
+
+  // The practice's request is what the server goes by: a submitted form is
+  // not offered again, and a signed one reads signed.
+  describe('the request status the server reports', () => {
+    const loadWith = async (
+      assignmentStatus: string | null,
+      derived: string,
+      submission: Record<string, any> | null = null,
+    ) => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [{form: mockForm(), submission, assignmentStatus}],
+      });
+      (Utils.deriveFormStatus as jest.Mock).mockReturnValue(derived);
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+      return selectFormsForAppointment(
+        store.getState() as any,
+        mockAppointmentId,
+      )[0];
+    };
+
+    it('shows a form submitted elsewhere as submitted', async () => {
+      const entry = await loadWith('submitted', 'not_started');
+      expect(entry.status).toBe('submitted');
+      expect(entry.assignmentStatus).toBe('submitted');
+    });
+
+    it('shows a form the client signed as signed', async () => {
+      const entry = await loadWith('signed', 'signing', mockSubmission());
+      expect(entry.status).toBe('signed');
+    });
+
+    it('keeps the submission state for a submitted form this device has', async () => {
+      const entry = await loadWith('submitted', 'signing', mockSubmission());
+      expect(entry.status).toBe('signing');
+    });
+
+    it.each([['sent'], [null]])(
+      'leaves a form still to fill (%s) as it is',
+      async assignmentStatus => {
+        const entry = await loadWith(assignmentStatus, 'not_started');
+        expect(entry.status).toBe('not_started');
+      },
+    );
   });
 
   describe('fetchAppointmentForms', () => {
@@ -760,6 +808,135 @@ describe('formsSlice', () => {
     });
   });
 
+  // A consent the practice filled in for the client to sign: nothing in the
+  // form itself says it needs a signature, the practice's request does.
+  describe('a form the practice asked the client to sign', () => {
+    const load = async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f1'}),
+            submission: mockSubmission({_id: 'instance-1', formId: 'f1'}),
+            signingRequested: true,
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+    };
+    const entry = () =>
+      selectFormsForAppointment(store.getState() as any, mockAppointmentId)[0];
+
+    it('needs signing', async () => {
+      await load();
+      expect(entry().signingRequired).toBe(true);
+      expect(Utils.deriveFormStatus).toHaveBeenCalledWith(
+        expect.objectContaining({_id: 'instance-1'}),
+        true,
+      );
+    });
+
+    it('still needs signing once signing has started', async () => {
+      await load();
+      (formApi.startSigning as jest.Mock).mockResolvedValue({
+        signingUrl: 'https://sign',
+      });
+
+      await store.dispatch(
+        startFormSigning({
+          appointmentId: mockAppointmentId,
+          submissionId: 'instance-1',
+        }),
+      );
+
+      expect(entry().signingRequired).toBe(true);
+    });
+
+    // The server says the client does not sign it (a form or consent the
+    // practice signs): its consent category or signature field do not count.
+    it('does not need signing when the server says so', async () => {
+      (Utils.hasSignatureField as jest.Mock).mockReturnValue(true);
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f1', category: 'Consent form'}),
+            submission: mockSubmission({_id: 'instance-1', formId: 'f1'}),
+            signingRequested: false,
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      expect(entry().signingRequired).toBe(false);
+      expect(entry().signingRequested).toBe(false);
+    });
+
+    it('falls back to the form when the server says nothing', async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f1', category: 'Consent form'}),
+            submission: null,
+            signingRequested: null,
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      expect(entry().signingRequired).toBe(true);
+    });
+
+    // Submitting the form keeps what the server said of it.
+    it('keeps the server answer and request status once submitted', async () => {
+      (Utils.hasSignatureField as jest.Mock).mockReturnValue(true);
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f1'}),
+            submission: null,
+            signingRequested: false,
+            assignmentStatus: 'sent',
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+      (formApi.submitForm as jest.Mock).mockResolvedValue(
+        mockSubmission({_id: 'instance-1', formId: 'f1'}),
+      );
+
+      await store.dispatch(
+        submitAppointmentForm({
+          appointmentId: mockAppointmentId,
+          form: mockForm({_id: 'f1'}) as any,
+          answers: {},
+        }),
+      );
+
+      expect(entry()).toMatchObject({
+        signingRequired: false,
+        signingRequested: false,
+        assignmentStatus: 'sent',
+      });
+    });
+
+    it('does not need signing when nothing asks for it', async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [{form: mockForm({_id: 'f1'}), submission: null}],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+      expect(entry().signingRequired).toBe(false);
+    });
+  });
+
   describe('startFormSigning', () => {
     beforeEach(async () => {
       (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
@@ -819,6 +996,40 @@ describe('formsSlice', () => {
         entries.find((entry: any) => entry.submission._id === 'sub-2')
           .signingUrl,
       ).toBeNull();
+    });
+
+    // Starting a signing does not take away whether the parent may sign it.
+    it('keeps whether the parent may sign the form it starts signing', async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [
+          {
+            form: mockForm({_id: 'f9'}),
+            submission: mockSubmission({_id: 'sub-9', formId: 'f9'}),
+            canSign: true,
+          },
+        ],
+      });
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+      (formApi.startSigning as jest.Mock).mockResolvedValue({
+        signingUrl: 'https://sign',
+        documentId: 'doc-1',
+      });
+
+      await store.dispatch(
+        startFormSigning({
+          appointmentId: mockAppointmentId,
+          submissionId: 'sub-9',
+        }),
+      );
+
+      const entry = store
+        .getState()
+        .forms.byAppointmentId[mockAppointmentId].find(
+          (item: any) => item.submission?._id === 'sub-9',
+        );
+      expect(entry).toMatchObject({signingUrl: 'https://sign', canSign: true});
     });
 
     it('preserves existing signing fields and existing signingUrl when API omits new values', async () => {

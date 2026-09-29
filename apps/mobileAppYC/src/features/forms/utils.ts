@@ -106,6 +106,10 @@ export const wrapPlainTextAsHtml = (text: string): string => {
     .join('');
 };
 
+/** A consent form: signed by ticking its statements, not by filling it in. */
+export const isConsentForm = (form?: {category?: string | null} | null) =>
+  (form?.category ?? '').toLowerCase().includes('consent');
+
 export const hasSignatureField = (fields?: FormField[]): boolean => {
   if (!fields?.length) {
     return false;

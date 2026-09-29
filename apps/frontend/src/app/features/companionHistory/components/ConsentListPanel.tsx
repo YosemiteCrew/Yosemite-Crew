@@ -12,11 +12,11 @@ export type ConsentListPanelProps = {
 
 /**
  * The manually-recorded consents ({@link useConsentList}) are a separate data
- * model from the signed PDFs the e-signing portal (Documenso) produces - there
+ * model from the consent PDFs the e-signing portal (Documenso) produces - there
  * is no field linking one to the other, so this loads them independently
  * rather than guessing a correspondence.
  */
-const useSignedConsentDocuments = (companionId: string, canView: boolean) => {
+const useConsentDocuments = (companionId: string, canView: boolean) => {
   const [documents, setDocuments] = useState<CompanionRecord[]>([]);
 
   // Reset during render (React's recommended pattern, mirrors
@@ -55,7 +55,7 @@ const useSignedConsentDocuments = (companionId: string, canView: boolean) => {
 const ConsentListPanel = ({ companionId }: ConsentListPanelProps) => {
   const { canView, canEdit, consents, loading, error, creating, revokingId, grant, revoke } =
     useConsentList(companionId);
-  const signedDocuments = useSignedConsentDocuments(companionId, canView);
+  const consentDocuments = useConsentDocuments(companionId, canView);
 
   if (!canView) return null;
 
@@ -69,7 +69,7 @@ const ConsentListPanel = ({ companionId }: ConsentListPanelProps) => {
       onRevoke={revoke}
       creating={creating}
       revokingId={revokingId}
-      signedDocuments={signedDocuments}
+      consentDocuments={consentDocuments}
     />
   );
 };

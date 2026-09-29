@@ -27,9 +27,18 @@ import {
   FormVisibilityType as PrismaFormVisibilityType,
   OrganizationType as PrismaOrganizationType,
   Prisma,
+  TemplateKind as PrismaTemplateKind,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import { isWorkflowKind } from "src/services/task-workflow-blueprints";
+import {
+  instanceNeedsClientSignature,
+  lockClientRequest,
+  pickNamedClientSigner,
+  templateNeedsClientSignature,
+  withdrawalCutoffs,
+} from "src/services/client-signature.helpers";
 import {
   type CompanionFeature,
   hasCompanionFeature,
@@ -249,14 +258,24 @@ const NEWEST_RECORDED_FIRST: Prisma.FormSubmissionOrderByWithRelationInput[] = [
   { id: "desc" },
 ];
 
+// Who a request made for a template linked to the appointment's service is
+// created by (FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment).
+const LINKED_TEMPLATE_SENDER = "SYSTEM";
+
+// The template instances that are an answer: submitted, not a draft.
+const SUBMITTED_INSTANCE_STATUSES = new Set(["COMPLETED", "SIGNED"]);
+
 // Template kinds a pet parent fills in; every other kind is the practice's.
 const PARENT_TEMPLATE_KINDS = new Set(["FORM", "CONSENT"]);
 
 // Which of these user ids are pet parents.
-const loadParentIds = async (ids: (string | null)[]) => {
+const loadParentIds = async (
+  ids: (string | null)[],
+  client: Pick<Prisma.TransactionClient, "parent"> = prisma,
+) => {
   const unique = [...new Set(ids.filter(Boolean))] as string[];
   if (!unique.length) return new Set<string>();
-  const rows = await prisma.parent.findMany({
+  const rows = await client.parent.findMany({
     where: { id: { in: unique } },
     select: { id: true },
   });
@@ -587,6 +606,9 @@ const getTemplateOrUndefined = async (
   }
 };
 
+const isSubmittedAssignmentStatus = (status: string) =>
+  status === "SUBMITTED" || status === "SIGNED";
+
 /**
  * The mobile submit route carries no organisation context, so the template id is
  * a bare identifier chosen by the caller. Submitting it creates (and completes)
@@ -615,11 +637,32 @@ const assertTemplateSubmittableByParent = async (params: {
     await assertParentCanViewAppointment(appointment, params.parentId);
   }
 
-  // With an appointment the parent link is already proven above, so the
-  // assignment only has to exist for it. Without one there is no such anchor and
-  // the assignment itself must name the parent as the signer. Either way it
-  // must have been sent to the app.
-  const assignment = await prisma.formAssignment.findFirst({
+  await assertRequestAnswerableByParent(prisma, params);
+};
+
+/**
+ * Whether the parent may answer the practice's request for the form: one sent
+ * to the app and still open, on a form the practice has not already filled in
+ * for the appointment. Checked again under the request's lock, so a
+ * withdrawal or a practice save that lands meanwhile is seen.
+ */
+const assertRequestAnswerableByParent = async (
+  client: Pick<
+    Prisma.TransactionClient,
+    "formAssignment" | "templateInstance" | "parent"
+  >,
+  params: {
+    organisationId: string;
+    templateId: string;
+    parentId: string;
+    appointmentId?: string;
+  },
+) => {
+  // With an appointment the parent link is already proven, so the assignment
+  // only has to exist for it. Without one there is no such anchor and the
+  // assignment itself must name the parent as the signer. Either way it must
+  // have been sent to the app.
+  const assignments = await client.formAssignment.findMany({
     where: {
       organisationId: params.organisationId,
       templateId: params.templateId,
@@ -629,30 +672,240 @@ const assertTemplateSubmittableByParent = async (params: {
         ? { appointmentId: params.appointmentId }
         : { signerUserId: params.parentId }),
     },
-    select: { id: true },
+    select: { status: true },
   });
 
-  if (!assignment) {
+  if (assignments.length === 0) {
     throw new FormServiceError("Form not found", 404);
   }
 
   if (params.appointmentId) {
     // A form the practice filled in is signed by the parent, never replaced.
-    const filled = await prisma.templateInstance.findMany({
+    const filled = await client.templateInstance.findMany({
       where: {
         organisationId: params.organisationId,
         appointmentId: params.appointmentId,
         templateId: params.templateId,
         status: { in: ["COMPLETED", "SIGNED"] },
       },
-      select: { authorId: true },
+      select: { authorId: true, createdAt: true },
     });
-    const parentIds = await loadParentIds(filled.map((row) => row.authorId));
+    const parentIds = await loadParentIds(
+      filled.map((row) => row.authorId),
+      client,
+    );
     if (filled.some((row) => !row.authorId || !parentIds.has(row.authorId))) {
       throwCompletedAtPractice();
     }
+    await assertNotAnsweredByAnotherParent(client, {
+      ...params,
+      appointmentId: params.appointmentId,
+      answers: filled.filter(({ authorId }) => authorId !== params.parentId),
+    });
+  }
+
+  // An assignment is submitted once. Once every one the parent holds is
+  // SUBMITTED or SIGNED there is nothing left to submit.
+  if (assignments.every(({ status }) => isSubmittedAssignmentStatus(status))) {
+    throw new FormServiceError("Form already submitted", 409);
   }
 };
+
+/**
+ * One parent's answers per request: once another parent answered it, this
+ * one is refused as already submitted, whether or not the request reads
+ * submitted yet. Answers given before the request was last withdrawn answer
+ * no request sent after it.
+ */
+const assertNotAnsweredByAnotherParent = async (
+  client: Pick<Prisma.TransactionClient, "formAssignment">,
+  params: {
+    organisationId: string;
+    templateId: string;
+    appointmentId: string;
+    // Submitted answers another parent gave (all parents' by now).
+    answers: { createdAt: Date }[];
+  },
+) => {
+  if (!params.answers.length) return;
+  const withdrawn = await client.formAssignment.findMany({
+    where: {
+      organisationId: params.organisationId,
+      templateId: params.templateId,
+      appointmentId: params.appointmentId,
+      status: { in: ["CANCELLED", "EXPIRED"] },
+    },
+    select: { templateId: true, cancelledAt: true, expiredAt: true },
+  });
+  const cutoff =
+    withdrawalCutoffs(withdrawn).get(params.templateId) ??
+    Number.NEGATIVE_INFINITY;
+  if (
+    params.answers.some(
+      ({ createdAt }) => new Date(createdAt).getTime() >= cutoff,
+    )
+  ) {
+    throw new FormServiceError("Form already submitted", 409);
+  }
+};
+
+const isOpenInstanceStatus = (status: string) =>
+  status === "DRAFT" || status === "IN_PROGRESS";
+
+type InstanceSubmissionParams = {
+  organisationId: string;
+  templateId: string;
+  appointmentId?: string;
+  authorId?: string;
+  byParent: boolean;
+  // The parent submitting, whose right to answer is checked again under the
+  // request's lock.
+  parentId?: string;
+  answers: FormSubmission["answers"];
+};
+
+/**
+ * Each submitter works on their own instance for an appointment, so a parent's
+ * answers never land in a practice draft and a practice save never reopens a
+ * parent's submission. An open instance of the submitter's (or, for practice
+ * staff, an unowned one a package expansion left) takes the answers.
+ *
+ * A parent submits once: their submitted instance is returned as it is, so a
+ * retry after the submission was recorded but before its assignment was
+ * updated finishes that assignment instead of being refused for good. Practice
+ * staff may save the same template again; a submitted instance is never
+ * edited, so that creates a new one. Without an appointment or a submitter
+ * there is nothing to anchor on, so a new instance is created.
+ */
+const resolveInstanceForSubmission = async (
+  params: InstanceSubmissionParams,
+  client: Prisma.TransactionClient,
+) => {
+  const { appointmentId, authorId } = params;
+
+  // What a parent gave a request the practice withdrew does not answer the
+  // one sent after it; a practice's saves, drafts included, always count.
+  const cutoff = params.byParent
+    ? withdrawalCutoffs(
+        await client.formAssignment.findMany({
+          where: {
+            organisationId: params.organisationId,
+            templateId: params.templateId,
+            appointmentId,
+            status: { in: ["CANCELLED", "EXPIRED"] },
+          },
+          select: { templateId: true, cancelledAt: true, expiredAt: true },
+        }),
+      ).get(params.templateId)
+    : undefined;
+
+  const existing = await client.templateInstance.findMany({
+    where: {
+      organisationId: params.organisationId,
+      templateId: params.templateId,
+      appointmentId,
+      status: { not: "VOID" },
+      ...(params.byParent
+        ? { authorId }
+        : { OR: [{ authorId }, { authorId: null }] }),
+      ...(cutoff === undefined ? {} : { createdAt: { gte: new Date(cutoff) } }),
+    },
+    select: { id: true, status: true, templateVersion: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const submitted = existing.find(
+    ({ status }) => !isOpenInstanceStatus(status),
+  );
+  if (params.byParent && submitted) {
+    return submitted;
+  }
+
+  const open = existing.find(({ status }) => isOpenInstanceStatus(status));
+  if (open) {
+    return TemplateService.updateInstance(
+      open.id,
+      { data: params.answers },
+      params.organisationId,
+      client,
+    );
+  }
+
+  return createInstanceForSubmission(params, client);
+};
+
+/**
+ * Finds or creates the submitter's instance and submits it. Submits of one
+ * form for one appointment take turns under an advisory lock. A parent's
+ * second submit (a double tap) finds what the first submitted and goes on
+ * with it. A practice save always records a new version once the last one is
+ * submitted, so the PMS keeps its Save button disabled while one is running.
+ */
+const submitInstanceForSubmission = async (
+  params: InstanceSubmissionParams,
+) => {
+  if (!params.appointmentId || !params.authorId) {
+    // Nothing to anchor on: a new instance, submitted in its own transaction.
+    const instance = await createInstanceForSubmission(params);
+    const completed = await TemplateService.submitInstance(
+      instance.id,
+      params.organisationId,
+      params.authorId,
+    );
+    return { instance, completed };
+  }
+
+  const appointmentId = params.appointmentId;
+
+  // Everything runs on the one connection the transaction holds: lock, lookup,
+  // create or update, and the submit (which joins this transaction), so a
+  // submit never waits on the pool for a second connection. The lock is the
+  // one a signature completing on this form takes, so the two never
+  // interleave.
+  return prisma.$transaction(
+    async (tx) => {
+      await lockClientRequest(tx, {
+        organisationId: params.organisationId,
+        templateId: params.templateId,
+        appointmentId,
+      });
+      if (params.byParent && params.parentId) {
+        await assertRequestAnswerableByParent(tx, {
+          organisationId: params.organisationId,
+          templateId: params.templateId,
+          parentId: params.parentId,
+          appointmentId,
+        });
+      }
+      const instance = await resolveInstanceForSubmission(params, tx);
+      // Submitting through TemplateService renders the document a consent (or
+      // any other document-backed template) owes.
+      const completed = await TemplateService.submitInstance(
+        instance.id,
+        params.organisationId,
+        params.authorId,
+        { client: tx, submittedByParent: params.byParent },
+      );
+      return { instance, completed };
+    },
+    { timeout: 15_000 },
+  );
+};
+
+const createInstanceForSubmission = (
+  params: InstanceSubmissionParams,
+  client?: Prisma.TransactionClient,
+) =>
+  TemplateService.createInstance(
+    {
+      templateId: params.templateId,
+      organisationId: params.organisationId,
+      appointmentId: params.appointmentId,
+      authorId: params.authorId,
+      data: params.answers,
+    },
+    client,
+  );
 
 /**
  * Attach the submitted form to its appointment.
@@ -972,6 +1225,141 @@ const templateInstancesForParent = async (
   );
 };
 
+/**
+ * The instance a parent sees for each template: their own if they have one
+ * (the most recently recorded), else the latest the practice submitted for
+ * them, so a correction replaces the version it corrects. `instances` are
+ * oldest first by when the server recorded them. Signing checks the same rule.
+ */
+const pickParentInstances = <
+  T extends { templateId: string; authorId: string | null },
+>(
+  instances: T[],
+  viewerParentId: string,
+) => {
+  const picked = new Map<string, T>();
+  for (const instance of instances) {
+    const current = picked.get(instance.templateId);
+    const isOwn = instance.authorId === viewerParentId;
+    if (isOwn || current?.authorId !== viewerParentId) {
+      picked.set(instance.templateId, instance);
+    }
+  }
+  return picked;
+};
+
+/**
+ * Whether the viewing parent may start signing a template row, by the rule
+ * signing applies: before anything is filled in, where the request asks the
+ * client to sign; after, where the submitted answers shown name the client as
+ * signer (pinned when they were submitted) and answer the request (a parent's
+ * answers only one sent by then). Answers the parent did not give themselves
+ * also need the medical records permission, as a form submission does.
+ */
+const parentMaySignTemplateRow = (row: {
+  parentId: string;
+  signingRequired: boolean;
+  assignment: { createdAt: Date | string };
+  // Who the request is for, when it names someone.
+  requestSignerId?: string | null;
+  primaryParentId?: string | null;
+  instance?: {
+    authorId: string | null;
+    createdAt: Date | string;
+    status: string;
+  };
+  parentAuthors: Set<string>;
+  mayReadPracticeRows: boolean;
+}) => {
+  const { instance } = row;
+  if (!row.signingRequired) return false;
+  // Nothing submitted yet: whoever fills it in signs it.
+  if (!instance) return true;
+  if (instance.status !== "COMPLETED") return false;
+  if (instance.authorId !== row.parentId && !row.mayReadPracticeRows) {
+    return false;
+  }
+  const byParent =
+    !!instance.authorId && row.parentAuthors.has(instance.authorId);
+  // Only the one parent the answers name signs them.
+  const named = pickNamedClientSigner({
+    authorId: instance.authorId,
+    authorIsParent: byParent,
+    requestSignerId: row.requestSignerId,
+    primaryParentId: row.primaryParentId,
+  });
+  return (
+    named === row.parentId &&
+    (!byParent ||
+      new Date(row.assignment.createdAt).getTime() <=
+        new Date(instance.createdAt).getTime())
+  );
+};
+
+const isWithdrawnRequest = (status: string) =>
+  status === "cancelled" || status === "expired";
+
+/**
+ * The practice's answers saved since the last request for a template was
+ * withdrawn, when every request for it was: listed on a row of their own with
+ * no request, as any practice save is. The withdrawn row stays as it is.
+ */
+const practiceSavesAfterWithdrawal = (params: {
+  templateIds: string[];
+  requests: { templateId: string; status: string }[];
+  cutoffs: Map<string, number>;
+  instances: AppointmentTemplateInstance[];
+  parentAuthors: Set<string>;
+  templateMap: Map<string, Awaited<ReturnType<typeof TemplateService.getById>>>;
+  includeQuestionnaire: boolean;
+}) =>
+  params.templateIds.flatMap((templateId) => {
+    const template = params.templateMap.get(templateId);
+    const requests = params.requests.filter(
+      (request) => request.templateId === templateId,
+    );
+    if (
+      !template ||
+      !requests.every(({ status }) => isWithdrawnRequest(status))
+    ) {
+      return [];
+    }
+    const since = params.cutoffs.get(templateId) ?? Number.NEGATIVE_INFINITY;
+    // The newest matching save, found from the end. `findLast` is ES2023 and
+    // this package compiles against ES2022.
+    let saved: (typeof params.instances)[number] | undefined;
+    for (
+      let index = params.instances.length - 1;
+      index >= 0 && !saved;
+      index -= 1
+    ) {
+      const instance = params.instances[index];
+      if (
+        instance.templateId === templateId &&
+        SUBMITTED_INSTANCE_STATUSES.has(instance.status) &&
+        !(instance.authorId && params.parentAuthors.has(instance.authorId)) &&
+        new Date(instance.createdAt).getTime() >= since
+      ) {
+        saved = instance;
+      }
+    }
+    if (!saved) return [];
+    return [
+      {
+        templateId,
+        status: "completed",
+        questionnaire: params.includeQuestionnaire
+          ? templateMapper.templateToQuestionnaire(template)
+          : undefined,
+        questionnaireResponse:
+          templateMapper.templateInstanceToQuestionnaireResponse(
+            saved,
+            template,
+          ),
+      },
+    ];
+  });
+
 const buildTemplateAppointmentFormItems = async (params: {
   appointmentId: string;
   organisationId: string;
@@ -987,21 +1375,30 @@ const buildTemplateAppointmentFormItems = async (params: {
     canManageForms: params.canManageForms ?? false,
   });
 
-  const allAssignments = await FormAssignmentService.listForAppointment(
+  const sent = await FormAssignmentService.listForAppointment(
     params.organisationId,
     params.appointmentId,
   );
-
-  if (!allAssignments.length) {
+  if (!sent.length) {
     return null;
   }
+  // Templates linked to the appointment's service stand in for the
+  // organisation's suggested forms; one the practice sent by hand does not.
+  const fromLinkedTemplates = sent.some(
+    ({ createdBy }) => createdBy === LINKED_TEMPLATE_SENDER,
+  );
 
-  // A parent sees only what the practice sent to the app, without who created
-  // or signs it or the encounter behind it.
+  // A parent sees only what the practice sent to the app and has not
+  // withdrawn, without who created or signs it or the encounter behind it.
   const viewer = params.viewer;
   const assignments = viewer
-    ? allAssignments
-        .filter((assignment) => assignment.mobileVisible)
+    ? sent
+        .filter(
+          (assignment) =>
+            assignment.mobileVisible &&
+            assignment.status !== "cancelled" &&
+            assignment.status !== "expired",
+        )
         .map((assignment) => ({
           ...assignment,
           signerUserId: undefined,
@@ -1013,7 +1410,14 @@ const buildTemplateAppointmentFormItems = async (params: {
           createdBy: undefined,
           updatedBy: undefined,
         }))
-    : allAssignments;
+    : sent;
+  if (!assignments.length) {
+    return {
+      appointmentId: params.appointmentId,
+      items: [],
+      fromLinkedTemplates,
+    };
+  }
 
   const uniqueTemplateIds = [
     ...new Set(assignments.map((item) => item.templateId)),
@@ -1029,24 +1433,114 @@ const buildTemplateAppointmentFormItems = async (params: {
   );
   const templateMap = new Map(templates);
 
+  // A parent sees their own submission, or else one the practice filled in for
+  // them to sign, never a practice draft. They see it whatever version of the
+  // template it was submitted at.
+  const viewerParentId = viewer?.parentId;
   const instances = await prisma.templateInstance.findMany({
     where: {
       organisationId: params.organisationId,
       appointmentId: params.appointmentId,
       templateId: { in: uniqueTemplateIds },
+      ...(viewerParentId
+        ? {
+            OR: [
+              { authorId: viewerParentId, status: { not: "VOID" } },
+              { status: { in: ["COMPLETED", "SIGNED"] } },
+            ],
+          }
+        : {}),
     },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    // Oldest first by when the server recorded each one, the id breaking ties.
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
 
-  const listedInstances = viewer
-    ? await templateInstancesForParent(instances, viewer)
-    : instances;
-  // The newest instance of each template version.
-  const instanceMap = new Map<string, AppointmentTemplateInstance>();
-  for (const instance of listedInstances) {
-    const key = `${instance.templateId}:${instance.templateVersion}`;
-    if (!instanceMap.has(key)) instanceMap.set(key, instance);
+  // Answers a parent gave a request the practice withdrew do not answer the
+  // one sent after it. A practice's saves, drafts included, always count.
+  const cutoffs = withdrawalCutoffs(sent);
+  // Whose answers they are matters only for a parent viewing, after a
+  // withdrawal, or below a version a request was sent with.
+  const latestSentVersion = new Map<string, number>();
+  for (const { templateId, templateVersion } of assignments) {
+    latestSentVersion.set(
+      templateId,
+      Math.max(templateVersion, latestSentVersion.get(templateId) ?? 0),
+    );
   }
+  const parentAuthors = await loadParentIds(
+    instances
+      .filter(
+        (instance) =>
+          viewer ||
+          cutoffs.has(instance.templateId) ||
+          instance.templateVersion <
+            (latestSentVersion.get(instance.templateId) ?? 0),
+      )
+      .map(({ authorId }) => authorId),
+  );
+  const answering = instances.filter(
+    (instance) =>
+      !(
+        instance.authorId &&
+        parentAuthors.has(instance.authorId) &&
+        new Date(instance.createdAt).getTime() <
+          (cutoffs.get(instance.templateId) ?? Number.NEGATIVE_INFINITY)
+      ),
+  );
+  // Any version at or after the one the request was sent with: a template
+  // published again after it was sent is answered at the newer version.
+  // Only submitted answers answer it: a draft is not filled in yet.
+  const answersFor = (templateId: string, templateVersion: number) =>
+    answering.filter(
+      (instance) =>
+        instance.templateId === templateId &&
+        SUBMITTED_INSTANCE_STATUSES.has(instance.status) &&
+        (instance.templateVersion >= templateVersion ||
+          !(instance.authorId && parentAuthors.has(instance.authorId))),
+    );
+  const answerFor = (templateId: string, templateVersion: number) => {
+    const candidates = answersFor(templateId, templateVersion);
+    // The parent sees their own, else the latest the practice submitted.
+    if (viewerParentId) {
+      return pickParentInstances(candidates, viewerParentId).get(templateId);
+    }
+    // The practice sees the latest that was not voided.
+    let latest: (typeof candidates)[number] | undefined;
+    for (const candidate of candidates) {
+      if (candidate.status !== "VOID") latest = candidate;
+    }
+    return latest;
+  };
+
+  // What the viewing parent is shown of each instance they may be shown, and
+  // who signs the practice's answers when a request names no one.
+  const [shownInstances, mayReadPracticeRows, primaryParent] = viewer
+    ? await Promise.all([
+        templateInstancesForParent(answering, viewer),
+        parentHasCompanionFeature(
+          viewer.parentId,
+          viewer.patientId,
+          "medicalRecords",
+        ),
+        viewer.patientId
+          ? prisma.parentPatient.findFirst({
+              where: {
+                patientId: viewer.patientId,
+                role: "PRIMARY",
+                status: "ACTIVE",
+              },
+              select: { parentId: true },
+            })
+          : null,
+      ])
+    : [answering, false, null];
+  // Who each request is for, which a parent's listing does not show.
+  const requestSigner = new Map(
+    sent.map(({ id, signerUserId }) => [id, signerUserId ?? null]),
+  );
+  const shownToViewer = new Map(
+    answering.map((instance, index) => [instance.id, shownInstances[index]]),
+  );
 
   const includeQuestionnaire = !params.isPMS;
   const items = assignments
@@ -1057,28 +1551,71 @@ const buildTemplateAppointmentFormItems = async (params: {
       const questionnaire = includeQuestionnaire
         ? templateMapper.templateToQuestionnaire(template)
         : undefined;
-      const instance = instanceMap.get(
-        `${assignment.templateId}:${assignment.templateVersion}`,
-      );
-      const questionnaireResponse = instance
+      // A withdrawn request carries no answers.
+      const instance = isWithdrawnRequest(assignment.status)
+        ? undefined
+        : answerFor(assignment.templateId, assignment.templateVersion);
+      const listed = instance && shownToViewer.get(instance.id);
+      const questionnaireResponse = listed
         ? templateMapper.templateInstanceToQuestionnaireResponse(
-            instance,
+            listed,
             template,
           )
         : undefined;
+      // Asked for a signature only where the template's signer is the
+      // client, so a plain form opens to be filled in, not signed.
+      // Who signs a submitted form is the one pinned when it was submitted.
+      const signingRequired =
+        assignment.signingRequired &&
+        (instance
+          ? instanceNeedsClientSignature({
+              generatedPdf: instance.generatedPdf,
+              template,
+            })
+          : templateNeedsClientSignature(template));
 
       return {
         ...assignment,
+        signingRequired,
+        ...(viewer
+          ? {
+              canSign: parentMaySignTemplateRow({
+                parentId: viewer.parentId,
+                signingRequired,
+                assignment,
+                requestSignerId: requestSigner.get(assignment.id),
+                primaryParentId: primaryParent?.parentId,
+                instance,
+                parentAuthors,
+                mayReadPracticeRows,
+              }),
+            }
+          : {}),
         status: questionnaireResponse ? "completed" : "pending",
+        // Where the practice's request stands, so the app can show a form as
+        // submitted or signed rather than offer it again.
+        assignmentStatus: assignment.status,
         questionnaire,
         questionnaireResponse,
       };
     })
     .filter((item) => item !== null);
+  const practiceSaves = viewer
+    ? []
+    : practiceSavesAfterWithdrawal({
+        templateIds: uniqueTemplateIds,
+        requests: sent,
+        cutoffs,
+        instances: answering,
+        parentAuthors,
+        templateMap,
+        includeQuestionnaire,
+      });
 
   return {
     appointmentId: params.appointmentId,
-    items,
+    items: [...items, ...practiceSaves],
+    fromLinkedTemplates,
   };
 };
 
@@ -1091,7 +1628,7 @@ const resolveAppointmentPatientId = (
   return typeof patientId === "string" ? patientId : undefined;
 };
 
-const assertParentCanViewAppointment = async (
+export const assertParentCanViewAppointment = async (
   appointment: { patient?: unknown },
   parentId: string,
 ) => {
@@ -1468,6 +2005,11 @@ const submitViaTemplateInstance = async (
   if (!template?.organisationId) {
     throw new FormServiceError("Form not found", 404);
   }
+  // Task templates and care pathways launch a workflow when submitted; they
+  // are not forms and are submitted through their own template routes.
+  if (isWorkflowKind(template.kind as PrismaTemplateKind)) {
+    throw new FormServiceError("Form not found", 404);
+  }
 
   if ("parentId" in actor) {
     if (!PARENT_TEMPLATE_KINDS.has(template.kind)) {
@@ -1492,31 +2034,57 @@ const submitViaTemplateInstance = async (
   }
 
   const submittedBy = submission.submittedBy ?? submission.parentId;
-  const instance = await TemplateService.createInstance({
+  const byParent = Boolean(actor && "parentId" in actor);
+  const { instance, completed } = await submitInstanceForSubmission({
     templateId: formIdString,
     organisationId: template.organisationId,
     appointmentId: submission.appointmentId ?? undefined,
     authorId: submittedBy ?? undefined,
-    data: submission.answers,
+    byParent,
+    parentId: actor && "parentId" in actor ? actor.parentId : undefined,
+    answers: submission.answers,
   });
 
-  const completed = await TemplateService.updateInstance(
-    instance.id,
-    {
-      data: submission.answers,
-      status: "COMPLETED",
-    },
-    template.organisationId,
-  );
-
-  try {
-    await FormAssignmentService.markSubmittedFromSubmission({
+  // The request was sent to the client, so only the client's own submission
+  // answers it. A practice save (a clinic pre-fill the client then signs)
+  // leaves it open for them.
+  if (byParent) {
+    await markTemplateAssignmentSubmitted(submission, formIdString, {
       organisationId: template.organisationId,
-      templateId: formIdString,
       templateVersion:
         completed.templateVersion ??
         instance.templateVersion ??
         submission.formVersion,
+      answeredAt: completed.createdAt,
+    });
+  }
+
+  return {
+    ...submission,
+    _id: completed.id ?? instance.id,
+    formVersion:
+      completed.templateVersion ??
+      instance.templateVersion ??
+      submission.formVersion,
+  };
+};
+
+const markTemplateAssignmentSubmitted = async (
+  submission: FormSubmission,
+  formIdString: string,
+  target: {
+    organisationId: string;
+    templateVersion: number;
+    // When the parent gave the answers: only a request sent by then is theirs.
+    answeredAt?: Date;
+  },
+) => {
+  try {
+    await FormAssignmentService.markSubmittedFromSubmission({
+      organisationId: target.organisationId,
+      templateId: formIdString,
+      templateVersion: target.templateVersion,
+      answeredAt: target.answeredAt,
       appointmentId: submission.appointmentId ?? undefined,
       companionId: submission.patientId ?? submission.companionId ?? undefined,
       parentId: submission.parentId ?? undefined,
@@ -1529,15 +2097,6 @@ const submitViaTemplateInstance = async (
       appointmentId: submission.appointmentId ?? null,
     });
   }
-
-  return {
-    ...submission,
-    _id: completed.id ?? instance.id,
-    formVersion:
-      completed.templateVersion ??
-      instance.templateVersion ??
-      submission.formVersion,
-  };
 };
 
 export const FormService = {
@@ -2222,27 +2781,38 @@ export const FormService = {
         : undefined,
     });
 
-    if (templateBackedForms) {
-      return templateBackedForms;
-    }
+    // The appointment's own forms (attached to it or answered on it) are
+    // listed with the templates sent for it, never instead of them. The
+    // organisation's forms for the service are suggested unless the
+    // service's linked templates were sent in their place.
+    const templateItems = templateBackedForms?.items ?? [];
+    const templateIds = new Set(
+      templateItems.map(({ templateId }) => templateId),
+    );
 
     const attachedFormIds = (appointment.formIds ?? []).map(String);
     const submissionFormIdStrings =
       await loadSubmissionFormIdStringsForAppointment(appointmentId);
 
-    const formIdsFromAppointment = new Set<string>([
-      ...attachedFormIds,
-      ...submissionFormIdStrings,
-    ]);
+    const formIdsFromAppointment = new Set<string>(
+      [...attachedFormIds, ...submissionFormIdStrings].filter(
+        (formId) => !templateIds.has(formId),
+      ),
+    );
 
     const [formsById, templateForms] = await Promise.all([
       fetchFormsByIds(formIdsFromAppointment),
-      fetchTemplateForms(orgType, appointment, params),
+      templateBackedForms?.fromLinkedTemplates
+        ? []
+        : fetchTemplateForms(orgType, appointment, params),
     ]);
 
-    const forms = mergeFormsById(formsById, templateForms);
+    const forms = mergeFormsById(
+      formsById,
+      templateForms.filter(({ _id }) => !templateIds.has(_id)),
+    );
     if (!forms.length) {
-      return { appointmentId, items: [] };
+      return { appointmentId, items: templateItems };
     }
 
     // 2️⃣ Load latest form versions
@@ -2267,7 +2837,7 @@ export const FormService = {
 
     return {
       appointmentId,
-      items,
+      items: [...templateItems, ...items],
     };
   },
 };

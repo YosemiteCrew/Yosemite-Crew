@@ -2,6 +2,7 @@ import React from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { FormDataProps } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/appointmentInfoTypes';
 import { useFormsStore } from '@/app/stores/formsStore';
+import { appointmentFormSigner } from '@/app/features/forms/types/forms';
 import {
   findFieldLabel,
   humanizeKey,
@@ -65,7 +66,8 @@ const SoapSubmissions = <K extends SoapKey>({
           const hasContent = pairs.length > 0;
           const form = sub.formId ? formsById[sub.formId] : undefined;
           const schema = form?.schema;
-          const requiredSigner = form?.requiredSigner;
+          // A template-backed form is signed on its document, not from here.
+          const requiredSigner = appointmentFormSigner(form);
           const isClientSigner = requiredSigner === 'CLIENT';
           const allowVetSigning = requiredSigner === 'VET';
           const hasSignature = hasSignatureField(schema as any);

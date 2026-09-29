@@ -4,12 +4,18 @@ import {
   listAppointmentFormAssignments,
   listCompanionFormAssignments,
   resendFormAssignment,
+  sendFormToParent,
 } from '@/app/features/forms/services/formAssignmentService';
+import { linkAppointmentForms } from '@/app/features/forms/services/appointmentFormsService';
 import { getData, postData } from '@/app/services/axios';
 
 jest.mock('@/app/services/axios', () => ({
   getData: jest.fn(),
   postData: jest.fn(),
+}));
+
+jest.mock('@/app/features/forms/services/appointmentFormsService', () => ({
+  linkAppointmentForms: jest.fn(),
 }));
 
 describe('formAssignmentService', () => {
@@ -36,6 +42,44 @@ describe('formAssignmentService', () => {
       2,
       '/v1/forms/organisations/org-1/companions/comp-1/assignments'
     );
+  });
+
+  // A template reaches the pet parent as a request to fill it in and sign it;
+  // a form as a link on the appointment.
+  it('sends a template to the pet parent as a request', async () => {
+    await expect(
+      sendFormToParent('org-1', 'appt-1', {
+        id: 'tpl-consent',
+        templateId: 'tpl-consent-root',
+        isTemplateBacked: true,
+      })
+    ).resolves.toEqual({ id: 'assignment-1' });
+
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/forms/organisations/org-1/appointments/appt-1/assignments',
+      { templateId: 'tpl-consent-root' }
+    );
+    expect(linkAppointmentForms).not.toHaveBeenCalled();
+  });
+
+  it('sends a template with no template id under its own id', async () => {
+    await sendFormToParent('org-1', 'appt-1', { id: 'tpl-consent', isTemplateBacked: true });
+
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/forms/organisations/org-1/appointments/appt-1/assignments',
+      { templateId: 'tpl-consent' }
+    );
+  });
+
+  it('links a form to the appointment', async () => {
+    await expect(sendFormToParent('org-1', 'appt-1', { id: 'form-1' })).resolves.toBeUndefined();
+
+    expect(linkAppointmentForms).toHaveBeenCalledWith({
+      organisationId: 'org-1',
+      appointmentId: 'appt-1',
+      formIds: ['form-1'],
+    });
+    expect(postData).not.toHaveBeenCalled();
   });
 
   it('wraps assignment resend and cancel actions', async () => {
