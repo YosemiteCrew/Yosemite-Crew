@@ -1429,6 +1429,13 @@ describe("FormAssignmentService", () => {
     const cancel = () =>
       FormAssignmentService.cancel("assignment-1", "org-1", "user-2");
     const stored = (status: string) => ({ ...sentAssignment(), status });
+    const consent = { id: "template-1", kind: "CONSENT", rules: null };
+
+    beforeEach(() => {
+      // A consent the client signs, with nothing submitted to pin another.
+      mockedPrisma.template.findMany.mockReset().mockResolvedValue([consent]);
+      mockedPrisma.templateInstance.findMany.mockReset().mockResolvedValue([]);
+    });
 
     it("reads the request again once the lock is held", async () => {
       mockedPrisma.formAssignment.findFirst
@@ -1488,6 +1495,61 @@ describe("FormAssignmentService", () => {
       );
 
       await expect(cancel()).rejects.toThrow("connection lost");
+    });
+
+    // Withdrawn only while it waits for the client's signature, as the web
+    // offers it: one answered in full is complete.
+    describe("a submitted request", () => {
+      const submitted = (overrides: Record<string, unknown> = {}) => {
+        const row = { ...stored("SUBMITTED"), ...overrides };
+        mockedPrisma.formAssignment.findFirst.mockResolvedValue(row);
+        mockedPrisma.formAssignment.update.mockResolvedValueOnce({
+          ...row,
+          status: "CANCELLED",
+        });
+      };
+      const refused = {
+        statusCode: 409,
+        message: "Assignment can no longer be cancelled",
+      };
+
+      it("is withdrawn while the client is still to sign it", async () => {
+        submitted();
+
+        await expect(cancel()).resolves.toMatchObject({ status: "cancelled" });
+        expect(mockedPrisma.templateInstance.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              organisationId: "org-1",
+              appointmentId: "appt-1",
+            }),
+          }),
+        );
+      });
+
+      it("is refused once it asks for no signature", async () => {
+        submitted({ signingRequired: false });
+
+        await expect(cancel()).rejects.toMatchObject(refused);
+        expect(mockedPrisma.formAssignment.update).not.toHaveBeenCalled();
+      });
+
+      it("is refused where the client does not sign the form", async () => {
+        submitted();
+        mockedPrisma.template.findMany.mockResolvedValue([
+          { ...consent, kind: "FORM" },
+        ]);
+
+        await expect(cancel()).rejects.toMatchObject(refused);
+        expect(mockedPrisma.formAssignment.update).not.toHaveBeenCalled();
+      });
+
+      it("is withdrawn with no appointment while it asks for a signature", async () => {
+        submitted({ appointmentId: null });
+
+        await expect(cancel()).resolves.toMatchObject({ status: "cancelled" });
+        expect(mockedPrisma.template.findMany).not.toHaveBeenCalled();
+      });
     });
 
     it("takes no lock for a request with no appointment", async () => {

@@ -600,11 +600,18 @@ const ensureResendable = (
   }
 };
 
+// A submitted request is withdrawn only while it waits for the client's
+// signature; one answered in full is complete (`isCompleted`).
 const ensureCancellable = (
   status: FormAssignmentDbStatus | FormAssignmentLike["status"],
+  awaitsClientSignature: boolean,
 ) => {
   const normalized = normalizeAssignmentStatus(status);
-  if (normalized === "signed" || normalized === "expired") {
+  if (
+    normalized === "signed" ||
+    normalized === "expired" ||
+    (normalized === "submitted" && !awaitsClientSignature)
+  ) {
     throw new FormAssignmentServiceError(
       "Assignment can no longer be cancelled",
       409,
@@ -1065,10 +1072,14 @@ export const FormAssignmentService = {
         organisationId,
         tx,
       );
-      if (normalizeAssignmentStatus(assignment.status) === "cancelled") {
+      const status = normalizeAssignmentStatus(assignment.status);
+      if (status === "cancelled") {
         return toAssignmentLike(assignment);
       }
-      ensureCancellable(normalizeAssignmentStatus(assignment.status));
+      ensureCancellable(
+        status,
+        status === "submitted" && (await asksClientToSign(assignment, tx)),
+      );
 
       const now = new Date();
       try {
@@ -1126,6 +1137,32 @@ export const FormAssignmentService = {
 };
 
 /**
+ * Whether a request still asks the client to sign, as the appointment's
+ * listing and finalisation read it.
+ */
+const asksClientToSign = async (
+  request: {
+    organisationId: string;
+    templateId: string;
+    appointmentId: string | null;
+    signingRequired: boolean;
+  },
+  client: Pick<Prisma.TransactionClient, "template" | "templateInstance">,
+) =>
+  request.signingRequired &&
+  (!request.appointmentId ||
+    (
+      await loadClientSignedTemplateIds(
+        [request.templateId],
+        {
+          organisationId: request.organisationId,
+          appointmentId: request.appointmentId,
+        },
+        client,
+      )
+    ).has(request.templateId));
+
+/**
  * The templates among these whose forms the client signs on the appointment.
  * A request asks for a signature only where the form does: requests saved
  * when every one asked for a signature still complete on submission for any
@@ -1135,15 +1172,19 @@ export const FormAssignmentService = {
 export const loadClientSignedTemplateIds = async (
   templateIds: string[],
   appointment: { organisationId: string; appointmentId: string },
+  client: Pick<
+    Prisma.TransactionClient,
+    "template" | "templateInstance"
+  > = prisma,
 ): Promise<Set<string>> => {
   if (!templateIds.length) return new Set();
   const ids = [...new Set(templateIds)];
   const [templates, submitted] = await Promise.all([
-    prisma.template.findMany({
+    client.template.findMany({
       where: { id: { in: ids } },
       select: { id: true, kind: true, rules: true },
     }),
-    prisma.templateInstance.findMany({
+    client.templateInstance.findMany({
       where: {
         organisationId: appointment.organisationId,
         appointmentId: appointment.appointmentId,
