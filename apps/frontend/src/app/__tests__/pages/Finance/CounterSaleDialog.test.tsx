@@ -297,6 +297,31 @@ describe('CounterSaleDialog', () => {
     expect(setOpen).toHaveBeenCalledWith(false);
   });
 
+  it('blocks a quantity above the unreserved stock and totals the cart', async () => {
+    render(
+      <CounterSaleDialog
+        open
+        setOpen={setOpen}
+        organisationId="org-1"
+        currency="USD"
+        onCreated={onCreated}
+      />
+    );
+    const itemPicker = await screen.findByRole('combobox', { name: 'Item' });
+    await screen.findByRole('option', { name: /Bandage/ });
+    await user.selectOptions(itemPicker, 'bandage');
+    const quantity = screen.getByRole('spinbutton', { name: 'Qty' });
+    const createSale = screen.getByRole('button', { name: 'Create counter sale' });
+
+    // 5 on hand with 1 reserved leaves 4 that can be sold.
+    fireEvent.change(quantity, { target: { value: '5' } });
+    expect(createSale).toBeDisabled();
+
+    fireEvent.change(quantity, { target: { value: '4' } });
+    expect(createSale).toBeEnabled();
+    expect(screen.getByText('$40.00')).toBeInTheDocument();
+  });
+
   it('shows when active stock is unavailable', async () => {
     (fetchInventoryItems as jest.Mock).mockResolvedValueOnce([
       { ...stock[0], onHand: 1, allocated: 1 },

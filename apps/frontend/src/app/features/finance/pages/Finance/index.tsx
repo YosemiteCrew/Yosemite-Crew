@@ -28,6 +28,14 @@ import { useOrgStore } from '@/app/stores/orgStore';
 
 const FINANCE_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
+// A counter sale lists the stock and draws it down as well as billing, so the
+// button needs every permission the dialog and the sale endpoint check.
+const COUNTER_SALE_PERMISSIONS = [
+  PERMISSIONS.BILLING_EDIT_ANY,
+  PERMISSIONS.INVENTORY_VIEW_ANY,
+  PERMISSIONS.INVENTORY_EDIT_ANY,
+];
+
 const FinanceSectionSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
 );
@@ -148,7 +156,7 @@ const Finance = () => {
               would only be reachable by typing the URL.
             */}
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
+              <PermissionGate allOf={COUNTER_SALE_PERMISSIONS}>
                 <Secondary
                   text="Counter sale"
                   size="compact"
@@ -236,7 +244,7 @@ const Finance = () => {
               */}
               <div className="flex flex-col items-end gap-2">
                 <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
+                  <PermissionGate allOf={COUNTER_SALE_PERMISSIONS}>
                     <Secondary
                       text="Counter sale"
                       onClick={() => setCounterSaleOpen(true)}
