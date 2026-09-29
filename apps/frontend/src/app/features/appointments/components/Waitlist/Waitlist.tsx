@@ -209,7 +209,7 @@ const AddWaitlistForm = ({
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const submit = async (event: React.FormEvent) => {
+  const submit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!patientId) {
       setFormError('Choose a companion to add to the waitlist.');

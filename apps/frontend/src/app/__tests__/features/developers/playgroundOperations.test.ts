@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import {
   APPOINTMENT_STATUSES,
@@ -11,6 +11,8 @@ import {
   readPractices,
   resolveUrl,
   toCurl,
+  toMcp,
+  toPython,
   toRequestFixture,
   toTypeScript,
   validateParams,
@@ -63,6 +65,39 @@ describe('playground operations match the published OpenAPI contract', () => {
     const enumLine = /enum: \[([^\]]+)\]/.exec(pathBlock('/v1/developer/appointments'));
     expect(enumLine?.[1].split(', ')).toEqual([...APPOINTMENT_STATUSES]);
   });
+});
+
+describe('playground operations match the MCP server tools', () => {
+  const toolsDir = join(process.cwd(), '../../packages/mcp-server/src/tools');
+  const toolFiles = readdirSync(toolsDir).filter((f) => f.endsWith('.ts'));
+  const source = toolFiles.map((f) => readFileSync(join(toolsDir, f), 'utf8')).join('\n');
+  /** Each registered tool name with the source of its registration call. */
+  const tools = new Map(
+    source
+      .split('server.tool(')
+      .slice(1)
+      .map((block) => [/^\s*'([a-z_]+)'/.exec(block)?.[1] ?? '', block] as const)
+  );
+
+  it('maps every operation to a registered tool, one for one', () => {
+    // Canary: the split must find as many registrations as the files contain.
+    expect(tools.size).toBe(source.match(/server\.tool\(/g)?.length);
+    expect(tools.size).toBeGreaterThan(0);
+    expect(PLAYGROUND_OPERATIONS.map((o) => o.mcpTool).sort()).toEqual([...tools.keys()].sort());
+  });
+
+  it.each(PLAYGROUND_OPERATIONS.map((o) => [o.mcpTool, o] as const))(
+    '%s accepts every argument the export sends',
+    (_tool, operation) => {
+      const values = Object.fromEntries(operation.params.map((p) => [p.name, '1']));
+      const args = Object.keys(
+        JSON.parse(toMcp(operation, values, 'https://x.test')).toolCall.arguments
+      );
+      expect(args).toHaveLength(operation.params.length);
+      for (const arg of args)
+        expect(tools.get(operation.mcpTool)).toMatch(new RegExp(String.raw`\b${arg}[:,]`));
+    }
+  );
 });
 
 describe('validateParams', () => {
@@ -177,6 +212,38 @@ describe('exports', () => {
       url,
       headers: { Authorization: 'Bearer <YC_API_KEY>', 'x-org-id': "o'1" },
     });
+  });
+
+  it('MCP runs the published server with a placeholder key and the filled arguments', () => {
+    const mcp = JSON.parse(
+      toMcp(
+        list,
+        { 'x-org-id': ' o1 ', limit: '25', status: '', cursor: 'c2' },
+        'https://api.example.test/'
+      )
+    );
+    expect(mcp).toEqual({
+      mcpServers: {
+        'yosemite-crew': {
+          command: 'npx',
+          args: ['-y', '@yosemitecrew/mcp-server'],
+          env: { YC_API_KEY: '<YC_API_KEY>', YC_API_BASE_URL: 'https://api.example.test' },
+        },
+      },
+      toolCall: {
+        name: 'list_appointments',
+        arguments: { organisationId: 'o1', limit: 25, cursor: 'c2' },
+      },
+    });
+  });
+
+  it('Python reads the key from os.environ and uses requests', () => {
+    const py = toPython(built, url);
+    expect(py).toContain("os.environ.get('YC_API_KEY')");
+    expect(py).toContain('requests.request');
+    expect(py).toContain('response.raise_for_status()');
+    expect(py).toContain(url);
+    expect(py).toContain('"x-org-id": "o\'1"');
   });
 });
 

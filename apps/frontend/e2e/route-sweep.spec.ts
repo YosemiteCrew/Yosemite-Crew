@@ -413,7 +413,6 @@ test('every operational route holds its page invariants', async ({ page }) => {
   // silently.
   let derived: string[] = [];
   await page.goto('/companions', { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
   const overview = await resolveCompanionOverview(page);
   // Opening the overview is a client-side navigation, so its loads are still in
   // flight here, and the first route's page.goto would abort every one of them.
@@ -454,12 +453,26 @@ test('every operational route holds its page invariants', async ({ page }) => {
     // necessarily a console error. Swallowing this timeout let the sweep read a
     // page still showing its loading skeleton, find no violations, and report an
     // unusable route as healthy.
-    const settled = await page
-      .waitForLoadState('networkidle', { timeout: 30_000 })
+    const loaded = await page
+      .waitForLoadState('load', { timeout: 30_000 })
       .then(() => true)
       .catch(() => false);
-    if (!settled) {
+    if (!loaded) {
       found[route] = [`${route}  [never-settled]  still loading after 30s; the page was not swept`];
+      await stopWatching();
+      continue;
+    }
+
+    // `load` covers only the document lifecycle. Route data is fetched by the
+    // client afterwards, so reading page values here can otherwise inspect a
+    // loading skeleton and report a false pass. The tracker also spans the
+    // retry backoff where no request is momentarily in flight.
+    const pending = await network.settle({ quietMs: LEAVE_QUIET_MS });
+    if (pending.length) {
+      found[route] = [
+        `${route}  [never-settled]  ${pending.length} request(s) still in flight 30s after ` +
+          `the page loaded; the page was not swept: ${pending[0].slice(0, 120)}`,
+      ];
       await stopWatching();
       continue;
     }

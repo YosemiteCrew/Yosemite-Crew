@@ -982,7 +982,9 @@ const syncDocumentAttachmentsToPostgres = async (
   documentId: string,
   attachments: AttachmentInput[],
 ) => {
-  await tx.documentAttachment.deleteMany({ where: { documentId } });
+  await tx.documentAttachment.deleteMany({
+    where: { documentId: { equals: documentId } },
+  });
   if (!attachments.length) {
     return;
   }
@@ -1177,8 +1179,10 @@ export const DocumentService = {
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.documentAttachment.deleteMany({ where: { documentId: doc.id } });
-      await tx.document.deleteMany({ where: { id: doc.id } });
+      await tx.documentAttachment.deleteMany({
+        where: { documentId: { equals: doc.id } },
+      });
+      await tx.document.deleteMany({ where: { id: { equals: doc.id } } });
     });
 
     return true;
@@ -1314,12 +1318,9 @@ export const DocumentService = {
 
     if (Array.isArray(updates.attachments)) {
       // Attachments the document already has are kept as they are.
-      const existingKeys = new Set<unknown>(
-        doc.attachments.map(({ key }) => key),
-      );
+      const existingKeys = new Set(doc.attachments.map(({ key }) => key));
       const added = updates.attachments.filter(
-        (attachment) =>
-          !existingKeys.has((attachment as { key?: unknown } | null)?.key),
+        (attachment) => !attachment || !existingKeys.has(attachment.key),
       );
       assertCompanionAttachmentKeys(doc.patientId, added);
       await assertAttachmentKeysUnused(

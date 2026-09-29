@@ -184,7 +184,7 @@ const CreateAllergyForm = ({
   const [values, setValues] = useState<AllergyFormValues>(emptyForm);
   const trimmedAllergen = values.allergen.trim();
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!trimmedAllergen || creating) return;
     const ok = await onCreate?.({ ...values, allergen: trimmedAllergen });

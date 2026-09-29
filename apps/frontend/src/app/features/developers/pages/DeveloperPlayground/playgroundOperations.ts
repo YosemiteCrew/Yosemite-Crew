@@ -39,6 +39,8 @@ export type PlaygroundOperation = {
   /** The practice permission the caller's membership must hold, if any. */
   permission: string | null;
   params: OperationParam[];
+  /** The tool in `@yosemitecrew/mcp-server` that runs the same operation. */
+  mcpTool: string;
 };
 
 export const API_KEY_ENV_VAR = 'YC_API_KEY';
@@ -65,6 +67,7 @@ export const APPOINTMENT_STATUSES = [
 export const PLAYGROUND_OPERATIONS: readonly PlaygroundOperation[] = [
   {
     id: 'listOrganizations',
+    mcpTool: 'list_organizations',
     method: 'GET',
     path: '/v1/developer/organizations',
     summary: 'List practices',
@@ -74,6 +77,7 @@ export const PLAYGROUND_OPERATIONS: readonly PlaygroundOperation[] = [
   },
   {
     id: 'getUsage',
+    mcpTool: 'get_usage',
     method: 'GET',
     path: '/v1/developer/usage',
     summary: 'Read usage and quota',
@@ -83,6 +87,7 @@ export const PLAYGROUND_OPERATIONS: readonly PlaygroundOperation[] = [
   },
   {
     id: 'listAppointments',
+    mcpTool: 'list_appointments',
     method: 'GET',
     path: '/v1/developer/appointments',
     summary: 'List appointments',
@@ -137,6 +142,7 @@ export const PLAYGROUND_OPERATIONS: readonly PlaygroundOperation[] = [
   },
   {
     id: 'getAppointment',
+    mcpTool: 'get_appointment',
     method: 'GET',
     path: '/v1/developer/appointments/{appointmentId}',
     summary: 'Get one appointment',
@@ -274,6 +280,28 @@ export const toTypeScript = (request: BuiltRequest, url: string): string => {
   ].join('\n');
 };
 
+export const toPython = (request: BuiltRequest, url: string): string => {
+  const headerLines = [
+    ...Object.entries(request.headers).map(
+      ([k, v]) => `    ${JSON.stringify(k)}: ${JSON.stringify(v)},`
+    ),
+  ];
+  return [
+    `import os`,
+    `import requests`,
+    ``,
+    `url = ${JSON.stringify(url)}`,
+    `headers = {`,
+    `    "Authorization": f"Bearer {os.environ.get('${API_KEY_ENV_VAR}')}",`,
+    ...headerLines,
+    `}`,
+    ``,
+    `response = requests.request(${JSON.stringify(request.method)}, url, headers=headers)`,
+    `response.raise_for_status()`,
+    `print(response.json())`,
+  ].join('\n');
+};
+
 /** A request description safe to save or share: the key is a placeholder. */
 export const toRequestFixture = (
   operation: PlaygroundOperation,
@@ -290,6 +318,45 @@ export const toRequestFixture = (
     null,
     2
   );
+
+export const MCP_PACKAGE = '@yosemitecrew/mcp-server';
+
+/** The MCP server's name for a form parameter; the org header is an argument there. */
+const MCP_ARGUMENT_NAMES: Record<string, string> = { 'x-org-id': 'organisationId' };
+
+/**
+ * An MCP client entry for the published server plus the tool call that runs
+ * this request through it. The key stays a placeholder, as in every export.
+ */
+export const toMcp = (
+  operation: PlaygroundOperation,
+  values: ParamValues,
+  baseUrl: string
+): string => {
+  const args: Record<string, string | number> = {};
+  for (const param of operation.params) {
+    const value = (values[param.name] ?? '').trim();
+    if (!value) continue;
+    args[MCP_ARGUMENT_NAMES[param.name] ?? param.name] =
+      param.kind === 'integer' ? Number(value) : value;
+  }
+  let apiBase = baseUrl;
+  while (apiBase.endsWith('/')) apiBase = apiBase.slice(0, -1);
+  return JSON.stringify(
+    {
+      mcpServers: {
+        'yosemite-crew': {
+          command: 'npx',
+          args: ['-y', MCP_PACKAGE],
+          env: { [API_KEY_ENV_VAR]: `<${API_KEY_ENV_VAR}>`, YC_API_BASE_URL: apiBase },
+        },
+      },
+      toolCall: { name: operation.mcpTool, arguments: args },
+    },
+    null,
+    2
+  );
+};
 
 /** What the developer can do about a response, or null when it succeeded. */
 export const describeFailure = (status: number, serverMessage: string | null): string | null => {

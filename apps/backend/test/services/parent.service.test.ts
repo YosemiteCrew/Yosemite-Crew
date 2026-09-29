@@ -9,6 +9,7 @@ import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $queryRaw: jest.fn(),
     parent: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -57,6 +58,7 @@ jest.mock("@yosemite-crew/types", () => ({
 }));
 
 const mockedPrisma = prisma as unknown as {
+  $queryRaw: jest.Mock;
   parent: {
     create: jest.Mock;
     findFirst: jest.Mock;
@@ -501,7 +503,7 @@ describe("ParentService", () => {
 
     expect(result?.id).toBe("parent-1");
     expect(mockedPrisma.parentPatient.deleteMany).toHaveBeenCalledWith({
-      where: { parentId: "parent-1" },
+      where: { parentId: { equals: "parent-1" } },
     });
   });
 
@@ -617,11 +619,12 @@ describe("ParentService", () => {
   });
 
   it("returns parents by name", async () => {
-    mockedPrisma.parent.findMany.mockResolvedValueOnce([mockParent]);
+    mockedPrisma.$queryRaw.mockResolvedValueOnce([mockParent]);
 
     const result = await ParentService.getByName("Jane", "org-1");
 
     expect(result.responses).toHaveLength(1);
     expect(result.responses[0].id).toBe("parent-1");
+    expect(mockedPrisma.parentPatient.findMany).not.toHaveBeenCalled();
   });
 });

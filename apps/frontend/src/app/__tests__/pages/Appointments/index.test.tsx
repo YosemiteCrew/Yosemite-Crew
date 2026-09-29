@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 import ProtectedAppointments from '@/app/features/appointments/pages/Appointments';
 import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
 import { getDateKeyInPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
+import { PERMISSIONS } from '@/app/lib/permissions';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
@@ -145,6 +146,7 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
 
 jest.mock('@/app/ui/widgets/TitleCalendar', () => (props: any) => (
   <div>
+    {props.actionBeforeAdd}
     <button type="button" onClick={() => props.setActiveView('calendar')}>
       Calendar
     </button>
@@ -297,6 +299,10 @@ describe('Appointments page', () => {
   it('renders calendar view by default and toggles to list/board', async () => {
     await renderAppointments();
 
+    expect(screen.getByRole('link', { name: 'Shift handover' })).toHaveAttribute(
+      'href',
+      '/appointments/handover'
+    );
     expect(useLoadAppointmentsForPrimaryOrgMock).toHaveBeenCalled();
     expect(screen.getByTestId('appointment-calendar')).toBeInTheDocument();
     expect(calendarSpy).toHaveBeenCalledWith(
@@ -312,6 +318,25 @@ describe('Appointments page', () => {
         filteredList: [expect.objectContaining({ id: 'a1' })],
       })
     );
+  });
+
+  it('hides shift handover when either required view permission is missing', async () => {
+    const canPermissionMock = jest.fn((permission: string | string[]) =>
+      Array.isArray(permission)
+        ? permission.every((value) => value === PERMISSIONS.APPOINTMENTS_VIEW_ANY)
+        : true
+    );
+    usePermissionsMock.mockReturnValue({
+      can: canPermissionMock,
+    });
+
+    await renderAppointments();
+
+    expect(canPermissionMock).toHaveBeenCalledWith([
+      PERMISSIONS.APPOINTMENTS_VIEW_ANY,
+      PERMISSIONS.TASKS_VIEW_ANY,
+    ]);
+    expect(screen.queryByRole('link', { name: 'Shift handover' })).not.toBeInTheDocument();
   });
 
   it('renders board view when profile appointmentView is STATUS_BOARD', async () => {

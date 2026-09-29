@@ -309,7 +309,9 @@ const upsertParentAddress = async (
 };
 
 const deleteParentAddress = async (parentId: string) => {
-  await prisma.parentAddress.deleteMany({ where: { parentId } });
+  await prisma.parentAddress.deleteMany({
+    where: { parentId: String(parentId) },
+  });
 };
 
 export type ParentCreateContext = {
@@ -350,7 +352,7 @@ const isParentInOrganisation = async (
 const isOwnParent = async (id: string, authUserId: string | undefined) => {
   if (!authUserId) return false;
   const parentId = await getParentIdForAuthUser(authUserId);
-  return Boolean(parentId) && parentId === id;
+  return parentId === id;
 };
 
 /**
@@ -694,13 +696,15 @@ export const ParentService = {
       select: { id: true, providerUserId: true },
     });
 
-    await prisma.parentPatient.deleteMany({ where: { parentId: id } });
+    await prisma.parentPatient.deleteMany({
+      where: { parentId: { equals: id } },
+    });
     await prisma.authUserMobile.updateMany({
-      where: { parentId: id },
+      where: { parentId: { equals: id } },
       data: { parentId: null },
     });
     await deleteParentAddress(id);
-    await prisma.parent.deleteMany({ where: { id } });
+    await prisma.parent.deleteMany({ where: { id: { equals: id } } });
 
     // Delete the upstream identity too. Unlinking the mapping and removing the
     // profile left the provider account, its login methods and every other
@@ -799,30 +803,67 @@ export const ParentService = {
       );
     }
 
-    const links = await prisma.parentPatient.findMany({
-      where: inOrganisationScope(org),
-      select: { parentId: true },
-      distinct: ["parentId"],
-    });
-    if (!links.length) return { responses: [] };
-
     const safe = escapeLikePattern(trimmed);
+    const pattern = `%${safe}%`;
 
-    const docs = await prisma.parent.findMany({
-      where: {
-        id: { in: links.map((link) => link.parentId) },
-        OR: [
-          { firstName: { contains: safe, mode: "insensitive" } },
-          { lastName: { contains: safe, mode: "insensitive" } },
-          { email: { contains: safe, mode: "insensitive" } },
-        ],
-      },
-      include: { address: true },
-    });
+    const selectClause = Prisma.sql`
+      SELECT
+        parent."id",
+        parent."firstName",
+        parent."lastName",
+        parent."birthDate",
+        parent."email",
+        parent."phoneNumber",
+        parent."currency",
+        parent."timezone",
+        parent."profileImageUrl",
+        parent."isProfileComplete",
+        parent."linkedUserId",
+        parent."createdFrom",
+        parent."alerts",
+        parent."createdAt",
+        parent."updatedAt",
+        CASE WHEN address."id" IS NULL THEN NULL ELSE jsonb_build_object(
+          'addressLine', address."addressLine",
+          'country', address."country",
+          'city', address."city",
+          'state', address."state",
+          'postalCode', address."postalCode",
+          'latitude', address."latitude",
+          'longitude', address."longitude"
+        ) END AS "address"
+    `;
+
+    const fromClause = Prisma.sql`
+      FROM "Parent" AS parent
+      LEFT JOIN "ParentAddress" AS address ON address."parentId" = parent."id"
+    `;
+
+    const whereClause = Prisma.sql`
+      WHERE (
+        parent."firstName" ILIKE ${pattern} ESCAPE '\\'
+        OR parent."lastName" ILIKE ${pattern} ESCAPE '\\'
+        OR parent."email" ILIKE ${pattern} ESCAPE '\\'
+      )
+      AND EXISTS (
+        SELECT 1
+        FROM "ParentPatient" AS parentLink
+        INNER JOIN "PatientOrganisation" AS patientOrganisation
+          ON patientOrganisation."patientId" = parentLink."patientId"
+        WHERE parentLink."parentId" = parent."id"
+          AND parentLink."status" = 'ACTIVE'
+          AND patientOrganisation."organisationId" = ${org}
+          AND patientOrganisation."status" = 'ACTIVE'
+      )
+    `;
+
+    const query = Prisma.sql`${selectClause} ${fromClause} ${whereClause}`;
+
+    const docs = await prisma.$queryRaw<ParentRecord[]>(query);
 
     return {
       responses: docs.map((doc) =>
-        toParentResponseDTO(buildParentResponse(doc as ParentRecord)),
+        toParentResponseDTO(buildParentResponse(doc)),
       ),
     };
   },

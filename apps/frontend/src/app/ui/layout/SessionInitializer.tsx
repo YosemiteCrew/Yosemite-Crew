@@ -11,19 +11,16 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useLoadOrg } from '@/app/hooks/useLoadOrg';
 import { useLoadProfiles, usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
-import { loadAvailability } from '@/app/features/organization/services/availabilityService';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
 import { loadTasksForPrimaryOrg } from '@/app/features/tasks/services/taskService';
+import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
 import { loadTeam } from '@/app/features/organization/services/teamService';
 import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/roomService';
-import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
 import { loadDocumentsForOrgPrimaryOrg } from '@/app/features/documents/services/documentService';
 import { loadForms } from '@/app/features/forms/services/formService';
 import { loadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
-import { loadOrgs } from '@/app/features/organization/services/orgService';
-import { loadProfiles } from '@/app/features/organization/services/profileService';
 import { loadSpecialitiesForOrg } from '@/app/features/organization/services/specialityService';
 import {
   getCompanionTerminologyForOrg,
@@ -156,9 +153,6 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     refreshedOrgIdRef.current = primaryOrgId;
 
     Promise.allSettled([
-      loadOrgs({ silent: true }),
-      loadProfiles({ silent: true }),
-      loadAvailability({ silent: true }),
       loadTeam({ silent: true }),
       loadSpecialitiesForOrg({ silent: true, orgId: primaryOrgId }),
       loadRoomsForOrgPrimaryOrg({ silent: true }),

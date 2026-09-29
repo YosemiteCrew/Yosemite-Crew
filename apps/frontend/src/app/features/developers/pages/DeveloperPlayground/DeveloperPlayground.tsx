@@ -16,6 +16,8 @@ import {
   readPractices,
   resolveUrl,
   toCurl,
+  toMcp,
+  toPython,
   toRequestFixture,
   toTypeScript,
   validateParams,
@@ -42,12 +44,14 @@ type RunResult =
       nextCursor: string | null;
     };
 
-type ExportTab = 'curl' | 'typescript' | 'fixture';
+type ExportTab = 'curl' | 'typescript' | 'fixture' | 'mcp' | 'python';
 
 const EXPORT_TABS: { id: ExportTab; label: string }[] = [
   { id: 'curl', label: 'cURL' },
   { id: 'typescript', label: 'TypeScript' },
+  { id: 'python', label: 'Python' },
   { id: 'fixture', label: 'Request fixture' },
+  { id: 'mcp', label: 'MCP' },
 ];
 
 const readServerMessage = (json: unknown): string | null => {
@@ -218,16 +222,20 @@ const useRequestRunner = ({ baseUrl, operation, values, apiKey, setDrafts }: Req
 const useExport = (
   operation: (typeof PLAYGROUND_OPERATIONS)[number],
   request: BuiltRequest,
-  url: string | null
+  url: string | null,
+  values: ParamValues,
+  apiBase: string | null
 ) => {
   const [exportTab, setExportTab] = useState<ExportTab>('curl');
   const [copied, setCopied] = useState(false);
   const exportText = useMemo(() => {
-    if (!url) return '';
+    if (!url || !apiBase) return '';
+    if (exportTab === 'mcp') return toMcp(operation, values, apiBase);
+    if (exportTab === 'python') return toPython(request, url);
     if (exportTab === 'typescript') return toTypeScript(request, url);
     if (exportTab === 'fixture') return toRequestFixture(operation, request, url);
     return toCurl(request, url);
-  }, [exportTab, operation, request, url]);
+  }, [apiBase, exportTab, operation, request, url, values]);
 
   const handleCopy = async () => {
     try {
@@ -452,8 +460,17 @@ const PlaygroundExport = ({
       {exportText || 'No API address is configured for this portal.'}
     </pre>
     <p className="PlaygroundHint">
-      Set <code>{API_KEY_ENV_VAR}</code> in your environment before running it. The example is
-      generated from your inputs, not from the response above.
+      {exportTab === 'mcp' ? (
+        <>
+          Add the server to your MCP client config and put your key in its{' '}
+          <code>{API_KEY_ENV_VAR}</code> entry, then ask the agent to call the tool shown.
+        </>
+      ) : (
+        <>
+          Set <code>{API_KEY_ENV_VAR}</code> in your environment before running it.
+        </>
+      )}{' '}
+      The example is generated from your inputs, not from the response above.
     </p>
   </section>
 );
@@ -472,7 +489,7 @@ const DeveloperPlayground = ({ baseUrl = process.env.NEXT_PUBLIC_BASE_URL }: Pro
   const url = resolveUrl(baseUrl, request.path);
   const apiHost = url ? new URL(url).host : null;
   const runner = useRequestRunner({ baseUrl, operation, values, apiKey, setDrafts });
-  const requestExport = useExport(operation, request, url);
+  const requestExport = useExport(operation, request, url, values, resolveUrl(baseUrl, ''));
 
   const handleOperationChange = (nextOperationId: string) => {
     setOperationId(nextOperationId);

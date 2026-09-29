@@ -1,0 +1,270 @@
+import React from 'react';
+import {Alert, StyleSheet, Text, TextInput, View} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {useDispatch, useSelector} from 'react-redux';
+import {useTranslation} from 'react-i18next';
+import type {AppDispatch, RootState} from '@/app/store';
+import type {Theme} from '@/theme';
+import {useTheme} from '@/hooks';
+import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {saveVisitPreparationDraft} from '../appointmentsSlice';
+import type {VisitPreparationDraft} from '../types';
+import {
+  cancelVisitVoiceCapture,
+  captureVisitVoice,
+  isVisitReadBackAvailable,
+  isVisitVoiceAvailable,
+  onVisitReadBackFinished,
+  readVisitText,
+  stopReadingVisitText,
+} from '../services/visitVoice';
+import {composeVisitPreparationMessage} from '../utils/visitPreparation';
+
+const EMPTY_DRAFT: VisitPreparationDraft = {
+  observations: '',
+  questions: '',
+  includeObservations: true,
+  includeQuestions: true,
+};
+
+type DraftField = 'observations' | 'questions';
+
+export const VisitPreparationDraftCard: React.FC<{
+  appointmentId: string;
+  onReviewInChat: (message: string) => void;
+}> = ({appointmentId, onReviewInChat}) => {
+  const {t, i18n} = useTranslation();
+  const {theme} = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const dispatch = useDispatch<AppDispatch>();
+  const storedDraft = useSelector(
+    (state: RootState) =>
+      state.appointments.visitPreparationDrafts?.[appointmentId],
+  );
+  const draft = storedDraft ?? EMPTY_DRAFT;
+  const latestDraft = React.useRef(draft);
+  latestDraft.current = draft;
+  const [voiceAvailable, setVoiceAvailable] = React.useState<boolean | null>(
+    null,
+  );
+  const [readBackAvailable, setReadBackAvailable] = React.useState(false);
+  const [listeningField, setListeningField] = React.useState<DraftField | null>(
+    null,
+  );
+  const [isReading, setIsReading] = React.useState(false);
+  const mounted = React.useRef(true);
+
+  React.useEffect(() => {
+    let active = true;
+    mounted.current = true;
+    isVisitVoiceAvailable().then(available => {
+      if (active) setVoiceAvailable(available);
+    });
+    isVisitReadBackAvailable().then(available => {
+      if (active) setReadBackAvailable(available);
+    });
+    const removeReadBackListener = onVisitReadBackFinished(() => {
+      if (active) setIsReading(false);
+    });
+    return () => {
+      active = false;
+      mounted.current = false;
+      removeReadBackListener();
+      cancelVisitVoiceCapture().catch(() => undefined);
+      stopReadingVisitText().catch(() => undefined);
+    };
+  }, []);
+
+  const updateDraft = React.useCallback(
+    (changes: Partial<VisitPreparationDraft>) => {
+      dispatch(
+        saveVisitPreparationDraft({
+          appointmentId,
+          draft: {...latestDraft.current, ...changes},
+        }),
+      );
+    },
+    [appointmentId, dispatch],
+  );
+
+  const message = composeVisitPreparationMessage(
+    draft,
+    t('appointments.visitPreparation.observationsHeading'),
+    t('appointments.visitPreparation.questionsHeading'),
+  );
+
+  const capture = async (field: DraftField) => {
+    setListeningField(field);
+    const result = await captureVisitVoice(i18n.resolvedLanguage ?? 'en-US');
+    if (!mounted.current) return;
+    setListeningField(null);
+    if (result.status === 'ok') {
+      const current = latestDraft.current[field].trim();
+      updateDraft({
+        [field]: current ? `${current} ${result.text}` : result.text,
+      });
+      return;
+    }
+    let bodyKey = 'appointments.visitPreparation.voiceFailed';
+    if (result.status === 'denied') {
+      bodyKey = 'appointments.visitPreparation.voicePermissionDenied';
+    } else if (result.status === 'unavailable') {
+      bodyKey = 'appointments.visitPreparation.voiceUnavailable';
+    }
+    Alert.alert(t('appointments.visitPreparation.voiceErrorTitle'), t(bodyKey));
+  };
+
+  const toggleReadBack = async () => {
+    if (isReading) {
+      await stopReadingVisitText();
+      setIsReading(false);
+      return;
+    }
+    const started = await readVisitText(
+      message,
+      i18n.resolvedLanguage ?? 'en-US',
+    );
+    setIsReading(started);
+    if (!started) {
+      Alert.alert(
+        t('appointments.visitPreparation.voiceErrorTitle'),
+        t('appointments.visitPreparation.readBackFailed'),
+      );
+    }
+  };
+
+  const renderField = (
+    field: DraftField,
+    includeField: 'includeObservations' | 'includeQuestions',
+  ) => (
+    <View style={styles.fieldGroup}>
+      <View style={styles.fieldHeader}>
+        <Text style={styles.fieldLabel}>
+          {t(`appointments.visitPreparation.${field}`)}
+        </Text>
+        {voiceAvailable ? (
+          <PressableOpacity
+            testID={`visit-voice-${field}`}
+            onPress={() => {
+              capture(field);
+            }}
+            disabled={listeningField !== null || isReading}
+            accessibilityRole="button"
+            accessibilityLabel={t('appointments.visitPreparation.speakFor', {
+              field: t(`appointments.visitPreparation.${field}`),
+            })}
+            accessibilityState={{
+              disabled: listeningField !== null || isReading,
+            }}
+            style={styles.iconButton}>
+            <Ionicons
+              name={listeningField === field ? 'mic' : 'mic-outline'}
+              size={20}
+              color={theme.colors.blueText}
+            />
+          </PressableOpacity>
+        ) : null}
+      </View>
+      <TextInput
+        testID={`visit-${field}-input`}
+        value={draft[field]}
+        onChangeText={value => updateDraft({[field]: value})}
+        multiline
+        textAlignVertical="top"
+        placeholder={t(`appointments.visitPreparation.${field}Placeholder`)}
+        placeholderTextColor={theme.colors.inkFaint}
+        style={styles.input}
+        accessibilityLabel={t(`appointments.visitPreparation.${field}`)}
+      />
+      <Checkbox
+        value={draft[includeField]}
+        onValueChange={value => updateDraft({[includeField]: value})}
+        label={t('appointments.visitPreparation.includeWhenSendingField', {
+          field: t(`appointments.visitPreparation.${field}`),
+        })}
+      />
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>
+        {t('appointments.visitPreparation.notesTitle')}
+      </Text>
+      <Text style={styles.description}>
+        {t('appointments.visitPreparation.notesDescription')}
+      </Text>
+      {voiceAvailable === false ? (
+        <Text style={styles.status} accessibilityLiveRegion="polite">
+          {t('appointments.visitPreparation.voiceUnavailable')}
+        </Text>
+      ) : null}
+      {renderField('observations', 'includeObservations')}
+      {renderField('questions', 'includeQuestions')}
+      <View style={styles.actions}>
+        {readBackAvailable ? (
+          <LiquidGlassButton
+            title={t(
+              isReading
+                ? 'appointments.visitPreparation.stopReadBack'
+                : 'appointments.visitPreparation.readBack',
+            )}
+            onPress={() => {
+              toggleReadBack();
+            }}
+            disabled={!message || listeningField !== null}
+            tintColor={theme.colors.secondary}
+            borderRadius={theme.borderRadius.button}
+            accessibilityLabel={t(
+              isReading
+                ? 'appointments.visitPreparation.stopReadBack'
+                : 'appointments.visitPreparation.readBack',
+            )}
+          />
+        ) : null}
+        <LiquidGlassButton
+          title={t('appointments.visitPreparation.reviewInChat')}
+          onPress={() => onReviewInChat(message)}
+          disabled={!message}
+          tintColor={theme.colors.cta}
+          borderRadius={theme.borderRadius.button}
+          shadowIntensity="medium"
+        />
+      </View>
+    </View>
+  );
+};
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {gap: theme.spacing['2.5']},
+    title: {...theme.typography.subtitleBold14, color: theme.colors.ink},
+    description: {...theme.typography.body12, color: theme.colors.inkMuted},
+    status: {...theme.typography.body12, color: theme.colors.inkMuted},
+    fieldGroup: {gap: theme.spacing['2']},
+    fieldHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    fieldLabel: {...theme.typography.body14, color: theme.colors.inkBody},
+    iconButton: {
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    input: {
+      minHeight: 96,
+      borderWidth: 1,
+      borderColor: theme.colors.controlBorder,
+      borderRadius: theme.borderRadius.field,
+      backgroundColor: theme.colors.fieldBg,
+      color: theme.colors.inkBody,
+      padding: theme.spacing['3'],
+      ...theme.typography.body14,
+    },
+    actions: {gap: theme.spacing['2.5']},
+  });

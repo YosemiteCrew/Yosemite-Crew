@@ -162,6 +162,7 @@ export type AppointmentStackParamList = {
     appointmentTime: string;
     doctorName: string;
     petName?: string;
+    initialMessage?: string;
   };
   EditAppointment: {appointmentId: string; mode?: 'reschedule'};
   BusinessesList: {

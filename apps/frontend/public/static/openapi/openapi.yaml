@@ -22017,10 +22017,67 @@ paths:
     get:
       tags:
         - 'Non-FHIR'
-      summary: GET /v1/task/mobile/task
+      summary: List parent tasks
       operationId: get_v1_task_mobile_task
       security:
         - BearerAuth: []
+      parameters:
+        - name: patientId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: companionId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: fromDueAt
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: toDueAt
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: status
+          in: query
+          required: false
+          description: Comma-separated task statuses.
+          schema:
+            type: string
+      responses:
+        200:
+          $ref: '#/paths/~1v1~1task~1mobile~1task/post/responses/200'
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: POST /v1/task/mobile/task
+      operationId: post_v1_task_mobile_task
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                patientId:
+                  type: string
+                fromDueAt:
+                  type: string
+                  format: date-time
+                toDueAt:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+                  description: Comma-separated task statuses.
       responses:
         200:
           description: Response
@@ -27148,6 +27205,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SupplierBillError'
+  /v1/pms/organisation/{organisationId}/mar-entries/{marEntryId}/refuse:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Record a refused medication dose
+      operationId: post_v1_pms_organisation_mar_entries_refuse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: marEntryId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '200':
+          description: The updated medication administration entry.
+        '400':
+          description: The request was invalid.
+        '404':
+          description: The medication administration entry was not found.
+        '409':
+          description: The medication administration entry already has an outcome.
 components:
   securitySchemes:
     BearerAuth:

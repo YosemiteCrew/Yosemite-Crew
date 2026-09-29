@@ -102,6 +102,8 @@ import {
   getAppointmentFormAction,
   getAppointmentFormAnswerRows,
 } from './ViewAppointmentScreen.helpers';
+import {VisitPreparationDraftCard} from '../components/VisitPreparationDraftCard';
+import {handleChatActivation} from '../utils/chatActivation';
 
 import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
@@ -1261,6 +1263,36 @@ export const ViewAppointmentScreen: React.FC = () => {
                 </Text>
               ) : null}
             </View>
+
+            {!isTerminal ? (
+              <VisitPreparationDraftCard
+                appointmentId={appointmentId}
+                onReviewInChat={initialMessage => {
+                  const normalizedTime =
+                    apt.time.length === 5 ? `${apt.time}:00` : apt.time;
+                  const appointmentTime =
+                    apt.start ?? `${apt.date}T${normalizedTime}Z`;
+                  handleChatActivation({
+                    appointment: apt,
+                    employee,
+                    companions: companion ? [companion] : [],
+                    doctorName:
+                      employee?.name ?? apt.employeeName ?? businessName,
+                    petName: companion?.name,
+                    onOpenChat: () =>
+                      navigation.navigate('ChatChannel', {
+                        appointmentId,
+                        vetId: employee?.id ?? apt.employeeId ?? 'unknown-vet',
+                        appointmentTime,
+                        doctorName:
+                          employee?.name ?? apt.employeeName ?? businessName,
+                        petName: companion?.name,
+                        initialMessage,
+                      }),
+                  });
+                }}
+              />
+            ) : null}
 
             {apt.uploadedFiles?.length ? (
               <View style={styles.detailsCard}>

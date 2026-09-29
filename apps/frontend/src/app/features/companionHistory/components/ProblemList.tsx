@@ -152,7 +152,7 @@ const CreateProblemForm = ({
   const [values, setValues] = useState<ProblemFormValues>(emptyForm);
   const trimmedName = values.name.trim();
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!trimmedName || creating) return;
     const ok = await onCreate?.({ ...values, name: trimmedName });

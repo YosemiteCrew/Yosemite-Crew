@@ -34,7 +34,7 @@ router.post(
   TaskController.createCustomTask,
 );
 
-// The list is limited to companions whose tasks the caller may work on.
+router.post("/mobile/task", requireMobileAuth, TaskController.listParentTasks);
 router.get("/mobile/task", requireMobileAuth, TaskController.listParentTasks);
 
 // A parent reaches a task only while they may work on its companion's tasks.

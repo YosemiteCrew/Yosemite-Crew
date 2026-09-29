@@ -110,7 +110,7 @@ describe('Redux Store', () => {
 
     expect(config).toBeDefined();
     expect(config.key).toBe('root');
-    expect(config.version).toBe(10);
+    expect(config.version).toBe(11);
     expect(config.storage).toBeDefined();
     expect(config.migrate).toEqual(expect.any(Function));
   });
@@ -691,6 +691,38 @@ describe('Redux Store', () => {
         timeoutMs: 0,
         ownerId: 'parent-1',
       });
+    });
+
+    it('adds visit preparation drafts during v10 -> v11 migration', async () => {
+      const newState = await runMigrate(10, {
+        appointments: {items: [{id: 'appt-1'}]},
+      });
+
+      expect(newState.appointments).toEqual({
+        items: [{id: 'appt-1'}],
+        visitPreparationDrafts: {},
+      });
+    });
+
+    it('keeps existing visit preparation drafts during v10 -> v11 migration', async () => {
+      const draft = {
+        observations: 'Coughing',
+        questions: '',
+        includeObservations: true,
+        includeQuestions: false,
+      };
+      const newState = await runMigrate(10, {
+        appointments: {visitPreparationDrafts: {'appt-1': draft}},
+      });
+
+      expect(newState.appointments.visitPreparationDrafts).toEqual({
+        'appt-1': draft,
+      });
+    });
+
+    it('does not invent appointment state during v10 -> v11 migration', async () => {
+      const newState = await runMigrate(10, {});
+      expect(newState).not.toHaveProperty('appointments');
     });
 
     it('adds app lock defaults to users more than one version behind', async () => {

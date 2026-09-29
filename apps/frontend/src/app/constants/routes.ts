@@ -81,6 +81,7 @@ export const appRoutes: RouteItem[] = [
 export const devRoutes: RouteItem[] = [
   { name: 'Dashboard', href: '/developers/home' },
   { name: 'Connect', href: '/developers/connect' },
+  { name: 'My Integrations', href: '/developers/integrations' },
   { name: 'API Keys', href: '/developers/api-keys' },
   {
     name: 'Form Draft Import',

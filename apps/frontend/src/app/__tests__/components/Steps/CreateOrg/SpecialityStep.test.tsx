@@ -1424,6 +1424,6 @@ describe('SpecialityStep Component', () => {
 
     fireEvent.mouseDown(document.body);
 
-    expect(screen.queryByText('Recommended for hospitals')).toBeInTheDocument();
+    expect(screen.getByText('Recommended for hospitals')).toBeInTheDocument();
   });
 });

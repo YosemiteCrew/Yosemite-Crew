@@ -3,6 +3,7 @@ import { prisma } from "src/config/prisma";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $queryRaw: jest.fn(),
     parent: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -49,6 +50,7 @@ jest.mock("@yosemite-crew/types", () => ({
 }));
 
 const db = prisma as unknown as {
+  $queryRaw: jest.Mock;
   parent: {
     findUnique: jest.Mock;
     findMany: jest.Mock;
@@ -69,7 +71,13 @@ const db = prisma as unknown as {
 };
 
 const resetAll = () => {
-  for (const table of Object.values(db)) {
+  db.$queryRaw.mockReset();
+  for (const table of [
+    db.parent,
+    db.parentAddress,
+    db.parentPatient,
+    db.authUserMobile,
+  ]) {
     for (const mock of Object.values(table)) mock.mockReset();
   }
 };
@@ -176,36 +184,33 @@ describe("ParentService organisation scope", () => {
 
   describe("getByName", () => {
     it("matches only the practice's own clients", async () => {
-      db.parentPatient.findMany.mockResolvedValue([
-        { parentId: "parent-1" },
-        { parentId: "parent-2" },
-      ]);
-      db.parent.findMany.mockResolvedValue([record]);
+      db.$queryRaw.mockResolvedValue([record]);
 
       const result = await ParentService.getByName("jane", "org-1");
 
-      expect(db.parentPatient.findMany).toHaveBeenCalledWith({
-        where: scopeFor("org-1"),
-        select: { parentId: true },
-        distinct: ["parentId"],
-      });
-      expect(db.parent.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            id: { in: ["parent-1", "parent-2"] },
-          }),
-        }),
+      const sqlObj = db.$queryRaw.mock.calls[0][0] as {
+        sql: string;
+        values: unknown[];
+      };
+      expect(sqlObj.sql).toContain('FROM "ParentPatient" AS parentLink');
+      expect(sqlObj.sql).toContain(
+        'INNER JOIN "PatientOrganisation" AS patientOrganisation',
       );
+      expect(sqlObj.sql).toContain("parentLink.\"status\" = 'ACTIVE'");
+      expect(sqlObj.sql).toContain("patientOrganisation.\"status\" = 'ACTIVE'");
+      expect(sqlObj.values).toEqual(["%jane%", "%jane%", "%jane%", "org-1"]);
+      expect(db.parentPatient.findMany).not.toHaveBeenCalled();
+      expect(db.parent.findMany).not.toHaveBeenCalled();
       expect(result.responses.map((r) => r.id)).toEqual(["parent-1"]);
     });
 
     it("returns nothing when the practice has no clients yet", async () => {
-      db.parentPatient.findMany.mockResolvedValue([]);
-      db.parent.findMany.mockResolvedValue([record]);
+      db.$queryRaw.mockResolvedValue([]);
 
       const result = await ParentService.getByName("jane", "org-1");
 
       expect(result.responses).toEqual([]);
+      expect(db.parentPatient.findMany).not.toHaveBeenCalled();
       expect(db.parent.findMany).not.toHaveBeenCalled();
     });
 
@@ -213,6 +218,7 @@ describe("ParentService organisation scope", () => {
       await expect(ParentService.getByName("jane", "  ")).rejects.toMatchObject(
         { statusCode: 400 },
       );
+      expect(db.$queryRaw).not.toHaveBeenCalled();
       expect(db.parentPatient.findMany).not.toHaveBeenCalled();
       expect(db.parent.findMany).not.toHaveBeenCalled();
     });

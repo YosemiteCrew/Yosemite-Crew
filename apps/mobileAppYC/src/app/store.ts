@@ -208,6 +208,13 @@ const migrateV9ToV10 = (state: any) => {
   }
 };
 
+const migrateV10ToV11 = (state: any) => {
+  if (state.appointments) {
+    state.appointments.visitPreparationDrafts =
+      state.appointments.visitPreparationDrafts ?? {};
+  }
+};
+
 const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   1: migrateV1ToV2,
   2: migrateV2ToV3,
@@ -218,9 +225,10 @@ const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   7: migrateV7ToV8,
   8: migrateV8ToV9,
   9: migrateV9ToV10,
+  10: migrateV10ToV11,
 };
 
-const PERSIST_VERSION = 10;
+const PERSIST_VERSION = 11;
 
 type PersistedParasiteRiskState = Omit<
   ParasiteRiskState,

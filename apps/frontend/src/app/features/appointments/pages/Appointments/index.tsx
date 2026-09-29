@@ -1,5 +1,6 @@
 'use client';
 import React, { Suspense, startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -356,6 +357,10 @@ const useAppointmentsView = () => {
   const canEditAny = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
   const canEditOwn = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_OWN);
   const canEditAppointments = canEditAny || canEditOwn;
+  const canViewHandover = permissions.can([
+    PERMISSIONS.APPOINTMENTS_VIEW_ANY,
+    PERMISSIONS.TASKS_VIEW_ANY,
+  ]);
 
   const currentUserLeadId = useCurrentUserLeadId();
 
@@ -716,6 +721,16 @@ const useAppointmentsView = () => {
           activeView={activeView}
           setActiveView={handleActiveViewChange}
           showAdd={false}
+          actionBeforeAdd={
+            canViewHandover ? (
+              <Link
+                href="/appointments/handover"
+                className="inline-flex min-h-10 items-center rounded-full border border-[var(--hairline)] px-4 text-caption-1 font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+              >
+                Shift handover
+              </Link>
+            ) : null
+          }
         />
         <MobileSearchBar placeholder="Search appointments" />
 

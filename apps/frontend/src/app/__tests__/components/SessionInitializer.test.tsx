@@ -33,9 +33,8 @@ jest.mock('@/app/stores/orgStore', () => ({
   ),
 }));
 
-// The org-scoped refresh effect fires thirteen loaders the moment primaryOrgId
-// is truthy, and one test sets it. Unmocked, those reach axios and leave real
-// XMLHttpRequests open after the run ("Jest did not exit"). Stub them all.
+// The org-scoped refresh effect fires when primaryOrgId is truthy. Unmocked,
+// those requests reach axios and leave real XMLHttpRequests open after the run.
 jest.mock('@/app/features/organization/services/orgService', () => ({ loadOrgs: jest.fn() }));
 jest.mock('@/app/features/organization/services/profileService', () => ({
   loadProfiles: jest.fn(),
@@ -140,6 +139,36 @@ describe('SessionInitializer', () => {
     expect(screen.getByTestId('child')).toBeInTheDocument();
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
     expect(useFullscreenLoader).toHaveBeenCalledWith('session-initializer', false);
+  });
+
+  it('does not repeat organization, profile, or availability loads during refresh', () => {
+    const useOrgStore = jest.requireMock('@/app/stores/orgStore').useOrgStore as jest.Mock;
+    useOrgStore.mockImplementation((selector: any) =>
+      selector({
+        primaryOrgId: 'org-1',
+        orgsById: { 'org-1': { type: 'HOSPITAL' } },
+      })
+    );
+    mockUseAuthStore.mockImplementation((selector: any) => selector({ status: 'authenticated' }));
+
+    render(
+      <SessionInitializer>
+        <div data-testid="child" />
+      </SessionInitializer>
+    );
+
+    expect(
+      jest.requireMock('@/app/features/organization/services/orgService').loadOrgs
+    ).not.toHaveBeenCalled();
+    expect(
+      jest.requireMock('@/app/features/organization/services/profileService').loadProfiles
+    ).not.toHaveBeenCalled();
+    expect(
+      jest.requireMock('@/app/features/organization/services/availabilityService').loadAvailability
+    ).not.toHaveBeenCalled();
+    expect(
+      jest.requireMock('@/app/features/organization/services/teamService').loadTeam
+    ).toHaveBeenCalledTimes(1);
   });
 
   it('stores valid profile terminology for selected org', () => {

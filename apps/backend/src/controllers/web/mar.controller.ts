@@ -120,4 +120,17 @@ export const MARController = {
         userId,
       ),
   }),
+
+  refuse: handler({
+    params: EntryParamsSchema,
+    body: HoldBodySchema,
+    fallback: "Failed to record MAR entry refusal",
+    run: ({ params, input, userId }) =>
+      MARService.refuse(
+        params.marEntryId,
+        params.organisationId,
+        input.notes,
+        userId,
+      ),
+  }),
 };

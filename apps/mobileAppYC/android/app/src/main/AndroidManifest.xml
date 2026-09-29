@@ -49,6 +49,12 @@
     <!-- Optional: Query for Facebook app (improves login if installed) -->
     <queries>
         <package android:name="com.facebook.katana" />
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <application
