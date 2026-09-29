@@ -133,6 +133,7 @@ overrides:
   cosmiconfig>typescript: 5.9.3
   cosmiconfig-typescript-loader>typescript: 5.9.3
   '@noble/hashes@1': 1.8.0
+  image-size: 2.0.3
 
 patchedDependencies:
   '@noble/hashes@1.8.0':
@@ -144,6 +145,9 @@ patchedDependencies:
   body-parser@2.3.0:
     hash: volxp7tpztz57zfuiqqjphe3my
     path: patches/body-parser@2.3.0.patch
+  metro@0.83.7:
+    hash: 7npt7igwfxcqdh3sogdu57amsu
+    path: patches/metro@0.83.7.patch
   react-native@0.81.6:
     hash: m4qqoly5dlwssem2g7gghw2o44
     path: patches/react-native@0.81.6.patch
@@ -7984,7 +7988,7 @@ packages:
       '@react-native/metro-config': 0.81.6(@babel/core@7.29.7)
       debug: 4.4.3(supports-color@5.5.0)
       invariant: 2.2.4
-      metro: 0.83.7
+      metro: 0.83.7(patch_hash=7npt7igwfxcqdh3sogdu57amsu)
       metro-config: 0.83.7
       metro-core: 0.83.7
       semver: 7.8.5
@@ -16720,12 +16724,10 @@ packages:
     engines: {node: '>= 4'}
     dev: true
 
-  /image-size@1.2.1:
-    resolution: {integrity: sha512-rH+46sQJ2dlwfjfhCyNx5thzrv+dtmBIhPHk0zgRUukHzZ/kRueTJXoYYsclBaKcSMBWuGbOFXtioLpzTb5euw==}
-    engines: {node: '>=16.x'}
+  /image-size@2.0.3:
+    resolution: {integrity: sha512-9BJAtVCBth+76NwqnEfWr3PiRnYhbquk6K/USuQ1GQajz5NgLzO7tNsnoNjHfO7LuftgkBf+CCH6j28hjMbIYQ==}
+    engines: {node: '>=18'}
     hasBin: true
-    dependencies:
-      queue: 6.0.2
 
   /immer@11.1.15:
     resolution: {integrity: sha512-VrNANlmnWQnh5COXIIOQXM9oOJw7naGKlBT74ZOOR6lpVXc3gFEu9FJLDFcpCJ2j+NWr8TIwtWD//T6ZX6TKiQ==}
@@ -19426,7 +19428,7 @@ packages:
       connect: 3.7.0
       flow-enums-runtime: 0.0.6
       jest-validate: 29.7.0
-      metro: 0.83.7
+      metro: 0.83.7(patch_hash=7npt7igwfxcqdh3sogdu57amsu)
       metro-cache: 0.83.7
       metro-core: 0.83.7
       metro-runtime: 0.83.7
@@ -19532,7 +19534,7 @@ packages:
       '@babel/parser': 7.29.9
       '@babel/types': 7.29.8
       flow-enums-runtime: 0.0.6
-      metro: 0.83.7
+      metro: 0.83.7(patch_hash=7npt7igwfxcqdh3sogdu57amsu)
       metro-babel-transformer: 0.83.7
       metro-cache: 0.83.7
       metro-cache-key: 0.83.7
@@ -19545,7 +19547,7 @@ packages:
       - supports-color
       - utf-8-validate
 
-  /metro@0.83.7:
+  /metro@0.83.7(patch_hash=7npt7igwfxcqdh3sogdu57amsu):
     resolution: {integrity: sha512-SPaPEyvTsTmd0LpT7RaZciQyDw2i/JB7+iY9L5VfBo72+psescFxBqpI1TL9dnL+pmnfkU+l/J1mEEGLeF65EQ==}
     engines: {node: '>=20.19.4'}
     hasBin: true
@@ -19565,7 +19567,7 @@ packages:
       flow-enums-runtime: 0.0.6
       graceful-fs: 4.2.11
       hermes-parser: 0.35.0
-      image-size: 1.2.1
+      image-size: 2.0.3
       invariant: 2.2.4
       jest-worker: 29.7.0
       jsc-safe-url: 0.2.4
@@ -19593,6 +19595,7 @@ packages:
       - bufferutil
       - supports-color
       - utf-8-validate
+    patched: true
 
   /micromark-core-commonmark@2.0.3:
     resolution: {integrity: sha512-RDBrHEMSxVFLg6xvnXmb1Ayr2WzLAWjeSATAoxwKYJV94TeNavgoIdA0a9ytzDSVzBy2YKFK+emCPOEibLeCrg==}
@@ -21568,11 +21571,6 @@ packages:
 
   /queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
-
-  /queue@6.0.2:
-    resolution: {integrity: sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==}
-    dependencies:
-      inherits: 2.0.4
 
   /quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
