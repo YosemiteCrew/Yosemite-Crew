@@ -19616,6 +19616,116 @@ paths:
                 properties:
                   message:
                     type: string
+  /v1/organisation-rating/practitioner-feedback:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: POST /v1/organisation-rating/practitioner-feedback
+      operationId: post_v1_organisation_rating_practitioner_feedback
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PractitionerFeedbackLookupBody'
+      responses:
+        200:
+          description: Feedback for the completed appointment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feedback:
+                    $ref: '#/components/schemas/PractitionerFeedback'
+                required:
+                  - feedback
+        400:
+          description: Invalid feedback request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        409:
+          description: Feedback is unavailable for this appointment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Feedback could not be loaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  '/v1/organisation-rating/appointment/{appointmentId}/practitioner-feedback':
+    put:
+      tags:
+        - 'Non-FHIR'
+      summary: 'PUT /v1/organisation-rating/appointment/{appointmentId}/practitioner-feedback'
+      operationId: put_v1_organisation_rating_appointment_appointmentId_practitioner_feedback
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PractitionerFeedbackBody'
+      responses:
+        200:
+          description: Feedback saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        400:
+          description: Invalid feedback
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        409:
+          description: Feedback is unavailable for this appointment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Feedback could not be saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
   '/v1/organisation-rating/{organisationId}':
     post:
       tags:
@@ -34121,6 +34231,48 @@ components:
       additionalProperties: true
       required:
         - rating
+    PractitionerFeedbackLookupBody:
+      type: object
+      properties:
+        appointmentId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+      required:
+        - appointmentId
+    PractitionerFeedbackBody:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        review:
+          type: string
+          maxLength: 1000
+      additionalProperties: false
+      required:
+        - rating
+    PractitionerFeedback:
+      type: object
+      properties:
+        isRated:
+          type: boolean
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        review:
+          type: string
+          nullable: true
+        practitionerName:
+          type: string
+      required:
+        - isRated
+        - rating
+        - review
+        - practitionerName
     SendInviteBody:
       type: object
       properties:
