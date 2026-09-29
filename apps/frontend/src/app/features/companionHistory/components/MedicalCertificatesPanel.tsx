@@ -74,10 +74,8 @@ const printCertificate = (certificate: MedicalCertificate, patientName: string):
       content += `<section><h2>${escapeHtml(label)}</h2><p>${escapeHtml(value)}</p></section>`;
     }
   }
-  popup.document.write(
-    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(typeLabel(certificate.certificateType))}</title><style>body{font:16px system-ui,sans-serif;color:CanvasText;margin:48px auto;max-width:720px;padding:0 24px}h1{font-size:28px}h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:GrayText}section{border-bottom:1px solid ButtonBorder;padding:10px 0;white-space:pre-wrap}@media print{body{margin:18mm auto}}</style></head><body><h1>${escapeHtml(typeLabel(certificate.certificateType))}</h1>${content}<script>window.addEventListener('load',()=>window.print())</script></body></html>`
-  );
-  popup.document.close();
+  popup.document.documentElement.innerHTML = `<head><meta charset="utf-8"><title>${escapeHtml(typeLabel(certificate.certificateType))}</title><style>body{font:16px system-ui,sans-serif;color:CanvasText;margin:48px auto;max-width:720px;padding:0 24px}h1{font-size:28px}h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:GrayText}section{border-bottom:1px solid ButtonBorder;padding:10px 0;white-space:pre-wrap}@media print{body{margin:18mm auto}}</style></head><body><h1>${escapeHtml(typeLabel(certificate.certificateType))}</h1>${content}</body>`;
+  popup.print();
 };
 
 type DraftState = {
@@ -168,7 +166,7 @@ const CertificateDraftForm = ({ companionId, clientId, onCreated }: CertificateD
       onSubmit={handleCreate}
     >
       <label className="grid gap-1 text-sm font-medium text-[var(--ink)]">
-        Certificate type
+        {'Certificate type'}
         <select
           name="certificateType"
           className="rounded-lg border border-[var(--divider)] bg-card px-3 py-2"
@@ -196,11 +194,11 @@ const CertificateDraftForm = ({ companionId, clientId, onCreated }: CertificateD
             dispatch({ type: 'change', patch: { validForTravel: event.target.checked } })
           }
         />
-        Valid for travel
+        {'Valid for travel'}
       </label>
       {draft.validForTravel ? (
         <label className="grid gap-1 text-sm font-medium text-[var(--ink)] sm:col-span-2">
-          Destination country
+          {'Destination country'}
           <input
             name="destinationCountry"
             className="rounded-lg border border-[var(--divider)] bg-card px-3 py-2"
@@ -409,9 +407,7 @@ const MedicalCertificatesPanel = ({
           />
         ) : null}
         {loading ? (
-          <p role="status" className="text-sm text-[var(--ink-muted)]">
-            Loading medical certificates…
-          </p>
+          <output className="text-sm text-[var(--ink-muted)]">Loading medical certificates…</output>
         ) : null}
         {error ? (
           <div

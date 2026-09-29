@@ -167,9 +167,9 @@ describe('MedicalCertificatesPanel', () => {
         clinicalFindings: '<script>no</script>',
       }),
     ]);
-    const write = jest.fn();
-    const close = jest.fn();
-    const popup = { opener: window, document: { write, close } } as unknown as Window;
+    const documentElement = { innerHTML: '' };
+    const print = jest.fn();
+    const popup = { opener: window, document: { documentElement }, print } as unknown as Window;
     const open = jest.spyOn(window, 'open').mockReturnValue(popup);
     render(
       <MedicalCertificatesPanel companionId="comp-1" clientId="client-1" patientName="Miso & Co" />
@@ -178,12 +178,12 @@ describe('MedicalCertificatesPanel', () => {
 
     expect(open).toHaveBeenCalledWith('', '_blank');
     expect(popup.opener).toBeNull();
-    expect(write.mock.calls[0][0]).toContain('Miso &amp; Co');
-    expect(write.mock.calls[0][0]).toContain('&lt;script&gt;no&lt;/script&gt;');
-    expect(write.mock.calls[0][0]).toContain('Valid for travel</h2><p>Yes');
-    expect(write.mock.calls[0][0]).toContain('Spain');
-    expect(write.mock.calls[0][0]).not.toContain('<script>no</script>');
-    expect(close).toHaveBeenCalled();
+    expect(documentElement.innerHTML).toContain('Miso &amp; Co');
+    expect(documentElement.innerHTML).toContain('&lt;script&gt;no&lt;/script&gt;');
+    expect(documentElement.innerHTML).toContain('Valid for travel</h2><p>Yes');
+    expect(documentElement.innerHTML).toContain('Spain');
+    expect(documentElement.innerHTML).not.toContain('<script>no</script>');
+    expect(print).toHaveBeenCalled();
   });
 
   it('revokes an issued certificate after confirmation', async () => {
