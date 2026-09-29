@@ -179,6 +179,7 @@ const baseFormEntry = {
   status: 'pending',
   submission: null,
   signingRequired: false,
+  canSign: true,
 };
 
 const defaultRouteParams = {
@@ -2518,8 +2519,32 @@ describe('AppointmentFormScreen — final coverage push', () => {
       );
     });
 
+    it('submits without signing when the server omits signing permission', async () => {
+      const entry = {
+        ...baseFormEntry,
+        signingRequired: true,
+        canSign: undefined,
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+      mockDispatch.mockReturnValueOnce(
+        resolvedUnwrap({submission: {_id: 'sub-1'}}),
+      );
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent(getByTestId('btn-Submit & Continue'), 'onTouchEnd');
+
+      await waitFor(() => expect(mockDispatch).toHaveBeenCalledTimes(1));
+      expect(FormActions.startFormSigning).not.toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalledWith(
+        'FormSigning',
+        expect.anything(),
+      );
+    });
+
     it('goes back when signing is required but the submission id is missing', async () => {
-      const entry = {...baseFormEntry, signingRequired: true};
+      const entry = {...baseFormEntry, signingRequired: true, canSign: true};
       (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
         entry,
       ]);
