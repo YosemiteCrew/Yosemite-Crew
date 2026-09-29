@@ -19,7 +19,7 @@ import {
   roundMoney,
   type InvoiceDiscountInput as PricingInvoiceDiscountInput,
 } from "./finance/pricing";
-import { isLedgerCurrencySupported } from "./finance/currency";
+import { isLedgerCurrencySupported, sameCurrency } from "./finance/currency";
 import { FinanceDiscountSettingsService } from "./finance/discount-settings";
 import {
   DEFAULT_TAX_BEHAVIOR,
@@ -43,17 +43,6 @@ import {
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { AuditTrailService } from "./audit-trail.service";
-
-const cancelUnfinishedPaymentAttempts = (invoiceId: string) =>
-  prisma.$executeRaw`
-    UPDATE "PaymentAttempt"
-    SET "status" = 'CANCELED'::"PaymentAttemptStatus"
-    WHERE "invoiceId" = ${invoiceId}
-      AND "status" NOT IN (
-        'SUCCEEDED'::"PaymentAttemptStatus",
-        'CANCELED'::"PaymentAttemptStatus"
-      )
-  `;
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import type { AuditEventType } from "src/models/audit-trail";
@@ -743,6 +732,13 @@ const resolveInvoiceTotals = async (
     taxContext,
     skipTaxCalculation,
   } = options;
+  // Only currencies the ledger registry can price exactly are handed over.
+  // An org billing in one of the codes it refuses keeps the two decimals it
+  // is priced at today rather than losing invoicing the day this ships;
+  // giving those codes a decided minor unit is what removes this guard.
+  const ledgerCurrency = isLedgerCurrencySupported(currency)
+    ? currency
+    : undefined;
   const pricing = calculateInvoicePricing({
     lines: items.map((item) => ({
       quantity: item.quantity,
@@ -753,11 +749,7 @@ const resolveInvoiceTotals = async (
     })),
     taxRatePercent: taxPercent,
     invoiceDiscount,
-    // Only currencies the ledger registry can price exactly are handed over.
-    // An org billing in one of the codes it refuses keeps the two decimals it
-    // is priced at today rather than losing invoicing the day this ships;
-    // giving those codes a decided minor unit is what removes this guard.
-    currency: isLedgerCurrencySupported(currency) ? currency : undefined,
+    currency: ledgerCurrency,
   });
 
   if (skipTaxCalculation) {
@@ -771,6 +763,7 @@ const resolveInvoiceTotals = async (
         pricing.subtotal -
           pricing.lineDiscountTotal -
           pricing.invoiceDiscountTotal,
+        ledgerCurrency,
       ),
       taxSnapshot: null,
     };
@@ -815,6 +808,7 @@ const resolveInvoiceTotals = async (
         : (taxPercent ?? 0),
     totalAmount: roundMoney(
       pricing.totalAmount - pricing.taxTotal + taxSnapshot.taxAmount,
+      ledgerCurrency,
     ),
     taxSnapshot,
   };
@@ -1437,23 +1431,26 @@ export const InvoiceService = {
     }
 
     const currency = await resolveOrganisationCurrency(input.organisationId);
-    const taxContext = await resolveInvoiceTaxContext(input.organisationId);
     const createdInvoice = await prisma.$transaction(async (tx) => {
       const inventoryItems = await tx.inventoryItem.findMany({
         where: {
           id: { in: [...quantities.keys()] },
           organisationId: input.organisationId,
-          status: "ACTIVE",
         },
       });
-      if (inventoryItems.length !== quantities.size) {
-        throw new InvoiceServiceError(
-          "One or more sale items are unavailable",
-          409,
-        );
-      }
+      const itemsById = new Map(inventoryItems.map((item) => [item.id, item]));
 
-      const items = inventoryItems.map((item) => {
+      const items = [...quantities].map(([inventoryItemId, quantity]) => {
+        const item = itemsById.get(inventoryItemId);
+        if (!item) {
+          throw new InvoiceServiceError("Inventory item not found", 404);
+        }
+        if (item.status !== "ACTIVE") {
+          throw new InvoiceServiceError(
+            `${item.name} is not available for sale`,
+            409,
+          );
+        }
         if (item.controlledItem || item.prescriptionRequired) {
           throw new InvoiceServiceError(
             `${item.name} cannot be sold over the counter`,
@@ -1470,10 +1467,7 @@ export const InvoiceService = {
             409,
           );
         }
-        if (
-          item.currency &&
-          item.currency.toLowerCase() !== currency.toLowerCase()
-        ) {
+        if (item.currency && !sameCurrency(item.currency, currency)) {
           throw new InvoiceServiceError(
             `${item.name} uses a different currency`,
             409,
@@ -1483,7 +1477,7 @@ export const InvoiceService = {
           id: item.id,
           name: item.name,
           description: item.description ?? item.name,
-          quantity: quantities.get(item.id)!,
+          quantity,
           unitPrice: item.sellingPrice,
         };
       });
@@ -1497,7 +1491,7 @@ export const InvoiceService = {
         null,
         currency,
         DEFAULT_TAX_BEHAVIOR,
-        taxContext,
+        undefined,
         { skipTaxCalculation: true },
       );
       const invoice = await tx.invoice.create({
@@ -1814,7 +1808,13 @@ export const InvoiceService = {
     // the link the parent holds working, and by then there is no open attempt
     // for the webhook to reconcile the payment against.
     await cancelOpenCheckoutSessionAttempts(doc.id);
-    await cancelUnfinishedPaymentAttempts(doc.id);
+    await prisma.paymentAttempt.updateMany({
+      where: {
+        invoiceId: doc.id,
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
+      },
+      data: { status: "CANCELED" },
+    });
 
     const updated = await prisma.invoice.update({
       where: { id: doc.id },
@@ -1903,7 +1903,13 @@ export const InvoiceService = {
     // wrote CANCELED locally, so the link the client already had kept working
     // and still charged the pre-credit amount (#2598).
     await cancelOpenCheckoutSessionAttempts(invoice.id);
-    await cancelUnfinishedPaymentAttempts(invoice.id);
+    await prisma.paymentAttempt.updateMany({
+      where: {
+        invoiceId: invoice.id,
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
+      },
+      data: { status: "CANCELED" },
+    });
 
     const creditNote = await prisma.creditNote.create({
       data: {
@@ -2452,7 +2458,10 @@ export const InvoiceService = {
     // stayed live, `createCheckoutSessionForInvoice` kept handing it back, and
     // completing it wrote the old, lower total onto the invoice and marked it
     // settled - underpaying an invoice that had since grown.
-    await cancelUnfinishedPaymentAttempts(invoiceId);
+    await prisma.paymentAttempt.updateMany({
+      where: { invoiceId, status: { notIn: ["SUCCEEDED", "CANCELED"] } },
+      data: { status: "CANCELED" },
+    });
 
     const targets = await resolveAuditTargetsForInvoiceRow(updated);
     await recordInvoiceAuditEvent(targets, {

@@ -246,11 +246,15 @@ router.post(
   FinanceController.createInvoice,
 );
 
+// A counter sale bills the client AND draws the stock down, so it needs both
+// permissions: the billing one alone would let a role with no inventory edit
+// rights move stock.
 router.post(
   "/counter-sales",
   requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
+  requirePermission("inventory:edit:any"),
   FinanceController.createCounterSale,
 );
 

@@ -229,12 +229,19 @@ describe("InvoiceService", () => {
     });
 
     it("creates an appointment-free invoice and records its stock movement in the transaction", async () => {
+      // A transaction client distinct from the root client, so a write that
+      // escapes the transaction lands on `prisma` and fails this test.
+      const txInvoiceCreate = jest.fn().mockResolvedValue(saleInvoice);
+      const txMovementCreate = jest.fn().mockResolvedValue({});
+      const txEventCreate = jest.fn().mockResolvedValue({});
       (prisma.$transaction as jest.Mock).mockImplementationOnce(
-        async (callback: (tx: typeof prisma) => Promise<unknown>) => {
-          const result = await callback(prisma);
-          expect(prisma.financeEvent.create).toHaveBeenCalled();
-          return result;
-        },
+        async (callback: (tx: unknown) => Promise<unknown>) =>
+          callback({
+            ...prisma,
+            invoice: { ...prisma.invoice, create: txInvoiceCreate },
+            inventoryStockMovement: { create: txMovementCreate },
+            financeEvent: { create: txEventCreate },
+          }),
       );
 
       const result = await InvoiceService.createCounterSale(saleInput);
@@ -245,7 +252,7 @@ describe("InvoiceService", () => {
         patientId: undefined,
         totalAmount: 20,
       });
-      expect(prisma.invoice.create).toHaveBeenCalledWith(
+      expect(txInvoiceCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             appointmentId: null,
@@ -262,7 +269,7 @@ describe("InvoiceService", () => {
           }),
         }),
       );
-      expect(prisma.inventoryStockMovement.create).toHaveBeenCalledWith(
+      expect(txMovementCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             itemId: "item_1",
@@ -273,13 +280,191 @@ describe("InvoiceService", () => {
           }),
         }),
       );
-      expect(prisma.financeEvent.create).toHaveBeenCalledWith({
+      expect(txEventCreate).toHaveBeenCalledWith({
         data: expect.objectContaining({
           eventType: "INVOICE_CREATED",
           entityId: "inv_counter",
           occurredAt: saleInvoice.createdAt,
         }),
       });
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(prisma.financeEvent.create).not.toHaveBeenCalled();
+    });
+
+    it("answers 404 for an item that is not in the organisation", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([]);
+
+      await expect(
+        InvoiceService.createCounterSale({
+          organisationId,
+          items: [{ inventoryItemId: "foreign_item", quantity: 1 }],
+        }),
+      ).rejects.toMatchObject({
+        message: "Inventory item not found",
+        statusCode: 404,
+      });
+      expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ["foreign_item"] }, organisationId },
+      });
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses an inactive item without creating an invoice", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+        { ...stockItem, status: "HIDDEN" },
+      ]);
+
+      await expect(
+        InvoiceService.createCounterSale(saleInput),
+      ).rejects.toMatchObject({
+        message: "Bandage is not available for sale",
+        statusCode: 409,
+      });
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["kwd", 1.235, 3, 3.705],
+      ["jpy", 105, 3, 315],
+    ])(
+      "keeps the %s minor unit in the sale total",
+      async (currency, sellingPrice, quantity, expectedTotal) => {
+        (getOrgBillingCurrency as jest.Mock).mockResolvedValue(currency);
+        (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+          { ...stockItem, sellingPrice, currency },
+        ]);
+        (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+          ...stockItem,
+          onHand: 10,
+        });
+        (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([
+          { id: "batch_1", itemId: "item_1", quantity: 10, expiryDate: null },
+        ]);
+
+        await InvoiceService.createCounterSale({
+          organisationId,
+          items: [{ inventoryItemId: "item_1", quantity }],
+        });
+
+        expect(prisma.invoice.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              currency,
+              subtotal: expectedTotal,
+              totalAmount: expectedTotal,
+            }),
+          }),
+        );
+      },
+    );
+
+    it("finalizes a three-decimal sale without rounding its total to cents", async () => {
+      const kwdSale = {
+        ...saleInvoice,
+        id: "inv_counter_kwd",
+        currency: "kwd",
+        items: [
+          {
+            id: "item_1",
+            name: "Bandage",
+            description: "Bandage",
+            quantity: 3,
+            unitPrice: 1.235,
+            total: 3.705,
+          },
+        ],
+        subtotal: 3.705,
+        totalAmount: 3.705,
+        invoiceDiscountType: null,
+        invoiceDiscountValue: null,
+        taxSnapshot: null,
+        finalizedAt: null,
+      };
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(kwdSale);
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        ...kwdSale,
+        finalizedAt: new Date(),
+      });
+      (prisma.renderedDocument.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.renderedDocument.create as jest.Mock).mockResolvedValueOnce({
+        id: "rd_counter_kwd",
+      });
+
+      await InvoiceService.finalizeTaxForInvoice("inv_counter_kwd");
+
+      expect(prisma.invoice.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            subtotal: 3.705,
+            taxTotal: 0,
+            totalAmount: 3.705,
+          }),
+        }),
+      );
+    });
+
+    it("refuses an item priced in another currency but accepts a case-only difference", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValueOnce([
+        { ...stockItem, currency: "eur" },
+      ]);
+      await expect(
+        InvoiceService.createCounterSale(saleInput),
+      ).rejects.toMatchObject({
+        message: "Bandage uses a different currency",
+        statusCode: 409,
+      });
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValueOnce([
+        { ...stockItem, currency: "USD" },
+      ]);
+      await InvoiceService.createCounterSale(saleInput);
+      expect(prisma.invoice.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses an item with no sale price", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+        { ...stockItem, sellingPrice: null },
+      ]);
+
+      await expect(
+        InvoiceService.createCounterSale(saleInput),
+      ).rejects.toMatchObject({
+        message: "Bandage has no valid sale price",
+        statusCode: 409,
+      });
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("merges repeated lines for one item into a single invoice line", async () => {
+      await InvoiceService.createCounterSale({
+        organisationId,
+        items: [
+          { inventoryItemId: "item_1", quantity: 1 },
+          { inventoryItemId: " item_1 ", quantity: 2 },
+        ],
+      });
+
+      const data = (prisma.invoice.create as jest.Mock).mock.calls[0][0].data;
+      expect(data.items).toHaveLength(1);
+      expect(data.items[0]).toMatchObject({ id: "item_1", quantity: 3 });
+      expect(data.totalAmount).toBe(30);
+    });
+
+    it.each([
+      ["a blank item", { inventoryItemId: "  ", quantity: 1 }],
+      ["a fractional quantity", { inventoryItemId: "item_1", quantity: 1.5 }],
+    ])("rejects %s before reading stock", async (_label, line) => {
+      await expect(
+        InvoiceService.createCounterSale({ organisationId, items: [line] }),
+      ).rejects.toMatchObject({
+        message: "Invalid sale item",
+        statusCode: 400,
+      });
+      expect(prisma.inventoryItem.findMany).not.toHaveBeenCalled();
     });
 
     it("rejects prescription-only items before creating an invoice", async () => {
@@ -1851,7 +2036,9 @@ describe("InvoiceService", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (prisma.$executeRaw as jest.Mock).mockResolvedValueOnce(1);
+    (prisma.paymentAttempt.updateMany as jest.Mock).mockResolvedValueOnce({
+      count: 1,
+    });
 
     // Editing a finalized but UNPAID invoice re-opens it (clears finalizedAt) and
     // cancels in-flight payment attempts so a fresh payment link can be generated.
@@ -1872,12 +2059,12 @@ describe("InvoiceService", () => {
         data: expect.objectContaining({ finalizedAt: null }),
       }),
     );
-    const cancellation = (prisma.$executeRaw as jest.Mock).mock.calls.find(
-      ([parts]: [TemplateStringsArray]) =>
-        parts.join("").includes('"invoiceId" ='),
+    expect(prisma.paymentAttempt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ invoiceId: "inv_final" }),
+        data: { status: "CANCELED" },
+      }),
     );
-    expect(cancellation?.slice(1)).toContain("inv_final");
-    expect(cancellation?.[0].join("")).toContain('"status" NOT IN');
   });
 
   // `mergeInvoiceLineItems` can replace a line by id or content key, and the

@@ -8379,6 +8379,7 @@ paths:
                 items:
                   type: array
                   minItems: 1
+                  maxItems: 100
                   items:
                     type: object
                     required:
@@ -8468,6 +8469,12 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         403:
           description: Permission denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: An item was not found in this organisation.
           content:
             application/json:
               schema:

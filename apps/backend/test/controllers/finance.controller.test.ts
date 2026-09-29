@@ -3,7 +3,10 @@ import { FinancePaymentService } from "../../src/services/finance/payment";
 import { FinanceSubscriptionService } from "../../src/services/finance/subscription";
 import { FinanceEventService } from "../../src/services/finance/events";
 import { StripeController } from "../../src/controllers/web/stripe.controller";
-import { InvoiceService } from "../../src/services/invoice.service";
+import {
+  InvoiceService,
+  InvoiceServiceError,
+} from "../../src/services/invoice.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
 import {
   FinanceDiscountSettingsError,
@@ -664,6 +667,52 @@ describe("FinanceController", () => {
     expect(InvoiceService.createCounterSale).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: "Invalid request body" });
+  });
+
+  it("rejects a counter sale with more than 100 lines", async () => {
+    const req = {
+      body: {
+        organisationId: "org_1",
+        items: Array.from({ length: 101 }, (_, index) => ({
+          inventoryItemId: `item_${index}`,
+          quantity: 1,
+        })),
+      },
+      organisationId: "org_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createCounterSale(req, res);
+
+    expect(InvoiceService.createCounterSale).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("returns the service status for a counter-sale item from another organisation", async () => {
+    (InvoiceService.createCounterSale as jest.Mock).mockRejectedValueOnce(
+      new InvoiceServiceError("Inventory item not found", 404),
+    );
+    const req = {
+      body: {
+        organisationId: "org_1",
+        items: [{ inventoryItemId: "foreign_item", quantity: 1 }],
+      },
+      organisationId: "org_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createCounterSale(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Inventory item not found",
+    });
   });
 
   it("lists invoices using organisation filters", async () => {

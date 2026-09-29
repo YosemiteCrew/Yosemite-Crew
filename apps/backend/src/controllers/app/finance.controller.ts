@@ -88,7 +88,8 @@ const CreateCounterSaleBodySchema = z.object({
         quantity: z.number().int().positive(),
       }),
     )
-    .min(1),
+    .min(1)
+    .max(100),
 });
 
 const UpdateDiscountSettingsBodySchema = z.object({

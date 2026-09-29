@@ -379,6 +379,9 @@ describe("finance.router", () => {
     ).toContain(permissionGuard("billing:edit:any"));
     expect(
       createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(permissionGuard("inventory:edit:any"));
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.createCounterSale);
     expect(mobileParentRoute?.stack.map((layer) => layer.handle)).toContain(
       requireMobileAuth,
