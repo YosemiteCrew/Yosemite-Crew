@@ -873,6 +873,10 @@ export const ViewAppointmentScreen: React.FC = () => {
   const statusFlags = useStatusFlags(status, apt?.paymentStatus);
   const {isRequested, isTerminal, showPayNow, showInvoice, showCancel} =
     statusFlags;
+  const canReviewVisitNotes =
+    statusFlags.isUpcoming &&
+    !statusFlags.showPayNow &&
+    Boolean(employee?.id ?? apt?.employeeId);
   const statusInfo = getStatusDisplay(
     status,
     apt?.paymentStatus,
@@ -1264,7 +1268,7 @@ export const ViewAppointmentScreen: React.FC = () => {
               ) : null}
             </View>
 
-            {!isTerminal ? (
+            {canReviewVisitNotes ? (
               <VisitPreparationDraftCard
                 appointmentId={appointmentId}
                 onReviewInChat={initialMessage => {

@@ -69,14 +69,22 @@ final class VisitVoiceBridge: RCTEventEmitter, AVSpeechSynthesizerDelegate {
         )
         try session.setActive(true)
 
+        // Read the input format only once the session records: under a playback
+        // category the input node reports no channels even when a microphone exists.
+        let input = self.audioEngine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate.isFinite, format.sampleRate > 0, format.channelCount > 0 else {
+          try? session.setActive(false, options: .notifyOthersOnDeactivation)
+          reject("voice_unavailable", "Microphone input is unavailable.", nil)
+          return
+        }
+
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         self.recognitionRequest = request
         self.recognitionResolve = resolve
         self.recognitionReject = reject
 
-        let input = self.audioEngine.inputNode
-        let format = input.outputFormat(forBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
           request.append(buffer)
         }
