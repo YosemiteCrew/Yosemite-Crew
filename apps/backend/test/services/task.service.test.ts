@@ -66,6 +66,7 @@ jest.mock("../../src/utils/logger", () => ({
   __esModule: true,
   default: {
     info: jest.fn(),
+    warn: jest.fn(),
     error: jest.fn(),
   },
 }));
@@ -510,7 +511,7 @@ describe("TaskService", () => {
         entityId: "task-4",
       }),
     );
-    expect(result.id).toBe("task-4");
+    expect(result?.id).toBe("task-4");
   });
 
   it("rejects workflow seeds that require a companion but do not provide one", async () => {
@@ -4009,22 +4010,38 @@ describe("TaskService", () => {
       it.each([
         ["a co-parent whose tasks access is off", "co-no-tasks"],
         ["a parent whose link was revoked", "par-old"],
-        ["a staff member", "vet-1"],
+        ["a staff member, as when the appointment has no parent", "vet-1"],
       ])(
-        "answers a parent task given to %s as not found",
+        "gives a parent task named for %s to the primary parent",
         async (_label, assignee) => {
           await expect(
             TaskService.createFromWorkflowSeed(
               seed({ audience: "PARENT_TASK", assignedTo: assignee }),
               { notify: false },
             ),
-          ).rejects.toMatchObject({
-            statusCode: 404,
-            message: "Assignee not found",
-          });
-          expect(mockedPrisma.task.create).not.toHaveBeenCalled();
+          ).resolves.toMatchObject({ id: "task-new" });
+
+          expect(createdAssignee()).toBe("par-1");
         },
       );
+
+      it("leaves out a parent task when no parent may work on it", async () => {
+        await expect(
+          TaskService.createFromWorkflowSeed(
+            seed({
+              audience: "PARENT_TASK",
+              patientId: "pat-2",
+              assignedTo: "co-no-tasks",
+            }),
+            { notify: false },
+          ),
+        ).resolves.toBeNull();
+
+        expect(mockedPrisma.task.create).not.toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith(
+          "Skipping a workflow parent task: no parent may work on the companion's tasks",
+        );
+      });
     });
 
     it("leaves an unchanged assignee unchecked", async () => {

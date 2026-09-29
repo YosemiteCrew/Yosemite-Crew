@@ -1519,6 +1519,25 @@ const isPermittedTaskAssignee = async (
 const assigneeNotFound = () => new TaskServiceError("Assignee not found", 404);
 
 /**
+ * The companion's primary parent, if they may work on its tasks: who a
+ * workflow's parent task goes to when the parent it named may not.
+ */
+const primaryParentForTasks = async (
+  patientId: string | null | undefined,
+): Promise<string | undefined> => {
+  const companion = asNonEmptyString(patientId);
+  if (!companion) return undefined;
+  const primary = await prisma.parentPatient.findFirst({
+    where: { patientId: companion, status: "ACTIVE", role: "PRIMARY" },
+    select: { parentId: true, role: true, permissions: true },
+  });
+  return primary &&
+    hasCompanionFeature(primary.role, primary.permissions, "tasks")
+    ? primary.parentId
+    : undefined;
+};
+
+/**
  * Every create and every change of assignee goes through here. Anyone the
  * task may not be given to answers as not found.
  */
@@ -1839,10 +1858,14 @@ export const TaskService = {
     return mapped;
   },
 
+  /**
+   * Resolves to null, and raises nothing, for a parent task that no parent of
+   * the companion may work on.
+   */
   async createFromWorkflowSeed(
     input: TaskWorkflowSeed,
     options?: { client?: TaskWriteClient; notify?: boolean },
-  ): Promise<TaskLike> {
+  ): Promise<TaskLike | null> {
     assertCompanionRequirement({
       audience: input.audience,
       patientId: input.patientId,
@@ -1853,11 +1876,22 @@ export const TaskService = {
 
     // The assignee comes from the appointment. A staff member who is no longer
     // with the practice leaves the task unassigned rather than failing the
-    // submission; a parent task still needs a parent who may work on it.
+    // submission. A parent task whose parent may not work on it goes to the
+    // companion's primary parent, and is left out when there is none.
     let assignedTo = input.assignedTo;
     if (!(await isPermittedTaskAssignee(input))) {
-      if (input.audience !== "EMPLOYEE_TASK") throw assigneeNotFound();
-      assignedTo = "";
+      if (input.audience === "EMPLOYEE_TASK") {
+        assignedTo = "";
+      } else {
+        const primary = await primaryParentForTasks(input.patientId);
+        if (!primary) {
+          logger.warn(
+            "Skipping a workflow parent task: no parent may work on the companion's tasks",
+          );
+          return null;
+        }
+        assignedTo = primary;
+      }
     }
 
     const mapped = await createTaskRow(options?.client ?? prisma, {

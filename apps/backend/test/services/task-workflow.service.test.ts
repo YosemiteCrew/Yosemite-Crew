@@ -168,6 +168,69 @@ describe("TaskWorkflowService", () => {
     expect(result.taskIds).toEqual(["task-1"]);
   });
 
+  it("still submits when a parent task is left out, and records it as skipped", async () => {
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-1",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: null,
+      templateId: "template-1",
+      templateVersion: 3,
+      authorId: "creator-1",
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T08:00:00.000Z"),
+      data: {
+        sections: [
+          {
+            id: "definition",
+            data: {
+              taskKind: "MEDICATION",
+              category: "Medication",
+              name: "Home medicine",
+            },
+          },
+          { id: "assignment", data: { defaultRole: "PARENT_TASK" } },
+          { id: "timing", data: { dueOffsetMinutes: 30 } },
+        ],
+      },
+      template: {
+        id: "template-1",
+        kind: "TASK_TEMPLATE",
+        ownership: "ORG_TEMPLATE",
+      },
+      taskSchedule: null,
+    });
+    mockedPrisma.taskSchedule.create.mockResolvedValueOnce({
+      id: "schedule-1",
+    });
+    mockedPrisma.taskSchedule.update.mockResolvedValueOnce({
+      id: "schedule-1",
+      generatedTaskIds: [],
+    });
+    mockedTaskService.createFromWorkflowSeed.mockResolvedValueOnce(null);
+
+    const result = await TaskWorkflowService.launchFromTemplateInstance(
+      "instance-1",
+      "org-1",
+      { actorId: "creator-1", canEditAny: true },
+      { client: prisma, notify: false },
+    );
+
+    expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.taskSchedule.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "schedule-1" },
+        data: expect.objectContaining({
+          generatedTaskIds: [],
+          metadata: expect.objectContaining({ skippedSeeds: 1 }),
+        }),
+      }),
+    );
+    expect(result).toMatchObject({ taskIds: [], seedCount: 1 });
+  });
+
   it("lists encounter schedules for the workspace endpoint", async () => {
     mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
       {
