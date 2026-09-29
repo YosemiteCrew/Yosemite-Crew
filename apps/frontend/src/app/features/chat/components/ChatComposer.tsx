@@ -32,6 +32,7 @@ import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { useChatShare } from './chatShareContext';
 import { partitionUploadFiles } from '../lib/uploadSafety';
+import { VoiceCapture } from '@/app/ui/primitives/VoiceCapture';
 
 const EMOJIS = ['👍', '🙏', '❤️', '😊', '🎉', '✅', '⏰', '🐾', '💊', '📎'];
 
@@ -76,13 +77,20 @@ export function ChatComposer() {
   const { openShare } = useChatShare();
   const [attachOpen, setAttachOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleVoiceTranscript = (transcript: string) => {
+    composer.textComposer.insertText({ text: transcript });
+    setVoiceOpen(false);
+  };
+
   const closeAll = () => {
     setAttachOpen(false);
     setEmojiOpen(false);
+    setVoiceOpen(false);
   };
 
   const insert = (text: string) => composer.textComposer.insertText({ text });
@@ -135,6 +143,15 @@ export function ChatComposer() {
           </button>
         ))}
       </div>
+      {voiceOpen && (
+        <div className="mb-3" role="region" aria-label="Voice capture">
+          <VoiceCapture
+            onTranscript={handleVoiceTranscript}
+            placeholder="Press microphone to record…"
+          />
+        </div>
+      )}
+
       <div className="flex items-end gap-2">
         <div className="relative">
           <ComposerIconButton
@@ -224,9 +241,16 @@ export function ChatComposer() {
             <button
               type="button"
               aria-label="Voice message"
-              title="Voice messages are coming soon"
-              disabled
-              className="inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] disabled:cursor-not-allowed"
+              onClick={() => {
+                closeAll();
+                setVoiceOpen((o) => !o);
+              }}
+              className={clsx(
+                'inline-flex size-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]',
+                voiceOpen
+                  ? 'text-[var(--blue)]'
+                  : 'text-[var(--ink-soft)] hover:text-[var(--ink-body)]'
+              )}
             >
               <IoMicOutline className="h-[18px] w-[18px]" />
             </button>
