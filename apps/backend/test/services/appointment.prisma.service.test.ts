@@ -422,6 +422,8 @@ describe("AppointmentPrismaService", () => {
           { resourceType: "Appointment" } as any,
           seriesOccurrences,
           "Europe/Madrid",
+          undefined,
+          "staff_1",
         );
 
       const seriesId = rows[0].recurrenceSeriesId;
@@ -443,6 +445,12 @@ describe("AppointmentPrismaService", () => {
       expect(
         mockedInvoiceService.bootstrapForAppointment,
       ).toHaveBeenNthCalledWith(2, "series-2", "PAYMENT_LINK", "org_1");
+      expect(mockedCompanionOrgService.linkByPmsUser).toHaveBeenCalledWith({
+        pmsUserId: "staff_1",
+        patientId: "comp_1",
+        organisationId: "org_1",
+        organisationType: "HOSPITAL",
+      });
     });
   });
 

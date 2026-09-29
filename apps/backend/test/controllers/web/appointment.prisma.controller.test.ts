@@ -198,6 +198,41 @@ describe("AppointmentPrismaController", () => {
       ).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(403);
     });
+
+    it("passes the verified actor to weekly-series creation", async () => {
+      (req as any).organisationId = "org_1";
+      (req as any).userId = "staff_1";
+      req.body = {
+        appointment: {
+          resourceType: "Appointment",
+          participant: [{ actor: { reference: "Organization/org_1" } }],
+        },
+        timeZone: "Europe/Madrid",
+        occurrences,
+      };
+      mockedService.createWeeklyAppointmentSeriesFromPms.mockResolvedValue(
+        [] as any,
+      );
+
+      await AppointmentController.createWeeklySeriesFromPms(
+        req as any,
+        res as any,
+      );
+
+      expect(
+        mockedService.createWeeklyAppointmentSeriesFromPms,
+      ).toHaveBeenCalledWith(
+        req.body.appointment,
+        occurrences.map(({ startTime, endTime }) => ({
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+        })),
+        "Europe/Madrid",
+        undefined,
+        "staff_1",
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
   });
 
   it("creates a requested appointment for the authenticated parent", async () => {
