@@ -567,6 +567,37 @@ describe("ContactController", () => {
         expect(res.json).toHaveBeenCalledWith(REJECTED_ERROR);
       });
 
+      it.each([
+        ["https://yosemitecrew.com", "www.yosemitecrew.com", 201],
+        ["https://www.yosemitecrew.com", "yosemitecrew.com", 201],
+        ["https://dev.yosemitecrew.com", "www.yosemitecrew.com", 400],
+        ["https://yosemitecrew.com", "evil.com", 400],
+        ["https://yosemitecrew.com", "yosemitecrew.com.evil.com", 400],
+        ["https://yosemitecrew.com", "wwwyosemitecrew.com", 400],
+      ])(
+        "with the site at %s, a token from %s answers %i",
+        async (domain, tokenHost, status) => {
+          process.env.AUTH_WEBSITE_DOMAIN = domain;
+          answerWith({
+            success: true,
+            action: "contact_form",
+            hostname: tokenHost,
+          });
+          const res = createResponse();
+
+          await ContactController.createWeb(
+            webRequest({ turnstileToken: "synthetic widget token" }),
+            res as any,
+          );
+
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+          expect(res.status).toHaveBeenCalledWith(status);
+          expect(mockedContactService.createWebRequest).toHaveBeenCalledTimes(
+            status === 201 ? 1 : 0,
+          );
+        },
+      );
+
       it("fails closed when Cloudflare cannot be reached", async () => {
         fetchMock.mockRejectedValue(new Error("synthetic network failure"));
         const res = createResponse();

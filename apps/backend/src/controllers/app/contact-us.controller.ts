@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Request, Response } from "express";
 import { z } from "zod";
 import {
+  allowedTurnstileHostnames,
   isValidTurnstileToken,
   verifyTurnstileToken,
 } from "@yosemite-crew/auth";
@@ -101,7 +102,7 @@ const checkContactBotToken = async (
     (await verifyTurnstileToken({
       token,
       secret,
-      hostname,
+      hostnames: allowedTurnstileHostnames(hostname),
       action: CONTACT_TURNSTILE_ACTION,
       remoteIp,
     }));
