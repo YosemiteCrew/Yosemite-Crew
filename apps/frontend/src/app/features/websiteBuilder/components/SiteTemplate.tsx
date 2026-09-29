@@ -152,7 +152,7 @@ const SiteTemplate = ({ content, practice, bookingHref }: SiteTemplateProps) => 
           <span className="text-[13px] font-semibold tracking-wide text-[var(--blue-text)] uppercase">
             {practice.name}
           </span>
-          <h1 className="font-[var(--font-newsreader)] text-[38px] leading-tight text-[var(--ink)]">
+          <h1 className="font-newsreader text-[38px] leading-tight text-[var(--ink)]">
             {content.headline}
           </h1>
           {content.tagline && (
@@ -173,7 +173,7 @@ const SiteTemplate = ({ content, practice, bookingHref }: SiteTemplateProps) => 
     <article data-template="alpine-clinic" className="flex flex-col gap-10">
       <header className="flex flex-col items-center gap-3 text-center">
         <span className="text-[13px] font-semibold text-[var(--ink-muted)]">{practice.name}</span>
-        <h1 className="font-[var(--font-newsreader)] text-[40px] leading-tight text-[var(--ink)]">
+        <h1 className="font-newsreader text-[40px] leading-tight text-[var(--ink)]">
           {content.headline}
         </h1>
         {content.tagline && (
