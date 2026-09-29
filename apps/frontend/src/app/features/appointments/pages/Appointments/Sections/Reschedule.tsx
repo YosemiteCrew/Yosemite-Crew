@@ -111,9 +111,9 @@ const SeriesReschedulePreview = ({
 }) => {
   if (loading) {
     return (
-      <p role="status" className="font-satoshi text-xs text-text-secondary">
+      <output className="block font-satoshi text-xs text-text-secondary">
         Checking later appointments…
-      </p>
+      </output>
     );
   }
   if (error) {
@@ -480,7 +480,7 @@ const Reschedule = (props: RescheduleProp) => {
                     setSeriesPreviewState(null);
                   }}
                 />
-                This appointment only
+                <span>This appointment only</span>
               </label>
               <label className="flex items-center gap-2 font-satoshi text-xs text-text-primary">
                 <input
@@ -493,7 +493,7 @@ const Reschedule = (props: RescheduleProp) => {
                     setSeriesPreviewState(null);
                   }}
                 />
-                This and following appointments
+                <span>This and following appointments</span>
               </label>
             </div>
             {seriesScope === 'following' ? (

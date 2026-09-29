@@ -21,6 +21,7 @@ import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calen
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getUtcTimeValue } from '@/app/lib/date';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
 import {
   buildWeeklyAppointmentOccurrences,
@@ -55,10 +56,14 @@ const FONT = 'var(--font-satoshi), sans-serif';
 const NEUTRAL_900 = 'var(--color-neutral-900)';
 const INPUT_PLACEHOLDER = 'var(--color-input-text-placeholder)';
 const INPUT_PLACEHOLDER_ACTIVE = 'var(--color-input-text-placeholder-active)';
-const SERIES_DATE_FORMATTER = new Intl.DateTimeFormat('en-GB', {
-  dateStyle: 'medium',
-  timeZone: 'UTC',
-});
+const SERIES_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+};
 
 // 16-R: values / selected text / input content
 const text16R: CSSProperties = {
@@ -802,15 +807,7 @@ type AppointmentFormContentProps = {
   ServiceInfoData: any;
   showError: (field: string) => string | undefined;
   handleSubmit: () => void;
-  weeklySeriesEnabled?: boolean;
-  setWeeklySeriesEnabled?: (value: boolean) => void;
-  weeklySeriesCount?: number;
-  setWeeklySeriesCount?: (value: number) => void;
-  weeklySeriesPreview?: WeeklySeriesPreview | null;
-  weeklySeriesError?: string;
-  isPreviewingWeeklySeries?: boolean;
-  onPreviewWeeklySeries?: () => void;
-  weeklySeriesSubmitLabel?: string;
+  weeklySeries?: WeeklySeriesFieldProps;
   onCancel: () => void;
   /**
    * `modal` (default) is the desktop CenterModal layout: a 2-column field grid
@@ -821,6 +818,21 @@ type AppointmentFormContentProps = {
   variant?: 'modal' | 'sheet';
 };
 
+export type WeeklySeriesFieldProps = {
+  enabled: boolean;
+  setEnabled: (value: boolean) => void;
+  count: number;
+  setCount: (value: number) => void;
+  preview: WeeklySeriesPreview | null;
+  error?: string;
+  isPreviewing: boolean;
+  onPreview: () => void;
+  submitLabel: string;
+};
+
+const hasSeriesConflict = (series?: WeeklySeriesFieldProps) =>
+  Boolean(series?.preview?.some(({ hasConflict }) => hasConflict));
+
 export const WeeklySeriesPreviewList = ({ preview }: { preview: WeeklySeriesPreview }) => (
   <ol className="mt-3 grid gap-2 sm:grid-cols-2">
     {preview.map((occurrence) => (
@@ -828,7 +840,9 @@ export const WeeklySeriesPreviewList = ({ preview }: { preview: WeeklySeriesPrev
         key={occurrence.index}
         className="flex items-center justify-between gap-3 rounded-xl bg-[var(--screen-2)] px-3 py-2 text-[12px] text-[var(--ink-body)]"
       >
-        <span>{SERIES_DATE_FORMATTER.format(new Date(occurrence.startTime))}</span>
+        <span>
+          {formatDateInPreferredTimeZone(new Date(occurrence.startTime), SERIES_DATE_FORMAT)}
+        </span>
         <span className={occurrence.hasConflict ? 'text-text-error' : 'text-[var(--ink-soft)]'}>
           {occurrence.hasConflict ? 'Conflict' : 'Available'}
         </span>
@@ -837,70 +851,62 @@ export const WeeklySeriesPreviewList = ({ preview }: { preview: WeeklySeriesPrev
   </ol>
 );
 
-const AppointmentSeriesFields = ({ props }: { props: AppointmentFormContentProps }) => {
-  const {
-    formState,
-    weeklySeriesEnabled = false,
-    setWeeklySeriesEnabled = () => undefined,
-    weeklySeriesCount = 4,
-    setWeeklySeriesCount = () => undefined,
-    weeklySeriesPreview,
-    weeklySeriesError,
-    isPreviewingWeeklySeries = false,
-    onPreviewWeeklySeries = () => undefined,
-  } = props;
-
-  return (
-    <fieldset className="mt-5 rounded-2xl border border-card-border p-4">
-      <legend className="px-1 text-[13px] font-semibold text-[var(--ink-body)]">
-        Appointment series
-      </legend>
-      <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] text-[var(--ink-body)]">
-        <input
-          type="checkbox"
-          checked={weeklySeriesEnabled}
-          onChange={(event) => setWeeklySeriesEnabled(event.target.checked)}
-          className="size-4 accent-text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand"
-        />
-        Repeat this appointment weekly
-      </label>
-      {weeklySeriesEnabled && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-end">
-          <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[var(--ink-soft)]">
-            Number of appointments
-            <input
-              type="number"
-              min={2}
-              max={MAX_WEEKLY_APPOINTMENTS}
-              value={weeklySeriesCount}
-              onChange={(event) => setWeeklySeriesCount(Number(event.target.value))}
-              className="h-11 rounded-xl border border-[var(--hairline)] bg-[var(--color-neutral-0)] px-3 text-[14px] font-normal text-[var(--ink-body)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand"
-            />
-          </label>
-          <div className="flex flex-col gap-2">
-            <p className="text-[12px] text-[var(--ink-soft)]">
-              Review every date and any availability conflicts before booking.
-            </p>
-            <button
-              type="button"
-              onClick={onPreviewWeeklySeries}
-              disabled={isPreviewingWeeklySeries || formState.loading}
-              className="w-fit rounded-full border border-[var(--hairline)] px-4 py-2 text-[13px] font-semibold text-[var(--ink-body)] hover:bg-[var(--screen-2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isPreviewingWeeklySeries ? 'Checking dates…' : 'Preview dates'}
-            </button>
-          </div>
+const AppointmentSeriesFields = ({
+  series,
+  loading,
+}: {
+  series: WeeklySeriesFieldProps;
+  loading: boolean;
+}) => (
+  <fieldset className="mt-5 rounded-2xl border border-card-border p-4">
+    <legend className="px-1 text-[13px] font-semibold text-[var(--ink-body)]">
+      Appointment series
+    </legend>
+    <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] text-[var(--ink-body)]">
+      <input
+        type="checkbox"
+        checked={series.enabled}
+        onChange={(event) => series.setEnabled(event.target.checked)}
+        className="size-4 accent-text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand"
+      />
+      <span>Repeat this appointment weekly</span>
+    </label>
+    {series.enabled && (
+      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-end">
+        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[var(--ink-soft)]">
+          <span>Number of appointments</span>
+          <input
+            type="number"
+            min={2}
+            max={MAX_WEEKLY_APPOINTMENTS}
+            value={series.count}
+            onChange={(event) => series.setCount(Number(event.target.value))}
+            className="h-11 rounded-xl border border-[var(--hairline)] bg-[var(--color-neutral-0)] px-3 text-[14px] font-normal text-[var(--ink-body)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand"
+          />
+        </label>
+        <div className="flex flex-col gap-2">
+          <p className="text-[12px] text-[var(--ink-soft)]">
+            Review every date and any availability conflicts before booking.
+          </p>
+          <button
+            type="button"
+            onClick={series.onPreview}
+            disabled={series.isPreviewing || loading}
+            className="w-fit rounded-full border border-[var(--hairline)] px-4 py-2 text-[13px] font-semibold text-[var(--ink-body)] hover:bg-[var(--screen-2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-brand disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {series.isPreviewing ? 'Checking dates…' : 'Preview dates'}
+          </button>
         </div>
-      )}
-      {weeklySeriesError && (
-        <p role="alert" className="mt-3 text-[13px] text-text-error">
-          {weeklySeriesError}
-        </p>
-      )}
-      {weeklySeriesPreview && <WeeklySeriesPreviewList preview={weeklySeriesPreview} />}
-    </fieldset>
-  );
-};
+      </div>
+    )}
+    {series.error && (
+      <p role="alert" className="mt-3 text-[13px] text-text-error">
+        {series.error}
+      </p>
+    )}
+    {series.preview && <WeeklySeriesPreviewList preview={series.preview} />}
+  </fieldset>
+);
 
 const AppointmentScheduleFields = ({ props }: { props: AppointmentFormContentProps }) => {
   const {
@@ -1112,33 +1118,22 @@ const AppointmentServiceFields = ({ props }: { props: AppointmentFormContentProp
 };
 
 const AppointmentFormActions = ({ props }: { props: AppointmentFormContentProps }) => {
-  const {
-    formState,
-    isPreviewingWeeklySeries = false,
-    weeklySeriesPreview,
-    weeklySeriesSubmitLabel = 'Book appointment',
-    onCancel,
-    handleSubmit,
-    variant = 'modal',
-  } = props;
+  const { formState, weeklySeries, onCancel, handleSubmit, variant = 'modal' } = props;
   if (variant === 'sheet') return null;
+  const isPreviewing = weeklySeries?.isPreviewing ?? false;
 
   return (
     <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
       <Secondary
         text="Cancel"
         onClick={onCancel}
-        isDisabled={formState.loading || isPreviewingWeeklySeries}
+        isDisabled={formState.loading || isPreviewing}
         className="h-10 justify-center px-5 py-0 text-[13.5px] font-semibold"
       />
       <Primary
-        text={weeklySeriesSubmitLabel}
+        text={weeklySeries?.submitLabel ?? 'Book appointment'}
         onClick={handleSubmit}
-        isDisabled={
-          formState.loading ||
-          isPreviewingWeeklySeries ||
-          Boolean(weeklySeriesPreview?.some(({ hasConflict }) => hasConflict))
-        }
+        isDisabled={formState.loading || isPreviewing || hasSeriesConflict(weeklySeries)}
         icon={<IoArrowForward aria-hidden="true" />}
         iconPosition="right"
         className="h-10 justify-center gap-[7px] px-5 py-0 text-[13.5px] font-semibold hover:scale-100"
@@ -1161,7 +1156,9 @@ export const AppointmentFormContent = (props: AppointmentFormContentProps) => (
       <AppointmentScheduleFields props={props} />
       <AppointmentServiceFields props={props} />
     </div>
-    <AppointmentSeriesFields props={props} />
+    {props.weeklySeries && (
+      <AppointmentSeriesFields series={props.weeklySeries} loading={props.formState.loading} />
+    )}
     {props.formState.submitted && props.formDataErrors.booking && (
       <div className="mt-4 flex items-center gap-2 rounded-2xl border border-input-border-error px-4 py-3">
         <IoIosWarning className="shrink-0 text-text-error" size={16} aria-hidden="true" />
@@ -1807,19 +1804,21 @@ const useAddAppointmentCentralModalView = ({
     ServiceInfoData,
     showError: (field) => showError(field as keyof typeof formDataErrors),
     handleSubmit,
-    weeklySeriesEnabled,
-    setWeeklySeriesEnabled: (value) => dispatchUi({ type: 'setWeeklySeriesEnabled', value }),
-    weeklySeriesCount,
-    setWeeklySeriesCount: (value) => dispatchUi({ type: 'setWeeklySeriesCount', value }),
-    weeklySeriesPreview,
-    weeklySeriesError,
-    isPreviewingWeeklySeries,
-    onPreviewWeeklySeries: handlePreviewWeeklySeries,
-    weeklySeriesSubmitLabel: getWeeklySeriesButtonLabel(
-      weeklySeriesEnabled,
-      Boolean(weeklySeriesPreview && weeklySeriesPreviewKey),
-      'Book appointment'
-    ),
+    weeklySeries: {
+      enabled: weeklySeriesEnabled,
+      setEnabled: (value) => dispatchUi({ type: 'setWeeklySeriesEnabled', value }),
+      count: weeklySeriesCount,
+      setCount: (value) => dispatchUi({ type: 'setWeeklySeriesCount', value }),
+      preview: weeklySeriesPreview,
+      error: weeklySeriesError,
+      isPreviewing: isPreviewingWeeklySeries,
+      onPreview: handlePreviewWeeklySeries,
+      submitLabel: getWeeklySeriesButtonLabel(
+        weeklySeriesEnabled,
+        Boolean(weeklySeriesPreview && weeklySeriesPreviewKey),
+        'Book appointment'
+      ),
+    },
     onCancel: handleCancel,
   };
 
@@ -1835,7 +1834,7 @@ const useAddAppointmentCentralModalView = ({
             <Primary
               text={getWeeklySeriesButtonLabel(
                 weeklySeriesEnabled,
-                Boolean(weeklySeriesPreviewKey),
+                Boolean(weeklySeriesPreview && weeklySeriesPreviewKey),
                 buildBookButtonLabel(selectedClientName)
               )}
               onClick={handleSubmit}

@@ -413,9 +413,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
           statusOptions={[]}
           savingKey={savingKey}
           cancelSeriesOnly
-          onSelectStatus={(_status, scope) => {
-            if (scope) void handleSeriesCancellation(scope);
-          }}
+          onSelectStatus={(_status, scope) => handleSeriesCancellation(scope ?? 'this')}
         />
       )}
 

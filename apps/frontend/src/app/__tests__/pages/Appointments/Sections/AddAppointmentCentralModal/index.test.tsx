@@ -16,6 +16,7 @@ import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
+import { getPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
 
 // ── React 19 createPortal mock ──────────────────────────────────────────────
 jest.mock('react-dom', () => ({
@@ -326,30 +327,37 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.queryByLabelText('Number of appointments')).not.toBeInTheDocument();
   });
 
-  it('formats weekly-series preview dates in UTC with a stable locale', () => {
-    render(
-      <WeeklySeriesPreviewList
-        preview={[
-          {
-            index: 1,
-            startTime: '2026-09-28T23:30:00.000Z',
-            endTime: '2026-09-29T00:00:00.000Z',
-            hasConflict: false,
-          },
-          {
-            index: 2,
-            startTime: '2026-09-29T23:30:00.000Z',
-            endTime: '2026-09-30T00:00:00.000Z',
-            hasConflict: true,
-          },
-        ]}
-      />
-    );
+  it('formats weekly-series preview dates in the practice time zone', () => {
+    const previous = getPreferredTimeZone();
+    // 23:30 UTC is already the next morning in Kolkata.
+    expect(setPreferredTimeZone('Asia/Kolkata')).toBe(true);
+    try {
+      render(
+        <WeeklySeriesPreviewList
+          preview={[
+            {
+              index: 1,
+              startTime: '2026-09-28T23:30:00.000Z',
+              endTime: '2026-09-29T00:00:00.000Z',
+              hasConflict: false,
+            },
+            {
+              index: 2,
+              startTime: '2026-10-05T23:30:00.000Z',
+              endTime: '2026-10-06T00:00:00.000Z',
+              hasConflict: true,
+            },
+          ]}
+        />
+      );
 
-    expect(screen.getByText('28 Sept 2026')).toBeInTheDocument();
-    expect(screen.getByText('29 Sept 2026')).toBeInTheDocument();
-    expect(screen.getByText('Available')).toBeInTheDocument();
-    expect(screen.getByText('Conflict')).toBeInTheDocument();
+      expect(screen.getByText('Tue, Sep 29, 2026, 5:00 AM')).toBeInTheDocument();
+      expect(screen.getByText('Tue, Oct 6, 2026, 5:00 AM')).toBeInTheDocument();
+      expect(screen.getByText('Available')).toBeInTheDocument();
+      expect(screen.getByText('Conflict')).toBeInTheDocument();
+    } finally {
+      setPreferredTimeZone(previous);
+    }
   });
 
   it('renders a Cancel button that closes the modal when there are no unsaved changes', () => {

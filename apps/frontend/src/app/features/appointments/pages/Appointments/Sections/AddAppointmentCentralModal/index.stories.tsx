@@ -84,8 +84,10 @@ const noFieldErrors: FormProps['showError'] = () => undefined;
 const FormHarness = (args: FormProps) => {
   const [patientQuery, setPatientQuery] = useState(args.patientQuery);
   const [clientQuery, setClientQuery] = useState(args.clientQuery);
-  const [weeklySeriesEnabled, setWeeklySeriesEnabled] = useState(args.weeklySeriesEnabled ?? false);
-  const [weeklySeriesCount, setWeeklySeriesCount] = useState(args.weeklySeriesCount ?? 4);
+  const [weeklySeriesEnabled, setWeeklySeriesEnabled] = useState(
+    args.weeklySeries?.enabled ?? false
+  );
+  const [weeklySeriesCount, setWeeklySeriesCount] = useState(args.weeklySeries?.count ?? 4);
 
   return (
     <AppointmentFormContent
@@ -100,10 +102,17 @@ const FormHarness = (args: FormProps) => {
         setClientQuery(value);
         args.setClientQuery(value);
       }}
-      weeklySeriesEnabled={weeklySeriesEnabled}
-      setWeeklySeriesEnabled={setWeeklySeriesEnabled}
-      weeklySeriesCount={weeklySeriesCount}
-      setWeeklySeriesCount={setWeeklySeriesCount}
+      weeklySeries={{
+        preview: null,
+        isPreviewing: false,
+        onPreview: fn(),
+        submitLabel: 'Book appointment',
+        ...args.weeklySeries,
+        enabled: weeklySeriesEnabled,
+        setEnabled: setWeeklySeriesEnabled,
+        count: weeklySeriesCount,
+        setCount: setWeeklySeriesCount,
+      }}
     />
   );
 };
@@ -569,36 +578,42 @@ export const TimeSlotBlocked: Story = {
 export const WeeklySeriesPreview: Story = {
   name: 'Weekly series with one conflict',
   args: {
-    weeklySeriesEnabled: true,
-    weeklySeriesCount: 4,
-    weeklySeriesPreview: [
-      {
-        index: 1,
-        startTime: '2026-10-05T09:00:00.000Z',
-        endTime: '2026-10-05T09:30:00.000Z',
-        hasConflict: false,
-      },
-      {
-        index: 2,
-        startTime: '2026-10-12T09:00:00.000Z',
-        endTime: '2026-10-12T09:30:00.000Z',
-        hasConflict: true,
-      },
-      {
-        index: 3,
-        startTime: '2026-10-19T09:00:00.000Z',
-        endTime: '2026-10-19T09:30:00.000Z',
-        hasConflict: false,
-      },
-      {
-        index: 4,
-        startTime: '2026-10-26T09:00:00.000Z',
-        endTime: '2026-10-26T09:30:00.000Z',
-        hasConflict: false,
-      },
-    ] satisfies WeeklySeriesPreview,
-    weeklySeriesError: 'Resolve the conflicts before booking this series.',
-    weeklySeriesSubmitLabel: 'Book series',
+    weeklySeries: {
+      enabled: true,
+      setEnabled: fn(),
+      count: 4,
+      setCount: fn(),
+      isPreviewing: false,
+      onPreview: fn(),
+      preview: [
+        {
+          index: 1,
+          startTime: '2026-10-05T09:00:00.000Z',
+          endTime: '2026-10-05T09:30:00.000Z',
+          hasConflict: false,
+        },
+        {
+          index: 2,
+          startTime: '2026-10-12T09:00:00.000Z',
+          endTime: '2026-10-12T09:30:00.000Z',
+          hasConflict: true,
+        },
+        {
+          index: 3,
+          startTime: '2026-10-19T09:00:00.000Z',
+          endTime: '2026-10-19T09:30:00.000Z',
+          hasConflict: false,
+        },
+        {
+          index: 4,
+          startTime: '2026-10-26T09:00:00.000Z',
+          endTime: '2026-10-26T09:30:00.000Z',
+          hasConflict: false,
+        },
+      ] satisfies WeeklySeriesPreview,
+      error: 'Resolve the conflicts before booking this series.',
+      submitLabel: 'Book series',
+    },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
