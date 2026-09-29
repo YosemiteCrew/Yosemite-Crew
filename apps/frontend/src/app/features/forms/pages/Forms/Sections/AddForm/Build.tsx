@@ -32,6 +32,7 @@ import {
   TASK_CATEGORY_FIELD_OPTIONS,
   TASK_RECURRENCE_FIELD_OPTIONS,
   TASK_REMINDER_FIELD_OPTIONS,
+  namesASigner,
 } from '@/app/features/forms/types/forms';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
@@ -1765,10 +1766,7 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   // isTemplateBacked is ever cleared independently.
   const structureLocked = formData.templateSource === 'YC_LIBRARY';
 
-  const canUseSignature =
-    formData.category !== 'SOAP' &&
-    formData.requiredSigner !== undefined &&
-    formData.requiredSigner !== '';
+  const canUseSignature = formData.category !== 'SOAP' && namesASigner(formData.requiredSigner);
   const addOptionsForContext = React.useMemo(
     () => addOptions.filter((opt) => opt.key !== 'signature' || canUseSignature),
     [canUseSignature]
@@ -1780,7 +1778,7 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
 
   const canDeleteField = (fieldId: string): boolean => {
     const field = schemaOf(formData).find((f) => f.id === fieldId);
-    const signerRequired = formData.requiredSigner !== undefined && formData.requiredSigner !== '';
+    const signerRequired = namesASigner(formData.requiredSigner);
     if (signerRequired && field?.type === 'signature') {
       setBuildError("Cannot remove signature while 'Signed by' is selected.");
       return false;

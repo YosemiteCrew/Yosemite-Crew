@@ -822,73 +822,119 @@ describe("CompanionOrganisationService", () => {
   });
 
   describe("assertOrganisationMayLinkCompanion", () => {
-    it("allows a companion the organisation already has a link row for", async () => {
-      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
-        {
-          id: linkId,
-        },
+    type Row = Record<string, string | null>;
+    // Prisma's matching for the `where` shapes this check uses: plain
+    // equality, and `{ in: [...] }`.
+    const matches = (row: Row, where: Record<string, unknown>) =>
+      Object.entries(where).every(([key, value]) =>
+        value && typeof value === "object" && "in" in value
+          ? (value as { in: unknown[] }).in.includes(row[key])
+          : row[key] === value,
+      );
+    const given = (world: { orgLinks: Row[]; parentLinks?: Row[] }) => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockImplementation(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          world.orgLinks.find((row) => matches(row, where)) ?? null,
+      );
+      (prisma.parentPatient.findMany as jest.Mock).mockImplementation(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          (world.parentLinks ?? []).filter((row) => matches(row, where)),
+      );
+    };
+    const orgLink = (
+      status: string,
+      companion = patientId,
+      rejectedAt: string | null = null,
+    ): Row => ({
+      id: `link-${companion}-${status}`,
+      patientId: companion,
+      organisationId,
+      status,
+      rejectedAt,
+    });
+    // The companion's parent also has a sibling companion ACTIVE here.
+    const siblingKnown = [
+      { parentId, patientId, status: "ACTIVE" },
+      { parentId, patientId: "sibling-companion", status: "ACTIVE" },
+    ];
+    const assertMayLink = () =>
+      CompanionOrganisationService.assertOrganisationMayLinkCompanion(
+        patientId,
+        organisationId,
       );
 
-      await expect(
-        CompanionOrganisationService.assertOrganisationMayLinkCompanion(
-          patientId,
-          organisationId,
-        ),
-      ).resolves.toBeUndefined();
+    afterEach(() => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockReset();
+      (prisma.parentPatient.findMany as jest.Mock).mockReset();
     });
 
-    it("allows a companion whose parent already has another companion active here", async () => {
-      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      (prisma.parentPatient.findMany as jest.Mock)
-        .mockResolvedValueOnce([{ parentId }])
-        .mockResolvedValueOnce([{ patientId: "sibling-companion" }]);
-      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
-        {
-          id: "existing-sibling-link",
-        },
-      );
+    it.each(["ACTIVE", "PENDING"])(
+      "allows a companion with a %s link here",
+      async (status) => {
+        given({ orgLinks: [orgLink(status)] });
 
-      await expect(
-        CompanionOrganisationService.assertOrganisationMayLinkCompanion(
-          patientId,
-          organisationId,
-        ),
-      ).resolves.toBeUndefined();
+        await expect(assertMayLink()).resolves.toBeUndefined();
+      },
+    );
+
+    it("allows a companion whose parent already has another companion active here", async () => {
+      given({
+        orgLinks: [orgLink("ACTIVE", "sibling-companion")],
+        parentLinks: siblingKnown,
+      });
+
+      await expect(assertMayLink()).resolves.toBeUndefined();
+    });
+
+    it("does not raise again a link the parent turned down, even through a known sibling", async () => {
+      given({
+        orgLinks: [orgLink("REVOKED"), orgLink("ACTIVE", "sibling-companion")],
+        parentLinks: siblingKnown,
+      });
+
+      await expect(assertMayLink()).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Companion not found.",
+      });
+    });
+
+    it("lets a practice that turned down the parent's emailed invite ask through a known sibling", async () => {
+      given({
+        orgLinks: [
+          orgLink("REVOKED", patientId, "2026-01-01T00:00:00.000Z"),
+          orgLink("ACTIVE", "sibling-companion"),
+        ],
+        parentLinks: siblingKnown,
+      });
+
+      await expect(assertMayLink()).resolves.toBeUndefined();
+    });
+
+    it("allows a companion linked again after an earlier link was turned down", async () => {
+      given({ orgLinks: [orgLink("REVOKED"), orgLink("ACTIVE")] });
+
+      await expect(assertMayLink()).resolves.toBeUndefined();
+    });
+
+    it("does not count an invite alone as a relationship", async () => {
+      given({ orgLinks: [orgLink("INVITED")], parentLinks: [] });
+
+      await expect(assertMayLink()).rejects.toThrow("Companion not found.");
     });
 
     it("rejects an arbitrary companion the organisation has no relationship with", async () => {
-      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      (prisma.parentPatient.findMany as jest.Mock)
-        .mockResolvedValueOnce([{ parentId }])
-        .mockResolvedValueOnce([{ patientId }]);
-      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
+      given({
+        orgLinks: [],
+        parentLinks: [{ parentId, patientId, status: "ACTIVE" }],
+      });
 
-      await expect(
-        CompanionOrganisationService.assertOrganisationMayLinkCompanion(
-          patientId,
-          organisationId,
-        ),
-      ).rejects.toThrow("Companion not found.");
+      await expect(assertMayLink()).rejects.toThrow("Companion not found.");
     });
 
     it("rejects a companion with no active parent", async () => {
-      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValueOnce([]);
+      given({ orgLinks: [], parentLinks: [] });
 
-      await expect(
-        CompanionOrganisationService.assertOrganisationMayLinkCompanion(
-          patientId,
-          organisationId,
-        ),
-      ).rejects.toThrow("Companion not found.");
+      await expect(assertMayLink()).rejects.toThrow("Companion not found.");
     });
   });
 });

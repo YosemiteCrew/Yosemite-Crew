@@ -1,9 +1,11 @@
 // src/services/task.reminder.engine.ts
 import dayjs from "dayjs";
+import type { Task } from "@prisma/client";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 
 import { prisma } from "src/config/prisma";
+import { parentHasCompanionFeature } from "src/middlewares/companion-access";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 
@@ -16,6 +18,34 @@ export class TaskReminderEngineError extends Error {
     this.name = "TaskReminderEngineError";
   }
 }
+
+/**
+ * The companion a task's reminder names, or null when there is none.
+ */
+const companionToRemindAbout = async (
+  task: Pick<Task, "id" | "patientId">,
+): Promise<{ name: string } | null> => {
+  // A task without a companion has no one to name; an unset id must
+  // never reach the query, where it would match any companion.
+  const companion = task.patientId
+    ? await prisma.patient.findFirst({
+        where: { id: task.patientId },
+        select: { name: true },
+      })
+    : null;
+  if (!companion) {
+    console.warn(`Skipping reminder for task ${task.id}; companion not found`);
+    return null;
+  }
+  return companion;
+};
+
+/** A parent task's assignee must still be a parent who may work on it. */
+const mayRemindAssignee = async (
+  task: Pick<Task, "patientId" | "audience" | "assignedTo">,
+): Promise<boolean> =>
+  task.audience !== "PARENT_TASK" ||
+  parentHasCompanionFeature(task.assignedTo, task.patientId, "tasks");
 
 export const TaskReminderEngine = {
   /**
@@ -61,18 +91,17 @@ export const TaskReminderEngine = {
 
         const humanTime = dueAtLocal.format("MMM D, h:mm A");
 
-        // A task without a companion has no one to name; an unset id must
-        // never reach the query, where it would match any companion.
-        const companion = task.patientId
-          ? await prisma.patient.findFirst({
-              where: { id: task.patientId },
-              select: { name: true },
-            })
-          : null;
-        if (!companion) {
-          console.warn(
-            `Skipping reminder for task ${task.id}; companion not found`,
-          );
+        const companion = await companionToRemindAbout(task);
+        if (!companion) continue;
+
+        // Handled like a sent reminder, so it is never re-checked or sent late.
+        if (!(await mayRemindAssignee(task))) {
+          await prisma.task.update({
+            where: { id: task.id },
+            data: {
+              reminder: { ...reminder, scheduledNotificationId: "skipped" },
+            },
+          });
           continue;
         }
 

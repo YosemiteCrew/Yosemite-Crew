@@ -16,6 +16,9 @@ export interface AppointmentFormsApiItem {
   status?: string;
   // Whether this parent may sign the form's submission.
   canSign?: boolean;
+  assignmentStatus?: string;
+  /** Whether the practice asked the client to sign this form. */
+  signingRequired?: boolean;
 }
 
 export interface AppointmentFormsApiResponse {
@@ -130,6 +133,8 @@ export const mapAppointmentFormItem = (
   submission: FormSubmission | null;
   formVersion?: number;
   canSign: boolean;
+  assignmentStatus: string | null;
+  signingRequested: boolean | null;
 } => {
   const form = toForm(item.questionnaire);
   const submission = item.questionnaireResponse
@@ -151,5 +156,9 @@ export const mapAppointmentFormItem = (
     submission: normalizedSubmission,
     formVersion: normalizedSubmission?.formVersion,
     canSign: item.canSign === true,
+    assignmentStatus: item.assignmentStatus?.toLowerCase() ?? null,
+    // The server's answer when it gives one; null leaves it to the form.
+    signingRequested:
+      typeof item.signingRequired === 'boolean' ? item.signingRequired : null,
   };
 };

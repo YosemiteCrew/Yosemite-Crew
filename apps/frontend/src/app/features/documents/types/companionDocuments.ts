@@ -148,6 +148,11 @@ export type CompanionRecord = {
    * file's file lives in `attachments` instead.
    */
   pdfUrl?: string | null;
+  /**
+   * Who signs a record filled in from a template: 'CLIENT', 'VET' or 'NONE'
+   * when it needs no signature.
+   */
+  signer?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

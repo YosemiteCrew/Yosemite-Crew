@@ -469,3 +469,83 @@ export const FormsSubmitError: Story = {
     },
   },
 };
+
+/* ---------------------------------------------------------------------------
+   Forms sent to the pet parent as requests.
+   --------------------------------------------------------------------------- */
+
+const requestRow = (
+  id: string,
+  name: string,
+  overrides: Partial<ComponentProps<typeof CustomFormsView>['forms'][number]> = {}
+): ComponentProps<typeof CustomFormsView>['forms'][number] => ({
+  form: { _id: id, name, schema: SCHEMA } as unknown as Form,
+  submission: null,
+  status: 'pending',
+  assignmentId: `assignment-${id}`,
+  assignmentStatus: 'sent',
+  signingRequired: true,
+  mobileVisible: true,
+  ...overrides,
+});
+
+const REQUEST_ROWS = [
+  requestRow('tpl-consent', 'Anaesthesia consent'),
+  requestRow('tpl-intake', 'Intake questionnaire', { signingRequired: false }),
+  requestRow('tpl-old', 'Boarding consent', { assignmentStatus: 'cancelled' }),
+];
+
+const requestsStory = (name: string, globals?: Story['globals']): Story => ({
+  name,
+  ...(globals ? { globals } : {}),
+  render: () => (
+    <div className="max-w-[560px] p-4">
+      <CustomFormsView
+        {...formsViewArgs}
+        forms={REQUEST_ROWS}
+        loading={false}
+        error={null}
+        onFormLinked={fn()}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByText('Anaesthesia consent'));
+    await userEvent.click(canvas.getByText('Intake questionnaire'));
+    await userEvent.click(canvas.getByText('Boarding consent'));
+
+    // The consent asks the pet parent to sign: no practice save, a way to withdraw it.
+    // The intake form they only fill in: the practice may save it for them.
+    expect(
+      await canvas.findByText('Sent to pet parent. It will update when they sign the document.')
+    ).toBeInTheDocument();
+    await expect(canvas.getAllByRole('button', { name: 'Withdraw request' })).toHaveLength(2);
+    await expect(canvas.getAllByRole('button', { name: 'Save' })).toHaveLength(1);
+    await expect(canvas.getByText('Withdrawn')).toBeInTheDocument();
+
+    // Withdrawing asks first.
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Withdraw request' })[0]);
+    expect(await body.findByText('Withdraw request?')).toBeInTheDocument();
+    await expect(body.getByRole('button', { name: 'Withdraw' })).toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Requests sent to the pet parent: one waiting on their signature, one they fill in ' +
+          'that the practice may also save, and one withdrawn. Withdrawing asks for ' +
+          'confirmation before the request is taken back.',
+      },
+    },
+  },
+});
+
+export const FormsRequests = requestsStory('Templates pane - requests to the pet parent');
+export const FormsRequestsDark = requestsStory('Templates pane - requests, dark', {
+  theme: 'dark',
+});
+export const FormsRequestsPhone = requestsStory('Templates pane - requests, phone', {
+  viewport: { value: 'mobile', isRotated: false },
+});

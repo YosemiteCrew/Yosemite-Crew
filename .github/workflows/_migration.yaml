@@ -356,6 +356,93 @@ jobs:
 
           echo "The booking payment intent is unique, and NULLs still coexist."
 
+      # 20260927150000_consent_templates_without_signer gives consent templates
+      # that name no signer an explicit "no signature", so they keep what the
+      # form builder showed for them. It ran above against an empty table, so it
+      # is replayed here over the rows it exists for: a consent with no signer
+      # (no rules, JSON null, no key, a blank one, or a consent saved as a FORM)
+      # gets NONE and a marker the undo reads; a named signer and every other
+      # template are left alone; and a second run changes nothing in any row's
+      # rules.
+      - name: Check consents with no signer keep no signature
+        shell: bash
+        env:
+          PGPASSWORD: ${{ github.run_id }}
+          MIGRATION: packages/database/prisma/migrations/20260927150000_consent_templates_without_signer/migration.sql
+        run: |
+          set -euo pipefail
+
+          psql_ci() { psql -h localhost -U postgres -d yosemite_ci "$@"; }
+
+          cleanup() {
+            psql_ci -q -c "DELETE FROM \"Template\" WHERE \"createdBy\" = 'ci-guard-consent-signer';" || true
+          }
+          trap cleanup EXIT
+
+          psql_ci -v ON_ERROR_STOP=1 -q <<'SQL'
+          INSERT INTO "Template" ("id", "kind", "name", "rules", "createdBy", "updatedBy", "updatedAt")
+          VALUES
+            ('ci-consent-no-rules', 'CONSENT', 'ci', NULL, 'ci-guard-consent-signer', 'ci', now()),
+            ('ci-consent-json-null', 'CONSENT', 'ci', 'null'::jsonb, 'ci-guard-consent-signer', 'ci', now()),
+            ('ci-consent-no-key', 'CONSENT', 'ci', '{"visibility": "External"}', 'ci-guard-consent-signer', 'ci', now()),
+            ('ci-consent-blank', 'CONSENT', 'ci', '{"requiredSigner": " "}', 'ci-guard-consent-signer', 'ci', now()),
+            ('ci-consent-as-form', 'FORM', 'ci', '{"category": "Consent form"}', 'ci-guard-consent-signer', 'ci', now()),
+            ('ci-consent-client', 'CONSENT', 'ci', '{"requiredSigner": "CLIENT"}', 'ci-guard-consent-signer', 'ci', now()),
+            ('ci-consent-vet', 'CONSENT', 'ci', '{"requiredSigner": "VET"}', 'ci-guard-consent-signer', 'ci', now()),
+            ('ci-plain-form', 'FORM', 'ci', '{"category": "Custom"}', 'ci-guard-consent-signer', 'ci', now()),
+            ('ci-soap-note', 'SOAP_NOTE', 'ci', NULL, 'ci-guard-consent-signer', 'ci', now());
+          SQL
+
+          snapshot() {
+            psql_ci -tAc "
+              SELECT string_agg(
+                \"id\" || '=' || COALESCE(\"rules\" ->> 'requiredSigner', '-')
+                  || '/' || COALESCE(\"rules\" ->> 'requiredSignerBackfilled', '-')
+                  || '/' || COALESCE(\"rules\" ->> 'visibility', \"rules\" ->> 'category', '-'),
+                ' ' ORDER BY \"id\")
+              FROM \"Template\" WHERE \"createdBy\" = 'ci-guard-consent-signer';"
+          }
+
+          # Every row's whole rules document, so a second run that changes
+          # anything at all in any of them is caught.
+          rules() {
+            psql_ci -tAc "
+              SELECT string_agg(\"id\" || '=' || COALESCE(\"rules\"::text, 'SQL NULL'), ' ' ORDER BY \"id\")
+              FROM \"Template\" WHERE \"createdBy\" = 'ci-guard-consent-signer';"
+          }
+
+          psql_ci -v ON_ERROR_STOP=1 -q -f "$MIGRATION"
+          first=$(snapshot)
+          first_rules=$(rules)
+          psql_ci -v ON_ERROR_STOP=1 -q -f "$MIGRATION"
+          second_rules=$(rules)
+
+          expected="ci-consent-as-form=NONE/true/Consent form"
+          expected+=" ci-consent-blank=NONE/true/-"
+          expected+=" ci-consent-client=CLIENT/-/-"
+          expected+=" ci-consent-json-null=NONE/true/-"
+          expected+=" ci-consent-no-key=NONE/true/External"
+          expected+=" ci-consent-no-rules=NONE/true/-"
+          expected+=" ci-consent-vet=VET/-/-"
+          expected+=" ci-plain-form=-/-/Custom"
+          expected+=" ci-soap-note=-/-/-"
+
+          if [ "$first" != "$expected" ]; then
+            echo "::error::Consent templates with no signer were not given \"no signature\" as intended."
+            echo "expected: $expected"
+            echo "got:      $first"
+            exit 1
+          fi
+
+          if [ "$second_rules" != "$first_rules" ]; then
+            echo "::error::Running the consent signer backfill again changed rows."
+            echo "first:  $first_rules"
+            echo "second: $second_rules"
+            exit 1
+          fi
+
+          echo "Consents with no signer keep no signature; everything else is unchanged."
+
       - name: Check schema and migrations have not drifted
         shell: bash
         run: |

@@ -60,6 +60,9 @@ jest.mock("src/config/prisma", () => ({
     parent: {
       findMany: jest.fn(),
     },
+    formAssignment: {
+      findMany: jest.fn(),
+    },
     appointment: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -125,6 +128,7 @@ const resetPrisma = () => {
   mockedPrisma.patient.findUnique.mockReset();
   mockedPrisma.userOrganization.findMany.mockReset();
   mockedPrisma.renderedDocument.findMany.mockReset();
+  mockedPrisma.formAssignment.findMany.mockReset();
   mockedPrisma.appointment.findUnique.mockReset();
   mockedPrisma.appointment.findMany.mockReset();
   mockedPrisma.$transaction.mockReset();
@@ -176,6 +180,7 @@ describe("DocumentService", () => {
       id: uuidDocumentId,
     } as any);
     mockedPrisma.renderedDocument.findMany.mockResolvedValue([]);
+    mockedPrisma.formAssignment.findMany.mockResolvedValue([]);
     mockedPrisma.case.findMany.mockResolvedValue([]);
     mockedPrisma.encounter.findMany.mockResolvedValue([]);
     mockedPrisma.appointment.findUnique.mockResolvedValue({
@@ -941,6 +946,7 @@ describe("DocumentService", () => {
         appointmentId: uuidAppointmentId,
         encounterId: null,
         authorId: staffId,
+        status: "COMPLETED",
       },
       clinicalArtifact: null,
       ...overrides,
@@ -954,6 +960,7 @@ describe("DocumentService", () => {
         clinicalArtifact: {
           appointmentId: uuidAppointmentId,
           encounterId: null,
+          status: "COMPLETED",
         },
       }),
       rendered("practice-form-signed"),
@@ -962,6 +969,7 @@ describe("DocumentService", () => {
           appointmentId: uuidAppointmentId,
           encounterId: null,
           authorId: null,
+          status: "COMPLETED",
         },
       }),
       rendered("practice-discharge-draft", {
@@ -974,6 +982,7 @@ describe("DocumentService", () => {
           appointmentId: uuidAppointmentId,
           encounterId: null,
           authorId: otherParentId,
+          status: "COMPLETED",
         },
       }),
     ];
@@ -1313,6 +1322,327 @@ describe("DocumentService", () => {
       signingStatus: "NOT_STARTED",
       patientId: "src-3",
       appointmentId: null,
+    });
+  });
+
+  // A pet parent gets a practice's rendered document only once it is theirs to
+  // see: POST /v1/document/mobile/appointments/:appointmentId used to return
+  // every one, internal forms and unsigned clinical drafts included.
+  describe("listForAppointmentParent release rule", () => {
+    const rendered = (
+      id: string,
+      overrides: {
+        kind: string;
+        status: "DRAFT" | "SIGNED";
+        templateId?: string;
+        templateInstance?: {
+          status: string;
+          rules?: unknown;
+          authorId?: string;
+        } | null;
+        clinicalArtifact?: { status: string } | null;
+      },
+    ) => ({
+      id,
+      organisationId: uuidOrganisationId,
+      sourceKind: overrides.clinicalArtifact
+        ? "CLINICAL_ARTIFACT"
+        : "TEMPLATE_INSTANCE",
+      sourceId: `src-${id}`,
+      templateId: overrides.templateId ?? `tpl-${id}`,
+      templateVersion: 1,
+      kind: overrides.kind,
+      title: id,
+      status: overrides.status,
+      pdfUrl: `https://pdf/${id}`,
+      signing: null,
+      signedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      templateInstance: overrides.templateInstance
+        ? {
+            appointmentId: uuidAppointmentId,
+            encounterId: null,
+            // The practice's, unless a parent filled it in.
+            authorId: overrides.templateInstance.authorId ?? "staff-user",
+            status: overrides.templateInstance.status,
+            template: { rules: overrides.templateInstance.rules ?? null },
+          }
+        : null,
+      clinicalArtifact: overrides.clinicalArtifact
+        ? {
+            appointmentId: uuidAppointmentId,
+            encounterId: null,
+            status: overrides.clinicalArtifact.status,
+          }
+        : null,
+    });
+
+    // The one client account among the authors is the calling parent.
+    beforeEach(() => {
+      (mockedPrisma as any).parent.findMany.mockImplementation(
+        async ({ where }: any) =>
+          where.id.in
+            .filter((id: string) => id === uuidParentId)
+            .map((id: string) => ({ id })),
+      );
+    });
+
+    const listRenderedForParent = async (rows: unknown[]) => {
+      mockedPrisma.document.findMany.mockResolvedValueOnce([]);
+      mockedPrisma.renderedDocument.findMany.mockResolvedValueOnce(rows as any);
+      const result = await DocumentService.listForAppointmentParent({
+        appointmentId: uuidAppointmentId,
+        parentId: uuidParentId,
+      });
+      return result.map(({ id }) => id);
+    };
+
+    it.each([
+      [
+        "a consent they submitted",
+        {
+          kind: "CONSENT",
+          status: "DRAFT",
+          templateInstance: { status: "COMPLETED", authorId: uuidParentId },
+        },
+      ],
+      [
+        "a signed consent",
+        {
+          kind: "CONSENT",
+          status: "SIGNED",
+          templateInstance: { status: "SIGNED" },
+        },
+      ],
+      [
+        "a form they submitted marked External",
+        {
+          kind: "FORM",
+          status: "DRAFT",
+          templateInstance: {
+            status: "COMPLETED",
+            rules: { visibility: "External" },
+            authorId: uuidParentId,
+          },
+        },
+      ],
+      [
+        "a form they submitted marked Internal & External",
+        {
+          kind: "FORM",
+          status: "DRAFT",
+          templateInstance: {
+            status: "COMPLETED",
+            rules: { visibility: "Internal & External" },
+            authorId: uuidParentId,
+          },
+        },
+      ],
+      [
+        "a signed SOAP note from a template",
+        {
+          kind: "SOAP_NOTE",
+          status: "SIGNED",
+          templateInstance: { status: "SIGNED" },
+        },
+      ],
+      [
+        "a signed prescription from a completed clinical record",
+        {
+          kind: "PRESCRIPTION",
+          status: "SIGNED",
+          clinicalArtifact: { status: "COMPLETED" },
+        },
+      ],
+    ] as const)("returns %s", async (_label, row) => {
+      await expect(
+        listRenderedForParent([rendered("rd-1", row)]),
+      ).resolves.toEqual(["rd-1"]);
+    });
+
+    it.each([
+      [
+        "a form marked Internal",
+        {
+          kind: "FORM",
+          status: "DRAFT",
+          templateInstance: {
+            status: "COMPLETED",
+            rules: { visibility: "Internal" },
+          },
+        },
+      ],
+      [
+        "a signed clinical document from a template marked Internal",
+        {
+          kind: "DISCHARGE_SUMMARY",
+          status: "SIGNED",
+          templateInstance: {
+            status: "SIGNED",
+            rules: { visibility: " internal " },
+          },
+        },
+      ],
+      [
+        "an unsigned SOAP note from a template",
+        {
+          kind: "SOAP_NOTE",
+          status: "DRAFT",
+          templateInstance: { status: "COMPLETED" },
+        },
+      ],
+      [
+        "an unsigned prescription from a completed clinical record",
+        {
+          kind: "PRESCRIPTION",
+          status: "DRAFT",
+          clinicalArtifact: { status: "COMPLETED" },
+        },
+      ],
+      [
+        "a clinical draft",
+        {
+          kind: "SOAP_NOTE",
+          status: "DRAFT",
+          clinicalArtifact: { status: "DRAFT" },
+        },
+      ],
+      [
+        "a signed document from a record reopened for editing",
+        {
+          kind: "VITAL_RECORD",
+          status: "SIGNED",
+          clinicalArtifact: { status: "IN_PROGRESS" },
+        },
+      ],
+      [
+        "a signed document from a voided record",
+        {
+          kind: "PRESCRIPTION",
+          status: "SIGNED",
+          clinicalArtifact: { status: "VOID" },
+        },
+      ],
+      [
+        "a consent from a voided instance",
+        {
+          kind: "CONSENT",
+          status: "DRAFT",
+          templateInstance: { status: "VOID" },
+        },
+      ],
+      [
+        "a consent from an instance not yet submitted",
+        {
+          kind: "CONSENT",
+          status: "DRAFT",
+          templateInstance: { status: "DRAFT" },
+        },
+      ],
+      ["a document linked to no record", { kind: "CONSENT", status: "SIGNED" }],
+      // A practice record, which a parent sees only once it is signed.
+      [
+        "a consent the practice filled in, not yet signed",
+        {
+          kind: "CONSENT",
+          status: "DRAFT",
+          templateInstance: { status: "COMPLETED" },
+        },
+      ],
+    ] as const)("leaves out %s", async (_label, row) => {
+      await expect(
+        listRenderedForParent([rendered("rd-1", row)]),
+      ).resolves.toEqual([]);
+    });
+
+    // The builder defaults a template's usage to Internal, so a consent or form
+    // the practice sent the parent is theirs whatever its visibility says.
+    it("returns a form or consent the practice assigned on the appointment even when marked Internal", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+        { templateId: "tpl-assigned-consent" },
+        { templateId: "tpl-assigned-form" },
+        { templateId: "tpl-assigned-soap" },
+      ] as any);
+      const internal = { rules: { visibility: "Internal" } };
+
+      const ids = await listRenderedForParent([
+        rendered("rd-consent", {
+          kind: "CONSENT",
+          status: "DRAFT",
+          templateId: "tpl-assigned-consent",
+          templateInstance: {
+            status: "COMPLETED",
+            authorId: uuidParentId,
+            ...internal,
+          },
+        }),
+        rendered("rd-form", {
+          kind: "FORM",
+          status: "DRAFT",
+          templateId: "tpl-assigned-form",
+          templateInstance: {
+            status: "COMPLETED",
+            authorId: uuidParentId,
+            ...internal,
+          },
+        }),
+        // Only forms and consents are assigned to clients; an assignment never
+        // releases clinical content early.
+        rendered("rd-soap", {
+          kind: "SOAP_NOTE",
+          status: "DRAFT",
+          templateId: "tpl-assigned-soap",
+          templateInstance: { status: "COMPLETED" },
+        }),
+        // Assigned, but the instance was voided.
+        rendered("rd-void", {
+          kind: "CONSENT",
+          status: "DRAFT",
+          templateId: "tpl-assigned-consent",
+          templateInstance: { status: "VOID" },
+        }),
+      ]);
+
+      expect(ids).toEqual(["rd-consent", "rd-form"]);
+      // A withdrawn or lapsed request, or one never sent to the app,
+      // releases nothing.
+      expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: uuidOrganisationId,
+          appointmentId: uuidAppointmentId,
+          status: { notIn: ["CANCELLED", "EXPIRED"] },
+          mobileVisible: true,
+        },
+        select: { templateId: true },
+      });
+    });
+
+    it("still returns every rendered document to the practice", async () => {
+      mockedPrisma.renderedDocument.findMany.mockResolvedValueOnce([
+        rendered("rd-internal", {
+          kind: "FORM",
+          status: "DRAFT",
+          templateInstance: {
+            status: "COMPLETED",
+            rules: { visibility: "Internal" },
+          },
+        }),
+        rendered("rd-draft", {
+          kind: "SOAP_NOTE",
+          status: "DRAFT",
+          clinicalArtifact: { status: "DRAFT" },
+        }),
+      ] as any);
+
+      const result = await DocumentService.listForAppointmentPms({
+        appointmentId: uuidAppointmentId,
+        organisationId: uuidOrganisationId,
+      });
+
+      expect(result.map(({ id }) => id)).toEqual(
+        expect.arrayContaining(["rd-internal", "rd-draft"]),
+      );
     });
   });
 

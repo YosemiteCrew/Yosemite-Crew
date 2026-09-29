@@ -12,7 +12,10 @@ import { AuditTrailService } from "./audit-trail.service";
 import type { TaskWorkflowSeed } from "./task-workflow-materializer";
 import { sendEmailTemplate } from "../utils/email";
 import logger from "../utils/logger";
-import { hasCompanionFeature } from "src/middlewares/companion-access";
+import {
+  hasCompanionFeature,
+  parentHasCompanionFeature,
+} from "src/middlewares/companion-access";
 
 export class TaskServiceError extends Error {
   constructor(
@@ -1464,55 +1467,82 @@ const listTasksMatching = async (
   return tasks.map(toTaskLike);
 };
 
-/**
- * Who a task may be given to. A staff task goes to an active member of the
- * task's organisation, or to no one yet; a parent task goes to a parent with
- * an ACTIVE link to the task's companion. Anyone else answers as not found.
- * Every create and every change of assignee goes through here.
- */
-const assertTaskAssignee = async (input: {
+type TaskAssigneeInput = {
   organisationId?: string | null;
   audience: TaskAudience;
   assignedTo: unknown;
   patientId?: string | null;
-}): Promise<void> => {
-  const notFound = () => new TaskServiceError("Assignee not found", 404);
+};
+
+/**
+ * Who a task may be given to. A staff task goes to an active member of the
+ * task's organisation, or to no one yet; a parent task goes to a parent with
+ * an ACTIVE link to the task's companion who may work on its tasks: a primary
+ * parent always, a co-parent only while their tasks access is on.
+ */
+const isPermittedTaskAssignee = async (
+  input: TaskAssigneeInput,
+): Promise<boolean> => {
   const blank =
     input.assignedTo === undefined ||
     input.assignedTo === null ||
     (typeof input.assignedTo === "string" && !input.assignedTo.trim());
-  if (blank && input.audience === "EMPLOYEE_TASK") return;
+  if (blank && input.audience === "EMPLOYEE_TASK") return true;
 
   const assignedTo = asNonEmptyString(input.assignedTo);
-  if (!assignedTo) throw notFound();
+  if (!assignedTo) return false;
 
   if (input.audience === "PARENT_TASK") {
-    const patientId = asNonEmptyString(input.patientId);
-    const link = patientId
-      ? await prisma.parentPatient.findFirst({
-          where: { parentId: assignedTo, patientId, status: "ACTIVE" },
-          select: { id: true },
-        })
-      : null;
-    if (!link) throw notFound();
-    return;
+    return parentHasCompanionFeature(
+      assignedTo,
+      asNonEmptyString(input.patientId),
+      "tasks",
+    );
   }
 
   const organisationId = asNonEmptyString(input.organisationId);
-  const member = organisationId
-    ? await prisma.userOrganization.findFirst({
-        where: {
-          practitionerReference: assignedTo,
-          active: true,
-          OR: [
-            { organizationReference: organisationId },
-            { organizationReference: `Organization/${organisationId}` },
-          ],
-        },
-        select: { id: true },
-      })
-    : null;
-  if (!member) throw notFound();
+  if (!organisationId) return false;
+  const member = await prisma.userOrganization.findFirst({
+    where: {
+      practitionerReference: assignedTo,
+      active: true,
+      OR: [
+        { organizationReference: organisationId },
+        { organizationReference: `Organization/${organisationId}` },
+      ],
+    },
+    select: { id: true },
+  });
+  return !!member;
+};
+
+const assigneeNotFound = () => new TaskServiceError("Assignee not found", 404);
+
+/**
+ * The companion's primary parent, if they may work on its tasks: who a
+ * workflow's parent task goes to when the parent it named may not.
+ */
+const primaryParentForTasks = async (
+  patientId: string | null | undefined,
+): Promise<string | undefined> => {
+  const companion = asNonEmptyString(patientId);
+  if (!companion) return undefined;
+  const primary = await prisma.parentPatient.findFirst({
+    where: { patientId: companion, status: "ACTIVE", role: "PRIMARY" },
+    select: { parentId: true, role: true, permissions: true },
+  });
+  return primary &&
+    hasCompanionFeature(primary.role, primary.permissions, "tasks")
+    ? primary.parentId
+    : undefined;
+};
+
+/**
+ * Every create and every change of assignee goes through here. Anyone the
+ * task may not be given to answers as not found.
+ */
+const assertTaskAssignee = async (input: TaskAssigneeInput): Promise<void> => {
+  if (!(await isPermittedTaskAssignee(input))) throw assigneeNotFound();
 };
 
 /**
@@ -1828,10 +1858,14 @@ export const TaskService = {
     return mapped;
   },
 
+  /**
+   * Resolves to null, and raises nothing, for a parent task that no parent of
+   * the companion may work on.
+   */
   async createFromWorkflowSeed(
     input: TaskWorkflowSeed,
     options?: { client?: TaskWriteClient; notify?: boolean },
-  ): Promise<TaskLike> {
+  ): Promise<TaskLike | null> {
     assertCompanionRequirement({
       audience: input.audience,
       patientId: input.patientId,
@@ -1840,13 +1874,33 @@ export const TaskService = {
     });
     await assertCompanionInOrganisation(input.patientId, input.organisationId);
 
+    // The assignee comes from the appointment. A staff member who is no longer
+    // with the practice leaves the task unassigned rather than failing the
+    // submission. A parent task whose parent may not work on it goes to the
+    // companion's primary parent, and is left out when there is none.
+    let assignedTo = input.assignedTo;
+    if (!(await isPermittedTaskAssignee(input))) {
+      if (input.audience === "EMPLOYEE_TASK") {
+        assignedTo = "";
+      } else {
+        const primary = await primaryParentForTasks(input.patientId);
+        if (!primary) {
+          logger.warn(
+            "Skipping a workflow parent task: no parent may work on the companion's tasks",
+          );
+          return null;
+        }
+        assignedTo = primary;
+      }
+    }
+
     const mapped = await createTaskRow(options?.client ?? prisma, {
       organisationId: input.organisationId,
       appointmentId: input.appointmentId,
       patientId: input.patientId,
       createdBy: input.createdBy,
       assignedBy: input.assignedBy,
-      assignedTo: input.assignedTo,
+      assignedTo,
       audience: input.audience,
       source: input.source,
       libraryTaskId: input.libraryTaskId,
@@ -1905,14 +1959,14 @@ export const TaskService = {
     const { isReassigningUser, isReassigningGroup } =
       resolveTaskReassignmentFlags(task, updates, isCreator);
     const isReassigning = isReassigningUser || isReassigningGroup;
-    if (isReassigningUser) {
-      await assertTaskAssignee({
+    const assertNewAssignee = () =>
+      assertTaskAssignee({
         organisationId: task.organisationId,
         audience: task.audience,
         assignedTo: updates.assignedTo,
         patientId: task.patientId,
       });
-    }
+    if (isReassigningUser) await assertNewAssignee();
 
     const seriesMasterId = getSeriesMasterId(task);
     const normalizedScope = normalizeRecurrenceScope(scope);
@@ -1971,6 +2025,11 @@ export const TaskService = {
     );
     const isReassigningSeries =
       seriesFlags.isReassigningUser || seriesFlags.isReassigningGroup;
+    // The occurrence named may already carry the assignee the rest of the
+    // series is now given, so the check above did not run for it.
+    if (seriesFlags.isReassigningUser && !isReassigningUser) {
+      await assertNewAssignee();
+    }
 
     const updatedRows = await applySeriesUpdates(seriesContext);
 

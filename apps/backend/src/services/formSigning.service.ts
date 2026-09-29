@@ -6,8 +6,22 @@ import { prisma } from "src/config/prisma";
 import { Prisma } from "@prisma/client";
 import {
   createRenderedDocumentRecord,
+  hasNewerSubmissionForSigner,
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
+import {
+  instanceNeedsClientSignature,
+  isOpenSigning,
+  requestsAnsweredBy,
+  resolveNamedClientSigner,
+} from "src/services/client-signature.helpers";
+import { TemplateService } from "src/services/template.service";
+
+// The companion an appointment is for.
+const resolvePatientIdOf = (appointment: { patient: unknown }) => {
+  const id = (appointment.patient as { id?: unknown } | null)?.id;
+  return typeof id === "string" ? id : undefined;
+};
 
 type PrismaFormSubmissionRecord = {
   id: string;
@@ -288,6 +302,180 @@ export class FormSigningService {
     }
   }
 
+  /**
+   * A template-backed form or consent is a template instance with a rendered
+   * document, not a form submission, so the parent signs that document:
+   * whether they submitted it from the app or the practice filled it in for
+   * them. Only on an appointment of a companion they may act for (the same
+   * rule as submitting it), for a template the practice asked them to sign. A
+   * signing already started for them is handed back, so it can be reopened.
+   */
+  private static async startTemplateInstanceSigning(
+    instanceId: string,
+    parentId: string,
+  ) {
+    const instance = await prisma.templateInstance.findUnique({
+      where: { id: instanceId },
+      select: {
+        id: true,
+        organisationId: true,
+        templateId: true,
+        appointmentId: true,
+        authorId: true,
+        createdAt: true,
+        generatedPdf: true,
+        template: { select: { kind: true, rules: true } },
+      },
+    });
+    if (!instance?.appointmentId) {
+      throw new Error("Form submission not found");
+    }
+    const ownAnswers = instance.authorId === parentId;
+    // As for a form submission (ensureRequiredSignerMatches): who signs is
+    // the one pinned when it was submitted, and a consent that names no one
+    // is the client's. Answers the parent did not give are theirs to sign
+    // only where the client signs; otherwise they are answered as missing.
+    if (!instanceNeedsClientSignature(instance)) {
+      throw new Error(
+        ownAnswers
+          ? "Form requires vet signature"
+          : "Form submission not found",
+      );
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: instance.appointmentId,
+        organisationId: instance.organisationId,
+      },
+      select: { patient: true },
+    });
+    // The rule for a form submission: a co-parent needs "appointments" for
+    // answers they gave and "medicalRecords" for any others. A parent who may
+    // not sign is answered as if there were nothing to sign.
+    if (
+      !appointment ||
+      !(await parentHasCompanionFeature(
+        parentId,
+        resolvePatientIdOf(appointment),
+        ownAnswers ? "appointments" : "medicalRecords",
+      ))
+    ) {
+      throw new Error("Form submission not found");
+    }
+
+    // A request these answers are for: never one sent after them, or after
+    // the request they were given to was withdrawn.
+    const answered = await requestsAnsweredBy(prisma, {
+      organisationId: instance.organisationId,
+      templateId: instance.templateId,
+      appointmentId: instance.appointmentId,
+      authorId: instance.authorId,
+      createdAt: instance.createdAt,
+    });
+    const assignment =
+      answered &&
+      (await prisma.formAssignment.findFirst({
+        where: { ...answered, signingRequired: true, mobileVisible: true },
+        select: { id: true, signerUserId: true },
+      }));
+    // Only the parent the answers name signs them: the one who filled them
+    // in, or for the practice's, the one the request is for.
+    if (
+      !assignment ||
+      (await resolveNamedClientSigner(
+        prisma,
+        {
+          authorId: instance.authorId,
+          patientId: resolvePatientIdOf(appointment),
+        },
+        assignment,
+      )) !== parentId
+    ) {
+      throw new Error("Form submission not found");
+    }
+
+    if (
+      await hasNewerSubmissionForSigner(
+        prisma,
+        {
+          id: instance.id,
+          organisationId: instance.organisationId,
+          templateId: instance.templateId,
+          appointmentId: instance.appointmentId,
+          authorId: instance.authorId,
+          createdAt: instance.createdAt,
+        },
+        parentId,
+      )
+    ) {
+      throw new Error(
+        "A newer version of this form is waiting for your signature",
+      );
+    }
+
+    // One submitted before submitting rendered a document is rendered now.
+    const document =
+      (await prisma.renderedDocument.findUnique({
+        where: { templateInstanceId: instance.id },
+        select: { id: true, signing: true },
+      })) ??
+      (await TemplateService.renderMissingDocument(
+        instance.id,
+        instance.organisationId,
+      ));
+    if (!document) {
+      throw new Error("Submission has no document to sign yet");
+    }
+
+    const open = document.signing as {
+      signerId?: string;
+      documentId?: string;
+      signingUrl?: string | null;
+      awaitingSend?: boolean;
+    } | null;
+    // Only a signing Documenso sent to them: one still waiting for its send
+    // (or never sent) is not handed out, and expires so it can be sent anew.
+    if (
+      isOpenSigning(open) &&
+      open?.awaitingSend !== true &&
+      open?.documentId &&
+      open.signerId === parentId
+    ) {
+      return {
+        documentId: open.documentId,
+        signingUrl: open.signingUrl ?? null,
+      };
+    }
+
+    const { signerEmail, signerName } =
+      await FormSigningService.resolveSignerInfo({
+        isParent: true,
+        initiatedBy: parentId,
+      });
+    if (!signerEmail) {
+      throw new Error("Signer email is required for signing");
+    }
+
+    const signed = await signPersistedRenderedDocument({
+      renderedDocumentId: document.id,
+      organisationId: instance.organisationId,
+      signerId: parentId,
+      signerType: "PARENT",
+      signerEmail,
+      signerName,
+    });
+    const signing = signed.signing as {
+      documentId?: string;
+      signingUrl?: string | null;
+    } | null;
+
+    return {
+      documentId: signing?.documentId ?? document.id,
+      signingUrl: signing?.signingUrl ?? null,
+    };
+  }
+
   static async startSigning({
     isParent,
     submissionId,
@@ -299,7 +487,18 @@ export class FormSigningService {
     initiatedBy?: string;
     organisationId?: string;
   }) {
-    const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
+    const submission = await prisma.formSubmission.findUnique({
+      where: { id: submissionId },
+    });
+    if (!submission) {
+      if (isParent && initiatedBy) {
+        return FormSigningService.startTemplateInstanceSigning(
+          submissionId,
+          initiatedBy,
+        );
+      }
+      throw new Error("Form submission not found");
+    }
     const formId = submission.formId;
     let form:
       | Awaited<ReturnType<typeof FormSigningService.loadFormOrThrowPrisma>>

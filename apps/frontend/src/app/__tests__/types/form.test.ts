@@ -5,8 +5,78 @@ import {
   medicationRouteOptions,
   buildMedicationFields, // This is exported and safe to use
   CategoryTemplates,
+  RequiredSignerOptions,
+  appointmentFormSigner,
+  namesASigner,
+  requiredSignerLabel,
 } from '@/app/features/forms/types/forms';
 // Removed unused type imports and local helpers as they caused TypeErrors
+
+// "No signature required" is stored as an explicit NONE; an empty value is no
+// choice made, which leaves a consent to the pet parent.
+describe('who signs a form', () => {
+  it('stores no signature as NONE', () => {
+    expect(RequiredSignerOptions).toEqual([
+      { label: 'No signature required', value: 'NONE' },
+      { label: 'Pet parent', value: 'CLIENT' },
+      { label: 'Service provider', value: 'VET' },
+    ]);
+  });
+
+  it.each([
+    ['NONE', 'No signature required'],
+    ['CLIENT', 'Pet parent'],
+    ['VET', 'Service provider'],
+    ['', ''],
+    [undefined, ''],
+  ] as const)('labels %s as %s', (value, label) => {
+    expect(requiredSignerLabel(value)).toBe(label);
+  });
+
+  it.each([
+    ['CLIENT', true],
+    ['VET', true],
+    ['NONE', false],
+    ['', false],
+    [undefined, false],
+  ] as const)('reads %s as naming a signer: %s', (value, expected) => {
+    expect(namesASigner(value)).toBe(expected);
+  });
+});
+
+// Picked on an appointment, a template-backed form is signed on its document;
+// only a pet parent who signs a form or consent is acted on there.
+describe('who signs a form picked on an appointment', () => {
+  it.each([
+    ['a form with a named signer', { requiredSigner: 'VET' }, 'VET'],
+    ['a form the parent signs', { requiredSigner: 'CLIENT' }, 'CLIENT'],
+    ['a form with no signer', { requiredSigner: '' }, ''],
+    ['no form', undefined, ''],
+  ])('keeps the signer of %s', (_label, form, expected) => {
+    expect(appointmentFormSigner(form)).toBe(expected);
+  });
+
+  const template = (templateKind: string, requiredSigner: string, category = 'Custom') => ({
+    isTemplateBacked: true,
+    templateKind,
+    requiredSigner,
+    category,
+  });
+
+  it.each([
+    ['a consent the parent signs', template('CONSENT', 'CLIENT'), 'CLIENT'],
+    ['a consent that names no one', template('CONSENT', ''), 'CLIENT'],
+    ['a consent saved as a form', template('FORM', '', 'Consent form'), 'CLIENT'],
+    ['a form the parent signs', template('FORM', 'CLIENT'), 'CLIENT'],
+    ['a form that names no one', template('FORM', ''), ''],
+    ['a consent the vet signs', template('CONSENT', 'VET'), ''],
+    ['a consent with no signature', template('CONSENT', 'NONE'), ''],
+    ['a prescription the parent signs', template('PRESCRIPTION', 'CLIENT'), ''],
+    ['a SOAP note the vet signs', template('SOAP_NOTE', 'VET'), ''],
+  ])('reads %s as %s', (_label, form, expected) => {
+    expect(appointmentFormSigner(form)).toBe(expected);
+  });
+});
 
 describe('Forms Data and Utility Functions', () => {
   // --- 1. Constant Coverage ---

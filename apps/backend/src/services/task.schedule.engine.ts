@@ -1,4 +1,4 @@
-import { TaskScheduleStatus, TemplateKind } from "@prisma/client";
+import { Prisma, TaskScheduleStatus, TemplateKind } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { TaskService } from "./task.service";
 
@@ -199,12 +199,25 @@ const toWorkflowSeedInput = (seed: StoredTaskWorkflowSeed) => ({
     : undefined,
 });
 
+/**
+ * Seeds that raised no task (a parent task no parent may work on). A retry
+ * resumes after the generated and the skipped seeds together.
+ */
+const skippedSeedCount = (metadata: unknown): number => {
+  const count =
+    metadata && typeof metadata === "object"
+      ? (metadata as Record<string, unknown>).skippedSeeds
+      : undefined;
+  return typeof count === "number" && count > 0 ? count : 0;
+};
+
 const materializeSchedule = async (
   schedule: {
     id: string;
     templateKind: TemplateKind;
     generatedTaskIds: unknown;
     materializedSeeds: unknown;
+    metadata?: unknown;
   },
   now: Date,
 ) => {
@@ -228,25 +241,45 @@ const materializeSchedule = async (
     ? [...schedule.generatedTaskIds]
     : [];
 
+  let skippedSeeds = skippedSeedCount(schedule.metadata);
+
   // Compare against the raw seed count before parsing: a schedule that is
   // already fully materialized must stay a no-op even if its stored seeds
   // are old/invalid shapes, exactly as before this change.
-  if (generatedTaskIds.length >= schedule.materializedSeeds.length) {
+  if (
+    generatedTaskIds.length + skippedSeeds >=
+    schedule.materializedSeeds.length
+  ) {
     return;
   }
 
   const seeds = schedule.materializedSeeds.map(parseSeed);
 
-  for (let index = generatedTaskIds.length; index < seeds.length; index++) {
+  for (
+    let index = generatedTaskIds.length + skippedSeeds;
+    index < seeds.length;
+    index++
+  ) {
     const task = await TaskService.createFromWorkflowSeed(
       toWorkflowSeedInput(seeds[index]),
       { notify: false },
     );
-    generatedTaskIds.push(task.id);
+    if (task) generatedTaskIds.push(task.id);
+    else skippedSeeds += 1;
 
     await prisma.taskSchedule.update({
       where: { id: schedule.id },
-      data: { generatedTaskIds },
+      data: {
+        generatedTaskIds,
+        ...(skippedSeeds
+          ? {
+              metadata: {
+                ...(schedule.metadata as Prisma.InputJsonObject),
+                skippedSeeds,
+              },
+            }
+          : {}),
+      },
     });
   }
 

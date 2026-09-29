@@ -15,6 +15,7 @@ import { documentWhereForOrg } from "./document-scope";
 import { filterUserIdsInOrganisation } from "./shared/organisation-membership";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
+import { resolveInstanceSigner } from "./client-signature.helpers";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -256,6 +257,8 @@ export interface DocumentDto {
   templateId?: string | null;
   templateVersion?: number | null;
   signingStatus?: string;
+  // Who signs a document filled in from a template: CLIENT, VET or NONE.
+  signer?: string | null;
   signedAt?: string | null;
   pdfUrl?: string | null;
   createdAt: string;
@@ -304,10 +307,14 @@ type RenderedDocumentRow = {
     appointmentId: string | null;
     encounterId: string | null;
     authorId?: string | null;
+    status?: string;
+    generatedPdf?: unknown;
+    template?: { kind?: string; rules: unknown } | null;
   } | null;
   clinicalArtifact: {
     appointmentId: string | null;
     encounterId: string | null;
+    status?: string;
   } | null;
 };
 
@@ -387,6 +394,17 @@ const mapRenderedDocumentToDto = (
     document.signing,
     document.status,
   ),
+  ...(document.templateInstance?.template?.kind
+    ? {
+        signer: resolveInstanceSigner({
+          generatedPdf: document.templateInstance.generatedPdf,
+          template: {
+            kind: document.templateInstance.template.kind,
+            rules: document.templateInstance.template.rules,
+          },
+        }),
+      }
+    : {}),
   signedAt: document.signedAt ? document.signedAt.toISOString() : null,
   pdfUrl: document.pdfUrl,
   createdAt: document.createdAt.toISOString(),
@@ -444,13 +462,58 @@ const renderedDocumentsForParent = async (
   });
 };
 
+// The kinds a pet parent fills in themselves.
+const PARENT_FORM_DOCUMENT_KINDS = new Set(["FORM", "CONSENT"]);
+const FINALISED_RECORD_STATUSES = new Set(["COMPLETED", "SIGNED"]);
+
+// The form builder writes the author's "Internal" / "External" /
+// "Internal & External" choice to rules.visibility (buildTemplatePayload).
+const isInternalOnlyTemplate = (rules: unknown) => {
+  const visibility = (rules as { visibility?: unknown } | null)?.visibility;
+  return (
+    typeof visibility === "string" &&
+    visibility.trim().toLowerCase() === "internal"
+  );
+};
+
+/**
+ * What of the practice's rendered documents a pet parent may see.
+ *
+ * Nothing from a record still being written or withdrawn: only COMPLETED and
+ * SIGNED, the rule the parent's prescription list follows. A form or consent
+ * the practice sent the client for this appointment is theirs, whatever the
+ * template's visibility (the builder defaults it to Internal). Otherwise a
+ * template marked Internal is never released, and clinical content is released
+ * only once it is signed off, the rule the parent's encounter packet PDF
+ * follows.
+ */
+const isReleasedToParent = (
+  row: RenderedDocumentRow,
+  assignedTemplateIds: ReadonlySet<string>,
+) => {
+  const record = row.templateInstance ?? row.clinicalArtifact;
+  if (!FINALISED_RECORD_STATUSES.has(record?.status ?? "")) return false;
+  const isFormKind = PARENT_FORM_DOCUMENT_KINDS.has(row.kind);
+  if (isFormKind && assignedTemplateIds.has(row.templateId ?? "")) return true;
+  if (isInternalOnlyTemplate(row.templateInstance?.template?.rules)) {
+    return false;
+  }
+  return isFormKind || row.status === "SIGNED";
+};
+
 const loadRenderedDocumentsForAppointments = async (params: {
   appointmentIds: string[];
   organisationId: string;
   kind?: TemplateKind;
   excludeKind?: TemplateKind;
-  // A parent asking, who sees only what `renderedDocumentsForParent` allows.
-  viewer?: { parentId: string; patientId: string };
+  // A parent asking, who sees only what `renderedDocumentsForParent` allows
+  // of what is released to them (`isReleasedToParent`), given the templates
+  // the practice assigned the client on these appointments.
+  viewer?: {
+    parentId: string;
+    patientId: string;
+    assignedTemplateIds: ReadonlySet<string>;
+  };
 }) => {
   if (params.appointmentIds.length === 0) {
     return [];
@@ -480,23 +543,29 @@ const loadRenderedDocumentsForAppointments = async (params: {
           appointmentId: true,
           encounterId: true,
           authorId: true,
+          status: true,
+          template: { select: { rules: true } },
         },
       },
       clinicalArtifact: {
         select: {
           appointmentId: true,
           encounterId: true,
+          status: true,
         },
       },
     },
     orderBy: { updatedAt: "desc" },
   })) as unknown as RenderedDocumentRow[];
 
-  const visible = params.viewer
+  const { viewer } = params;
+  const visible = viewer
     ? await renderedDocumentsForParent(
-        renderedDocuments,
-        params.viewer.parentId,
-        params.viewer.patientId,
+        renderedDocuments.filter((row) =>
+          isReleasedToParent(row, viewer.assignedTemplateIds),
+        ),
+        viewer.parentId,
+        viewer.patientId,
       )
     : renderedDocuments;
   return visible.map(mapRenderedDocumentToDto);
@@ -562,6 +631,9 @@ const loadRenderedDocumentsForPatientRecords = async (params: {
         select: {
           appointmentId: true,
           encounterId: true,
+          // Who signs it, for a document that needs no signature.
+          generatedPdf: true,
+          template: { select: { kind: true, rules: true } },
         },
       },
       clinicalArtifact: {
@@ -1214,6 +1286,18 @@ export const DocumentService = {
       return [];
     }
 
+    // A request the practice withdrew (or that lapsed), or never sent to the
+    // app, does not release its template's documents to the client.
+    const assignments = await prisma.formAssignment.findMany({
+      where: {
+        organisationId: appointmentLookup.organisationId,
+        appointmentId,
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
+        mobileVisible: true,
+      },
+      select: { templateId: true },
+    });
+
     const [docs, renderedDocs] = await Promise.all([
       prisma.document.findMany({
         where: {
@@ -1229,6 +1313,9 @@ export const DocumentService = {
         viewer: {
           parentId: params.parentId,
           patientId: appointmentLookup.patientId,
+          assignedTemplateIds: new Set(
+            assignments.map(({ templateId }) => templateId),
+          ),
         },
       }),
     ]);

@@ -66,6 +66,7 @@ jest.mock("../../src/utils/logger", () => ({
   __esModule: true,
   default: {
     info: jest.fn(),
+    warn: jest.fn(),
     error: jest.fn(),
   },
 }));
@@ -141,7 +142,10 @@ describe("TaskService", () => {
     // Every assignee is a valid one (an active member, or an actively linked
     // parent) unless a test says otherwise.
     mockedPrisma.userOrganization.findFirst.mockResolvedValue({ id: "member" });
-    mockedPrisma.parentPatient.findFirst.mockResolvedValue({ id: "link" });
+    mockedPrisma.parentPatient.findFirst.mockResolvedValue({
+      role: "PRIMARY",
+      permissions: {},
+    });
     // Assignment emails only reach staff who work at the task's organisation.
     mockedPrisma.userOrganization.findMany.mockImplementation(
       async (args: {
@@ -507,7 +511,7 @@ describe("TaskService", () => {
         entityId: "task-4",
       }),
     );
-    expect(result.id).toBe("task-4");
+    expect(result?.id).toBe("task-4");
   });
 
   it("rejects workflow seeds that require a companion but do not provide one", async () => {
@@ -3656,8 +3660,58 @@ describe("TaskService", () => {
       },
     ];
     const PARENT_LINKS = [
-      { parentId: "par-1", patientId: "pat-1", status: "ACTIVE" },
-      { parentId: "par-old", patientId: "pat-1", status: "REVOKED" },
+      {
+        parentId: "par-1",
+        patientId: "pat-1",
+        status: "ACTIVE",
+        role: "PRIMARY",
+        // A primary parent's own switches never limit them.
+        permissions: { tasks: false },
+      },
+      {
+        parentId: "par-old",
+        patientId: "pat-1",
+        status: "REVOKED",
+        role: "CO_PARENT",
+        permissions: { tasks: true },
+      },
+      {
+        parentId: "co-tasks",
+        patientId: "pat-1",
+        status: "ACTIVE",
+        role: "CO_PARENT",
+        permissions: { tasks: true },
+      },
+      {
+        parentId: "co-no-tasks",
+        patientId: "pat-1",
+        status: "ACTIVE",
+        role: "CO_PARENT",
+        permissions: { tasks: false, appointments: true },
+      },
+      // pat-3: a co-parent who may work on tasks is found before the primary.
+      {
+        parentId: "co-3-tasks",
+        patientId: "pat-3",
+        status: "ACTIVE",
+        role: "CO_PARENT",
+        permissions: { tasks: true },
+      },
+      {
+        parentId: "par-3",
+        patientId: "pat-3",
+        status: "ACTIVE",
+        role: "PRIMARY",
+        permissions: {},
+      },
+      // pat-4: the only primary link has ended.
+      {
+        parentId: "par-4-old",
+        patientId: "pat-4",
+        status: "REVOKED",
+        role: "PRIMARY",
+        permissions: {},
+      },
     ];
 
     beforeEach(() => {
@@ -3676,9 +3730,12 @@ describe("TaskService", () => {
       mockedPrisma.parentPatient.findFirst.mockImplementation(
         async ({ where }: { where: Record<string, unknown> }) =>
           PARENT_LINKS.find((row) =>
-            Object.entries(where).every(
-              ([key, value]) => (row as Record<string, unknown>)[key] === value,
-            ),
+            Object.entries(where).every(([key, value]) => {
+              const field = (row as Record<string, unknown>)[key];
+              return value && typeof value === "object" && "in" in value
+                ? (value as { in: unknown[] }).in.includes(field)
+                : field === value;
+            }),
           ) ?? null,
       );
       mockedPrisma.task.create.mockImplementation(
@@ -3716,6 +3773,10 @@ describe("TaskService", () => {
         "an active parent of the companion for a parent task",
         { audience: "PARENT_TASK", assignedTo: "par-1", patientId: "pat-1" },
       ],
+      [
+        "a co-parent who may work on the companion's tasks",
+        { audience: "PARENT_TASK", assignedTo: "co-tasks", patientId: "pat-1" },
+      ],
     ])("creates a task given to %s", async (_label, input) => {
       await expect(create(input)).resolves.toMatchObject({ id: "task-new" });
     });
@@ -3740,6 +3801,14 @@ describe("TaskService", () => {
       [
         "a parent whose link was revoked",
         { audience: "PARENT_TASK", assignedTo: "par-old", patientId: "pat-1" },
+      ],
+      [
+        "a co-parent whose tasks access is off",
+        {
+          audience: "PARENT_TASK",
+          assignedTo: "co-no-tasks",
+          patientId: "pat-1",
+        },
       ],
       [
         "no one for a parent task",
@@ -3879,6 +3948,11 @@ describe("TaskService", () => {
         { audience: "PARENT_TASK" },
         "par-old",
       ],
+      [
+        "a parent task to a co-parent whose tasks access is off",
+        { audience: "PARENT_TASK" },
+        "co-no-tasks",
+      ],
     ])("refuses to hand %s", async (_label, over, assignee) => {
       mockedPrisma.task.findFirst.mockResolvedValueOnce(
         existing(over) as never,
@@ -3888,6 +3962,175 @@ describe("TaskService", () => {
         TaskService.updateTask("task-1", { assignedTo: assignee }, "vet-1"),
       ).rejects.toMatchObject({ statusCode: 404 });
       expect(mockedPrisma.task.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a staff member who has left", {}, "vet-off"],
+      [
+        "a co-parent whose tasks access is off",
+        { audience: "PARENT_TASK" },
+        "co-no-tasks",
+      ],
+    ])(
+      "refuses to give a whole series to %s the named occurrence already has",
+      async (_label, over, assignee) => {
+        const recurring = (row: Record<string, unknown>) =>
+          existing({ ...over, ...row });
+        const named = recurring({
+          assignedTo: assignee,
+          recurrence: { type: "DAILY", isMaster: true },
+        });
+        mockedPrisma.task.findFirst.mockResolvedValueOnce(named as never);
+        mockedPrisma.task.findMany.mockResolvedValueOnce([
+          named,
+          recurring({
+            id: "task-2",
+            recurrence: { type: "DAILY", masterTaskId: "task-1" },
+          }),
+        ] as never);
+
+        await expect(
+          TaskService.updateTask(
+            "task-1",
+            { assignedTo: assignee },
+            "vet-1",
+            "ALL",
+            "org-1",
+          ),
+        ).rejects.toMatchObject({ statusCode: 404 });
+        expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+      },
+    );
+
+    it("lets the creator hand a parent task to a co-parent who may work on it", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(
+        existing({ audience: "PARENT_TASK", assignedTo: "par-1" }) as never,
+      );
+      mockedPrisma.task.update.mockResolvedValueOnce(
+        existing({ audience: "PARENT_TASK", assignedTo: "co-tasks" }) as never,
+      );
+
+      await TaskService.updateTask(
+        "task-1",
+        { assignedTo: "co-tasks" },
+        "vet-1",
+      );
+
+      expect(mockedPrisma.task.update).toHaveBeenCalled();
+    });
+
+    describe("a task raised from a workflow", () => {
+      const seed = (over: Record<string, unknown> = {}) =>
+        ({
+          source: "ORG_TEMPLATE",
+          organisationId: "org-1",
+          patientId: "pat-1",
+          createdBy: "vet-1",
+          assignedBy: "vet-1",
+          assignedTo: "vet-1",
+          audience: "EMPLOYEE_TASK",
+          category: "Care",
+          name: "Follow up",
+          dueAt,
+          ...over,
+        }) as never;
+      const createdAssignee = () =>
+        mockedPrisma.task.create.mock.calls[0][0].data.assignedTo;
+
+      it("keeps a staff assignee who is an active member", async () => {
+        await TaskService.createFromWorkflowSeed(seed(), { notify: false });
+
+        expect(createdAssignee()).toBe("vet-1");
+      });
+
+      it.each([
+        ["a deactivated member", "vet-off"],
+        ["a member of another organisation", "vet-2"],
+      ])(
+        "leaves a staff task unassigned when its assignee is %s",
+        async (_label, assignee) => {
+          await expect(
+            TaskService.createFromWorkflowSeed(seed({ assignedTo: assignee }), {
+              notify: false,
+            }),
+          ).resolves.toMatchObject({ id: "task-new" });
+
+          expect(createdAssignee()).toBe("");
+        },
+      );
+
+      it("gives a parent task to a parent who may work on it", async () => {
+        await TaskService.createFromWorkflowSeed(
+          seed({ audience: "PARENT_TASK", assignedTo: "co-tasks" }),
+          { notify: false },
+        );
+
+        expect(createdAssignee()).toBe("co-tasks");
+      });
+
+      it.each([
+        ["a co-parent whose tasks access is off", "co-no-tasks"],
+        ["a parent whose link was revoked", "par-old"],
+        ["a staff member, as when the appointment has no parent", "vet-1"],
+      ])(
+        "gives a parent task named for %s to the primary parent",
+        async (_label, assignee) => {
+          await expect(
+            TaskService.createFromWorkflowSeed(
+              seed({ audience: "PARENT_TASK", assignedTo: assignee }),
+              { notify: false },
+            ),
+          ).resolves.toMatchObject({ id: "task-new" });
+
+          expect(createdAssignee()).toBe("par-1");
+        },
+      );
+
+      it("falls back to the primary parent, never to a co-parent", async () => {
+        await TaskService.createFromWorkflowSeed(
+          seed({
+            audience: "PARENT_TASK",
+            patientId: "pat-3",
+            assignedTo: "vet-1",
+          }),
+          { notify: false },
+        );
+
+        expect(createdAssignee()).toBe("par-3");
+      });
+
+      it("never falls back to a primary parent whose link has ended", async () => {
+        await expect(
+          TaskService.createFromWorkflowSeed(
+            seed({
+              audience: "PARENT_TASK",
+              patientId: "pat-4",
+              assignedTo: "vet-1",
+            }),
+            { notify: false },
+          ),
+        ).resolves.toBeNull();
+
+        expect(mockedPrisma.task.create).not.toHaveBeenCalled();
+      });
+
+      it("leaves out a parent task when no parent may work on it", async () => {
+        await expect(
+          TaskService.createFromWorkflowSeed(
+            seed({
+              audience: "PARENT_TASK",
+              patientId: "pat-2",
+              assignedTo: "co-no-tasks",
+            }),
+            { notify: false },
+          ),
+        ).resolves.toBeNull();
+
+        expect(mockedPrisma.task.create).not.toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith(
+          "Skipping a workflow parent task: no parent may work on the companion's tasks",
+        );
+      });
     });
 
     it("leaves an unchanged assignee unchecked", async () => {

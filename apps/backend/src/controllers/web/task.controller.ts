@@ -34,6 +34,7 @@ import {
   UpdateTaskTemplateInput,
 } from "src/services/taskTemplate.service";
 import {
+  type CompanionAccessRequest,
   parentHasCompanionFeature,
   readBodyPatientId,
 } from "src/middlewares/companion-access";
@@ -787,8 +788,9 @@ export const TaskController = {
   },
 
   // Companion Task List
-  // Mobile: a parent sees the companion's parent tasks only, from every
-  // practice. The route has checked the caller's link to the companion.
+  // Mobile: a parent sees every parent task of the companion, from every
+  // practice, whoever it is assigned to. The route has checked the caller's
+  // link to the companion and hands over the companion it granted.
   listForCompanionMobile: async (
     req: Request<{ patientId: string }, unknown, unknown, TaskListQuery>,
     res: Response,
@@ -796,11 +798,10 @@ export const TaskController = {
     try {
       const tasks = await TaskService.listForCompanion({
         ...parseTaskListQueryFilters(req.query),
-        patientId: req.params.patientId,
+        patientId: (req as CompanionAccessRequest).grantedPatientId ?? "",
         organisationId: undefined,
         audience: "PARENT_TASK",
         assignedRole: undefined,
-        assignedTo: pickFirstQueryValue(req.query.assignedTo),
       });
 
       res.json(tasks);

@@ -306,6 +306,13 @@ describe('Build form (single-screen builder)', () => {
     expect(screen.queryByRole('button', { name: 'Signature' })).not.toBeInTheDocument();
   });
 
+  // A choice of no signature is not a signer either.
+  it('hides the signature palette tile when no signature is chosen', () => {
+    renderBuild(baseFormData({ requiredSigner: 'NONE' }));
+
+    expect(screen.queryByRole('button', { name: 'Signature' })).not.toBeInTheDocument();
+  });
+
   it('treats an undefined signer as not signature-eligible', () => {
     renderBuild(baseFormData({ requiredSigner: undefined }));
 

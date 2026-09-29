@@ -235,16 +235,18 @@ const materializeWorkflowTasks = async (params: {
 }) => {
   const { client, seeds, notify } = params;
   const generatedTaskIds: string[] = [];
+  let skippedSeeds = 0;
 
   for (const seed of seeds) {
     const task = await TaskService.createFromWorkflowSeed(seed, {
       client,
       notify,
     });
-    generatedTaskIds.push(task.id);
+    if (task) generatedTaskIds.push(task.id);
+    else skippedSeeds += 1;
   }
 
-  return generatedTaskIds;
+  return { generatedTaskIds, skippedSeeds };
 };
 
 const loadAppointmentContext = async (
@@ -459,7 +461,7 @@ const launchWorkflowInstance = async (
     };
   }
 
-  const generatedTaskIds = await materializeWorkflowTasks({
+  const { generatedTaskIds, skippedSeeds } = await materializeWorkflowTasks({
     client,
     seeds,
     notify: options?.notify,
@@ -469,6 +471,15 @@ const launchWorkflowInstance = async (
     where: { id: persistedSchedule.id },
     data: {
       generatedTaskIds: generatedTaskIds,
+      // The schedule engine resumes after the generated and skipped seeds.
+      ...(skippedSeeds
+        ? {
+            metadata: {
+              ...(metadata as Prisma.InputJsonObject),
+              skippedSeeds,
+            },
+          }
+        : {}),
       completedAt:
         instance.template.kind === TemplateKind.TASK_TEMPLATE ? now : null,
       status:

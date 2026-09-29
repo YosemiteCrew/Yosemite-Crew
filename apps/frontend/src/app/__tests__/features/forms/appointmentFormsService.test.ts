@@ -64,6 +64,56 @@ describe('fetchAppointmentForms', () => {
     expect(result.forms[0].status).toBe('completed');
   });
 
+  // A form sent to the pet parent comes with where its request stands and
+  // whether it asks them to sign, so a reload shows it as it stands.
+  it('keeps where a request sent to the pet parent stands', async () => {
+    postDataMock.mockResolvedValue({
+      data: {
+        appointmentId: 'appt-1',
+        items: [
+          {
+            questionnaire: { id: 'tpl-consent', title: 'Consent' },
+            questionnaireResponse: { id: 'qr1' },
+            status: 'completed',
+            assignmentId: 'assignment-1',
+            assignmentStatus: 'submitted',
+            signingRequired: true,
+          },
+          {
+            questionnaire: { id: 'tpl-intake', title: 'Intake' },
+            status: 'pending',
+            assignmentId: 'assignment-2',
+            assignmentStatus: 'sent',
+            signingRequired: false,
+            mobileVisible: false,
+          },
+          {
+            questionnaire: { id: 'form-1', title: 'Legacy form' },
+            status: 'pending',
+          },
+        ],
+      },
+    });
+
+    const res = await fetchAppointmentForms('appt-1');
+
+    expect(res.forms[0]).toMatchObject({
+      status: 'completed',
+      assignmentId: 'assignment-1',
+      assignmentStatus: 'submitted',
+      signingRequired: true,
+      mobileVisible: true,
+    });
+    // Kept off the pet parent's app: nothing there for them to fill in.
+    expect(res.forms[1]).toMatchObject({
+      assignmentStatus: 'sent',
+      signingRequired: false,
+      mobileVisible: false,
+    });
+    expect(res.forms[2]).not.toHaveProperty('assignmentStatus');
+    expect(res.forms[2]).not.toHaveProperty('signingRequired');
+  });
+
   it('returns forms with pending status when no response and no explicit status', async () => {
     postDataMock.mockResolvedValue({
       data: {

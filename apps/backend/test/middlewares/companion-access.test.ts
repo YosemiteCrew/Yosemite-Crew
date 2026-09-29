@@ -17,6 +17,7 @@ import { prisma } from "src/config/prisma";
 import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
 import { storedRows } from "../helpers/stored-rows";
 import {
+  type CompanionAccessRequest,
   parentHasCompanionFeature,
   requireCompanionPermission,
   requireCompanionPermissionForResource,
@@ -64,7 +65,7 @@ const runMiddleware = async (
   const res = { status: jest.fn(() => ({ json })) } as unknown as Response;
   const next = jest.fn() as NextFunction;
   await requireCompanionPermission(feature)(req, res, next);
-  return { res, json, next };
+  return { req: req as CompanionAccessRequest, res, json, next };
 };
 
 const ALL_FALSE = {
@@ -94,6 +95,31 @@ describe("requireCompanionPermission", () => {
 
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("hands the handler exactly the companion it checked", async () => {
+    findFirst.mockResolvedValue({ role: "PRIMARY", permissions: ALL_FALSE });
+
+    const { req, next } = await runMiddleware("tasks", {
+      patientId: " pat-1 ",
+    });
+
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ patientId: "pat-1" }),
+      }),
+    );
+    expect(next).toHaveBeenCalled();
+    expect(req.grantedPatientId).toBe("pat-1");
+  });
+
+  it("grants no companion to a caller it turns away", async () => {
+    findFirst.mockResolvedValue({ role: "CO_PARENT", permissions: ALL_FALSE });
+
+    const { req, next } = await runMiddleware("tasks");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(req.grantedPatientId).toBeUndefined();
   });
 
   it("lets a co-parent through when the flag is granted", async () => {

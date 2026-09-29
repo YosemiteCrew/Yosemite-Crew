@@ -826,11 +826,13 @@ describe("Task Controllers", () => {
     });
 
     describe("listForCompanionMobile", () => {
-      it("lists only parent tasks, whatever audience or role the query asks for", async () => {
+      it("lists only parent tasks, whatever audience, role or assignee the query asks for", async () => {
         req.params = { patientId: "pat-1" };
+        (req as any).grantedPatientId = "pat-1";
         req.query = {
           audience: "EMPLOYEE_TASK",
           assignedRole: "EMPLOYEE_TASK",
+          assignedTo: "someone-else",
           status: "PENDING",
         } as any;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -849,6 +851,42 @@ describe("Task Controllers", () => {
             assignedRole: undefined,
             status: ["PENDING"],
           }),
+        );
+        const [params] = (mockedTaskService.listForCompanion as jest.Mock).mock
+          .calls[0] as [{ assignedTo?: string }];
+        expect(params.assignedTo).toBeUndefined();
+      });
+
+      it("lists the companion the route granted, not the raw path segment", async () => {
+        req.params = { patientId: "pat-other" };
+        (req as any).grantedPatientId = "pat-1";
+        req.query = {} as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskService.listForCompanion as any).mockResolvedValue([]);
+
+        await TaskController.listForCompanionMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedTaskService.listForCompanion).toHaveBeenCalledWith(
+          expect.objectContaining({ patientId: "pat-1" }),
+        );
+      });
+
+      it("names no companion when the route granted none", async () => {
+        req.params = { patientId: "pat-1" };
+        req.query = {} as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskService.listForCompanion as any).mockResolvedValue([]);
+
+        await TaskController.listForCompanionMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedTaskService.listForCompanion).toHaveBeenCalledWith(
+          expect.objectContaining({ patientId: "" }),
         );
       });
 
