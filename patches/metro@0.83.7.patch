@@ -1,0 +1,18 @@
+diff --git a/src/Assets.js b/src/Assets.js
+index b34df882c0205ec80afa4e916daee6baa60e05db..59f65f5deef7b54cfd10cd50afb767af59e3d0ef 100644
+--- a/src/Assets.js
++++ b/src/Assets.js
+@@ -171,10 +171,9 @@ async function getAssetData(
+   assetUrlPath = (0, _pathUtils.normalizePathSeparatorsToPosix)(assetUrlPath);
+   const isImage = isAssetTypeAnImage(_path.default.extname(assetPath).slice(1));
+   const assetInfo = await getAbsoluteAssetInfo(assetPath, platform ?? null);
+-  const isImageInput = assetInfo.files[0].includes(".zip/")
+-    ? _fs.default.readFileSync(assetInfo.files[0])
+-    : assetInfo.files[0];
+-  const dimensions = isImage ? (0, _imageSize.default)(isImageInput) : null;
++  const dimensions = isImage
++    ? (0, _imageSize.default)(_fs.default.readFileSync(assetInfo.files[0]))
++    : null;
+   const scale = assetInfo.scales[0];
+   const assetData = {
+     __packager_asset: true,
