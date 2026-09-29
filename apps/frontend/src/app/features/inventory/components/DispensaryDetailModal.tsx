@@ -419,7 +419,8 @@ const DispensaryDetailModal = ({
     if (!organisationId || !recordId || !itemIdsKey) return;
     let cancelled = false;
     const ids = itemIdsKey.split('|');
-    Promise.all(
+    // Each read settles on its own (a failure becomes null), so this never rejects.
+    void Promise.all(
       ids.map(async (itemId) => {
         try {
           return [itemId, await getFillEligibility(organisationId, itemId)] as const;

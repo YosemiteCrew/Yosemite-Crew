@@ -1056,6 +1056,12 @@ describe("InventoryConsumptionService", () => {
           sourceLineKey: "b",
           prescriptionItemId: "prescription-item-refused-1",
         },
+        {
+          inventoryItemId: "item-after-1",
+          quantity: 2,
+          sourceLineKey: "c",
+          prescriptionItemId: "prescription-item-after-1",
+        },
       ],
       metadata: { appointmentKind: "OUTPATIENT" },
     });
@@ -1073,10 +1079,17 @@ describe("InventoryConsumptionService", () => {
       }),
     ).rejects.toBe(refusal);
 
-    // Only the line that names a prescription item is tracked as a fill.
+    // The untracked line is skipped, and the fills run one after another, so
+    // the line after the refused one is never attempted.
     expect(
       PrescriptionFillAuthorisationService.recordDispensedFillInTx,
     ).toHaveBeenCalledTimes(1);
+    expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx,
+    ).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ itemId: "prescription-item-refused-1" }),
+    );
     expect(mockedPrisma.inventoryStockMovement.create).not.toHaveBeenCalled();
     expect(
       mockedPrisma.prescriptionDispenseRequest.update,
