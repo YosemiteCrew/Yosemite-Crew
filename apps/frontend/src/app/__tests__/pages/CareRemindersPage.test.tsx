@@ -8,6 +8,14 @@ import {
 } from '@/app/services/careReminderService';
 
 const mockOrgState = { primaryOrgId: 'org-1' as string | null };
+const mockCompanionIds = ['pet-1', 'pet-2'];
+const mockCompanionState = {
+  companionsIdsByOrgId: { 'org-1': mockCompanionIds },
+  companionsById: {
+    'pet-1': { id: 'pet-1', name: 'Milo' },
+    'pet-2': { id: 'pet-2', name: 'Luna' },
+  },
+};
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   __esModule: true,
@@ -33,14 +41,7 @@ jest.mock('@/app/stores/orgStore', () => ({
     selector(mockOrgState),
 }));
 jest.mock('@/app/stores/companionStore', () => ({
-  useCompanionStore: (selector: (state: unknown) => unknown) =>
-    selector({
-      companionsIdsByOrgId: { 'org-1': ['pet-1', 'pet-2'] },
-      companionsById: {
-        'pet-1': { id: 'pet-1', name: 'Milo' },
-        'pet-2': { id: 'pet-2', name: 'Luna' },
-      },
-    }),
+  useCompanionStore: (selector: (state: unknown) => unknown) => selector(mockCompanionState),
 }));
 jest.mock('@/app/lib/logger', () => ({ logger: { error: jest.fn() } }));
 
@@ -90,6 +91,30 @@ it('reviews recipients and shows persisted channel delivery results', async () =
   expect(await screen.findByText(/Push delivered · Email not delivered/)).toBeInTheDocument();
   selectRecipients(screen.getByLabelText('Companions'));
   expect(screen.getByText('Selected (2): Milo, Luna')).toBeInTheDocument();
+});
+
+it('formats care reminder dates once for the displayed list', async () => {
+  const formatter = jest.spyOn(Intl, 'DateTimeFormat');
+  listMock.mockResolvedValueOnce([
+    reminder,
+    { ...reminder, id: 'r2', patientId: 'pet-2', sendAt: '2026-09-30T09:00:00.000Z' },
+  ]);
+  render(<CareRemindersPage />);
+
+  expect(await screen.findByText('Luna · Annual check-up')).toBeInTheDocument();
+  expect(formatter).toHaveBeenCalledTimes(1);
+  expect(formatter).toHaveBeenCalledWith(
+    'en-US',
+    expect.objectContaining({ timeZone: expect.any(String) })
+  );
+});
+
+it('filters companion records in one pass', async () => {
+  const flatMap = jest.spyOn(mockCompanionIds, 'flatMap');
+  render(<CareRemindersPage />);
+
+  expect(await screen.findByText('Milo · Annual check-up')).toBeInTheDocument();
+  expect(flatMap).toHaveBeenCalledTimes(1);
 });
 
 it('flags an old in-progress send for review instead of implying it is still running', async () => {
