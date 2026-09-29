@@ -120,7 +120,7 @@ const DeveloperConnect = () => {
                     className={clsx(
                       'flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text',
                       selected
-                        ? 'border-blue-text bg-nav-active-bg text-blue-text'
+                        ? 'border-blue-text bg-[var(--nav-active-bg)] text-blue-text'
                         : 'border-card-border bg-card-bg text-text-secondary hover:border-blue-text'
                     )}
                     aria-pressed={selected}
