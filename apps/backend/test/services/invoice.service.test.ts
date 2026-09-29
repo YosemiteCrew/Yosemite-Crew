@@ -35,7 +35,7 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
       update: jest.fn(),
     },
-    inventoryStockMovement: { create: jest.fn() },
+    inventoryStockMovement: { create: jest.fn(), createMany: jest.fn() },
     invoice: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -223,7 +223,11 @@ describe("InvoiceService", () => {
         { id: "batch_1", itemId: "item_1", quantity: 5, expiryDate: null },
       ]);
       (prisma.inventoryBatch.update as jest.Mock).mockResolvedValue({});
-      (prisma.inventoryStockMovement.create as jest.Mock).mockResolvedValue({});
+      (prisma.inventoryStockMovement.createMany as jest.Mock).mockResolvedValue(
+        {
+          count: 1,
+        },
+      );
       (prisma.invoice.create as jest.Mock).mockResolvedValue(saleInvoice);
       (prisma.organization.findUnique as jest.Mock).mockResolvedValue(null);
     });
@@ -239,7 +243,7 @@ describe("InvoiceService", () => {
           callback({
             ...prisma,
             invoice: { ...prisma.invoice, create: txInvoiceCreate },
-            inventoryStockMovement: { create: txMovementCreate },
+            inventoryStockMovement: { createMany: txMovementCreate },
             financeEvent: { create: txEventCreate },
           }),
       );
@@ -269,17 +273,17 @@ describe("InvoiceService", () => {
           }),
         }),
       );
-      expect(txMovementCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
+      expect(txMovementCreate).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
             itemId: "item_1",
             batchId: "batch_1",
             change: -2,
             reason: "COUNTER_SALE",
             referenceId: "inv_counter",
           }),
-        }),
-      );
+        ],
+      });
       expect(txEventCreate).toHaveBeenCalledWith({
         data: expect.objectContaining({
           eventType: "INVOICE_CREATED",
@@ -288,7 +292,7 @@ describe("InvoiceService", () => {
         }),
       });
       expect(prisma.invoice.create).not.toHaveBeenCalled();
-      expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
       expect(prisma.financeEvent.create).not.toHaveBeenCalled();
     });
 
@@ -478,11 +482,68 @@ describe("InvoiceService", () => {
       expect(prisma.invoice.create).not.toHaveBeenCalled();
     });
 
-    it("rolls back invoice creation when available stock is insufficient", async () => {
-      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
-        ...stockItem,
-        onHand: 1,
+    it("draws every sale line in one stock update and recounts each item", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+        stockItem,
+        { ...stockItem, id: "item_2", name: "Collar" },
+      ]);
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([
+        { id: "batch_1", itemId: "item_1", quantity: 5, expiryDate: null },
+        { id: "batch_2", itemId: "item_2", quantity: 4, expiryDate: null },
+      ]);
+      (prisma.$executeRaw as jest.Mock)
+        .mockResolvedValueOnce(2)
+        .mockResolvedValueOnce(2);
+
+      await InvoiceService.createCounterSale({
+        organisationId,
+        items: [
+          { inventoryItemId: "item_1", quantity: 1 },
+          { inventoryItemId: "item_2", quantity: 3 },
+        ],
       });
+
+      const [draw, recount] = (prisma.$executeRaw as jest.Mock).mock.calls;
+      expect(draw[1].values).toEqual(["batch_1", 1, "batch_2", 3]);
+      expect(recount[1].values).toEqual(["item_1", "item_2"]);
+      expect(prisma.inventoryStockMovement.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({ batchId: "batch_1", change: -1 }),
+          expect.objectContaining({ batchId: "batch_2", change: -3 }),
+        ],
+      });
+    });
+
+    it("refuses the sale when only some planned batch draws land", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+        stockItem,
+        { ...stockItem, id: "item_2", name: "Collar" },
+      ]);
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([
+        { id: "batch_1", itemId: "item_1", quantity: 5, expiryDate: null },
+        { id: "batch_2", itemId: "item_2", quantity: 4, expiryDate: null },
+      ]);
+      (prisma.$executeRaw as jest.Mock).mockResolvedValue(1);
+
+      await expect(
+        InvoiceService.createCounterSale({
+          organisationId,
+          items: [
+            { inventoryItemId: "item_1", quantity: 1 },
+            { inventoryItemId: "item_2", quantity: 3 },
+          ],
+        }),
+      ).rejects.toMatchObject({
+        message: "Insufficient stock",
+        statusCode: 400,
+      });
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
+    });
+
+    it("rolls back invoice creation when available stock is insufficient", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+        { ...stockItem, onHand: 3, allocated: 2 },
+      ]);
 
       await expect(
         InvoiceService.createCounterSale(saleInput),
@@ -492,7 +553,7 @@ describe("InvoiceService", () => {
         statusCode: 400,
       });
       expect(prisma.invoice.create).toHaveBeenCalled();
-      expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
     });
 
     it("rolls back the sale if a batch is consumed concurrently", async () => {
@@ -501,7 +562,7 @@ describe("InvoiceService", () => {
       await expect(InvoiceService.createCounterSale(saleInput)).rejects.toThrow(
         "Insufficient stock",
       );
-      expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
     });
   });
 

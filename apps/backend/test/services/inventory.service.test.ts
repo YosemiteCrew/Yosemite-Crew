@@ -60,6 +60,7 @@ jest.mock("src/config/prisma", () => ({
     },
     inventoryStockMovement: {
       create: jest.fn(),
+      createMany: jest.fn(),
       findMany: jest.fn(),
     },
     inventoryCategory: {
@@ -2772,20 +2773,21 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       mockOf(prisma.inventoryItem.update).mockResolvedValue(
         itemRow({ onHand: 10 }),
       );
+      mockOf(prisma.$executeRaw).mockResolvedValue(2);
 
       const updated = await InventoryService.consumeStock(
         { itemId: "item-1", quantity: 6, reason: "APPOINTMENT_USAGE" },
         "org-1",
       );
 
+      // One conditional UPDATE covers every drained batch, each row guarded
+      // by the quantity planned from it.
       const batchUpdates = mockOf(prisma.$executeRaw).mock.calls;
+      expect(batchUpdates).toHaveLength(1);
       expect(batchUpdates[0][0].join("?")).toContain(
-        'WHERE "id" = ? AND "quantity" >= ?',
+        'b."quantity" >= v."quantity"',
       );
-      expect(batchUpdates.map((call) => call.slice(1))).toEqual([
-        [4, "first", 4],
-        [2, "second", 2],
-      ]);
+      expect(batchUpdates[0][1].values).toEqual(["first", 4, "second", 2]);
       expect(updated.onHand).toBe(10);
       expect(updated._id).toBe("item-1");
     });
@@ -2806,6 +2808,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       mockOf(prisma.inventoryItem.update).mockResolvedValue(
         itemRow({ onHand: 4 }),
       );
+      mockOf(prisma.$executeRaw).mockResolvedValue(2);
 
       await InventoryService.consumeStock(
         {
@@ -2817,31 +2820,29 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         "org-1",
       );
 
-      expect(mockOf(prisma.inventoryStockMovement.create).mock.calls).toEqual([
+      expect(
+        mockOf(prisma.inventoryStockMovement.createMany).mock.calls,
+      ).toEqual([
         [
           {
-            data: {
-              itemId: "item-1",
-              batchId: "batch-a",
-              change: -4,
-              reason: "APPOINTMENT_USAGE",
-              referenceId: "appt-1",
-              userId: undefined,
-              createdAt: expect.any(Date),
-            },
-          },
-        ],
-        [
-          {
-            data: {
-              itemId: "item-1",
-              batchId: "batch-b",
-              change: -2,
-              reason: "APPOINTMENT_USAGE",
-              referenceId: "appt-1",
-              userId: undefined,
-              createdAt: expect.any(Date),
-            },
+            data: [
+              {
+                itemId: "item-1",
+                batchId: "batch-a",
+                change: -4,
+                reason: "APPOINTMENT_USAGE",
+                referenceId: "appt-1",
+                createdAt: expect.any(Date),
+              },
+              {
+                itemId: "item-1",
+                batchId: "batch-b",
+                change: -2,
+                reason: "APPOINTMENT_USAGE",
+                referenceId: "appt-1",
+                createdAt: expect.any(Date),
+              },
+            ],
           },
         ],
       ]);
@@ -2865,7 +2866,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         message: "Insufficient stock",
         statusCode: 400,
       });
-      expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
     });
   });
 

@@ -37,7 +37,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
 import {
-  consumeNormalStockInTransaction,
+  consumeNormalStockLinesInTransaction,
   InventoryServiceError,
 } from "./inventory.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
@@ -1440,7 +1440,7 @@ export const InvoiceService = {
       });
       const itemsById = new Map(inventoryItems.map((item) => [item.id, item]));
 
-      const items = [...quantities].map(([inventoryItemId, quantity]) => {
+      const saleLines = [...quantities].map(([inventoryItemId, quantity]) => {
         const item = itemsById.get(inventoryItemId);
         if (!item) {
           throw new InvoiceServiceError("Inventory item not found", 404);
@@ -1473,14 +1473,15 @@ export const InvoiceService = {
             409,
           );
         }
-        return {
-          id: item.id,
-          name: item.name,
-          description: item.description ?? item.name,
-          quantity,
-          unitPrice: item.sellingPrice,
-        };
+        return { item, quantity, unitPrice: item.sellingPrice };
       });
+      const items = saleLines.map(({ item, quantity, unitPrice }) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description ?? item.name,
+        quantity,
+        unitPrice,
+      }));
       const { data, taxSnapshot } = await normalizeCreateInput(
         {
           organisationId: input.organisationId,
@@ -1501,24 +1502,16 @@ export const InvoiceService = {
         },
       });
 
-      for (const [inventoryItemId, quantity] of quantities) {
-        try {
-          await consumeNormalStockInTransaction(
-            tx,
-            {
-              itemId: inventoryItemId,
-              quantity,
-              reason: "COUNTER_SALE",
-              referenceId: invoice.id,
-            },
-            input.organisationId,
-          );
-        } catch (error) {
-          if (error instanceof InventoryServiceError) {
-            throw new InvoiceServiceError(error.message, error.statusCode);
-          }
-          throw error;
+      try {
+        await consumeNormalStockLinesInTransaction(tx, saleLines, {
+          reason: "COUNTER_SALE",
+          referenceId: invoice.id,
+        });
+      } catch (error) {
+        if (error instanceof InventoryServiceError) {
+          throw new InvoiceServiceError(error.message, error.statusCode);
         }
+        throw error;
       }
       await tx.financeEvent.create({
         data: {
