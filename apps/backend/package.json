@@ -58,7 +58,7 @@
     "jwks-rsa": "^4.1.0",
     "moment": "2.31.0",
     "moment-timezone": "^0.6.3",
-    "multer": "2.3.0",
+    "multer": "2.4.0",
     "node-forge": "1.4.0",
     "playwright": "1.62.1",
     "safe-stable-stringify": "^2.5.0",
