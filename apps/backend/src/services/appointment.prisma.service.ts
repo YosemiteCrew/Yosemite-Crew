@@ -1447,6 +1447,21 @@ const getLeadIdFromRow = (row: AppointmentRow): string | undefined => {
   return typeof lead?.id === "string" && lead.id.trim() ? lead.id : undefined;
 };
 
+/**
+ * Runs `step` for each item strictly one after another and collects the
+ * results. Series writes share one interactive transaction, and each lead
+ * availability check has to see the occupancy written by the step before it,
+ * so these steps cannot run side by side.
+ */
+const runInOrder = <T, R>(
+  items: readonly T[],
+  step: (item: T, index: number) => Promise<R>,
+): Promise<R[]> =>
+  items.reduce<Promise<R[]>>(
+    async (done, item, index) => [...(await done), await step(item, index)],
+    Promise.resolve([]),
+  );
+
 type SeriesRescheduleOccurrence = {
   row: AppointmentRow;
   leadId?: string;
@@ -1901,9 +1916,8 @@ const createAppointments = async (
         templateDefaults,
       );
 
-      const appointments = [];
-      for (const [index, occurrence] of occurrences.entries()) {
-        const appointment = await createAppointmentOccurrence({
+      return runInOrder(occurrences, (occurrence, index) =>
+        createAppointmentOccurrence({
           tx,
           input,
           status,
@@ -1914,10 +1928,8 @@ const createAppointments = async (
           encounterId,
           appointmentType,
           productItemId: selection.productItemId,
-        });
-        appointments.push(appointment);
-      }
-      return appointments;
+        }),
+      );
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
@@ -2223,7 +2235,7 @@ export const AppointmentPrismaService = {
         400,
       );
     }
-    return prisma.$transaction(async (tx) => {
+    const preview = await prisma.$transaction(async (tx) => {
       const plan = await buildSeriesReschedulePlan(
         tx,
         appointmentId,
@@ -2232,6 +2244,7 @@ export const AppointmentPrismaService = {
       );
       return previewSeriesReschedule(tx, plan, organisationId);
     });
+    return preview;
   },
 
   async createWeeklyAppointmentSeriesFromPms(
@@ -2265,21 +2278,17 @@ export const AppointmentPrismaService = {
     );
     // One at a time: a series can hold 52 appointments, and opening every
     // invoice at once would take that many database connections together.
-    const created = [];
-    for (const { id } of appointments) {
-      if (!id) continue;
+    const ids = appointments.flatMap(({ id }) => (id ? [id] : []));
+    return runInOrder(ids, async (id) => {
       await InvoiceService.bootstrapForAppointment(
         id,
         resolvedPaymentCollectionMethod,
         input.organisationId,
       );
-      created.push(
-        await AppointmentPrismaService.getById(id, {
-          organisationId: input.organisationId,
-        }),
-      );
-    }
-    return created;
+      return AppointmentPrismaService.getById(id, {
+        organisationId: input.organisationId,
+      });
+    });
   },
 
   async approveRequestedFromPms(
@@ -2884,17 +2893,16 @@ export const AppointmentPrismaService = {
           organisationId,
           dto,
         );
-        for (const { row } of plan.occurrences) {
-          await upsertAppointmentOccupancy({
+        await runInOrder(plan.occurrences, ({ row }) =>
+          upsertAppointmentOccupancy({
             tx,
             appointmentId: row.id,
             organisationId,
             startTime: row.startTime,
             endTime: row.endTime,
-          });
-        }
-        const rows: AppointmentRow[] = [];
-        for (const occurrence of plan.occurrences) {
+          }),
+        );
+        return runInOrder(plan.occurrences, async (occurrence) => {
           if (occurrence.row.status === "UPCOMING") {
             await upsertAppointmentOccupancy({
               tx,
@@ -2905,7 +2913,7 @@ export const AppointmentPrismaService = {
               endTime: occurrence.endTime,
             });
           }
-          const row = await tx.appointment.update({
+          return tx.appointment.update({
             where: { id: occurrence.row.id },
             data: {
               startTime: occurrence.startTime,
@@ -2921,9 +2929,7 @@ export const AppointmentPrismaService = {
               updatedAt: new Date(),
             },
           });
-          rows.push(row);
-        }
-        return rows;
+        });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -3048,8 +3054,7 @@ export const AppointmentPrismaService = {
             "cancelAppointmentSeriesFromPms",
           ),
         );
-        const cancelled: AppointmentRow[] = [];
-        for (const row of activeRows) {
+        return runInOrder(activeRows, async (row) => {
           await upsertAppointmentOccupancy({
             tx,
             appointmentId: row.id,
@@ -3057,13 +3062,11 @@ export const AppointmentPrismaService = {
             startTime: row.startTime,
             endTime: row.endTime,
           });
-          const updatedRow = await tx.appointment.update({
+          return tx.appointment.update({
             where: { id: row.id },
             data: { status: "CANCELLED", updatedAt: new Date() },
           });
-          cancelled.push(updatedRow);
-        }
-        return cancelled;
+        });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );

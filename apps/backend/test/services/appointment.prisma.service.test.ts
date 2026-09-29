@@ -600,6 +600,18 @@ describe("AppointmentPrismaService", () => {
       expect(
         mockedInvoiceService.bootstrapForAppointment,
       ).toHaveBeenNthCalledWith(2, "series-2", "PAYMENT_LINK", "org_1");
+      // Each date is booked, and its lead's time held, before the next is tried.
+      expect(
+        mockedPrisma.occupancy.create.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mockedPrisma.appointment.create.mock.invocationCallOrder[1],
+      );
+      expect(
+        mockedInvoiceService.bootstrapForAppointment.mock
+          .invocationCallOrder[1],
+      ).toBeGreaterThan(
+        mockedPrisma.appointment.findFirst.mock.invocationCallOrder[0],
+      );
       expect(mockedCompanionOrgService.linkByPmsUser).toHaveBeenCalledWith({
         pmsUserId: "staff_1",
         patientId: "comp_1",
