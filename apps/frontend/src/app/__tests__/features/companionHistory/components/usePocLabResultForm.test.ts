@@ -3,7 +3,8 @@ import { act, renderHook } from '@testing-library/react';
 import { MAX_PARAMETERS } from '@/app/features/companionHistory/components/pocLabForm';
 import { usePocLabResultForm } from '@/app/features/companionHistory/components/usePocLabResultForm';
 
-const submitEvent = () => ({ preventDefault: jest.fn() }) as unknown as React.FormEvent;
+const submitEvent = () =>
+  ({ preventDefault: jest.fn() }) as unknown as React.SubmitEvent<HTMLFormElement>;
 
 const setup = ({
   creating = false,

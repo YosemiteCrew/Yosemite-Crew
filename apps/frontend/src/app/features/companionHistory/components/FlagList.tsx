@@ -173,7 +173,7 @@ const CreateFlagForm = ({ creating, onCreate, onCancel }: CreateFlagFormProps) =
   const [values, setValues] = useState<FlagFormValues>(emptyForm);
   const trimmedTitle = values.title.trim();
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!trimmedTitle || creating) return;
     const saved = await onCreate?.({ ...values, title: trimmedTitle });
