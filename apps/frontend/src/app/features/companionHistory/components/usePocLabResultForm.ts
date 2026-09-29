@@ -107,7 +107,7 @@ export const usePocLabResultForm = ({
   const { values, errors, patch, validate } = useValidatedValues();
   const rows = useParameterRows(values.rows, patch, ids);
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (creating) return;
     const found = validate();

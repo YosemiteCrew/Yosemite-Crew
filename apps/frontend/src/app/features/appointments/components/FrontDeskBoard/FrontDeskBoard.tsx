@@ -312,7 +312,7 @@ const useAddCheckInForm = ({ companions, onAdd, onClose }: AddCheckInFormProps) 
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const submit = async (event: React.FormEvent): Promise<void> => {
+  const submit = async (event: React.SubmitEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const selected = companions.find((companion) => companion.id === patientId);
     if (!selected) {

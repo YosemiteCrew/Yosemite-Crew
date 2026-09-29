@@ -34,7 +34,7 @@ const DraftImportForm = ({
   // Read only on submit, and the dropdown shows its own selection, so nothing renders from it.
   const sourceFormId = useRef<string | undefined>(undefined);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!suppliedText.trim() || submitting) return;
     onSubmit({ suppliedText, sourceFormId: sourceFormId.current });

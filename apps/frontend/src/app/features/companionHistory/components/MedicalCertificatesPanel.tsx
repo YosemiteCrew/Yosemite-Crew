@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useReducer, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useReducer, useState, type SubmitEvent } from 'react';
 import { IoDocumentTextOutline, IoPrintOutline } from 'react-icons/io5';
 import { Textarea } from '@/app/ui/Input';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -144,7 +144,7 @@ const CertificateDraftForm = ({ companionId, clientId, onCreated }: CertificateD
   const { notify } = useNotify();
   const [draft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
   const [saving, setSaving] = useState(false);
-  const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
+  const handleCreate = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
     try {
