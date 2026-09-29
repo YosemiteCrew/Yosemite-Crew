@@ -38,7 +38,7 @@ CREATE UNIQUE INDEX "PracticeProfileField_id_organisationId_entityType_key"
 CREATE UNIQUE INDEX "PracticeProfileField_organisationId_entityType_fieldKey_key"
   ON "PracticeProfileField"("organisationId", "entityType", "fieldKey")
   WHERE "isActive" = true;
-CREATE INDEX "PracticeProfileField_organisationId_entityType_isActive_sortOrder_idx"
+CREATE INDEX "PracticeProfileField_organisationId_entityType_isActive_sor_idx"
   ON "PracticeProfileField"("organisationId", "entityType", "isActive", "sortOrder");
 
 CREATE TABLE "PracticeProfileFieldValue" (
@@ -51,7 +51,7 @@ CREATE TABLE "PracticeProfileFieldValue" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "PracticeProfileFieldValue_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "PracticeProfileFieldValue_fieldId_organisationId_entityType_fkey"
+  CONSTRAINT "PracticeProfileFieldValue_fieldId_organisationId_entityTyp_fkey"
     FOREIGN KEY ("fieldId", "organisationId", "entityType")
     REFERENCES "PracticeProfileField"("id", "organisationId", "entityType")
     ON DELETE CASCADE ON UPDATE CASCADE
@@ -59,7 +59,7 @@ CREATE TABLE "PracticeProfileFieldValue" (
 
 CREATE UNIQUE INDEX "PracticeProfileFieldValue_fieldId_entityId_key"
   ON "PracticeProfileFieldValue"("fieldId", "entityId");
-CREATE INDEX "PracticeProfileFieldValue_organisationId_entityType_entityId_idx"
+CREATE INDEX "PracticeProfileFieldValue_organisationId_entityType_entityI_idx"
   ON "PracticeProfileFieldValue"("organisationId", "entityType", "entityId");
 
 -- ENABLE without FORCE, as 20260818090000 and 20260923170000. The API connects
