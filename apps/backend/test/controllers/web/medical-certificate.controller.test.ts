@@ -44,12 +44,14 @@ const buildRequest = (
     params: Record<string, string>;
     query: Record<string, unknown>;
     body: unknown;
+    userId: string;
   }> = {},
 ): Request =>
   ({
     params: { organisationId: ORG, ...(overrides.params ?? {}) },
     query: overrides.query ?? {},
     body: overrides.body ?? {},
+    userId: overrides.userId,
   }) as unknown as Request;
 
 beforeEach(() => {
@@ -70,6 +72,7 @@ describe("MedicalCertificateController.create", () => {
           certificateType: "FIT_FOR_TRAVEL",
           validForTravel: true,
           destinationCountry: "FR",
+          issuedBy: "forged-user",
         },
       }),
       res,
@@ -223,8 +226,9 @@ describe("MedicalCertificateController.issue", () => {
     await MedicalCertificateController.issue(
       buildRequest({
         params: { certId: CERT_ID },
+        userId: "staff-1",
         body: {
-          issuedBy: "Dr Ito",
+          issuedBy: "forged-user",
           expiresAt: "2026-09-01T00:00:00.000Z",
           clinicalFindings: "Healthy on examination",
         },
@@ -233,7 +237,7 @@ describe("MedicalCertificateController.issue", () => {
     );
 
     expect(service.issue).toHaveBeenCalledWith(CERT_ID, ORG, {
-      issuedBy: "Dr Ito",
+      issuedBy: "staff-1",
       clinicalFindings: "Healthy on examination",
       expiresAt: new Date("2026-09-01T00:00:00.000Z"),
     });
@@ -247,26 +251,27 @@ describe("MedicalCertificateController.issue", () => {
     await MedicalCertificateController.issue(
       buildRequest({
         params: { certId: CERT_ID },
-        body: { issuedBy: "Dr Ito" },
+        userId: "staff-1",
+        body: {},
       }),
       res,
     );
 
     expect(service.issue).toHaveBeenCalledWith(CERT_ID, ORG, {
-      issuedBy: "Dr Ito",
+      issuedBy: "staff-1",
       expiresAt: undefined,
     });
   });
 
-  it("requires an issuer", async () => {
+  it("requires an authenticated issuer", async () => {
     const res = buildResponse();
 
     await MedicalCertificateController.issue(
-      buildRequest({ params: { certId: CERT_ID }, body: {} }),
+      buildRequest({ params: { certId: CERT_ID } }),
       res,
     );
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(401);
     expect(service.issue).not.toHaveBeenCalled();
   });
 
@@ -279,7 +284,8 @@ describe("MedicalCertificateController.issue", () => {
     await MedicalCertificateController.issue(
       buildRequest({
         params: { certId: CERT_ID },
-        body: { issuedBy: "Dr Ito" },
+        userId: "staff-1",
+        body: {},
       }),
       res,
     );
@@ -300,7 +306,8 @@ describe("MedicalCertificateController.revoke", () => {
     await MedicalCertificateController.revoke(
       buildRequest({
         params: { certId: CERT_ID },
-        body: { revokedBy: "Dr Ito", revokedReason: "Issued in error" },
+        userId: "staff-1",
+        body: { revokedBy: "forged-user", revokedReason: "Issued in error" },
       }),
       res,
     );
@@ -308,7 +315,7 @@ describe("MedicalCertificateController.revoke", () => {
     expect(service.revoke).toHaveBeenCalledWith(
       CERT_ID,
       ORG,
-      "Dr Ito",
+      "staff-1",
       "Issued in error",
     );
     expect(res.json).toHaveBeenCalledWith(stored);
@@ -321,7 +328,8 @@ describe("MedicalCertificateController.revoke", () => {
     await MedicalCertificateController.revoke(
       buildRequest({
         params: { certId: CERT_ID },
-        body: { revokedBy: "Dr Ito" },
+        userId: "staff-1",
+        body: {},
       }),
       res,
     );
@@ -329,20 +337,20 @@ describe("MedicalCertificateController.revoke", () => {
     expect(service.revoke).toHaveBeenCalledWith(
       CERT_ID,
       ORG,
-      "Dr Ito",
+      "staff-1",
       undefined,
     );
   });
 
-  it("requires a revoking user", async () => {
+  it("requires an authenticated revoking user", async () => {
     const res = buildResponse();
 
     await MedicalCertificateController.revoke(
-      buildRequest({ params: { certId: CERT_ID }, body: { revokedBy: "" } }),
+      buildRequest({ params: { certId: CERT_ID } }),
       res,
     );
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(401);
     expect(service.revoke).not.toHaveBeenCalled();
   });
 
@@ -353,7 +361,8 @@ describe("MedicalCertificateController.revoke", () => {
     await MedicalCertificateController.revoke(
       buildRequest({
         params: { certId: CERT_ID },
-        body: { revokedBy: "Dr Ito" },
+        userId: "staff-1",
+        body: {},
       }),
       res,
     );
