@@ -5,7 +5,6 @@ jest.mock("../../src/config/prisma", () => ({
   prisma: {
     userOrganization: {
       findFirst: jest.fn(),
-      update: jest.fn(),
       updateMany: jest.fn(),
     },
     appointment: {
@@ -201,7 +200,7 @@ describe("rbac middleware", () => {
 
     await withOrgPermissions()(req, mockRes(), next());
 
-    expect(prisma.userOrganization.update).toHaveBeenCalledWith({
+    expect(prisma.userOrganization.updateMany).toHaveBeenCalledWith({
       where: { id: "map_1" },
       data: {
         effectivePermissions: expect.arrayContaining(["tasks:edit:any"]),
@@ -449,6 +448,49 @@ describe("rbac middleware", () => {
     expect(deliveryReq.params.organisationId).toBe("org_delivery");
   });
 
+  it("answers 404 for another organisation's purchase order or delivery", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    (prisma.purchaseOrder.findUnique as jest.Mock).mockResolvedValue({
+      organisationId: "org_other",
+    } as never);
+    (prisma.purchaseOrderDelivery.findUnique as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    const orderRes = mockRes();
+    const orderNext = next();
+    await withPurchaseOrderOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { purchaseOrderId: "po_1" },
+        headers: {},
+      } as unknown as Request,
+      orderRes,
+      orderNext,
+    );
+    const deliveryRes = mockRes();
+    await withPurchaseOrderDeliveryOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { deliveryId: "delivery_1" },
+        headers: {},
+      } as unknown as Request,
+      deliveryRes,
+      next(),
+    );
+
+    expect(orderNext).not.toHaveBeenCalled();
+    expect(orderRes.status).toHaveBeenCalledWith(404);
+    expect(orderRes.json).toHaveBeenCalledWith({
+      message: "Purchase order not found",
+    });
+    expect(deliveryRes.status).toHaveBeenCalledWith(404);
+    expect(deliveryRes.json).toHaveBeenCalledWith({
+      message: "Delivery not found",
+    });
+  });
+
   it("resolves org id from the x-org-id header", async () => {
     (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
       membership() as never,
@@ -621,7 +663,7 @@ describe("rbac middleware", () => {
     await withOrgPermissions()(req, mockRes(), middlewareNext);
 
     expect((req as unknown as OrgRequest).userPermissions).toEqual([]);
-    expect(prisma.userOrganization.update).not.toHaveBeenCalled();
+    expect(prisma.userOrganization.updateMany).not.toHaveBeenCalled();
     expect(middlewareNext).toHaveBeenCalled();
   });
 
@@ -953,7 +995,7 @@ describe("rbac middleware", () => {
 
     // stored `undefined` normalises to [], which differs from the computed
     // set, forcing a persist and using the freshly computed permissions.
-    expect(prisma.userOrganization.update).toHaveBeenCalledWith({
+    expect(prisma.userOrganization.updateMany).toHaveBeenCalledWith({
       where: { id: "map_1" },
       data: { effectivePermissions: ["tasks:view:any"] },
     });
@@ -983,7 +1025,7 @@ describe("rbac middleware", () => {
 
     await withOrgPermissions()(req, mockRes(), middlewareNext);
 
-    expect(prisma.userOrganization.update).toHaveBeenCalledWith({
+    expect(prisma.userOrganization.updateMany).toHaveBeenCalledWith({
       where: { id: "map_1" },
       data: {
         effectivePermissions: ["tasks:view:any", "tasks:edit:any"],

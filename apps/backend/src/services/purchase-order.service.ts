@@ -1,7 +1,6 @@
 import { Prisma, PurchaseOrderStatus } from "@prisma/client";
 import { prisma } from "src/config/prisma";
-
-export { PurchaseOrderStatus };
+import { roundMoney } from "src/services/finance/pricing";
 
 export class PurchaseOrderServiceError extends Error {
   constructor(
@@ -18,7 +17,7 @@ export interface CreatePurchaseOrderInput {
   vendorId: string;
   orderNumber?: string;
   expectedDate?: Date;
-  currency?: string;
+  currency: string;
   notes?: string;
   createdBy?: string;
   lines: CreatePurchaseOrderLineInput[];
@@ -37,6 +36,7 @@ export interface CreatePurchaseOrderLineInput {
 export interface ReceiveDeliveryInput {
   organisationId: string;
   purchaseOrderId: string;
+  idempotencyKey: string;
   deliveryDate?: Date;
   receivedBy?: string;
   notes?: string;
@@ -52,6 +52,9 @@ export interface ReceiveDeliveryLineInput {
 export interface ReturnDeliveryInput {
   organisationId: string;
   deliveryId: string;
+  idempotencyKey: string;
+  returnedBy?: string;
+  notes?: string;
   lines: ReturnDeliveryLineInput[];
 }
 
@@ -60,19 +63,25 @@ export interface ReturnDeliveryLineInput {
   quantityReturned: number;
 }
 
-export interface UpdatePurchaseOrderStatusInput {
-  purchaseOrderId: string;
-  status: PurchaseOrderStatus;
-}
+type Tx = Prisma.TransactionClient;
+type OrderLine = Prisma.PurchaseOrderLineGetPayload<object>;
+type DeliveryLine = Prisma.PurchaseOrderDeliveryLineGetPayload<object>;
 
-type PrismaClientOrTx = typeof prisma | Prisma.TransactionClient;
+const OPEN_STATUSES: PurchaseOrderStatus[] = [
+  "DRAFT",
+  "CONFIRMED",
+  "PARTIALLY_RECEIVED",
+];
+const RECEIVING_STATUSES: PurchaseOrderStatus[] = [
+  "CONFIRMED",
+  "PARTIALLY_RECEIVED",
+  "RECEIVED",
+];
+const DELIVERY_INCLUDE = { lines: true, returns: true } as const;
 
-const ensureObjectId = (id: string, fieldName = "id"): string => {
-  if (!id || typeof id !== "string" || id.trim().length === 0) {
-    throw new PurchaseOrderServiceError(`Invalid ${fieldName}`, 400);
-  }
-  return id;
-};
+const isUniqueViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2002";
 
 const updateOrThrow = async <T>(
   update: () => Promise<T>,
@@ -92,59 +101,37 @@ const updateOrThrow = async <T>(
   }
 };
 
+// ponytail: count-based numbering; two orders created in the same instant can
+// collide and the second answers 409, a per-organisation sequence fixes that.
 const generateOrderNumber = async (organisationId: string): Promise<string> => {
   const today = new Date();
   const prefix = `PO-${today.getFullYear()}${(today.getMonth() + 1).toString().padStart(2, "0")}`;
   const count = await prisma.purchaseOrder.count({
-    where: {
-      organisationId,
-      orderNumber: { startsWith: prefix },
-    },
+    where: { organisationId, orderNumber: { startsWith: prefix } },
   });
   return `${prefix}-${(count + 1).toString().padStart(4, "0")}`;
 };
 
-const recalculatePurchaseOrderTotals = async (
-  purchaseOrderId: string,
-  client: PrismaClientOrTx = prisma,
-): Promise<void> => {
-  const lines = await client.purchaseOrderLine.findMany({
-    where: { purchaseOrderId },
-  });
-
-  const totalAmount = lines.reduce((sum, line) => sum + line.totalCost, 0);
-
-  await client.purchaseOrder.update({
-    where: { id: purchaseOrderId },
-    data: { totalAmount },
-  });
-};
-
-const updatePurchaseOrderStatusFromLines = async (
-  purchaseOrderId: string,
-  client: PrismaClientOrTx = prisma,
-): Promise<void> => {
-  const lines = await client.purchaseOrderLine.findMany({
+/**
+ * Moves an order between CONFIRMED, PARTIALLY_RECEIVED and RECEIVED from what
+ * its lines hold. A cancelled or draft order keeps its status.
+ */
+const syncStatusFromLines = async (purchaseOrderId: string, tx: Tx) => {
+  const lines = await tx.purchaseOrderLine.findMany({
     where: { purchaseOrderId },
     select: { quantityOrdered: true, quantityReceived: true },
   });
-
   if (!lines.length) return;
 
-  const totalOrdered = lines.reduce((sum, l) => sum + l.quantityOrdered, 0);
-  const totalReceived = lines.reduce((sum, l) => sum + l.quantityReceived, 0);
-
-  let status: PurchaseOrderStatus;
-  if (totalReceived === 0) {
-    status = "CONFIRMED";
-  } else if (totalReceived >= totalOrdered) {
+  const received = lines.reduce((sum, l) => sum + l.quantityReceived, 0);
+  let status: PurchaseOrderStatus = "PARTIALLY_RECEIVED";
+  if (received === 0) status = "CONFIRMED";
+  else if (lines.every((l) => l.quantityReceived >= l.quantityOrdered)) {
     status = "RECEIVED";
-  } else {
-    status = "PARTIALLY_RECEIVED";
   }
 
-  await client.purchaseOrder.update({
-    where: { id: purchaseOrderId },
+  await tx.purchaseOrder.updateMany({
+    where: { id: purchaseOrderId, status: { in: RECEIVING_STATUSES } },
     data: { status },
   });
 };
@@ -153,9 +140,9 @@ const validateReceiptLines = async (
   purchaseOrderId: string,
   organisationId: string,
   lines: ReceiveDeliveryLineInput[],
-  client: PrismaClientOrTx,
+  tx: Tx,
 ) => {
-  const orderLines = await client.purchaseOrderLine.findMany({
+  const orderLines = await tx.purchaseOrderLine.findMany({
     where: {
       id: { in: lines.map((line) => line.purchaseOrderLineId) },
       purchaseOrderId,
@@ -169,7 +156,7 @@ const validateReceiptLines = async (
     line.batchId ? [line.batchId] : [],
   );
   const batches = batchIds.length
-    ? await client.inventoryBatch.findMany({
+    ? await tx.inventoryBatch.findMany({
         where: { id: { in: batchIds }, organisationId },
         select: { id: true, itemId: true },
       })
@@ -178,18 +165,16 @@ const validateReceiptLines = async (
 
   for (const line of lines) {
     const orderLine = orderLineById.get(line.purchaseOrderLineId)!;
-    if (line.quantityReceived < 1 || !Number.isInteger(line.quantityReceived)) {
+    if (!Number.isInteger(line.quantityReceived) || line.quantityReceived < 1) {
       throw new PurchaseOrderServiceError(
-        "Received quantity must be a positive integer",
+        "Received quantity must be a whole number above zero",
         400,
       );
     }
-    if (
-      line.quantityReceived >
-      orderLine.quantityOrdered - orderLine.quantityReceived
-    ) {
+    const remaining = orderLine.quantityOrdered - orderLine.quantityReceived;
+    if (line.quantityReceived > remaining) {
       throw new PurchaseOrderServiceError(
-        `Cannot receive ${line.quantityReceived} units. Only ${orderLine.quantityOrdered - orderLine.quantityReceived} remaining to receive for this line.`,
+        `Cannot receive ${line.quantityReceived} units. Only ${remaining} remaining to receive for this line.`,
         400,
       );
     }
@@ -204,28 +189,55 @@ const validateReceiptLines = async (
   return orderLineById;
 };
 
+/** Posts the received quantity to a batch and returns the batch id. */
+const postReceiptToBatch = async (
+  deliveryId: string,
+  organisationId: string,
+  line: ReceiveDeliveryLineInput,
+  orderLine: OrderLine,
+  tx: Tx,
+): Promise<string> => {
+  const { itemId } = orderLine;
+  if (line.batchId) {
+    await updateOrThrow(
+      () =>
+        tx.inventoryBatch.update({
+          where: { id: line.batchId, itemId, organisationId },
+          data: { quantity: { increment: line.quantityReceived } },
+        }),
+      "Inventory batch not found",
+      404,
+    );
+    return line.batchId;
+  }
+  const batch = await tx.inventoryBatch.create({
+    data: {
+      itemId,
+      organisationId,
+      batchNumber: orderLine.batchNumber ?? `PO-${deliveryId.slice(0, 8)}`,
+      lotNumber: orderLine.lotNumber,
+      expiryDate: orderLine.expiryDate,
+      quantity: line.quantityReceived,
+      allocated: 0,
+    },
+  });
+  return batch.id;
+};
+
 const applyReceiptLine = async (
   deliveryId: string,
   organisationId: string,
   receivedBy: string | undefined,
   line: ReceiveDeliveryLineInput,
-  orderLine: Prisma.PurchaseOrderLineGetPayload<object>,
-  client: PrismaClientOrTx,
+  orderLine: OrderLine,
+  tx: Tx,
 ) => {
-  const { purchaseOrderLineId, quantityReceived, batchId } = line;
-  const itemId = orderLine.itemId;
-  await client.purchaseOrderDeliveryLine.create({
-    data: {
-      deliveryId,
-      purchaseOrderLineId,
-      itemId,
-      quantityReceived,
-      batchId,
-    },
-  });
+  const { purchaseOrderLineId, quantityReceived } = line;
+  const { itemId } = orderLine;
+
   await updateOrThrow(
     () =>
-      client.purchaseOrderLine.update({
+      tx.purchaseOrderLine.update({
         where: {
           id: purchaseOrderLineId,
           quantityReceived: {
@@ -235,56 +247,39 @@ const applyReceiptLine = async (
         data: { quantityReceived: { increment: quantityReceived } },
       }),
     "Receipt exceeds the ordered quantity",
-    400,
+    409,
   );
 
-  if (batchId) {
-    await updateOrThrow(
-      () =>
-        client.inventoryBatch.update({
-          where: { id: batchId, itemId, organisationId },
-          data: { quantity: { increment: quantityReceived } },
-        }),
-      "Inventory batch not found",
-      404,
-    );
-    await client.inventoryStockMovement.create({
-      data: {
-        itemId,
-        batchId,
-        change: quantityReceived,
-        reason: "PURCHASE_RECEIPT",
-        referenceId: deliveryId,
-        userId: receivedBy,
-      },
-    });
-  } else {
-    const batch = await client.inventoryBatch.create({
-      data: {
-        itemId,
-        organisationId,
-        batchNumber: orderLine.batchNumber ?? `PO-${deliveryId.slice(0, 8)}`,
-        lotNumber: orderLine.lotNumber,
-        expiryDate: orderLine.expiryDate,
-        quantity: quantityReceived,
-        allocated: 0,
-      },
-    });
-    await client.inventoryStockMovement.create({
-      data: {
-        itemId,
-        batchId: batch.id,
-        change: quantityReceived,
-        reason: "PURCHASE_RECEIPT",
-        referenceId: deliveryId,
-        userId: receivedBy,
-      },
-    });
-  }
+  const batchId = await postReceiptToBatch(
+    deliveryId,
+    organisationId,
+    line,
+    orderLine,
+    tx,
+  );
 
+  await tx.purchaseOrderDeliveryLine.create({
+    data: {
+      deliveryId,
+      purchaseOrderLineId,
+      itemId,
+      quantityReceived,
+      batchId,
+    },
+  });
+  await tx.inventoryStockMovement.create({
+    data: {
+      itemId,
+      batchId,
+      change: quantityReceived,
+      reason: "PURCHASE",
+      referenceId: deliveryId,
+      userId: receivedBy,
+    },
+  });
   await updateOrThrow(
     () =>
-      client.inventoryItem.update({
+      tx.inventoryItem.update({
         where: { id: itemId, organisationId },
         data: { onHand: { increment: quantityReceived } },
       }),
@@ -293,182 +288,203 @@ const applyReceiptLine = async (
   );
 };
 
-const validatePurchaseOrderForReceipt = async (
+const findDeliveryByKey = (
+  client: Tx | typeof prisma,
   purchaseOrderId: string,
   organisationId: string,
-  client: PrismaClientOrTx,
-) => {
-  const purchaseOrder = await client.purchaseOrder.findFirst({
-    where: { id: purchaseOrderId, organisationId },
-  });
-
-  if (!purchaseOrder) {
-    throw new PurchaseOrderServiceError("Purchase order not found", 404);
-  }
-
-  if (purchaseOrder.status === "CANCELLED") {
-    throw new PurchaseOrderServiceError(
-      "Cannot receive delivery for cancelled order",
-      400,
-    );
-  }
-
-  if (purchaseOrder.status === "RECEIVED") {
-    throw new PurchaseOrderServiceError("Order already fully received", 400);
-  }
-
-  return purchaseOrder;
-};
-
-const createDeliveryRecord = async (
-  purchaseOrderId: string,
-  vendorId: string,
-  deliveryDate: Date | undefined,
-  receivedBy: string | undefined,
-  notes: string | undefined,
-  client: PrismaClientOrTx,
-) => {
-  return client.purchaseOrderDelivery.create({
-    data: {
+  idempotencyKey: string,
+) =>
+  client.purchaseOrderDelivery.findFirst({
+    where: {
       purchaseOrderId,
-      vendorId,
-      deliveryDate: deliveryDate ?? new Date(),
-      receivedBy,
-      notes,
-      status: "RECEIVED",
+      idempotencyKey,
+      purchaseOrder: { organisationId },
     },
+    include: DELIVERY_INCLUDE,
   });
-};
-
-const processReceiptLines = async (
-  deliveryId: string,
-  organisationId: string,
-  receivedBy: string | undefined,
-  lines: ReceiveDeliveryLineInput[],
-  orderLineById: Map<string, Prisma.PurchaseOrderLineGetPayload<object>>,
-  client: PrismaClientOrTx,
-) => {
-  for (const line of lines) {
-    await applyReceiptLine(
-      deliveryId,
-      organisationId,
-      receivedBy,
-      line,
-      orderLineById.get(line.purchaseOrderLineId)!,
-      client,
-    );
-  }
-};
 
 const receiveDeliveryInTransaction = async (
   input: ReceiveDeliveryInput,
-  client: PrismaClientOrTx,
+  tx: Tx,
 ) => {
-  const {
-    organisationId,
-    purchaseOrderId,
-    deliveryDate,
-    receivedBy,
-    notes,
-    lines,
-  } = input;
+  const { organisationId, purchaseOrderId, idempotencyKey, receivedBy, lines } =
+    input;
 
-  const purchaseOrder = await validatePurchaseOrderForReceipt(
+  // A retry of a receipt that already went through returns it unchanged,
+  // even once that receipt has completed the order.
+  const replay = await findDeliveryByKey(
+    tx,
     purchaseOrderId,
     organisationId,
-    client,
+    idempotencyKey,
   );
+  if (replay) return replay;
+
+  const purchaseOrder = await tx.purchaseOrder.findFirst({
+    where: { id: purchaseOrderId, organisationId },
+  });
+  if (!purchaseOrder) {
+    throw new PurchaseOrderServiceError("Purchase order not found", 404);
+  }
+  if (purchaseOrder.status === "DRAFT") {
+    throw new PurchaseOrderServiceError(
+      "Confirm the order before receiving a delivery",
+      400,
+    );
+  }
+  if (purchaseOrder.status === "CANCELLED") {
+    throw new PurchaseOrderServiceError(
+      "Cannot receive a delivery for a cancelled order",
+      400,
+    );
+  }
+  if (purchaseOrder.status === "RECEIVED") {
+    throw new PurchaseOrderServiceError("Order already fully received", 400);
+  }
 
   const orderLineById = await validateReceiptLines(
     purchaseOrderId,
     organisationId,
     lines,
-    client,
+    tx,
   );
 
-  const delivery = await createDeliveryRecord(
-    purchaseOrderId,
-    purchaseOrder.vendorId,
-    deliveryDate,
-    receivedBy,
-    notes,
-    client,
-  );
+  const delivery = await tx.purchaseOrderDelivery.create({
+    data: {
+      purchaseOrderId,
+      vendorId: purchaseOrder.vendorId,
+      idempotencyKey,
+      deliveryDate: input.deliveryDate ?? new Date(),
+      receivedBy,
+      notes: input.notes,
+      status: "RECEIVED",
+    },
+  });
 
-  await processReceiptLines(
-    delivery.id,
-    organisationId,
-    receivedBy,
-    lines,
-    orderLineById,
-    client,
-  );
-
-  await updatePurchaseOrderStatusFromLines(purchaseOrderId, client);
-  await recalculatePurchaseOrderTotals(purchaseOrderId, client);
-
-  return delivery;
-};
-
-type DeliveryLineWithOrderLine = Prisma.PurchaseOrderDeliveryLineGetPayload<{
-  include: { purchaseOrderLine: true };
-}>;
-
-const validateReturnQuantity = (
-  deliveryLine: DeliveryLineWithOrderLine,
-  quantityReturned: number,
-) => {
-  if (
-    quantityReturned >
-    deliveryLine.quantityReceived - deliveryLine.quantityReturned
-  ) {
-    throw new PurchaseOrderServiceError(
-      "Return exceeds the remaining delivered quantity",
-      400,
+  for (const line of lines) {
+    await applyReceiptLine(
+      delivery.id,
+      organisationId,
+      receivedBy,
+      line,
+      orderLineById.get(line.purchaseOrderLineId)!,
+      tx,
     );
   }
 
-  const poLine = deliveryLine.purchaseOrderLine;
-  if (poLine.quantityReceived < quantityReturned) {
-    throw new PurchaseOrderServiceError(
-      "Return exceeds received quantity",
-      400,
-    );
-  }
+  await syncStatusFromLines(purchaseOrderId, tx);
+
+  return tx.purchaseOrderDelivery.findUniqueOrThrow({
+    where: { id: delivery.id },
+    include: DELIVERY_INCLUDE,
+  });
 };
 
-const updateDeliveryLineForReturn = async (
-  deliveryLineId: string,
-  deliveryLine: DeliveryLineWithOrderLine,
+/** Takes the returned quantity out of the batch the delivery posted it to. */
+const takeReturnFromBatch = async (
+  deliveryLine: DeliveryLine,
+  organisationId: string,
   quantityReturned: number,
-  client: PrismaClientOrTx,
+  tx: Tx,
 ) => {
+  const { itemId, batchId } = deliveryLine;
+  const batch = await tx.inventoryBatch.findFirst({
+    where: { id: batchId, itemId, organisationId },
+    select: { quantity: true, allocated: true },
+  });
+  if (!batch || batch.quantity - batch.allocated < quantityReturned) {
+    throw new PurchaseOrderServiceError(
+      "Not enough unallocated stock in the received batch to return",
+      409,
+    );
+  }
+  // quantity >= returned + allocated-at-read and allocated <= allocated-at-read
+  // together keep quantity - allocated >= returned against a concurrent change.
   await updateOrThrow(
     () =>
-      client.purchaseOrderDeliveryLine.update({
+      tx.inventoryBatch.update({
         where: {
-          id: deliveryLineId,
+          id: batchId,
+          itemId,
+          organisationId,
+          quantity: { gte: quantityReturned + batch.allocated },
+          allocated: { lte: batch.allocated },
+        },
+        data: { quantity: { decrement: quantityReturned } },
+      }),
+    "Not enough unallocated stock in the received batch to return",
+    409,
+  );
+};
+
+const takeReturnFromItem = async (
+  itemId: string,
+  organisationId: string,
+  quantityReturned: number,
+  tx: Tx,
+) => {
+  const item = await tx.inventoryItem.findFirst({
+    where: { id: itemId, organisationId },
+    select: { onHand: true, allocated: true },
+  });
+  if (!item || item.onHand - item.allocated < quantityReturned) {
+    throw new PurchaseOrderServiceError(
+      "Not enough unallocated stock to return",
+      409,
+    );
+  }
+  await updateOrThrow(
+    () =>
+      tx.inventoryItem.update({
+        where: {
+          id: itemId,
+          organisationId,
+          onHand: { gte: quantityReturned + item.allocated },
+          allocated: { lte: item.allocated },
+        },
+        data: { onHand: { decrement: quantityReturned } },
+      }),
+    "Not enough unallocated stock to return",
+    409,
+  );
+};
+
+const applyReturnLine = async (
+  returnId: string,
+  organisationId: string,
+  returnedBy: string | undefined,
+  deliveryLine: DeliveryLine,
+  quantityReturned: number,
+  tx: Tx,
+) => {
+  const remaining =
+    deliveryLine.quantityReceived - deliveryLine.quantityReturned;
+  if (quantityReturned > remaining) {
+    throw new PurchaseOrderServiceError(
+      `Cannot return ${quantityReturned} units. Only ${remaining} from this delivery line are left to return.`,
+      400,
+    );
+  }
+
+  await updateOrThrow(
+    () =>
+      tx.purchaseOrderDeliveryLine.update({
+        where: {
+          id: deliveryLine.id,
           quantityReturned: {
             lte: deliveryLine.quantityReceived - quantityReturned,
           },
         },
         data: { quantityReturned: { increment: quantityReturned } },
       }),
-    "Return exceeds the remaining delivered quantity",
-    400,
+    "Return exceeds the quantity left on this delivery line",
+    409,
   );
-};
-
-const updatePurchaseOrderLineForReturn = async (
-  purchaseOrderLineId: string,
-  quantityReturned: number,
-  client: PrismaClientOrTx,
-) => {
   await updateOrThrow(
     () =>
-      client.purchaseOrderLine.update({
+      tx.purchaseOrderLine.update({
         where: {
-          id: purchaseOrderLineId,
+          id: deliveryLine.purchaseOrderLineId,
           quantityReceived: { gte: quantityReturned },
         },
         data: {
@@ -476,228 +492,126 @@ const updatePurchaseOrderLineForReturn = async (
           quantityReturned: { increment: quantityReturned },
         },
       }),
-    "Return exceeds received quantity",
-    400,
+    "Return exceeds the quantity received on this order line",
+    409,
   );
-};
 
-const selectBatchForReturn = async (
-  itemId: string,
-  organisationId: string,
-  batchId: string | undefined,
-  quantityReturned: number,
-  client: PrismaClientOrTx,
-) => {
-  const batches = batchId
-    ? []
-    : await client.inventoryBatch.findMany({
-        where: {
-          itemId,
-          organisationId,
-          quantity: { gte: quantityReturned },
-        },
-        orderBy: { createdAt: "asc" },
-        select: { id: true, quantity: true, allocated: true },
-      });
-  const batch = batchId
-    ? await client.inventoryBatch.findFirst({
-        where: { id: batchId, itemId, organisationId },
-        select: { id: true, quantity: true, allocated: true },
-      })
-    : batches.find(
-        (candidate) =>
-          candidate.quantity - candidate.allocated >= quantityReturned,
-      );
-  if (!batch || batch.quantity - batch.allocated < quantityReturned) {
-    throw new PurchaseOrderServiceError(
-      "Insufficient available batch stock",
-      400,
-    );
-  }
-  return batch;
-};
-
-const updateBatchForReturn = async (
-  batchId: string,
-  itemId: string,
-  organisationId: string,
-  quantityReturned: number,
-  batch: { id: string; quantity: number; allocated: number },
-  deliveryId: string,
-  client: PrismaClientOrTx,
-) => {
-  await updateOrThrow(
-    () =>
-      client.inventoryBatch.update({
-        where: {
-          id: batch.id,
-          itemId,
-          organisationId,
-          quantity: { gte: quantityReturned },
-          allocated: { lte: batch.quantity - quantityReturned },
-        },
-        data: { quantity: { decrement: quantityReturned } },
-      }),
-    "Insufficient available batch stock",
-    400,
+  await takeReturnFromBatch(deliveryLine, organisationId, quantityReturned, tx);
+  await takeReturnFromItem(
+    deliveryLine.itemId,
+    organisationId,
+    quantityReturned,
+    tx,
   );
-  await client.inventoryStockMovement.create({
+  await tx.inventoryStockMovement.create({
     data: {
-      itemId,
-      batchId: batch.id,
+      itemId: deliveryLine.itemId,
+      batchId: deliveryLine.batchId,
       change: -quantityReturned,
       reason: "PURCHASE_RETURN",
-      referenceId: deliveryId,
+      referenceId: returnId,
+      userId: returnedBy,
     },
   });
 };
 
-const updateInventoryItemForReturn = async (
-  itemId: string,
-  organisationId: string,
-  quantityReturned: number,
-  client: PrismaClientOrTx,
-) => {
-  const inventoryItem = await client.inventoryItem.findFirst({
-    where: { id: itemId, organisationId },
-    select: { onHand: true, allocated: true },
-  });
-  if (
-    !inventoryItem ||
-    inventoryItem.onHand - inventoryItem.allocated < quantityReturned
-  ) {
-    throw new PurchaseOrderServiceError("Insufficient inventory stock", 400);
-  }
-  await updateOrThrow(
-    () =>
-      client.inventoryItem.update({
-        where: {
-          id: itemId,
-          organisationId,
-          onHand: { gte: quantityReturned + inventoryItem.allocated },
-          allocated: { lte: inventoryItem.onHand - quantityReturned },
-        },
-        data: { onHand: { decrement: quantityReturned } },
-      }),
-    "Insufficient inventory stock",
-    400,
-  );
-};
-
-const applyDeliveryReturnLine = async (
+const findDeliveryForOrg = (
+  client: Tx | typeof prisma,
   deliveryId: string,
   organisationId: string,
-  deliveryLine: DeliveryLineWithOrderLine,
-  quantityReturned: number,
-  client: PrismaClientOrTx,
-) => {
-  validateReturnQuantity(deliveryLine, quantityReturned);
-
-  const {
-    id: deliveryLineId,
-    itemId,
-    batchId,
-    purchaseOrderLineId,
-  } = deliveryLine;
-
-  await updateDeliveryLineForReturn(
-    deliveryLineId,
-    deliveryLine,
-    quantityReturned,
-    client,
-  );
-  await updatePurchaseOrderLineForReturn(
-    purchaseOrderLineId,
-    quantityReturned,
-    client,
-  );
-
-  const batch = await selectBatchForReturn(
-    itemId,
-    organisationId,
-    batchId,
-    quantityReturned,
-    client,
-  );
-
-  await updateBatchForReturn(
-    batchId,
-    itemId,
-    organisationId,
-    quantityReturned,
-    batch,
-    deliveryId,
-    client,
-  );
-
-  await updateInventoryItemForReturn(
-    itemId,
-    organisationId,
-    quantityReturned,
-    client,
-  );
-};
+) =>
+  client.purchaseOrderDelivery.findFirst({
+    where: { id: deliveryId, purchaseOrder: { organisationId } },
+    include: DELIVERY_INCLUDE,
+  });
 
 const returnDeliveryInTransaction = async (
   input: ReturnDeliveryInput,
-  client: PrismaClientOrTx,
+  tx: Tx,
 ) => {
-  const { organisationId, deliveryId, lines } = input;
+  const { organisationId, deliveryId, idempotencyKey, returnedBy, lines } =
+    input;
 
-  const delivery = await client.purchaseOrderDelivery.findFirst({
-    where: { id: deliveryId, purchaseOrder: { organisationId } },
-    include: { purchaseOrder: true },
-  });
-
+  const delivery = await findDeliveryForOrg(tx, deliveryId, organisationId);
   if (!delivery) {
     throw new PurchaseOrderServiceError("Delivery not found", 404);
   }
+  if (delivery.returns.some((r) => r.idempotencyKey === idempotencyKey)) {
+    return delivery;
+  }
 
-  const deliveryLines = await client.purchaseOrderDeliveryLine.findMany({
-    where: {
-      id: { in: lines.map((line) => line.deliveryLineId) },
-      deliveryId,
-    },
-    include: { purchaseOrderLine: true },
-  });
-  if (deliveryLines.length !== lines.length) {
+  const deliveryLineById = new Map(delivery.lines.map((l) => [l.id, l]));
+  if (lines.some((line) => !deliveryLineById.has(line.deliveryLineId))) {
     throw new PurchaseOrderServiceError("Delivery line not found", 404);
   }
-  const deliveryLineById = new Map(
-    deliveryLines.map((line) => [line.id, line]),
-  );
+
+  const purchaseReturn = await tx.purchaseOrderReturn.create({
+    data: { deliveryId, idempotencyKey, returnedBy, notes: input.notes },
+  });
 
   for (const line of lines) {
-    await applyDeliveryReturnLine(
-      deliveryId,
+    await applyReturnLine(
+      purchaseReturn.id,
       organisationId,
+      returnedBy,
       deliveryLineById.get(line.deliveryLineId)!,
       line.quantityReturned,
-      client,
+      tx,
     );
   }
 
-  await updatePurchaseOrderStatusFromLines(delivery.purchaseOrderId, client);
-  await recalculatePurchaseOrderTotals(delivery.purchaseOrderId, client);
+  await syncStatusFromLines(delivery.purchaseOrderId, tx);
 
-  return delivery;
+  return tx.purchaseOrderDelivery.findUniqueOrThrow({
+    where: { id: deliveryId },
+    include: DELIVERY_INCLUDE,
+  });
+};
+
+/**
+ * Two identical requests racing past the replay check both try to insert the
+ * same key; the loser's transaction rolls back on the unique index and it
+ * answers with what the winner recorded.
+ */
+const replayOnDuplicateKey = async <T>(
+  run: () => Promise<T>,
+  readBack: () => Promise<T | null>,
+): Promise<T> => {
+  try {
+    return await run();
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    const existing = await readBack();
+    if (!existing) throw error;
+    return existing;
+  }
+};
+
+/** Applies a status change only from the allowed statuses, atomically. */
+const transitionStatus = async (
+  purchaseOrderId: string,
+  organisationId: string,
+  from: PurchaseOrderStatus[],
+  to: PurchaseOrderStatus,
+  refusal: string,
+) => {
+  const { count } = await prisma.purchaseOrder.updateMany({
+    where: { id: purchaseOrderId, organisationId, status: { in: from } },
+    data: { status: to },
+  });
+  const order = await prisma.purchaseOrder.findFirst({
+    where: { id: purchaseOrderId, organisationId },
+  });
+  if (!order) {
+    throw new PurchaseOrderServiceError("Purchase order not found", 404);
+  }
+  if (count === 0) throw new PurchaseOrderServiceError(refusal, 400);
+  return order;
 };
 
 export const PurchaseOrderService = {
   async createOrder(input: CreatePurchaseOrderInput) {
-    const {
-      organisationId,
-      vendorId,
-      orderNumber,
-      expectedDate,
-      currency,
-      notes,
-      createdBy,
-      lines,
-    } = input;
-
-    ensureObjectId(organisationId, "organisationId");
-    ensureObjectId(vendorId, "vendorId");
+    const { organisationId, vendorId, currency, lines } = input;
 
     const vendor = await prisma.inventoryVendor.findFirst({
       where: { id: vendorId, organisationId },
@@ -714,126 +628,106 @@ export const PurchaseOrderService = {
       throw new PurchaseOrderServiceError("Inventory item not found", 404);
     }
 
-    const finalOrderNumber =
-      orderNumber ?? (await generateOrderNumber(organisationId));
+    const lineData = lines.map((line) => ({
+      itemId: line.itemId,
+      vendorId,
+      quantityOrdered: line.quantityOrdered,
+      unitCost: line.unitCost,
+      totalCost: roundMoney(line.quantityOrdered * line.unitCost, currency),
+      packSize: line.packSize ?? 1,
+      batchNumber: line.batchNumber,
+      lotNumber: line.lotNumber,
+      expiryDate: line.expiryDate,
+    }));
+    const totalAmount = roundMoney(
+      lineData.reduce((sum, line) => sum + line.totalCost, 0),
+      currency,
+    );
+    const orderNumber =
+      input.orderNumber ?? (await generateOrderNumber(organisationId));
 
-    const existingOrder = await prisma.purchaseOrder.findUnique({
-      where: { orderNumber: finalOrderNumber },
-    });
-
-    if (existingOrder) {
-      throw new PurchaseOrderServiceError("Order number already exists", 409);
-    }
-
-    for (const line of lines) {
-      ensureObjectId(line.itemId, "itemId");
-      if (line.quantityOrdered <= 0) {
-        throw new PurchaseOrderServiceError(
-          "Quantity ordered must be positive",
-          400,
-        );
-      }
-      if (line.unitCost < 0) {
-        throw new PurchaseOrderServiceError(
-          "Unit cost cannot be negative",
-          400,
-        );
-      }
-    }
-
-    const purchaseOrder = await prisma.$transaction(async (tx) => {
-      const po = await tx.purchaseOrder.create({
+    try {
+      return await prisma.purchaseOrder.create({
         data: {
           organisationId,
           vendorId,
-          orderNumber: finalOrderNumber,
-          expectedDate,
-          currency: currency ?? "USD",
-          notes,
-          createdBy,
+          orderNumber,
+          expectedDate: input.expectedDate,
+          currency,
+          notes: input.notes,
+          createdBy: input.createdBy,
           status: "DRAFT",
+          totalAmount,
+          lines: { create: lineData },
         },
+        include: { lines: true },
       });
-
-      for (const line of lines) {
-        const totalCost = line.quantityOrdered * line.unitCost;
-        await tx.purchaseOrderLine.create({
-          data: {
-            purchaseOrderId: po.id,
-            itemId: line.itemId,
-            vendorId,
-            quantityOrdered: line.quantityOrdered,
-            unitCost: line.unitCost,
-            totalCost,
-            packSize: line.packSize ?? 1,
-            batchNumber: line.batchNumber,
-            lotNumber: line.lotNumber,
-            expiryDate: line.expiryDate,
-          },
-        });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new PurchaseOrderServiceError("Order number already exists", 409);
       }
-
-      return po;
-    });
-
-    await recalculatePurchaseOrderTotals(purchaseOrder.id);
-
-    return prisma.purchaseOrder.findUnique({
-      where: { id: purchaseOrder.id },
-      include: { lines: true },
-    });
-  },
-
-  async confirmOrder(purchaseOrderId: string, organisationId: string) {
-    ensureObjectId(purchaseOrderId, "purchaseOrderId");
-
-    const purchaseOrder = await prisma.purchaseOrder.findFirst({
-      where: { id: purchaseOrderId, organisationId },
-    });
-
-    if (!purchaseOrder) {
-      throw new PurchaseOrderServiceError("Purchase order not found", 404);
+      throw error;
     }
-
-    if (purchaseOrder.status !== "DRAFT") {
-      throw new PurchaseOrderServiceError(
-        "Only draft orders can be confirmed",
-        400,
-      );
-    }
-
-    const updated = await prisma.purchaseOrder.update({
-      where: { id: purchaseOrderId },
-      data: { status: "CONFIRMED" },
-    });
-
-    return updated;
   },
 
-  async receiveDelivery(input: ReceiveDeliveryInput) {
-    return prisma.$transaction(async (tx) => {
-      return receiveDeliveryInTransaction(input, tx);
-    });
+  confirmOrder(purchaseOrderId: string, organisationId: string) {
+    return transitionStatus(
+      purchaseOrderId,
+      organisationId,
+      ["DRAFT"],
+      "CONFIRMED",
+      "Only draft orders can be confirmed",
+    );
   },
 
-  async returnDelivery(input: ReturnDeliveryInput) {
-    return prisma.$transaction(async (tx) => {
-      return returnDeliveryInTransaction(input, tx);
-    });
+  cancelOrder(purchaseOrderId: string, organisationId: string) {
+    return transitionStatus(
+      purchaseOrderId,
+      organisationId,
+      OPEN_STATUSES,
+      "CANCELLED",
+      "Only an order that is not fully received or already cancelled can be cancelled",
+    );
   },
 
-  async getPurchaseOrder(purchaseOrderId: string, organisationId: string) {
-    ensureObjectId(purchaseOrderId, "purchaseOrderId");
+  receiveDelivery(input: ReceiveDeliveryInput) {
+    return replayOnDuplicateKey(
+      () =>
+        prisma.$transaction((tx) => receiveDeliveryInTransaction(input, tx)),
+      () =>
+        findDeliveryByKey(
+          prisma,
+          input.purchaseOrderId,
+          input.organisationId,
+          input.idempotencyKey,
+        ),
+    );
+  },
 
+  returnDelivery(input: ReturnDeliveryInput) {
+    return replayOnDuplicateKey(
+      () => prisma.$transaction((tx) => returnDeliveryInTransaction(input, tx)),
+      async () => {
+        const delivery = await findDeliveryForOrg(
+          prisma,
+          input.deliveryId,
+          input.organisationId,
+        );
+        return delivery?.returns.some(
+          (r) => r.idempotencyKey === input.idempotencyKey,
+        )
+          ? delivery
+          : null;
+      },
+    );
+  },
+
+  getPurchaseOrder(purchaseOrderId: string, organisationId: string) {
     return prisma.purchaseOrder.findFirst({
       where: { id: purchaseOrderId, organisationId },
       include: {
-        lines: {
-          include: { deliveryLines: true },
-        },
-        deliveries: {
-          include: { lines: true },
-        },
+        lines: { include: { deliveryLines: true } },
+        deliveries: { include: DELIVERY_INCLUDE },
       },
     });
   },
@@ -870,15 +764,6 @@ export const PurchaseOrderService = {
     if (vendorId) where.vendorId = vendorId;
     if (status) where.status = status;
 
-    // Defense in depth: ensure pageSize is valid to prevent division by zero
-    // (schema validation should already catch this, but guard here as well)
-    if (!Number.isInteger(pageSize) || pageSize < 1) {
-      throw new PurchaseOrderServiceError(
-        "Page size must be a positive integer",
-        400,
-      );
-    }
-
     const [items, total] = await Promise.all([
       prisma.purchaseOrder.findMany({
         where,
@@ -899,31 +784,7 @@ export const PurchaseOrderService = {
     };
   },
 
-  async cancelOrder(purchaseOrderId: string, organisationId: string) {
-    ensureObjectId(purchaseOrderId, "purchaseOrderId");
-
-    const purchaseOrder = await prisma.purchaseOrder.findFirst({
-      where: { id: purchaseOrderId, organisationId },
-    });
-
-    if (!purchaseOrder) {
-      throw new PurchaseOrderServiceError("Purchase order not found", 404);
-    }
-
-    if (purchaseOrder.status === "RECEIVED") {
-      throw new PurchaseOrderServiceError(
-        "Cannot cancel fully received order",
-        400,
-      );
-    }
-
-    return prisma.purchaseOrder.update({
-      where: { id: purchaseOrderId },
-      data: { status: "CANCELLED" },
-    });
-  },
-
-  async getOutstandingDeliveries(organisationId: string) {
+  getOutstandingDeliveries(organisationId: string) {
     return prisma.purchaseOrderLine.findMany({
       where: {
         purchaseOrder: {

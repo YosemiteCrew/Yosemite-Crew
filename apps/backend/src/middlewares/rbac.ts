@@ -160,7 +160,7 @@ export function withOrgPermissions(options: OrgPermissionOptions = {}) {
       if (samePermissions(effectivePermissions, computed)) {
         typedReq.userPermissions = effectivePermissions;
       } else {
-        await prisma.userOrganization.update({
+        await prisma.userOrganization.updateMany({
           where: { id: mapping.id },
           data: { effectivePermissions: computed },
         });
@@ -366,6 +366,7 @@ export function withPurchaseOrderOrgPermissions() {
       });
       return order?.organisationId ?? null;
     },
+    true,
   );
 }
 
@@ -380,6 +381,7 @@ export function withPurchaseOrderDeliveryOrgPermissions() {
       });
       return delivery?.purchaseOrder.organisationId ?? null;
     },
+    true,
   );
 }
 

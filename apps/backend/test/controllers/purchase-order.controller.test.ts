@@ -11,13 +11,6 @@ jest.mock("src/services/purchase-order.service", () => {
   }
   return {
     PurchaseOrderServiceError,
-    PurchaseOrderStatus: {
-      DRAFT: "DRAFT",
-      CONFIRMED: "CONFIRMED",
-      PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
-      RECEIVED: "RECEIVED",
-      CANCELLED: "CANCELLED",
-    },
     PurchaseOrderService: {
       createOrder: jest.fn(),
       confirmOrder: jest.fn(),
@@ -64,12 +57,34 @@ describe("PurchaseOrderController.createOrder", () => {
     );
     expect(invalidResponse.status).toHaveBeenCalledWith(400);
 
+    const noCurrency = response();
+    await PurchaseOrderController.createOrder(
+      request(
+        { organisationId: "org-1" },
+        {
+          vendorId: "11111111-1111-4111-8111-111111111111",
+          currency: "euro",
+          lines: [
+            {
+              itemId: "33333333-3333-4333-8333-333333333333",
+              quantityOrdered: 1,
+              unitCost: 1,
+            },
+          ],
+        },
+      ) as never,
+      noCurrency as never,
+    );
+    expect(noCurrency.status).toHaveBeenCalledWith(400);
+    expect(service.createOrder).not.toHaveBeenCalled();
+
     const res = response();
     await PurchaseOrderController.createOrder(
       request(
         { organisationId: "org-1" },
         {
           vendorId: "11111111-1111-4111-8111-111111111111",
+          currency: " eur ",
           expectedDate: "2026-09-27T10:00:00.000Z",
           organisationId: "22222222-2222-4222-8222-222222222222",
           createdBy: "attacker",
@@ -90,6 +105,7 @@ describe("PurchaseOrderController.createOrder", () => {
       expect.objectContaining({
         organisationId: "org-1",
         createdBy: "user-1",
+        currency: "EUR",
         expectedDate: new Date("2026-09-27T10:00:00.000Z"),
         lines: [
           expect.objectContaining({
@@ -107,6 +123,7 @@ describe("PurchaseOrderController.createOrder", () => {
     );
     const validBody = {
       vendorId: "11111111-1111-4111-8111-111111111111",
+      currency: "USD",
       lines: [
         {
           itemId: "33333333-3333-4333-8333-333333333333",
@@ -137,6 +154,9 @@ describe("PurchaseOrderController.createOrder", () => {
       jest.requireMock("src/utils/logger").default.error,
     ).toHaveBeenCalled();
     expect(serverErrorResponse.status).toHaveBeenCalledWith(500);
+    expect(serverErrorResponse.json).toHaveBeenCalledWith({
+      message: "Internal Server Error",
+    });
 
     service.createOrder.mockRejectedValueOnce("unknown failure");
     const unknownErrorResponse = response();
@@ -151,26 +171,14 @@ describe("PurchaseOrderController.createOrder", () => {
 });
 
 describe("PurchaseOrderController status and delivery actions", () => {
-  it("validates confirmation and applies it to the route order", async () => {
-    const invalidRes = response();
+  it("confirms the route order within the request's organisation", async () => {
+    const res = response();
     await PurchaseOrderController.confirmOrder(
-      request({ purchaseOrderId: "po-1" }, { status: "INVALID" }) as never,
-      invalidRes as never,
-    );
-    expect(invalidRes.status).toHaveBeenCalledWith(400);
-
-    const wrongStatusRes = response();
-    await PurchaseOrderController.confirmOrder(
-      request({ purchaseOrderId: "po-1" }, { status: "CANCELLED" }) as never,
-      wrongStatusRes as never,
-    );
-    expect(wrongStatusRes.status).toHaveBeenCalledWith(400);
-
-    await PurchaseOrderController.confirmOrder(
-      request({ purchaseOrderId: "po-1" }, { status: "CONFIRMED" }) as never,
-      response() as never,
+      request({ purchaseOrderId: "po-1" }) as never,
+      res as never,
     );
     expect(service.confirmOrder).toHaveBeenCalledWith("po-1", "org-1");
+    expect(res.json).toHaveBeenCalledWith({ id: "result-1" });
   });
 
   it("validates and records receipt with the route order and authenticated user", async () => {
@@ -181,6 +189,24 @@ describe("PurchaseOrderController status and delivery actions", () => {
     );
     expect(badRes.status).toHaveBeenCalledWith(400);
 
+    const noKey = response();
+    await PurchaseOrderController.receiveDelivery(
+      request(
+        { purchaseOrderId: "po-1" },
+        {
+          lines: [
+            {
+              purchaseOrderLineId: "11111111-1111-4111-8111-111111111111",
+              quantityReceived: 1,
+            },
+          ],
+        },
+      ) as never,
+      noKey as never,
+    );
+    expect(noKey.status).toHaveBeenCalledWith(400);
+    expect(service.receiveDelivery).not.toHaveBeenCalled();
+
     await PurchaseOrderController.receiveDelivery(
       request(
         { purchaseOrderId: "po-1" },
@@ -188,6 +214,7 @@ describe("PurchaseOrderController status and delivery actions", () => {
           purchaseOrderId: "attacker-order",
           vendorId: "attacker-vendor",
           receivedBy: "attacker-user",
+          idempotencyKey: " receipt-1 ",
           deliveryDate: "2026-09-27T10:00:00.000Z",
           lines: [
             {
@@ -205,6 +232,7 @@ describe("PurchaseOrderController status and delivery actions", () => {
         organisationId: "org-1",
         purchaseOrderId: "po-1",
         receivedBy: "user-1",
+        idempotencyKey: "receipt-1",
         deliveryDate: new Date("2026-09-27T10:00:00.000Z"),
       }),
     );
@@ -218,11 +246,32 @@ describe("PurchaseOrderController status and delivery actions", () => {
     );
     expect(badRes.status).toHaveBeenCalledWith(400);
 
+    const noKey = response();
+    await PurchaseOrderController.returnDelivery(
+      request(
+        { deliveryId: "delivery-1" },
+        {
+          lines: [
+            {
+              deliveryLineId: "11111111-1111-4111-8111-111111111111",
+              quantityReturned: 1,
+            },
+          ],
+        },
+      ) as never,
+      noKey as never,
+    );
+    expect(noKey.status).toHaveBeenCalledWith(400);
+    expect(service.returnDelivery).not.toHaveBeenCalled();
+
     await PurchaseOrderController.returnDelivery(
       request(
         { deliveryId: "delivery-1" },
         {
           deliveryId: "attacker-delivery",
+          returnedBy: "attacker-user",
+          idempotencyKey: "return-1",
+          notes: "damaged",
           lines: [
             {
               deliveryLineId: "11111111-1111-4111-8111-111111111111",
@@ -237,21 +286,27 @@ describe("PurchaseOrderController status and delivery actions", () => {
       expect.objectContaining({
         organisationId: "org-1",
         deliveryId: "delivery-1",
+        returnedBy: "user-1",
+        idempotencyKey: "return-1",
+        notes: "damaged",
       }),
     );
   });
 
   it("handles service errors from confirmation and delivery actions", async () => {
+    const confirmRes = response();
     service.confirmOrder.mockRejectedValueOnce(new Error("confirm failed"));
     await PurchaseOrderController.confirmOrder(
-      request({ purchaseOrderId: "po-1" }, { status: "CONFIRMED" }) as never,
-      response() as never,
+      request({ purchaseOrderId: "po-1" }) as never,
+      confirmRes as never,
     );
+    const receiveRes = response();
     service.receiveDelivery.mockRejectedValueOnce(new Error("receive failed"));
     await PurchaseOrderController.receiveDelivery(
       request(
         { purchaseOrderId: "po-1" },
         {
+          idempotencyKey: "receipt-1",
           lines: [
             {
               purchaseOrderLineId: "11111111-1111-4111-8111-111111111111",
@@ -260,13 +315,15 @@ describe("PurchaseOrderController status and delivery actions", () => {
           ],
         },
       ) as never,
-      response() as never,
+      receiveRes as never,
     );
+    const returnRes = response();
     service.returnDelivery.mockRejectedValueOnce(new Error("return failed"));
     await PurchaseOrderController.returnDelivery(
       request(
         { deliveryId: "delivery-1" },
         {
+          idempotencyKey: "return-1",
           lines: [
             {
               deliveryLineId: "11111111-1111-4111-8111-111111111111",
@@ -275,8 +332,14 @@ describe("PurchaseOrderController status and delivery actions", () => {
           ],
         },
       ) as never,
-      response() as never,
+      returnRes as never,
     );
+    for (const res of [confirmRes, receiveRes, returnRes]) {
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Internal Server Error",
+      });
+    }
   });
 });
 
@@ -344,22 +407,28 @@ describe("PurchaseOrderController reads", () => {
   });
 
   it("handles read and list service failures", async () => {
+    const readRes = response();
     service.getPurchaseOrder.mockRejectedValueOnce(new Error("read failed"));
     await PurchaseOrderController.getOrder(
       request({ purchaseOrderId: "po-1" }) as never,
-      response() as never,
+      readRes as never,
     );
+    const listRes = response();
     service.listPurchaseOrders.mockRejectedValueOnce(new Error("list failed"));
     await PurchaseOrderController.listOrders(
       request({ organisationId: "org-1" }) as never,
-      response() as never,
+      listRes as never,
     );
+    const outstandingRes = response();
     service.getOutstandingDeliveries.mockRejectedValueOnce(
       new Error("outstanding failed"),
     );
     await PurchaseOrderController.getOutstandingDeliveries(
       request({ organisationId: "org-1" }) as never,
-      response() as never,
+      outstandingRes as never,
     );
+    for (const res of [readRes, listRes, outstandingRes]) {
+      expect(res.status).toHaveBeenCalledWith(500);
+    }
   });
 });

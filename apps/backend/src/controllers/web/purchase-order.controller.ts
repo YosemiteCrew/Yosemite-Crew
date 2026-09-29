@@ -1,3 +1,4 @@
+import { PurchaseOrderStatus } from "@prisma/client";
 import { Request, Response } from "express";
 import { z } from "zod";
 import { AuthenticatedRequest } from "src/middlewares/auth";
@@ -5,7 +6,6 @@ import { OrgRequest } from "src/middlewares/rbac";
 import {
   PurchaseOrderService,
   PurchaseOrderServiceError,
-  PurchaseOrderStatus,
 } from "src/services/purchase-order.service";
 import logger from "src/utils/logger";
 
@@ -15,9 +15,7 @@ const handleError = (error: unknown, res: Response): void => {
     return;
   }
   logger.error("Purchase order controller error", { error });
-  const message =
-    error instanceof Error ? error.message : "Internal Server Error";
-  res.status(500).json({ message });
+  res.status(500).json({ message: "Internal Server Error" });
 };
 
 const createPurchaseOrderLineSchema = z.object({
@@ -33,14 +31,20 @@ const createPurchaseOrderLineSchema = z.object({
     .transform((v) => (v ? new Date(v) : undefined)),
 });
 
+const idempotencyKey = z.string().trim().min(1).max(200);
+
 const createPurchaseOrderSchema = z.object({
   vendorId: z.uuid(),
-  orderNumber: z.string().optional(),
+  orderNumber: z.string().trim().min(1).max(100).optional(),
   expectedDate: z.iso
     .datetime()
     .optional()
     .transform((v) => (v ? new Date(v) : undefined)),
-  currency: z.string().optional(),
+  currency: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]{3}$/, "Currency must be a three-letter code")
+    .transform((value) => value.toUpperCase()),
   notes: z.string().optional(),
   lines: z.array(createPurchaseOrderLineSchema).min(1),
 });
@@ -52,6 +56,7 @@ const receiveDeliveryLineSchema = z.object({
 });
 
 const receiveDeliverySchema = z.object({
+  idempotencyKey,
   deliveryDate: z.iso
     .datetime()
     .optional()
@@ -74,6 +79,8 @@ const returnDeliveryLineSchema = z.object({
 });
 
 const returnDeliverySchema = z.object({
+  idempotencyKey,
+  notes: z.string().optional(),
   lines: z
     .array(returnDeliveryLineSchema)
     .min(1)
@@ -82,10 +89,6 @@ const returnDeliverySchema = z.object({
         new Set(lines.map((line) => line.deliveryLineId)).size === lines.length,
       "Each delivery line can appear only once",
     ),
-});
-
-const updateStatusSchema = z.object({
-  status: z.enum(PurchaseOrderStatus),
 });
 
 const listOrdersQuerySchema = z.object({
@@ -126,31 +129,12 @@ export const PurchaseOrderController = {
 
   async confirmOrder(
     this: void,
-    req: Request<
-      { purchaseOrderId: string },
-      unknown,
-      { status: PurchaseOrderStatus }
-    >,
+    req: Request<{ purchaseOrderId: string }>,
     res: Response,
   ): Promise<void> {
     try {
       const { purchaseOrderId } = req.params;
       const { organisationId } = req as OrgRequest;
-
-      const parsed = updateStatusSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res
-          .status(400)
-          .json({ message: "Invalid status", errors: parsed.error.issues });
-        return;
-      }
-
-      if (parsed.data.status !== "CONFIRMED") {
-        res
-          .status(400)
-          .json({ message: "Only CONFIRMED status is allowed here" });
-        return;
-      }
 
       const order = await PurchaseOrderService.confirmOrder(
         purchaseOrderId,
@@ -208,6 +192,7 @@ export const PurchaseOrderController = {
         ...parsed.data,
         organisationId: organisationId!,
         deliveryId: req.params.deliveryId,
+        returnedBy: (req as AuthenticatedRequest).userId,
       });
       res.json(delivery);
     } catch (error) {
