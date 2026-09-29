@@ -22,15 +22,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     if let apiKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String, !apiKey.isEmpty {
       GMSServices.provideAPIKey(apiKey)
-    } else {
-      assertionFailure("GOOGLE_MAPS_API_KEY is not set. Copy config-templates/ios/Secrets.xcconfig.example to ios/mobileAppYC/Secrets.xcconfig and add your key.")
     }
 
-    // ✅ Firebase
-    FirebaseApp.configure()
-    UNUserNotificationCenter.current().delegate = self
-    Messaging.messaging().delegate = self
-    application.registerForRemoteNotifications()
+    if let optionsPath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+       let options = FirebaseOptions(contentsOfFile: optionsPath),
+       options.googleAppID.range(
+         of: #"^\d+:\d+:ios:[a-fA-F0-9]+$"#,
+         options: .regularExpression
+       ) != nil {
+      FirebaseApp.configure(options: options)
+      UNUserNotificationCenter.current().delegate = self
+      Messaging.messaging().delegate = self
+      application.registerForRemoteNotifications()
+    }
 
     // ✅ Initialize Facebook SDK
     ApplicationDelegate.shared.application(
@@ -81,6 +85,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
   // Everyone: cover the app before iOS snapshots it for the app switcher.
   func applicationDidEnterBackground(_ application: UIApplication) {
     AppLockCover.shared.didEnterBackground()
+    window?.isHidden = true
+  }
+
+  func applicationWillEnterForeground(_ application: UIApplication) {
+    window?.isHidden = false
   }
 
   // A Face ID sheet or Control Center makes the app inactive without sending
