@@ -424,6 +424,7 @@ export const PetClinicalRecordService = {
       data: {
         organisationId: ctx.organisationId,
         encounterId: ctx.encounterId,
+        patientId: ctx.patientId,
         kind: "IMMUNIZATION",
         status: "DRAFT",
         authorId: ctx.actor.id ?? null,
@@ -491,6 +492,7 @@ export const PetClinicalRecordService = {
       data: {
         organisationId: ctx.organisationId,
         encounterId: ctx.encounterId,
+        patientId: ctx.patientId,
         kind: "PARASITE_TREATMENT",
         status: "DRAFT",
         authorId: ctx.actor.id ?? null,
@@ -543,6 +545,7 @@ export const PetClinicalRecordService = {
       data: {
         organisationId: ctx.organisationId,
         encounterId: ctx.encounterId,
+        patientId: ctx.patientId,
         kind: "RABIES_TITRATION",
         status: "DRAFT",
         authorId: ctx.actor.id ?? null,
@@ -587,6 +590,7 @@ export const PetClinicalRecordService = {
       data: {
         organisationId: ctx.organisationId,
         encounterId: ctx.encounterId,
+        patientId: ctx.patientId,
         kind: "CLINICAL_EXAM",
         status: "DRAFT",
         authorId: ctx.actor.id ?? null,

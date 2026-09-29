@@ -458,6 +458,7 @@ describe("CaseEncounterService", () => {
         kind: "PRESCRIPTION",
         status: "DRAFT",
         summary: "Bundle medication package",
+        patientId: "comp_1",
       }),
     });
     expect(mockedPrisma.templateInstance.create).toHaveBeenCalledWith({

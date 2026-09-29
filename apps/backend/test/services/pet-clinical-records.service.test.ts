@@ -173,6 +173,7 @@ describe("PetClinicalRecordService.recordImmunization", () => {
           kind: "IMMUNIZATION",
           status: "DRAFT",
           encounterId: "enc-1",
+          patientId: "pat-1",
         }),
       }),
     );
@@ -245,6 +246,14 @@ describe("PetClinicalRecordService.recordParasiteTreatment", () => {
       CTX,
       input,
     );
+    expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "PARASITE_TREATMENT",
+          patientId: "pat-1",
+        }),
+      }),
+    );
     expect(dto).toMatchObject({
       treatmentType: "ECHINOCOCCUS",
       productName: "Milbemax",
@@ -287,6 +296,14 @@ describe("PetClinicalRecordService.recordRabiesTitration", () => {
     const dto = await PetClinicalRecordService.recordRabiesTitration(
       CTX,
       input,
+    );
+    expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "RABIES_TITRATION",
+          patientId: "pat-1",
+        }),
+      }),
     );
     expect(dto).toMatchObject({ approvedLab: "EU Lab", resultIuMl: 0.8 });
     expect(auditMock).toHaveBeenCalledWith(
@@ -372,7 +389,10 @@ describe("PetClinicalRecordService.recordClinicalExam", () => {
     const dto = await PetClinicalRecordService.recordClinicalExam(CTX, input);
     expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ kind: "CLINICAL_EXAM" }),
+        data: expect.objectContaining({
+          kind: "CLINICAL_EXAM",
+          patientId: "pat-1",
+        }),
       }),
     );
     expect(dto).toMatchObject({

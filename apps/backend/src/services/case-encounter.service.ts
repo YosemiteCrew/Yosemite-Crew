@@ -225,6 +225,7 @@ type ClinicalArtifactDelegate = {
       appointmentId?: string | null;
       caseId?: string | null;
       encounterId?: string | null;
+      patientId?: string | null;
       kind: "PRESCRIPTION";
       status: string;
       summary?: string | null;
@@ -692,6 +693,7 @@ const maybeExpandPackageTreatmentItems = async (params: {
   appointmentId: string;
   caseId: string;
   encounterId: string;
+  patientId: string;
   selection: Awaited<ReturnType<typeof CatalogService.resolveSelection>>;
 }) => {
   if (params.selection.productKind !== "PACKAGE") {
@@ -737,6 +739,7 @@ const expandPackageTreatmentItems = async (params: {
   appointmentId: string;
   caseId: string;
   encounterId: string;
+  patientId: string;
   selection: Awaited<ReturnType<typeof CatalogService.resolveSelection>>;
 }) => {
   const packageProductItemId = params.selection.productItemId;
@@ -770,6 +773,7 @@ const expandPackageTreatmentItems = async (params: {
         organisationId: params.organisationId,
         appointmentId: params.appointmentId,
         encounterId: params.encounterId,
+        patientId: params.patientId,
         kind: "PRESCRIPTION",
         status: "DRAFT",
         summary: `${params.selection.name} medication package`,
@@ -1283,6 +1287,7 @@ export const CaseEncounterService = {
               appointmentId,
               caseId,
               encounterId: createdEncounter.id,
+              patientId,
               selection,
             });
           }
