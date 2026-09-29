@@ -47,6 +47,99 @@ describe('RichTextEditor', () => {
     );
   });
 
+  it('inserts new template content without replacing existing rich text', () => {
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <RichTextEditor value="<p>Care plan</p>" onChange={onChange} ariaLabel="Subjective" />
+    );
+    const textbox = screen.getByRole('textbox', { name: 'Subjective' });
+    fireEvent.focus(textbox);
+    rerender(
+      <RichTextEditor
+        value="<p>Care plan</p>"
+        onChange={onChange}
+        ariaLabel="Subjective"
+        insertRequest={{ id: 1, html: '<p>saved phrase</p>' }}
+      />
+    );
+
+    expect(textbox).toHaveTextContent('Care plan');
+    expect(textbox).toHaveTextContent('saved phrase');
+    expect(onChange).toHaveBeenCalled();
+  });
+
+  it('appends saved text after existing wording when the field was never focused', () => {
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <RichTextEditor value="<p>Care plan</p>" onChange={onChange} ariaLabel="Plan" />
+    );
+    rerender(
+      <RichTextEditor
+        value="<p>Care plan</p>"
+        onChange={onChange}
+        ariaLabel="Plan"
+        insertRequest={{ id: 1, html: '<p>saved phrase</p>' }}
+      />
+    );
+
+    const html = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(html.indexOf('Care plan')).toBeGreaterThanOrEqual(0);
+    expect(html.indexOf('saved phrase')).toBeGreaterThan(html.indexOf('Care plan'));
+  });
+
+  it('keeps a highlighted range and inserts saved text after it', () => {
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <RichTextEditor value="<p>Care plan</p>" onChange={onChange} ariaLabel="Plan" />
+    );
+    const textbox = screen.getByRole('textbox', { name: 'Plan' });
+    fireEvent.focus(textbox);
+    // Highlight "Care" (positions 1-5 inside the first paragraph).
+    (
+      textbox as unknown as { editor: { commands: { setTextSelection: (r: object) => void } } }
+    ).editor.commands.setTextSelection({ from: 1, to: 5 });
+    rerender(
+      <RichTextEditor
+        value="<p>Care plan</p>"
+        onChange={onChange}
+        ariaLabel="Plan"
+        insertRequest={{ id: 1, html: '<p>saved phrase</p>' }}
+      />
+    );
+
+    const html = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(html).toContain('Care');
+    expect(html.indexOf('saved phrase')).toBeGreaterThan(html.indexOf('Care'));
+    expect(html.indexOf('plan')).toBeGreaterThan(html.indexOf('saved phrase'));
+  });
+
+  it('applies each insert request once and strips markup outside the stored allowlist', () => {
+    const onChange = jest.fn();
+    const request = {
+      id: 7,
+      html: '<h1>Heading</h1><p><a href="https://example.com">link</a></p>',
+    };
+    const { rerender } = render(
+      <RichTextEditor value="" onChange={onChange} ariaLabel="Plan" insertRequest={request} />
+    );
+    const textbox = screen.getByRole('textbox', { name: 'Plan' });
+    expect(textbox.querySelector('h1')).toBeNull();
+    expect(textbox.querySelector('a')).toBeNull();
+    expect(textbox).toHaveTextContent('Heading');
+
+    const calls = onChange.mock.calls.length;
+    rerender(
+      <RichTextEditor
+        value=""
+        onChange={jest.fn()}
+        ariaLabel="Plan"
+        insertRequest={{ ...request }}
+      />
+    );
+    expect(textbox.textContent?.match(/Heading/g)).toHaveLength(1);
+    expect(onChange).toHaveBeenCalledTimes(calls);
+  });
+
   it('docks the toolbar inside the field and shows the placeholder', () => {
     render(
       <RichTextEditor

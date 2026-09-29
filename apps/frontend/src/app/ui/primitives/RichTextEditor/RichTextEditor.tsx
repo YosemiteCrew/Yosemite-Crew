@@ -10,6 +10,7 @@ import './RichTextEditor.css';
 type RichTextEditorProps = {
   value: string;
   onChange: (html: string) => void;
+  insertRequest?: { id: number; html: string };
   placeholder?: string;
   readOnly?: boolean;
   ariaLabel: string;
@@ -27,6 +28,7 @@ type RichTextEditorProps = {
 const RichTextEditor = ({
   value,
   onChange,
+  insertRequest,
   placeholder,
   readOnly = false,
   ariaLabel,
@@ -38,6 +40,8 @@ const RichTextEditor = ({
   // `value`) must not destroy and rebuild the editor, which reset DOM focus and
   // the cursor after a single keystroke (the reported bug).
   const onChangeRef = useRef(onChange);
+  const lastInsertIdRef = useRef<number | undefined>(undefined);
+  const hadCaretRef = useRef(false);
   useEffect(() => {
     onChangeRef.current = onChange;
   });
@@ -63,6 +67,9 @@ const RichTextEditor = ({
         class: 'yc-rte-content',
       },
     },
+    onFocus: () => {
+      hadCaretRef.current = true;
+    },
     onUpdate: ({ editor: instance }) => {
       onChangeRef.current(sanitizeRichText(instance.getHTML()));
     },
@@ -83,6 +90,21 @@ const RichTextEditor = ({
   useEffect(() => {
     editor?.setEditable(!readOnly);
   }, [editor, readOnly]);
+
+  // Saved text lands after the caret (or after a highlighted range, which is kept),
+  // or at the end when the field was never focused, so existing wording is never
+  // replaced. The snippet passes the same allowlist as stored notes first.
+  useEffect(() => {
+    if (!editor || readOnly || !insertRequest || lastInsertIdRef.current === insertRequest.id)
+      return;
+    lastInsertIdRef.current = insertRequest.id;
+    const at = hadCaretRef.current ? editor.state.selection.to : 'end';
+    editor
+      .chain()
+      .focus(at, { scrollIntoView: false })
+      .insertContent(sanitizeRichText(insertRequest.html))
+      .run();
+  }, [editor, insertRequest, readOnly]);
 
   const label = (
     <span id={labelId} className="sr-only">
