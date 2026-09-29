@@ -126,6 +126,81 @@ describe("EstimateService.create", () => {
     expect(result.items).toHaveLength(1);
   });
 
+  it("rounds each line and its tax at the estimate currency precision", async () => {
+    mockCreate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.create({
+      organisationId: "org-1",
+      patientId: "pat-1",
+      items: [
+        {
+          description: "Consult",
+          quantity: 1,
+          unitPrice: 8.165,
+          taxRate: 7,
+        },
+      ],
+    });
+
+    const { data } = mockCreate.mock.calls[0][0];
+    expect(data).toMatchObject({
+      subtotal: 8.17,
+      taxAmount: 0.57,
+      total: 8.74,
+    });
+    expect(data.items.create[0].lineTotal).toBe(8.17);
+  });
+
+  it.each([
+    {
+      currency: "JPY",
+      unitPrice: 100.5,
+      subtotal: 101,
+      taxAmount: 10,
+      total: 111,
+    },
+    {
+      currency: "KWD",
+      unitPrice: 1.2345,
+      subtotal: 1.235,
+      taxAmount: 0.124,
+      total: 1.359,
+    },
+  ])(
+    "uses $currency ledger precision when creating totals",
+    async (amounts) => {
+      (
+        prisma.organizationBilling.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        currency: amounts.currency.toLowerCase(),
+        connectChargesEnabled: true,
+      });
+      mockCreate.mockResolvedValue(baseEstimate);
+
+      await EstimateService.create({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        items: [
+          {
+            description: "Consult",
+            quantity: 1,
+            unitPrice: amounts.unitPrice,
+            taxRate: 10,
+          },
+        ],
+      });
+
+      const { data } = mockCreate.mock.calls[0][0];
+      expect(data).toMatchObject({
+        currency: amounts.currency,
+        subtotal: amounts.subtotal,
+        taxAmount: amounts.taxAmount,
+        total: amounts.total,
+      });
+      expect(data.items.create[0].lineTotal).toBe(amounts.subtotal);
+    },
+  );
+
   const createInput = {
     organisationId: "org-1",
     patientId: "pat-1",
@@ -222,6 +297,26 @@ describe("EstimateService.update", () => {
       items: [{ description: "Consult", quantity: 1, unitPrice: 100 }],
     });
     expect(result.notes).toBe("updated");
+  });
+
+  it("recalculates edited lines using the estimate's stored currency", async () => {
+    mockFindFirst.mockResolvedValue({ ...baseEstimate, currency: "JPY" });
+    mockUpdate.mockResolvedValue(baseEstimate);
+
+    await EstimateService.update("est-1", "org-1", {
+      items: [
+        {
+          description: "Consult",
+          quantity: 1,
+          unitPrice: 100.5,
+          taxRate: 10,
+        },
+      ],
+    });
+
+    const { data } = mockUpdate.mock.calls[0][0];
+    expect(data).toMatchObject({ subtotal: 101, taxAmount: 10, total: 111 });
+    expect(data.items.create[0].lineTotal).toBe(101);
   });
 
   it("throws 409 when estimate is approved", async () => {

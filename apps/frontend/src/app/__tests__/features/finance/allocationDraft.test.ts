@@ -36,10 +36,10 @@ const receipt = (over: Partial<ProviderReceipt> = {}): ProviderReceipt => ({
   ...over,
 });
 
-const invoice = (id: string, balance: number): AllocatableInvoice => ({
+const invoice = (id: string, balance: number, currency = 'GBP'): AllocatableInvoice => ({
   id,
   label: `#${id}`,
-  currency: 'GBP',
+  currency,
   balance,
   createdAt: '2026-09-01T00:00:00.000Z',
 });
@@ -53,6 +53,12 @@ describe('parseAmount', () => {
     ['  7.25  ', 7.25],
   ])('reads %s as money', (text, expected) => {
     expect(parseAmount(text)).toBe(expected);
+  });
+
+  it('allows the fraction digits supported by the receipt currency', () => {
+    expect(parseAmount('1.234', 'KWD')).toBe(1.234);
+    expect(parseAmount('1.2345', 'KWD')).toBeNull();
+    expect(parseAmount('100.0', 'JPY')).toBeNull();
   });
 
   /*
@@ -132,7 +138,7 @@ describe('reviewAllocationDraft', () => {
     );
 
     expect(review.canSubmit).toBe(false);
-    expect(review.lines[1].error).toMatch(/two decimal places/i);
+    expect(review.lines[1].error).toMatch(/2 decimal places/i);
     // The unfinished line contributes nothing, so the preview cannot claim
     // money the operator has not yet named.
     expect(review.total).toBe(10);
@@ -194,5 +200,10 @@ describe('suggestedAmount', () => {
   it('offers nothing once the other lines have claimed the whole residual', () => {
     expect(suggestedAmount(invoice('a', 40), 0)).toBe('');
     expect(suggestedAmount(invoice('a', 40), -5)).toBe('');
+  });
+
+  it('formats suggested amounts at the invoice currency precision', () => {
+    expect(suggestedAmount(invoice('kwd', 1.234, 'KWD'), 2)).toBe('1.234');
+    expect(suggestedAmount(invoice('jpy', 101, 'JPY'), 200)).toBe('101');
   });
 });

@@ -1,5 +1,7 @@
 import {
+  DEFAULT_LEDGER_EXPONENT,
   fromLedgerMinorUnits,
+  isLedgerCurrencySupported,
   quantizeMoney,
   resolveLedgerExponent,
   toLedgerMinorUnits,
@@ -54,30 +56,33 @@ export type InvoicePricingBreakdown = {
   lines: InvoicePricingLineBreakdown[];
 };
 
-const MONEY_SCALE = 100;
-
 /**
- * Rounds at two decimals regardless of currency, on the float scaled by a
- * hundred. Left exactly as it was: the payment, tax and appointment callers
- * this slice does not cover round by it, and `creditNoteService` on the
- * frontend carries a copy that states it matches this one. Invoice pricing
- * rounds by `quantizeMoney` at the invoice currency's own precision instead,
- * which is exact and disagrees with this function wherever scaling the float
- * lands the tie on the wrong side (8.165 posts as 8.17 there, 8.16 here).
+ * Round a monetary amount exactly at its ledger currency's precision. A
+ * currency the ledger refuses to price keeps the two decimals its invoices are
+ * still totalled at, so recording a payment or refund on one never fails.
  */
-export const roundMoney = (value: number): number =>
-  Math.round((value + Number.EPSILON) * MONEY_SCALE) / MONEY_SCALE;
+export const roundMoney = (value: number, currency?: string | null): number =>
+  quantizeMoney(
+    value,
+    isLedgerCurrencySupported(currency)
+      ? resolveLedgerExponent(currency)
+      : DEFAULT_LEDGER_EXPONENT,
+  );
 
-export const getNetPaymentAmount = (payment: {
-  amount: number;
-  refunds?: Array<{ amount: number; status: string }>;
-}): number => {
+export const getNetPaymentAmount = (
+  payment: {
+    amount: number;
+    refunds?: Array<{ amount: number; status: string }>;
+  },
+  currency?: string | null,
+): number => {
   const refunded = roundMoney(
     (payment.refunds ?? [])
       .filter((refund) => refund.status === "SUCCEEDED")
       .reduce((sum, refund) => sum + refund.amount, 0),
+    currency,
   );
-  return roundMoney(Math.max(0, payment.amount - refunded));
+  return roundMoney(Math.max(0, payment.amount - refunded), currency);
 };
 
 const normalizePositiveNumber = (value: number | null | undefined): number => {

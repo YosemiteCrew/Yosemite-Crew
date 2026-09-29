@@ -107,6 +107,17 @@ describe("FinancePaymentService", () => {
     });
   });
 
+  it("rounds invoice payment summaries at the invoice currency precision", async () => {
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { amount: 101, refunds: [{ amount: 0.5, status: "SUCCEEDED" }] },
+    ]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(
+      getInvoiceFinancialSummary("inv_jpy", 200, 0, "jpy"),
+    ).resolves.toEqual({ paid: 100, credited: 0, balance: 100 });
+  });
+
   it("summarises several invoices with one payment query and one credit query", async () => {
     (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
       { invoiceId: "inv_1", amount: 80, refunds: [] },
@@ -3191,7 +3202,7 @@ describe("FinancePaymentService", () => {
 
   // A currency the ledger refuses to price was never posted by the quantizer,
   // so its checkout keeps the legacy rounding instead of failing to open.
-  it("keeps the legacy rounding for a currency the ledger cannot price", async () => {
+  it("keeps the invoice total when the ledger currency cannot be priced", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
@@ -3247,7 +3258,7 @@ describe("FinancePaymentService", () => {
     ];
     expect(sessionArgs.line_items).toHaveLength(1);
     expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
-      "Consult",
+      "Outstanding balance for invoice inv_huf",
     );
     expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(816);
   });
