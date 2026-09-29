@@ -21,7 +21,34 @@ describe('DeveloperMyIntegrations', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'My integrations' })).toBeInTheDocument();
     expect(screen.getByText('Shape the idea')).toBeInTheDocument();
     expect(screen.getByText('Install at a practice')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Intake and continuing care' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Pre-visit history' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Preventive-care outreach' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('03.1')).toBeInTheDocument();
+    expect(screen.getByText('03.6')).toBeInTheDocument();
     expect(screen.getByText('No integration drafts yet')).toBeInTheDocument();
+  });
+
+  test('starts a named draft from an intake workflow', () => {
+    render(<DeveloperMyIntegrations />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start with Pre-visit history' }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('Integration name')).toHaveValue('Pre-visit history');
+    expect(screen.getByText(/Starting from/)).toHaveTextContent(
+      'Starting from 03.1 · A timestamped response for staff to review.'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New integration' }));
+    expect(screen.getByLabelText('Integration name')).toHaveValue('');
+    expect(screen.queryByText(/Starting from/)).not.toBeInTheDocument();
   });
 
   test('opens and closes the draft dialog', () => {

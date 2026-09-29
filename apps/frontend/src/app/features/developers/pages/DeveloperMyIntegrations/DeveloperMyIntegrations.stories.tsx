@@ -30,10 +30,13 @@ export const EmptyWorkspace: Story = {
       canvas.getByRole('heading', { level: 1, name: 'My integrations' })
     ).toBeInTheDocument();
     await expect(canvas.getByText('Install at a practice')).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole('button', { name: 'Start a draft' }));
-    await expect(within(document.body).getByRole('dialog')).toBeInTheDocument();
     await expect(
-      within(document.body).getByRole('button', { name: 'Open API playground' })
-    ).toBeDisabled();
+      canvas.getByRole('heading', { level: 2, name: 'Intake and continuing care' })
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'Start with Pre-visit history' }));
+    await expect(within(document.body).getByRole('dialog')).toBeInTheDocument();
+    await expect(within(document.body).getByLabelText('Integration name')).toHaveValue(
+      'Pre-visit history'
+    );
   },
 };

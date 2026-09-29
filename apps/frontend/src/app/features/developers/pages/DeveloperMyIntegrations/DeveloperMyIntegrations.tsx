@@ -35,10 +35,76 @@ const STAGES = [
   },
 ] as const;
 
+const INTAKE_WORKFLOWS = [
+  {
+    id: '03.1',
+    title: 'Pre-visit history',
+    summary: 'Collect configurable history from a pet parent before an appointment.',
+    entryPoint: 'Form configuration and appointment workspace',
+    result: 'A timestamped response for staff to review',
+    icon: 'ion:clipboard-outline',
+  },
+  {
+    id: '03.2',
+    title: 'Symptom follow-up',
+    summary: 'Capture observations and route matching answers to a staff review task.',
+    entryPoint: 'Appointment workspace',
+    result: 'A non-diagnostic follow-up for staff review',
+    icon: 'ion:chatbox-ellipses-outline',
+  },
+  {
+    id: '03.3',
+    title: 'Medication check-in',
+    summary: 'Gather adherence, side-effect and refill information between visits.',
+    entryPoint: 'Appointment workspace',
+    result: 'A medication check-in beside the visit',
+    icon: 'ion:medkit-outline',
+  },
+  {
+    id: '03.4',
+    title: 'Chronic-care diary',
+    summary: 'Let pet parents record configured measures and notes over time.',
+    entryPoint: 'Appointment workspace',
+    result: 'A dated diary for clinical review',
+    icon: 'ion:analytics-outline',
+  },
+  {
+    id: '03.5',
+    title: 'Discharge follow-up',
+    summary: 'Schedule recovery questions after a visit and surface exceptions to staff.',
+    entryPoint: 'Appointment workspace',
+    result: 'A reviewed follow-up linked to the visit',
+    icon: 'ion:heart-outline',
+  },
+  {
+    id: '03.6',
+    title: 'Preventive-care outreach',
+    summary: 'Ask due-care cohorts for preparation details before normal booking.',
+    entryPoint: 'Form configuration and appointment workspace',
+    result: 'A response in the practice follow-up queue',
+    icon: 'ion:calendar-outline',
+  },
+] as const;
+
+type IntakeWorkflow = (typeof INTAKE_WORKFLOWS)[number];
+
 const DeveloperMyIntegrations = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
+  const [selectedWorkflow, setSelectedWorkflow] = useState<IntakeWorkflow>();
+
+  const openBlankDraft = () => {
+    setSelectedWorkflow(undefined);
+    setName('');
+    setIsCreating(true);
+  };
+  const openWorkflowDraft = (workflow: IntakeWorkflow) => {
+    setSelectedWorkflow(workflow);
+    setName(workflow.title);
+    setIsCreating(true);
+  };
   const closeDraft = () => {
+    setSelectedWorkflow(undefined);
     setName('');
     setIsCreating(false);
   };
@@ -61,7 +127,7 @@ const DeveloperMyIntegrations = () => {
             icon={<Icon icon="ion:add" width={17} height={17} aria-hidden="true" />}
             size="small"
             className="!bg-[var(--blue-strong)] !text-white"
-            onClick={() => setIsCreating(true)}
+            onClick={openBlankDraft}
           />
         </header>
 
@@ -113,6 +179,71 @@ const DeveloperMyIntegrations = () => {
           </ol>
         </Card>
 
+        <section aria-labelledby="intake-workflows-title" className="flex flex-col gap-4">
+          <div className="flex max-w-3xl flex-col gap-1">
+            <span className="text-xs font-extrabold tracking-widest text-cyan-text uppercase">
+              Workflow collection 03
+            </span>
+            <h2
+              id="intake-workflows-title"
+              className="m-0 font-newsreader text-[28px] font-normal text-text-primary"
+            >
+              Intake and continuing care
+            </h2>
+            <p className="m-0 text-sm leading-relaxed text-text-secondary">
+              Start from a defined daily-care job, then adapt its questions, review point and
+              practice handoff.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {INTAKE_WORKFLOWS.map((workflow) => (
+              <Card
+                key={workflow.id}
+                className="group flex min-h-72 flex-col gap-4 overflow-hidden p-0 transition-transform duration-200 hover:-translate-y-0.5"
+              >
+                <div className="flex items-center justify-between border-b border-card-border bg-[var(--inset)] px-5 py-3">
+                  <span className="text-xs font-extrabold tracking-widest text-cyan-text">
+                    {workflow.id}
+                  </span>
+                  <span
+                    className="grid size-9 place-items-center rounded-xl bg-card-bg text-cyan-text shadow-[0_4px_14px_var(--sh08)]"
+                    aria-hidden="true"
+                  >
+                    <Icon icon={workflow.icon} width={18} height={18} />
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col gap-3 px-5 pb-5">
+                  <div>
+                    <h3 className="m-0 text-base font-semibold text-text-primary">
+                      {workflow.title}
+                    </h3>
+                    <p className="mt-1 mb-0 text-sm leading-relaxed text-text-secondary">
+                      {workflow.summary}
+                    </p>
+                  </div>
+                  <dl className="m-0 grid gap-2 border-t border-card-border pt-3 text-xs">
+                    <div>
+                      <dt className="font-bold text-text-primary">Entry point</dt>
+                      <dd className="m-0 mt-0.5 text-text-secondary">{workflow.entryPoint}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold text-text-primary">Visible result</dt>
+                      <dd className="m-0 mt-0.5 text-text-secondary">{workflow.result}</dd>
+                    </div>
+                  </dl>
+                  <Button
+                    text={`Start with ${workflow.title}`}
+                    variant="secondary"
+                    className="mt-auto w-full"
+                    onClick={() => openWorkflowDraft(workflow)}
+                  />
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+
         <section
           className="flex min-h-[210px] flex-col items-center justify-center rounded-2xl border border-dashed border-card-border bg-[var(--inset)] p-7 text-center"
           aria-labelledby="integration-drafts-title"
@@ -136,7 +267,7 @@ const DeveloperMyIntegrations = () => {
           <Button
             text="Start a draft"
             className="!bg-[var(--blue-strong)] !text-white"
-            onClick={() => setIsCreating(true)}
+            onClick={openBlankDraft}
           />
         </section>
 
@@ -170,6 +301,13 @@ const DeveloperMyIntegrations = () => {
             >
               What are you building?
             </h2>
+            {selectedWorkflow ? (
+              <p className="m-0 rounded-xl bg-[var(--inset)] px-3.5 py-3 text-xs leading-relaxed text-text-secondary">
+                Starting from <strong className="text-text-primary">{selectedWorkflow.id}</strong>
+                {' · '}
+                {selectedWorkflow.result}. You can rename the draft before opening the playground.
+              </p>
+            ) : null}
             <label className="mt-1 text-sm font-bold text-text-primary" htmlFor="integration-name">
               Integration name
             </label>
