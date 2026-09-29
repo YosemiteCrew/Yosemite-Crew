@@ -85,11 +85,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
   // Everyone: cover the app before iOS snapshots it for the app switcher.
   func applicationDidEnterBackground(_ application: UIApplication) {
     AppLockCover.shared.didEnterBackground()
-    window?.isHidden = true
-  }
-
-  func applicationWillEnterForeground(_ application: UIApplication) {
-    window?.isHidden = false
   }
 
   // A Face ID sheet or Control Center makes the app inactive without sending
