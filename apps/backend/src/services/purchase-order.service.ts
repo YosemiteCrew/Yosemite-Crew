@@ -123,9 +123,8 @@ const syncStatusFromLines = async (purchaseOrderId: string, tx: Tx) => {
   });
   if (!lines.length) return;
 
-  const received = lines.reduce((sum, l) => sum + l.quantityReceived, 0);
   let status: PurchaseOrderStatus = "PARTIALLY_RECEIVED";
-  if (received === 0) status = "CONFIRMED";
+  if (lines.every((l) => l.quantityReceived === 0)) status = "CONFIRMED";
   else if (lines.every((l) => l.quantityReceived >= l.quantityOrdered)) {
     status = "RECEIVED";
   }
