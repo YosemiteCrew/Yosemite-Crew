@@ -1,0 +1,340 @@
+'use client';
+
+import React, { useId, useState } from 'react';
+import Link from 'next/link';
+import { IoArrowBack, IoCopyOutline, IoLogoNodejs } from 'react-icons/io5';
+import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
+
+import './DeveloperMCPPlayground.css';
+
+const copyText = async (value: string): Promise<boolean> => {
+  try {
+    const clip = globalThis.navigator?.clipboard;
+    if (clip?.writeText) {
+      await clip.writeText(value);
+      return true;
+    }
+  } catch {
+    // Clipboard is unavailable or blocked — fall through to the graceful no-op.
+  }
+  return false;
+};
+
+type ExportTab = 'claude' | 'vscode' | 'cursor' | 'docker' | 'npx';
+
+const EXPORT_TABS: { id: ExportTab; label: string; icon?: React.ReactNode }[] = [
+  { id: 'claude', label: 'Claude Desktop', icon: <span className="tab-icon">🤖</span> },
+  { id: 'vscode', label: 'VS Code', icon: <span className="tab-icon">📝</span> },
+  { id: 'cursor', label: 'Cursor', icon: <span className="tab-icon">✨</span> },
+  { id: 'docker', label: 'Docker', icon: <IoLogoNodejs size={14} /> },
+  { id: 'npx', label: 'npx', icon: <IoLogoNodejs size={14} /> },
+];
+
+const MCP_PACKAGE = '@yosemitecrew/mcp-server';
+
+const CLAUDE_CONFIG = (apiKey: string) => ({
+  mcpServers: {
+    'yosemite-crew': {
+      command: 'npx',
+      args: ['-y', MCP_PACKAGE],
+      env: { YC_API_KEY: apiKey },
+    },
+  },
+});
+
+const VSCODE_CONFIG = (apiKey: string) => ({
+  mcp: {
+    servers: {
+      'yosemite-crew': {
+        command: 'npx',
+        args: ['-y', MCP_PACKAGE],
+        env: { YC_API_KEY: apiKey },
+      },
+    },
+  },
+});
+
+const DOCKER_CONFIG = (apiKey: string) => ({
+  mcpServers: {
+    'yosemite-crew': {
+      command: 'docker',
+      args: ['run', '-i', '--rm', '-e', 'YC_API_KEY', 'ghcr.io/yosemitecrew/mcp-server:latest'],
+      env: { YC_API_KEY: apiKey },
+    },
+  },
+});
+
+const NPX_COMMAND = (apiKey: string) => `YC_API_KEY=${apiKey} npx -y ${MCP_PACKAGE}`;
+
+const getConfigForTab = (tab: ExportTab, apiKey: string) => {
+  switch (tab) {
+    case 'claude':
+      return JSON.stringify(CLAUDE_CONFIG(apiKey), null, 2);
+    case 'vscode':
+      return JSON.stringify(VSCODE_CONFIG(apiKey), null, 2);
+    case 'cursor':
+      return JSON.stringify(CLAUDE_CONFIG(apiKey), null, 2);
+    case 'docker':
+      return JSON.stringify(DOCKER_CONFIG(apiKey), null, 2);
+    case 'npx':
+      return NPX_COMMAND(apiKey);
+    default:
+      return '';
+  }
+};
+
+const getConfigLabel = (tab: ExportTab) => {
+  switch (tab) {
+    case 'claude':
+      return 'Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json on macOS)';
+    case 'vscode':
+      return 'VS Code settings (settings.json)';
+    case 'cursor':
+      return 'Cursor settings (settings.json)';
+    case 'docker':
+      return 'Docker-based config (for isolated environments)';
+    case 'npx':
+      return 'Direct npx command (for testing)';
+    default:
+      return '';
+  }
+};
+
+type MCPTool = {
+  readonly name: string;
+  readonly description: string;
+  readonly scope: string;
+  readonly params?: readonly string[];
+};
+
+const TOOLS: readonly MCPTool[] = [
+  {
+    name: 'list_organizations',
+    description:
+      'List the veterinary practices this API key may read, with the role the key owner holds at each. Call this before any other tool: the organisation id it returns is the required input for them, and only practices with a currently active membership appear.',
+    scope: 'None',
+  },
+  {
+    name: 'get_usage',
+    description:
+      "Report this API key owner's call count and monthly quota for the current billing period. Needs no organisation and consumes no scope. Test-environment keys are never metered, so they report a count of zero.",
+    scope: 'None',
+  },
+  {
+    name: 'list_appointments',
+    description:
+      'List appointments for one practice, oldest first, with optional date-window and status filters. Results are paginated: when the response carries pagination.nextCursor there are more, and that value is the cursor for the next call.',
+    scope: 'appointments:read',
+    params: [
+      'organisationId (required)',
+      'from (ISO 8601)',
+      'to (ISO 8601)',
+      'status (enum)',
+      'limit (1-100)',
+      'cursor',
+    ],
+  },
+  {
+    name: 'get_appointment',
+    description:
+      'Fetch one appointment by id, including the patient snapshot, lead clinician, room, timing and status. Returns not-found if the appointment belongs to a practice this key cannot read.',
+    scope: 'appointments:read',
+    params: ['organisationId (required)', 'appointmentId (required)'],
+  },
+];
+
+const MCPIntro = ({ apiKey }: { apiKey: string | null }) => (
+  <div className="MCPIntro">
+    <h1 className="MCPTitle">MCP playground</h1>
+    <p className="MCPText">
+      The Yosemite Crew MCP server exposes the same read-only developer API as tools your AI
+      assistant can call. Configure your client with an API key from the{' '}
+      <Link href="/developers/api-keys">API keys page</Link> and start asking questions like:
+    </p>
+    <ul className="MCPExamples">
+      <li>
+        <code>{'&ldquo;What practices can my key access?&rdquo;'}</code>
+      </li>
+      <li>
+        <code>{'&ldquo;Show me appointments for practice org_abc from last week&rdquo;'}</code>
+      </li>
+      <li>
+        <code>{'What&apos;s my API usage this month?'}</code>
+      </li>
+    </ul>
+    <p className="MCPText">
+      The server runs locally via stdio — your API key never leaves your machine. Choose a client
+      below to get a ready-to-paste configuration.
+    </p>
+    {apiKey ? (
+      <p className="MCPText MCPText--hint">
+        Using the API key currently in the field above.{' '}
+        <Link href="/developers/api-keys">Manage keys</Link>
+      </p>
+    ) : (
+      <p className="MCPText MCPText--hint">
+        Paste an API key above to generate a personalized config.{' '}
+        <Link href="/developers/api-keys">Create a key</Link>
+      </p>
+    )}
+  </div>
+);
+
+type KeyFieldProps = {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+};
+
+const KeyField = ({ id, value, onChange }: KeyFieldProps) => (
+  <div className="MCPField">
+    <label className="MCPLabel" htmlFor={id}>
+      API key
+    </label>
+    <input
+      id={id}
+      className="MCPInput"
+      type="password"
+      autoComplete="off"
+      spellCheck={false}
+      value={value}
+      placeholder="yc_dev_..."
+      onChange={(e) => onChange(e.target.value)}
+    />
+    <span className="MCPHint">
+      Held in this page only. It is not saved and not included in anything you copy; configs read
+      from your environment.
+      <Link href="/developers/api-keys">Manage keys</Link>
+    </span>
+  </div>
+);
+
+const ToolCard = ({ tool }: { tool: (typeof TOOLS)[number] }) => (
+  <div className="MCPToolCard">
+    <div className="MCPToolHead">
+      <code className="MCPToolName">{tool.name}</code>
+      {tool.scope !== 'None' && <span className="MCPScopeBadge">{tool.scope}</span>}
+    </div>
+    <p className="MCPToolDesc">{tool.description}</p>
+    {tool.params && (
+      <div className="MCPToolParams">
+        <span className="MCPToolParamsLabel">Parameters:</span>
+        <ul>
+          {tool.params.map((param) => (
+            <li key={param}>
+              <code>{param}</code>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+);
+
+const MCPConfigExport = ({ apiKey }: { apiKey: string }) => {
+  const [exportTab, setExportTab] = useState<ExportTab>('claude');
+  const [copied, setCopied] = useState(false);
+  const configText = getConfigForTab(exportTab, apiKey);
+  const configLabel = getConfigLabel(exportTab);
+
+  const handleCopy = async () => {
+    const ok = await copyText(configText);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
+
+  return (
+    <section className="MCPExport" aria-label="MCP client configuration">
+      <h2 className="MCPExportTitle">Client configuration</h2>
+      <p className="MCPExportSubtitle">{configLabel}</p>
+      <div className="MCPExportTabs" role="tablist" aria-label="Configuration target">
+        {EXPORT_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={exportTab === tab.id}
+            className={`MCPExportTab${exportTab === tab.id ? ' is-active' : ''}`}
+            onClick={() => setExportTab(tab.id)}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        ))}
+        <button type="button" className="MCPExportCopy" onClick={handleCopy} disabled={!configText}>
+          <IoCopyOutline size={12} aria-hidden="true" />
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <pre className="MCPExportPre" role="tabpanel" tabIndex={0}>
+        {configText || 'Paste an API key above to generate a configuration.'}
+      </pre>
+    </section>
+  );
+};
+
+const DeveloperMCPPlayground = () => {
+  const idPrefix = useId();
+  const [apiKey, setApiKey] = useState('');
+
+  return (
+    <DevRouteGuard>
+      <section className="MCPWrapper">
+        <div className="MCPHeader">
+          <Link href="/developers/documentation" className="MCPBackLink">
+            <IoArrowBack size={18} />
+            <span>Back to documentation</span>
+          </Link>
+        </div>
+
+        <div className="MCPShell">
+          <MCPIntro apiKey={apiKey || null} />
+          <KeyField id={`${idPrefix}-key`} value={apiKey} onChange={setApiKey} />
+          {apiKey && <MCPConfigExport apiKey={apiKey} />}
+          <section className="MCPTools" aria-label="Available MCP tools">
+            <h2 className="MCPToolsTitle">Available tools</h2>
+            <div className="MCPToolsGrid">
+              {TOOLS.map((tool) => (
+                <ToolCard key={tool.name} tool={tool} />
+              ))}
+            </div>
+          </section>
+          <section className="MCPNotes">
+            <h2 className="MCPNotesTitle">Notes</h2>
+            <ul>
+              <li>
+                The MCP server is open source:{' '}
+                <a
+                  href="https://github.com/YosemiteCrew/Yosemite-Crew/tree/dev/packages/mcp-server"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  packages/mcp-server
+                </a>
+              </li>
+              <li>
+                It uses the same <code>/v1/developer</code> API as the playground — read-only,
+                scoped by your key
+              </li>
+              <li>
+                Run <code>npx -y @yosemitecrew/mcp-server</code> locally; the key comes from{' '}
+                <code>YC_API_KEY</code> in your environment
+              </li>
+              <li>
+                For production use, pin a version instead of <code>-y</code> (e.g.,{' '}
+                <code>npx @yosemitecrew/mcp-server@1.2.3</code>)
+              </li>
+              <li>
+                Docker image: <code>ghcr.io/yosemitecrew/mcp-server:latest</code>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </section>
+    </DevRouteGuard>
+  );
+};
+
+export default DeveloperMCPPlayground;
