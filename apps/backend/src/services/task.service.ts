@@ -1959,14 +1959,14 @@ export const TaskService = {
     const { isReassigningUser, isReassigningGroup } =
       resolveTaskReassignmentFlags(task, updates, isCreator);
     const isReassigning = isReassigningUser || isReassigningGroup;
-    if (isReassigningUser) {
-      await assertTaskAssignee({
+    const assertNewAssignee = () =>
+      assertTaskAssignee({
         organisationId: task.organisationId,
         audience: task.audience,
         assignedTo: updates.assignedTo,
         patientId: task.patientId,
       });
-    }
+    if (isReassigningUser) await assertNewAssignee();
 
     const seriesMasterId = getSeriesMasterId(task);
     const normalizedScope = normalizeRecurrenceScope(scope);
@@ -2025,6 +2025,11 @@ export const TaskService = {
     );
     const isReassigningSeries =
       seriesFlags.isReassigningUser || seriesFlags.isReassigningGroup;
+    // The occurrence named may already carry the assignee the rest of the
+    // series is now given, so the check above did not run for it.
+    if (seriesFlags.isReassigningUser && !isReassigningUser) {
+      await assertNewAssignee();
+    }
 
     const updatedRows = await applySeriesUpdates(seriesContext);
 

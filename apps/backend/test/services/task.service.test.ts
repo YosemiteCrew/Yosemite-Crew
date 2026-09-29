@@ -3941,6 +3941,44 @@ describe("TaskService", () => {
       expect(mockedPrisma.task.update).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ["a staff member who has left", {}, "vet-off"],
+      [
+        "a co-parent whose tasks access is off",
+        { audience: "PARENT_TASK" },
+        "co-no-tasks",
+      ],
+    ])(
+      "refuses to give a whole series to %s the named occurrence already has",
+      async (_label, over, assignee) => {
+        const recurring = (row: Record<string, unknown>) =>
+          existing({ ...over, ...row });
+        const named = recurring({
+          assignedTo: assignee,
+          recurrence: { type: "DAILY", isMaster: true },
+        });
+        mockedPrisma.task.findFirst.mockResolvedValueOnce(named as never);
+        mockedPrisma.task.findMany.mockResolvedValueOnce([
+          named,
+          recurring({
+            id: "task-2",
+            recurrence: { type: "DAILY", masterTaskId: "task-1" },
+          }),
+        ] as never);
+
+        await expect(
+          TaskService.updateTask(
+            "task-1",
+            { assignedTo: assignee },
+            "vet-1",
+            "ALL",
+            "org-1",
+          ),
+        ).rejects.toMatchObject({ statusCode: 404 });
+        expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+      },
+    );
+
     it("lets the creator hand a parent task to a co-parent who may work on it", async () => {
       mockedPrisma.task.findFirst.mockResolvedValueOnce(
         existing({ audience: "PARENT_TASK", assignedTo: "par-1" }) as never,
