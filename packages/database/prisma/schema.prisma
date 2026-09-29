@@ -895,7 +895,7 @@ model Appointment {
   @@index([organisationId, appointmentDate])
   @@index([organisationId])
   @@index([organisationId, productItemId])
-  @@index([organisationId, recurrenceSeriesId, recurrenceSeriesIndex])
+  @@index([organisationId, recurrenceSeriesId, recurrenceSeriesIndex], map: "Appointment_organisationId_recurrenceSeriesId_recurrenceSer_idx")
   @@index([caseId])
   @@index([encounterId])
   @@index([status])

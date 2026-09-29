@@ -18,5 +18,5 @@ CHECK (
   )
 );
 
-CREATE INDEX "Appointment_organisationId_recurrenceSeriesId_recurrenceSeriesIndex_idx"
+CREATE INDEX "Appointment_organisationId_recurrenceSeriesId_recurrenceSer_idx"
 ON "Appointment"("organisationId", "recurrenceSeriesId", "recurrenceSeriesIndex");

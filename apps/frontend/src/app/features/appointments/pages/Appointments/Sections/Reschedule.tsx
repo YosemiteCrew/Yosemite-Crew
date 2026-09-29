@@ -135,7 +135,9 @@ const SeriesReschedulePreview = ({
             hour: 'numeric',
             minute: '2-digit',
           })}{' '}
-          <span className={occurrence.hasConflict ? 'text-text-error' : 'text-text-success'}>
+          <span
+            className={occurrence.hasConflict ? 'text-text-error' : 'text-[var(--success-text)]'}
+          >
             {occurrence.hasConflict ? 'Conflict' : 'Available'}
           </span>
         </li>
