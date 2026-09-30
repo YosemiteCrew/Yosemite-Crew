@@ -142,6 +142,25 @@ describe('ClientCollections', () => {
     expect(mockApi.review).toHaveBeenCalledWith('org-1', overdue.invoiceId);
   });
 
+  it('keeps payment and review actions disabled while each update is pending', async () => {
+    mockApi.saveTerms.mockReturnValue(new Promise(() => {}));
+    mockApi.review.mockReturnValue(new Promise(() => {}));
+    render(<ClientCollections />);
+    await screen.findByRole('heading', { name: 'Mara Jones' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save payment terms for Mara Jones' }));
+    fireEvent.click(screen.getByRole('button', { name: /Mark invoice/ }));
+
+    await waitFor(() => {
+      const saveButton = screen.getByRole('button', { name: 'Save payment terms for Mara Jones' });
+      const reviewButton = screen.getByRole('button', { name: /Mark invoice/ });
+      expect(saveButton).toHaveTextContent('Saving…');
+      expect(saveButton).toBeDisabled();
+      expect(reviewButton).toHaveTextContent('Saving…');
+      expect(reviewButton).toBeDisabled();
+    });
+  });
+
   it('shows the empty state when no balances are overdue', async () => {
     mockApi.list.mockResolvedValueOnce([]);
     render(<ClientCollections />);
