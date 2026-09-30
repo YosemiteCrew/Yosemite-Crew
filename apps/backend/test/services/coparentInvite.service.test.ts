@@ -507,6 +507,55 @@ describe("CoParentInviteService", () => {
       expect(result.pendingInvites).toEqual([]);
     });
 
+    it("looks invites up together and keeps them in expiry order", async () => {
+      const invite = (token: string, parentId: string) => ({
+        inviteToken: token,
+        email: "test@test.com",
+        invitedByParentId: parentId,
+        patientId: "c1",
+        inviteeName: null,
+        expiresAt: new Date(Date.now() + 10000),
+      });
+      (prisma.coParentInvite.findMany as jest.Mock).mockResolvedValue([
+        invite("t-slow", "p-slow"),
+        invite("t-fast", "p-fast"),
+      ]);
+      const parent = (id: string) => ({
+        id,
+        firstName: id,
+        lastName: null,
+        profileImageUrl: null,
+      });
+      let releaseSlow!: (value: unknown) => void;
+      (prisma.parent.findUnique as jest.Mock).mockImplementation(
+        ({ where }: { where: { id: string } }) =>
+          where.id === "p-slow"
+            ? new Promise((resolve) => {
+                releaseSlow = resolve;
+              })
+            : Promise.resolve(parent(where.id)),
+      );
+      (prisma.patient.findUnique as jest.Mock).mockResolvedValue({
+        id: "c1",
+        name: "Child",
+        photoUrl: null,
+      });
+
+      const pending =
+        CoParentInviteService.getPendingInvitesForEmail("test@test.com");
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.parent.findUnique).toHaveBeenCalledTimes(2);
+
+      releaseSlow(parent("p-slow"));
+      const result = await pending;
+
+      expect(result.pendingInvites.map((entry) => entry.token)).toEqual([
+        "t-slow",
+        "t-fast",
+      ]);
+    });
+
     it("skips invites with missing relations and maps valid ones", async () => {
       (prisma.coParentInvite.findMany as jest.Mock).mockResolvedValue([
         {

@@ -24,6 +24,7 @@ import { buildS3Key, moveFile } from "src/middlewares/upload";
 import { escapeLikePattern } from "../utils/escape-like";
 import logger from "src/utils/logger";
 import { uploadKeyToMove } from "src/utils/upload-key";
+import { mapInSequence } from "../utils/async-iteration";
 import { TaskLibraryService } from "./taskLibrary.service";
 import { CreateFromLibraryInput, TaskService } from "./task.service";
 
@@ -346,7 +347,7 @@ const createDefaultTasks = async (input: {
 
     const now = new Date();
 
-    for (const lib of libraryTasks) {
+    await mapInSequence(libraryTasks, (lib) => {
       let recurrence: CreateFromLibraryInput["recurrence"] | undefined;
 
       const schema = lib.schema as {
@@ -372,7 +373,7 @@ const createDefaultTasks = async (input: {
         };
       }
 
-      await TaskService.createFromLibrary({
+      return TaskService.createFromLibrary({
         organisationId: input.organisationId,
         patientId: input.patientId,
         createdBy: input.parentId,
@@ -382,7 +383,7 @@ const createDefaultTasks = async (input: {
         dueAt: now,
         recurrence,
       });
-    }
+    });
   } catch (error) {
     logger.error(
       "Error creating default tasks for companion type:",
