@@ -9,6 +9,8 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    patientOrganisation: { findFirst: jest.fn() },
+    encounter: { findFirst: jest.fn() },
   },
 }));
 
@@ -23,6 +25,8 @@ const mockFindFirst = prisma.dermatologyAssessment.findFirst as jest.Mock;
 const mockFindMany = prisma.dermatologyAssessment.findMany as jest.Mock;
 const mockUpdate = prisma.dermatologyAssessment.update as jest.Mock;
 const mockDelete = prisma.dermatologyAssessment.delete as jest.Mock;
+const mockFindMembership = prisma.patientOrganisation.findFirst as jest.Mock;
+const mockFindEncounter = prisma.encounter.findFirst as jest.Mock;
 
 const baseAssessment = {
   id: "da-1",
@@ -46,7 +50,10 @@ const baseAssessment = {
   updatedAt: new Date(),
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockFindMembership.mockResolvedValue({ id: "membership-1" });
+});
 
 describe("DermatologyAssessmentService.create", () => {
   it("creates an assessment with pruritus and CADESI scores", async () => {
@@ -64,6 +71,61 @@ describe("DermatologyAssessmentService.create", () => {
       }),
     );
     expect(result.pruritusScore).toBe(7);
+  });
+
+  it("does not create an assessment when the patient is not linked to the organisation", async () => {
+    mockFindMembership.mockResolvedValue(null);
+    await expect(
+      DermatologyAssessmentService.create({
+        organisationId: "org-1",
+        patientId: "pat-outside-org",
+        assessedAt: new Date("2026-06-30T10:00:00Z"),
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Companion not found.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("records findings against an encounter of the same companion in the organisation", async () => {
+    mockFindEncounter.mockResolvedValue({ id: "enc-1" });
+    mockCreate.mockResolvedValue({ ...baseAssessment, encounterId: "enc-1" });
+    await DermatologyAssessmentService.create({
+      organisationId: "org-1",
+      patientId: "pat-1",
+      encounterId: "enc-1",
+      assessedAt: new Date("2026-06-30T10:00:00Z"),
+      affectedRegions: ["Paws"],
+    });
+    expect(mockFindEncounter).toHaveBeenCalledWith({
+      where: { id: "enc-1", organisationId: "org-1", patientId: "pat-1" },
+      select: { id: true },
+    });
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          encounterId: "enc-1",
+          affectedRegions: ["Paws"],
+        }),
+      }),
+    );
+  });
+
+  it("does not record findings against an encounter outside the organisation or companion", async () => {
+    mockFindEncounter.mockResolvedValue(null);
+    await expect(
+      DermatologyAssessmentService.create({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        encounterId: "enc-other",
+        assessedAt: new Date("2026-06-30T10:00:00Z"),
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Encounter not found.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -95,6 +157,29 @@ describe("DermatologyAssessmentService.list", () => {
       expect.objectContaining({
         where: expect.objectContaining({ patientId: "pat-1" }),
       }),
+    );
+  });
+
+  it("does not list assessments for a patient outside the organisation", async () => {
+    mockFindMembership.mockResolvedValue(null);
+    await expect(
+      DermatologyAssessmentService.list({
+        organisationId: "org-1",
+        patientId: "pat-outside-org",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Companion not found.",
+    });
+    expect(mockFindMany).not.toHaveBeenCalled();
+  });
+
+  it("lists organisation assessments without patient filtering", async () => {
+    mockFindMany.mockResolvedValue([]);
+    await DermatologyAssessmentService.list({ organisationId: "org-1" });
+    expect(mockFindMembership).not.toHaveBeenCalled();
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { organisationId: "org-1" } }),
     );
   });
 });

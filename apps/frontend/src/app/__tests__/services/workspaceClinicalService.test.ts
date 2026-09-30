@@ -27,6 +27,8 @@ import {
   listVitalRecordsForAppointment,
   listVitalRecordsForEncounter,
   createPmsObservationSubmission,
+  createDermatologyAssessment,
+  listDermatologyAssessments,
   deletePrescriptionArtifact,
   generatePrescriptionLabels,
   getRenderedDocument,
@@ -72,6 +74,34 @@ describe('workspaceClinicalService', () => {
     patchDataMock.mockReset();
     putDataMock.mockReset();
     deleteDataMock.mockReset();
+  });
+
+  it('lists dermatology findings within the organisation and patient scope', async () => {
+    getDataMock.mockResolvedValueOnce({ data: [{ id: 'derm-1' }] });
+    await expect(listDermatologyAssessments('org-1', 'patient-1')).resolves.toEqual([
+      { id: 'derm-1' },
+    ]);
+    expect(getDataMock).toHaveBeenCalledWith('/v1/pms/organisation/org-1/dermatology-assessments', {
+      patientId: 'patient-1',
+    });
+  });
+
+  it('creates dermatology findings without overriding the authenticated clinician', async () => {
+    const assessment = { id: 'derm-1', patientId: 'patient-1' };
+    postDataMock.mockResolvedValueOnce({ data: assessment });
+    await expect(
+      createDermatologyAssessment({
+        organisationId: 'org-1',
+        patientId: 'patient-1',
+        assessedAt: '2026-09-27T10:00:00.000Z',
+        affectedRegions: ['Paws'],
+      })
+    ).resolves.toEqual(assessment);
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/pms/organisation/org-1/dermatology-assessments',
+      expect.objectContaining({ patientId: 'patient-1', affectedRegions: ['Paws'] })
+    );
+    expect(postDataMock.mock.calls[0][1]).not.toHaveProperty('organisationId');
   });
 
   it.each([409, 412, 428])('uses the draft-preserving conflict message for HTTP %s', (status) => {

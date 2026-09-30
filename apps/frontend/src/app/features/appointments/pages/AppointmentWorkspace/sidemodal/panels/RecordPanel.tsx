@@ -4,6 +4,7 @@ import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
 import VitalsForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/VitalsForm';
 import ObservationToolForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/ObservationToolForm';
 import DentalExaminationForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/DentalExaminationForm';
+import DermatologyAssessmentForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/DermatologyAssessmentForm';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 
 type RecordPanelProps = {
@@ -18,15 +19,16 @@ type RecordPanelProps = {
   initialTab?: RecordTab;
 };
 
-export type RecordTab = 'VITALS' | 'OBSERVATION' | 'DENTAL';
+export type RecordTab = 'VITALS' | 'OBSERVATION' | 'DENTAL' | 'DERMATOLOGY';
 
 const TABS = [
   { key: 'VITALS', label: 'Vitals' },
   { key: 'OBSERVATION', label: 'Observation Tool' },
   { key: 'DENTAL', label: 'Dental' },
+  { key: 'DERMATOLOGY', label: 'Dermatology' },
 ];
 
-/** Record panel: Vitals, Observation Tool, and Dental tabs. */
+/** Record panel: Vitals, Observation Tool, Dental, and Dermatology tabs. */
 const RecordPanel = ({
   appointmentId,
   organisationId,
@@ -68,6 +70,20 @@ const RecordPanel = ({
             filledBy={authorId}
             filledByName={authorName}
             observations={encounter.observations}
+          />
+        </div>
+      );
+    }
+    if (tab === 'DERMATOLOGY') {
+      return (
+        <div id="record-panel-DERMATOLOGY" role="tabpanel" aria-labelledby="tab-DERMATOLOGY">
+          <DermatologyAssessmentForm
+            key={companionId}
+            organisationId={organisationId}
+            patientId={companionId}
+            encounterId={encounterId}
+            assessedBy={authorId}
+            species={species}
           />
         </div>
       );
