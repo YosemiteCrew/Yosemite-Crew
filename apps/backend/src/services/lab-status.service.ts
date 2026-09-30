@@ -2,6 +2,7 @@ import { LabOrderService } from "src/services/lab-order.service";
 import logger from "src/utils/logger";
 import { prisma } from "src/config/prisma";
 import type { LabOrderStatus } from "@prisma/client";
+import { mapWithConcurrency } from "../utils/async-iteration";
 
 const TERMINAL_STATUSES: LabOrderStatus[] = ["COMPLETE", "CANCELLED", "ERROR"];
 
@@ -18,7 +19,7 @@ export const LabStatusService = {
 
     if (!pending.length) return;
 
-    for (const order of pending) {
+    await mapWithConcurrency(pending, async (order) => {
       try {
         await LabOrderService.getOrder(
           order.provider,
@@ -28,6 +29,6 @@ export const LabStatusService = {
       } catch (error) {
         logger.error("Failed to refresh lab order status", error);
       }
-    }
+    });
   },
 };

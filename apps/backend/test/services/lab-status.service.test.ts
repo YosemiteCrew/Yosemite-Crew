@@ -68,6 +68,40 @@ describe("LabStatusService", () => {
     );
   });
 
+  it("refreshes orders a few at a time and logs a failure without stopping", async () => {
+    prismaMock.labOrder.findMany.mockResolvedValue(
+      ["ORDER-1", "ORDER-2", "ORDER-3"].map((idexxOrderId) => ({
+        provider: "IDEXX",
+        organisationId: "ORG-1",
+        idexxOrderId,
+      })),
+    );
+    let releaseFirst!: (value: unknown) => void;
+    labOrderServiceMock.getOrder
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+      )
+      .mockRejectedValueOnce(new Error("idexx down"))
+      .mockResolvedValueOnce({ id: "ORDER-3" });
+
+    const pending = LabStatusService.pollPending();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    // A slow order does not hold up the others.
+    expect(labOrderServiceMock.getOrder).toHaveBeenCalledTimes(3);
+
+    releaseFirst({ id: "ORDER-1" });
+    await expect(pending).resolves.toBeUndefined();
+
+    expect(loggerMock.error).toHaveBeenCalledTimes(1);
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      "Failed to refresh lab order status",
+      expect.any(Error),
+    );
+  });
+
   it("skips refresh when there are no pending orders", async () => {
     prismaMock.labOrder.findMany.mockResolvedValue([]);
 
