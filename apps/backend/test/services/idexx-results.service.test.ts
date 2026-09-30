@@ -527,4 +527,51 @@ describe("IdexxResultsService", () => {
     });
     expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
   });
+  it("applies the results in a batch one at a time, in order", async () => {
+    const result = (resultId: string, orderId: string) => ({
+      resultId,
+      orderId,
+      status: "COMPLETE",
+      updatedDate: "2026-06-17T12:00:00.000Z",
+      patient: { patientId: "patient-1" },
+    });
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [result("result-1", "order-1"), result("result-2", "order-2")],
+    });
+    const order = {
+      id: "lab-order-1",
+      organisationId: "org-1",
+      appointmentId: "appointment-1",
+      createdByUserId: "user-1",
+      patientId: "patient-1",
+    };
+    let releaseFirst!: (value: unknown) => void;
+    mockedPrisma.labOrder.findFirst
+      .mockReset()
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }) as any,
+      )
+      .mockResolvedValue(order as any);
+
+    const pending = IdexxResultsService.pollLatest(2, 1);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    // The second result is not touched until the first has been applied.
+    expect(mockedPrisma.labOrder.findFirst).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.labResult.upsert).not.toHaveBeenCalled();
+
+    releaseFirst(order);
+    await pending;
+
+    expect(
+      mockedPrisma.labResult.upsert.mock.calls.map(
+        ([args]: any[]) => args.create.resultId,
+      ),
+    ).toEqual(["result-1", "result-2"]);
+    expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
+  });
 });

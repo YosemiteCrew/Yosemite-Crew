@@ -185,6 +185,31 @@ describe("pruneLegacyRepeatables", () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("redis said no"));
   });
 
+  it("removes entries together and reports them in scheduler order", async () => {
+    let releaseFirst!: (value: boolean) => void;
+    const removeJobScheduler = jest
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<boolean>((resolve) => {
+          releaseFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(true);
+    const queue = makeQueue(
+      "appointments",
+      [LEGACY_A, LEGACY_B],
+      removeJobScheduler,
+    );
+
+    const pending = pruneLegacyRepeatables(queue);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(removeJobScheduler).toHaveBeenCalledTimes(2);
+
+    releaseFirst(true);
+    await expect(pending).resolves.toEqual([LEGACY_A, LEGACY_B]);
+  });
+
   it("reports what it removed", async () => {
     const queue = makeQueue("appointments", [LEGACY_A]);
     await pruneLegacyRepeatables(queue);
@@ -214,6 +239,25 @@ describe("pruneLegacyRepeatablesAcross", () => {
     expect(b.getJobSchedulers).toHaveBeenCalledTimes(1);
     expect(c.getJobSchedulers).toHaveBeenCalledTimes(1);
     expect(b.removeJobScheduler).not.toHaveBeenCalled();
+  });
+
+  it("sweeps one queue at a time, in the order given", async () => {
+    let releaseFirst!: (value: Array<{ key: string }>) => void;
+    const first = makeQueue("appointments", []);
+    first.getJobSchedulers.mockReturnValueOnce(
+      new Promise((resolve) => {
+        releaseFirst = resolve;
+      }),
+    );
+    const second = makeQueue("tasks", [LEGACY_B]);
+
+    const pending = pruneLegacyRepeatablesAcross([first, second]);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(second.getJobSchedulers).not.toHaveBeenCalled();
+
+    releaseFirst([{ key: LEGACY_A }]);
+    await expect(pending).resolves.toEqual([LEGACY_A, LEGACY_B]);
   });
 
   it("keeps going past a queue that fails", async () => {

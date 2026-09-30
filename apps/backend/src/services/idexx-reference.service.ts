@@ -3,6 +3,7 @@ import { CodeService } from "src/services/code.service";
 import { CodeSyncService } from "src/services/code-sync.service";
 import type { CodeSyncKind } from "src/services/code-sync.service";
 import logger from "src/utils/logger";
+import { mapInSequence } from "../utils/async-iteration";
 
 const SPECIES_ALLOWED = new Set(["canine", "feline", "equine"]);
 
@@ -96,13 +97,15 @@ const ensureSpeciesEntry = async (species: string) => {
   return code;
 };
 
+// Each sync writes one entry at a time: several IDEXX entries share one species
+// entry, so parallel upserts of the same code could race.
 const syncSpecies = async (data: IdexxRefList<IdexxSpecies>) => {
-  for (const entry of data.list) {
+  await mapInSequence(data.list, async (entry) => {
     const species = mapIdexxSpecies(entry.code, entry.name);
-    if (!species) continue;
+    if (!species) return;
 
     const sourceCode = await ensureSpeciesEntry(species);
-    if (!sourceCode) continue;
+    if (!sourceCode) return;
 
     await CodeService.upsertMapping({
       sourceSystem: "YOSEMITECODE",
@@ -113,16 +116,16 @@ const syncSpecies = async (data: IdexxRefList<IdexxSpecies>) => {
       targetVersion: data.version,
       active: true,
     });
-  }
+  });
 };
 
 const syncBreeds = async (data: IdexxRefList<IdexxBreed>) => {
-  for (const entry of data.list) {
+  await mapInSequence(data.list, async (entry) => {
     const species = mapIdexxSpecies(entry.speciesCode);
-    if (!species) continue;
+    if (!species) return;
 
     const speciesCode = await ensureSpeciesEntry(species);
-    if (!speciesCode) continue;
+    if (!speciesCode) return;
 
     const breedCode = buildBreedCode(species, entry.code);
 
@@ -149,12 +152,12 @@ const syncBreeds = async (data: IdexxRefList<IdexxBreed>) => {
       targetVersion: data.version,
       active: true,
     });
-  }
+  });
 };
 
 const syncGenders = async (data: IdexxRefList<IdexxGender>) => {
-  for (const entry of data.list) {
-    await CodeService.upsertEntry({
+  await mapInSequence(data.list, (entry) =>
+    CodeService.upsertEntry({
       system: "IDEXX",
       code: entry.code,
       display: entry.name,
@@ -162,13 +165,13 @@ const syncGenders = async (data: IdexxRefList<IdexxGender>) => {
       active: true,
       synonyms: [],
       meta: { source: "idexx-sync", version: data.version },
-    });
-  }
+    }),
+  );
 };
 
 const syncTests = async (data: IdexxRefList<IdexxTest>) => {
-  for (const entry of data.list) {
-    await CodeService.upsertEntry({
+  await mapInSequence(data.list, (entry) =>
+    CodeService.upsertEntry({
       system: "IDEXX",
       code: entry.code,
       display: entry.name,
@@ -187,8 +190,8 @@ const syncTests = async (data: IdexxRefList<IdexxTest>) => {
         allowsAddOns: entry.allowsAddOns,
         displayCode: entry.displayCode,
       },
-    });
-  }
+    }),
+  );
 };
 
 const markSynced = async (kind: CodeSyncKind, version: string) => {

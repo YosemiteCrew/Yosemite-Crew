@@ -10,6 +10,7 @@ import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
 import { prisma } from "src/config/prisma";
 import { getStreamServer } from "src/config/stream-client";
+import { mapInSequence, mapWithConcurrency } from "../utils/async-iteration";
 
 const SYSTEM_USER_ID = "system-yosemite";
 
@@ -182,15 +183,47 @@ const assertUsersInOrg = async (
   userIds: string[],
   organisationId: string,
 ): Promise<void> => {
-  for (const userId of userIds) {
-    const ok = await isUserInOrg(userId, organisationId);
-    if (!ok) {
-      throw new ChatServiceError(
-        "User is not associated with this organisation",
-        403,
-      );
-    }
+  const memberships = await mapWithConcurrency(userIds, (userId) =>
+    isUserInOrg(userId, organisationId),
+  );
+  if (memberships.includes(false)) {
+    throw new ChatServiceError(
+      "User is not associated with this organisation",
+      403,
+    );
   }
+};
+
+const loadChatUserProfile = async (userId: string, organisationId: string) => {
+  const userProfile = await UserProfileService.getByUserId(
+    userId,
+    organisationId,
+  );
+  const user = await UserService.getById(userId);
+  return { userProfile, user };
+};
+
+/**
+ * Register each member's display name and photo with Stream before they join
+ * a channel. Profiles are read a few at a time; the Stream upserts then run
+ * one after another in member order.
+ */
+export const upsertChatUsers = async (
+  members: ReadonlyArray<{ userId: string; organisationId: string }>,
+): Promise<void> => {
+  const profiles = await mapWithConcurrency(members, (member) =>
+    loadChatUserProfile(member.userId, member.organisationId),
+  );
+  await mapInSequence(members, ({ userId }, index) => {
+    const { userProfile, user } = profiles[index];
+    return getStreamServer().upsertUser({
+      name: chatUserDisplayName(user),
+      id: userId,
+      image:
+        userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
+      role: "user",
+    });
+  });
 };
 
 const assertCanCloseSession = (
@@ -365,22 +398,9 @@ export const ChatService = {
 
     if (existing) return toChatSessionDocument(existing);
 
-    // Upsert users in Stream
-    for (const userId of members) {
-      const userProfile = await UserProfileService.getByUserId(
-        userId,
-        organisationId,
-      );
-      const user = await UserService.getById(userId);
-
-      await getStreamServer().upsertUser({
-        name: chatUserDisplayName(user),
-        id: userId,
-        image:
-          userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
-        role: "user",
-      });
-    }
+    await upsertChatUsers(
+      members.map((userId) => ({ userId, organisationId })),
+    );
 
     const hash = shortHash(`${organisationId}:${members.join(":")}`);
 
@@ -434,22 +454,9 @@ export const ChatService = {
 
     await assertUsersInOrg(members, organisationId);
 
-    // Upsert users in Stream
-    for (const userId of members) {
-      const userProfile = await UserProfileService.getByUserId(
-        userId,
-        organisationId,
-      );
-      const user = await UserService.getById(userId);
-
-      await getStreamServer().upsertUser({
-        name: chatUserDisplayName(user),
-        id: userId,
-        image:
-          userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
-        role: "user",
-      });
-    }
+    await upsertChatUsers(
+      members.map((userId) => ({ userId, organisationId })),
+    );
 
     const channelId = `org-group-${Date.now()}`;
 
@@ -566,22 +573,12 @@ export const ChatService = {
 
     await assertUsersInOrg(newMembers, session.organisationId);
 
-    // Upsert users in Stream
-    for (const userId of newMembers) {
-      const userProfile = await UserProfileService.getByUserId(
+    await upsertChatUsers(
+      newMembers.map((userId) => ({
         userId,
-        session.organisationId,
-      );
-      const user = await UserService.getById(userId);
-
-      await getStreamServer().upsertUser({
-        name: chatUserDisplayName(user),
-        id: userId,
-        image:
-          userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
-        role: "user",
-      });
-    }
+        organisationId: session.organisationId,
+      })),
+    );
 
     const updatedMembers = [...session.members, ...newMembers];
     const updated = await prisma.chatSession.update({

@@ -17,6 +17,7 @@ import {
   getCalendarPrefillMatchesCached,
 } from "./shared/service-availability";
 import { filterWithinRadius, getBoundingDeltas } from "src/utils/geo";
+import { mapInSequence } from "../utils/async-iteration";
 
 type CalendarPrefillRequest = {
   organisationId: string;
@@ -189,11 +190,9 @@ export const ServiceService = {
       throw new ServiceServiceError("Payload list cannot be empty.", 400);
     }
 
-    const results = [];
-    for (const [index, dto] of dtos.entries()) {
+    return mapInSequence(dtos, async (dto, index) => {
       try {
-        const created = await ServiceService.create(dto);
-        results.push(created);
+        return await ServiceService.create(dto);
       } catch (error: unknown) {
         if (error instanceof ServiceServiceError) {
           throw new ServiceServiceError(
@@ -203,9 +202,7 @@ export const ServiceService = {
         }
         throw error;
       }
-    }
-
-    return results;
+    });
   },
 
   async getById(id: string) {

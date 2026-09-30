@@ -553,6 +553,48 @@ describe("ParentService", () => {
     expect(mockedPrisma.parent.deleteMany).toHaveBeenCalled();
   });
 
+  it("deletes each upstream identity in turn and carries on past a failure", async () => {
+    mockDeleteAuthUser.mockReset();
+    let releaseFirst!: () => void;
+    mockDeleteAuthUser
+      .mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        }),
+      )
+      .mockRejectedValueOnce(new Error("provider down"))
+      .mockResolvedValueOnce(undefined);
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce(mockParent);
+    mockedPrisma.authUserMobile.findMany.mockResolvedValueOnce([
+      { id: "auth-row-1", providerUserId: "st-user-1" },
+      { id: "auth-row-2", providerUserId: null },
+      { id: "auth-row-3", providerUserId: "st-user-3" },
+      { id: "auth-row-4", providerUserId: "st-user-4" },
+    ] as never);
+    mockedPrisma.parentPatient.deleteMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.authUserMobile.updateMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.parentAddress.deleteMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.parent.deleteMany.mockResolvedValueOnce({ count: 1 });
+
+    const pending = ParentService.delete("parent-1", {
+      source: "pms",
+      organisationId: "org-1",
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    // The next identity is not touched until the first delete settles.
+    expect(mockDeleteAuthUser).toHaveBeenCalledTimes(1);
+
+    releaseFirst();
+    await expect(pending).resolves.toBeDefined();
+
+    expect(mockDeleteAuthUser.mock.calls).toEqual([
+      ["st-user-1"],
+      ["st-user-3"],
+      ["st-user-4"],
+    ]);
+  });
+
   it("returns null when linked user mapping is missing", async () => {
     mockedPrisma.authUserMobile.findFirst.mockResolvedValueOnce(null);
 

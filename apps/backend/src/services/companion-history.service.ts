@@ -8,6 +8,7 @@ import { InvoiceService } from "src/services/invoice.service";
 import { CompanionService } from "src/services/companion.service";
 import { assertPatientOrgMembership } from "src/services/shared/patient-org-membership";
 import logger from "src/utils/logger";
+import { mapInSequence } from "../utils/async-iteration";
 import { type AppointmentResponseDTO } from "@yosemite-crew/types";
 import type { DocumentDto } from "src/services/document.service";
 
@@ -707,8 +708,11 @@ const appendRequestedHistorySections = async (
   types: HistoryEntryType[],
   ctx: HistorySectionContext,
 ) => {
-  for (const loader of HISTORY_SECTION_LOADERS) {
-    if (!types.includes(loader.type)) continue;
+  const requested = HISTORY_SECTION_LOADERS.filter((loader) =>
+    types.includes(loader.type),
+  );
+  // One section at a time: each loader appends to the shared context.
+  await mapInSequence(requested, async (loader) => {
     try {
       await loader.append(ctx);
     } catch (error) {
@@ -719,7 +723,7 @@ const appendRequestedHistorySections = async (
         organisationId: ctx.organisationId,
       });
     }
-  }
+  });
 };
 
 export const CompanionHistoryService = {

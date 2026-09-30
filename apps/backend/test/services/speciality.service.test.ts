@@ -391,6 +391,31 @@ describe("SpecialityService", () => {
     });
   });
 
+  describe("createMany ordering", () => {
+    it("creates one speciality at a time, in payload order", async () => {
+      const second = { ...validPayload, id: hexId() };
+      let releaseFirst!: (value: unknown) => void;
+      const createOne = jest
+        .spyOn(SpecialityService, "createOne")
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }) as never,
+        )
+        .mockResolvedValueOnce({ response: "second", created: true } as never);
+
+      const pending = SpecialityService.createMany([validPayload, second]);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(createOne).toHaveBeenCalledTimes(1);
+
+      releaseFirst({ response: "first", created: true });
+      await expect(pending).resolves.toEqual(["first", "second"]);
+
+      createOne.mockRestore();
+    });
+  });
+
   describe("update", () => {
     it("should update existing speciality", async () => {
       (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
@@ -551,6 +576,36 @@ describe("SpecialityService", () => {
 
       expect(res).toHaveLength(1);
       expect(res[0].services).toEqual(["Service A"]);
+    });
+  });
+
+  describe("getAllByOrganizationId ordering", () => {
+    it("loads each speciality's services together and keeps their order", async () => {
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        createPrismaSpeciality({ id: "spec-slow", fhirId: "spec-slow" }),
+        createPrismaSpeciality({ id: "spec-fast", fhirId: "spec-fast" }),
+      ]);
+      let releaseSlow!: (value: unknown) => void;
+      (ServiceService.listBySpeciality as jest.Mock)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseSlow = resolve;
+          }),
+        )
+        .mockResolvedValueOnce(["Fast service"]);
+
+      const pending = SpecialityService.getAllByOrganizationId(mockOrgId);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(ServiceService.listBySpeciality).toHaveBeenCalledTimes(2);
+
+      releaseSlow(["Slow service"]);
+      const res = await pending;
+
+      expect(res.map((entry) => entry.services)).toEqual([
+        ["Slow service"],
+        ["Fast service"],
+      ]);
     });
   });
 

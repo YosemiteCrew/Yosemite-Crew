@@ -727,9 +727,7 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
         select: { id: true },
       });
 
-      if (existing) {
-        return false;
-      }
+      if (existing) return;
 
       await FormAssignmentService.createForAppointment({
         organisationId: params.organisationId,
@@ -738,10 +736,8 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
         templateVersion: resolved.templateVersion,
         createdBy: "SYSTEM",
       });
-      return true;
     } catch {
       // A kind with no linked template, or one that fails, is skipped.
-      return false;
     }
   });
 };

@@ -8,6 +8,7 @@ import {
 } from "../../services/user.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { resolveVerifiedUserId } from "src/utils/request";
+import { mapInSequence } from "../../utils/async-iteration";
 
 type GetUserRequest = Request<{ id: string }>;
 type UpdateUserNameRequest = Request<
@@ -185,9 +186,9 @@ async function applyRole(
     // Grant before revoking: failing the other way round would leave the
     // account with no role at all.
     await authService.setUserRole(userId, role);
-    for (const candidate of replaced) {
-      await authService.removeUserRole(userId, candidate);
-    }
+    await mapInSequence(replaced, (candidate) =>
+      authService.removeUserRole(userId, candidate),
+    );
   } catch (roleError) {
     /*
      * Every failure in here is treated as half-applied, including one from the

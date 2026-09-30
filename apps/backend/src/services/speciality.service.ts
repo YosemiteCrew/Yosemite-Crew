@@ -11,6 +11,7 @@ import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { pruneUndefined } from "src/utils/prune-undefined";
 import { prisma } from "src/config/prisma";
+import { mapInSequence, mapWithConcurrency } from "../utils/async-iteration";
 
 export type SpecialityFHIRPayload = SpecialityRequestDTO;
 
@@ -325,14 +326,10 @@ export const SpecialityService = {
       throw new SpecialityServiceError("Payload list cannot be empty.", 400);
     }
 
-    const results: SpecialityResponseDTO[] = [];
-
-    for (const payload of payloads) {
+    return mapInSequence(payloads, async (payload) => {
       const { response } = await SpecialityService.createOne(payload);
-      results.push(response);
-    }
-
-    return results;
+      return response;
+    });
   },
 
   async update(id: string, payload: SpecialityFHIRPayload) {
@@ -388,20 +385,12 @@ export const SpecialityService = {
       where: { organisationId: orgId },
     });
 
-    const result = [];
-
-    for (const speciality of specialities) {
-      const specialityFHIR = buildFHIRResponseFromPrisma(speciality);
-      const services = await ServiceService.listBySpeciality(
+    return mapWithConcurrency(specialities, async (speciality) => ({
+      speciality: buildFHIRResponseFromPrisma(speciality),
+      services: await ServiceService.listBySpeciality(
         speciality.fhirId ?? speciality.id,
-      );
-      result.push({
-        speciality: specialityFHIR,
-        services,
-      });
-    }
-
-    return result;
+      ),
+    }));
   },
 
   async deleteAllByOrganizationId(organisationId: string) {

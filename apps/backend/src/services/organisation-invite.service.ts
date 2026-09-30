@@ -15,6 +15,7 @@ import {
 } from "./user-organization.service";
 import { sendEmailTemplate } from "../utils/email";
 import { randomBytes } from "node:crypto";
+import { mapWithConcurrency } from "../utils/async-iteration";
 
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9\-.]{1,64}$/;
 const DEFAULT_ACCEPT_URL = "https://app.yosemitecrew.com/invite";
@@ -597,25 +598,18 @@ export const OrganisationInviteService = {
 
     if (!invites.length) return [];
 
-    const results: Array<{
-      invite: OrganisationInviteResponse;
-      organisationName?: string;
-      organisationType?: string;
-    }> = [];
-    for (const invite of invites) {
-      const organisation = await findOrganisationByIdOrFhirId(
-        invite.organisationId,
-        { name: true, type: true },
-      );
+    const organisations = await mapWithConcurrency(invites, (invite) =>
+      findOrganisationByIdOrFhirId(invite.organisationId, {
+        name: true,
+        type: true,
+      }),
+    );
 
-      results.push({
-        invite: buildInviteResponseFromPrisma(invite),
-        organisationName: organisation?.name,
-        organisationType: organisation?.type,
-      });
-    }
-
-    return results;
+    return invites.map((invite, index) => ({
+      invite: buildInviteResponseFromPrisma(invite),
+      organisationName: organisations[index]?.name,
+      organisationType: organisations[index]?.type,
+    }));
   },
 
   async acceptInvite(

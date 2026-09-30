@@ -2,6 +2,7 @@
 import dayjs from "dayjs";
 import { prisma } from "src/config/prisma";
 import { getOrgBillingCurrency } from "src/utils/billing";
+import { mapInSequence, mapWithConcurrency } from "../utils/async-iteration";
 import {
   InventoryItemType,
   InventoryBatch as PrismaInventoryBatch,
@@ -814,18 +815,22 @@ const getInventoryTurnoverByItemFromPostgres = async (params: {
     }),
   );
 
-  const beginningByItem = new Map<string, number>();
-  for (const item of items) {
-    const batchesAtStart = await prisma.inventoryBatch.aggregate({
+  const batchesAtStart = await mapWithConcurrency(items, (item) =>
+    prisma.inventoryBatch.aggregate({
       where: {
         organisationId: params.organisationId,
         itemId: item.id,
         createdAt: { lte: params.from },
       },
       _sum: { quantity: true },
-    });
-    beginningByItem.set(item.id, batchesAtStart._sum.quantity ?? 0);
-  }
+    }),
+  );
+  const beginningByItem = new Map<string, number>(
+    items.map((item, index) => [
+      item.id,
+      batchesAtStart[index]._sum.quantity ?? 0,
+    ]),
+  );
 
   return buildInventoryTurnoverResults(
     buildInventoryTurnoverSources(items, purchasesByItem, beginningByItem),
@@ -2217,12 +2222,10 @@ export const InventoryService = {
       "organisationId",
     );
 
-    const results: InventoryItemLike[] = [];
-    for (const itemInput of input.items) {
-      results.push(await this.consumeStock(itemInput, safeOrganisationId));
-    }
-
-    return results;
+    // One item after another: each draw-down moves stock and writes movements.
+    return mapInSequence(input.items, (itemInput) =>
+      this.consumeStock(itemInput, safeOrganisationId),
+    );
   },
 
   getInventoryTurnoverByItem(params: {
@@ -2324,7 +2327,7 @@ export const InventoryAdjustmentService = {
         }
 
         const plan = planFifoConsumption(batches, Math.abs(delta));
-        for (const { index, newQuantity } of plan) {
+        await mapInSequence(plan, async ({ index, newQuantity }) => {
           const batch = batches[index];
           const consume = (batch.quantity ?? 0) - newQuantity;
           await tx.inventoryBatch.update({
@@ -2342,7 +2345,7 @@ export const InventoryAdjustmentService = {
             },
             tx,
           );
-        }
+        });
       }
 
       const { onHand } = await recomputeStockFromBatches(item.id, tx);

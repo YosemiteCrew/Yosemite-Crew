@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { prisma } from "src/config/prisma";
 import { ParentService } from "./parent.service";
+import { mapWithConcurrency } from "../utils/async-iteration";
 
 export class CoParentInviteServiceError extends Error {
   constructor(
@@ -332,25 +333,23 @@ export const CoParentInviteService = {
       return { pendingInvites: [] };
     }
 
-    const results = [];
-
-    for (const invite of inviteDocs) {
+    const summaries = await mapWithConcurrency(inviteDocs, async (invite) => {
       const inviter = await prisma.parent.findUnique({
         where: { id: invite.invitedByParentId },
       });
-      if (!inviter) continue;
+      if (!inviter) return null;
 
       const companion = await prisma.patient.findUnique({
         where: { id: invite.patientId },
       });
-      if (!companion) continue;
+      if (!companion) return null;
 
       const inviterFullName = buildFullName(
         inviter.firstName,
         inviter.lastName,
       );
 
-      results.push({
+      return {
         token: invite.inviteToken,
         email: invite.email,
         inviteeName: invite.inviteeName || null,
@@ -367,11 +366,11 @@ export const CoParentInviteService = {
           name: companion.name,
           photoUrl: companion.photoUrl || null,
         },
-      });
-    }
+      };
+    });
 
     return {
-      pendingInvites: results,
+      pendingInvites: summaries.filter((summary) => summary !== null),
     };
   },
 };

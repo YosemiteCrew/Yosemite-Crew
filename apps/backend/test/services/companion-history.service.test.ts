@@ -585,6 +585,34 @@ describe("CompanionHistoryService", () => {
     });
   });
 
+  it("loads one section at a time and keeps going past a failed one", async () => {
+    let releaseLabs!: (value: unknown) => void;
+    (LabResultService.list as jest.Mock).mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        releaseLabs = () => reject(new Error("labs down"));
+      }),
+    );
+
+    const pending = CompanionHistoryService.listForCompanion({
+      organisationId,
+      patientId: companionId,
+      types: ["LAB_RESULT", "INVOICE"],
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(LabResultService.list).toHaveBeenCalled();
+    expect(InvoiceService.listForCompanion).not.toHaveBeenCalled();
+
+    releaseLabs(undefined);
+    await pending;
+
+    expect(InvoiceService.listForCompanion).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Companion history lab results failed",
+      expect.objectContaining({ organisationId }),
+    );
+  });
+
   it("logs warnings when a source fetch fails", async () => {
     (
       AppointmentService.getAppointmentsForCompanionByOrganisation as jest.Mock
