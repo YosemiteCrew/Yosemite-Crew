@@ -1397,7 +1397,7 @@ const planBatchDraws = (
 const applyBatchDraws = async (
   tx: Prisma.TransactionClient,
   draws: BatchDraw[],
-  movement: Pick<ConsumeStockInput, "reason" | "referenceId">,
+  movement: Pick<StockMovementInput, "reason" | "referenceId" | "userId">,
 ) => {
   if (
     draws.some(
@@ -1429,15 +1429,43 @@ const applyBatchDraws = async (
       change: -quantity,
       reason: movement.reason,
       referenceId: movement.referenceId,
+      userId: movement.userId,
       createdAt,
     })),
   });
+};
+
+/**
+ * Locks the item row, then sums its batches. Callers write the batch rows they
+ * change first, so this keeps the batch-then-item order the dispense and count
+ * paths use, and a change to another batch of this item that commits while we
+ * wait is included in the sum instead of overwritten. Two statements on
+ * purpose: the sum must be read after the lock is granted.
+ */
+const lockItemAndSumOnHand = async (
+  tx: Prisma.TransactionClient,
+  itemId: string,
+  organisationId: string,
+) => {
+  const [lockedItem] = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "InventoryItem"
+    WHERE "id" = ${itemId}
+      AND "organisationId" = ${organisationId}
+    FOR UPDATE
+  `;
+  if (!lockedItem) {
+    throw new InventoryServiceError("Inventory item not found", 404);
+  }
+  const { onHand } = await recomputeStockFromBatches(itemId, tx);
+  return onHand;
 };
 
 const consumeBatchStockInTransaction = async (
   tx: Prisma.TransactionClient,
   input: ConsumeStockInput,
   itemId: string,
+  organisationId: string,
+  stockSource: ConsumeStockSource,
 ): Promise<InventoryItemLike> => {
   const batches = await tx.inventoryBatch.findMany({
     where: { itemId },
@@ -1449,7 +1477,30 @@ const consumeBatchStockInTransaction = async (
     input,
   );
 
-  const { onHand } = await recomputeStockFromBatches(itemId, tx);
+  if (stockSource === "ALLOCATED") {
+    // Drawn after the batches, never before: writing the item row first took
+    // the item lock ahead of the batch locks, the opposite of every other
+    // stock path, and deadlocked with a concurrent consumption of the same
+    // batch. Conditional decrement rather than a computed literal: the row is
+    // only written if the reservation still covers the draw at write time, so
+    // two concurrent draw-downs on the same reservation cannot both succeed
+    // the way a read-then-write pair would. A `null` allocated matches no row
+    // here, which is correct - there is no reservation to draw down.
+    const claimed = await tx.$executeRaw`
+      UPDATE "InventoryItem"
+      SET "allocated" = "allocated" - ${input.quantity}, "updatedAt" = NOW()
+      WHERE "id" = ${itemId}
+        AND "organisationId" = ${organisationId}
+        AND "allocated" >= ${input.quantity}
+    `;
+    if (claimed !== 1) {
+      throw new InventoryServiceError("Insufficient allocated stock", 400);
+    }
+  }
+
+  // Reservations are tracked on the item (see allocateStock), not on batches,
+  // so consumption must not recompute `allocated` from the batch rows.
+  const onHand = await lockItemAndSumOnHand(tx, itemId, organisationId);
   const updated = await tx.inventoryItem.update({
     where: { id: itemId },
     data: { onHand },
@@ -1497,6 +1548,17 @@ export const consumeNormalStockLinesInTransaction = async (
     ),
     movement,
   );
+  // Lock the items (batch-then-item, in id order) before the recompute. The
+  // UPDATE below cannot do this itself: when it has to wait for an item row
+  // another transaction holds, READ COMMITTED re-runs its SUM with the
+  // snapshot taken before that wait, so a batch the other transaction changed
+  // or added would be left out of the total it writes.
+  await tx.$queryRaw`
+    SELECT "id" FROM "InventoryItem"
+    WHERE "id" IN (${Prisma.join(itemIds)})
+    ORDER BY "id"
+    FOR UPDATE
+  `;
   await tx.$executeRaw`
     UPDATE "InventoryItem" AS i
     SET "onHand" = COALESCE(
@@ -2181,27 +2243,13 @@ export const InventoryService = {
         throw new InventoryServiceError("Insufficient stock", 400);
       }
 
-      if (stockSource === "ALLOCATED") {
-        // Conditional decrement rather than a computed literal: the row is only
-        // written if the reservation still covers the draw at write time, so two
-        // concurrent draw-downs on the same reservation cannot both succeed the
-        // way a read-then-write pair would. A `null` allocated matches no row
-        // here, which is correct - there is no reservation to draw down.
-        const claimed = await tx.$executeRaw`
-          UPDATE "InventoryItem"
-          SET "allocated" = "allocated" - ${input.quantity}, "updatedAt" = NOW()
-          WHERE "id" = ${safeItemId}
-            AND "organisationId" = ${safeOrganisationId}
-            AND "allocated" >= ${input.quantity}
-        `;
-        if (claimed !== 1) {
-          throw new InventoryServiceError("Insufficient allocated stock", 400);
-        }
-      }
-
-      // Reservations are tracked on the item (see allocateStock), not on batches,
-      // so consumption must not recompute `allocated` from the batch rows.
-      return consumeBatchStockInTransaction(tx, input, safeItemId);
+      return consumeBatchStockInTransaction(
+        tx,
+        input,
+        safeItemId,
+        safeOrganisationId,
+        stockSource,
+      );
     });
 
     return updated;
@@ -2326,29 +2374,20 @@ export const InventoryAdjustmentService = {
           );
         }
 
-        const plan = planFifoConsumption(batches, Math.abs(delta));
-        await mapInSequence(plan, async ({ index, newQuantity }) => {
-          const batch = batches[index];
-          const consume = (batch.quantity ?? 0) - newQuantity;
-          await tx.inventoryBatch.update({
-            where: { id: batch.id },
-            data: { quantity: { decrement: consume } },
-          });
-
-          await logMovement(
-            {
-              itemId: safeItemId,
-              batchId: batch.id,
-              change: -consume,
-              reason: input.reason,
-              userId: input.userId,
-            },
-            tx,
-          );
-        });
+        // Conditional draws: a batch a concurrent consumption drained after
+        // the read above refuses the adjustment instead of going negative.
+        await applyBatchDraws(
+          tx,
+          planBatchDraws(item.id, batches, Math.abs(delta)),
+          { reason: input.reason, userId: input.userId },
+        );
       }
 
-      const { onHand } = await recomputeStockFromBatches(item.id, tx);
+      const onHand = await lockItemAndSumOnHand(
+        tx,
+        item.id,
+        safeOrganisationId,
+      );
       return tx.inventoryItem.update({
         where: { id: item.id },
         data: { onHand },
