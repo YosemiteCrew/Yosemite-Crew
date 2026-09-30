@@ -494,6 +494,18 @@ describe("rendered-document service", () => {
     expect(result.id).toBe("doc-1");
   });
 
+  it("hands back invalid input as a rejected promise without writing", async () => {
+    mockedPrisma.renderedDocument.create.mockClear();
+    const pending = createRenderedDocumentRecord({
+      title: "   ",
+      source: buildTemplateSource(),
+    });
+
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).rejects.toBeInstanceOf(RenderedDocumentServiceError);
+    expect(mockedPrisma.renderedDocument.create).not.toHaveBeenCalled();
+  });
+
   it("loads a persisted rendered document and enforces organisation scope", async () => {
     mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
       id: "doc-2",

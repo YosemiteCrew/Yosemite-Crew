@@ -927,6 +927,21 @@ describe("recordFulfilment", () => {
     });
   };
 
+  it("refuses a reservation that is gone by the time the lock is held", async () => {
+    // Located for the lock, then no longer there when read under it.
+    db.prescriptionFillReservation.findFirst.mockImplementation(
+      (args: { select?: unknown }) =>
+        Promise.resolve(args.select ? { itemId: ITEM } : null),
+    );
+
+    await expectRefusal(
+      () => PrescriptionFillAuthorisationService.recordFulfilment(input),
+      404,
+      "Fill reservation not found",
+    );
+    expect(db.prescriptionFillReservation.update).not.toHaveBeenCalled();
+  });
+
   it("accumulates a short fill on the same ordinal without completing it", async () => {
     withReservation();
 
@@ -1100,6 +1115,21 @@ describe("cancelReservation", () => {
     now: NOW,
   };
 
+  it("refuses a reservation that is gone by the time the lock is held", async () => {
+    // Located for the lock, then no longer there when read under it.
+    db.prescriptionFillReservation.findFirst.mockImplementation(
+      (args: { select?: unknown }) =>
+        Promise.resolve(args.select ? { itemId: ITEM } : null),
+    );
+
+    await expectRefusal(
+      () => PrescriptionFillAuthorisationService.cancelReservation(input),
+      404,
+      "Fill reservation not found",
+    );
+    expect(db.prescriptionFillReservation.update).not.toHaveBeenCalled();
+  });
+
   it("releases an undispensed fill back to the authority", async () => {
     db.prescriptionFillReservation.findFirst.mockResolvedValue(reservation());
 
@@ -1198,6 +1228,56 @@ describe("cancelReservation", () => {
       400,
       "reservationId is required",
     );
+  });
+});
+
+describe("input refusals", () => {
+  it.each([
+    [
+      "authoriseFills",
+      () =>
+        PrescriptionFillAuthorisationService.authoriseFills({
+          organisationId: " ",
+          itemId: ITEM,
+          validUntil: new Date(NOW.getTime() + 60_000),
+          maxAdditionalFills: 1,
+          perFillQuantity: "1",
+          perFillQuantityUnit: "tablet",
+          authorisedBy: "clinician-1",
+          canEditAny: false,
+          now: NOW,
+        }),
+    ],
+    [
+      "reserveFill",
+      () =>
+        PrescriptionFillAuthorisationService.reserveFill({
+          organisationId: " ",
+          itemId: ITEM,
+          idempotencyKey: "key-1",
+        }),
+    ],
+    [
+      "recordFulfilment",
+      () =>
+        PrescriptionFillAuthorisationService.recordFulfilment({
+          organisationId: " ",
+          reservationId: "res-1",
+          quantity: "1",
+        }),
+    ],
+    [
+      "cancelReservation",
+      () =>
+        PrescriptionFillAuthorisationService.cancelReservation({
+          organisationId: " ",
+          reservationId: "res-1",
+        }),
+    ],
+  ])("%s refuses before opening a transaction", async (_name, run) => {
+    await expectRefusal(run, 400, "organisationId is required");
+    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(db.$executeRaw).not.toHaveBeenCalled();
   });
 });
 

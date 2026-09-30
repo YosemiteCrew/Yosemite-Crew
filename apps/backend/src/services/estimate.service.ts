@@ -135,11 +135,11 @@ const assertEstimate = async (id: string, organisationId: string) => {
  * The lookup is org-scoped because `convertedToInvoiceId` has no foreign key, so
  * the id it holds is not guaranteed to belong to this tenant.
  */
-const findExistingConversion = async (
+const findExistingConversion = (
   convertedToInvoiceId: string | null,
   organisationId: string,
 ) => {
-  if (!convertedToInvoiceId) return null;
+  if (!convertedToInvoiceId) return Promise.resolve(null);
   return prisma.invoice.findFirst({
     where: { id: convertedToInvoiceId, organisationId },
     select: { id: true },
@@ -252,7 +252,7 @@ export const EstimateService = {
     return assertEstimate(id, organisationId);
   },
 
-  async list(params: ListEstimateParams) {
+  list(params: ListEstimateParams) {
     const { organisationId, patientId, status } = params;
     return prisma.estimate.findMany({
       where: {
