@@ -50,6 +50,15 @@ const assertTarget = async (
   if (!found) throw new CalendarBlockError("Calendar resource not found.", 404);
 };
 
+const MAX_LIST_RANGE_MS = 93 * 24 * 60 * 60 * 1000;
+
+// Availability and bookings key staff by their bare id.
+const normaliseTargetId = (
+  targetType: CalendarBlockTargetType,
+  targetId: string,
+) =>
+  targetType === "STAFF" ? targetId.replace(/^Practitioner\//, "") : targetId;
+
 const assertRange = (startAt: Date, endAt: Date) => {
   if (endAt <= startAt) {
     throw new CalendarBlockError("The end must be after the start.", 400);
@@ -58,7 +67,9 @@ const assertRange = (startAt: Date, endAt: Date) => {
 
 export const CalendarBlockService = {
   async list(organisationId: string, from: Date, to: Date) {
-    if (to <= from) throw new CalendarBlockError("Invalid date range.", 400);
+    if (to <= from || to.getTime() - from.getTime() > MAX_LIST_RANGE_MS) {
+      throw new CalendarBlockError("Invalid date range.", 400);
+    }
     return prisma.calendarBlock.findMany({
       where: {
         organisationId,
@@ -80,9 +91,10 @@ export const CalendarBlockService = {
     createdBy?: string;
   }) {
     assertRange(input.startAt, input.endAt);
-    await assertTarget(input.organisationId, input.targetType, input.targetId);
+    const targetId = normaliseTargetId(input.targetType, input.targetId);
+    await assertTarget(input.organisationId, input.targetType, targetId);
     return prisma.calendarBlock.create({
-      data: { ...input, reason: input.reason.trim() },
+      data: { ...input, targetId, reason: input.reason.trim() },
       select,
     });
   },
@@ -105,7 +117,10 @@ export const CalendarBlockService = {
     if (!existing)
       throw new CalendarBlockError("Calendar block not found.", 404);
     const targetType = input.targetType ?? existing.targetType;
-    const targetId = input.targetId ?? existing.targetId;
+    const targetId = normaliseTargetId(
+      targetType,
+      input.targetId ?? existing.targetId,
+    );
     const startAt = input.startAt ?? existing.startAt;
     const endAt = input.endAt ?? existing.endAt;
     assertRange(startAt, endAt);

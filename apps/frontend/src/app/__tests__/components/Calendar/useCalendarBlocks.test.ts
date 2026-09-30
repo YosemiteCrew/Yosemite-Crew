@@ -53,17 +53,43 @@ describe('useCalendarBlocks', () => {
     mockDelete.mockResolvedValue(undefined);
   });
 
-  it('loads blocks for the visible calendar range', async () => {
+  it('loads blocks for the visible day in the practice time zone', async () => {
     const existing = block('existing');
     mockFetch.mockResolvedValue([existing]);
     const date = new Date('2026-09-26T12:00:00.000Z');
     const { result } = renderHook(() => useCalendarBlocks('day', date, date));
-    const expectedStart = new Date(2026, 8, 25);
-    const expectedEnd = new Date(expectedStart);
-    expectedEnd.setDate(expectedEnd.getDate() + 9);
 
     await waitFor(() => expect(result.current.blocks).toEqual([existing]));
-    expect(mockFetch).toHaveBeenCalledWith('org-1', expectedStart, expectedEnd);
+    // Midnight to midnight in Europe/Berlin (UTC+2 in September).
+    expect(mockFetch).toHaveBeenCalledWith(
+      'org-1',
+      new Date('2026-09-25T22:00:00.000Z'),
+      new Date('2026-09-26T22:00:00.000Z')
+    );
+  });
+
+  it('bounds a week across the clocks going back and hides blocks outside it', async () => {
+    const inside = {
+      ...block('inside'),
+      startAt: '2026-10-25T22:00:00.000Z',
+      endAt: '2026-10-25T22:30:00.000Z',
+    };
+    const after = {
+      ...block('after'),
+      startAt: '2026-10-25T23:00:00.000Z',
+      endAt: '2026-10-25T23:30:00.000Z',
+    };
+    mockFetch.mockResolvedValue([inside, after]);
+    const weekStart = new Date(2026, 9, 19);
+    const { result } = renderHook(() => useCalendarBlocks('week', weekStart, weekStart));
+
+    await waitFor(() => expect(result.current.blocks).toEqual([inside]));
+    // Sunday 25 October ends at 23:00Z once Berlin is back on UTC+1.
+    expect(mockFetch).toHaveBeenCalledWith(
+      'org-1',
+      new Date('2026-10-18T22:00:00.000Z'),
+      new Date('2026-10-25T23:00:00.000Z')
+    );
   });
 
   it('notifies when loading blocks fails', async () => {

@@ -133,10 +133,7 @@ describe("AvailabilityService", () => {
       );
 
       expect(prisma.baseAvailability.deleteMany).toHaveBeenCalledWith({
-        where: {
-          userId: { equals: "u1" },
-          organisationId: { equals: "org1" },
-        },
+        where: { userId: "u1", organisationId: "org1" },
       });
       expect(prisma.baseAvailability.createMany).toHaveBeenCalled();
       expect(res).toEqual([{ dayOfWeek: "MONDAY", slots: [] }]);
@@ -210,10 +207,7 @@ describe("AvailabilityService", () => {
     it("deleteBaseAvailability: should delete via prisma", async () => {
       await AvailabilityService.deleteBaseAvailability("org1", "u1");
       expect(prisma.baseAvailability.deleteMany).toHaveBeenCalledWith({
-        where: {
-          organisationId: { equals: "org1" },
-          userId: { equals: "u1" },
-        },
+        where: { organisationId: "org1", userId: "u1" },
       });
     });
   });
@@ -553,6 +547,56 @@ describe("AvailabilityService", () => {
         },
         select: { startAt: true, endAt: true },
       });
+    });
+
+    it("removes a block from every day it spans and only inside this week", async () => {
+      baseSpy.mockResolvedValue(
+        ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY"].map(
+          (dayOfWeek) => ({
+            dayOfWeek,
+            slots: [
+              { startTime: "09:00", endTime: "17:00", isAvailable: true },
+            ],
+          }),
+        ),
+      );
+      overrideSpy.mockResolvedValue(null);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.calendarBlock.findMany as jest.Mock).mockResolvedValueOnce([
+        // Training that started in the previous week and runs to Monday noon.
+        {
+          startAt: new Date("2026-03-07T09:00:00Z"),
+          endAt: new Date("2026-03-09T12:00:00Z"),
+        },
+        // A closure from Tuesday afternoon to Thursday morning.
+        {
+          startAt: new Date("2026-03-10T15:00:00Z"),
+          endAt: new Date("2026-03-12T10:00:00Z"),
+        },
+      ]);
+
+      const result = await AvailabilityService.getWeeklyFinalAvailability(
+        "org1",
+        "u1",
+        new Date("2026-03-11T08:00:00Z"),
+      );
+      const slotsOn = (day: string) =>
+        result.find((entry) => entry.dayOfWeek === day)?.slots;
+
+      expect(slotsOn("MONDAY")).toEqual([
+        { startTime: "12:00", endTime: "17:00", isAvailable: true },
+      ]);
+      expect(slotsOn("TUESDAY")).toEqual([
+        { startTime: "09:00", endTime: "15:00", isAvailable: true },
+      ]);
+      expect(slotsOn("WEDNESDAY")).toEqual([]);
+      expect(slotsOn("THURSDAY")).toEqual([
+        { startTime: "10:00", endTime: "17:00", isAvailable: true },
+      ]);
+      // The previous week's Saturday and Sunday never touch this week's Sunday.
+      expect(slotsOn("SUNDAY")).toEqual([
+        { startTime: "09:00", endTime: "17:00", isAvailable: true },
+      ]);
     });
 
     it("bounds the occupancy query to this week's Sunday, not next Monday (#3141)", async () => {

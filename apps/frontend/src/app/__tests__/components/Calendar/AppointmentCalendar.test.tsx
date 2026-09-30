@@ -344,7 +344,12 @@ describe('AppointmentCalendar', () => {
   });
 
   it('loads, creates, edits, and removes calendar blocks', async () => {
-    const block = { id: 'block-1', reason: 'Lunch' } as any;
+    const block = {
+      id: 'block-1',
+      reason: 'Lunch',
+      startAt: '2000-01-01T00:00:00.000Z',
+      endAt: '2100-01-01T00:00:00.000Z',
+    } as any;
     (fetchCalendarBlocks as jest.Mock).mockResolvedValueOnce([block]);
     renderCalendar();
     await waitFor(() =>

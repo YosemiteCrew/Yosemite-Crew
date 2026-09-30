@@ -7,6 +7,11 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import type { Team } from '@/app/features/organization/types/team';
+import {
+  formatDateInPreferredTimeZone,
+  fromDateTimeInputInPreferredTimeZone,
+  toDateTimeInputInPreferredTimeZone,
+} from '@/app/lib/timezone';
 import type { OrganisationRoom } from '@yosemite-crew/types';
 import type {
   CalendarBlock,
@@ -41,21 +46,17 @@ const emptyDraft = (): Draft => ({
   reason: '',
 });
 
-const toLocalInput = (value: string): string => {
-  const date = new Date(value);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-};
-
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
+const TIME_FORMAT: Intl.DateTimeFormatOptions = {
   weekday: 'short',
   month: 'short',
   day: 'numeric',
   hour: 'numeric',
   minute: '2-digit',
-});
+};
 
-const displayTime = (value: string): string => timeFormatter.format(new Date(value));
+// Blocks are entered and shown in the practice's time zone, like the calendar around them.
+const displayTime = (value: string): string =>
+  formatDateInPreferredTimeZone(new Date(value), TIME_FORMAT);
 
 const displayTimeRange = (startAt: string, endAt: string): string =>
   `${displayTime(startAt)} – ${displayTime(endAt)}`;
@@ -96,7 +97,7 @@ const CalendarBlockEditor = ({
       />
       <div className="grid gap-3">
         <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-          Applies to
+          <span>Applies to</span>
           <select
             value={draft.targetType}
             onChange={(event) =>
@@ -113,7 +114,7 @@ const CalendarBlockEditor = ({
           </select>
         </label>
         <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-          {draft.targetType === 'ROOM' ? 'Room' : 'Staff member'}
+          <span>{draft.targetType === 'ROOM' ? 'Room' : 'Staff member'}</span>
           <select
             required
             value={draft.targetId}
@@ -130,7 +131,7 @@ const CalendarBlockEditor = ({
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-            Starts
+            <span>Starts</span>
             <input
               required
               type="datetime-local"
@@ -140,7 +141,7 @@ const CalendarBlockEditor = ({
             />
           </label>
           <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-            Ends
+            <span>Ends</span>
             <input
               required
               type="datetime-local"
@@ -151,7 +152,7 @@ const CalendarBlockEditor = ({
           </label>
         </div>
         <label className="grid gap-1 text-[12px] font-semibold text-[var(--ink-body)]">
-          Reason
+          <span>Reason</span>
           <input
             required
             maxLength={200}
@@ -214,8 +215,8 @@ const CalendarBlocksPanel = ({
       id: block.id,
       targetType: block.targetType,
       targetId: block.targetId,
-      startAt: toLocalInput(block.startAt),
-      endAt: toLocalInput(block.endAt),
+      startAt: toDateTimeInputInPreferredTimeZone(new Date(block.startAt)),
+      endAt: toDateTimeInputInPreferredTimeZone(new Date(block.endAt)),
       reason: block.reason,
     });
   };
@@ -226,7 +227,13 @@ const CalendarBlocksPanel = ({
       setError('Choose a staff member or room.');
       return;
     }
-    if (new Date(activeDraft.endAt) <= new Date(activeDraft.startAt)) {
+    const startAt = fromDateTimeInputInPreferredTimeZone(activeDraft.startAt);
+    const endAt = fromDateTimeInputInPreferredTimeZone(activeDraft.endAt);
+    if (!startAt || !endAt) {
+      setError('Choose when the block starts and ends.');
+      return;
+    }
+    if (endAt <= startAt) {
       setError('The end must be after the start.');
       return;
     }
@@ -236,8 +243,8 @@ const CalendarBlocksPanel = ({
       await onSave(activeDraft.id, {
         targetType: activeDraft.targetType,
         targetId: activeDraft.targetId,
-        startAt: new Date(activeDraft.startAt).toISOString(),
-        endAt: new Date(activeDraft.endAt).toISOString(),
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
         reason: activeDraft.reason.trim(),
       });
       setDraft(null);

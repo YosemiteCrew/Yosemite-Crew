@@ -71,6 +71,14 @@ describe("CalendarBlockService", () => {
     await expect(
       CalendarBlockService.list("org-1", endAt, startAt),
     ).rejects.toBeInstanceOf(CalendarBlockError);
+    await expect(
+      CalendarBlockService.list(
+        "org-1",
+        startAt,
+        new Date("2027-04-10T11:00:00.000Z"),
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockCalendar.findMany).toHaveBeenCalledTimes(1);
   });
 
   it("creates a validated staff or room block and trims its reason", async () => {
@@ -93,7 +101,8 @@ describe("CalendarBlockService", () => {
     );
     expect(mockCalendar.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ reason: "Lunch" }),
+        // Availability and bookings look staff up by their bare id.
+        data: expect.objectContaining({ reason: "Lunch", targetId: "staff-1" }),
       }),
     );
 
@@ -130,7 +139,10 @@ describe("CalendarBlockService", () => {
         endAt,
         reason: "Lunch",
       }),
-    ).rejects.toThrow("Calendar resource not found.");
+    ).rejects.toMatchObject({
+      message: "Calendar resource not found.",
+      statusCode: 404,
+    });
     mockRoom.mockResolvedValueOnce(null);
     await expect(
       CalendarBlockService.create({
@@ -165,8 +177,16 @@ describe("CalendarBlockService", () => {
     ).rejects.toThrow("The end must be after the start.");
     mockCalendar.findFirst.mockResolvedValueOnce(null);
     await expect(
-      CalendarBlockService.update("org-1", "missing", { reason: "X" }),
-    ).rejects.toThrow("Calendar block not found.");
+      CalendarBlockService.update("org-2", "block-1", { reason: "X" }),
+    ).rejects.toMatchObject({
+      message: "Calendar block not found.",
+      statusCode: 404,
+    });
+    expect(mockCalendar.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { id: "block-1", organisationId: "org-2" },
+      }),
+    );
     mockRoom.mockResolvedValueOnce(null);
     await expect(
       CalendarBlockService.update("org-1", "block-1", {

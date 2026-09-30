@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import {
+  getStartOfDayInPreferredTimeZone,
+  getStartOfNextDayInPreferredTimeZone,
+} from '@/app/lib/timezone';
 import {
   createCalendarBlock,
   deleteCalendarBlock,
@@ -17,8 +22,26 @@ export const useCalendarBlocks = (activeCalendar: string, currentDate: Date, wee
     organisationId: string | null;
     blocks: CalendarBlock[];
   }>({ organisationId: null, blocks: [] });
-  const blocks =
-    calendarBlockState.organisationId === primaryOrgId ? calendarBlockState.blocks : [];
+
+  // The visible days, bounded in the practice's time zone like the calendar grid.
+  const blockRange = useMemo(() => {
+    const days = activeCalendar === 'week' ? getWeekDays(weekStart) : [currentDate];
+    return {
+      from: getStartOfDayInPreferredTimeZone(days[0]),
+      to: getStartOfNextDayInPreferredTimeZone(days.at(-1) ?? days[0]),
+    };
+  }, [activeCalendar, currentDate, weekStart]);
+
+  const blocks = useMemo(
+    () =>
+      calendarBlockState.organisationId === primaryOrgId
+        ? calendarBlockState.blocks.filter(
+            (block) =>
+              new Date(block.endAt) > blockRange.from && new Date(block.startAt) < blockRange.to
+          )
+        : [],
+    [blockRange, calendarBlockState, primaryOrgId]
+  );
 
   const updateBlocks = useCallback(
     (update: (blocks: CalendarBlock[]) => CalendarBlock[]) => {
@@ -30,15 +53,6 @@ export const useCalendarBlocks = (activeCalendar: string, currentDate: Date, wee
     },
     [primaryOrgId]
   );
-
-  const blockRange = useMemo(() => {
-    const start = new Date(activeCalendar === 'week' ? weekStart : currentDate);
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - 1);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 9);
-    return { from: start, to: end };
-  }, [activeCalendar, currentDate, weekStart]);
 
   useEffect(() => {
     if (!primaryOrgId) return;

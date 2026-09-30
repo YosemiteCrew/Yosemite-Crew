@@ -106,23 +106,14 @@ const syncBaseAvailabilityToPostgres = async (
     slots: AvailabilitySlotMongo[];
   }>,
 ) => {
-  const safeOrganisationId = ensureNonEmptyString(
-    organisationId,
-    "organisationId",
-  );
-  const safeUserId = ensureNonEmptyString(userId, "userId");
-
   await prisma.baseAvailability.deleteMany({
-    where: {
-      userId: { equals: String(safeUserId) },
-      organisationId: { equals: String(safeOrganisationId) },
-    },
+    where: { userId, organisationId },
   });
   if (rows.length) {
     await prisma.baseAvailability.createMany({
       data: rows.map((row) => ({
-        userId: safeUserId,
-        organisationId: safeOrganisationId,
+        userId,
+        organisationId,
         dayOfWeek: row.dayOfWeek as never,
         slots: row.slots as unknown as Prisma.InputJsonValue,
       })),
@@ -262,6 +253,35 @@ const resolveWeekBounds = (referenceDate: Date) => {
 };
 
 /**
+ * Clips each window to the week and cuts it at UTC midnight. Slots are keyed by
+ * weekday, so a window that runs across several days (a closure or a training
+ * day) or starts in the previous week must only remove time from the dates it
+ * actually covers.
+ */
+const splitWindowsByDay = (
+  windows: OccupancyWindow[],
+  weekStart: Date,
+): OccupancyWindow[] => {
+  const weekStartMs = weekStart.getTime();
+  const weekEndMs = dayjs(weekStart).utc().add(7, "day").valueOf();
+  const segments: OccupancyWindow[] = [];
+  for (const window of windows) {
+    let cursor = Math.max(window.startTime.getTime(), weekStartMs);
+    const endMs = Math.min(window.endTime.getTime(), weekEndMs);
+    while (cursor < endMs) {
+      const nextMidnight = dayjs(cursor).utc().add(1, "day").startOf("day");
+      const segmentEnd = Math.min(endMs, nextMidnight.valueOf());
+      segments.push({
+        startTime: new Date(cursor),
+        endTime: new Date(segmentEnd),
+      });
+      cursor = segmentEnd;
+    }
+  }
+  return segments;
+};
+
+/**
  * Merge one user's base availability, weekly override and occupancies into the
  * final week. Pure: the caller decides how the three inputs were fetched, which
  * is what lets a single user and a whole roster share this logic verbatim.
@@ -285,8 +305,8 @@ const computeWeekAvailability = (
     }
   }
 
-  // Now remove overlapping slots
-  for (const occ of occupancies) {
+  // Now remove overlapping slots, one UTC day of each window at a time.
+  for (const occ of splitWindowsByDay(occupancies, weekDates[0].date)) {
     const occStart = dayjs(occ.startTime).utc();
     const occEnd = dayjs(occ.endTime).utc();
 
@@ -425,10 +445,7 @@ export const AvailabilityService = {
     const safeUserId = ensureNonEmptyString(userId, "userId");
 
     await prisma.baseAvailability.deleteMany({
-      where: {
-        organisationId: { equals: String(safeOrganisationId) },
-        userId: { equals: String(safeUserId) },
-      },
+      where: { organisationId: safeOrganisationId, userId: safeUserId },
     });
   },
 
@@ -493,8 +510,8 @@ export const AvailabilityService = {
 
     const override = await prisma.weeklyAvailabilityOverride.findFirst({
       where: {
-        userId: { equals: String(safeUserId) },
-        organisationId: { equals: String(safeOrganisationId) },
+        userId: safeUserId,
+        organisationId: safeOrganisationId,
         weekStartDate: normalizeWeekStart(safeWeekDate),
       },
     });
@@ -523,15 +540,12 @@ export const AvailabilityService = {
     );
     const safeUserId = ensureNonEmptyString(userId, "userId");
     const safeWeekDate = ensureValidDate(weekDate, "weekDate");
-    const safeWeekStartDate = new Date(
-      normalizeWeekStart(safeWeekDate).getTime(),
-    );
 
     await prisma.weeklyAvailabilityOverride.deleteMany({
       where: {
-        userId: { equals: String(safeUserId) },
-        organisationId: { equals: String(safeOrganisationId) },
-        weekStartDate: { equals: safeWeekStartDate },
+        userId: safeUserId,
+        organisationId: safeOrganisationId,
+        weekStartDate: normalizeWeekStart(safeWeekDate),
       },
     });
   },

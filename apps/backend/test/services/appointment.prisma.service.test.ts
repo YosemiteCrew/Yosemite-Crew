@@ -104,6 +104,10 @@ jest.mock("../../src/config/prisma", () => ({
       create: jest.fn(),
       deleteMany: jest.fn(),
     },
+    calendarBlock: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
     invoice: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -265,6 +269,8 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.occupancy.findMany.mockResolvedValue([]);
     mockedPrisma.occupancy.create.mockResolvedValue({} as any);
     mockedPrisma.occupancy.deleteMany.mockResolvedValue({ count: 1 } as any);
+    mockedPrisma.calendarBlock.findFirst.mockResolvedValue(null);
+    mockedPrisma.calendarBlock.findMany.mockResolvedValue([]);
     mockedPrisma.roomUnit.findUnique.mockResolvedValue(null);
     mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue(null);
     mockedPrisma.organization.findUnique.mockResolvedValue({
@@ -730,6 +736,52 @@ describe("AppointmentPrismaService", () => {
           hasConflict: true,
         }),
       ]);
+    });
+
+    it("flags following occurrences that move onto a blocked vet", async () => {
+      mockedPrisma.calendarBlock.findMany.mockResolvedValue([
+        {
+          targetId: "vet_1",
+          startAt: new Date("2026-03-29T07:45:00.000Z"),
+          endAt: new Date("2026-03-29T08:15:00.000Z"),
+        },
+        {
+          targetId: "vet_2",
+          startAt: new Date("2026-03-22T09:00:00.000Z"),
+          endAt: new Date("2026-03-22T09:30:00.000Z"),
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.previewAppointmentSeriesReschedule(
+          "series-1",
+          "org_1",
+          request,
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          appointmentId: "series-1",
+          hasConflict: false,
+        }),
+        expect.objectContaining({
+          appointmentId: "series-2",
+          hasConflict: true,
+        }),
+      ]);
+    });
+
+    it("refuses a series move onto a blocked vet", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "STAFF",
+      });
+
+      await expect(
+        AppointmentPrismaService.rescheduleAppointmentSeriesFromPms(
+          "series-1",
+          "org_1",
+          request,
+        ),
+      ).rejects.toMatchObject({ statusCode: 409 });
     });
 
     it("reschedules all following occurrences atomically in local time", async () => {
@@ -5802,6 +5854,181 @@ describe("AppointmentPrismaService", () => {
       // The DTO conversion (toResponse) queries payment state, which this
       // discarded-return method has no caller that needs - it must not run.
       expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("calendar blocks", () => {
+    const createFromPms = () =>
+      AppointmentPrismaService.createAppointmentFromPms(
+        { resourceType: "Appointment" } as any,
+        true,
+        "PAYMENT_LINK",
+        "staff_1",
+      );
+
+    beforeEach(() => {
+      mockedPrisma.appointment.create.mockResolvedValue(
+        makeRow({ status: "UPCOMING" }),
+      );
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+      } as any);
+    });
+
+    it("refuses a booking that lands on a blocked vet", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "STAFF",
+      });
+
+      await expect(createFromPms()).rejects.toMatchObject({
+        statusCode: 409,
+        message: "The selected vet is blocked for this time.",
+      });
+      expect(mockedPrisma.calendarBlock.findFirst).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org_1",
+          OR: [
+            { targetType: "STAFF", targetId: "lead_1" },
+            { targetType: "ROOM", targetId: "room_1" },
+          ],
+          startAt: { lt: baseDomain.endTime },
+          endAt: { gt: baseDomain.startTime },
+        },
+        select: { targetType: true },
+      });
+      expect(mockedPrisma.occupancy.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a booking that lands on a blocked room", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "ROOM",
+      });
+
+      await expect(createFromPms()).rejects.toMatchObject({
+        statusCode: 409,
+        message: "The selected room is blocked for this time.",
+      });
+    });
+
+    it("keeps an existing booking editable after a block is added over it", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "STAFF",
+      });
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        patient: baseDomain.patient,
+        status: "UPCOMING",
+        concern: "Limping",
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({ status: "UPCOMING", appointmentKind: "OUTPATIENT" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "UPCOMING" }),
+      );
+
+      await AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+        resourceType: "Appointment",
+      } as any);
+
+      expect(mockedPrisma.calendarBlock.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.occupancy.create).toHaveBeenCalled();
+    });
+
+    it("checks blocks again when an edit moves the booking", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "STAFF",
+      });
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        patient: baseDomain.patient,
+        status: "UPCOMING",
+        startTime: new Date("2026-06-10T11:00:00.000Z"),
+        endTime: new Date("2026-06-10T11:30:00.000Z"),
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({ status: "UPCOMING", appointmentKind: "OUTPATIENT" }),
+      );
+
+      await expect(
+        AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+          resourceType: "Appointment",
+        } as any),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.calendarBlock.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { targetType: "STAFF", targetId: "lead_1" },
+              { targetType: "ROOM", targetId: "room_1" },
+            ],
+          }),
+        }),
+      );
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses moving an appointment into a blocked room", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(makeRow());
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "ROOM",
+      });
+
+      await expect(
+        AppointmentPrismaService.updateAppointmentRoom("appt_1", "org_1", {
+          id: "room_2",
+          name: "Room 2",
+        }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.calendarBlock.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [{ targetType: "ROOM", targetId: "room_2" }],
+          }),
+        }),
+      );
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("flags series dates that fall on a blocked vet", async () => {
+      mockedPrisma.calendarBlock.findMany.mockResolvedValue([
+        {
+          targetId: "vet_1",
+          startAt: new Date("2026-06-17T09:00:00.000Z"),
+          endAt: new Date("2026-06-17T17:00:00.000Z"),
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.previewWeeklyAppointmentSeries(
+          "org_1",
+          "vet_1",
+          [
+            {
+              startTime: new Date("2026-06-10T11:00:00.000Z"),
+              endTime: new Date("2026-06-10T11:30:00.000Z"),
+            },
+            {
+              startTime: new Date("2026-06-17T11:00:00.000Z"),
+              endTime: new Date("2026-06-17T11:30:00.000Z"),
+            },
+          ],
+          "Europe/Madrid",
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({ index: 1, hasConflict: false }),
+        expect.objectContaining({ index: 2, hasConflict: true }),
+      ]);
+      expect(mockedPrisma.calendarBlock.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org_1",
+          targetType: "STAFF",
+          targetId: { in: ["vet_1"] },
+          startAt: { lt: new Date("2026-06-17T11:30:00.000Z") },
+          endAt: { gt: new Date("2026-06-10T11:00:00.000Z") },
+        },
+        select: { targetId: true, startAt: true, endAt: true },
+      });
     });
   });
 

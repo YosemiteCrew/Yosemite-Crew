@@ -1144,13 +1144,112 @@ const assertLeadAvailability = async (args: {
   }
 };
 
+type BookedWindow = {
+  leadId?: string;
+  roomId?: string;
+  startTime: Date;
+  endTime: Date;
+};
+
+const getRoomId = (room: unknown): string | undefined => {
+  const id = (room as { id?: unknown } | null)?.id;
+  return typeof id === "string" && id.trim() ? id : undefined;
+};
+
+const bookedWindowOf = (row: AppointmentRow): BookedWindow => ({
+  leadId: getLeadIdFromRow(row),
+  roomId: getRoomId(row.room),
+  startTime: row.startTime,
+  endTime: row.endTime,
+});
+
+const overlapsWindow = (
+  item: { startTime: Date; endTime: Date },
+  window: { startTime: Date; endTime: Date },
+) => item.startTime < window.endTime && item.endTime > window.startTime;
+
+const findStaffBlockWindows = async (
+  tx: TransactionClient,
+  organisationId: string,
+  staffIds: string[],
+  from: Date,
+  to: Date,
+) => {
+  if (!staffIds.length) return [];
+  const blocks = await tx.calendarBlock.findMany({
+    where: {
+      organisationId,
+      targetType: "STAFF",
+      targetId: { in: staffIds },
+      startAt: { lt: to },
+      endAt: { gt: from },
+    },
+    select: { targetId: true, startAt: true, endAt: true },
+  });
+  return blocks.map((block) => ({
+    staffId: block.targetId,
+    startTime: block.startAt,
+    endTime: block.endAt,
+  }));
+};
+
+const sameBookedWindow = (
+  a: { startTime: Date; endTime: Date },
+  b: { startTime: Date; endTime: Date },
+) =>
+  a.startTime.getTime() === b.startTime.getTime() &&
+  a.endTime.getTime() === b.endTime.getTime();
+
+/**
+ * A calendar block takes a vet or room out of bookable time. An appointment
+ * that already holds the same vet or room at the same time keeps it, so a
+ * block added later never forces edits to existing bookings.
+ */
+const assertNotCalendarBlocked = async (args: {
+  tx: TransactionClient;
+  organisationId: string;
+  next: BookedWindow;
+  previous?: BookedWindow;
+}) => {
+  const { next, previous } = args;
+  const sameWindow = previous ? sameBookedWindow(previous, next) : false;
+  const targets: Prisma.CalendarBlockWhereInput[] = [];
+  if (next.leadId && !(sameWindow && previous?.leadId === next.leadId)) {
+    targets.push({ targetType: "STAFF", targetId: next.leadId });
+  }
+  if (next.roomId && !(sameWindow && previous?.roomId === next.roomId)) {
+    targets.push({ targetType: "ROOM", targetId: next.roomId });
+  }
+  if (!targets.length) return;
+
+  const block = await args.tx.calendarBlock.findFirst({
+    where: {
+      organisationId: args.organisationId,
+      OR: targets,
+      startAt: { lt: next.endTime },
+      endAt: { gt: next.startTime },
+    },
+    select: { targetType: true },
+  });
+  if (block) {
+    throw new AppointmentPrismaServiceError(
+      block.targetType === "ROOM"
+        ? "The selected room is blocked for this time."
+        : "The selected vet is blocked for this time.",
+      409,
+    );
+  }
+};
+
 const upsertAppointmentOccupancy = async (args: {
   tx: TransactionClient;
   appointmentId: string;
   organisationId: string;
   leadId?: string;
+  roomId?: string;
   startTime: Date;
   endTime: Date;
+  previous?: BookedWindow;
 }) => {
   const parsedScope = OccupancyScopeSchema.safeParse(args);
   if (!parsedScope.success) {
@@ -1165,6 +1264,17 @@ const upsertAppointmentOccupancy = async (args: {
     );
   }
   const { appointmentId, organisationId, leadId } = parsedScope.data;
+  await assertNotCalendarBlocked({
+    tx: args.tx,
+    organisationId,
+    next: {
+      leadId,
+      roomId: args.roomId,
+      startTime: args.startTime,
+      endTime: args.endTime,
+    },
+    previous: args.previous,
+  });
   await args.tx.occupancy.deleteMany({
     where: {
       organisationId,
@@ -1594,22 +1704,41 @@ const previewSeriesReschedule = async (
         },
       })
     : [];
+  const blocks = await findStaffBlockWindows(
+    tx,
+    organisationId,
+    leadIds,
+    new Date(Math.min(...plan.occurrences.map((o) => o.startTime.getTime()))),
+    new Date(Math.max(...plan.occurrences.map((o) => o.endTime.getTime()))),
+  );
   const appointmentIds = new Set(plan.occurrences.map(({ row }) => row.id));
+  const isBlocked = (occurrence: (typeof plan.occurrences)[number]) =>
+    !(
+      occurrence.row.status === "UPCOMING" &&
+      occurrence.leadId === getLeadIdFromRow(occurrence.row) &&
+      sameBookedWindow(occurrence.row, occurrence)
+    ) &&
+    blocks.some(
+      (block) =>
+        block.staffId === occurrence.leadId &&
+        overlapsWindow(block, occurrence),
+    );
   return plan.occurrences.map((occurrence) => ({
     appointmentId: occurrence.row.id,
     recurrenceSeriesIndex: occurrence.row.recurrenceSeriesIndex,
     startTime: occurrence.startTime,
     endTime: occurrence.endTime,
-    hasConflict: occupied.some(
-      (item) =>
-        item.userId === occurrence.leadId &&
-        !(
-          item.sourceType === "APPOINTMENT" &&
-          appointmentIds.has(item.referenceId ?? "")
-        ) &&
-        item.startTime < occurrence.endTime &&
-        item.endTime > occurrence.startTime,
-    ),
+    hasConflict:
+      isBlocked(occurrence) ||
+      occupied.some(
+        (item) =>
+          item.userId === occurrence.leadId &&
+          !(
+            item.sourceType === "APPOINTMENT" &&
+            appointmentIds.has(item.referenceId ?? "")
+          ) &&
+          overlapsWindow(item, occurrence),
+      ),
   }));
 };
 
@@ -1758,6 +1887,7 @@ const createAppointmentOccurrence = async (args: {
       appointmentId: appointment.id,
       organisationId: appointment.organisationId,
       leadId: input.lead?.id,
+      roomId: getRoomId(input.room),
       startTime: appointment.startTime,
       endTime: appointment.endTime,
     });
@@ -2103,6 +2233,7 @@ const approveRequestedFromPmsInTransaction = async (args: {
     appointmentId,
     organisationId: row.organisationId,
     leadId,
+    roomId: getRoomId(patch.room),
     startTime: patch.startTime,
     endTime: patch.endTime,
   });
@@ -2203,24 +2334,26 @@ export const AppointmentPrismaService = {
       );
     }
     validateWeeklyOccurrences(occurrences, recurrenceTimeZone);
-    const occupied = await prisma.occupancy.findMany({
-      where: {
-        organisationId,
-        userId: leadId,
-        startTime: { lt: occurrences.at(-1)!.endTime },
-        endTime: { gt: occurrences[0].startTime },
-      },
-      select: { startTime: true, endTime: true },
-    });
+    const from = occurrences[0].startTime;
+    const to = occurrences.at(-1)!.endTime;
+    const [occupied, blocks] = await Promise.all([
+      prisma.occupancy.findMany({
+        where: {
+          organisationId,
+          userId: leadId,
+          startTime: { lt: to },
+          endTime: { gt: from },
+        },
+        select: { startTime: true, endTime: true },
+      }),
+      findStaffBlockWindows(prisma, organisationId, [leadId], from, to),
+    ]);
+    const busy = [...occupied, ...blocks];
     return occurrences.map((occurrence, index) => ({
       index: index + 1,
       startTime: occurrence.startTime,
       endTime: occurrence.endTime,
-      hasConflict: occupied.some(
-        (item) =>
-          item.startTime < occurrence.endTime &&
-          item.endTime > occurrence.startTime,
-      ),
+      hasConflict: busy.some((item) => overlapsWindow(item, occurrence)),
     }));
   },
 
@@ -2471,7 +2604,16 @@ export const AppointmentPrismaService = {
     const current = await prisma.appointment.findFirst({
       where: { id: appointmentId, organisationId },
     });
-    assertExists(current as AppointmentRow | null, "Appointment not found");
+    const row = assertExists(
+      current as AppointmentRow | null,
+      "Appointment not found",
+    );
+    await assertNotCalendarBlocked({
+      tx: prisma,
+      organisationId,
+      next: { ...bookedWindowOf(row), roomId: getRoomId(room) },
+      previous: bookedWindowOf(row),
+    });
 
     // No caller uses the return value - this only exists to persist the
     // room, so it skips the DTO conversion's extra payment-state queries.
@@ -2794,8 +2936,11 @@ export const AppointmentPrismaService = {
             appointmentId,
             organisationId: row.organisationId,
             leadId: input.lead?.id ?? getLeadIdFromRow(row),
+            roomId: getRoomId(patch.room),
             startTime: patch.startTime,
             endTime: patch.endTime,
+            previous:
+              row.status === "UPCOMING" ? bookedWindowOf(row) : undefined,
           });
         } else {
           await upsertAppointmentOccupancy({
@@ -2909,8 +3054,10 @@ export const AppointmentPrismaService = {
               appointmentId: occurrence.row.id,
               organisationId,
               leadId: occurrence.leadId,
+              roomId: getRoomId(occurrence.row.room),
               startTime: occurrence.startTime,
               endTime: occurrence.endTime,
+              previous: bookedWindowOf(occurrence.row),
             });
           }
           return tx.appointment.update({

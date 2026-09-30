@@ -2,6 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CalendarBlocksPanel from '@/app/features/appointments/components/Calendar/CalendarBlocksPanel';
+import { setPreferredTimeZone } from '@/app/lib/timezone';
 
 const mockModalProps = jest.fn();
 jest.mock('@/app/ui/overlays/Modal', () => ({
@@ -72,6 +73,8 @@ const renderPanel = (overrides: Partial<React.ComponentProps<typeof CalendarBloc
 };
 
 describe('CalendarBlocksPanel', () => {
+  afterEach(() => globalThis.localStorage?.clear());
+
   it('shows the reason and resource and opens an editable block', () => {
     mockModalProps.mockClear();
     renderPanel();
@@ -145,6 +148,49 @@ describe('CalendarBlocksPanel', () => {
     fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Training' } });
     fireEvent.submit(screen.getByRole('dialog').querySelector('form') as HTMLFormElement);
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not save this block.');
+  });
+
+  it('enters and shows block times in the practice time zone across a clock change', async () => {
+    // New York falls back at 02:00 on 1 November 2026 and springs forward at 02:00 on
+    // 8 March 2026, so both edges of this edit sit on different UTC offsets.
+    setPreferredTimeZone('America/New_York');
+    const { onSave } = renderPanel({
+      blocks: [
+        {
+          ...block,
+          startAt: '2026-11-01T14:00:00.000Z',
+          endAt: '2026-11-01T15:00:00.000Z',
+        },
+      ],
+    });
+    expect(screen.getByText(/Nov 1, 9:00\s?AM/)).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Lunch' }));
+    expect(screen.getByLabelText('Starts')).toHaveValue('2026-11-01T09:00');
+    expect(screen.getByLabelText('Ends')).toHaveValue('2026-11-01T10:00');
+
+    fireEvent.change(screen.getByLabelText('Starts'), { target: { value: '2026-03-07T23:30' } });
+    fireEvent.change(screen.getByLabelText('Ends'), { target: { value: '2026-03-08T09:00' } });
+    fireEvent.submit(screen.getByRole('dialog').querySelector('form') as HTMLFormElement);
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith('block-1', {
+        targetType: 'STAFF',
+        targetId: 'staff-1',
+        startAt: '2026-03-08T04:30:00.000Z',
+        endAt: '2026-03-08T13:00:00.000Z',
+        reason: 'Lunch',
+      })
+    );
+  });
+
+  it('asks for both times before saving', () => {
+    const { onSave } = renderPanel({ blocks: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Block time' }));
+    fireEvent.change(screen.getByLabelText('Staff member'), { target: { value: 'staff-1' } });
+    fireEvent.change(screen.getByLabelText('Ends'), { target: { value: '2027-01-06T12:00' } });
+    fireEvent.submit(screen.getByRole('dialog').querySelector('form') as HTMLFormElement);
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose when the block starts and ends.');
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('rejects missing targets and reversed times, and supports room blocks', () => {
