@@ -10,8 +10,10 @@ import {
   TaskPriority,
   TaskSource,
   TaskStatus,
+  type Task,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { mapInSequence } from "src/utils/async-iteration";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -225,6 +227,66 @@ const cloneFromMasterPrisma = (
   status: "PENDING" as TaskStatus,
 });
 
+type MasterRecurrence = {
+  type?: RecurrenceType;
+  isMaster?: boolean;
+  cronExpression?: string | null;
+  endDate?: Date | null;
+};
+
+/**
+ * Create the missing children of one recurring master, one occurrence at a
+ * time, until the horizon, the series end or the per-run cap is reached.
+ */
+const generateChildrenForMaster = async (
+  master: Task,
+  horizon: dayjs.Dayjs,
+): Promise<void> => {
+  const recurrence = master.recurrence as MasterRecurrence | null;
+  if (!recurrence?.isMaster) return;
+  if (!recurrence.type || recurrence.type === "ONCE") return;
+  const recurrenceType = recurrence.type;
+
+  const lastChild = await prisma.task.findFirst({
+    where: { recurrence: { path: ["masterTaskId"], equals: master.id } },
+    orderBy: { dueAt: "desc" },
+  });
+
+  const generateFrom = async (
+    currentDueAt: Date,
+    generatedCount: number,
+  ): Promise<void> => {
+    if (generatedCount >= MAX_CHILDREN_PER_RUN) return;
+
+    const next = getNextOccurrence(
+      recurrenceType,
+      currentDueAt,
+      master.timezone ?? undefined,
+      recurrence.cronExpression ?? undefined,
+      horizon,
+      recurrence.endDate ?? undefined,
+    );
+
+    if (!next) return;
+
+    const exists = await prisma.task.findFirst({
+      where: {
+        recurrence: { path: ["masterTaskId"], equals: master.id },
+        dueAt: next.toDate(),
+      },
+    });
+
+    if (!exists) {
+      const payload = cloneFromMasterPrisma(master, next.toDate());
+      await prisma.task.create({ data: payload });
+    }
+
+    await generateFrom(next.toDate(), generatedCount + 1);
+  };
+
+  await generateFrom(lastChild?.dueAt ?? master.dueAt, 0);
+};
+
 export const TaskRecurrenceEngine = {
   async run() {
     const now = dayjs();
@@ -235,58 +297,17 @@ export const TaskRecurrenceEngine = {
     // "THIS") would otherwise stop the whole series from generating any
     // further children. A series-level stop is expressed via
     // `recurrence.endDate` (set by the THIS_AND_FOLLOWING/ALL cancel paths
-    // in TaskService), which `getNextOccurrence` already honors below.
+    // in TaskService), which `getNextOccurrence` already honors.
     const masters = await prisma.task.findMany({
       where: {
         recurrence: { path: ["isMaster"], equals: true },
       },
     });
 
-    for (const master of masters) {
-      const recurrence = master.recurrence as {
-        type?: RecurrenceType;
-        isMaster?: boolean;
-        cronExpression?: string | null;
-        endDate?: Date | null;
-      } | null;
-      if (!recurrence?.isMaster) continue;
-      if (!recurrence.type || recurrence.type === "ONCE") continue;
-
-      const lastChild = await prisma.task.findFirst({
-        where: { recurrence: { path: ["masterTaskId"], equals: master.id } },
-        orderBy: { dueAt: "desc" },
-      });
-
-      let currentDueAt = lastChild?.dueAt ?? master.dueAt;
-      let generatedCount = 0;
-
-      while (generatedCount < MAX_CHILDREN_PER_RUN) {
-        const next = getNextOccurrence(
-          recurrence.type,
-          currentDueAt,
-          master.timezone ?? undefined,
-          recurrence.cronExpression ?? undefined,
-          horizon,
-          recurrence.endDate ?? undefined,
-        );
-
-        if (!next) break;
-
-        const exists = await prisma.task.findFirst({
-          where: {
-            recurrence: { path: ["masterTaskId"], equals: master.id },
-            dueAt: next.toDate(),
-          },
-        });
-
-        if (!exists) {
-          const payload = cloneFromMasterPrisma(master, next.toDate());
-          await prisma.task.create({ data: payload });
-        }
-
-        currentDueAt = next.toDate();
-        generatedCount++;
-      }
-    }
+    // Masters are handled one after another so each series is generated in
+    // the same order as before.
+    await mapInSequence(masters, (master) =>
+      generateChildrenForMaster(master, horizon),
+    );
   },
 };

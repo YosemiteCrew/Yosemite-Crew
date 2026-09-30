@@ -193,6 +193,36 @@ describe("VaccineReminderEngine", () => {
     expect(mocked.immunization.updateMany).toHaveBeenCalledTimes(2);
   });
 
+  it("sends reminders one record at a time, in the order they were read", async () => {
+    mocked.immunization.findMany.mockResolvedValue([
+      immunizationRow({ id: "imm-a" }),
+      immunizationRow({ id: "imm-b" }),
+    ]);
+    wireOwner();
+    let inFlight = 0;
+    let peak = 0;
+    mockedSend.mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setImmediate(resolve));
+      inFlight -= 1;
+      return [];
+    });
+
+    await VaccineReminderEngine.run();
+
+    expect(peak).toBe(1);
+    expect(
+      mocked.immunization.updateMany.mock.calls.map(
+        ([args]) => (args as { where: { id: string } }).where.id,
+      ),
+    ).toEqual(["imm-a", "imm-b"]);
+    // The first record is sent before the second one is claimed.
+    expect(mockedSend.mock.invocationCallOrder[0]).toBeLessThan(
+      mocked.immunization.updateMany.mock.invocationCallOrder[1],
+    );
+  });
+
   it("does not send when the claim was already taken", async () => {
     // Send-then-record was at-least-once: a swallowed write failure re-notified
     // the owner once a day until the due date passed. The claim comes first now.

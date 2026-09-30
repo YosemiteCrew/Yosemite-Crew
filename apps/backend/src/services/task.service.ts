@@ -12,6 +12,7 @@ import { AuditTrailService } from "./audit-trail.service";
 import type { TaskWorkflowSeed } from "./task-workflow-materializer";
 import { sendEmailTemplate } from "../utils/email";
 import logger from "../utils/logger";
+import { mapInSequence } from "src/utils/async-iteration";
 import {
   hasCompanionFeature,
   parentHasCompanionFeature,
@@ -768,17 +769,16 @@ const applyAllScopeSeriesUpdates = async (
   tx: Prisma.TransactionClient,
   ctx: SeriesUpdateContext,
 ) => {
-  const rows: TaskRow[] = [];
-  for (const row of ctx.seriesRows) {
-    const updated = await tx.task.update({
+  // Updates share the transaction client, so they run one at a time.
+  const rows: TaskRow[] = await mapInSequence(ctx.seriesRows, (row) =>
+    tx.task.update({
       where: { id: row.id },
       data: {
         ...buildSeriesUpdateData(row, ctx.updates),
         dueAt: toOccurrenceDueAt(row.dueAt, ctx.splitDueAt),
       },
-    });
-    rows.push(updated);
-  }
+    }),
+  );
   return rows;
 };
 
@@ -833,8 +833,8 @@ const splitSeriesAtTask = async (
       },
     });
 
-    for (const row of ctx.futureRows) {
-      await tx.task.update({
+    await mapInSequence(ctx.futureRows, (row) =>
+      tx.task.update({
         where: { id: row.id },
         data: {
           ...buildSeriesUpdateData(row, updates),
@@ -844,8 +844,8 @@ const splitSeriesAtTask = async (
             masterTaskId: task.id,
           },
         },
-      });
-    }
+      }),
+    );
   }
 
   return [currentUpdated];
@@ -937,7 +937,7 @@ const createTaskRow = async (
   return toTaskLike(doc);
 };
 
-const updateTaskRow = async (
+const updateTaskRow = (
   taskId: string,
   updates: TaskUpdateInput & { assignedBy?: string },
   task: TaskRow & {

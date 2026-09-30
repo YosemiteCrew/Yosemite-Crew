@@ -254,4 +254,51 @@ describe("TaskReminderEngine", () => {
       jest.useRealTimers();
     }
   });
+
+  it("sends reminders one task at a time and keeps going after a failure", async () => {
+    jest.useFakeTimers({
+      now: new Date("2026-01-01T12:00:01.000Z"),
+      doNotFake: ["setImmediate"],
+    });
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      prismaMock.task.findMany.mockResolvedValue([
+        dueTask({ id: "task-1", assignedTo: "user-1" }),
+        dueTask({ id: "task-2", assignedTo: "user-2" }),
+        dueTask({ id: "task-3", assignedTo: "user-3" }),
+      ]);
+      let inFlight = 0;
+      let peak = 0;
+      sendToUserMock.mockImplementation(async (userId: string) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (userId === "user-2") throw new Error("push failed");
+        return [{ token: `token-${userId}` }];
+      });
+
+      await TaskReminderEngine.run();
+
+      expect(peak).toBe(1);
+      expect(sendToUserMock.mock.calls.map(([userId]) => userId)).toEqual([
+        "user-1",
+        "user-2",
+        "user-3",
+      ]);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed reminder for task task-2",
+        expect.any(Error),
+      );
+      expect(prismaMock.task.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "task-3" } }),
+      );
+      expect(prismaMock.task.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "task-2" } }),
+      );
+    } finally {
+      errorSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
 });

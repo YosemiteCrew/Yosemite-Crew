@@ -452,6 +452,96 @@ describe("TaskScheduleEngine", () => {
     });
   });
 
+  describe("ordering and failures", () => {
+    const seed = (name: string) => ({
+      source: "ORG_TEMPLATE",
+      organisationId: "org-1",
+      createdBy: "creator-1",
+      assignedTo: "employee-1",
+      audience: "EMPLOYEE_TASK",
+      category: "Care",
+      name,
+      dueAt: "2026-01-01T08:00:00.000Z",
+    });
+    const schedule = (id: string, names: string[]) => ({
+      id,
+      templateKind: "CARE_PATHWAY",
+      status: "ACTIVE",
+      generatedTaskIds: null,
+      materializedSeeds: names.map(seed),
+    });
+
+    it("stops a schedule at its first failed seed, keeps the saved progress, and moves on", async () => {
+      const errorSpy = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
+        schedule("schedule-a", ["First", "Second", "Third"]),
+        schedule("schedule-b", ["Other"]),
+      ]);
+      mockedPrisma.taskSchedule.update.mockResolvedValue({});
+      mockedTaskService.createFromWorkflowSeed.mockImplementation(
+        async (input: { name: string }) => {
+          if (input.name === "Second") throw new Error("create failed");
+          return { id: `${input.name.toLowerCase()}-task-id` };
+        },
+      );
+
+      await TaskScheduleEngine.run();
+
+      expect(
+        mockedTaskService.createFromWorkflowSeed.mock.calls.map(
+          ([input]: [{ name: string }]) => input.name,
+        ),
+      ).toEqual(["First", "Second", "Other"]);
+      const scheduleAWrites = mockedPrisma.taskSchedule.update.mock.calls
+        .map(([args]) => args)
+        .filter((args) => args.where.id === "schedule-a");
+      expect(scheduleAWrites).toHaveLength(1);
+      expect(scheduleAWrites[0].data.generatedTaskIds).toEqual([
+        "first-task-id",
+      ]);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to process task schedule",
+        "schedule-a",
+        expect.any(Error),
+      );
+      errorSpy.mockRestore();
+    });
+
+    it("materializes one seed at a time, saving each before the next starts", async () => {
+      mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
+        schedule("schedule-a", ["First", "Second"]),
+        schedule("schedule-b", ["Other"]),
+      ]);
+      let inFlight = 0;
+      let peak = 0;
+      const track = async <T>(value: T) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        return value;
+      };
+      mockedTaskService.createFromWorkflowSeed.mockImplementation(
+        (input: { name: string }) => track({ id: `${input.name}-id` }),
+      );
+      mockedPrisma.taskSchedule.update.mockImplementation(() => track({}));
+
+      await TaskScheduleEngine.run();
+
+      expect(peak).toBe(1);
+      const createOrder =
+        mockedTaskService.createFromWorkflowSeed.mock.invocationCallOrder;
+      const updateOrder =
+        mockedPrisma.taskSchedule.update.mock.invocationCallOrder;
+      // create First, save, create Second, save, finish A, then schedule B.
+      expect(createOrder[0]).toBeLessThan(updateOrder[0]);
+      expect(updateOrder[0]).toBeLessThan(createOrder[1]);
+      expect(updateOrder[2]).toBeLessThan(createOrder[2]);
+    });
+  });
+
   it("skips schedules that already have generated task ids", async () => {
     mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
       {
