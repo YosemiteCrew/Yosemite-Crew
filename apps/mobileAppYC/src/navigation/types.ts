@@ -154,7 +154,13 @@ export type AppointmentStackParamList = {
       import('@/features/appointments/types').PaymentIntentInfo | null;
   };
   PaymentSuccess: {appointmentId: string; companionId?: string};
-  Review: {appointmentId: string};
+  Review: {
+    appointmentId: string;
+    isEditing?: boolean;
+    existingRating?: number | null;
+    existingReview?: string | null;
+    practitionerName?: string | null;
+  };
   Chat: {appointmentId: string};
   ChatChannel: {
     appointmentId: string;

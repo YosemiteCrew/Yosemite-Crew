@@ -426,6 +426,17 @@
     "retry": "Try again"
   },
   "appointments": {
+    "editFeedback": "Edit feedback",
+    "submitFeedback": "Submit feedback",
+    "updateFeedback": "Update feedback",
+    "feedbackTitle": "Veterinarian feedback",
+    "practitionerFeedbackTitle": "How was your visit with {{name}}?",
+    "yourVeterinarian": "your veterinarian",
+    "reviewVeterinarian": "Review veterinarian",
+    "feedbackLoading": "Checking feedback…",
+    "feedbackLoadFailed": "Feedback could not be loaded.",
+    "retryFeedback": "Try again",
+    "reviewPlaceholder": "Your review",
     "chatLockedTitle": "Chat not open yet",
     "chatLockedBody": "Chat opens a day before your appointment.\n\nAppointment: {{appointmentTime}}\nOpens in: {{hours}}h {{minutes}}m",
     "chatUnavailableTitle": "Chat closed",

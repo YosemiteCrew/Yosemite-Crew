@@ -1878,15 +1878,19 @@ model OrganisationInvite {
 }
 
 model OrganisationRating {
-  id             String   @id @default(uuid())
-  organizationId String
-  userId         String
-  rating         Int
-  review         String?  @default("")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(uuid())
+  organizationId   String?
+  userId           String
+  appointmentId    String?
+  practitionerId   String?
+  practitionerName String?
+  rating           Int
+  review           String?  @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@unique([organizationId, userId])
+  @@unique([appointmentId, userId])
 }
 
 model OrganizationUsageCounter {
@@ -2516,6 +2520,8 @@ enum AuditEventType {
   INVENTORY_DISCREPANCY_RECONCILED
   CLINIC_NOTE_CREATED
   CLINIC_NOTE_PINNED
+  PRACTITIONER_FEEDBACK_SUBMITTED
+  PRACTITIONER_FEEDBACK_UPDATED
 }
 
 enum WaitlistStatus {

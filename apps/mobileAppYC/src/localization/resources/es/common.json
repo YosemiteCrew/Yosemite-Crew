@@ -426,6 +426,17 @@
     "retry": "Intentar de nuevo"
   },
   "appointments": {
+    "editFeedback": "Editar opinión",
+    "submitFeedback": "Enviar opinión",
+    "updateFeedback": "Actualizar opinión",
+    "feedbackTitle": "Opinión sobre el veterinario",
+    "practitionerFeedbackTitle": "¿Cómo fue tu visita con {{name}}?",
+    "yourVeterinarian": "tu veterinario",
+    "reviewVeterinarian": "Opinar sobre el veterinario",
+    "feedbackLoading": "Comprobando opinión…",
+    "feedbackLoadFailed": "No se pudo cargar la opinión.",
+    "retryFeedback": "Intentar de nuevo",
+    "reviewPlaceholder": "Tu opinión",
     "chatLockedTitle": "El chat aun no esta abierto",
     "chatLockedBody": "El chat se abre un dia antes de tu cita.\n\nCita: {{appointmentTime}}\nSe abre en: {{hours}} h {{minutes}} min",
     "chatUnavailableTitle": "Chat cerrado",

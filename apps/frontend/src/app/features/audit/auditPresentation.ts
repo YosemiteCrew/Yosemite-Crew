@@ -22,6 +22,8 @@ const EVENT_LABELS: Record<string, string> = {
   ENCOUNTER_DISCHARGED: 'Visit closed',
   VACCINATION_RECORDED: 'Vaccination recorded',
   EXAM_RECORDED: 'Examination recorded',
+  PRACTITIONER_FEEDBACK_SUBMITTED: 'Veterinarian feedback submitted',
+  PRACTITIONER_FEEDBACK_UPDATED: 'Veterinarian feedback updated',
 };
 
 const EVENT_GROUP_LABELS: Record<string, string> = {

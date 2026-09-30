@@ -42,6 +42,8 @@ describe('audit presentation labels', () => {
     ['FLUID_PLAN_UPDATED', 'Fluid plan updated'],
     ['NUTRITION_PLAN_UPDATED', 'Nutrition plan updated'],
     ['PATIENT_ORG_LINK_CREATED', 'Patient practice access updated'],
+    ['PRACTITIONER_FEEDBACK_SUBMITTED', 'Veterinarian feedback submitted'],
+    ['PRACTITIONER_FEEDBACK_UPDATED', 'Veterinarian feedback updated'],
     ['UNRECOGNIZED_EVENT', 'Practice activity recorded'],
   ])('labels %s as %s', (eventType, label) => {
     expect(getAuditEventLabel(eventType)).toBe(label);
