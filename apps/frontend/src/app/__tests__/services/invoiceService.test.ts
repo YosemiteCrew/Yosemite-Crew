@@ -1,6 +1,7 @@
 import {
   addLineItemsToAppointments,
   createSupplementalInvoice,
+  createCounterSale,
   finalizeFinanceInvoice,
   getFinanceInvoiceById,
   getPaymentLink,
@@ -82,6 +83,41 @@ describe('invoiceService', () => {
       { dedupe: false }
     );
     expect(invoiceState.setInvoicesForOrg).toHaveBeenCalledWith('org-1', []);
+  });
+
+  it('creates and stores an appointment-free counter-sale invoice', async () => {
+    (postData as jest.Mock).mockResolvedValue({
+      data: {
+        data: {
+          id: 'counter-sale-1',
+          organisationId: 'org-1',
+          appointmentId: null,
+          items: [{ name: 'Bandage', quantity: 1, unitPrice: 10, total: 10 }],
+          subtotal: 10,
+          totalAmount: 10,
+          currency: 'usd',
+          status: 'AWAITING_PAYMENT',
+        },
+        meta: null,
+        error: null,
+      },
+    });
+
+    const result = await createCounterSale({
+      organisationId: 'org-1',
+      items: [{ inventoryItemId: 'bandage', quantity: 1 }],
+    });
+
+    expect(postData).toHaveBeenCalledWith('/v1/finance/counter-sales', {
+      organisationId: 'org-1',
+      items: [{ inventoryItemId: 'bandage', quantity: 1 }],
+    });
+    expect(result).toMatchObject({
+      id: 'counter-sale-1',
+      organisationId: 'org-1',
+      appointmentId: null,
+    });
+    expect(invoiceState.upsertInvoice).toHaveBeenCalledWith(result);
   });
 
   it('restores missing appointment id from invoice account reference', async () => {
@@ -1278,14 +1314,26 @@ describe('invoiceService', () => {
   describe('finance invoice mutations', () => {
     it('finalizes an invoice with the Stripe tax provider and upserts the result', async () => {
       (postData as jest.Mock).mockResolvedValue({ data: { id: 'inv-1', status: 'OPEN' } });
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            organistion: { name: 'Clinic' },
+            invoice: { id: 'inv-1', status: 'OPEN', pdfUrl: 'https://files.test/invoice.pdf' },
+          },
+          meta: null,
+          error: null,
+        },
+      });
 
       const invoice = await finalizeFinanceInvoice('inv-1');
 
       expect(postData).toHaveBeenCalledWith('/v1/finance/invoices/inv-1/finalize', {
         taxProvider: 'STRIPE',
       });
+      expect(getData).toHaveBeenCalledWith('/v1/finance/invoices/inv-1');
       expect(invoiceState.upsertInvoice).toHaveBeenCalled();
       expect(invoice.id).toBe('inv-1');
+      expect(invoice.pdfUrl).toBe('https://files.test/invoice.pdf');
     });
 
     it('rejects finalize and supplement calls without required inputs', async () => {

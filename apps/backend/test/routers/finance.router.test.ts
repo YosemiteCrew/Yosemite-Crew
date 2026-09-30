@@ -56,6 +56,9 @@ const withPaymentIntentOrgPermissions = jest.fn(
 const requirePermission = jest.fn((permission: string) =>
   permissionGuard(permission),
 );
+const requireAllPermissions = jest.fn((permissions: string[]) =>
+  permissionGuard(`all:${permissions.join("+")}`),
+);
 
 const FinanceController = {
   webhook: jest.fn(),
@@ -70,6 +73,7 @@ const FinanceController = {
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
+  createCounterSale: jest.fn(),
   addInvoiceItems: jest.fn(),
   getInvoiceById: jest.fn(),
   retrievePaymentIntent: jest.fn(),
@@ -120,6 +124,7 @@ jest.mock("../../src/middlewares/rbac", () => ({
   withPaymentOrgPermissions,
   withPaymentIntentOrgPermissions,
   requirePermission,
+  requireAllPermissions,
 }));
 
 jest.mock("../../src/controllers/app/finance.controller", () => ({
@@ -312,6 +317,7 @@ describe("finance.router", () => {
     const refundRoute = findRoute("/payments/:paymentId/refunds", "post");
     const listInvoicesRoute = findRoute("/invoices", "get");
     const createInvoiceRoute = findRoute("/invoices", "post");
+    const createCounterSaleRoute = findRoute("/counter-sales", "post");
     const mobileParentRoute = findRoute(
       "/mobile/parents/:parentId/invoices",
       "get",
@@ -366,6 +372,18 @@ describe("finance.router", () => {
     expect(createInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
       FinanceController.createInvoice,
     );
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(requireWebAuth);
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(withOrgPermissionsMiddleware);
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(permissionGuard("all:billing:edit:any+inventory:edit:any"));
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(FinanceController.createCounterSale);
     expect(mobileParentRoute?.stack.map((layer) => layer.handle)).toContain(
       requireMobileAuth,
     );

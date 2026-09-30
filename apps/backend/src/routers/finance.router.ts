@@ -3,6 +3,7 @@ import { buildRateLimitKey } from "src/utils/rate-limit-key";
 import rateLimit from "express-rate-limit";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import {
+  requireAllPermissions,
   requirePermission,
   withOrgPermissions,
   withAppointmentOrgPermissions,
@@ -244,6 +245,17 @@ router.post(
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.createInvoice,
+);
+
+// A counter sale bills the client AND draws the stock down, so it needs both
+// permissions: the billing one alone would let a user whose inventory edit
+// right was revoked still move stock.
+router.post(
+  "/counter-sales",
+  requireWebAuth,
+  withOrgPermissions(),
+  requireAllPermissions(["billing:edit:any", "inventory:edit:any"]),
+  FinanceController.createCounterSale,
 );
 
 router.post(

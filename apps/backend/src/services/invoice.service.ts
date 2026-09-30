@@ -19,7 +19,7 @@ import {
   roundMoney,
   type InvoiceDiscountInput as PricingInvoiceDiscountInput,
 } from "./finance/pricing";
-import { isLedgerCurrencySupported } from "./finance/currency";
+import { isLedgerCurrencySupported, sameCurrency } from "./finance/currency";
 import { FinanceDiscountSettingsService } from "./finance/discount-settings";
 import {
   DEFAULT_TAX_BEHAVIOR,
@@ -36,6 +36,10 @@ import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { randomUUID } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
+import {
+  consumeNormalStockLinesInTransaction,
+  InventoryServiceError,
+} from "./inventory.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { AuditTrailService } from "./audit-trail.service";
@@ -150,6 +154,20 @@ type CreateInvoiceInput = {
   paymentCollectionMethod:
     "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC";
 };
+
+type CounterSaleInput = {
+  organisationId: string;
+  items: Array<{ inventoryItemId: string; quantity: number }>;
+};
+
+type InvoiceNormalizationInput = Pick<
+  CreateInvoiceInput,
+  | "items"
+  | "notes"
+  | "invoiceDiscount"
+  | "paymentCollectionMethod"
+  | "organisationId"
+> & { appointmentId?: string | null };
 
 type IssueCreditNoteInput = {
   amount: number;
@@ -714,6 +732,13 @@ const resolveInvoiceTotals = async (
     taxContext,
     skipTaxCalculation,
   } = options;
+  // Only currencies the ledger registry can price exactly are handed over.
+  // An org billing in one of the codes it refuses keeps the two decimals it
+  // is priced at today rather than losing invoicing the day this ships;
+  // giving those codes a decided minor unit is what removes this guard.
+  const ledgerCurrency = isLedgerCurrencySupported(currency)
+    ? currency
+    : undefined;
   const pricing = calculateInvoicePricing({
     lines: items.map((item) => ({
       quantity: item.quantity,
@@ -724,11 +749,7 @@ const resolveInvoiceTotals = async (
     })),
     taxRatePercent: taxPercent,
     invoiceDiscount,
-    // Only currencies the ledger registry can price exactly are handed over.
-    // An org billing in one of the codes it refuses keeps the two decimals it
-    // is priced at today rather than losing invoicing the day this ships;
-    // giving those codes a decided minor unit is what removes this guard.
-    currency: isLedgerCurrencySupported(currency) ? currency : undefined,
+    currency: ledgerCurrency,
   });
 
   if (skipTaxCalculation) {
@@ -742,6 +763,7 @@ const resolveInvoiceTotals = async (
         pricing.subtotal -
           pricing.lineDiscountTotal -
           pricing.invoiceDiscountTotal,
+        ledgerCurrency,
       ),
       taxSnapshot: null,
     };
@@ -786,6 +808,7 @@ const resolveInvoiceTotals = async (
         : (taxPercent ?? 0),
     totalAmount: roundMoney(
       pricing.totalAmount - pricing.taxTotal + taxSnapshot.taxAmount,
+      ledgerCurrency,
     ),
     taxSnapshot,
   };
@@ -1202,9 +1225,9 @@ const assertOverallDiscountWithinOrgCap = async (
 };
 
 const normalizeCreateInput = async (
-  input: CreateInvoiceInput,
-  patientId: string,
-  parentId: string,
+  input: InvoiceNormalizationInput,
+  patientId: string | null,
+  parentId: string | null,
   currency: string,
   taxBehavior: PrismaTaxBehavior = DEFAULT_TAX_BEHAVIOR,
   taxContext?: {
@@ -1227,7 +1250,7 @@ const normalizeCreateInput = async (
     items,
     totals,
     data: {
-      appointmentId: input.appointmentId,
+      appointmentId: input.appointmentId ?? null,
       parentId,
       organisationId: input.organisationId,
       patientId,
@@ -1386,6 +1409,130 @@ const computeInvoiceTaxTotals = async (
 };
 
 export const InvoiceService = {
+  async createCounterSale(input: CounterSaleInput) {
+    if (!input.items.length) {
+      throw new InvoiceServiceError("At least one item is required", 400);
+    }
+    const quantities = new Map<string, number>();
+    for (const line of input.items) {
+      const inventoryItemId = line.inventoryItemId.trim();
+      if (
+        !inventoryItemId ||
+        !Number.isSafeInteger(line.quantity) ||
+        line.quantity <= 0
+      ) {
+        throw new InvoiceServiceError("Invalid sale item", 400);
+      }
+      const quantity = (quantities.get(inventoryItemId) ?? 0) + line.quantity;
+      if (!Number.isSafeInteger(quantity)) {
+        throw new InvoiceServiceError("Invalid sale quantity", 400);
+      }
+      quantities.set(inventoryItemId, quantity);
+    }
+
+    const currency = await resolveOrganisationCurrency(input.organisationId);
+    const createdInvoice = await prisma.$transaction(async (tx) => {
+      const inventoryItems = await tx.inventoryItem.findMany({
+        where: {
+          id: { in: [...quantities.keys()] },
+          organisationId: input.organisationId,
+        },
+      });
+      const itemsById = new Map(inventoryItems.map((item) => [item.id, item]));
+
+      const saleLines = [...quantities].map(([inventoryItemId, quantity]) => {
+        const item = itemsById.get(inventoryItemId);
+        if (!item) {
+          throw new InvoiceServiceError("Inventory item not found", 404);
+        }
+        if (item.status !== "ACTIVE") {
+          throw new InvoiceServiceError(
+            `${item.name} is not available for sale`,
+            409,
+          );
+        }
+        if (item.controlledItem || item.prescriptionRequired) {
+          throw new InvoiceServiceError(
+            `${item.name} cannot be sold over the counter`,
+            409,
+          );
+        }
+        if (
+          item.sellingPrice == null ||
+          !Number.isFinite(item.sellingPrice) ||
+          item.sellingPrice < 0
+        ) {
+          throw new InvoiceServiceError(
+            `${item.name} has no valid sale price`,
+            409,
+          );
+        }
+        if (item.currency && !sameCurrency(item.currency, currency)) {
+          throw new InvoiceServiceError(
+            `${item.name} uses a different currency`,
+            409,
+          );
+        }
+        return { item, quantity, unitPrice: item.sellingPrice };
+      });
+      const items = saleLines.map(({ item, quantity, unitPrice }) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description ?? item.name,
+        quantity,
+        unitPrice,
+      }));
+      const { data, taxSnapshot } = await normalizeCreateInput(
+        {
+          organisationId: input.organisationId,
+          items,
+          paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+        },
+        null,
+        null,
+        currency,
+        DEFAULT_TAX_BEHAVIOR,
+        undefined,
+        { skipTaxCalculation: true },
+      );
+      const invoice = await tx.invoice.create({
+        data: {
+          ...data,
+          ...(taxSnapshot ? { taxSnapshot: { create: taxSnapshot } } : {}),
+        },
+      });
+
+      try {
+        await consumeNormalStockLinesInTransaction(tx, saleLines, {
+          reason: "COUNTER_SALE",
+          referenceId: invoice.id,
+        });
+      } catch (error) {
+        if (error instanceof InventoryServiceError) {
+          throw new InvoiceServiceError(error.message, error.statusCode);
+        }
+        throw error;
+      }
+      await tx.financeEvent.create({
+        data: {
+          organisationId: invoice.organisationId ?? undefined,
+          eventType: "INVOICE_CREATED",
+          entityType: "INVOICE",
+          entityId: invoice.id,
+          payload: {
+            status: invoice.status,
+            totalAmount: invoice.totalAmount,
+            currency: invoice.currency,
+          },
+          occurredAt: invoice.createdAt,
+        },
+      });
+      return invoice;
+    });
+
+    return toInvoiceRecord(createdInvoice);
+  },
+
   async createDraftForAppointment(input: CreateInvoiceInput) {
     await assertAppointmentInOrganisation(
       input.appointmentId,
