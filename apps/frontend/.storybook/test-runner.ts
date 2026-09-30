@@ -60,6 +60,35 @@ const DEFAULT_VIEWPORT = 'laptop';
  * with `expected '0px' to be '1px'`, a real assertion about a layout that only
  * holds at 375px.
  */
+/** Render phases after which Storybook does nothing more with a story. */
+const SETTLED_PHASES = ['finished', 'aborted'];
+
+/** Upper bound on the wait, well inside the 15s per-story test timeout. */
+const SETTLE_TIMEOUT_MS = 10_000;
+
+/**
+ * Resolves once the current story render has settled, or quietly after the
+ * timeout: this only runs on a story that already failed, so it must never
+ * replace that story's own error with one of its own.
+ */
+async function waitForRenderToFinish(
+  page: Parameters<NonNullable<TestRunnerConfig['postVisit']>>[0]
+) {
+  await page
+    .waitForFunction(
+      (settled) => {
+        const preview = (
+          globalThis as { __STORYBOOK_PREVIEW__?: { currentRender?: { phase?: string } } }
+        ).__STORYBOOK_PREVIEW__;
+        const phase = preview?.currentRender?.phase;
+        return phase === undefined || settled.includes(phase);
+      },
+      SETTLED_PHASES,
+      { timeout: SETTLE_TIMEOUT_MS }
+    )
+    .catch(() => undefined);
+}
+
 const config: TestRunnerConfig = {
   async preVisit(page, context) {
     const activePage = await restoreStorybookPage(page);
@@ -124,6 +153,29 @@ const config: TestRunnerConfig = {
     }
 
     await activePage.setViewportSize(size);
+  },
+
+  /**
+   * After a failing story, wait for its render to finish before the next one starts.
+   *
+   * The runner reports a play failure the moment `playFunctionThrewException`
+   * fires, but Storybook is not done with that story yet: it still runs the
+   * `completing` and `afterEach` phases (the a11y scan) and only then emits
+   * `storyFinished`. Two things went wrong when the next story was requested
+   * in that window:
+   *
+   *   - The late `storyFinished` of the failed story resolved the NEXT story's
+   *     test, which then passed without its play function being checked.
+   *   - `StoryRender.teardown` found the old render still in `afterEach` and
+   *     reloaded the whole preview, so the next one or two stories in the file
+   *     died on a destroyed page and timed out.
+   *
+   * A passing story never needs this: the runner already waits for its
+   * `storyFinished`.
+   */
+  async postVisit(page, context) {
+    if (!context.hasFailure) return;
+    await waitForRenderToFinish(page);
   },
 };
 
