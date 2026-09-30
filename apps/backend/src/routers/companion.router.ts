@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { CompanionController } from "../controllers/app/companion.controller";
+import { PatientDuplicateReviewController } from "../controllers/app/patient-duplicate-review.controller";
 import { requireMobileAuth, requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { requireCompanionPermission } from "src/middlewares/companion-access";
@@ -49,6 +50,22 @@ router.get(
   withOrgPermissions(),
   requirePermission("companions:view:any"),
   CompanionController.searchCompanionByName,
+);
+
+router.get(
+  "/org/:organisationId/possible-duplicates",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  PatientDuplicateReviewController.list,
+);
+
+router.post(
+  "/org/:organisationId/possible-duplicates/:patientAId/:patientBId/dismiss",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:edit:any"),
+  PatientDuplicateReviewController.dismiss,
 );
 
 // Create companion in organisation

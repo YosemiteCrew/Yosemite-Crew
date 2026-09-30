@@ -5049,6 +5049,101 @@ paths:
                 properties:
                   message:
                     type: string
+  '/fhir/v1/companion/org/{organisationId}/possible-duplicates':
+    get:
+      tags:
+        - FHIR
+      summary: Review possible duplicate patients
+      operationId: get_possible_duplicate_patients
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Possible duplicate patient pairs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        patientA:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            name: { type: string }
+                            dateOfBirth: { type: string, format: date-time }
+                        patientB:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            name: { type: string }
+                            dateOfBirth: { type: string, format: date-time }
+                        matchingOn:
+                          type: string
+                          enum: [microchip, name-and-birth-date]
+        400:
+          description: The clinic could not be identified.
+        403:
+          description: The staff member cannot access this clinic.
+
+  '/fhir/v1/companion/org/{organisationId}/possible-duplicates/{patientAId}/{patientBId}/dismiss':
+    post:
+      tags:
+        - FHIR
+      summary: Dismiss a possible duplicate patient pair
+      operationId: post_dismiss_possible_duplicate_patients
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: patientAId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: patientBId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: The possible match was dismissed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dismissedAt:
+                    type: string
+                    format: date-time
+        400:
+          description: The patient pair is invalid.
+        404:
+          description: The patient records could not be found in this clinic.
+
   /fhir/v1/companion/org/search:
     get:
       tags:

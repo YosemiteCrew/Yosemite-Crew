@@ -4,6 +4,15 @@ const requireWebAuth = jest.fn((_req, _res, next) => next());
 const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
+const requireViewPermissionMiddleware = jest.fn((_req, _res, next) => next());
+const requireEditPermissionMiddleware = jest.fn((_req, _res, next) => next());
+const requirePermission = jest.fn((permission: string) => {
+  if (requirePermission.mock.calls.length === 2)
+    return requireViewPermissionMiddleware;
+  if (requirePermission.mock.calls.length === 3)
+    return requireEditPermissionMiddleware;
+  return requirePermissionMiddleware;
+});
 const companionGuard = jest.fn((_req, _res, next) => next());
 const requireCompanionPermission = jest.fn();
 
@@ -19,6 +28,10 @@ const CompanionController = {
   createCompanionPMS: jest.fn(),
   listParentCompanionsNotInOrganisation: jest.fn(),
 };
+const PatientDuplicateReviewController = {
+  list: jest.fn(),
+  dismiss: jest.fn(),
+};
 
 jest.mock("../../src/middlewares/auth", () => ({
   requireWebAuth,
@@ -27,7 +40,7 @@ jest.mock("../../src/middlewares/auth", () => ({
 
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions: () => withOrgPermissionsMiddleware,
-  requirePermission: () => requirePermissionMiddleware,
+  requirePermission: (permission: string) => requirePermission(permission),
 }));
 
 jest.mock("../../src/middlewares/companion-access", () => ({
@@ -40,6 +53,13 @@ jest.mock("../../src/middlewares/companion-access", () => ({
 jest.mock("../../src/controllers/app/companion.controller", () => ({
   CompanionController,
 }));
+
+jest.mock(
+  "../../src/controllers/app/patient-duplicate-review.controller",
+  () => ({
+    PatientDuplicateReviewController,
+  }),
+);
 
 const companionRouter = jest.requireActual("../../src/routers/companion.router")
   .default as Router;
@@ -59,6 +79,33 @@ const findRoute = (path: string, method: "get" | "post" | "put" | "delete") =>
   )?.route;
 
 describe("companion.router", () => {
+  it("protects duplicate review with practice scope and view permission", () => {
+    const route = findRoute("/org/:organisationId/possible-duplicates", "get");
+
+    expect(route?.stack.map((layer) => layer.handle)).toEqual([
+      requireWebAuth,
+      withOrgPermissionsMiddleware,
+      requireViewPermissionMiddleware,
+      PatientDuplicateReviewController.list,
+    ]);
+    expect(requirePermission).toHaveBeenNthCalledWith(2, "companions:view:any");
+  });
+
+  it("requires edit permission to dismiss a possible duplicate", () => {
+    const route = findRoute(
+      "/org/:organisationId/possible-duplicates/:patientAId/:patientBId/dismiss",
+      "post",
+    );
+
+    expect(route?.stack.map((layer) => layer.handle)).toEqual([
+      requireWebAuth,
+      withOrgPermissionsMiddleware,
+      requireEditPermissionMiddleware,
+      PatientDuplicateReviewController.dismiss,
+    ]);
+    expect(requirePermission).toHaveBeenNthCalledWith(3, "companions:edit:any");
+  });
+
   it("sends the PMS update to the practice-scoped handler", () => {
     const route = findRoute("/org/:id", "put");
 
