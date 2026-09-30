@@ -124,7 +124,7 @@ export const AftercarePlanService = {
     return assertRecord(id, organisationId);
   },
 
-  async list(params: ListAftercarePlanParams) {
+  list(params: ListAftercarePlanParams) {
     const { organisationId, patientId, type, completed } = params;
     return prisma.aftercarePlan.findMany({
       where: {

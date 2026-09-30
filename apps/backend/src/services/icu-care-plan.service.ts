@@ -150,7 +150,7 @@ export const IcuCarePlanService = {
     return assertPlan(id, organisationId);
   },
 
-  async list(params: ListIcuCarePlansParams) {
+  list(params: ListIcuCarePlansParams) {
     const { organisationId, patientId, status } = params;
     return prisma.icuCarePlan.findMany({
       where: {

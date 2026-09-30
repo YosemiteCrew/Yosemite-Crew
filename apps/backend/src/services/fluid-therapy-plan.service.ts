@@ -143,7 +143,7 @@ export const FluidTherapyPlanService = {
     return assertPlan(id, organisationId);
   },
 
-  async list(params: ListFluidTherapyPlansParams) {
+  list(params: ListFluidTherapyPlansParams) {
     const { organisationId, patientId, encounterId, admissionId, status } =
       params;
     return prisma.fluidTherapyPlan.findMany({

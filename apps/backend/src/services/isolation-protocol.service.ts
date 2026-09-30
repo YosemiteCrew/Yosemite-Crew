@@ -113,7 +113,7 @@ export const IsolationProtocolService = {
     return assertProtocol(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     active?: boolean;

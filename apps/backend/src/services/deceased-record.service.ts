@@ -169,7 +169,7 @@ export const DeceasedRecordService = {
     return assertDeceasedRecord(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     causeOfDeathType?: CauseOfDeathType;
   }) {

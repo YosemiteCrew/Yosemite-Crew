@@ -689,7 +689,7 @@ export const ControlledSubstanceLogService = {
     return assertRecord(id, organisationId);
   },
 
-  async list(params: ListCsLogParams) {
+  list(params: ListCsLogParams) {
     const { organisationId, patientId, drug, deaSchedule, fromDate, toDate } =
       params;
     return prisma.controlledSubstanceLog.findMany({

@@ -117,7 +117,7 @@ export const ClinicalProgressNoteService = {
     return assertNote(id, organisationId);
   },
 
-  async list(params: ListNotesParams) {
+  list(params: ListNotesParams) {
     const { organisationId, patientId, encounterId, noteType } = params;
     return prisma.clinicalProgressNote.findMany({
       where: {

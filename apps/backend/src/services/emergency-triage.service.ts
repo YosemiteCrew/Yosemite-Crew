@@ -13,11 +13,7 @@ export class EmergencyTriageError extends Error {
 }
 
 type TriagePriority =
-  | "IMMEDIATE"
-  | "URGENT"
-  | "LESS_URGENT"
-  | "STANDARD"
-  | "NON_URGENT";
+  "IMMEDIATE" | "URGENT" | "LESS_URGENT" | "STANDARD" | "NON_URGENT";
 
 export interface RecordTriageParams {
   organisationId: string;
@@ -133,7 +129,7 @@ export const EmergencyTriageService = {
     return assertTriage(id, organisationId);
   },
 
-  async list(params: ListTriageParams) {
+  list(params: ListTriageParams) {
     const { organisationId, patientId, encounterId, from, to } = params;
     return prisma.emergencyTriage.findMany({
       where: {
