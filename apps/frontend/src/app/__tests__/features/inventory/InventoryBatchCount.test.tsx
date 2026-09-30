@@ -81,7 +81,10 @@ describe('InventoryBatchCount', () => {
         notes: 'Shelf recount',
       })
     );
-    expect(await screen.findByText('Count recorded. Stock already matches.')).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Count recorded. Stock already matches.'
+    );
+    expect(screen.getByRole('status')).not.toHaveTextContent('Count another batch');
     expect(commonProps.onRefresh).toHaveBeenCalledTimes(1);
   });
 

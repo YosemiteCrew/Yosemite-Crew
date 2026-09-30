@@ -331,7 +331,7 @@ type InventoryInfoProps = {
   stockLocationOptions?: string[];
   initialSection?: InventorySectionKey;
   organisationId?: string;
-  onRefresh?: () => Promise<unknown> | unknown;
+  onRefresh?: () => unknown;
 };
 
 const modalSections: { key: InventorySectionKey; name: string }[] = [

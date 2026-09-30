@@ -18,7 +18,7 @@ type InventoryBatchCountProps = {
   itemName: string;
   batches: BatchValues[];
   disabled?: boolean;
-  onRefresh?: () => Promise<unknown> | unknown;
+  onRefresh?: () => unknown;
 };
 
 const getBatchLabel = (batch: BatchValues, index: number) =>
@@ -299,8 +299,8 @@ const InventoryBatchCount = ({
           ) : null}
 
           {message && (
-            <div role="status" className="flex flex-wrap items-center justify-between gap-3">
-              <Text variant="body-4" className="text-text-primary">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Text as="output" variant="body-4" className="text-text-primary">
                 {message}
               </Text>
               <Secondary href="#" text="Count another batch" onClick={resetCount} />
