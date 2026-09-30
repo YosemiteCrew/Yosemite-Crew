@@ -41,6 +41,7 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
 
@@ -202,8 +203,10 @@ export const BookingFormScreen: React.FC = () => {
     if (!effectiveServiceId || !businessId || !date) {
       return;
     }
-    dispatch(
-      fetchServiceSlots({businessId, serviceId: effectiveServiceId, date}),
+    runInBackground(
+      dispatch(
+        fetchServiceSlots({businessId, serviceId: effectiveServiceId, date}),
+      ),
     );
   }, [businessId, dispatch, effectiveServiceId, date]);
 

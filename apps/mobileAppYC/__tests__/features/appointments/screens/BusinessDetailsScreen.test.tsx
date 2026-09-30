@@ -318,6 +318,30 @@ describe('BusinessDetailsScreen', () => {
     expect(fetchBusinesses).toHaveBeenCalled();
   });
 
+  it('logs a failed business list refresh instead of leaving it unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (isDummyPhoto as jest.Mock).mockReturnValue(false);
+    mockDispatch.mockImplementation(() =>
+      Promise.reject(new Error('list failed')),
+    );
+    (useSelector as unknown as jest.Mock).mockImplementation(selectorFn =>
+      selectorFn({
+        businesses: {businesses: [], services: []},
+        companion: {companions: [], selectedCompanionId: null},
+      }),
+    );
+
+    render(<BusinessDetailsScreen />);
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: list failed'),
+      ),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('renders empty state when no services match business', () => {
     (useSelector as unknown as jest.Mock).mockImplementation(selectorFn => {
       return selectorFn({
@@ -636,6 +660,23 @@ describe('BusinessDetailsScreen', () => {
       const {getByTestId} = render(<BusinessDetailsScreen />);
       fireEvent.press(getByTestId('glass-button'));
       expect(openMapsToAddress).toHaveBeenCalledWith('123 Fake St');
+    });
+
+    it('logs instead of failing when the maps app cannot be opened', async () => {
+      const failure = new Error('no maps app');
+      (openMapsToPlaceId as jest.Mock).mockRejectedValueOnce(failure);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const {getByTestId} = render(<BusinessDetailsScreen />);
+      fireEvent.press(getByTestId('glass-button'));
+
+      await waitFor(() =>
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: no maps app'),
+        ),
+      );
+      warnSpy.mockRestore();
     });
 
     it('does nothing if neither Place ID nor Address exists', () => {

@@ -35,6 +35,27 @@ type PrescriptionPage = {
 const ENDPOINT = '/v1/prescription/mobile';
 const PAGE_SIZE = 100;
 
+// Each page's cursor comes from the page before it, so pages are fetched one
+// after another rather than in parallel.
+const fetchPrescriptionPages = async (
+  accessToken: string,
+  collected: MobilePrescription[],
+  cursor?: string,
+): Promise<MobilePrescription[]> => {
+  const {data} = await apiClient.get<PrescriptionPage>(ENDPOINT, {
+    params: {limit: PAGE_SIZE, cursor},
+    headers: withAuthHeaders(accessToken),
+  });
+  const prescriptions = [...collected, ...(data.prescriptions ?? [])];
+  if (!data.hasMore) {
+    return prescriptions;
+  }
+  if (!data.nextCursor || data.nextCursor === cursor) {
+    throw new Error('Prescription pagination did not advance');
+  }
+  return fetchPrescriptionPages(accessToken, prescriptions, data.nextCursor);
+};
+
 export const prescriptionApi = {
   /**
    * Every prescription the owner may read, across all of their companions.
@@ -44,23 +65,8 @@ export const prescriptionApi = {
    * rows without a new cursor is a broken contract and throws rather than
    * returning a list that looks complete.
    */
-  async list(accessToken: string): Promise<MobilePrescription[]> {
-    const prescriptions: MobilePrescription[] = [];
-    let cursor: string | undefined;
-    let hasMore = true;
-    while (hasMore) {
-      const {data} = await apiClient.get<PrescriptionPage>(ENDPOINT, {
-        params: {limit: PAGE_SIZE, cursor},
-        headers: withAuthHeaders(accessToken),
-      });
-      prescriptions.push(...(data.prescriptions ?? []));
-      hasMore = data.hasMore;
-      if (hasMore && (!data.nextCursor || data.nextCursor === cursor)) {
-        throw new Error('Prescription pagination did not advance');
-      }
-      cursor = data.nextCursor ?? undefined;
-    }
-    return prescriptions;
+  list(accessToken: string): Promise<MobilePrescription[]> {
+    return fetchPrescriptionPages(accessToken, []);
   },
 
   async requestRefill(
