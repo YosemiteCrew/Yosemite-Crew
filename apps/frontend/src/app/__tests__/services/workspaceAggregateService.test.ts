@@ -271,6 +271,34 @@ describe('workspaceAggregateService', () => {
     );
   });
 
+  it('deletes at most four removed rows at a time', async () => {
+    (getData as jest.Mock).mockResolvedValueOnce({
+      data: ['a', 'b', 'c', 'd', 'e'].map((id) => ({
+        id: `svc-${id}`,
+        servicePackageKind: 'SERVICE',
+        billingStatus: 'UNBILLED',
+      })),
+    });
+    const finishers: Array<() => void> = [];
+    (deleteData as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishers.push(() => resolve({ data: undefined }));
+        })
+    );
+
+    const run = persistTreatmentItems('org-1', 'enc-1', []);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(deleteData).toHaveBeenCalledTimes(4);
+
+    finishers[0]();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(deleteData).toHaveBeenCalledTimes(5);
+
+    finishers.slice(1).forEach((finish) => finish());
+    await run;
+  });
+
   it('never deletes billed or medication-kind backend rows', async () => {
     (getData as jest.Mock).mockResolvedValueOnce({
       data: [

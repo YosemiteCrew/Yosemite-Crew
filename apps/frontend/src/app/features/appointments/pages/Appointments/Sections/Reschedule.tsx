@@ -336,7 +336,11 @@ const useRescheduleForm = (props: RescheduleProp) => {
       .catch((err) => {
         console.log(err);
         if (!cancelled) {
-          patchState({ timeSlots: [], formDataErrors: { slot: SLOTS_LOAD_ERROR } });
+          patchState({
+            timeSlots: [],
+            selectedSlot: null,
+            formDataErrors: { slot: SLOTS_LOAD_ERROR },
+          });
         }
       });
     return () => {

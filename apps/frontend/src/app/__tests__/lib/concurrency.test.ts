@@ -97,7 +97,32 @@ describe('mapWithConcurrency', () => {
     expect(started).toEqual([0, 1]);
   });
 
-  it('rejects with the first failure and starts no further items', async () => {
+  it('rejects with the first failure after in-flight items settle, starting no more', async () => {
+    const pending = Array.from({ length: 4 }, () => defer<number>());
+    const started: number[] = [];
+    let settled = false;
+    const run = mapWithConcurrency([0, 1, 2, 3], 2, (index) => {
+      started.push(index);
+      return pending[index].promise;
+    });
+    const outcome = run
+      .catch((error: unknown) => error)
+      .finally(() => {
+        settled = true;
+      });
+
+    await flush();
+    pending[0].reject(new Error('first'));
+    await flush();
+    // Item 1 is still running, so the call has not settled yet.
+    expect(settled).toBe(false);
+
+    pending[1].reject(new Error('second'));
+    await expect(outcome).resolves.toEqual(new Error('first'));
+    expect(started).toEqual([0, 1]);
+  });
+
+  it('starts no further items once one has failed', async () => {
     const pending = Array.from({ length: 4 }, () => defer<number>());
     const started: number[] = [];
     const run = mapWithConcurrency([0, 1, 2, 3], 2, (index) => {
@@ -108,10 +133,11 @@ describe('mapWithConcurrency', () => {
 
     await flush();
     pending[0].reject(new Error('offline'));
-    await expect(outcome).resolves.toEqual(new Error('offline'));
-
-    pending[1].resolve(1);
     await flush();
+    // Item 1 finishing would normally free its slot for item 2.
+    pending[1].resolve(1);
+
+    await expect(outcome).resolves.toEqual(new Error('offline'));
     expect(started).toEqual([0, 1]);
   });
 });

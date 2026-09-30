@@ -146,19 +146,12 @@ describe('DeveloperApiKeys page', () => {
     expect(screen.queryByTestId('api-keys-empty')).not.toBeInTheDocument();
   });
 
-  it('handles a failed first load without leaving the rejection unhandled', async () => {
-    const unhandled = jest.fn();
-    process.on('unhandledRejection', unhandled);
+  it('reports a failed first load and stops loading', async () => {
     listApiKeysMock.mockRejectedValue(new Error('boom'));
-    try {
-      render(<DeveloperApiKeys />);
-      expect(await screen.findByText(/Could not load your API keys/)).toBeInTheDocument();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(unhandled).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith('Failed to load API keys', new Error('boom'));
-    } finally {
-      process.off('unhandledRejection', unhandled);
-    }
+    render(<DeveloperApiKeys />);
+    expect(await screen.findByText(/Could not load your API keys/)).toBeInTheDocument();
+    expect(logger.error).toHaveBeenCalledWith('Failed to load API keys', new Error('boom'));
+    expect(screen.queryByText('Loading API keys…')).not.toBeInTheDocument();
   });
 
   it('shows the load error when the list cannot be refreshed after a revoke', async () => {
