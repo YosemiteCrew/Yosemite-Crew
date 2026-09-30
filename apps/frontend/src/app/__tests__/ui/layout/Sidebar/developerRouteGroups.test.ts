@@ -1,6 +1,6 @@
 import { devRoutes } from '@/app/config/routes';
 import { DEV_PHONE_MORE_LINKS, DEV_PHONE_TABS } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
-import { DEV_ROUTE_GROUPS } from '@/app/ui/layout/Sidebar/Sidebar';
+import { DEV_ROUTE_GROUPS } from '@/app/ui/layout/Sidebar/sidebarRouteGroups';
 
 /**
  * A route listed in `devRoutes` is invisible until a navigation surface names it:

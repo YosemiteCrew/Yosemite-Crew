@@ -2,25 +2,10 @@ import React, { useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { IconType } from 'react-icons';
 import {
   IoBookOutline,
-  IoBusinessOutline,
-  IoCalendarOutline,
-  IoChatbubbleEllipsesOutline,
-  IoCodeSlashOutline,
   IoChevronBackOutline,
   IoChevronForwardOutline,
-  IoCubeOutline,
-  IoExtensionPuzzleOutline,
-  IoFlaskOutline,
-  IoGitNetworkOutline,
-  IoGlobeOutline,
-  IoGridOutline,
-  IoKeyOutline,
-  IoListOutline,
-  IoPaw,
-  IoWalletOutline,
 } from 'react-icons/io5';
 
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
@@ -28,7 +13,6 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
 import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { appRoutes, devRoutes } from '@/app/config/routes';
-import type { RouteItem } from '@/app/config/routes';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { hasAnyRequiredPermission, resolveMembershipPermissions } from '@/app/lib/routePermissions';
 import {
@@ -39,76 +23,16 @@ import {
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
 import { useIsTabletRail } from './useIsTabletRail';
+import {
+  APP_ROUTE_GROUPS,
+  DEV_ROUTE_GROUPS,
+  ROUTE_ICONS,
+  groupRoutes,
+} from './sidebarRouteGroups';
 
 import './Sidebar.css';
 import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
 import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
-
-const ROUTE_ICONS: Record<string, IconType> = {
-  Dashboard: IoGridOutline,
-  Organization: IoBusinessOutline,
-  Appointments: IoCalendarOutline,
-  Tasks: IoListOutline,
-  Chat: IoChatbubbleEllipsesOutline,
-  Finance: IoWalletOutline,
-  Companions: IoPaw,
-  Inventory: IoCubeOutline,
-  'Controlled drug register': IoFlaskOutline,
-  Integrations: IoGitNetworkOutline,
-  Network: IoGlobeOutline,
-  Templates: IoBookOutline,
-  Connect: IoCodeSlashOutline,
-  'My Integrations': IoCodeSlashOutline,
-  'API Keys': IoKeyOutline,
-  'Form Draft Import': IoBookOutline,
-  Billing: IoWalletOutline,
-  'Website - Builder': IoGlobeOutline,
-  Plugins: IoExtensionPuzzleOutline,
-  Documentation: IoBookOutline,
-  'API Playground': IoCodeSlashOutline,
-  'MCP Playground': IoCubeOutline,
-};
-
-const APP_ROUTE_GROUPS = [
-  { label: 'Overview', routeNames: ['Dashboard'] },
-  { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
-  { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
-  { label: 'Business', routeNames: ['Finance', 'Inventory', 'Controlled drug register'] },
-  { label: 'Administration', routeNames: ['Organization', 'Integrations', 'Network'] },
-] as const;
-
-export const DEV_ROUTE_GROUPS = [
-  {
-    label: 'Developer',
-    routeNames: [
-      'Dashboard',
-      'Connect',
-      'API Keys',
-      'My Integrations',
-      'Form Draft Import',
-      'Billing',
-      'Website - Builder',
-    ],
-  },
-  {
-    label: 'Platform',
-    routeNames: ['Plugins', 'Documentation', 'API Playground', 'MCP Playground'],
-  },
-] as const;
-
-const groupRoutes = (
-  routes: RouteItem[],
-  groups: readonly { label: string; routeNames: readonly string[] }[]
-) =>
-  groups.reduce<Array<{ label: string; routes: RouteItem[] }>>((visibleGroups, group) => {
-    const groupRoutes = group.routeNames.reduce<RouteItem[]>((items, routeName) => {
-      const route = routes.find((item) => item.name === routeName);
-      if (route) items.push(route);
-      return items;
-    }, []);
-    if (groupRoutes.length > 0) visibleGroups.push({ label: group.label, routes: groupRoutes });
-    return visibleGroups;
-  }, []);
 
 const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
