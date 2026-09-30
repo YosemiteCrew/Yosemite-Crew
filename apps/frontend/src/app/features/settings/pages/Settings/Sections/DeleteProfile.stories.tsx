@@ -144,7 +144,8 @@ export const Resting: Story = {
   name: 'The row before anything is clicked',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('Delete profile')).toBeInTheDocument();
+    // The row title and the button share the words, so the title is the <div> one.
+    await expect(canvas.getByText('Delete profile', { selector: 'div' })).toBeInTheDocument();
     await expect(
       canvas.getByText('Leaves all organizations and erases your account')
     ).toBeInTheDocument();
@@ -266,6 +267,10 @@ export const MissingUserId: Story = {
 export const Phone: Story = {
   name: 'Phone: the danger row holds its line',
   globals: { viewport: { value: 'mobile', isRotated: false } },
+  /* Full-bleed rather than centred: the centred layout shrink-wraps the root,
+     so the card's `max-w-full` resolved against its own fixed width and the
+     card stayed wider than the phone the runner now sizes the page to. */
+  parameters: { layout: 'fullscreen' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const trigger = canvas.getByRole('button', { name: 'Delete profile' });

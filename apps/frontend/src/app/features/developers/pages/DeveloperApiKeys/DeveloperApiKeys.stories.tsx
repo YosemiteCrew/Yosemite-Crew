@@ -218,7 +218,11 @@ export const CreateAndReveal: Story = {
 
     await userEvent.click(await canvas.findByRole('button', { name: 'Create API key' }));
     await userEvent.type(canvas.getByLabelText('Key name'), 'CI runner');
-    await userEvent.selectOptions(canvas.getByLabelText('Environment'), 'test');
+    // Environment is the themed Dropdown; its options portal onto document.body.
+    await userEvent.click(canvas.getByRole('button', { name: 'Environment: Live' }));
+    await userEvent.click(
+      await within(globalThis.document.body).findByRole('option', { name: 'Test' })
+    );
     await userEvent.click(canvas.getByRole('button', { name: 'Create' }));
 
     /* The whole point of the screen: the plaintext secret is shown once, in

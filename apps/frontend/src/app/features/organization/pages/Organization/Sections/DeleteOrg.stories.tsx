@@ -116,7 +116,8 @@ export const DangerBand: Story = {
   name: 'Danger band (owner)',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const title = canvas.getByText('Delete organization');
+    // The band title and the pill share the words, so the title is the <div> one.
+    const title = canvas.getByText('Delete organization', { selector: 'div' });
     await expect(
       canvas.getByText('Removes the clinic and revokes all team access')
     ).toBeInTheDocument();

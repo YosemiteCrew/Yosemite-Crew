@@ -311,8 +311,13 @@ export const Default: Story = {
       await canvas.findByText('amelia.weber@harbourside.vet · Owner · Internal medicine')
     ).toBeVisible();
 
-    // Editable, because the seeded membership carries teams:edit:any.
-    const crossClinicToggle = canvas.getByRole('switch', { name: 'Cross-clinic messaging' });
+    // Editable, because the seeded membership carries teams:edit:any. Its section
+    // is a separate dynamic import, so it is awaited on its own.
+    const crossClinicToggle = await canvas.findByRole(
+      'switch',
+      { name: 'Cross-clinic messaging' },
+      { timeout: 5000 }
+    );
     await expect(crossClinicToggle).toBeEnabled();
     await expect(crossClinicToggle).toHaveAttribute('aria-checked', 'true');
 

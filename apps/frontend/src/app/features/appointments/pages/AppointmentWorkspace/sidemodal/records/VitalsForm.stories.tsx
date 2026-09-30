@@ -255,7 +255,10 @@ export const RowExpandedSparse: Story = {
     await expect(grid.children).toHaveLength(8);
 
     await expect(canvas.getByText('Weight: 58.2 lbs')).toBeInTheDocument();
-    await expect(canvas.getByText('Temp: - °F')).toBeInTheDocument();
+    /* No temperature was recorded, so there is no scale to name: the unit comes
+       from the key a reading was stored under (tempF or tempC), not from config. */
+    await expect(canvas.getByText('Temp: -')).toBeInTheDocument();
+    await expect(canvas.queryByText(/^Temp: - °/)).not.toBeInTheDocument();
     await expect(canvas.getByText('Heart rate: - bpm')).toBeInTheDocument();
     await expect(canvas.getByText('Resp. rate: - bpm')).toBeInTheDocument();
     await expect(canvas.getByText('CRT: -')).toBeInTheDocument();
@@ -268,7 +271,8 @@ export const RowExpandedSparse: Story = {
       description: {
         story:
           'A weight-only record, which is what a quick weigh-in leaves behind. Seven of the eight ' +
-          'cells fall back to `-` and the unit stays, so the row reads "Pain: - / 10". Worth ' +
+          'cells fall back to `-`. Most keep their unit, so the row reads "Pain: - / 10"; ' +
+          'temperature drops it, because its unit is the scale a reading was stored in. Worth ' +
           'reviewing: at a glance a `-` with a unit is easy to misread as a zero reading rather ' +
           'than an unrecorded one.',
       },
