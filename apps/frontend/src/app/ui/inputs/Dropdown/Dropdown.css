@@ -19,6 +19,12 @@
     border-color 0.15s,
     box-shadow 0.15s;
 }
+/* Same touch height as FIELD_CONTROL_HEIGHT: 44px on phones and touch screens. */
+@media (width < 40rem), (pointer: coarse) {
+  .select-input-container {
+    height: 44px;
+  }
+}
 .select-input-selected {
   min-width: 0;
   flex: 1;

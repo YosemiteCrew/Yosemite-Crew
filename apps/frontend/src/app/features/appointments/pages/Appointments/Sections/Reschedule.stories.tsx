@@ -534,13 +534,21 @@ export const Phone: Story = {
     await expect(Math.round(date.width)).toBe(Math.round(time.width));
     await expect(date.right).toBeLessThanOrEqual(time.left + 1);
 
-    /* The shared 40px field height (ui/README.md), off the border box. Date and
-       Time are display-only (not focusable, clicks ignored), so this is a field
-       height rather than a touch target; the day strip and slot chips are the
-       controls. The Lead picker beside them must match it. */
+    /* Date and Time are read-outs (read-only, out of the tab order, clicks
+       ignored), so they keep the 40px field height on a phone; the day strip and
+       slot chips are the controls that set them. Measured off the border box. */
+    for (const label of ['Date', 'Time']) {
+      const field = panel.getByLabelText(label);
+      await expect(field).toHaveAttribute('readonly');
+      await expect(field).toHaveAttribute('tabindex', '-1');
+    }
     await expect(Math.round(date.height)).toBe(40);
+    await expect(Math.round(time.height)).toBe(40);
+
+    /* The Lead picker is a control a finger taps, so on a phone it clears the
+       44px touch-target minimum. */
     const leadTrigger = panel.getByRole('button', { name: /^Lead/ }).getBoundingClientRect();
-    await expect(Math.round(leadTrigger.height)).toBe(Math.round(date.height));
+    await expect(Math.round(leadTrigger.height)).toBeGreaterThanOrEqual(44);
     await expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
   },
 };
