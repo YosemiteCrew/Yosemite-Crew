@@ -1208,7 +1208,7 @@ const findStaffBlockWindows = async (
   }));
 };
 
-const findCalendarBlockWindows = async (
+const findCalendarBlockWindows = (
   tx: TransactionClient,
   organisationId: string,
   windows: BookedWindow[],
@@ -1231,7 +1231,7 @@ const findCalendarBlockWindows = async (
       });
     }
   }
-  if (!targets.size || !windows.length) return [];
+  if (!targets.size || !windows.length) return Promise.resolve([]);
 
   const from = new Date(
     Math.min(...windows.map((window) => window.startTime.getTime())),
