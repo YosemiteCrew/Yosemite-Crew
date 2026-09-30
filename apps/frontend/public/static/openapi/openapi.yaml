@@ -4838,6 +4838,158 @@ paths:
                 properties:
                   message:
                     type: string
+  '/fhir/v1/companion/org/profile-fields/{entityType}/{entityId}':
+    get:
+      tags:
+        - FHIR
+      summary: List practice fields for a client or patient
+      operationId: list_companion_profile_fields
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [CLIENT, PATIENT]
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Practice fields and values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    fieldKey: { type: string }
+                    label: { type: string }
+                    type: { type: string, enum: [TEXT, NUMBER, DATE, BOOLEAN, SELECT] }
+                    options: { type: array, items: { type: string } }
+                    value: {}
+        404:
+          description: Profile not found
+  '/fhir/v1/companion/org/profile-fields/{entityType}':
+    post:
+      tags:
+        - FHIR
+      summary: Add a practice field to client or patient profiles
+      description: Adding a field with the same label and type as a removed field restores that field together with its saved values.
+      operationId: create_companion_profile_field
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [CLIENT, PATIENT]
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, type]
+              properties:
+                label: { type: string, maxLength: 80 }
+                type: { type: string, enum: [TEXT, NUMBER, DATE, BOOLEAN, SELECT] }
+                options: { type: array, items: { type: string, maxLength: 80 } }
+      responses:
+        201:
+          description: Field created or restored
+        409:
+          description: A field with the same label already exists
+  '/fhir/v1/companion/org/profile-fields/fields/{fieldId}':
+    delete:
+      tags:
+        - FHIR
+      summary: Remove a practice field from profiles
+      description: The field is hidden from every profile and its saved values are kept.
+      operationId: deactivate_companion_profile_field
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: fieldId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Field removed
+        404:
+          description: Field not found
+  '/fhir/v1/companion/org/profile-fields/{entityType}/{entityId}/values':
+    put:
+      tags:
+        - FHIR
+      summary: Save practice field values for a client or patient
+      operationId: save_companion_profile_field_values
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [CLIENT, PATIENT]
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [values]
+              properties:
+                values:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [fieldId, value]
+                    properties:
+                      fieldId: { type: string, format: uuid }
+                      value: {}
+      responses:
+        204:
+          description: Values saved
+        404:
+          description: Profile or field not found
   '/fhir/v1/companion/org/{id}':
     post:
       tags:

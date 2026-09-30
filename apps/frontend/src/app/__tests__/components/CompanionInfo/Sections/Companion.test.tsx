@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Companion from '@/app/features/companions/components/Sections/Companion';
 
@@ -9,6 +9,11 @@ const fetchBreedCodeEntriesMock = jest.fn();
 
 jest.mock('@/app/features/companions/services/companionService', () => ({
   updateCompanion: (...args: any[]) => updateCompanionMock(...args),
+}));
+
+jest.mock('@/app/features/companions/components/PracticeProfileFields', () => ({
+  __esModule: true,
+  default: () => null,
 }));
 
 jest.mock('@/app/features/companions/services/codeEntriesService', () => ({
@@ -178,7 +183,10 @@ describe('CompanionInfo Companion section', () => {
   it('shows edit controls and updates companion via PUT payload', async () => {
     render(<Companion companion={companion} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(fetchSpeciesCodeEntriesMock).toHaveBeenCalled();

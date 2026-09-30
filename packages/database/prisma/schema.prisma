@@ -33,6 +33,19 @@ enum ContactStatus {
   CLOSED
 }
 
+enum PracticeProfileFieldEntity {
+  CLIENT
+  PATIENT
+}
+
+enum PracticeProfileFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+}
+
 enum PrescriptionDispenseRequestStatus {
   PENDING
   NOT_DISPENSED
@@ -1128,11 +1141,53 @@ model Organization {
   createdAt                              DateTime             @default(now())
   updatedAt                              DateTime             @updatedAt
 
+  practiceProfileFields PracticeProfileField[]
+
   bookingSettings     PublicBookingSettings?
   bookingSlugHistory  BookingSlugReservation[]
   publicBookingRequests PublicBookingRequest[]
 
   @@index([googlePlacesId, name])
+}
+
+model PracticeProfileField {
+  id             String                     @id @default(uuid())
+  organisationId String
+  entityType     PracticeProfileFieldEntity
+  fieldKey       String
+  label          String
+  type           PracticeProfileFieldType
+  options        String[]                   @default([])
+  sortOrder      Int                        @default(0)
+  isActive       Boolean                    @default(true)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  organisation Organization                @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  values       PracticeProfileFieldValue[]
+
+  // Partial unique index over ACTIVE rows is maintained via SQL migration
+  // because Prisma schema cannot express `WHERE isActive = true`. A removed
+  // field keeps its key so its stored values stay attached to it, and reusing
+  // that key has to be allowed rather than blocked for ever.
+  @@unique([id, organisationId, entityType])
+  @@index([organisationId, entityType, isActive, sortOrder])
+}
+
+model PracticeProfileFieldValue {
+  id             String                     @id @default(uuid())
+  organisationId String
+  fieldId        String
+  entityType     PracticeProfileFieldEntity
+  entityId       String
+  value          Json
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  field PracticeProfileField @relation(fields: [fieldId, organisationId, entityType], references: [id, organisationId, entityType], onDelete: Cascade)
+
+  @@unique([fieldId, entityId])
+  @@index([organisationId, entityType, entityId])
 }
 
 model OrganizationAddress {

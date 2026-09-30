@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import { CompanionParent, StoredParent } from '@/app/features/companions/pages/Companions/types';
 import { updateParent } from '@/app/features/companions/services/companionService';
+import PracticeProfileFields from '@/app/features/companions/components/PracticeProfileFields';
 
 const Fields = [
   { label: 'First name', key: 'firstName', type: 'text', required: true },
@@ -53,6 +54,7 @@ const Parent = ({ companion }: ParentType) => {
         showEditIcon={false}
         onSave={handleSave}
       />
+      <PracticeProfileFields entityType="CLIENT" entityId={companion.parent.id ?? ''} />
     </div>
   );
 };

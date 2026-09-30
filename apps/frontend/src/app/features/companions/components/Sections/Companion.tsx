@@ -31,6 +31,7 @@ import {
 import { formatDisplayDate } from '@/app/lib/date';
 import { toTitleCase } from '@/app/lib/validators';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import PracticeProfileFields from '@/app/features/companions/components/PracticeProfileFields';
 
 type OptionProp = {
   label: string;
@@ -873,6 +874,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
           </div>
         )}
       </Accordion>
+      <PracticeProfileFields entityType="PATIENT" entityId={companion.companion.id ?? ''} />
     </div>
   );
 };
