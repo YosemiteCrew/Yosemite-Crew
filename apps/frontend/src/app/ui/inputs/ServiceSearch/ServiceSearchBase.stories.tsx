@@ -68,7 +68,7 @@ type Story = StoryObj<typeof meta>;
 export const Closed: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole('textbox', { name: FIELD })).toHaveValue('');
+    await expect(canvas.getByRole('combobox', { name: FIELD })).toHaveValue('');
     await expect(canvas.queryByLabelText(RESULTS)).not.toBeInTheDocument();
   },
 };
@@ -77,7 +77,7 @@ export const DropdownOpen: Story = {
   name: 'Dropdown open',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
     // "General Consult" is prepended for every consult-flagged speciality, then
     // the five dentistry services in catalogue order.
@@ -105,7 +105,7 @@ export const PickFromCatalogue: Story = {
   name: 'Pick from the catalogue',
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByRole('textbox', { name: FIELD });
+    const field = canvas.getByRole('combobox', { name: FIELD });
     await userEvent.click(field);
     await userEvent.click(canvas.getByRole('option', { name: 'Oral X-Rays' }));
 
@@ -129,7 +129,7 @@ export const CreateCustom: Story = {
   name: 'No match (create)',
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByRole('textbox', { name: FIELD });
+    const field = canvas.getByRole('combobox', { name: FIELD });
     await userEvent.click(field);
     await userEvent.type(field, '  feline dental radiographs ');
 
@@ -166,7 +166,7 @@ export const ExistingFilteredOut: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
     await expect(results.getAllByRole('option')).toHaveLength(4);
     await expect(
@@ -197,7 +197,7 @@ export const OffCatalogueSpeciality: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
     // No suggestions exist, so focus lands straight on the create row - which
     // quotes an empty name until something is typed.
