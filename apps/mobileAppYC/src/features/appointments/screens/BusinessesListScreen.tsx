@@ -13,6 +13,7 @@ import {createSelectBusinessesByCategory} from '@/features/appointments/selector
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import type {VetBusiness} from '@/features/appointments/types';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -58,7 +59,7 @@ export const BusinessesListScreen: React.FC = () => {
 
   useEffect(() => {
     if (businesses.length === 0) {
-      dispatch(fetchBusinesses({serviceName: undefined}));
+      runInBackground(dispatch(fetchBusinesses({serviceName: undefined})));
     }
   }, [businesses.length, dispatch]);
 

@@ -384,6 +384,30 @@ describe('BookingFormScreen', () => {
     });
   });
 
+  it('logs a failed slot fetch instead of leaving it unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const useRoute = require('@react-navigation/native').useRoute;
+    useRoute.mockReturnValue({params: defaultParams});
+    const failingStore = mockStore(store.getState());
+    failingStore.dispatch = jest.fn(() =>
+      Promise.reject(new Error('slots failed')),
+    ) as any;
+
+    render(
+      <Provider store={failingStore}>
+        <BookingFormScreen />
+      </Provider>,
+    );
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: slots failed'),
+      ),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('uses default fallback if business name is missing', () => {
     const {getByTestId, getByText} = setup(defaultParams, {
       businesses: {businesses: [{id: 'biz-1', name: ''}]},

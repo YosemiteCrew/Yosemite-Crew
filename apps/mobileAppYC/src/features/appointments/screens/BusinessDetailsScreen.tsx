@@ -29,10 +29,7 @@ import {
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
-import {
-  fetchBusinessDetails,
-  fetchGooglePlacesImage,
-} from '@/features/linkedBusinesses';
+import {fetchBusinessFallbackPhoto} from '@/features/appointments/utils/businessFallbackPhoto';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
@@ -42,6 +39,7 @@ import {TabParamList} from '@/navigation/types';
 import type {Theme} from '@/theme';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const resolveCompanionSpecies = (raw: string): string => {
@@ -95,10 +93,10 @@ export const BusinessDetailsScreen: React.FC = () => {
 
   React.useEffect(() => {
     if (!business) {
-      dispatch(fetchBusinesses());
+      runInBackground(dispatch(fetchBusinesses()));
     }
     if (totalServices === 0) {
-      dispatch(fetchBusinesses());
+      runInBackground(dispatch(fetchBusinesses()));
     }
   }, [business, dispatch, totalServices]);
 
@@ -106,19 +104,13 @@ export const BusinessDetailsScreen: React.FC = () => {
     if (!business?.googlePlacesId) return;
     const isDummy = isDummyPhoto(business.photo);
     if (!business.photo || isDummy) {
-      dispatch(fetchBusinessDetails(business.googlePlacesId))
-        .unwrap()
-        .then(res => {
-          if (res.photoUrl) setFallbackPhoto(res.photoUrl);
-        })
-        .catch(() => {
-          dispatch(fetchGooglePlacesImage(business.googlePlacesId as string))
-            .unwrap()
-            .then(img => {
-              if (img.photoUrl) setFallbackPhoto(img.photoUrl);
-            })
-            .catch(() => {});
-        });
+      runInBackground(
+        fetchBusinessFallbackPhoto(dispatch, business.googlePlacesId).then(
+          photo => {
+            if (photo) setFallbackPhoto(photo);
+          },
+        ),
+      );
     }
   }, [business?.googlePlacesId, business?.photo, dispatch]);
 
@@ -278,9 +270,14 @@ export const BusinessDetailsScreen: React.FC = () => {
               title="Get Directions"
               onPress={() => {
                 if (business?.googlePlacesId) {
-                  openMapsToPlaceId(business.googlePlacesId, business?.address);
+                  runInBackground(
+                    openMapsToPlaceId(
+                      business.googlePlacesId,
+                      business?.address,
+                    ),
+                  );
                 } else if (business?.address) {
-                  openMapsToAddress(business.address);
+                  runInBackground(openMapsToAddress(business.address));
                 }
               }}
               height={theme.spacing['14']}

@@ -604,6 +604,51 @@ describe('EditAppointmentScreen', () => {
     expect(mockGoBack).toHaveBeenCalled();
   });
 
+  it('still goes back and logs when the cancellation request fails', async () => {
+    const failure = new Error('cancel failed');
+    const {
+      cancelAppointment,
+    } = require('@/features/appointments/appointmentsSlice');
+    (cancelAppointment as unknown as jest.Mock).mockReturnValueOnce(() =>
+      Promise.reject(failure),
+    );
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const {getByTestId} = setup();
+
+    fireEvent.press(getByTestId('HeaderRight'));
+    fireEvent.press(getByTestId('ConfirmCancelBtn'));
+
+    expect(mockGoBack).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: cancel failed'),
+      ),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('logs a failed slot refresh instead of leaving it unhandled', async () => {
+    const failure = new Error('slots failed');
+    const {
+      fetchServiceSlots,
+    } = require('@/features/appointments/businessesSlice');
+    (fetchServiceSlots as unknown as jest.Mock).mockReturnValueOnce(() =>
+      Promise.reject(failure),
+    );
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    setup();
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: slots failed'),
+      ),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('hides delete icon for NO_PAYMENT status', () => {
     const state = {
       ...initialState,
@@ -907,6 +952,18 @@ describe('EditAppointmentScreen', () => {
 
     const {getByTestId} = setup(state);
     expect(getByTestId('FormContent')).toBeTruthy();
+  });
+
+  it('prices the service in US dollars when it has no currency', () => {
+    const {selectServiceById} = require('@/features/appointments/selectors');
+    (selectServiceById as unknown as jest.Mock).mockImplementation(
+      () => () => ({...mockService, currency: undefined}),
+    );
+    const {resolveCurrencySymbol} = require('@/shared/utils/currency');
+
+    setup();
+
+    expect(resolveCurrencySymbol).toHaveBeenCalledWith('USD');
   });
 
   it('invokes the companion selection handler', () => {

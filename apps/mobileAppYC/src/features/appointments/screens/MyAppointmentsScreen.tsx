@@ -55,6 +55,7 @@ import {
   type PractitionerFeedbackState,
 } from '@/features/appointments/hooks/usePractitionerFeedback';
 import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/appointmentStatus';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter =
@@ -136,7 +137,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       if (!companionId) return;
       if (lastFetchedCompanionIdRef.current === companionId) return;
       lastFetchedCompanionIdRef.current = companionId;
-      dispatch(fetchAppointmentsForCompanion({companionId}));
+      runInBackground(dispatch(fetchAppointmentsForCompanion({companionId})));
     },
     [dispatch],
   );
@@ -295,7 +296,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       apt => apt.status === 'COMPLETED' && apt.employeeId,
     );
     targets.forEach(apt => {
-      fetchPractitionerFeedbackIfNeeded(apt.id);
+      runInBackground(fetchPractitionerFeedbackIfNeeded(apt.id));
     });
   }, [fetchPractitionerFeedbackIfNeeded, filteredPast]);
 
@@ -530,9 +531,11 @@ export const MyAppointmentsScreen: React.FC = () => {
           }
           onGetDirections={() => {
             if (googlePlacesId) {
-              openMapsToPlaceId(googlePlacesId, businessAddress);
+              runInBackground(
+                openMapsToPlaceId(googlePlacesId, businessAddress),
+              );
             } else if (businessAddress) {
-              openMapsToAddress(businessAddress);
+              runInBackground(openMapsToAddress(businessAddress));
             }
           }}
           canChat={canUseChat}
@@ -549,7 +552,7 @@ export const MyAppointmentsScreen: React.FC = () => {
           checkInDisabled={resolvedCheckInDisabled}
           onCheckIn={() => {
             if (!resolvedCheckInDisabled) {
-              handleCheckIn(item);
+              runInBackground(handleCheckIn(item));
             }
           }}
           footer={footer}

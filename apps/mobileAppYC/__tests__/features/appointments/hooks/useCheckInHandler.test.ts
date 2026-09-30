@@ -506,6 +506,33 @@ describe('useCheckInHandler', () => {
       });
     });
 
+    it('logs a failed appointment list refresh without treating the check-in as failed', async () => {
+      const failure = new Error('list refresh failed');
+      mockDispatch.mockImplementation((action: any) => {
+        if (action.unwrap) {
+          return action;
+        }
+        return Promise.reject(failure);
+      });
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
+      const {result} = renderHook(() => useCheckInHandler());
+
+      await act(async () => {
+        await result.current.handleCheckIn(mockConfig);
+      });
+
+      await waitFor(() => {
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: list refresh failed'),
+        );
+      });
+      expect(mockAlert).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+    });
+
     it('should not fetch appointments on error', async () => {
       mockCheckInAppointment.mockReturnValue({
         unwrap: jest.fn().mockRejectedValue(new Error('Error')),

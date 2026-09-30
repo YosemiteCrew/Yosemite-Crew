@@ -105,6 +105,7 @@ import {
 
 import i18next from 'i18next';
 import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
+import {runInBackground} from '@/shared/utils/runInBackground';
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 /** Ceiling on the opaque first-load overlay, which has no dismiss control. */
@@ -289,10 +290,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       (!hasExpenseHydrated || !expenseSummary)
     ) {
       markInitialRequest('expenses');
-      dispatch(
-        fetchExpenseSummary({
-          companionId: selectedCompanionIdRedux,
-        }),
+      runInBackground(
+        dispatch(
+          fetchExpenseSummary({
+            companionId: selectedCompanionIdRedux,
+          }),
+        ),
       );
     }
   }, [
@@ -416,7 +419,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   }, []);
 
   const handlePmsSelection = React.useCallback(
-    async (selection: ResolvedBusinessSelection) => {
+    (selection: ResolvedBusinessSelection) => {
       const businessPayload = mapSelectionToVetBusiness(selection);
 
       dispatch(upsertBusiness(businessPayload));
@@ -435,7 +438,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
 
   const handleNonPmsSelection = React.useCallback(
-    async (selection: ResolvedBusinessSelection) => {
+    (selection: ResolvedBusinessSelection) => {
       if (
         !ensureCompanionForSearch() ||
         !selectedCompanion ||
@@ -493,7 +496,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       setSearchQuery('');
       clearResults();
       if (targetCompanionId && !hasTasksHydrated) {
-        dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
+        runInBackground(
+          dispatch(fetchTasksForCompanion({companionId: targetCompanionId})),
+        );
       }
     }, [
       clearResults,
@@ -515,7 +520,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       }
     };
 
-    loadCompanionsAndSelectDefault();
+    runInBackground(loadCompanionsAndSelectDefault());
   }, [dispatch, markInitialRequest, user?.parentId]);
 
   const fetchParentAccessStateRef = React.useRef({
@@ -538,11 +543,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       state.lastParentId = authUser.parentId;
       state.lastCompanionCount = companions.length;
 
-      dispatch(
-        fetchParentAccess({
-          parentId: authUser.parentId,
-          companionIds: companions.map(c => c.id),
-        }),
+      runInBackground(
+        dispatch(
+          fetchParentAccess({
+            parentId: authUser.parentId,
+            companionIds: companions.map(c => c.id),
+          }),
+        ),
       );
       markInitialRequest('access');
     }
@@ -572,7 +579,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       dispatch(setSelectedCompanion(targetId));
     }
     markInitialRequest('appointments');
-    dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
+    runInBackground(
+      dispatch(fetchAppointmentsForCompanion({companionId: targetId})),
+    );
   }, [
     dispatch,
     markInitialRequest,
@@ -584,11 +593,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   React.useEffect(() => {
     if (selectedCompanionIdRedux) {
       markInitialRequest('linkedBusinesses');
-      dispatch(
-        fetchLinkedBusinesses({
-          companionId: selectedCompanionIdRedux,
-          category: 'hospital',
-        }),
+      runInBackground(
+        dispatch(
+          fetchLinkedBusinesses({
+            companionId: selectedCompanionIdRedux,
+            category: 'hospital',
+          }),
+        ),
       );
     }
   }, [dispatch, markInitialRequest, selectedCompanionIdRedux]);
@@ -597,8 +608,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   React.useEffect(() => {
     if (user && !hasNotificationsHydrated) {
       markInitialRequest('notifications');
-      dispatch(
-        fetchNotificationsForCompanion({companionId: 'default-companion'}),
+      runInBackground(
+        dispatch(
+          fetchNotificationsForCompanion({companionId: 'default-companion'}),
+        ),
       );
     }
   }, [dispatch, hasNotificationsHydrated, markInitialRequest, user]);
@@ -608,8 +621,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     React.useCallback(() => {
       if (user) {
         markInitialRequest('notifications');
-        dispatch(
-          fetchNotificationsForCompanion({companionId: 'default-companion'}),
+        runInBackground(
+          dispatch(
+            fetchNotificationsForCompanion({companionId: 'default-companion'}),
+          ),
         );
       }
     }, [dispatch, markInitialRequest, user]),
@@ -625,7 +640,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ) {
       previousCurrencyRef.current = userCurrencyCode;
       markInitialRequest('expenses');
-      dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
+      runInBackground(
+        dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux})),
+      );
     }
   }, [
     dispatch,
@@ -640,7 +657,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     React.useCallback(() => {
       if (selectedCompanionIdRedux) {
         markInitialRequest('expenses');
-        dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
+        runInBackground(
+          dispatch(
+            fetchExpenseSummary({companionId: selectedCompanionIdRedux}),
+          ),
+        );
       }
     }, [dispatch, markInitialRequest, selectedCompanionIdRedux]),
   );
@@ -772,7 +793,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       return;
     }
     markInitialRequest('companions');
-    dispatch(fetchCompanions(user.parentId));
+    runInBackground(dispatch(fetchCompanions(user.parentId)));
   }, [dispatch, markInitialRequest, user?.parentId]);
 
   const handleRetryAppointments = React.useCallback(() => {
@@ -780,7 +801,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       return;
     }
     markInitialRequest('appointments');
-    dispatch(fetchAppointmentsForCompanion({companionId: targetCompanionId}));
+    runInBackground(
+      dispatch(fetchAppointmentsForCompanion({companionId: targetCompanionId})),
+    );
   }, [dispatch, markInitialRequest, targetCompanionId]);
 
   // The companion list could not be loaded and there is nothing cached. Every
@@ -797,7 +820,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       return;
     }
     markInitialRequest('expenses');
-    dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
+    runInBackground(
+      dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux})),
+    );
   }, [dispatch, markInitialRequest, selectedCompanionIdRedux]);
 
   const handleAddCompanion = () => {
@@ -918,7 +943,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       if (!guardFeature('tasks', 'tasks')) {
         return;
       }
-      dispatch(markTaskStatus({taskId, status: 'completed'}));
+      runInBackground(dispatch(markTaskStatus({taskId, status: 'completed'})));
     },
     [dispatch, guardFeature],
   );
@@ -986,7 +1011,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       nextUpcomingAppointment?.businessId &&
       nextUpcomingAppointment.status === 'COMPLETED'
     ) {
-      fetchOrgRatingIfNeeded(nextUpcomingAppointment.businessId);
+      runInBackground(
+        fetchOrgRatingIfNeeded(nextUpcomingAppointment.businessId),
+      );
     }
   }, [fetchOrgRatingIfNeeded, nextUpcomingAppointment]);
 
@@ -1209,15 +1236,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         onViewDetails={() => handleViewAppointment(appointment.id)}
         onGetDirections={() => {
           if (googlePlacesId) {
-            openMapsToPlaceId(googlePlacesId, businessAddress);
+            runInBackground(openMapsToPlaceId(googlePlacesId, businessAddress));
           } else if (businessAddress) {
-            openMapsToAddress(businessAddress);
+            runInBackground(openMapsToAddress(businessAddress));
           }
         }}
         onChat={() => handleChatAppointment(appointment.id)}
         onCheckIn={() => {
           if (!isCheckInDisabled) {
-            handleCheckInAppointment(appointment.id);
+            runInBackground(handleCheckInAppointment(appointment.id));
           }
         }}
         checkInLabel={

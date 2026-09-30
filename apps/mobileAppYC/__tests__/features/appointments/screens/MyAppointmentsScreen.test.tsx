@@ -464,6 +464,44 @@ describe('MyAppointmentsScreen', () => {
     });
   });
 
+  describe('Background failures', () => {
+    it('logs when the maps app cannot be opened', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      (openMapsToAddress as jest.Mock).mockRejectedValueOnce(
+        new Error('no maps app'),
+      );
+      renderScreen();
+
+      fireEvent.press(screen.getAllByTestId('btn-directions')[2]);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: no maps app'),
+      );
+      warnSpy.mockRestore();
+    });
+
+    it('logs when a check-in fails unexpectedly', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockHandleCheckIn.mockRejectedValueOnce(new Error('check-in crashed'));
+      renderScreen();
+
+      fireEvent.press(screen.getAllByTestId('btn-checkin')[0]);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: check-in crashed'),
+      );
+      warnSpy.mockRestore();
+    });
+  });
+
   describe('Payment and Permissions', () => {
     it('handles Pay Now navigation', () => {
       renderScreen();

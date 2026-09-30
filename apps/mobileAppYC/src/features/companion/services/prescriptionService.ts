@@ -34,6 +34,40 @@ type PrescriptionPage = {
 
 const ENDPOINT = '/v1/prescription/mobile';
 const PAGE_SIZE = 100;
+// Upper bound on pages followed for one list, so a server that keeps reporting
+// more pages cannot keep the app requesting forever.
+export const MAX_PRESCRIPTION_PAGES = 50;
+
+// Each page's cursor comes from the page before it, so pages are fetched one
+// after another rather than in parallel. Pages are appended to the one array
+// `list` passes in, so earlier pages are not copied again for every new one.
+const fetchPrescriptionPages = async (
+  accessToken: string,
+  collected: MobilePrescription[],
+  pagesFetched = 0,
+  cursor?: string,
+): Promise<MobilePrescription[]> => {
+  if (pagesFetched >= MAX_PRESCRIPTION_PAGES) {
+    throw new Error('Prescription pagination exceeded the page limit');
+  }
+  const {data} = await apiClient.get<PrescriptionPage>(ENDPOINT, {
+    params: {limit: PAGE_SIZE, cursor},
+    headers: withAuthHeaders(accessToken),
+  });
+  collected.push(...(data.prescriptions ?? []));
+  if (!data.hasMore) {
+    return collected;
+  }
+  if (!data.nextCursor || data.nextCursor === cursor) {
+    throw new Error('Prescription pagination did not advance');
+  }
+  return fetchPrescriptionPages(
+    accessToken,
+    collected,
+    pagesFetched + 1,
+    data.nextCursor,
+  );
+};
 
 export const prescriptionApi = {
   /**
@@ -42,25 +76,11 @@ export const prescriptionApi = {
    * so stopping at the first page could hide that animal's rows entirely and
    * render "no prescriptions" as a false statement. A page that claims more
    * rows without a new cursor is a broken contract and throws rather than
-   * returning a list that looks complete.
+   * returning a list that looks complete, and so does a list that runs past
+   * `MAX_PRESCRIPTION_PAGES`.
    */
-  async list(accessToken: string): Promise<MobilePrescription[]> {
-    const prescriptions: MobilePrescription[] = [];
-    let cursor: string | undefined;
-    let hasMore = true;
-    while (hasMore) {
-      const {data} = await apiClient.get<PrescriptionPage>(ENDPOINT, {
-        params: {limit: PAGE_SIZE, cursor},
-        headers: withAuthHeaders(accessToken),
-      });
-      prescriptions.push(...(data.prescriptions ?? []));
-      hasMore = data.hasMore;
-      if (hasMore && (!data.nextCursor || data.nextCursor === cursor)) {
-        throw new Error('Prescription pagination did not advance');
-      }
-      cursor = data.nextCursor ?? undefined;
-    }
-    return prescriptions;
+  list(accessToken: string): Promise<MobilePrescription[]> {
+    return fetchPrescriptionPages(accessToken, []);
   },
 
   async requestRefill(

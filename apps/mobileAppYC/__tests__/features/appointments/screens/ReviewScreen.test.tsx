@@ -266,6 +266,26 @@ describe('ReviewScreen', () => {
       });
     });
 
+    it('logs a failed business fetch instead of leaving it unhandled', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({...mockState, businesses: {businesses: []}}),
+      );
+      mockDispatch.mockImplementation((action: any) =>
+        action?.type === 'businesses/fetch'
+          ? Promise.reject(new Error('businesses failed'))
+          : {unwrap: () => Promise.resolve({})},
+      );
+
+      renderScreen();
+
+      await waitFor(() =>
+        expect(console.warn).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: businesses failed'),
+        ),
+      );
+    });
+
     it('renders companion visit prompt and formatted meta line', () => {
       const stateWithCompanion = {
         appointments: {

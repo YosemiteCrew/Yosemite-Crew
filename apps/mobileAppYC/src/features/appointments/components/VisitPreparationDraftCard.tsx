@@ -21,6 +21,7 @@ import {
   stopReadingVisitText,
 } from '../services/visitVoice';
 import {composeVisitPreparationMessage} from '../utils/visitPreparation';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 const EMPTY_DRAFT: VisitPreparationDraft = {
   observations: '',
@@ -59,12 +60,16 @@ export const VisitPreparationDraftCard: React.FC<{
   React.useEffect(() => {
     let active = true;
     mounted.current = true;
-    isVisitVoiceAvailable().then(available => {
-      if (active) setVoiceAvailable(available);
-    });
-    isVisitReadBackAvailable().then(available => {
-      if (active) setReadBackAvailable(available);
-    });
+    runInBackground(
+      isVisitVoiceAvailable().then(available => {
+        if (active) setVoiceAvailable(available);
+      }),
+    );
+    runInBackground(
+      isVisitReadBackAvailable().then(available => {
+        if (active) setReadBackAvailable(available);
+      }),
+    );
     const removeReadBackListener = onVisitReadBackFinished(() => {
       if (active) setIsReading(false);
     });
@@ -148,7 +153,7 @@ export const VisitPreparationDraftCard: React.FC<{
           <PressableOpacity
             testID={`visit-voice-${field}`}
             onPress={() => {
-              capture(field);
+              runInBackground(capture(field));
             }}
             disabled={listeningField !== null || isReading}
             accessibilityRole="button"
@@ -212,7 +217,7 @@ export const VisitPreparationDraftCard: React.FC<{
                 : 'appointments.visitPreparation.readBack',
             )}
             onPress={() => {
-              toggleReadBack();
+              runInBackground(toggleReadBack());
             }}
             disabled={!message || listeningField !== null}
             tintColor={theme.colors.secondary}

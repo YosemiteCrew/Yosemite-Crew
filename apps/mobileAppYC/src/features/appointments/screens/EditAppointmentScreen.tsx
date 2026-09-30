@@ -34,16 +34,14 @@ import {
 import {formatTimeRange} from '@/features/appointments/utils/timeFormatting';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
-import {
-  fetchBusinessDetails,
-  fetchGooglePlacesImage,
-} from '@/features/linkedBusinesses';
+import {fetchBusinessFallbackPhoto} from '@/features/appointments/utils/businessFallbackPhoto';
 import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
 import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationDocumentNavigation';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const isAppointmentCancellable = (status?: string | null) => {
@@ -100,12 +98,14 @@ const useFetchServiceSlots = ({
     if (!businessId || !serviceId || !date) {
       return;
     }
-    dispatch(
-      fetchServiceSlots({
-        businessId,
-        serviceId,
-        date,
-      }),
+    runInBackground(
+      dispatch(
+        fetchServiceSlots({
+          businessId,
+          serviceId,
+          date,
+        }),
+      ),
     );
   }, [businessId, serviceId, date, dispatch]);
 };
@@ -128,19 +128,11 @@ const useBusinessPhotoFallback = ({
     const needsPhoto =
       (!businessPhoto || isDummyPhoto(businessPhoto)) && !fallbackPhoto;
     if (!needsPhoto) return;
-    dispatch(fetchBusinessDetails(googlePlacesId))
-      .unwrap()
-      .then(res => {
-        if (res.photoUrl) setFallbackPhoto(res.photoUrl);
-      })
-      .catch(() => {
-        dispatch(fetchGooglePlacesImage(googlePlacesId))
-          .unwrap()
-          .then(img => {
-            if (img.photoUrl) setFallbackPhoto(img.photoUrl);
-          })
-          .catch(() => {});
-      });
+    runInBackground(
+      fetchBusinessFallbackPhoto(dispatch, googlePlacesId).then(photo => {
+        if (photo) setFallbackPhoto(photo);
+      }),
+    );
   }, [
     businessPhoto,
     dispatch,
@@ -600,7 +592,7 @@ export const EditAppointmentScreen: React.FC = () => {
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
         onConfirm={() => {
-          dispatch(cancelAppointment({appointmentId}));
+          runInBackground(dispatch(cancelAppointment({appointmentId})));
           navigation.goBack();
         }}
       />

@@ -308,6 +308,26 @@ describe('BrowseBusinessesScreen', () => {
     });
   });
 
+  it('logs a failed business search instead of leaving it unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {serviceName: 'grooming'},
+    });
+    dispatchMock.mockImplementation(() =>
+      Promise.reject(new Error('search failed')),
+    );
+
+    render(<BrowseBusinessesScreen />);
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: search failed'),
+      ),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('updates search query and performs search on submit', () => {
     (usePlacesBusinessSearch as jest.Mock).mockReturnValue(
       makePlacesSearchMock({searchQuery: 'vet'}),

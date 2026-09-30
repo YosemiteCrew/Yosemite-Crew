@@ -1,5 +1,8 @@
 import apiClient from '@/shared/services/apiClient';
-import {prescriptionApi} from '@/features/companion/services/prescriptionService';
+import {
+  MAX_PRESCRIPTION_PAGES,
+  prescriptionApi,
+} from '@/features/companion/services/prescriptionService';
 
 jest.mock('@/shared/services/apiClient', () => {
   const actual = jest.requireActual('@/shared/services/apiClient');
@@ -77,6 +80,35 @@ describe('prescriptionApi', () => {
       'Prescription pagination did not advance',
     );
     expect(apiClient.get).toHaveBeenCalledTimes(2);
+  });
+
+  // Every page advances the cursor, so only the page cap stops the requests.
+  // The fake server ends the list one page past the cap, so a missing cap
+  // shows up as a resolved list rather than a hung test.
+  const answerPages = (lastPage: number) =>
+    (apiClient.get as jest.Mock).mockImplementation(() => {
+      const n = (apiClient.get as jest.Mock).mock.calls.length;
+      return Promise.resolve(
+        page(
+          [{id: `rx-${n}`, patientId: 'pet-1'}],
+          n < Math.min(lastPage, MAX_PRESCRIPTION_PAGES + 1) ? `c${n}` : null,
+        ),
+      );
+    });
+
+  it('reads up to the page limit when the last page ends the list', async () => {
+    answerPages(MAX_PRESCRIPTION_PAGES);
+    const result = await prescriptionApi.list('token');
+    expect(result).toHaveLength(MAX_PRESCRIPTION_PAGES);
+    expect(apiClient.get).toHaveBeenCalledTimes(MAX_PRESCRIPTION_PAGES);
+  });
+
+  it('throws instead of requesting forever when every page reports more', async () => {
+    answerPages(Number.POSITIVE_INFINITY);
+    await expect(prescriptionApi.list('token')).rejects.toThrow(
+      'Prescription pagination exceeded the page limit',
+    );
+    expect(apiClient.get).toHaveBeenCalledTimes(MAX_PRESCRIPTION_PAGES);
   });
 
   it('posts a refill request without putting the token in the URL', async () => {

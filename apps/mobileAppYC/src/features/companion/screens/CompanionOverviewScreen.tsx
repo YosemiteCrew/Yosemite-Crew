@@ -92,6 +92,7 @@ import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertWeight} from '@/shared/utils/measurementSystem';
 import {fetchBreedCodeEntries} from '@/features/companion/services/codeEntriesService';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 // Props
 export type CompanionOverviewScreenProps = NativeStackScreenProps<
@@ -354,7 +355,7 @@ export const CompanionOverviewScreen: React.FC<
       }
     };
 
-    loadBreeds();
+    runInBackground(loadBreeds());
 
     return () => {
       mounted = false;
@@ -469,12 +470,14 @@ export const CompanionOverviewScreen: React.FC<
 
                       // currentWeight is always stored in kg; convert the
                       // entered value from the user's preferred unit.
-                      applyPatch({
-                        currentWeight:
-                          num === null || Number.isNaN(num)
-                            ? null
-                            : convertWeight(num, weightUnit, 'kg'),
-                      });
+                      runInBackground(
+                        applyPatch({
+                          currentWeight:
+                            num === null || Number.isNaN(num)
+                              ? null
+                              : convertWeight(num, weightUnit, 'kg'),
+                        }),
+                      );
                     }}
                   />
 
@@ -530,7 +533,9 @@ export const CompanionOverviewScreen: React.FC<
                           } else if (cleaned.toLowerCase().endsWith(' year')) {
                             cleaned = cleaned.slice(0, -5).trim();
                           }
-                          applyPatch({ageWhenNeutered: cleaned || null});
+                          runInBackground(
+                            applyPatch({ageWhenNeutered: cleaned || null}),
+                          );
                         }}
                       />
                     </>
@@ -633,7 +638,9 @@ export const CompanionOverviewScreen: React.FC<
                   : null
               }
               onDateChange={date => {
-                applyPatch({dateOfBirth: date ? date.toISOString() : null});
+                runInBackground(
+                  applyPatch({dateOfBirth: date ? date.toISOString() : null}),
+                );
                 setShowDobPicker(false);
               }}
               show={showDobPicker}
@@ -651,11 +658,13 @@ export const CompanionOverviewScreen: React.FC<
         breeds={breedOptions}
         selectedBreed={safeCompanion.breed ?? null}
         onSave={(b: Breed | null) => {
-          applyPatch({
-            breed: b,
-            speciesCode: b?.speciesCode ?? safeCompanion.speciesCode ?? null,
-            breedCode: b?.breedCode ?? null,
-          });
+          runInBackground(
+            applyPatch({
+              breed: b,
+              speciesCode: b?.speciesCode ?? safeCompanion.speciesCode ?? null,
+              breedCode: b?.breedCode ?? null,
+            }),
+          );
           openBottomSheetRef.current = null;
         }}
       />
@@ -665,7 +674,7 @@ export const CompanionOverviewScreen: React.FC<
         selectedBloodGroup={safeCompanion.bloodGroup ?? null}
         category={safeCompanion.category}
         onSave={(bg: string | null) => {
-          applyPatch({bloodGroup: bg});
+          runInBackground(applyPatch({bloodGroup: bg}));
           openBottomSheetRef.current = null;
         }}
       />
@@ -677,7 +686,9 @@ export const CompanionOverviewScreen: React.FC<
           safeCompanion.countryOfOrigin,
         )}
         onSave={country => {
-          applyPatch({countryOfOrigin: country ? country.name : null});
+          runInBackground(
+            applyPatch({countryOfOrigin: country ? country.name : null}),
+          );
           openBottomSheetRef.current = null;
         }}
       />
@@ -686,7 +697,7 @@ export const CompanionOverviewScreen: React.FC<
         ref={genderSheetRef}
         selected={safeCompanion.gender}
         onSave={g => {
-          applyPatch({gender: g});
+          runInBackground(applyPatch({gender: g}));
           openBottomSheetRef.current = null;
         }}
       />
@@ -698,7 +709,7 @@ export const CompanionOverviewScreen: React.FC<
         onSave={n => {
           const patch: Partial<Companion> = {neuteredStatus: n};
           if (n !== 'neutered') patch.ageWhenNeutered = null; // reset dependent
-          applyPatch(patch);
+          runInBackground(applyPatch(patch));
           openBottomSheetRef.current = null;
         }}
       />
@@ -712,7 +723,7 @@ export const CompanionOverviewScreen: React.FC<
             patch.insuranceCompany = null;
             patch.insurancePolicyNumber = null;
           }
-          applyPatch(patch);
+          runInBackground(applyPatch(patch));
           openBottomSheetRef.current = null;
         }}
       />
@@ -721,7 +732,7 @@ export const CompanionOverviewScreen: React.FC<
         ref={originSheetRef}
         selected={safeCompanion.origin}
         onSave={o => {
-          applyPatch({origin: o});
+          runInBackground(applyPatch({origin: o}));
           openBottomSheetRef.current = null;
         }}
       />
