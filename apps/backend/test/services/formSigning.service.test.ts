@@ -2018,8 +2018,232 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
     expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
   });
 
-  it("still refuses practice staff an id with no form submission", async () => {
+  // Staff (vet) signing on a template instance that requires vet signature.
+  it("allows practice staff to sign a template instance that requires vet signature", async () => {
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-vet",
+      organisationId: "org-1",
+      templateId: "tpl-vet",
+      appointmentId: "appt-1",
+      authorId: "vet-1",
+      createdAt: new Date("2026-01-01"),
+      generatedPdf: { signer: "VET" },
+      status: "COMPLETED",
+      template: { kind: "FORM", rules: { requiredSigner: "VET" } },
+    });
+    (hasNewerSubmissionForSigner as jest.Mock).mockResolvedValueOnce(false);
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-vet",
+      signing: null,
+    });
+    mockedPrisma.user.findUnique.mockResolvedValueOnce({
+      email: "vet@example.com",
+      firstName: "Vet",
+      lastName: "User",
+    });
+    mockedSignPersistedRenderedDocument.mockResolvedValueOnce({
+      signing: {
+        documentId: "999",
+        signingUrl: "https://documenso.example/sign/vet-token",
+      },
+    });
+
+    await expect(
+      FormSigningService.startSigning({
+        isParent: false,
+        submissionId: "instance-vet",
+        initiatedBy: "vet-1",
+        organisationId: "org-1",
+      }),
+    ).resolves.toEqual({
+      documentId: "999",
+      signingUrl: "https://documenso.example/sign/vet-token",
+    });
+
+    expect(mockedPrisma.templateInstance.findUnique).toHaveBeenCalled();
+    expect(mockedPrisma.user.findUnique).toHaveBeenCalled();
+    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signerType: "PMS_USER",
+        signerId: "vet-1",
+        signerEmail: "vet@example.com",
+      }),
+    );
+  });
+
+  it.each([
+    { userId: "lead-vet", leadId: "lead-vet", canSign: true },
+    { userId: "other-staff", leadId: "lead-vet", canSign: false },
+  ])(
+    "restricts template-instance signing to the author or appointment lead",
+    async ({ userId, leadId, canSign }) => {
+      mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+      mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+        id: "instance-vet",
+        organisationId: "org-1",
+        templateId: "tpl-vet",
+        appointmentId: "appt-1",
+        authorId: "template-author",
+        createdAt: new Date("2026-01-01"),
+        generatedPdf: { signer: "VET" },
+        status: "COMPLETED",
+        template: { kind: "FORM", rules: { requiredSigner: "VET" } },
+      });
+      mockedPrisma.user.findUnique.mockResolvedValueOnce({
+        email: "vet@example.com",
+        firstName: "Vet",
+        lastName: "User",
+      });
+      mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+        lead: { id: leadId },
+      });
+      if (canSign) {
+        (hasNewerSubmissionForSigner as jest.Mock).mockResolvedValueOnce(false);
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+          id: "doc-vet",
+          signing: null,
+        });
+        mockedSignPersistedRenderedDocument.mockResolvedValueOnce({
+          signing: {
+            documentId: "999",
+            signingUrl: "https://documenso.example/sign/vet-token",
+          },
+        });
+      }
+
+      const signing = FormSigningService.startSigning({
+        isParent: false,
+        submissionId: "instance-vet",
+        initiatedBy: userId,
+        organisationId: "org-1",
+      });
+
+      if (canSign) {
+        await expect(signing).resolves.toEqual({
+          documentId: "999",
+          signingUrl: "https://documenso.example/sign/vet-token",
+        });
+        expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+          where: { id: "appt-1", organisationId: "org-1" },
+          select: { lead: true },
+        });
+      } else {
+        await expect(signing).rejects.toThrow(
+          "Unauthorized to sign this submission",
+        );
+        expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("refuses practice staff on a template instance that requires client signature", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-client",
+      organisationId: "org-1",
+      templateId: "tpl-client",
+      appointmentId: "appt-1",
+      authorId: "parent-1",
+      createdAt: new Date("2026-01-01"),
+      generatedPdf: { signer: "CLIENT" },
+      status: "COMPLETED",
+      template: { kind: "CONSENT", rules: { requiredSigner: "CLIENT" } },
+    });
+
+    await expect(
+      FormSigningService.startSigning({
+        isParent: false,
+        submissionId: "instance-client",
+        initiatedBy: "vet-1",
+        organisationId: "org-1",
+      }),
+    ).rejects.toThrow("Form requires client signature");
+  });
+
+  it("refuses practice staff on a template instance from another organisation", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-other-org",
+      organisationId: "org-other",
+      templateId: "tpl-vet",
+      appointmentId: "appt-1",
+      authorId: "vet-1",
+      createdAt: new Date("2026-01-01"),
+      generatedPdf: { signer: "VET" },
+      status: "COMPLETED",
+      template: { kind: "FORM", rules: { requiredSigner: "VET" } },
+    });
+
+    await expect(
+      FormSigningService.startSigning({
+        isParent: false,
+        submissionId: "instance-other-org",
+        initiatedBy: "vet-1",
+        organisationId: "org-1",
+      }),
+    ).rejects.toThrow("Unauthorized to sign this submission");
+  });
+
+  it("refuses practice staff on a voided template instance", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-void",
+      organisationId: "org-1",
+      templateId: "tpl-vet",
+      appointmentId: "appt-1",
+      authorId: "vet-1",
+      createdAt: new Date("2026-01-01"),
+      generatedPdf: { signer: "VET" },
+      status: "VOID",
+      template: { kind: "FORM", rules: { requiredSigner: "VET" } },
+    });
+
+    await expect(
+      FormSigningService.startSigning({
+        isParent: false,
+        submissionId: "instance-void",
+        initiatedBy: "vet-1",
+        organisationId: "org-1",
+      }),
+    ).rejects.toThrow("Form submission not found");
+  });
+
+  it("refuses practice staff when a newer version exists for the same signer", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-old",
+      organisationId: "org-1",
+      templateId: "tpl-vet",
+      appointmentId: "appt-1",
+      authorId: "vet-1",
+      createdAt: new Date("2026-01-01"),
+      generatedPdf: { signer: "VET" },
+      status: "COMPLETED",
+      template: { kind: "FORM", rules: { requiredSigner: "VET" } },
+    });
+    (hasNewerSubmissionForSigner as jest.Mock).mockResolvedValueOnce(true);
+    mockedPrisma.user.findUnique.mockResolvedValueOnce({
+      email: "vet@example.com",
+      firstName: "Vet",
+      lastName: "User",
+    });
+
+    await expect(
+      FormSigningService.startSigning({
+        isParent: false,
+        submissionId: "instance-old",
+        initiatedBy: "vet-1",
+        organisationId: "org-1",
+      }),
+    ).rejects.toThrow(
+      "A newer version of this form is waiting for your signature",
+    );
+  });
+
+  it("still refuses practice staff an id with no form submission and no template instance", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce(null);
 
     await expect(
       FormSigningService.startSigning({
@@ -2029,6 +2253,6 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
         organisationId: "org-1",
       }),
     ).rejects.toThrow("Form submission not found");
-    expect(mockedPrisma.templateInstance.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.templateInstance.findUnique).toHaveBeenCalled();
   });
 });
