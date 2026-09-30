@@ -132,6 +132,31 @@ describe("IntegrationService", () => {
       },
     );
 
+    // Validation is reachable on its own over HTTP and writes credentialsStatus,
+    // so it needs the gate too: otherwise a shape-only adapter can mark a
+    // coming-soon provider's credentials valid without any connection.
+    it.each(NOT_CONNECTED)(
+      "refuses to validate %s and never marks its credentials valid",
+      async (provider) => {
+        (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+          id: "1",
+          credentials: { apiKey: "any text at all" },
+        });
+        (adapter.validateCredentials as jest.Mock).mockResolvedValue({
+          ok: true,
+        });
+
+        await expect(
+          IntegrationService.validateCredentials("org-1", provider),
+        ).rejects.toThrow(
+          `${provider} is not available yet, so its credentials cannot be saved and it cannot be enabled.`,
+        );
+
+        expect(adapter.validateCredentials).not.toHaveBeenCalled();
+        expect(prisma.integrationAccount.updateMany).not.toHaveBeenCalled();
+      },
+    );
+
     // Fail-open control. A guard that refused everything would satisfy every
     // test above, so prove the two providers that do connect still work.
     it.each(AVAILABLE_INTEGRATION_PROVIDERS)(
@@ -169,6 +194,31 @@ describe("IntegrationService", () => {
 
       expect(result).toMatchObject({ provider: "IDEXX", status: "enabled" });
       expect(prisma.integrationAccount.update).toHaveBeenCalled();
+    });
+
+    // The matching control for the validate guard above: a provider that does
+    // connect must still be validated, and must still record the outcome.
+    it("still validates a provider that does connect", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+        id: "1",
+        credentials: { username: "u", password: "p" },
+      });
+      (adapter.validateCredentials as jest.Mock).mockResolvedValue({
+        ok: true,
+      });
+
+      const result = await IntegrationService.validateCredentials(
+        "org-1",
+        "IDEXX",
+      );
+
+      expect(result).toEqual({ ok: true });
+      expect(adapter.validateCredentials).toHaveBeenCalled();
+      expect(prisma.integrationAccount.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ credentialsStatus: "valid" }),
+        }),
+      );
     });
   });
 

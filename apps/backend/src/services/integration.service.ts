@@ -385,6 +385,11 @@ export const IntegrationService = {
     const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
 
+    // Validation writes credentialsStatus to the account, so it needs the same
+    // gate as saving and enabling: a shape-only adapter must never be able to
+    // mark a coming-soon provider's credentials valid.
+    assertProviderAvailable(normalized);
+
     if (isMerckProvider(normalized)) {
       return { ok: true };
     }
