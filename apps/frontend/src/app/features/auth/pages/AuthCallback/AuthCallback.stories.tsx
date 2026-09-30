@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, within } from 'storybook/test';
+import { expect, mocked, within } from 'storybook/test';
 import ThirdParty from 'supertokens-web-js/recipe/thirdparty';
 
+import { initAuthClient } from '@/app/lib/authClient';
 import AuthCallback from './AuthCallback';
 // `yc-btn-primary` (the "Back to sign in" pill) lives in the marketing
 // stylesheet, which reaches this route through the public layout rather than
@@ -12,42 +13,30 @@ import '../../../marketing/site/marketing.css';
 type HandshakeResponse = Awaited<ReturnType<typeof ThirdParty.signInAndUp>>;
 
 /**
- * Handed to the auth client purely so it agrees to initialise. Nothing is ever
- * requested from it: `signInAndUp` is replaced below, and that is the only call
- * `completeGithubSignIn` makes.
- */
-const AUTH_API_ORIGIN = 'https://auth.storybook.invalid';
-
-/**
  * The page takes no props and reads no route params. Everything it draws is
  * decided by one SuperTokens call fired from a mount effect, so the only way to
  * reach its states is to answer that call.
  *
- * Two things have to be seeded, not one. `completeGithubSignIn` bails before it
- * touches the SDK when `initAuthClient()` finds no `NEXT_PUBLIC_BASE_URL`, and
- * Storybook's env shim carries no NEXT_PUBLIC vars - so without the first line
- * every story here would land on the same generic error and the loader would be
- * unreachable. The second line is what keeps the handshake off the network: the
- * real `signInAndUp` posts to the API origin with whatever code and state are in
- * the URL, which from Storybook is a live call against dev with junk arguments.
+ * Two things have to be answered, not one. `completeGithubSignIn` bails before
+ * it touches the SDK when `initAuthClient()` cannot initialise, and no
+ * `NEXT_PUBLIC_BASE_URL` reaches Storybook - so without the first line every
+ * story here would land on the same generic error and the loader would be
+ * unreachable. `@/app/lib/authClient` is spied in `.storybook/preview.ts`, so
+ * the story answers that call and Storybook restores it afterwards. The second
+ * line is what keeps the handshake off the network: the real `signInAndUp`
+ * posts to the API origin with whatever code and state are in the URL.
  *
- * `ThirdParty` is a class of statics, so the swap is a property assignment on an
- * object rather than a module mock - the module graph is untouched and the page
- * under review is the shipped one.
+ * `ThirdParty` is a class of statics, so that swap is a property assignment on
+ * an object rather than a module mock - the page under review is the shipped
+ * one, down to how it maps each handshake answer to a screen.
  */
 const withHandshake = (respond: () => Promise<HandshakeResponse>) => () => {
-  const previousBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   const previousSignInAndUp = ThirdParty.signInAndUp;
-  process.env.NEXT_PUBLIC_BASE_URL = AUTH_API_ORIGIN;
+  mocked(initAuthClient).mockReturnValue(true);
   ThirdParty.signInAndUp = respond;
 
   return () => {
     ThirdParty.signInAndUp = previousSignInAndUp;
-    if (previousBaseUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_BASE_URL;
-    } else {
-      process.env.NEXT_PUBLIC_BASE_URL = previousBaseUrl;
-    }
   };
 };
 

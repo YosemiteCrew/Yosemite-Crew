@@ -1,7 +1,20 @@
 import type { Preview } from '@storybook/react';
 import React from 'react';
+import { sb } from 'storybook/test';
 import '../src/app/globals.css';
 import { installOfflineGuard } from './offline-guard';
+
+/**
+ * Module mocks for the auth stories. The static build compiles `process.env` to
+ * a separate empty object in every module, so a story that assigns to
+ * `process.env` never reaches the module that reads it - the story passes under
+ * `storybook dev` and renders nothing in the published build. These modules are
+ * spied instead: every export keeps its real
+ * behaviour until a story overrides it with `mocked(...)`, and Storybook
+ * restores them before each story.
+ */
+sb.mock(import('../src/app/features/auth/lib/githubOAuth.ts'), { spy: true });
+sb.mock(import('../src/app/lib/authClient.ts'), { spy: true });
 
 /**
  * Installed here, at preview module scope, rather than from a decorator or a

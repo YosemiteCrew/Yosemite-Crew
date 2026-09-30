@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, mocked, userEvent, within } from 'storybook/test';
 
+import { isGithubSignInEnabled, startGithubSignIn } from '@/app/features/auth/lib/githubOAuth';
 import { GithubSignInButton } from './GithubSignInButton';
 /* `.yc-btn-ghost` lives in marketing.css, which the (public) ROUTE LAYOUT
    imports and no component does. Storybook never renders that layout, so
@@ -11,77 +12,30 @@ import '../../marketing/site/marketing.css';
 /** The auth form column the button sits in is narrow; the button fills it. */
 const COLUMN_WIDTH = 420;
 
-const GITHUB_FLAG = 'NEXT_PUBLIC_AUTH_GITHUB_ENABLED';
-const BASE_URL = 'NEXT_PUBLIC_BASE_URL';
-
-/**
- * Restore a `process.env` key to whatever it was, including "absent".
- * Assigning `undefined` is not the same as deleting: it leaves the string
- * `"undefined"` behind, which `isGithubSignInEnabled()` would happily read.
- */
-const restoreEnv = (key: string, previous: string | undefined) => () => {
-  if (previous === undefined) {
-    delete process.env[key];
-  } else {
-    process.env[key] = previous;
-  }
-};
-
 /**
  * Turn the provider on for one story.
  *
- * `isGithubSignInEnabled()` reads `process.env.NEXT_PUBLIC_AUTH_GITHUB_ENABLED`,
- * and this app ships no `.env` into Storybook - no `NEXT_PUBLIC_*` key reaches
- * the preview at all, which is why SignIn.stories and SignUp.stories both record
- * that they cannot draw this button. The value is NOT inlined at build time
- * though: the served module still reads `process.env.X` off the writable shim
- * the Next.js vite framework installs, so setting it here is enough and the
- * whole component becomes reviewable.
+ * `isGithubSignInEnabled()` reads `NEXT_PUBLIC_AUTH_GITHUB_ENABLED`, and no
+ * `NEXT_PUBLIC_*` value reaches Storybook, which is why SignIn.stories and
+ * SignUp.stories both record that they cannot draw this button. The module is
+ * spied in `.storybook/preview.ts`, so the story answers the flag itself and
+ * Storybook restores it before the next story.
  */
 const withProviderEnabled = () => {
-  const previous = process.env[GITHUB_FLAG];
-  process.env[GITHUB_FLAG] = 'true';
-  return restoreEnv(GITHUB_FLAG, previous);
+  mocked(isGithubSignInEnabled).mockReturnValue(true);
 };
 
 /**
  * The provider enabled AND the authorisation call frozen mid-flight.
  *
- * `startGithubSignIn` only reaches SuperTokens once `initAuthClient()` succeeds,
- * and that needs a parseable `NEXT_PUBLIC_BASE_URL` - so the story supplies an
- * unroutable one and swaps `fetch` for a promise that never settles. That is
- * what holds `pending` open: left alone the call resolves in a microtask and the
- * busy label is gone before the click even returns, so the state could never be
- * seen. Nothing leaves the browser: the invalid host is only ever matched, never
- * contacted.
- *
- * Both globals SuperTokens takes over at init are snapshotted and put back on
- * unmount - it wraps `fetch` and swaps the whole `XMLHttpRequest` constructor
- * for a proxy, and leaving either in place would have every later story in the
- * session making its requests through a session layer pointed at a dead host.
- * What does survive is the SDK's own `initialized` flag, so a story that ran
- * after this one and called `initAuthClient()` would find it already done.
+ * `startGithubSignIn` answers with a promise that never settles. That is what
+ * holds `pending` open: left alone the call settles almost at once and the busy
+ * label is gone before the click even returns, so the state could never be
+ * seen. Nothing leaves the browser, because the SDK is never reached.
  */
 const withFrozenAuthorisationCall = () => {
-  const restoreFlag = withProviderEnabled();
-  const previousBase = process.env[BASE_URL];
-  process.env[BASE_URL] = 'https://auth.storybook.invalid';
-
-  const originalFetch = globalThis.fetch;
-  const originalXhr = globalThis.XMLHttpRequest;
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes('storybook.invalid')) return new Promise<Response>(() => {});
-    return originalFetch.call(globalThis, input, init);
-  }) as typeof globalThis.fetch;
-
-  const restoreBase = restoreEnv(BASE_URL, previousBase);
-  return () => {
-    globalThis.fetch = originalFetch;
-    globalThis.XMLHttpRequest = originalXhr;
-    restoreBase();
-    restoreFlag();
-  };
+  withProviderEnabled();
+  mocked(startGithubSignIn).mockReturnValue(new Promise<string | null>(() => {}));
 };
 
 const meta = {
@@ -96,9 +50,8 @@ const meta = {
           'It renders `null` unless `NEXT_PUBLIC_AUTH_GITHUB_ENABLED` is `true`, so it never ' +
           'shows a dead button against a provider the backend has not been given credentials ' +
           'for - and because no `NEXT_PUBLIC_*` value reaches Storybook, that null was all the ' +
-          'page stories could ever show. These stories set the flag on `process.env` themselves ' +
-          'and put it back afterwards, so the button, its divider, its helper note and its ' +
-          'pending state are all drawn for the first time.\n\n' +
+          'page stories could ever show. These stories answer the flag through a module mock, so ' +
+          'the button, its divider, its helper note and its pending state are all drawn.\n\n' +
           'Note the divider is part of the component, not the page: when the flag is off the ' +
           '"or" rule has to disappear with the button, or the form ends in a rule leading to ' +
           'nothing.',
@@ -179,8 +132,8 @@ export const Pending: Story = {
       description: {
         story:
           'What the user sees for the second between the click and the browser leaving for ' +
-          'github.com. The authorisation request is frozen by the story rather than mocked out, ' +
-          'so this is the real `pending` branch: label swapped, button disabled.',
+          'github.com. The authorisation call is held open by the story, so this is the ' +
+          "component's own `pending` branch: label swapped, button disabled.",
       },
     },
   },
@@ -188,6 +141,9 @@ export const Pending: Story = {
     const canvas = within(canvasElement);
 
     await userEvent.click(canvas.getByRole('button', { name: 'Continue with GitHub' }));
+    // The click started the flow once, for the default landing page.
+    await expect(startGithubSignIn).toHaveBeenCalledTimes(1);
+    await expect(startGithubSignIn).toHaveBeenCalledWith('/developers/home');
 
     /* Both halves. The caption is what a sighted user reads; `disabled` is what
        stops a second authorisation request being started over the first, and a
@@ -203,9 +159,7 @@ export const Pending: Story = {
 export const ProviderDisabled: Story = {
   name: 'Provider flag off',
   beforeEach: () => {
-    const previous = process.env[GITHUB_FLAG];
-    delete process.env[GITHUB_FLAG];
-    return restoreEnv(GITHUB_FLAG, previous);
+    mocked(isGithubSignInEnabled).mockReturnValue(false);
   },
   play: async ({ canvasElement }) => {
     const shell = canvasElement.querySelector('[data-kit-shell]') as HTMLElement;
