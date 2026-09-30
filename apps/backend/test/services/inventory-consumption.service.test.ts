@@ -5,6 +5,7 @@ import {
   InventoryConsumptionService,
   InventoryConsumptionServiceError,
 } from "../../src/services/inventory-consumption.service";
+import { PrescriptionFillAuthorisationService } from "../../src/services/prescription-fill-authorisation.service";
 
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
@@ -66,6 +67,12 @@ jest.mock("src/config/prisma", () => ({
   },
 }));
 
+jest.mock("../../src/services/prescription-fill-authorisation.service", () => ({
+  PrescriptionFillAuthorisationService: {
+    recordDispensedFillInTx: jest.fn(),
+  },
+}));
+
 type MockedPrisma = typeof prisma & {
   $transaction: jest.Mock;
   $executeRaw: jest.Mock;
@@ -122,6 +129,9 @@ describe("InventoryConsumptionService", () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    (
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx as jest.Mock
+    ).mockResolvedValue(null);
     mockedPrisma.$transaction.mockImplementation(async (callback: unknown) => {
       if (typeof callback === "function") {
         return callback(prisma);
@@ -957,6 +967,7 @@ describe("InventoryConsumptionService", () => {
           stockUnitQuantity: 10,
           stockUnitQty: 10,
           sourceLineKey: "line-1",
+          prescriptionItemId: "prescription-item-approve-1",
         },
       ],
       metadata: {
@@ -1002,6 +1013,18 @@ describe("InventoryConsumptionService", () => {
 
     expect(events).toHaveLength(1);
     expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx,
+    ).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        organisationId: "org-1",
+        itemId: "prescription-item-approve-1",
+        dispenseRequestId: "request-approve-1",
+        quantity: 24,
+        dispensedBy: "user-1",
+      }),
+    );
+    expect(
       mockedPrisma.prescriptionDispenseRequest.update,
     ).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1017,6 +1040,60 @@ describe("InventoryConsumptionService", () => {
         data: { onHand: 7 },
       }),
     );
+  });
+
+  it("moves no stock when the fill is refused in the same transaction", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-refused-1",
+      prescriptionId: "rx-refused-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [
+        { inventoryItemId: "item-plain-1", quantity: 1, sourceLineKey: "a" },
+        {
+          inventoryItemId: "item-refused-1",
+          quantity: 5,
+          sourceLineKey: "b",
+          prescriptionItemId: "prescription-item-refused-1",
+        },
+        {
+          inventoryItemId: "item-after-1",
+          quantity: 2,
+          sourceLineKey: "c",
+          prescriptionItemId: "prescription-item-after-1",
+        },
+      ],
+      metadata: { appointmentKind: "OUTPATIENT" },
+    });
+    const refusal = new Error("Fill not permitted: FILLS_EXHAUSTED");
+    (
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx as jest.Mock
+    ).mockRejectedValueOnce(refusal);
+
+    await expect(
+      InventoryConsumptionService.approvePrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-refused-1",
+        medications: [],
+        reviewedBy: "user-1",
+      }),
+    ).rejects.toBe(refusal);
+
+    // The untracked line is skipped, and the fills run one after another, so
+    // the line after the refused one is never attempted.
+    expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      PrescriptionFillAuthorisationService.recordDispensedFillInTx,
+    ).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ itemId: "prescription-item-refused-1" }),
+    );
+    expect(mockedPrisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.update,
+    ).not.toHaveBeenCalled();
   });
 
   it("approves an inpatient dispense request from allocated stock", async () => {

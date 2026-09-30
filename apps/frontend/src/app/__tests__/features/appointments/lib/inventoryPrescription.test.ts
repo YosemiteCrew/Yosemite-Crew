@@ -2,6 +2,7 @@ import {
   backfillPrescriptionFromInventory,
   getPrescriptionSaveErrors,
   inventoryToPrescriptionItem,
+  resolvePrescriptionFillQuantity,
   validatePrescriptionItem,
 } from '@/app/features/appointments/lib/inventoryPrescription';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
@@ -93,6 +94,52 @@ describe('inventoryToPrescriptionItem', () => {
       classification: { strength: '5', unitofMeasure: 'g' },
     });
     expect(inventoryToPrescriptionItem(missingForm).doseUnit).toBeUndefined();
+  });
+});
+
+describe('resolvePrescriptionFillQuantity', () => {
+  it('uses the prescribed course quantity, matching the dispensary total', () => {
+    expect(
+      resolvePrescriptionFillQuantity({
+        qty: '2',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        durationUnit: 'days',
+      })
+    ).toBe('28');
+    expect(
+      resolvePrescriptionFillQuantity({
+        qty: '1',
+        frequency: 'Once weekly',
+        durationDays: '4',
+        durationUnit: 'weeks',
+      })
+    ).toBe('4');
+    expect(
+      resolvePrescriptionFillQuantity({
+        qty: '1',
+        frequency: 'SID (once daily)',
+        durationDays: '1',
+        durationUnit: 'month',
+      })
+    ).toBe('30');
+    expect(
+      resolvePrescriptionFillQuantity({
+        qty: '1',
+        frequency: 'SID (once daily)',
+        durationDays: '1',
+        durationUnit: 'week',
+      })
+    ).toBe('7');
+  });
+
+  it('uses the per-dose amount when the frequency or duration is not structured', () => {
+    expect(resolvePrescriptionFillQuantity({ qty: '2.2', frequency: 'As needed (PRN)' })).toBe('3');
+    expect(resolvePrescriptionFillQuantity({ qty: '2', frequency: 'SID', durationDays: '0' })).toBe(
+      '2'
+    );
+    expect(resolvePrescriptionFillQuantity({ qty: '0' })).toBeUndefined();
+    expect(resolvePrescriptionFillQuantity({ qty: 'not a number' })).toBeUndefined();
   });
 });
 

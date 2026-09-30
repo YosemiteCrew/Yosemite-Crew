@@ -328,6 +328,7 @@ const prescriptionItemRowsToCreate = (items: PrescriptionItemInput[]) =>
 
 const prescriptionItemRowsToJson = (items: PrescriptionItemModel[]) =>
   items.map((item) => ({
+    prescriptionItemId: item.id,
     sourceLineKey: item.sourceLineKey ?? undefined,
     medication: item.medication,
     strength: item.strength,

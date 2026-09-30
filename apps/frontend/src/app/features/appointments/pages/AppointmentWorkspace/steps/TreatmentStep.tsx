@@ -37,6 +37,7 @@ import {
   DEFAULT_DURATION_UNIT,
   getPrescriptionSaveErrors,
   inventoryToPrescriptionItem,
+  resolvePrescriptionFillQuantity,
 } from '@/app/features/appointments/lib/inventoryPrescription';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
@@ -71,6 +72,7 @@ import {
   taskToScheduleTask,
 } from './treatmentStepUtils';
 import { getInvoiceErrorMessage } from './invoiceStepUtils';
+import { authoriseFills } from '@/app/features/appointments/services/prescriptionFillAuthorisationService';
 
 type TreatmentStepProps = {
   appointmentId: string;
@@ -885,6 +887,29 @@ const TreatmentStep = ({
             { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
             rx
           );
+          if (rx.refillValidUntil) {
+            const itemId = savedRx.prescriptionItemId;
+            const additionalFills = Number(rx.refill);
+            const quantity = resolvePrescriptionFillQuantity(rx);
+            const quantityUnit = rx.doseUnit?.trim() || rx.dosageForm?.trim();
+            if (
+              !itemId ||
+              !Number.isInteger(additionalFills) ||
+              additionalFills < 0 ||
+              quantity === undefined ||
+              !quantityUnit
+            ) {
+              throw new Error(
+                'Complete the refill count, dispense quantity, and unit before authorising refills.'
+              );
+            }
+            await authoriseFills(organisationId, itemId, {
+              validUntil: new Date(rx.refillValidUntil).toISOString(),
+              maxAdditionalFills: additionalFills,
+              perFillQuantity: quantity,
+              perFillQuantityUnit: quantityUnit,
+            });
+          }
           const savedId = (savedRx as { id?: string } | undefined)?.id ?? rx.id;
           const savedVersion = artifactVersionFromMeta(savedRx);
           // Collect every in-house row, version or not. A row whose response carried no usable
@@ -895,6 +920,7 @@ const TreatmentStep = ({
           return {
             ...rx,
             id: savedId,
+            prescriptionItemId: savedRx.prescriptionItemId ?? rx.prescriptionItemId,
             artifactVersion: savedVersion ?? rx.artifactVersion,
           };
         })
@@ -1023,6 +1049,7 @@ const TreatmentStep = ({
         />
 
         <PrescriptionEditor
+          organisationId={organisationId}
           currency={encounter.currency}
           items={prescriptionItems}
           catalogItems={prescriptionCatalogItems}

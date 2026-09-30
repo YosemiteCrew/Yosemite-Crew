@@ -16,6 +16,7 @@ import {
   resolveDrugUnit,
   resolveItemDeaSchedule,
 } from "./controlled-substance-dispense";
+import { PrescriptionFillAuthorisationService } from "./prescription-fill-authorisation.service";
 
 export class InventoryConsumptionServiceError extends Error {
   constructor(
@@ -2398,6 +2399,33 @@ export const InventoryConsumptionService = {
       const metadata = request.metadata ?? params.metadata;
       const stockSource =
         resolveDispenseStockSourceFromMetadata(metadata) ?? "NORMAL";
+
+      // Each line that names a prescription item spends one authorised fill,
+      // in this transaction and before any stock moves, so a refused fill
+      // leaves the stock untouched. Chained rather than run together: one
+      // transaction client runs one query at a time, and each fill takes its
+      // item's lock in line order.
+      const fills = (Array.isArray(medications) ? medications : []).flatMap(
+        (medication) => {
+          const line = toRecord(medication);
+          const itemId = asNonEmptyString(line.prescriptionItemId);
+          const quantity = resolveDispenseTotalUnits(line);
+          return itemId && quantity !== undefined ? [{ itemId, quantity }] : [];
+        },
+      );
+      await fills.reduce<Promise<unknown>>(
+        (previous, fill) =>
+          previous.then(() =>
+            PrescriptionFillAuthorisationService.recordDispensedFillInTx(tx, {
+              organisationId,
+              itemId: fill.itemId,
+              dispenseRequestId: request.id,
+              quantity: fill.quantity,
+              dispensedBy: params.reviewedBy,
+            }),
+          ),
+        Promise.resolve(),
+      );
 
       const inventoryEvents = await consumePrescriptionMedications(tx, {
         organisationId,

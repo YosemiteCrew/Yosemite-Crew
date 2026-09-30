@@ -984,7 +984,7 @@ export const listPmsObservationTaskPreviewsForAppointment = async (appointmentId
 export const savePrescriptionArtifact = async (
   context: ClinicalContext,
   prescription: PrescriptionItem | Omit<PrescriptionItem, 'id'>
-) => {
+): Promise<MedicationRequest & { prescriptionItemId?: string }> => {
   // The backend persists prescription lines into TYPED columns (medication, strength, dosage,
   // route, frequency, duration, quantity, refill, instructions, inventoryItemId/Sku, batch…) and
   // stashes anything else in a per-item `metadata` JSON column. So the flat fields below survive as
@@ -1066,7 +1066,24 @@ export const savePrescriptionArtifact = async (
         ifMatchConfig(prescriptionVersion)
       )
     : await postData<MedicationRequest>(endpoint, body);
-  return res.data;
+  const savedPrescription = clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(
+    res.data,
+    context
+  );
+  const savedLine = Array.isArray(savedPrescription.medications)
+    ? savedPrescription.medications[0]
+    : undefined;
+  const savedLineRecord =
+    typeof savedLine === 'object' && savedLine !== null && !Array.isArray(savedLine)
+      ? (savedLine as Record<string, unknown>)
+      : undefined;
+  return {
+    ...res.data,
+    prescriptionItemId:
+      typeof savedLineRecord?.prescriptionItemId === 'string'
+        ? savedLineRecord.prescriptionItemId
+        : undefined,
+  };
 };
 
 const prescriptionFromMedicationRequest = (
@@ -1114,6 +1131,7 @@ const prescriptionFromMedicationRequest = (
   const finalized = resource.status === 'active';
   return {
     id: resource.id ?? `rx-${index + 1}`,
+    prescriptionItemId: str('prescriptionItemId'),
     artifactVersion: artifactVersionFromMeta(resource),
     finalized,
     medicineName:
