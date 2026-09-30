@@ -538,6 +538,25 @@ describe("AppointmentPrismaService", () => {
       expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
     });
 
+    it("refuses a series that does not start at the selected appointment", async () => {
+      const occurrences = weekly([
+        "2026-06-10T11:00:00.000Z",
+        "2026-06-17T11:00:00.000Z",
+      ]);
+
+      await expect(
+        AppointmentPrismaService.createWeeklyAppointmentSeriesFromPms(
+          { resourceType: "Appointment" } as any,
+          occurrences,
+          "Europe/Madrid",
+        ),
+      ).rejects.toMatchObject({
+        message: "The preview must include the selected appointment first.",
+        statusCode: 400,
+      });
+      expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
+    });
+
     it("creates all appointments with shared series metadata and invoices", async () => {
       const seriesOccurrences = [
         {
