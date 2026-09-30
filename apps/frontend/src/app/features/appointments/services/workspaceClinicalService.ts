@@ -154,6 +154,27 @@ export type DentalExaminationUpdate = Omit<
   notes?: string | null;
 };
 
+export type DermatologyAssessmentRecord = {
+  id: string;
+  patientId: string;
+  encounterId?: string | null;
+  assessedAt: string | Date;
+  assessedBy?: string | null;
+  affectedRegions: string[];
+  primaryLesions: string[];
+  secondaryLesions: string[];
+};
+
+export type DermatologyAssessmentInput = {
+  organisationId: string;
+  patientId: string;
+  encounterId?: string;
+  assessedAt: string;
+  affectedRegions?: string[];
+  primaryLesions?: string[];
+  secondaryLesions?: string[];
+};
+
 type ObservationSubmissionListFilters = {
   companionId?: string;
   toolId?: string;
@@ -895,6 +916,28 @@ export const createPmsObservationSubmission = async (
     }
   );
   return submissionToObservationRecord(res.data, 0);
+};
+
+export const listDermatologyAssessments = async (
+  organisationId: string,
+  patientId: string
+): Promise<DermatologyAssessmentRecord[]> => {
+  const res = await getData<DermatologyAssessmentRecord[]>(
+    `/v1/pms/organisation/${organisationId}/dermatology-assessments`,
+    { patientId }
+  );
+  return res.data ?? [];
+};
+
+export const createDermatologyAssessment = async (
+  input: DermatologyAssessmentInput
+): Promise<DermatologyAssessmentRecord> => {
+  const { organisationId, ...body } = input;
+  const res = await postData<DermatologyAssessmentRecord>(
+    `/v1/pms/organisation/${organisationId}/dermatology-assessments`,
+    body
+  );
+  return res.data;
 };
 
 export const listPmsObservationSubmissions = async (

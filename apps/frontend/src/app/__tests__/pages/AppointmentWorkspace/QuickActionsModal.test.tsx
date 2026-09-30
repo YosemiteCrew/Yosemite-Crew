@@ -611,6 +611,24 @@ describe('RecordPanel', () => {
     expect(screen.getByText(/once the encounter and clinician are loaded/i)).toBeInTheDocument();
     expect(createPmsObservationSubmission).not.toHaveBeenCalled();
   });
+
+  it('opens the dermatology tab with an accessible checklist and context guidance', () => {
+    render(
+      <RecordPanel
+        appointmentId={APPT}
+        organisationId="org-1"
+        encounterId="enc-1"
+        species="Horse"
+      />
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Dermatology' }));
+
+    expect(screen.getByRole('tabpanel', { name: 'Dermatology' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Affected body regions' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Pasterns and hooves' })).toBeInTheDocument();
+    expect(screen.getByText(/once the patient and clinician are loaded/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save findings' })).toBeDisabled();
+  });
 });
 
 describe('TasksPanel', () => {

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios';
+import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
 import type { UserOrganization } from '@yosemite-crew/types';
 import api from '@/app/services/axios';
@@ -128,8 +128,44 @@ const withoutEncounter = () => {
 };
 
 /** The mounted tabpanel for a tab key, or null when that tab is not the active one. */
-const panelFor = (canvasElement: HTMLElement, key: 'VITALS' | 'OBSERVATION' | 'DENTAL') =>
+const panelFor = (
+  canvasElement: HTMLElement,
+  key: 'VITALS' | 'OBSERVATION' | 'DENTAL' | 'DERMATOLOGY'
+) =>
   canvasElement.querySelector(`#record-panel-${key}`) as HTMLElement | null;
+
+const dermatologyAssessment = {
+  id: 'derm-story-1',
+  patientId: 'companion-1',
+  assessedAt: '2026-09-20T10:00:00.000Z',
+  affectedRegions: ['Paws', 'Ears'],
+  primaryLesions: ['papules'],
+  secondaryLesions: ['crusts'],
+};
+
+const stubDermatologyApi = () => {
+  const previous = api.defaults.adapter;
+  const adapter: AxiosAdapter = (config: InternalAxiosRequestConfig) =>
+    Promise.resolve({
+      data:
+        config.method === 'post'
+          ? {
+              ...dermatologyAssessment,
+              id: 'derm-story-2',
+              encounterId: 'enc-1',
+              assessedAt: '2026-09-27T10:00:00.000Z',
+            }
+          : [dermatologyAssessment],
+      status: config.method === 'post' ? 201 : 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    } as AxiosResponse);
+  api.defaults.adapter = adapter;
+  return () => {
+    api.defaults.adapter = previous;
+  };
+};
 
 const meta = {
   title: 'Workspace/RecordPanel',
@@ -139,7 +175,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Record tab of the quick-actions drawer. It owns three things the three form stories ' +
+          'The Record tab of the quick-actions drawer. It owns three things the form stories ' +
           'next to it cannot show, because none of them exist inside a form.\n\n' +
           '**The encounter gate.** The panel subscribes to `encountersById[appointmentId]` and ' +
           'returns `null` when there is no entry, so before the workspace hydrates the drawer tab ' +
@@ -334,6 +370,33 @@ export const DentalTab: Story = {
     await waitFor(() => expect(canine).toBeEnabled());
     await expect(within(panel).getByRole('group', { name: 'Dentition' })).toBeInTheDocument();
     await expect(within(panel).getByRole('button', { name: 'Save examination' })).toBeVisible();
+  },
+};
+
+export const DermatologyTab: Story = {
+  name: 'Dermatology findings with previous visit',
+  args: { initialTab: 'DERMATOLOGY' },
+  beforeEach: () => {
+    const restoreEncounter = seedEncounter()();
+    const restoreApi = stubDermatologyApi();
+    return () => {
+      restoreApi();
+      restoreEncounter();
+    };
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const panel = panelFor(canvasElement, 'DERMATOLOGY') as HTMLElement;
+    await expect(canvas.getByRole('tab', { name: 'Dermatology' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(within(panel).getByText('Compare with previous visit')).toBeInTheDocument();
+    await expect(
+      within(panel).getByRole('group', { name: 'Affected body regions' })
+    ).toBeInTheDocument();
+    await expect(within(panel).getByRole('checkbox', { name: 'Paws' })).toBeInTheDocument();
+    await expect(within(panel).getByText('Paws, Ears')).toBeInTheDocument();
   },
 };
 
