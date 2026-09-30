@@ -16,6 +16,7 @@ import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
 import {fetchInvoiceForAppointment} from '@/features/appointments/appointmentsSlice';
 import {markInAppExpenseStatus} from '@/features/expenses';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -84,11 +85,13 @@ export const PaymentSuccessScreen: React.FC = () => {
 
   useEffect(() => {
     if (appointmentId) {
-      dispatch(fetchInvoiceForAppointment({appointmentId}));
+      runInBackground(dispatch(fetchInvoiceForAppointment({appointmentId})));
     }
     // Update expense status if payment was initiated from an expense
     if (expenseId) {
-      dispatch(markInAppExpenseStatus({expenseId, status: 'PAID'}));
+      runInBackground(
+        dispatch(markInAppExpenseStatus({expenseId, status: 'PAID'})),
+      );
     }
   }, [appointmentId, expenseId, dispatch]);
   const resetToMyAppointments = useCallback(() => {

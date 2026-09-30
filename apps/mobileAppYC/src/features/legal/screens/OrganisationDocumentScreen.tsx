@@ -27,6 +27,7 @@ import type {AppointmentStackParamList} from '@/navigation/types';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Props = NativeStackScreenProps<
   AppointmentStackParamList,
   'OrganisationDocument'
@@ -184,7 +185,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
 
   React.useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const loadDocuments = async () => {
       try {
         const result = await organisationDocumentService.fetchDocuments({
           organisationId,
@@ -225,7 +226,8 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
           setSections([]);
         }
       }
-    })();
+    };
+    runInBackground(loadDocuments());
     return () => {
       cancelled = true;
     };

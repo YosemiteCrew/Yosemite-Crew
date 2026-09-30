@@ -46,6 +46,7 @@ import {useLocationStore} from '@/shared/stores/locationStore';
 import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Props = NativeStackScreenProps<
   LinkedBusinessStackParamList,
   'BusinessSearch'
@@ -91,7 +92,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
     };
 
     if (companionId) {
-      loadLinkedBusinesses();
+      runInBackground(loadLinkedBusinesses());
     }
   }, [companionId, category, dispatch]);
 
@@ -116,7 +117,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
       selectedBusinessForDeleteRef.current = null;
 
       // Refresh linked businesses list after returning from BusinessAdd
-      (async () => {
+      const refreshLinkedBusinesses = async () => {
         try {
           await dispatch(
             fetchLinkedBusinesses({companionId, category}),
@@ -130,7 +131,8 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
             error,
           );
         }
-      })();
+      };
+      runInBackground(refreshLinkedBusinesses());
 
       return () => {
         // Cleanup: clear any pending search debounce timer when screen loses focus
@@ -187,7 +189,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const lastSearchQueryRef = useRef<string>('');
 
   const handleSearch = useCallback(
-    async (query: string) => {
+    (query: string) => {
       setSearchQuery(query);
 
       // OPTIMIZATION: Don't search until user types at least 3 characters

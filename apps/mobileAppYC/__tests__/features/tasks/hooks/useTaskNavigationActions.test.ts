@@ -50,6 +50,26 @@ describe('useTaskNavigationActions', () => {
     });
   });
 
+  it('handleCompleteTask logs a failed status update instead of leaving it unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    dispatch.mockImplementationOnce(() =>
+      Promise.reject(new Error('status update failed')),
+    );
+    const {result} = renderHook(() =>
+      useTaskNavigationActions(navigation, dispatch),
+    );
+
+    result.current.handleCompleteTask('task-3');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('Error: status update failed'),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('handleStartObservationalTool navigates to ObservationalTool with the taskId', () => {
     const {result} = renderHook(() =>
       useTaskNavigationActions(navigation, dispatch),

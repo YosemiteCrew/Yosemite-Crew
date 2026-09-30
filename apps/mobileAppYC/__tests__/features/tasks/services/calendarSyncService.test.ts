@@ -115,7 +115,7 @@ describe('calendarSyncService', () => {
       );
       const openSettingsSpy = jest
         .spyOn(Linking, 'openSettings')
-        .mockImplementation(() => {});
+        .mockResolvedValue(undefined);
 
       await createCalendarEventForTask(baseTask);
 
@@ -127,6 +127,31 @@ describe('calendarSyncService', () => {
       openSettingsButton.onPress();
 
       expect(openSettingsSpy).toHaveBeenCalled();
+      openSettingsSpy.mockRestore();
+    });
+
+    it('logs instead of failing when device settings cannot be opened', async () => {
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
+      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
+      const failure = new Error('settings unavailable');
+      const openSettingsSpy = jest
+        .spyOn(Linking, 'openSettings')
+        .mockRejectedValue(failure);
+
+      await createCalendarEventForTask(baseTask);
+      const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+      buttons.find((b: any) => b.text === 'Open settings').onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(console.warn).toHaveBeenCalledWith(
+        '[CalendarSync] Could not open settings',
+        failure,
+      );
       openSettingsSpy.mockRestore();
     });
 

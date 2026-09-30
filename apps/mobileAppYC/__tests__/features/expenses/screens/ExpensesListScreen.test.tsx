@@ -446,6 +446,31 @@ describe('ExpensesListScreen', () => {
       expect(paidCard.props.payment).toEqual({status: 'paid'});
     });
 
+    it('logs when opening the payment screen fails', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockOpenPaymentScreen.mockRejectedValueOnce(new Error('payment failed'));
+      const invoiceState = structuredClone(baseState) as Partial<RootState>;
+      const unpaidExpense = invoiceState.expenses!.items.find(
+        item => item.id === 'inapp-1',
+      ) as Expense & {invoiceId?: string};
+      unpaidExpense.invoiceId = 'invoice-1';
+
+      const {getAllByTestId} = renderComponent('inApp', invoiceState);
+      const unpaidCard = getAllByTestId('mock-ExpenseCard').find(
+        card => card.props.title === 'In-App Booking',
+      );
+      await act(async () => {
+        unpaidCard?.props.payment.cta.onPress();
+        await Promise.resolve();
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: payment failed'),
+      );
+      warnSpy.mockRestore();
+    });
+
     it('opens payment from invoice-backed unpaid in-app expense and honors processing guard', () => {
       const invoiceState = structuredClone(baseState) as Partial<RootState>;
       const unpaidExpense = invoiceState.expenses!.items.find(

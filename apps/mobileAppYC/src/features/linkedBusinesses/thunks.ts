@@ -506,7 +506,7 @@ export const addLinkedBusiness = createAsyncThunk<
     photo?: string;
   },
   {rejectValue: string}
->('linkedBusinesses/add', async params => {
+>('linkedBusinesses/add', params => {
   const typeMap: BusinessTypeMap = {
     hospital: 'HOSPITAL',
     boarder: 'BOARDER',

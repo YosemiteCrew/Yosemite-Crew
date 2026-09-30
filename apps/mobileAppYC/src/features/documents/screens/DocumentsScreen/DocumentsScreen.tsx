@@ -21,6 +21,7 @@ import {DocumentsListHeader} from '@/features/documents/components/DocumentsList
 import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 import {useDocumentCompanionSync} from '@/features/documents/hooks/useDocumentCompanionSync';
 import {useDocumentNavigation} from '@/features/documents/hooks/useDocumentNavigation';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type DocumentsNavigationProp =
   NativeStackNavigationProp<DocumentStackParamList>;
@@ -56,7 +57,7 @@ export const DocumentsScreen: React.FC = () => {
     if (!parentId) {
       return;
     }
-    dispatch(fetchCompanions(parentId));
+    runInBackground(dispatch(fetchCompanions(parentId)));
   }, [dispatch, parentId]);
   const {handleAddDocument, handleViewDocument, handleEditDocument} =
     useDocumentNavigation(navigation);

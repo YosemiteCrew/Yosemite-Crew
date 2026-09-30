@@ -708,6 +708,25 @@ describe('ExpensesMainScreen', () => {
       expect(mockOpenPaymentScreen).toHaveBeenCalledWith(mockInAppExpense);
     });
 
+    it('logs when opening the payment screen fails', async () => {
+      isExpensePaidMock.mockReturnValue(false);
+      isExpensePaymentPendingMock.mockReturnValue(true);
+      hasInvoiceMock.mockReturnValue(true);
+      mockOpenPaymentScreen.mockRejectedValueOnce(new Error('payment failed'));
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const {getByTestId} = render(<ExpensesMainScreen />);
+      fireEvent.press(getByTestId('pay-button'));
+
+      await waitFor(() =>
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: payment failed'),
+        ),
+      );
+      warnSpy.mockRestore();
+    });
+
     it('does not open the payment screen when a payment is already processing', () => {
       isExpensePaidMock.mockReturnValue(false);
       isExpensePaymentPendingMock.mockReturnValue(true);

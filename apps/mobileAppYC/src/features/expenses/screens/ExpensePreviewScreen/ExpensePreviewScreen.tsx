@@ -46,6 +46,7 @@ import type {
 } from '@/shared/components/common/DetailsCard';
 import type {ExpenseAttachment} from '@/features/expenses/types';
 import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Navigation = NativeStackNavigationProp<
   ExpenseStackParamList,
@@ -191,7 +192,7 @@ const useExpenseInvoiceDetails = ({
       }
     };
 
-    fetchInvoiceData();
+    runInBackground(fetchInvoiceData());
   }, [expense, dispatch]);
 
   return {invoiceData, organisationData, paymentIntent, loadingPayment};
@@ -272,7 +273,7 @@ export const ExpensePreviewScreen: React.FC = () => {
   // Always fetch latest expense details (including external) from backend
   useReactEffect(() => {
     if (expenseId && expense?.source === 'external') {
-      dispatch(fetchExpenseById({expenseId}));
+      runInBackground(dispatch(fetchExpenseById({expenseId})));
     }
   }, [dispatch, expenseId, expense?.source]);
 
@@ -293,7 +294,7 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   const handleOpenInvoice = () => {
     if (expense && !processingPayment && !loadingPayment) {
-      openPaymentScreen(expense, invoiceData, paymentIntent);
+      runInBackground(openPaymentScreen(expense, invoiceData, paymentIntent));
     }
   };
 
