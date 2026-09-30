@@ -2802,10 +2802,12 @@ describe("StripeService", () => {
         id: "inv_new",
       });
 
-      await StripeService._handleAppointmentBookingPayment({
+      const handling = StripeService._handleAppointmentBookingPayment({
         ...bookingEvent,
         latest_charge: { id: "ch_expanded", receipt_url: "receipt" },
       } as any);
+      expect(handling).toBeInstanceOf(Promise);
+      await handling;
 
       expect(mStripe.charges.retrieve).not.toHaveBeenCalled();
       expect(

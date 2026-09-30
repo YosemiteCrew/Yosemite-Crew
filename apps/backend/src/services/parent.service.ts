@@ -741,7 +741,7 @@ export const ParentService = {
     return resolveParentRecord(parentId);
   },
 
-  async findByMongoId(id: string) {
+  findByMongoId(id: string) {
     return resolveParentRecord(id);
   },
 
