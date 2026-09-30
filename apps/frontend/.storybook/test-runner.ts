@@ -46,25 +46,15 @@ const VIEWPORT_SIZES: Record<string, { width: number; height: number }> = {
  */
 const DEFAULT_VIEWPORT = 'laptop';
 
-/**
- * Applies each story's declared viewport before it renders.
- *
- * This is the difference between a usable runner and a wall of phantom
- * failures. Storybook's viewport global is applied by the MANAGER, which
- * resizes the preview iframe - the test runner drives the story directly and
- * never loads the manager, so without this hook every story renders at
- * Playwright's default 1280x720 and each phone-pinned story fails for a reason
- * that does not exist in Storybook or in Chromatic.
- *
- * Measured on this repo before the hook existed: `Forms/Build > Phone` failed
- * with `expected '0px' to be '1px'`, a real assertion about a layout that only
- * holds at 375px.
- */
 /** Render phases after which Storybook does nothing more with a story. */
 const SETTLED_PHASES = ['finished', 'aborted'];
 
-/** Upper bound on the wait, well inside the 15s per-story test timeout. */
-const SETTLE_TIMEOUT_MS = 10_000;
+/**
+ * Upper bound on the wait. It starts only after the play has already failed, so
+ * it has to leave room inside the 15s per-story test timeout for a play that
+ * failed late - otherwise "Exceeded timeout" would replace the real error.
+ */
+const SETTLE_TIMEOUT_MS = 5_000;
 
 /**
  * Resolves once the current story render has settled, or quietly after the
@@ -89,6 +79,20 @@ async function waitForRenderToFinish(
     .catch(() => undefined);
 }
 
+/**
+ * Applies each story's declared viewport before it renders.
+ *
+ * This is the difference between a usable runner and a wall of phantom
+ * failures. Storybook's viewport global is applied by the MANAGER, which
+ * resizes the preview iframe - the test runner drives the story directly and
+ * never loads the manager, so without this hook every story renders at
+ * Playwright's default 1280x720 and each phone-pinned story fails for a reason
+ * that does not exist in Storybook or in Chromatic.
+ *
+ * Measured on this repo before the hook existed: `Forms/Build > Phone` failed
+ * with `expected '0px' to be '1px'`, a real assertion about a layout that only
+ * holds at 375px.
+ */
 const config: TestRunnerConfig = {
   async preVisit(page, context) {
     const activePage = await restoreStorybookPage(page);

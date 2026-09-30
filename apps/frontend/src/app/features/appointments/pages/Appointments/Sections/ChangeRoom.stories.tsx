@@ -3,7 +3,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import type { Appointment, OrganisationRoom, RoomUnit } from '@yosemite-crew/types';
 import { AxiosError, type AxiosAdapter } from 'axios';
-import api, { clearInFlightGetRequests } from '@/app/services/axios';
+import api, { API_CLIENT_DEFAULTS, clearInFlightGetRequests } from '@/app/services/axios';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
@@ -108,7 +108,7 @@ const INPATIENT = appointment({
  * The service module itself is untouched - the component, the store and
  * updateAppointment are all the real ones.
  */
-const REAL_ADAPTER = api.defaults.adapter;
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 const stubTransport = (mode: 'stalled' | 'failing') => {
   const adapter: AxiosAdapter = (config) =>

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { getRouter } from '@storybook/nextjs-vite/navigation.mock';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import api from '@/app/services/axios';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Appointment } from '@yosemite-crew/types';
 
 import { useAuthStore } from '@/app/stores/authStore';
@@ -61,7 +61,7 @@ const REAL_SEND = XMLHttpRequest.prototype.send;
  * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
  * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
  */
-const REAL_ADAPTER = api.defaults.adapter;
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 const openCalls = new WeakMap<XMLHttpRequest, { method: string; url: string }>();
 
 /** Settle an XHR from canned data without ever touching the network. */

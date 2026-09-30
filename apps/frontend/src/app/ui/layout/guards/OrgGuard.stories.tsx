@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { redirect } from '@storybook/nextjs-vite/navigation.mock';
 import { expect, waitFor, within } from 'storybook/test';
-import api from '@/app/services/axios';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Organisation, UserOrganization } from '@yosemite-crew/types';
 
 import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
@@ -187,7 +187,7 @@ type Seed = {
  * `XMLHttpRequest`. While the stand-in above is installed the instance is pointed
  * at the XHR adapter so the stand-in answers it; cleanup restores the fetch one.
  */
-const REAL_ADAPTER = api.defaults.adapter;
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 const seedOrgGuard = ({
   withOrg = true,

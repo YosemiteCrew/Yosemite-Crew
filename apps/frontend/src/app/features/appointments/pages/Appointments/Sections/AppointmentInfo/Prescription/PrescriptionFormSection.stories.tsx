@@ -4,7 +4,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Appointment, UserOrganization } from '@yosemite-crew/types';
 import { createEmptyFormData } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/appointmentInfoTypes';
 import type { FormsProps } from '@/app/features/forms/types/forms';
-import api, { clearInFlightGetRequests } from '@/app/services/axios';
+import api, { API_CLIENT_DEFAULTS, clearInFlightGetRequests } from '@/app/services/axios';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 
@@ -105,7 +105,7 @@ const APPOINTMENT: Appointment = {
  * touching the service module - the component, the store and the service are all
  * the real ones, and no request leaves the preview iframe.
  */
-const REAL_ADAPTER = api.defaults.adapter;
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 const stallTransport = () => {
   api.defaults.adapter = () => new Promise<never>(() => undefined);

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import api from '@/app/services/axios';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Organisation, UserOrganization } from '@yosemite-crew/types';
 
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -148,7 +148,7 @@ const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
  * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
  * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
  */
-const REAL_ADAPTER = api.defaults.adapter;
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 type StubbedXhr = XMLHttpRequest & { storyUrl?: string };
 

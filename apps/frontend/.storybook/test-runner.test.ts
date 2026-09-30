@@ -110,6 +110,8 @@ describe('Storybook runner after a failing story', () => {
     await config.postVisit?.(page as never, { id: 'failed', hasFailure: true } as never);
 
     expect(page.waitForFunction).toHaveBeenCalledTimes(1);
+    // Bounded well inside the 15s per-story timeout, so a late failure keeps its own error.
+    expect(page.waitForFunction.mock.calls[0][2]).toEqual({ timeout: 5_000 });
     // Still inside the render: the next story must not be requested yet.
     for (const phase of ['errored', 'completing', 'completed', 'afterEach', 'playing']) {
       expect(settledAt(page, phase)).toBe(false);

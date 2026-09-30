@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, waitFor, within } from 'storybook/test';
-import api from '@/app/services/axios';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Organisation, UserOrganization } from '@yosemite-crew/types';
 
 import type { AnimalTerminologyPreference, UserProfile } from '@/app/features/users/types/profile';
@@ -69,7 +69,7 @@ const buildProfile = (animalTerminology?: AnimalTerminologyPreference): UserProf
  * `XMLHttpRequest`. While the stand-in below is installed the instance is pointed
  * at the XHR adapter so the stand-in answers it; cleanup restores the fetch one.
  */
-const REAL_ADAPTER = api.defaults.adapter;
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 const parkApiRequests = () => {
   const target = globalThis as unknown as { XMLHttpRequest: typeof XMLHttpRequest };
