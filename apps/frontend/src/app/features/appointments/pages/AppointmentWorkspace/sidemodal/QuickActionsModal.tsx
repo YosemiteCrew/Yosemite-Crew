@@ -221,6 +221,7 @@ const QuickActionsModal = ({
               authorId={authorId}
               authorName={appointment.lead?.name}
               companionId={companion.id}
+              species={companion.species}
               initialTab={recordTab}
             />
           )}

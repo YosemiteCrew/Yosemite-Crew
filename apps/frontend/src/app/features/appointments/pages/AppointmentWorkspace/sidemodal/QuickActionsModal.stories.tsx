@@ -280,6 +280,7 @@ export const RecordPanel: Story = {
        rather than that some node appeared where the skeleton was. */
     expect(await inPanel.findByRole('tab', { name: 'Vitals' })).toBeInTheDocument();
     await expect(inPanel.getByRole('tab', { name: 'Observation Tool' })).toBeInTheDocument();
+    await expect(inPanel.getByRole('tab', { name: 'Dental' })).toBeInTheDocument();
     await expect(inPanel.getByText('VT-001')).toBeInTheDocument();
     await expect(inPanel.getByText('Dr. Amara Weber')).toBeInTheDocument();
   },

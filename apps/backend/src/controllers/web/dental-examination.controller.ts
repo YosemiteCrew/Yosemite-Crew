@@ -18,8 +18,16 @@ const DentalGradeEnum = z.enum([
   "GRADE_4",
 ]);
 
+/**
+ * Modified Triadan: quadrant 1-4 (permanent) or 5-8 (deciduous) followed by the
+ * two-digit tooth position 01-11, e.g. 104 is the right maxillary canine.
+ */
+const TRIADAN_TOOTH = /^[1-8](0[1-9]|1[01])$/;
+
 const ToothFindingSchema = z.object({
-  tooth: z.string().min(1).max(10),
+  tooth: z
+    .string()
+    .regex(TRIADAN_TOOTH, "Use a Modified Triadan tooth number."),
   condition: z
     .enum([
       "NORMAL",
@@ -43,12 +51,21 @@ const ToothFindingSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
+const FindingsSchema = z
+  .array(ToothFindingSchema)
+  .refine(
+    (findings) =>
+      new Set(findings.map((finding) => finding.tooth)).size ===
+      findings.length,
+    "Record each tooth once.",
+  );
+
 const CreateBodySchema = z.object({
   patientId: z.uuid(),
   encounterId: z.uuid().optional(),
   examinedAt: z.iso.datetime(),
   overallGrade: DentalGradeEnum,
-  findings: z.array(ToothFindingSchema),
+  findings: FindingsSchema,
   calculusScore: z.number().int().min(0).max(3).optional(),
   plaqueScore: z.number().int().min(0).max(3).optional(),
   gingivalScore: z.number().int().min(0).max(3).optional(),
@@ -58,12 +75,12 @@ const CreateBodySchema = z.object({
 
 const UpdateBodySchema = z.object({
   overallGrade: DentalGradeEnum.optional(),
-  findings: z.array(ToothFindingSchema).optional(),
-  calculusScore: z.number().int().min(0).max(3).optional(),
-  plaqueScore: z.number().int().min(0).max(3).optional(),
-  gingivalScore: z.number().int().min(0).max(3).optional(),
+  findings: FindingsSchema.optional(),
+  calculusScore: z.number().int().min(0).max(3).nullable().optional(),
+  plaqueScore: z.number().int().min(0).max(3).nullable().optional(),
+  gingivalScore: z.number().int().min(0).max(3).nullable().optional(),
   procedures: z.array(z.string().max(300)).optional(),
-  notes: z.string().max(3000).optional(),
+  notes: z.string().max(3000).nullable().optional(),
 });
 
 const ListQuerySchema = patientScopeQuery;
