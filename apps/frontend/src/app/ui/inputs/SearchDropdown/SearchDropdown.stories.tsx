@@ -28,6 +28,26 @@ const getResultsPanel = (input: HTMLElement) => {
   return document.getElementById(listboxId);
 };
 
+/**
+ * The field box's painted corners (top-left, top-right, bottom-right,
+ * bottom-left) and bottom border. Read from computed style rather than from
+ * class names: the shared field classes (`rounded-xl` from
+ * `getFieldControlClassName`) and the open-state overrides can be renamed
+ * without the join changing, and a class can survive its rule being dropped.
+ */
+const fieldShape = (input: HTMLElement) => {
+  const style = getComputedStyle(input.parentElement as HTMLElement);
+  return {
+    corners: [
+      style.borderTopLeftRadius,
+      style.borderTopRightRadius,
+      style.borderBottomRightRadius,
+      style.borderBottomLeftRadius,
+    ],
+    bottomBorder: style.borderBottomWidth,
+  };
+};
+
 const meta = {
   title: 'Inputs/SearchDropdown',
   component: SearchDropdown,
@@ -44,12 +64,12 @@ const meta = {
           'interaction *and* enough characters - the original `WithQuery` story seeded a ' +
           'single character, one below the default `minChars` of 2, so every story in this file ' +
           'showed the closed field and nothing else.\n\n' +
-          'Open, the field and the panel are one object rather than two: the field swaps to ' +
-          '`border-[var(--blue)]! border-b-0! rounded-t-[12px]!` and the panel takes ' +
-          '`rounded-b-[12px]` with a full border, so the shared edge disappears and the two ' +
-          'read as a single rounded box. Closed, the field goes back to ' +
-          '`border-[var(--hairline)]! rounded-[12px]!`. That join only exists while the panel ' +
-          'is up, and a regression in either half shows as a visible seam.\n\n' +
+          'Open, the field and the panel are one object rather than two: the field keeps its ' +
+          '12px top corners but adds `rounded-b-none! border-[var(--blue)]! border-b-0!`, and ' +
+          'the panel takes `rounded-b-[12px]` with a full border, so the shared edge disappears ' +
+          'and the two read as a single rounded box. Closed, the field goes back to the shared ' +
+          'field control: a hairline border and 12px on all four corners. That join only exists ' +
+          'while the panel is up, and a regression in either half shows as a visible seam.\n\n' +
           'The options are plain `<button>`s, not `role="option"`, and the active row is ' +
           'tracked with `aria-activedescendant` on the input rather than with focus - so the ' +
           'stories below assert the panel has real rows, not merely that it appeared.',
@@ -110,8 +130,10 @@ export const ResultsOpen: Story = {
     await expect(within(panel as HTMLElement).getByText('Rosie — Ragdoll')).toBeInTheDocument();
     // Open, the field drops its bottom border and squares its bottom corners so
     // the panel below continues the same box.
-    await expect(input.parentElement).toHaveClass('border-b-0!');
-    await expect(input.parentElement).toHaveClass('rounded-t-[12px]!');
+    await expect(fieldShape(input)).toEqual({
+      corners: ['12px', '12px', '0px', '0px'],
+      bottomBorder: '0px',
+    });
   },
   parameters: {
     docs: {
@@ -135,7 +157,8 @@ export const NoMatches: Story = {
     // the field keeps its full border and its 12px radius on all four corners.
     await expect(input).not.toHaveAttribute('aria-controls');
     await expect(getResultsPanel(input)).toBeNull();
-    await expect(input.parentElement).toHaveClass('rounded-[12px]!');
+    await expect(fieldShape(input).corners).toEqual(['12px', '12px', '12px', '12px']);
+    await expect(fieldShape(input).bottomBorder).not.toBe('0px');
   },
   parameters: {
     docs: {
@@ -186,7 +209,9 @@ export const SelectingAnOption: Story = {
     // `onSelect` is handed the raw value, not the option object.
     await expect(args.onSelect).toHaveBeenCalledWith('rocky');
     await expect(getResultsPanel(input)).toBeNull();
-    await expect(input.parentElement).toHaveClass('rounded-[12px]!');
+    // The bottom corners and border come back once the panel has gone.
+    await expect(fieldShape(input).corners).toEqual(['12px', '12px', '12px', '12px']);
+    await expect(fieldShape(input).bottomBorder).not.toBe('0px');
   },
   parameters: {
     docs: {

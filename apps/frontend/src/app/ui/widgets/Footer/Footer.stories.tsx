@@ -140,22 +140,23 @@ export const DarkTheme: Story = {
        own dark background without this filter. Asserting the computed style
        (not just that the <img> is present) is the point: a broken selector
        still renders four healthy-looking, invisible images. */
-    const badges = [
-      canvas.getAllByRole('img').find((img) => img.className.includes('gdpr-footer')),
-      canvas.getAllByRole('img').find((img) => img.className.includes('soc-footer')),
-      canvas.getAllByRole('img').find((img) => img.className.includes('iso-footer')),
-      canvas.getAllByRole('img').find((img) => img.className.includes('fhir-footer')),
-    ];
-    for (const badge of badges) {
-      await expect(badge).toBeDefined();
-      await expect(getComputedStyle(badge as Element).filter).toContain('brightness');
+    /* The marks are decorative (`alt=""`, so role `presentation`, not `img`) and
+       are found inside the labelled Certifications list by their class. */
+    const certifications = canvas.getByRole('list', { name: 'Certifications' });
+    const badgeFor = (className: string) =>
+      certifications.querySelector<HTMLImageElement>(`img.${className}`);
+    for (const className of ['gdpr-footer', 'soc-footer', 'iso-footer', 'fhir-footer']) {
+      const badge = badgeFor(className);
+      await expect(badge).not.toBeNull();
+      await expect(getComputedStyle(badge as HTMLImageElement).filter).toContain('brightness');
     }
 
     // The FDA/21 CFR mark ships on its own opaque white plate already, so it
     // reads fine on either theme and must NOT get the same filter - that
     // would wash its black wordmark out against its own white background.
-    const fda = canvas.getAllByRole('img').find((img) => img.className.includes('fda-footer'));
-    await expect(getComputedStyle(fda as Element).filter).not.toContain('brightness');
+    const fda = badgeFor('fda-footer');
+    await expect(fda).not.toBeNull();
+    await expect(getComputedStyle(fda as HTMLImageElement).filter).not.toContain('brightness');
   },
   parameters: {
     docs: {

@@ -212,15 +212,20 @@ export const Form: Story = {
        asterisk is the only thing distinguishing a required field here - the form
        is `noValidate`, so `required` on the input announces nothing and never
        blocks a submit. The severity control is a dropdown, not a textbox, which
-       is why it is absent from this list. */
-    await expect(
-      canvas.getAllByRole('textbox').map((field) => field.getAttribute('aria-label'))
-    ).toEqual([
+       is why it is absent from this list. Read as the computed accessible name,
+       not an `aria-label`: the canonical fields name their control through a
+       `<label for>`, which is what a screen reader announces either way. */
+    const fieldNames = [
       'Your name *',
       'Email address *',
       'Page or URL where you encountered the barrier',
       'Describe the barrier *',
-    ]);
+    ];
+    const fields = canvas.getAllByRole('textbox');
+    await expect(fields).toHaveLength(fieldNames.length);
+    for (const [index, field] of fields.entries()) {
+      await expect(field).toHaveAccessibleName(fieldNames[index]);
+    }
     await expect(canvas.getByRole('button', { name: 'Submit report' })).toBeEnabled();
   },
   parameters: {

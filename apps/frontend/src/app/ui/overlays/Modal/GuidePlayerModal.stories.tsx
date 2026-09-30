@@ -68,7 +68,7 @@ const meta = {
       description: {
         component:
           'The centred guide player: a 920px panel holding a category pill and title, a Copy link ' +
-          'chip, the 16:9 video surface with its scrubber and transport row, and a footer of ' +
+          "chip, the 16:9 video surface with the browser's own controls, and a footer of " +
           'chapter markers with a "Next" link.\n\n' +
           'The whole panel is doubly gated - it needs `showModal` **and** a non-null `guide`, and it ' +
           'returns `null` outright when the guide is missing rather than rendering an empty shell. ' +
@@ -83,8 +83,8 @@ const meta = {
           'clipboard leaves the chip silently unchanged - there is no failure affordance at all. ' +
           'One story stubs the clipboard to reach the "Copied" label, because pressing the button ' +
           'against a real one is a coin toss.\n\n' +
-          'The stories assert the opened panel has its content - the pill, the timecode, the ' +
-          'scrubber width, the chapter labels - rather than that a dialog appeared, because an ' +
+          "The stories assert the opened panel has its content - the pill, the guide's own " +
+          'poster and film, the chapter labels - rather than that a dialog appeared, because an ' +
           'empty dialog satisfies the weaker check.',
       },
     },
@@ -119,16 +119,27 @@ export const Open: Story = {
     await expect(within(dialog).getByRole('button', { name: 'Copy link' })).toBeInTheDocument();
     await expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument();
 
-    // Video surface: a 16:9 block with the transport timecode inside it.
+    /* Video surface: a 16:9 block holding a real <video> with the browser's own
+       controls. Assert it mounted THIS guide's media - a player that kept the
+       previous film, or a still with a play glyph, would pass a "dialog opened"
+       check just as well. */
     const surface = dialog.querySelector('.aspect-video') as HTMLElement;
     await expect(surface).toBeTruthy();
-    await expect(within(surface).getByText('3:07 / 5:18')).toBeInTheDocument();
+    const video = surface.querySelector('video') as HTMLVideoElement;
+    await expect(video).toHaveAttribute('controls');
+    await expect(video).toHaveAttribute('poster', GUIDE.thumbnailUrl);
+    await expect(video.querySelector('source')).toHaveAttribute('src', GUIDE.videoUrl);
+    await expect(video.querySelector('track[kind="captions"]')).toHaveAttribute(
+      'src',
+      '/captions/no-narration.en.vtt'
+    );
 
-    /* The scrubber is the only element whose geometry is data-driven. Assert the
-       fill really carries the guide's progress - a dropped style leaves a
-       full-width or zero-width bar that still looks like a scrubber. */
-    const fill = surface.querySelector('span[style*="width"]') as HTMLElement;
-    await expect(fill.style.width).toBe('62%');
+    /* The fixture still carries `progressPercent: 62` and `currentTime: '3:07'`.
+       Nothing records viewing progress, so the panel must not paint a scrubber
+       or an elapsed readout from them: the timecode belongs to the browser's
+       controls, not to a field on the guide. */
+    await expect(within(surface).queryByText(/3:07/)).toBeNull();
+    await expect(surface.querySelector('[style*="width"]')).toBeNull();
 
     // Footer: chapter run and the next-guide link.
     await expect(within(dialog).getByText(/Chapters:/)).toBeInTheDocument();
@@ -140,9 +151,10 @@ export const Open: Story = {
     docs: {
       description: {
         story:
-          'The panel as a viewer sees it mid-way through a guide: a 62% scrubber, "3:07 / 5:18" in ' +
-          'the transport row, and the final chapter tinted `--blue-text` while the rest stay ' +
-          '`--ink-muted`.',
+          "The panel with a guide loaded: the guide's own poster and film in a real `<video>` with " +
+          "the browser's controls, and the final chapter tinted `--blue-text` while the rest stay " +
+          '`--ink-muted`. The guide fixture carries progress fields, and the panel ignores them: ' +
+          'nothing records viewing progress, so no scrubber or elapsed readout is painted.',
       },
     },
   },
@@ -219,19 +231,23 @@ export const AtStart: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Play guide' }));
     const dialog = openDialog() as HTMLElement;
-    const surface = dialog.querySelector('.aspect-video') as HTMLElement;
+    const video = dialog.querySelector('.aspect-video video') as HTMLVideoElement;
 
-    // Both fields fall back rather than rendering "undefined": 0% and "0:00".
-    await expect(within(surface).getByText('0:00 / 5:18')).toBeInTheDocument();
-    const fill = surface.querySelector('span[style*="width"]') as HTMLElement;
-    await expect(fill.style.width).toBe('0%');
+    /* A guide opened for the first time starts at the top of the film and waits
+       for the viewer: no autoplay, no seek, and the poster up until play. */
+    await expect(video).not.toHaveAttribute('autoplay');
+    await expect(video.paused).toBe(true);
+    await expect(video.currentTime).toBe(0);
+    await expect(video).toHaveAttribute('poster', GUIDE.thumbnailUrl);
+    // Nothing renders the missing progress fields as text.
+    await expect(dialog.textContent).not.toContain('undefined');
   },
   parameters: {
     docs: {
       description: {
         story:
-          'A guide opened for the first time. The scrubber is clamped into 0-100 and the timecode ' +
-          'defaults to "0:00", so an unwatched guide shows an empty bar rather than a missing one.',
+          'A guide opened for the first time: the film sits paused at 0:00 behind its poster, and ' +
+          'the missing progress fields do not leak into the panel as text.',
       },
     },
   },
