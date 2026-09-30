@@ -19651,6 +19651,24 @@ paths:
                 properties:
                   message:
                     type: string
+        401:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         409:
           description: Feedback is unavailable for this appointment
           content:
@@ -19701,6 +19719,24 @@ paths:
                     type: string
         400:
           description: Invalid feedback
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        401:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Appointment not found
           content:
             application/json:
               schema:
