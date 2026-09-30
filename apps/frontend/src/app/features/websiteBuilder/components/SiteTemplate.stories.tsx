@@ -40,7 +40,9 @@ type Story = StoryObj<typeof meta>;
 
 export const AlpineClinic: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('heading', { level: 1 })).toHaveTextContent(CONTENT.headline);
+    await expect(
+      canvas.getByRole('heading', { name: CONTENT.headline, level: 1 })
+    ).toBeInTheDocument();
     await expect(canvas.getByRole('link', { name: 'Book an appointment' })).toHaveAttribute(
       'href',
       '/book/avenger-park-veterinary'
