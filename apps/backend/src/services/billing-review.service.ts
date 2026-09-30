@@ -78,7 +78,17 @@ export const BillingReviewService = {
       : Prisma.empty;
 
     const rows = await prisma.$queryRaw<BillingReviewItem[]>(Prisma.sql`
-      SELECT *
+      SELECT
+        visit."id",
+        visit."appointmentDate",
+        visit."patientName",
+        visit."clientName",
+        visit."appointmentType",
+        visit."invoiceId",
+        visit."invoiceStatus",
+        visit."invoiceTotal",
+        visit."currency",
+        visit."billingStatus"
       FROM (
         SELECT
           a."id",
