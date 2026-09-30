@@ -65,6 +65,8 @@ const ROUTE_ICONS: Record<string, IconType> = {
   'Website - Builder': IoGlobeOutline,
   Plugins: IoExtensionPuzzleOutline,
   Documentation: IoBookOutline,
+  'API Playground': IoCodeSlashOutline,
+  'MCP Playground': IoCubeOutline,
 };
 
 const APP_ROUTE_GROUPS = [
@@ -75,7 +77,7 @@ const APP_ROUTE_GROUPS = [
   { label: 'Administration', routeNames: ['Organization', 'Integrations', 'Network'] },
 ] as const;
 
-const DEV_ROUTE_GROUPS = [
+export const DEV_ROUTE_GROUPS = [
   {
     label: 'Developer',
     routeNames: [
@@ -88,7 +90,10 @@ const DEV_ROUTE_GROUPS = [
       'Website - Builder',
     ],
   },
-  { label: 'Platform', routeNames: ['Plugins', 'Documentation'] },
+  {
+    label: 'Platform',
+    routeNames: ['Plugins', 'Documentation', 'API Playground', 'MCP Playground'],
+  },
 ] as const;
 
 const groupRoutes = (

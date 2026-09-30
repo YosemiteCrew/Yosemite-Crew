@@ -180,6 +180,7 @@ export const DEV_PHONE_TABS: PhoneTabConfig[] = [
       '/developers/billing',
       '/developers/website-builder',
       '/developers/playground',
+      '/developers/mcp',
       '/developers/settings',
     ],
   },
@@ -215,6 +216,12 @@ export const DEV_PHONE_MORE_LINKS: MoreLinkConfig[] = [
     label: 'API playground',
     href: '/developers/playground',
     icon: IoCodeSlashOutline,
+  },
+  {
+    key: 'dev-mcp',
+    label: 'MCP playground',
+    href: '/developers/mcp',
+    icon: IoCubeOutline,
   },
   {
     key: 'dev-settings',
