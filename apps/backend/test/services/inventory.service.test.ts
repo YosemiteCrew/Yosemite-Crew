@@ -2919,6 +2919,35 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       ]);
     });
 
+    it("finishes one line before starting the next and stops at a failure", async () => {
+      let releaseFirst!: (value: unknown) => void;
+      mockOf(prisma.inventoryItem.findFirst)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+        )
+        .mockResolvedValueOnce(null);
+
+      const pending = InventoryService.bulkConsumeStock(
+        {
+          items: [
+            { itemId: "missing", quantity: 1, reason: "OTHER" },
+            { itemId: "item-2", quantity: 1, reason: "OTHER" },
+            { itemId: "item-3", quantity: 1, reason: "OTHER" },
+          ],
+        },
+        "org-1",
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledTimes(1);
+
+      releaseFirst(null);
+      await expect(pending).rejects.toThrow("Inventory item not found");
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledTimes(1);
+    });
+
     it("propagates the first failing line", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(null);
 
@@ -3028,6 +3057,43 @@ describe("Inventory service guards, helpers, and branch paths", () => {
     });
   });
 
+  describe("getInventoryTurnoverByItem opening stock", () => {
+    it("reads opening stock for every item together and keeps it with its item", async () => {
+      mockOf(prisma.inventoryItem.findMany).mockResolvedValue([
+        itemRow({ id: "slow-read", onHand: 10 }),
+        itemRow({ id: "fast-read", onHand: 10 }),
+      ]);
+      mockOf(prisma.inventoryStockMovement.findMany).mockResolvedValue([]);
+      let releaseFirst!: (value: unknown) => void;
+      mockOf(prisma.inventoryBatch.aggregate)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+        )
+        .mockResolvedValueOnce({ _sum: { quantity: 2 } });
+
+      const pending = InventoryService.getInventoryTurnoverByItem({
+        organisationId: "org-1",
+        from: new Date("2024-01-01"),
+        to: new Date("2024-12-31"),
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.inventoryBatch.aggregate).toHaveBeenCalledTimes(2);
+
+      releaseFirst({ _sum: { quantity: 8 } });
+      const report = await pending;
+
+      expect(report.map((row) => [row.itemId, row.beginningInventory])).toEqual(
+        [
+          ["slow-read", 8],
+          ["fast-read", 2],
+        ],
+      );
+    });
+  });
+
   describe("InventoryAdjustmentService.adjustStock", () => {
     it("rejects a blank itemId and a blank organisationId", async () => {
       await expect(
@@ -3108,6 +3174,35 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         userId: "user-1",
       });
       expect(result._id).toBe("item-1");
+    });
+
+    it("draws each batch down and logs it before moving on to the next", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 9 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "first", quantity: 4 }),
+        batchRow({ id: "second", quantity: 5 }),
+      ]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 3 }),
+      );
+
+      await InventoryAdjustmentService.adjustStock({
+        itemId: "item-1",
+        newOnHand: 3,
+        reason: "SHRINKAGE",
+        organisationId: "org-1",
+      });
+
+      const update = mockOf(prisma.inventoryBatch.update).mock;
+      const movement = mockOf(prisma.inventoryStockMovement.create).mock;
+      expect(update.invocationCallOrder[0]).toBeLessThan(
+        movement.invocationCallOrder[0],
+      );
+      expect(movement.invocationCallOrder[0]).toBeLessThan(
+        update.invocationCallOrder[1],
+      );
     });
 
     it("reads batches in a deterministic order and runs the whole adjustment in one transaction", async () => {
