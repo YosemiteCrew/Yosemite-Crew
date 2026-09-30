@@ -14,11 +14,7 @@ export class ClinicNoteError extends Error {
 
 type ClinicNoteSubjectType = "PATIENT" | "CLIENT" | "APPOINTMENT";
 type ClinicNoteType =
-  | "GENERAL"
-  | "BILLING"
-  | "COMMUNICATION"
-  | "FOLLOW_UP"
-  | "ALERT";
+  "GENERAL" | "BILLING" | "COMMUNICATION" | "FOLLOW_UP" | "ALERT";
 
 export interface CreateNoteParams {
   organisationId: string;
@@ -94,7 +90,7 @@ export const ClinicNoteService = {
     return assertNote(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     subjectType?: ClinicNoteSubjectType;
     subjectId?: string;

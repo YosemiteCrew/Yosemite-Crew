@@ -130,7 +130,7 @@ export const PatientTransferService = {
     return assertTransfer(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     transferType?: TransferType;

@@ -128,7 +128,7 @@ export const BehaviorAssessmentService = {
     return assertAssessment(id, organisationId);
   },
 
-  async list(params: ListBehaviorAssessmentParams) {
+  list(params: ListBehaviorAssessmentParams) {
     const { organisationId, patientId, encounterId, fasScore } = params;
     return prisma.behaviorAssessment.findMany({
       where: {

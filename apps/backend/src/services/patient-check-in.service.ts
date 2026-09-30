@@ -234,7 +234,7 @@ export const PatientCheckInService = {
     return assertCheckIn(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     status?: CheckInStatus;

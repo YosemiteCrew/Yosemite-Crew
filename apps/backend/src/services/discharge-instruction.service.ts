@@ -134,7 +134,7 @@ export const DischargeInstructionService = {
     return assertDischarge(id, organisationId);
   },
 
-  async list(params: ListDischargeInstructionsParams) {
+  list(params: ListDischargeInstructionsParams) {
     const { organisationId, patientId, encounterId, status } = params;
     return prisma.dischargeInstruction.findMany({
       where: {

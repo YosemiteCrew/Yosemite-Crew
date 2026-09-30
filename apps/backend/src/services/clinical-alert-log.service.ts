@@ -102,7 +102,7 @@ export const ClinicalAlertLogService = {
     return assertAlert(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     encounterId?: string;

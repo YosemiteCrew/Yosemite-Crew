@@ -140,7 +140,7 @@ export const NutritionPlanService = {
     return assertPlan(id, organisationId);
   },
 
-  async list(params: ListNutritionPlansParams) {
+  list(params: ListNutritionPlansParams) {
     const { organisationId, patientId, encounterId, status } = params;
     return prisma.nutritionPlan.findMany({
       where: {

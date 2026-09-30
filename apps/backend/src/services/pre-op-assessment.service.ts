@@ -127,7 +127,7 @@ export const PreOpAssessmentService = {
     return assertAssessment(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     encounterId?: string;

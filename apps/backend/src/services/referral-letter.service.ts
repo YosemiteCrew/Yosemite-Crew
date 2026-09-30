@@ -180,7 +180,7 @@ export const ReferralLetterService = {
     return assertLetter(id, organisationId);
   },
 
-  async list(params: ListReferralLettersParams) {
+  list(params: ListReferralLettersParams) {
     const { organisationId, patientId, status } = params;
     return prisma.referralLetter.findMany({
       where: {

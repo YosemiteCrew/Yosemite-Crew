@@ -67,7 +67,7 @@ const assertRecord = async (id: string, organisationId: string) => {
 };
 
 export const AnaesthesiaRecordService = {
-  async plan(params: CreateAnaesthesiaParams) {
+  plan(params: CreateAnaesthesiaParams) {
     return prisma.anaesthesiaRecord.create({
       data: {
         organisationId: params.organisationId,
@@ -94,7 +94,7 @@ export const AnaesthesiaRecordService = {
     return assertRecord(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     appointmentId?: string;

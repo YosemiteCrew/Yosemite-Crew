@@ -13,18 +13,9 @@ export class ReproductiveRecordError extends Error {
 }
 
 type ReproductiveStatus =
-  | "INTACT"
-  | "SPAYED"
-  | "NEUTERED"
-  | "CASTRATED"
-  | "UNKNOWN";
+  "INTACT" | "SPAYED" | "NEUTERED" | "CASTRATED" | "UNKNOWN";
 type PregnancyStatus =
-  | "SUSPECTED"
-  | "CONFIRMED"
-  | "WHELPED"
-  | "QUEENED"
-  | "ABORTED"
-  | "RESORBED";
+  "SUSPECTED" | "CONFIRMED" | "WHELPED" | "QUEENED" | "ABORTED" | "RESORBED";
 
 export interface CreateReproductiveRecordParams {
   organisationId: string;
@@ -155,7 +146,7 @@ export const ReproductiveRecordService = {
     return assertRecord(id, organisationId);
   },
 
-  async list(params: ListReproductiveRecordsParams) {
+  list(params: ListReproductiveRecordsParams) {
     const { organisationId, patientId, reproductiveStatus } = params;
     return prisma.reproductiveRecord.findMany({
       where: {

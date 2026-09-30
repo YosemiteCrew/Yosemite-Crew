@@ -143,7 +143,7 @@ export const DiagnosticImageService = {
     return assertImage(id, organisationId);
   },
 
-  async list(params: ListDiagnosticImagesParams) {
+  list(params: ListDiagnosticImagesParams) {
     const { organisationId, patientId, encounterId, imagingType, status } =
       params;
     return prisma.diagnosticImage.findMany({

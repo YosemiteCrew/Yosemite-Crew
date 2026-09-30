@@ -186,7 +186,7 @@ export const OphthalmologyExaminationService = {
     return assertExam(id, organisationId);
   },
 
-  async list(params: ListOphthExamParams) {
+  list(params: ListOphthExamParams) {
     const { organisationId, patientId, encounterId } = params;
     return prisma.ophthalmologyExamination.findMany({
       where: {
