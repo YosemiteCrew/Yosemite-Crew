@@ -13,10 +13,7 @@ export class ClinicEquipmentError extends Error {
 }
 
 type EquipmentStatus =
-  | "OPERATIONAL"
-  | "UNDER_MAINTENANCE"
-  | "DECOMMISSIONED"
-  | "AWAITING_REPAIR";
+  "OPERATIONAL" | "UNDER_MAINTENANCE" | "DECOMMISSIONED" | "AWAITING_REPAIR";
 type MaintenanceType =
   | "ROUTINE_SERVICE"
   | "CALIBRATION"
@@ -96,7 +93,7 @@ const assertEquipment = async (id: string, organisationId: string) => {
 };
 
 export const ClinicEquipmentService = {
-  async create(params: CreateEquipmentParams) {
+  create(params: CreateEquipmentParams) {
     const { organisationId, name, ...rest } = params;
     return prisma.clinicEquipment.create({
       data: {
@@ -119,7 +116,7 @@ export const ClinicEquipmentService = {
     return assertEquipment(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     status?: EquipmentStatus;
     search?: string;

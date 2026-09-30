@@ -599,6 +599,20 @@ describe("AvailabilityService", () => {
       ]);
     });
 
+    it("rejects an invalid reference date with a 400 service error", async () => {
+      await expect(
+        AvailabilityService.getWeeklyFinalAvailability(
+          "org1",
+          "u1",
+          new Date("not a date"),
+        ),
+      ).rejects.toMatchObject({
+        name: "AvailabilityServiceError",
+        message: "Invalid referenceDate",
+        statusCode: 400,
+      });
+    });
+
     it("bounds the occupancy query to this week's Sunday, not next Monday (#3141)", async () => {
       // Monday 2026-09-14 through Sunday 2026-09-20 is the queried week.
       const refDate = new Date("2026-09-14T12:00:00Z");

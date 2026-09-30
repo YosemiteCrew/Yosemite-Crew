@@ -377,7 +377,7 @@ export const CareReminderService = {
     return assertReminder(id, organisationId);
   },
 
-  async list(params: ListCareRemindersParams) {
+  list(params: ListCareRemindersParams) {
     const {
       organisationId,
       patientId,

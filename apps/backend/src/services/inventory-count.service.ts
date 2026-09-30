@@ -233,7 +233,7 @@ export const InventoryCountService = {
     return assertCount(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     inventoryItemId?: string;
     inventoryBatchId?: string;
@@ -367,7 +367,7 @@ export const InventoryCountService = {
     return count;
   },
 
-  async unreconciled(organisationId: string) {
+  unreconciled(organisationId: string) {
     return prisma.inventoryCount.findMany({
       where: { organisationId, reconciled: false },
       select: countSelect,

@@ -12,11 +12,7 @@ export class AppointmentReminderLogError extends Error {
 }
 
 type ReminderChannel =
-  | "SMS"
-  | "EMAIL"
-  | "PUSH_NOTIFICATION"
-  | "PHONE_CALL"
-  | "WHATSAPP";
+  "SMS" | "EMAIL" | "PUSH_NOTIFICATION" | "PHONE_CALL" | "WHATSAPP";
 type ReminderOutcome =
   | "DELIVERED"
   | "OPENED"
@@ -67,7 +63,7 @@ const assertLog = async (id: string, organisationId: string) => {
 };
 
 export const AppointmentReminderLogService = {
-  async record(params: CreateReminderLogParams) {
+  record(params: CreateReminderLogParams) {
     const { organisationId, ...rest } = params;
     return prisma.appointmentReminderLog.create({
       data: {
@@ -103,7 +99,7 @@ export const AppointmentReminderLogService = {
     });
   },
 
-  async listForAppointment(appointmentId: string, organisationId: string) {
+  listForAppointment(appointmentId: string, organisationId: string) {
     return prisma.appointmentReminderLog.findMany({
       where: { appointmentId, organisationId },
       select: reminderLogSelect,
@@ -111,7 +107,7 @@ export const AppointmentReminderLogService = {
     });
   },
 
-  async listForClient(
+  listForClient(
     clientId: string,
     organisationId: string,
     params?: {
