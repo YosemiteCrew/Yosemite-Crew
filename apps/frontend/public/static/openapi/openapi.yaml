@@ -9516,6 +9516,123 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageError'
+  '/v1/finance/organisation/{organisationId}/completed-visits/billing-review':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/organisation/{organisationId}/completed-visits/billing-review'
+      operationId: get_v1_finance_organisation_organisationId_completed_visits_billing_review
+      description: Completed visits that still need a billing action, ordered newest first.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - appointmentDate
+                        - billingStatus
+                      properties:
+                        id:
+                          type: string
+                        appointmentDate:
+                          type: string
+                          format: date-time
+                        patientName:
+                          type: string
+                          nullable: true
+                        clientName:
+                          type: string
+                          nullable: true
+                        appointmentType:
+                          type: string
+                          nullable: true
+                        invoiceId:
+                          type: string
+                          nullable: true
+                        invoiceStatus:
+                          type: string
+                          nullable: true
+                        invoiceTotal:
+                          type: number
+                          nullable: true
+                        currency:
+                          type: string
+                          nullable: true
+                        billingStatus:
+                          type: string
+                          enum:
+                            - MISSING_INVOICE
+                            - DRAFT_INVOICE
+                            - UNBILLED_CHARGES
+                  meta:
+                    type: object
+                    required:
+                      - nextCursor
+                      - hasMore
+                      - limit
+                    properties:
+                      nextCursor:
+                        type: string
+                        nullable: true
+                      hasMore:
+                        type: boolean
+                      limit:
+                        type: integer
+                  error:
+                    nullable: true
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        403:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
   '/v1/finance/organisation/{organisationId}/clients/{parentId}/account-credit':
     get:
       tags:

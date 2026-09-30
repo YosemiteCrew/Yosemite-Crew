@@ -107,6 +107,7 @@ const FinanceController = {
   markAppointmentReadyForBilling: jest.fn(),
   reverseAppointmentReadyForBilling: jest.fn(),
 };
+const BillingReviewController = { list: jest.fn() };
 
 const ClientCollectionsController = {
   getPaymentTerms: jest.fn(),
@@ -137,6 +138,9 @@ jest.mock("../../src/middlewares/rbac", () => ({
 jest.mock("../../src/controllers/app/finance.controller", () => ({
   FinanceController,
 }));
+jest.mock("../../src/controllers/app/billing-review.controller", () => ({
+  BillingReviewController,
+}));
 
 jest.mock("../../src/controllers/app/client-collections.controller", () => ({
   ClientCollectionsController,
@@ -165,6 +169,22 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("finance.router", () => {
+  it("puts billing review behind web auth, org scope and billing READ permission", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/completed-visits/billing-review",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(BillingReviewController.list);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    // Both are required: the list links into the visit workspace.
+    expect(handlers).toContain(
+      permissionGuard("all:billing:view:any+appointments:view:any"),
+    );
+  });
+
   it("puts the reconciliation queue behind web auth, org scope and a permission", () => {
     // Read-only, so the permission is the billing VIEW one. The route carries
     // unattributed captures, which have no organisation of their own - the org

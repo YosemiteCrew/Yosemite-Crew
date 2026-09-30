@@ -1501,7 +1501,8 @@ const useInvoiceStepContent = ({
   return (
     <div className="flex flex-col gap-5">
       {/* The bill builder + payment controls only show while the encounter is
-          editable. A completed appointment shows finalized invoices only. */}
+          editable, including after the visit is completed so billing left
+          open can still be finished. The server enforces billing edit rights. */}
       {canBuildBill && (
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           <div className="min-w-0 flex-1">

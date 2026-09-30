@@ -13,6 +13,7 @@ import {
 } from "src/middlewares/rbac";
 import { FinanceController } from "src/controllers/app/finance.controller";
 import { ClientCollectionsController } from "src/controllers/app/client-collections.controller";
+import { BillingReviewController } from "src/controllers/app/billing-review.controller";
 
 const router = Router();
 
@@ -270,6 +271,14 @@ router.get(
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   FinanceController.listInvoices,
+);
+
+router.get(
+  "/organisation/:organisationId/completed-visits/billing-review",
+  requireWebAuth,
+  withOrgPermissions(),
+  requireAllPermissions(["billing:view:any", "appointments:view:any"]),
+  BillingReviewController.list,
 );
 
 router.post(

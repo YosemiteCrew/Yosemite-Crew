@@ -200,6 +200,12 @@ const Finance = () => {
                 size="compact"
                 ariaLabel="Review overdue accounts"
               />
+              <Secondary
+                href="/finance/billing-review"
+                text="Billing review"
+                size="compact"
+                ariaLabel="Review completed visits needing billing"
+              />
             </div>
             <PhoneInvoiceList
               filteredList={filteredList}
@@ -286,6 +292,11 @@ const Finance = () => {
                     href="/finance/collections"
                     text="Overdue"
                     ariaLabel="Review overdue accounts"
+                  />
+                  <Secondary
+                    href="/finance/billing-review"
+                    text="Billing review"
+                    ariaLabel="Review completed visits needing billing"
                   />
                   <StripeStatusPill />
                 </div>

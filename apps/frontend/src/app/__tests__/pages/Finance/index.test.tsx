@@ -366,6 +366,21 @@ describe('Finance page', () => {
     );
   });
 
+  it('links to the billing review from desktop and phone finance navigation', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    const { rerender } = render(<ProtectedFinance />);
+
+    expect(
+      screen.getByRole('link', { name: 'Review completed visits needing billing' })
+    ).toHaveAttribute('href', '/finance/billing-review');
+
+    mockIsPhone.mockReturnValue(true);
+    rerender(<ProtectedFinance />);
+    expect(
+      screen.getByRole('link', { name: 'Review completed visits needing billing' })
+    ).toHaveAttribute('href', '/finance/billing-review');
+  });
+
   it('stacks page actions above the status filter, not beside it', () => {
     useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
     render(<ProtectedFinance />);
