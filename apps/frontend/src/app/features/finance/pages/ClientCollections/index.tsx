@@ -21,13 +21,14 @@ type ClientGroup = { parentId: string; invoices: OverdueClientInvoice[] };
 
 // `dueDate` is already the practice's calendar date, so it is formatted as a
 // date and never shifted into the viewer's time zone.
+const DUE_DATE_FORMAT = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
 const formatDueDate = (dueDate: string) =>
-  new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(`${dueDate}T00:00:00.000Z`));
+  DUE_DATE_FORMAT.format(new Date(`${dueDate}T00:00:00.000Z`));
 
 const termsByParent = (rows: OverdueClientInvoice[]) =>
   Object.fromEntries(rows.map((row) => [row.parentId, row.netDays]));
