@@ -18,6 +18,8 @@ jest.mock("src/config/prisma", () => ({
     // The release path takes an advisory lock before it reads the balances
     // that authorise the release, so every release test needs this.
     $executeRaw: jest.fn(),
+    // A consumption locks the item row before it recomputes on-hand stock.
+    $queryRaw: jest.fn(),
     inventoryConsumptionRule: {
       upsert: jest.fn(),
       findMany: jest.fn(),
@@ -76,6 +78,7 @@ jest.mock("../../src/services/prescription-fill-authorisation.service", () => ({
 type MockedPrisma = typeof prisma & {
   $transaction: jest.Mock;
   $executeRaw: jest.Mock;
+  $queryRaw: jest.Mock;
   inventoryConsumptionRule: {
     upsert: jest.Mock;
     findMany: jest.Mock;
@@ -124,6 +127,15 @@ type MockedPrisma = typeof prisma & {
   };
 };
 
+// A consumption decrements each batch with a conditional raw UPDATE. Lists
+// those writes as [batchId, quantity] in call order.
+const batchDecrements = (executeRaw: jest.Mock) =>
+  executeRaw.mock.calls
+    .filter(([sql]) =>
+      (sql as string[]).join("?").includes('UPDATE "InventoryBatch"'),
+    )
+    .map(([, quantity, , batchId]) => [batchId, quantity]);
+
 describe("InventoryConsumptionService", () => {
   const mockedPrisma = prisma as unknown as MockedPrisma;
 
@@ -138,6 +150,10 @@ describe("InventoryConsumptionService", () => {
       }
       return undefined;
     });
+    // Every conditional batch decrement claims its row, and the locked item
+    // holds no reservation, unless a test says otherwise.
+    mockedPrisma.$executeRaw.mockResolvedValue(1);
+    mockedPrisma.$queryRaw.mockResolvedValue([{ allocated: 0 }]);
     mockedPrisma.inventoryConsumptionEvent.findUnique.mockResolvedValue(null);
     mockedPrisma.inventoryConsumptionEvent.findFirst.mockResolvedValue(null);
     mockedPrisma.controlledSubstanceLog.findFirst.mockResolvedValue(null);
@@ -244,21 +260,13 @@ describe("InventoryConsumptionService", () => {
     });
 
     expect(events).toHaveLength(1);
-    // Batch decrements must be atomic Prisma `decrement` writes, not a
-    // literal computed value - otherwise a concurrent consumption of the same
-    // batch produces a lost update even inside this transaction.
-    expect(mockedPrisma.inventoryBatch.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "batch-1" },
-        data: { quantity: { decrement: 2 } },
-      }),
-    );
-    expect(mockedPrisma.inventoryBatch.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "batch-2" },
-        data: { quantity: { decrement: 1 } },
-      }),
-    );
+    // Batch decrements are relative writes, not a literal computed value -
+    // otherwise a concurrent consumption of the same batch is a lost update.
+    expect(batchDecrements(mockedPrisma.$executeRaw)).toEqual([
+      ["batch-1", 2],
+      ["batch-2", 1],
+    ]);
+    expect(mockedPrisma.inventoryBatch.update).not.toHaveBeenCalled();
     expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { onHand: 3 },
@@ -1126,6 +1134,7 @@ describe("InventoryConsumptionService", () => {
       onHand: 5,
       allocated: 5,
     });
+    mockedPrisma.$queryRaw.mockResolvedValueOnce([{ allocated: 5 }]);
     mockedPrisma.inventoryBatch.findMany
       .mockResolvedValueOnce([
         { id: "batch-approve-2", quantity: 5, allocated: 0 },
@@ -1263,6 +1272,7 @@ describe("InventoryConsumptionService", () => {
       onHand: 20,
       allocated: 20,
     });
+    mockedPrisma.$queryRaw.mockResolvedValueOnce([{ allocated: 20 }]);
     mockedPrisma.inventoryBatch.findMany
       .mockResolvedValueOnce([
         { id: "batch-metadata-duration", quantity: 20, allocated: 0 },
@@ -1498,6 +1508,7 @@ describe("InventoryConsumptionService", () => {
       onHand: 20,
       allocated: 20,
     });
+    mockedPrisma.$queryRaw.mockResolvedValueOnce([{ allocated: 20 }]);
     mockedPrisma.inventoryBatch.findMany
       .mockResolvedValueOnce([
         { id: "batch-modal-frequency", quantity: 20, allocated: 0 },
@@ -2249,6 +2260,7 @@ describe("InventoryConsumptionService", () => {
       onHand: 5,
       allocated: 4,
     });
+    mockedPrisma.$queryRaw.mockResolvedValueOnce([{ allocated: 4 }]);
     mockedPrisma.inventoryBatch.findMany
       .mockResolvedValueOnce([{ id: "batch-1", quantity: 5 }])
       .mockResolvedValueOnce([{ id: "batch-1", quantity: 4 }]);
@@ -2921,7 +2933,7 @@ describe("InventoryConsumptionService", () => {
         ],
       }),
     ).rejects.toThrow("Insufficient stock");
-    expect(mockedPrisma.inventoryBatch.update).not.toHaveBeenCalled();
+    expect(batchDecrements(mockedPrisma.$executeRaw)).toEqual([]);
   });
 
   it("throws when batches cannot cover the full requested consumption", async () => {
@@ -3358,10 +3370,273 @@ describe("InventoryConsumptionService", () => {
       ],
     });
 
-    expect(mockedPrisma.inventoryBatch.update).toHaveBeenCalledTimes(1);
+    expect(batchDecrements(mockedPrisma.$executeRaw)).toEqual([["b1", 2]]);
     expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { onHand: 8, allocated: 0 } }),
     );
+  });
+
+  describe("concurrent stock changes", () => {
+    const consumeLine = (quantity: number, metadata?: Record<string, string>) =>
+      InventoryConsumptionService.consume({
+        organisationId: "org-1",
+        sourceType: "PRESCRIPTION",
+        sourceId: "rx-race",
+        ...(metadata ? { metadata } : {}),
+        lines: [
+          { sourceLineKey: "line-1", inventoryItemId: "item-race", quantity },
+        ],
+      });
+
+    beforeEach(() => {
+      mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+      mockedPrisma.inventoryItem.update.mockResolvedValue({});
+      mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+        id: "event-race",
+      });
+    });
+
+    it("decrements a batch only while it still holds the quantity drawn from it", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        onHand: 5,
+        allocated: 0,
+      });
+      mockedPrisma.inventoryBatch.findMany
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 5 }])
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 2 }]);
+
+      await consumeLine(3);
+
+      const [sql, ...values] = mockedPrisma.$executeRaw.mock.calls[0];
+      expect((sql as string[]).join("?")).toContain('"quantity" >= ?');
+      expect(values).toEqual([3, expect.any(Date), "batch-race", "org-1", 3]);
+    });
+
+    it("refuses the whole dispense when another one emptied the batch first", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        onHand: 5,
+        allocated: 0,
+      });
+      mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+        { id: "batch-race", quantity: 5 },
+      ]);
+      // The batch no longer holds what was read, so the write matches no row.
+      mockedPrisma.$executeRaw.mockResolvedValueOnce(0);
+
+      await expect(consumeLine(3)).rejects.toMatchObject({
+        message:
+          "Stock for this item changed while the dispense was being recorded. Try again.",
+        statusCode: 409,
+      });
+
+      expect(mockedPrisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.inventoryItem.update).not.toHaveBeenCalled();
+      expect(
+        mockedPrisma.inventoryConsumptionEvent.create,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("locks the item after the batch write and before summing its batches", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        onHand: 5,
+        allocated: 0,
+      });
+      mockedPrisma.inventoryBatch.findMany
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 5 }])
+        .mockResolvedValueOnce([
+          { id: "batch-race", quantity: 2 },
+          // Committed by a count on another batch while this dispense waited
+          // for the item lock: the sum must include it.
+          { id: "batch-other", quantity: 7 },
+        ]);
+
+      await consumeLine(3);
+
+      const [lockSql, ...lockValues] = mockedPrisma.$queryRaw.mock.calls[0];
+      expect((lockSql as string[]).join("?")).toContain('FROM "InventoryItem"');
+      expect((lockSql as string[]).join("?")).toContain("FOR UPDATE");
+      expect(lockValues).toEqual(["item-race", "org-1"]);
+
+      const lockOrder = mockedPrisma.$queryRaw.mock.invocationCallOrder[0];
+      expect(lockOrder).toBeGreaterThan(
+        mockedPrisma.$executeRaw.mock.invocationCallOrder[0],
+      );
+      expect(lockOrder).toBeLessThan(
+        mockedPrisma.inventoryBatch.findMany.mock.invocationCallOrder[1],
+      );
+      expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: "item-race" },
+        data: { onHand: 9 },
+      });
+      expect(
+        mockedPrisma.inventoryItem.update.mock.invocationCallOrder[0],
+      ).toBeGreaterThan(lockOrder);
+    });
+
+    it("refuses a dispense that would reach stock reserved while it waited for the lock", async () => {
+      // Read before the lock: nothing reserved, so the first check passes.
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        onHand: 10,
+        allocated: 0,
+      });
+      mockedPrisma.inventoryBatch.findMany
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 10 }])
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 7 }]);
+      mockedPrisma.$queryRaw.mockResolvedValueOnce([{ allocated: 8 }]);
+
+      await expect(consumeLine(3)).rejects.toMatchObject({
+        message: "Insufficient stock",
+        statusCode: 400,
+      });
+      expect(mockedPrisma.inventoryItem.update).not.toHaveBeenCalled();
+    });
+
+    it("lets a dispense leave exactly the reserved stock on the shelf", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        onHand: 10,
+        allocated: 7,
+      });
+      mockedPrisma.inventoryBatch.findMany
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 10 }])
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 7 }]);
+      mockedPrisma.$queryRaw.mockResolvedValueOnce([{ allocated: 7 }]);
+
+      await consumeLine(3);
+
+      expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: "item-race" },
+        data: { onHand: 7 },
+      });
+    });
+
+    it("draws down the reservation read under the lock, not the earlier read", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        onHand: 10,
+        allocated: 5,
+      });
+      mockedPrisma.inventoryBatch.findMany
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 10 }])
+        .mockResolvedValueOnce([{ id: "batch-race", quantity: 8 }]);
+      mockedPrisma.$queryRaw.mockResolvedValueOnce([{ allocated: 3 }]);
+
+      await consumeLine(2, { dispenseStockSource: "ALLOCATED" });
+
+      expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: "item-race" },
+        data: { onHand: 8, allocated: 1 },
+      });
+    });
+
+    it("answers not found when the item is gone by the time it is locked", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        onHand: 5,
+        allocated: 0,
+      });
+      mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+        { id: "batch-race", quantity: 5 },
+      ]);
+      mockedPrisma.$queryRaw.mockResolvedValueOnce([]);
+
+      await expect(consumeLine(3)).rejects.toMatchObject({
+        message: "Inventory item not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.inventoryItem.update).not.toHaveBeenCalled();
+    });
+
+    it("restores a reservation on top of the one read under the lock when released", async () => {
+      mockedPrisma.inventoryStockMovement.findMany.mockResolvedValueOnce([
+        {
+          id: "movement-race",
+          itemId: "item-race",
+          batchId: "batch-race",
+          change: -2,
+          referenceId: "rx-race",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ]);
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        onHand: 8,
+        allocated: 0,
+      });
+      mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+        { id: "batch-race", quantity: 10 },
+      ]);
+      mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+      mockedPrisma.$queryRaw.mockResolvedValueOnce([{ allocated: 4 }]);
+
+      await InventoryConsumptionService.releasePrescription({
+        organisationId: "org-1",
+        prescriptionId: "rx-race",
+        medications: [
+          {
+            inventoryItemId: "item-race",
+            quantity: 2,
+            sourceLineKey: "line-1",
+          },
+        ],
+        metadata: { dispenseStockSource: "ALLOCATED" },
+      });
+
+      expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: "item-race" },
+        data: { onHand: 10, allocated: 6 },
+      });
+    });
+
+    it("opens the controlled register at the stock read under the lock", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: "item-race",
+        organisationId: "org-1",
+        name: "Ketamine 100mg/ml",
+        // Stale: another dispense took 4 before this one got the lock.
+        onHand: 10,
+        allocated: 0,
+        controlledItem: true,
+        attributes: { drugSchedule: "Schedule III" },
+        stockUnitType: "ml",
+        unitOfMeasure: null,
+      });
+      mockedPrisma.inventoryBatch.findMany
+        .mockResolvedValueOnce([
+          { id: "batch-race", quantity: 10, lotNumber: "LOT-R" },
+        ])
+        .mockResolvedValueOnce([
+          { id: "batch-race", quantity: 4, lotNumber: "LOT-R" },
+        ]);
+      mockedPrisma.controlledSubstanceLog.create.mockResolvedValue({
+        id: "cs-race",
+      });
+
+      await consumeLine(2);
+
+      expect(mockedPrisma.controlledSubstanceLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amountDrawn: 2,
+            balanceBefore: 6,
+            balanceAfter: 4,
+          }),
+        }),
+      );
+    });
   });
 
   it("treats a null onHand as empty stock when consuming", async () => {
@@ -4099,11 +4374,11 @@ describe("InventoryConsumptionService", () => {
       mockedPrisma.inventoryBatch.findMany
         .mockResolvedValueOnce([
           { id: "batch-cs-1", quantity: 6, allocated: 0, lotNumber: "LOT-1" },
-          { id: "batch-cs-2", quantity: 10, allocated: 0, lotNumber: "LOT-2" },
+          { id: "batch-cs-2", quantity: 4, allocated: 0, lotNumber: "LOT-2" },
         ])
         .mockResolvedValueOnce([
           { id: "batch-cs-1", quantity: 0, allocated: 0, lotNumber: "LOT-1" },
-          { id: "batch-cs-2", quantity: 8, allocated: 0, lotNumber: "LOT-2" },
+          { id: "batch-cs-2", quantity: 2, allocated: 0, lotNumber: "LOT-2" },
         ]);
 
       await consumeControlledLine(8);
@@ -4158,7 +4433,7 @@ describe("InventoryConsumptionService", () => {
         /no drug schedule/,
       );
 
-      expect(mockedPrisma.inventoryBatch.update).not.toHaveBeenCalled();
+      expect(batchDecrements(txExecuteRaw)).toEqual([]);
       expect(mockedPrisma.inventoryStockMovement.create).not.toHaveBeenCalled();
       expect(txCsCreate).not.toHaveBeenCalled();
     });
@@ -4180,9 +4455,7 @@ describe("InventoryConsumptionService", () => {
       await consumeControlledLine(2);
 
       expect(txCsCreate).not.toHaveBeenCalled();
-      expect(mockedPrisma.inventoryBatch.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { quantity: { decrement: 2 } } }),
-      );
+      expect(batchDecrements(txExecuteRaw)).toEqual([["batch-cs-1", 2]]);
     });
 
     it("reverses the register entry when the dispense is released", async () => {
