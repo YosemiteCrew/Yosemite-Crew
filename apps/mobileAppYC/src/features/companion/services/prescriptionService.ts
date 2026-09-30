@@ -36,7 +36,8 @@ const ENDPOINT = '/v1/prescription/mobile';
 const PAGE_SIZE = 100;
 
 // Each page's cursor comes from the page before it, so pages are fetched one
-// after another rather than in parallel.
+// after another rather than in parallel. Pages are appended to the one array
+// `list` passes in, so earlier pages are not copied again for every new one.
 const fetchPrescriptionPages = async (
   accessToken: string,
   collected: MobilePrescription[],
@@ -46,14 +47,14 @@ const fetchPrescriptionPages = async (
     params: {limit: PAGE_SIZE, cursor},
     headers: withAuthHeaders(accessToken),
   });
-  const prescriptions = [...collected, ...(data.prescriptions ?? [])];
+  collected.push(...(data.prescriptions ?? []));
   if (!data.hasMore) {
-    return prescriptions;
+    return collected;
   }
   if (!data.nextCursor || data.nextCursor === cursor) {
     throw new Error('Prescription pagination did not advance');
   }
-  return fetchPrescriptionPages(accessToken, prescriptions, data.nextCursor);
+  return fetchPrescriptionPages(accessToken, collected, data.nextCursor);
 };
 
 export const prescriptionApi = {
