@@ -5,6 +5,7 @@ import { mapInSequence, mapWithConcurrency } from "./async-iteration";
 dayjs.extend(utc);
 
 const DAY_MINUTES = 24 * 60;
+const VET_READ_CONCURRENCY = 2;
 const UTC_CLOCK_TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?([+-])(\d{1,2}):(\d{2})$/;
 
@@ -327,9 +328,14 @@ export const buildBookableWindowsForVets = async <
     return resultPromise;
   };
 
-  // Each vet's slots are read independently, a few at a time. The cache entry
-  // is set before a read is awaited, so a repeated vet still shares one read.
-  const results = await mapWithConcurrency(params.vetIds, loadVetWindows);
+  // Each vet's slots are read independently, two at a time: a single vet read
+  // can issue two queries of its own. The cache entry is set before a read is
+  // awaited, so a repeated vet still shares one read.
+  const results = await mapWithConcurrency(
+    params.vetIds,
+    loadVetWindows,
+    VET_READ_CONCURRENCY,
+  );
   const allSlots: Array<TSlot & { vetIds: string[] }> = params.vetIds.flatMap(
     (vetId, index) =>
       (results[index]?.windows ?? []).map((slot) => ({

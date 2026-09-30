@@ -174,7 +174,7 @@ describe("mapWithConcurrency", () => {
     expect(siblingSettled).toBe(true);
   });
 
-  it("rejects with the first failure when several tasks fail", async () => {
+  it("rejects with the earliest failing item when it also fails first", async () => {
     const first = new Error("first");
     await expect(
       mapWithConcurrency(
@@ -187,6 +187,21 @@ describe("mapWithConcurrency", () => {
         2,
       ),
     ).rejects.toBe(first);
+  });
+
+  it("reports the earliest failing item even when a later one fails first", async () => {
+    const earlier = new Error("earlier");
+    await expect(
+      mapWithConcurrency(
+        [0, 1],
+        async (item) => {
+          await flush();
+          if (item === 0) await flush();
+          throw item === 0 ? earlier : new Error("later");
+        },
+        2,
+      ),
+    ).rejects.toBe(earlier);
   });
 
   it("falls back to the default when the limit is not a finite number", async () => {

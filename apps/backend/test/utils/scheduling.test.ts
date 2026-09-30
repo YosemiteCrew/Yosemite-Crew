@@ -353,7 +353,7 @@ describe("scheduling utils", () => {
       expect(result.windows[0]?.vetIds).toEqual(["vet-1", "vet-2"]);
     });
 
-    it("never has more than five vet reads in flight", async () => {
+    it("never has more than two vet reads in flight", async () => {
       let inFlight = 0;
       let peak = 0;
       const vetIds = Array.from({ length: 8 }, (_, index) => `vet-${index}`);
@@ -372,7 +372,7 @@ describe("scheduling utils", () => {
         },
       });
 
-      expect(peak).toBe(5);
+      expect(peak).toBe(2);
     });
 
     it("shares one cached read for a vet listed twice", async () => {
@@ -412,7 +412,7 @@ describe("scheduling utils", () => {
         }),
       ).rejects.toThrow("availability down");
 
-      expect(started).toEqual(["vet-0", "vet-1", "vet-2", "vet-3", "vet-4"]);
+      expect(started).toEqual(["vet-0", "vet-1"]);
     });
   });
 
