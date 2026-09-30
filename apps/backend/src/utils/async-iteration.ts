@@ -31,6 +31,10 @@ export const mapInSequence = <T, R>(
 /**
  * Run `task` for every item with at most `limit` tasks in flight at once. Use
  * it for independent work, such as reads that do not affect each other.
+ *
+ * After the first failure no new item starts; tasks already running are
+ * allowed to settle before the first error is rethrown, so nothing is still
+ * running once the returned promise rejects.
  */
 export const mapWithConcurrency = async <T, R>(
   items: readonly T[],
@@ -39,22 +43,26 @@ export const mapWithConcurrency = async <T, R>(
 ): Promise<R[]> => {
   const results = new Array<R>(items.length);
   let nextIndex = 0;
-  let failed = false;
+  let failure: { error: unknown } | undefined;
 
   const worker = async (): Promise<void> => {
-    if (failed || nextIndex >= items.length) return;
+    if (failure || nextIndex >= items.length) return;
     const index = nextIndex;
     nextIndex += 1;
     try {
       results[index] = await task(items[index], index);
     } catch (error) {
-      failed = true;
-      throw error;
+      failure ??= { error };
+      return;
     }
     return worker();
   };
 
-  const workerCount = Math.min(Math.max(1, limit), items.length);
+  const cap = Number.isFinite(limit)
+    ? Math.max(1, Math.floor(limit))
+    : DEFAULT_CONCURRENCY;
+  const workerCount = Math.min(cap, items.length);
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  if (failure) throw failure.error;
   return results;
 };

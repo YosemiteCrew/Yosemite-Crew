@@ -148,4 +148,62 @@ describe("mapWithConcurrency", () => {
     await flush();
     expect(started).toEqual([0, 1]);
   });
+  it("lets tasks already running settle before rejecting", async () => {
+    const failure = new Error("boom");
+    const gate = deferred<number>();
+    let siblingSettled = false;
+    const run = mapWithConcurrency(
+      [0, 1],
+      (item) => {
+        if (item === 0) return Promise.reject(failure);
+        return gate.promise.then((value) => {
+          siblingSettled = true;
+          return value;
+        });
+      },
+      2,
+    );
+    let rejected = false;
+    run.catch(() => {
+      rejected = true;
+    });
+    await flush();
+    expect(rejected).toBe(false);
+    gate.resolve(1);
+    await expect(run).rejects.toBe(failure);
+    expect(siblingSettled).toBe(true);
+  });
+
+  it("rejects with the first failure when several tasks fail", async () => {
+    const first = new Error("first");
+    await expect(
+      mapWithConcurrency(
+        [0, 1],
+        async (item) => {
+          await flush();
+          if (item === 1) await flush();
+          throw item === 0 ? first : new Error("second");
+        },
+        2,
+      ),
+    ).rejects.toBe(first);
+  });
+
+  it("falls back to the default when the limit is not a finite number", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const results = await mapWithConcurrency(
+      Array.from({ length: 9 }, (_, i) => i),
+      async (item) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await flush();
+        inFlight -= 1;
+        return item;
+      },
+      Number.NaN,
+    );
+    expect(peak).toBe(5);
+    expect(results).toEqual(Array.from({ length: 9 }, (_, i) => i));
+  });
 });
