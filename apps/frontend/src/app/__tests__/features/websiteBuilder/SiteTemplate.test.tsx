@@ -55,6 +55,27 @@ describe('SiteTemplate', () => {
     expect(screen.getAllByText('Second paragraph.')).toHaveLength(2);
   });
 
+  it('keeps paragraph elements stable when the about text is reordered', () => {
+    const { rerender } = render(
+      <SiteTemplate
+        content={content({ about: 'First paragraph.\n\nSecond paragraph.' })}
+        practice={practice}
+        bookingHref={null}
+      />
+    );
+    const firstParagraph = screen.getByText('First paragraph.');
+
+    rerender(
+      <SiteTemplate
+        content={content({ about: 'Second paragraph.\n\nFirst paragraph.' })}
+        practice={practice}
+        bookingHref={null}
+      />
+    );
+
+    expect(screen.getByText('First paragraph.')).toBe(firstParagraph);
+  });
+
   it('omits a zero duration, empty sections, the tagline and the place when absent', () => {
     render(
       <SiteTemplate

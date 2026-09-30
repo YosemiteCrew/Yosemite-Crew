@@ -68,12 +68,21 @@ const About = ({ about }: { about: string | null }) => {
       <h2 id="site-about" className="text-[20px] font-semibold text-[var(--ink)]">
         About us
       </h2>
-      {parts.map((part, index) => (
-        // Paragraphs never reorder, and two identical ones must not share a key.
-        <p key={`${index}:${part}`} className="text-[15px] leading-relaxed text-[var(--ink-body)]">
-          {part}
-        </p>
-      ))}
+      {(() => {
+        const occurrences = new Map<string, number>();
+        return parts.map((part) => {
+          const occurrence = occurrences.get(part) ?? 0;
+          occurrences.set(part, occurrence + 1);
+          return (
+            <p
+              key={`${part}:${occurrence}`}
+              className="text-[15px] leading-relaxed text-[var(--ink-body)]"
+            >
+              {part}
+            </p>
+          );
+        });
+      })()}
     </section>
   );
 };
