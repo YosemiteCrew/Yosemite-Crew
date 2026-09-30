@@ -1465,9 +1465,13 @@ const applyInventoryConsumption = async (
     where: {
       itemId: params.inventoryItemId,
       organisationId: params.organisationId,
+      OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
       ...(params.batchId ? { id: params.batchId } : {}),
     },
-    orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
+    orderBy: [
+      { expiryDate: { sort: "asc", nulls: "last" } },
+      { createdAt: "asc" },
+    ],
   });
 
   for (const batch of batches) {
@@ -1487,8 +1491,8 @@ const applyInventoryConsumption = async (
 
   if (remaining > 0) {
     throw new InventoryConsumptionServiceError(
-      "Failed to consume full requested quantity",
-      500,
+      "Insufficient non-expired stock",
+      409,
     );
   }
 
