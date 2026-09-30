@@ -510,6 +510,7 @@
 }
 .yc-doc a {
   color: var(--blue-text);
+  overflow-wrap: anywhere;
   text-decoration: underline !important;
   text-underline-offset: 0.14em;
 }
