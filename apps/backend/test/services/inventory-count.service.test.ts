@@ -477,7 +477,6 @@ describe("InventoryCountService.reconcile", () => {
           inventoryBatchId: "batch-1",
           discrepancy: -3,
           resolution: "STOCK_ADJUSTED",
-          resolutionNotes: null,
         },
       }),
     );
@@ -502,12 +501,13 @@ describe("InventoryCountService.reconcile", () => {
       .mockResolvedValueOnce({ ...baseCount, reconciled: true });
     mockTx.$executeRaw.mockResolvedValue(1);
 
+    const resolutionNotes = "Checked delivery timing and recounted.";
     await InventoryCountService.reconcile(
       "count-1",
       "org-1",
       "user-2",
       "NO_CHANGE",
-      " Checked delivery timing and recounted. ",
+      ` ${resolutionNotes} `,
     );
 
     expect(mockTx.$executeRaw.mock.calls[0].slice(1)).toEqual([
@@ -520,6 +520,9 @@ describe("InventoryCountService.reconcile", () => {
       "org-1",
     ]);
     expect(mockTx.inventoryStockMovement.create).not.toHaveBeenCalled();
+    expect(mockAudit.mock.calls[0][0].metadata).not.toHaveProperty(
+      "resolutionNotes",
+    );
   });
 
   it("rejects stock adjustment for legacy counts that have no batch", async () => {
