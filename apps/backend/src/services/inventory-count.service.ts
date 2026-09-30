@@ -66,6 +66,99 @@ const assertBatchNotExpired = (expiryDate: Date | null) => {
   }
 };
 
+const STOCK_MOVED_MESSAGE =
+  "Stock changed after this count was recorded. Record a new count.";
+const BELOW_ALLOCATED_MESSAGE =
+  "The count is below stock already allocated for use.";
+
+type CountForAdjustment = {
+  inventoryItemId: string;
+  inventoryBatchId: string | null;
+  systemCount: number;
+  physicalCount: number;
+};
+
+/**
+ * Sets the counted batch to the physical count, only if it still holds the
+ * quantity the count was taken against. The conditional write is the guard: a
+ * dispense that committed after the count makes it match no row, so the count
+ * is refused instead of overwriting the dispense.
+ */
+const setBatchToCount = async (
+  tx: Prisma.TransactionClient,
+  count: CountForAdjustment,
+  organisationId: string,
+) => {
+  if (!count.inventoryBatchId) {
+    throw new InventoryCountError(
+      "Stock adjustments require a batch count.",
+      400,
+    );
+  }
+  const batch = await tx.inventoryBatch.findFirst({
+    where: {
+      id: count.inventoryBatchId,
+      itemId: count.inventoryItemId,
+      organisationId,
+    },
+    select: { id: true, quantity: true, allocated: true, expiryDate: true },
+  });
+  if (!batch) {
+    throw new InventoryCountError("Inventory batch not found.", 404);
+  }
+  assertBatchNotExpired(batch.expiryDate);
+  if (batch.quantity !== count.systemCount) {
+    throw new InventoryCountError(STOCK_MOVED_MESSAGE, 409);
+  }
+  if (count.physicalCount < batch.allocated) {
+    throw new InventoryCountError(BELOW_ALLOCATED_MESSAGE, 409);
+  }
+
+  const updated = await tx.$executeRaw`
+    UPDATE "InventoryBatch"
+    SET "quantity" = ${count.physicalCount}, "updatedAt" = ${new Date()}
+    WHERE "id" = ${batch.id}
+      AND "organisationId" = ${organisationId}
+      AND "quantity" = ${count.systemCount}
+      AND "allocated" <= ${count.physicalCount}
+  `;
+  if (updated !== 1) {
+    throw new InventoryCountError(STOCK_MOVED_MESSAGE, 409);
+  }
+  return batch.id;
+};
+
+/**
+ * Recomputes the item's on-hand total from its batches. The item row is locked
+ * first: the batch row is already locked, so this keeps the batch-then-item
+ * order the dispense path uses, and a dispense on another batch of this item
+ * that commits while we wait is included in the sum instead of overwritten.
+ */
+const syncItemOnHand = async (
+  tx: Prisma.TransactionClient,
+  itemId: string,
+  organisationId: string,
+) => {
+  const [lockedItem] = await tx.$queryRaw<{ allocated: number }[]>`
+    SELECT "allocated" FROM "InventoryItem"
+    WHERE "id" = ${itemId}
+      AND "organisationId" = ${organisationId}
+    FOR UPDATE
+  `;
+  if (!lockedItem) {
+    throw new InventoryCountError("Inventory item not found.", 404);
+  }
+  const totals = await tx.inventoryBatch.aggregate({
+    where: { itemId, organisationId },
+    _sum: { quantity: true },
+  });
+  const onHand = totals._sum.quantity ?? 0;
+  if (onHand < lockedItem.allocated) {
+    throw new InventoryCountError(BELOW_ALLOCATED_MESSAGE, 409);
+  }
+  await tx.inventoryItem.update({ where: { id: itemId }, data: { onHand } });
+};
+
 export const InventoryCountService = {
   async record(params: CreateCountParams) {
     const item = await prisma.inventoryItem.findFirst({
@@ -210,92 +303,12 @@ export const InventoryCountService = {
       }
 
       if (resolution === "STOCK_ADJUSTED") {
-        if (!existing.inventoryBatchId) {
-          throw new InventoryCountError(
-            "Stock adjustments require a batch count.",
-            400,
-          );
-        }
-        const batch = await tx.inventoryBatch.findFirst({
-          where: {
-            id: existing.inventoryBatchId,
-            itemId: existing.inventoryItemId,
-            organisationId,
-          },
-          select: {
-            id: true,
-            quantity: true,
-            allocated: true,
-            expiryDate: true,
-          },
-        });
-        if (!batch) {
-          throw new InventoryCountError("Inventory batch not found.", 404);
-        }
-        assertBatchNotExpired(batch.expiryDate);
-        if (batch.quantity !== existing.systemCount) {
-          throw new InventoryCountError(
-            "Stock changed after this count was recorded. Record a new count.",
-            409,
-          );
-        }
-        if (existing.physicalCount < batch.allocated) {
-          throw new InventoryCountError(
-            "The count is below stock already allocated for use.",
-            409,
-          );
-        }
-
-        const updatedBatchCount = await tx.$executeRaw`
-          UPDATE "InventoryBatch"
-          SET "quantity" = ${existing.physicalCount}, "updatedAt" = ${new Date()}
-          WHERE "id" = ${batch.id}
-            AND "organisationId" = ${organisationId}
-            AND "quantity" = ${existing.systemCount}
-            AND "allocated" <= ${existing.physicalCount}
-        `;
-        if (updatedBatchCount !== 1) {
-          throw new InventoryCountError(
-            "Stock changed after this count was recorded. Record a new count.",
-            409,
-          );
-        }
-
-        // Lock the item row before summing its batches. The batch row is
-        // already locked above, so this keeps the batch-then-item order the
-        // dispense path uses, and a dispense on another batch of this item that
-        // commits while we wait is included in the sum instead of overwritten.
-        const [lockedItem] = await tx.$queryRaw<{ allocated: number }[]>`
-          SELECT "allocated" FROM "InventoryItem"
-          WHERE "id" = ${existing.inventoryItemId}
-            AND "organisationId" = ${organisationId}
-          FOR UPDATE
-        `;
-        if (!lockedItem) {
-          throw new InventoryCountError("Inventory item not found.", 404);
-        }
-        const totals = await tx.inventoryBatch.aggregate({
-          where: {
-            itemId: existing.inventoryItemId,
-            organisationId,
-          },
-          _sum: { quantity: true },
-        });
-        const onHand = totals._sum.quantity ?? 0;
-        if (onHand < lockedItem.allocated) {
-          throw new InventoryCountError(
-            "The count is below stock already allocated for use.",
-            409,
-          );
-        }
-        await tx.inventoryItem.update({
-          where: { id: existing.inventoryItemId },
-          data: { onHand },
-        });
+        const batchId = await setBatchToCount(tx, existing, organisationId);
+        await syncItemOnHand(tx, existing.inventoryItemId, organisationId);
         await tx.inventoryStockMovement.create({
           data: {
             itemId: existing.inventoryItemId,
-            batchId: batch.id,
+            batchId,
             change: existing.discrepancy,
             reason: "INVENTORY_COUNT_ADJUSTMENT",
             userId: reconciledBy,
