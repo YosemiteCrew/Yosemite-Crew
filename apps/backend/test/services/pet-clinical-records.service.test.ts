@@ -173,6 +173,7 @@ describe("PetClinicalRecordService.recordImmunization", () => {
           kind: "IMMUNIZATION",
           status: "DRAFT",
           encounterId: "enc-1",
+          patientId: "pat-1",
         }),
       }),
     );
@@ -245,6 +246,14 @@ describe("PetClinicalRecordService.recordParasiteTreatment", () => {
       CTX,
       input,
     );
+    expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "PARASITE_TREATMENT",
+          patientId: "pat-1",
+        }),
+      }),
+    );
     expect(dto).toMatchObject({
       treatmentType: "ECHINOCOCCUS",
       productName: "Milbemax",
@@ -287,6 +296,14 @@ describe("PetClinicalRecordService.recordRabiesTitration", () => {
     const dto = await PetClinicalRecordService.recordRabiesTitration(
       CTX,
       input,
+    );
+    expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "RABIES_TITRATION",
+          patientId: "pat-1",
+        }),
+      }),
     );
     expect(dto).toMatchObject({ approvedLab: "EU Lab", resultIuMl: 0.8 });
     expect(auditMock).toHaveBeenCalledWith(
@@ -372,7 +389,10 @@ describe("PetClinicalRecordService.recordClinicalExam", () => {
     const dto = await PetClinicalRecordService.recordClinicalExam(CTX, input);
     expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ kind: "CLINICAL_EXAM" }),
+        data: expect.objectContaining({
+          kind: "CLINICAL_EXAM",
+          patientId: "pat-1",
+        }),
       }),
     );
     expect(dto).toMatchObject({
@@ -479,17 +499,69 @@ describe("PetClinicalRecordService.attestRecord", () => {
     expect(prismaMock.clinicalArtifact.update).not.toHaveBeenCalled();
   });
 
-  it("404s when the record has no encounter to prove ownership", async () => {
+  it("404s when the record has neither an encounter nor a patient of its own", async () => {
+    // A row written before the patient column existed, or one whose writer
+    // could not name the animal. Nothing to prove ownership from.
     prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
       id: "art-1",
       version: 3,
       status: "DRAFT",
       encounterId: null,
+      patientId: null,
       kind: "IMMUNIZATION",
     });
     await expect(
       PetClinicalRecordService.attestRecord(args),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("reads the patient off a record written without an encounter (#2704)", async () => {
+    // The point of the patient column: a record written outside a visit still
+    // reaches its own owner, instead of failing closed forever.
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
+      id: "art-1",
+      version: 3,
+      status: "DRAFT",
+      encounterId: null,
+      patientId: "pat-1",
+      kind: "IMMUNIZATION",
+    });
+    await PetClinicalRecordService.attestRecord(args);
+    expect(prismaMock.clinicalArtifact.update).toHaveBeenCalled();
+  });
+
+  it("404s a record with no encounter whose own patient is a different animal", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
+      id: "art-1",
+      version: 3,
+      status: "DRAFT",
+      encounterId: null,
+      patientId: "pat-9",
+      kind: "IMMUNIZATION",
+    });
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.clinicalArtifact.update).not.toHaveBeenCalled();
+  });
+
+  it("takes the encounter's patient over the record's own when the two disagree", async () => {
+    // One of the two columns has been tampered with. Resolving by preference
+    // would hand the requester a record the encounter does not belong to them
+    // for, so the disagreement fails closed.
+    prismaMock.encounter.findUnique.mockResolvedValue({ patientId: "pat-9" });
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
+      id: "art-1",
+      version: 3,
+      status: "DRAFT",
+      encounterId: "enc-1",
+      patientId: "pat-1",
+      kind: "IMMUNIZATION",
+    });
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.clinicalArtifact.update).not.toHaveBeenCalled();
   });
 
   it("audits the event matching the record kind, not always vaccination", async () => {

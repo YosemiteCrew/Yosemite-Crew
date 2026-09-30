@@ -3103,6 +3103,13 @@ model ClinicalArtifact {
   appointmentId     String?
   caseId            String?
   encounterId       String?
+  // The animal this record is about, set when the artifact is written from
+  // whatever the writer demonstrably knows (its encounter, case or
+  // appointment), so an artifact with no encounter still reaches the owner
+  // (#2704). Nullable with no default: rows written before it read NULL and
+  // keep resolving through encounterId. Making it NOT NULL later needs an
+  // expand/backfill/contract sequence, not a single migration.
+  patientId         String?
   kind              ClinicalArtifactKind
   status            ClinicalArtifactStatus @default(DRAFT)
   templateId        String?
@@ -3144,6 +3151,7 @@ model ClinicalArtifact {
   // been seen at several practices - so it filters on encounterId alone and no
   // organisationId-leading index above applies to it. See #2709.
   @@index([encounterId, status])
+  @@index([patientId, status])
 }
 
 model SoapNote {
