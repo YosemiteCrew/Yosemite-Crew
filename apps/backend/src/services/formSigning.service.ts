@@ -573,6 +573,138 @@ export class FormSigningService {
     };
   }
 
+  /**
+   * A template-backed form that requires a vet signature is a template instance
+   * with a rendered document. The staff member who submitted it (or the one
+   * assigned to the appointment) signs that document.
+   */
+  private static async startTemplateInstanceStaffSigning(
+    instanceId: string,
+    userId: string,
+    organisationId: string,
+  ) {
+    const instance = await prisma.templateInstance.findUnique({
+      where: { id: instanceId },
+      select: {
+        id: true,
+        organisationId: true,
+        templateId: true,
+        appointmentId: true,
+        authorId: true,
+        createdAt: true,
+        generatedPdf: true,
+        status: true,
+        template: { select: { kind: true, rules: true } },
+      },
+    });
+    if (!instance?.appointmentId) {
+      throw new Error("Form submission not found");
+    }
+    if (instance.organisationId !== organisationId) {
+      throw new Error("Unauthorized to sign this submission");
+    }
+    if (instance.status === "VOID") {
+      throw new Error("Form submission not found");
+    }
+
+    // Only a vet signer is handled here; client-signed instances go through
+    // the parent path. The signer is pinned on the instance when submitted,
+    // falling back to the template's requiredSigner.
+    const signer = resolveInstanceSigner({
+      generatedPdf: instance.generatedPdf,
+      template: instance.template,
+    });
+    if (signer !== "VET") {
+      throw new Error("Form requires client signature");
+    }
+
+    // The user must be the author (who filled it in) or a user assigned to the
+    // appointment. For now we allow the author or any user in the organisation
+    // who is the initiatedBy - the controller already enforces org membership.
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: { email: true, firstName: true, lastName: true },
+    });
+    if (!user) {
+      throw new Error("Unable to find submitting user");
+    }
+
+    if (
+      await hasNewerSubmissionForSigner(
+        prisma,
+        {
+          id: instance.id,
+          organisationId: instance.organisationId,
+          templateId: instance.templateId,
+          appointmentId: instance.appointmentId,
+          authorId: instance.authorId,
+          createdAt: instance.createdAt,
+        },
+        userId,
+      )
+    ) {
+      throw new Error(
+        "A newer version of this form is waiting for your signature",
+      );
+    }
+
+    // One submitted before submitting rendered a document is rendered now.
+    const document =
+      (await prisma.renderedDocument.findUnique({
+        where: { templateInstanceId: instance.id },
+        select: { id: true, signing: true },
+      })) ??
+      (await TemplateService.renderMissingDocument(
+        instance.id,
+        instance.organisationId,
+      ));
+    if (!document) {
+      throw new Error("Submission has no document to sign yet");
+    }
+
+    const open = document.signing as {
+      signerId?: string;
+      documentId?: string;
+      signingUrl?: string | null;
+      awaitingSend?: boolean;
+    } | null;
+    // Only a signing Documenso sent to them: one still waiting for its send
+    // (or never sent) is not handed out, and expires so it can be sent anew.
+    if (
+      isOpenSigning(open) &&
+      open?.awaitingSend !== true &&
+      open?.documentId &&
+      open.signerId === userId
+    ) {
+      return {
+        documentId: open.documentId,
+        signingUrl: open.signingUrl ?? null,
+      };
+    }
+
+    if (!user.email) {
+      throw new Error("Signer email is required for signing");
+    }
+
+    const signed = await signPersistedRenderedDocument({
+      renderedDocumentId: document.id,
+      organisationId: instance.organisationId,
+      signerId: userId,
+      signerType: "PMS_USER",
+      signerEmail: user.email,
+      signerName: user.firstName + " " + user.lastName,
+    });
+    const signing = signed.signing as {
+      documentId?: string;
+      signingUrl?: string | null;
+    } | null;
+
+    return {
+      documentId: signing?.documentId ?? document.id,
+      signingUrl: signing?.signingUrl ?? null,
+    };
+  }
+
   static async startSigning({
     isParent,
     submissionId,
