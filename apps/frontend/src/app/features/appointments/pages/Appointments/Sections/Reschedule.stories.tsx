@@ -178,32 +178,43 @@ const dialogQueries = async () => {
   return within(openDialog() as HTMLElement);
 };
 
-const menuOptionLabels = async () => {
-  await waitFor(() => expect(openMenu()).not.toBeNull());
-  return within(openMenu() as HTMLElement)
-    .getAllByRole('option')
-    .map((option) => option.textContent);
-};
+/** Reads the open menu's options in one pass, so the panel is found and read together. */
+const menuOptionLabels = async () =>
+  waitFor(
+    () => {
+      const menu = openMenu();
+      expect(menu).not.toBeNull();
+      return within(menu as HTMLElement)
+        .getAllByRole('option')
+        .map((option) => option.textContent);
+    },
+    { timeout: 3000 }
+  );
 
 /**
- * Waits for the date strip to stop moving. Slotpicker smooth-scrolls the selected
- * day into the centre on mount, and LabelDropdown dismisses itself on any scroll
- * outside its own panel - so opening the lead picker mid-animation closes it a
- * frame later and the play function reads a real option list as empty.
+ * Waits for the date strip to finish its scroll. Slotpicker smooth-scrolls the
+ * selected day into the centre on mount, and LabelDropdown dismisses itself on any
+ * scroll outside its own panel - so opening the lead picker mid-animation closes it
+ * a frame later and the play function reads a real option list as empty. Two equal
+ * readings are not enough on a slow runner (the animation may not have started
+ * yet), so this waits for the strip to reach the centred position itself.
  */
 const settleDateStrip = async (dialog: HTMLElement) => {
   const scrollLeftButton = dialog.querySelector('[aria-label="Scroll dates left"]');
   const strip = scrollLeftButton?.nextElementSibling as HTMLElement | null;
   expect(strip).not.toBeNull();
-  let previous = Number.NaN;
+  const stripEl = strip as HTMLElement;
   await waitFor(
     () => {
-      const current = (strip as HTMLElement).scrollLeft;
-      const settled = current === previous;
-      previous = current;
-      expect(settled).toBe(true);
+      const day = stripEl.querySelector<HTMLElement>('button[aria-pressed="true"]');
+      expect(day).not.toBeNull();
+      const selectedDay = day as HTMLElement;
+      const centred =
+        selectedDay.offsetLeft - stripEl.offsetWidth / 2 + selectedDay.offsetWidth / 2;
+      const target = Math.max(0, Math.min(centred, stripEl.scrollWidth - stripEl.clientWidth));
+      expect(Math.abs(stripEl.scrollLeft - target)).toBeLessThanOrEqual(1);
     },
-    { interval: 100 }
+    { interval: 100, timeout: 3000 }
   );
 };
 
