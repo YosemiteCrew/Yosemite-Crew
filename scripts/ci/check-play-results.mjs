@@ -22,6 +22,7 @@
 import { appendFileSync, existsSync, readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
+import { resolveWithin } from './safe-path.mjs';
 
 const STORY_LINK = /[?&]path=\/story\/([\w-]+)/;
 
@@ -89,9 +90,17 @@ const escapeCell = (text) =>
     .slice(0, 300);
 
 export const main = (argv, env = process.env) => {
-  const [file] = argv;
-  if (!file) {
+  const [arg] = argv;
+  if (!arg) {
     console.error('usage: check-play-results.mjs <jest-json-results>');
+    return 2;
+  }
+  // The results file is only ever the runner's own output in the job's temp
+  // directory, so anything resolving outside it, or not a .json file, is refused.
+  const root = env.RUNNER_TEMP || process.cwd();
+  const file = arg.endsWith('.json') ? resolveWithin(root, arg) : null;
+  if (!file) {
+    console.error(`check-play-results: ${arg} is not a .json file inside ${root}`);
     return 2;
   }
   if (!existsSync(file)) {

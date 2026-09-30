@@ -23,7 +23,7 @@ const run = (argv, env = {}) => {
   console.log = () => {};
   console.error = (line) => (stderr += `${line}\n`);
   try {
-    return main(argv, env);
+    return main(argv, { RUNNER_TEMP: dir, ...env });
   } finally {
     Object.assign(console, { log, error });
   }
@@ -192,6 +192,15 @@ test('the step summary says when a run was not real', () => {
   assert.match(readFileSync(summary, 'utf8'), /\*\*Not a real run:\*\* only 0 of 3 tests passed/);
 });
 
+test('a results path outside the temp directory is refused', () => {
+  assert.equal(run([join(dir, '..', 'elsewhere.json')]), 2);
+  assert.match(stderr, /is not a \.json file inside/);
+});
+
+test('a results path that is not JSON is refused', () => {
+  assert.equal(run([write('results.txt', results())]), 2);
+});
+
 test('no argument is a usage error', () => {
   assert.equal(run([]), 2);
 });
@@ -207,7 +216,7 @@ for (const path of [script, join(linkedDir, 'check-play-results.mjs')]) {
   test(`the CLI fails on a missing results file (${path === script ? 'real' : 'symlinked'} path)`, () => {
     const { status, stderr: err } = spawnSync(process.execPath, [path, join(dir, 'absent.json')], {
       encoding: 'utf8',
-      env: { ...process.env, GITHUB_STEP_SUMMARY: '' },
+      env: { ...process.env, GITHUB_STEP_SUMMARY: '', RUNNER_TEMP: dir },
     });
     assert.equal(status, 1);
     assert.match(err, /was not written/);
@@ -217,7 +226,7 @@ for (const path of [script, join(linkedDir, 'check-play-results.mjs')]) {
 test('the CLI passes a real run', () => {
   const { status } = spawnSync(process.execPath, [script, write('cli-ok.json', results())], {
     encoding: 'utf8',
-    env: { ...process.env, GITHUB_STEP_SUMMARY: '' },
+    env: { ...process.env, GITHUB_STEP_SUMMARY: '', RUNNER_TEMP: dir },
   });
   assert.equal(status, 0);
 });
