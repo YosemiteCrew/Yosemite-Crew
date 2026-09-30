@@ -618,6 +618,8 @@ describe("AppointmentPrismaService", () => {
       ).toBeGreaterThan(
         mockedPrisma.appointment.findFirst.mock.invocationCallOrder[0],
       );
+      expect(mockedPrisma.calendarBlock.findMany).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.calendarBlock.findFirst).not.toHaveBeenCalled();
       expect(mockedCompanionOrgService.linkByPmsUser).toHaveBeenCalledWith({
         pmsUserId: "staff_1",
         patientId: "comp_1",
@@ -771,9 +773,14 @@ describe("AppointmentPrismaService", () => {
     });
 
     it("refuses a series move onto a blocked vet", async () => {
-      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
-        targetType: "STAFF",
-      });
+      mockedPrisma.calendarBlock.findMany.mockResolvedValue([
+        {
+          targetType: "STAFF",
+          targetId: "vet_1",
+          startAt: new Date("2026-03-29T08:00:00.000Z"),
+          endAt: new Date("2026-03-29T08:30:00.000Z"),
+        },
+      ]);
 
       await expect(
         AppointmentPrismaService.rescheduleAppointmentSeriesFromPms(
@@ -782,6 +789,8 @@ describe("AppointmentPrismaService", () => {
           request,
         ),
       ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.calendarBlock.findMany).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.calendarBlock.findFirst).not.toHaveBeenCalled();
     });
 
     it("reschedules all following occurrences atomically in local time", async () => {
@@ -816,6 +825,8 @@ describe("AppointmentPrismaService", () => {
           }),
         }),
       );
+      expect(mockedPrisma.calendarBlock.findMany).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.calendarBlock.findFirst).not.toHaveBeenCalled();
     });
 
     it("keeps each later appointment with its own lead when the change names none", async () => {

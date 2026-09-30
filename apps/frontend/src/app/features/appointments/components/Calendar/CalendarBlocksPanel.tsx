@@ -176,18 +176,98 @@ const CalendarBlockEditor = ({
   </Modal>
 );
 
-const CalendarBlocksPanel = ({
+type CalendarBlockListProps = {
+  blocks: CalendarBlock[];
+  teams: Team[];
+  rooms: OrganisationRoom[];
+  canEdit: boolean;
+  onEdit: (block: CalendarBlock) => void;
+  onCancel: (id: string) => void;
+};
+
+const getTargetName = (block: CalendarBlock, teams: Team[], rooms: OrganisationRoom[]): string => {
+  const target =
+    block.targetType === 'ROOM'
+      ? rooms.find((room) => room.id === block.targetId)
+      : teams.find(
+          (member) => member.practionerId === block.targetId || member._id === block.targetId
+        );
+  return target?.name || (block.targetType === 'ROOM' ? 'Room' : 'Staff member');
+};
+
+const CalendarBlockList = ({
   blocks,
   teams,
   rooms,
   canEdit,
+  onEdit,
+  onCancel,
+}: CalendarBlockListProps) => (
+  <section
+    aria-label="Calendar blocks"
+    className="flex shrink-0 items-center gap-2 overflow-x-auto border-b px-3 py-2"
+    style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--inset)' }}
+  >
+    <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+      Blocks
+    </span>
+    {blocks.map((block) => {
+      const name = getTargetName(block, teams, rooms);
+      return (
+        <div
+          key={block.id}
+          className="flex max-w-[min(28rem,80vw)] shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1.5"
+          style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--screen)' }}
+        >
+          <IoTimeOutline
+            size={14}
+            aria-hidden="true"
+            className="shrink-0 text-[var(--blue-text)]"
+          />
+          <span
+            className="min-w-0 truncate text-[12px] text-[var(--ink)]"
+            title={`${block.reason} · ${name}`}
+          >
+            <strong>{block.reason}</strong>
+            <span className="text-[var(--ink-muted)]">
+              {' '}
+              · {name} · {displayTimeRange(block.startAt, block.endAt)}
+            </span>
+          </span>
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                aria-label={`Edit ${block.reason}`}
+                onClick={() => onEdit(block)}
+                className="rounded-full p-1 text-[var(--ink-muted)] hover:bg-card-hover hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+              >
+                <IoPencil size={13} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Cancel ${block.reason}`}
+                onClick={() => onCancel(block.id)}
+                className="rounded-full p-1 text-[var(--ink-muted)] hover:bg-card-hover hover:text-[var(--danger-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+              >
+                <IoClose size={15} aria-hidden="true" />
+              </button>
+            </>
+          )}
+        </div>
+      );
+    })}
+  </section>
+);
+
+const useCalendarBlockEditor = ({
+  teams,
+  rooms,
   onSave,
-  onDelete,
-}: CalendarBlocksPanelProps) => {
+}: Pick<CalendarBlocksPanelProps, 'teams' | 'rooms' | 'onSave'>) => {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [feedback, setFeedback] = useState('');
   const targetOptions = useMemo(
     () =>
       draft?.targetType === 'ROOM'
@@ -198,17 +278,6 @@ const CalendarBlocksPanel = ({
           })),
     [draft?.targetType, rooms, teams]
   );
-  const targetName = (block: CalendarBlock): string => {
-    const source = block.targetType === 'ROOM' ? rooms : teams;
-    const target =
-      block.targetType === 'ROOM'
-        ? (source as OrganisationRoom[]).find((item) => item.id === block.targetId)
-        : (source as Team[]).find(
-            (item) => item.practionerId === block.targetId || item._id === block.targetId
-          );
-    return target?.name || (block.targetType === 'ROOM' ? 'Room' : 'Staff member');
-  };
-
   const beginEdit = (block: CalendarBlock) => {
     setError('');
     setDraft({
@@ -220,15 +289,15 @@ const CalendarBlocksPanel = ({
       reason: block.reason,
     });
   };
-
-  const submit = async (event: React.FormEvent<HTMLFormElement>, activeDraft: Draft) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!activeDraft.targetId) {
+    if (!draft) return;
+    if (!draft.targetId) {
       setError('Choose a staff member or room.');
       return;
     }
-    const startAt = fromDateTimeInputInPreferredTimeZone(activeDraft.startAt);
-    const endAt = fromDateTimeInputInPreferredTimeZone(activeDraft.endAt);
+    const startAt = fromDateTimeInputInPreferredTimeZone(draft.startAt);
+    const endAt = fromDateTimeInputInPreferredTimeZone(draft.endAt);
     if (!startAt || !endAt) {
       setError('Choose when the block starts and ends.');
       return;
@@ -240,12 +309,12 @@ const CalendarBlocksPanel = ({
     setSaving(true);
     setError('');
     try {
-      await onSave(activeDraft.id, {
-        targetType: activeDraft.targetType,
-        targetId: activeDraft.targetId,
+      await onSave(draft.id, {
+        targetType: draft.targetType,
+        targetId: draft.targetId,
         startAt: startAt.toISOString(),
         endAt: endAt.toISOString(),
-        reason: activeDraft.reason.trim(),
+        reason: draft.reason.trim(),
       });
       setDraft(null);
     } catch {
@@ -254,67 +323,36 @@ const CalendarBlocksPanel = ({
       setSaving(false);
     }
   };
+  return { draft, setDraft, error, setError, saving, targetOptions, beginEdit, submit };
+};
+
+const CalendarBlocksPanel = ({
+  blocks,
+  teams,
+  rooms,
+  canEdit,
+  onSave,
+  onDelete,
+}: CalendarBlocksPanelProps) => {
+  const [feedback, setFeedback] = useState('');
+  const editor = useCalendarBlockEditor({ teams, rooms, onSave });
 
   return (
     <>
       {blocks.length > 0 && (
-        <section
-          aria-label="Calendar blocks"
-          className="flex shrink-0 items-center gap-2 overflow-x-auto border-b px-3 py-2"
-          style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--inset)' }}
-        >
-          <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
-            Blocks
-          </span>
-          {blocks.map((block) => (
-            <div
-              key={block.id}
-              className="flex max-w-[min(28rem,80vw)] shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1.5"
-              style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--screen)' }}
-            >
-              <IoTimeOutline
-                size={14}
-                aria-hidden="true"
-                className="shrink-0 text-[var(--blue-text)]"
-              />
-              <span
-                className="min-w-0 truncate text-[12px] text-[var(--ink)]"
-                title={`${block.reason} · ${targetName(block)}`}
-              >
-                <strong>{block.reason}</strong>
-                <span className="text-[var(--ink-muted)]">
-                  {' '}
-                  · {targetName(block)} · {displayTimeRange(block.startAt, block.endAt)}
-                </span>
-              </span>
-              {canEdit && (
-                <>
-                  <button
-                    type="button"
-                    aria-label={`Edit ${block.reason}`}
-                    onClick={() => beginEdit(block)}
-                    className="rounded-full p-1 text-[var(--ink-muted)] hover:bg-card-hover hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-                  >
-                    <IoPencil size={13} aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Cancel ${block.reason}`}
-                    onClick={() => {
-                      setFeedback('');
-                      void onDelete(block.id).catch(() =>
-                        setFeedback('Could not cancel this block. Please try again.')
-                      );
-                    }}
-                    className="rounded-full p-1 text-[var(--ink-muted)] hover:bg-card-hover hover:text-[var(--danger-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-                  >
-                    <IoClose size={15} aria-hidden="true" />
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
-        </section>
+        <CalendarBlockList
+          blocks={blocks}
+          teams={teams}
+          rooms={rooms}
+          canEdit={canEdit}
+          onEdit={editor.beginEdit}
+          onCancel={(id) => {
+            setFeedback('');
+            void onDelete(id).catch(() =>
+              setFeedback('Could not cancel this block. Please try again.')
+            );
+          }}
+        />
       )}
       {feedback && (
         <p role="alert" className="px-3 py-1 text-[12px] text-[var(--danger-text)]">
@@ -329,8 +367,8 @@ const CalendarBlocksPanel = ({
           <button
             type="button"
             onClick={() => {
-              setError('');
-              setDraft(emptyDraft());
+              editor.setError('');
+              editor.setDraft(emptyDraft());
             }}
             className="rounded-full px-3 py-1 text-[12px] font-semibold text-[var(--blue-text)] hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
           >
@@ -338,15 +376,15 @@ const CalendarBlocksPanel = ({
           </button>
         </div>
       )}
-      {draft && (
+      {editor.draft && (
         <CalendarBlockEditor
-          draft={draft}
-          targetOptions={targetOptions}
-          error={error}
-          saving={saving}
-          onClose={() => setDraft(null)}
-          onSubmit={(event) => void submit(event, draft)}
-          onChange={setDraft}
+          draft={editor.draft}
+          targetOptions={editor.targetOptions}
+          error={editor.error}
+          saving={editor.saving}
+          onClose={() => editor.setDraft(null)}
+          onSubmit={(event) => void editor.submit(event)}
+          onChange={editor.setDraft}
         />
       )}
     </>
