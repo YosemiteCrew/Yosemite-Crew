@@ -2,11 +2,11 @@ export type MenuAction = {
   key: string;
   label: string;
   destructive?: boolean;
-  submenu?: 'status' | 'room';
+  submenu?: 'status' | 'room' | 'cancel-series';
   onSelect?: () => void | Promise<void>;
 };
 
-export type MenuSubmenu = 'status' | 'room' | null;
+export type MenuSubmenu = 'status' | 'room' | 'cancel-series' | null;
 
 export type RoomOption = {
   key: string;

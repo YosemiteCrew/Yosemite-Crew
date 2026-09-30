@@ -20,7 +20,7 @@ type RescheduleRequestBody = {
   durationMinutes?: number;
 };
 
-type CancelBody = { reason?: string };
+type CancelBody = { reason?: string; scope?: "this" | "following" };
 
 type UploadUrlBody = { patientId?: string; mimeType?: string };
 type AttachFormsBody = { formIds?: string[] };
@@ -163,6 +163,30 @@ const admitAppointmentSchema = z.object({
   assignmentReason: z.string().trim().min(1).optional(),
 });
 
+const appointmentOccurrenceSchema = z.object({
+  startTime: z.iso.datetime(),
+  endTime: z.iso.datetime(),
+});
+const weeklySeriesOccurrencesSchema = z
+  .array(appointmentOccurrenceSchema)
+  .min(2)
+  .max(52);
+const weeklySeriesCreateSchema = z.object({
+  appointment: z.unknown(),
+  timeZone: z.string().trim().min(1).max(100),
+  occurrences: weeklySeriesOccurrencesSchema,
+});
+const weeklySeriesPreviewSchema = z.object({
+  leadId: z.string().trim().min(1),
+  timeZone: z.string().trim().min(1).max(100),
+  occurrences: weeklySeriesOccurrencesSchema,
+});
+const cancellationScopeSchema = z.object({
+  reason: z.string().optional(),
+  scope: z.enum(["this", "following"]).optional(),
+});
+const updateScopeSchema = z.enum(["following"]).optional();
+
 export const AppointmentController = {
   createRequestedFromMobile: async (
     req: Request<unknown, unknown, AppointmentRequestDTO>,
@@ -302,6 +326,97 @@ export const AppointmentController = {
         res,
         err,
         "Failed to create appointment (PMS)",
+      );
+    }
+  },
+
+  previewWeeklySeries: async (req: Request, res: Response) => {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+      const parsed = weeklySeriesPreviewSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res
+          .status(400)
+          .json({ message: "The weekly series is invalid." });
+      }
+      const occurrences = parsed.data.occurrences.map((occurrence) => ({
+        startTime: new Date(occurrence.startTime),
+        endTime: new Date(occurrence.endTime),
+      }));
+      const data =
+        await AppointmentPrismaService.previewWeeklyAppointmentSeries(
+          organisationId,
+          parsed.data.leadId,
+          occurrences,
+          parsed.data.timeZone,
+        );
+      return res.status(200).json({ message: "Series preview ready", data });
+    } catch (err: unknown) {
+      logger.error("Appointment series preview error", err);
+      return sendAppointmentError(
+        res,
+        err,
+        "Failed to preview appointment series",
+      );
+    }
+  },
+
+  createWeeklySeriesFromPms: async (req: Request, res: Response) => {
+    try {
+      const authorisedOrganisationId = resolveAuthorizedOrganisationId(req);
+      if (!authorisedOrganisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+      const parsed = weeklySeriesCreateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res
+          .status(400)
+          .json({ message: "The weekly series is invalid." });
+      }
+      const parsedAppointment = tenantGuardBodySchema.safeParse(
+        parsed.data.appointment,
+      );
+      if (!parsedAppointment.success) {
+        return res
+          .status(400)
+          .json({ message: "The appointment details are invalid." });
+      }
+      const bodyOrganisationId = resolveBodyOrganisationId(
+        parsedAppointment.data,
+      );
+      if (
+        bodyOrganisationId &&
+        bodyOrganisationId !== bareOrganisationId(authorisedOrganisationId)
+      ) {
+        return res.status(403).json({
+          message:
+            "The appointment names a different organisation from this request.",
+        });
+      }
+      const occurrences = parsed.data.occurrences.map((occurrence) => ({
+        startTime: new Date(occurrence.startTime),
+        endTime: new Date(occurrence.endTime),
+      }));
+      const data =
+        await AppointmentPrismaService.createWeeklyAppointmentSeriesFromPms(
+          parsed.data.appointment as AppointmentRequestDTO,
+          occurrences,
+          parsed.data.timeZone,
+          undefined,
+          resolveVerifiedUserId(req),
+        );
+      return res
+        .status(201)
+        .json({ message: "Appointment series created", data });
+    } catch (err: unknown) {
+      logger.error("Appointment series creation error", err);
+      return sendAppointmentError(
+        res,
+        err,
+        "Failed to create appointment series",
       );
     }
   },
@@ -488,18 +603,92 @@ export const AppointmentController = {
   },
 
   updateFromPms: async (
-    req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
+    req: Request<
+      { appointmentId: string; organisationId: string },
+      unknown,
+      AppointmentRequestDTO
+    >,
     res: Response,
   ) => {
     try {
-      const data = await AppointmentPrismaService.updateAppointmentPMS(
-        req.params.appointmentId,
-        req.body,
-      );
+      const parsedScope = updateScopeSchema.safeParse(req.query.scope);
+      if (!parsedScope.success) {
+        return res
+          .status(400)
+          .json({ message: "The update scope is invalid." });
+      }
+      let data;
+      if (parsedScope.data === "following") {
+        const organisationId = resolveAuthorizedOrganisationId(req);
+        if (!organisationId) {
+          return res.status(400).json({ message: "Missing organisationId" });
+        }
+        data =
+          await AppointmentPrismaService.rescheduleAppointmentSeriesFromPms(
+            req.params.appointmentId,
+            organisationId,
+            req.body,
+          );
+      } else {
+        data = await AppointmentPrismaService.updateAppointmentPMS(
+          req.params.appointmentId,
+          req.body,
+        );
+      }
       return res.status(200).json({ message: "Appointment updated", data });
     } catch (err: unknown) {
       logger.error("Appointment update error", err);
       return sendAppointmentError(res, err, "Failed to update appointment");
+    }
+  },
+
+  previewAppointmentSeriesReschedule: async (
+    req: Request<
+      { organisationId: string; appointmentId: string },
+      unknown,
+      AppointmentRequestDTO
+    >,
+    res: Response,
+  ) => {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+      const parsedAppointment = tenantGuardBodySchema.safeParse(req.body);
+      if (!parsedAppointment.success) {
+        return res
+          .status(400)
+          .json({ message: "The appointment details are invalid." });
+      }
+      const bodyOrganisationId = resolveBodyOrganisationId(
+        parsedAppointment.data,
+      );
+      if (
+        bodyOrganisationId &&
+        bodyOrganisationId !== bareOrganisationId(organisationId)
+      ) {
+        return res.status(403).json({
+          message:
+            "The appointment names a different organisation from this request.",
+        });
+      }
+      const data =
+        await AppointmentPrismaService.previewAppointmentSeriesReschedule(
+          req.params.appointmentId,
+          organisationId,
+          req.body,
+        );
+      return res
+        .status(200)
+        .json({ message: "Series reschedule preview ready", data });
+    } catch (err: unknown) {
+      logger.error("Appointment series reschedule preview error", err);
+      return sendAppointmentError(
+        res,
+        err,
+        "Failed to preview appointment series reschedule",
+      );
     }
   },
 
@@ -560,10 +749,22 @@ export const AppointmentController = {
       if (!organisationId) {
         return res.status(400).json({ message: "Missing organisationId" });
       }
-      const data = await AppointmentPrismaService.cancelAppointment(
-        req.params.appointmentId,
-        organisationId,
-      );
+      const parsedBody = cancellationScopeSchema.safeParse(req.body ?? {});
+      if (!parsedBody.success) {
+        return res
+          .status(400)
+          .json({ message: "The cancellation scope is invalid." });
+      }
+      const data =
+        parsedBody.data.scope === "following"
+          ? await AppointmentPrismaService.cancelAppointmentSeriesFromPms(
+              req.params.appointmentId,
+              organisationId,
+            )
+          : await AppointmentPrismaService.cancelAppointment(
+              req.params.appointmentId,
+              organisationId,
+            );
       return res.status(200).json({ message: "Appointment cancelled", data });
     } catch (err: unknown) {
       logger.error("Appointment cancellation error", err);

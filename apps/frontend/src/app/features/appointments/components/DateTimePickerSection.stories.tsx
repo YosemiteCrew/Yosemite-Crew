@@ -152,7 +152,7 @@ export const LeadPanelOpen: Story = {
     const panel = await findPortalPanel();
     // Assert the panel really mounted its three clinicians. `aria-expanded` on
     // the trigger flips whether or not the list rendered anything.
-    await expect(within(panel).getAllByRole('button')).toHaveLength(3);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(3);
     await expect(within(panel).getByText('Dr. Ravi Chandrasekaran')).toBeInTheDocument();
   },
   parameters: {
@@ -175,7 +175,7 @@ export const LeadSelected: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Lead: Dr. Ravi Chandrasekaran' }));
     const panel = await findPortalPanel();
-    await expect(within(panel).getAllByRole('button')).toHaveLength(3);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(3);
   },
   parameters: {
     docs: {
@@ -199,11 +199,13 @@ export const SupportPanelOpen: Story = {
     });
     await userEvent.click(trigger);
     const panel = await findPortalPanel();
-    const rows = within(panel).getAllByRole('button');
+    const rows = within(panel).getAllByRole('option');
     await expect(rows).toHaveLength(4);
-    // The selected rows are marked with aria-pressed plus a trailing check. An
+    // The selected rows are marked with aria-selected plus a trailing check. An
     // empty or unmarked panel would still satisfy the trigger's aria-expanded.
-    await expect(rows.filter((row) => row.getAttribute('aria-pressed') === 'true')).toHaveLength(2);
+    await expect(rows.filter((row) => row.getAttribute('aria-selected') === 'true')).toHaveLength(
+      2
+    );
     // The seam: while open the trigger drops its bottom border so it joins the panel.
     await expect(trigger.className).toContain('border-b-0!');
   },

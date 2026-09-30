@@ -16,12 +16,12 @@ import {showPermissionDeniedToast} from '@/shared/utils/permissionToast';
 // ----------------------------------------------------------------------
 // 1. Mocks: Navigation & Core
 // ----------------------------------------------------------------------
-let lastFocusEffectCleanup: (() => void) | undefined;
+let lastFocusEffectCallback: (() => void) | undefined;
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
   useFocusEffect: jest.fn(cb => {
-    lastFocusEffectCleanup = cb();
+    lastFocusEffectCallback = cb;
   }),
 }));
 
@@ -79,13 +79,13 @@ jest.mock('@/features/appointments/hooks/useCheckInHandler', () => ({
 }));
 
 // Mock Worker for Ratings defined outside to prevent nesting depth issues
-const mockFetchOrgWorker: any = jest.fn();
-let capturedSetOrgRatings: any = null;
+const mockFetchFeedbackWorker: any = jest.fn();
+let capturedSetFeedback: any = null;
 
-jest.mock('@/features/appointments/hooks/useOrganisationRating', () => ({
-  useFetchOrgRatingIfNeeded: ({setOrgRatings}: any) => {
-    capturedSetOrgRatings = setOrgRatings;
-    return mockFetchOrgWorker;
+jest.mock('@/features/appointments/hooks/usePractitionerFeedback', () => ({
+  useFetchPractitionerFeedbackIfNeeded: ({setFeedbackByAppointment}: any) => {
+    capturedSetFeedback = setFeedbackByAppointment;
+    return mockFetchFeedbackWorker;
   },
 }));
 
@@ -328,6 +328,8 @@ const mockPastData = [
     date: '2023-01-01',
     status: 'COMPLETED',
     companionId: 'c1',
+    employeeId: 'emp-1',
+    employeeName: 'Dr. Smith',
   },
 ];
 
@@ -349,12 +351,12 @@ describe('MyAppointmentsScreen', () => {
 
   // Helper to fix SonarQube S2004 (Nesting Depth)
   // Logic extracted from individual tests to keep nesting shallow
-  const simulateOrgRatingUpdate = (payload: any) => {
+  const simulateFeedbackUpdate = (payload: any) => {
     act(() => {
-      if (capturedSetOrgRatings) {
-        capturedSetOrgRatings((prev: any) => ({
+      if (capturedSetFeedback) {
+        capturedSetFeedback((prev: any) => ({
           ...prev,
-          'biz-1': payload,
+          'apt-past-1': payload,
         }));
       }
     });
@@ -362,7 +364,7 @@ describe('MyAppointmentsScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    capturedSetOrgRatings = null;
+    capturedSetFeedback = null;
     (useNavigation as jest.Mock).mockReturnValue({navigate: mockNavigate});
     (usePermissions as jest.Mock).mockReturnValue({
       canUseAppointments: true,
@@ -370,7 +372,7 @@ describe('MyAppointmentsScreen', () => {
     });
 
     // Clear the mock worker
-    mockFetchOrgWorker.mockClear();
+    mockFetchFeedbackWorker.mockClear();
     mockRequestBusinessPhoto.mockClear();
     mockHandleAvatarError.mockClear();
 
@@ -503,13 +505,14 @@ describe('MyAppointmentsScreen', () => {
       switchToPast();
 
       // Trigger state update using helper to avoid nesting error S2004
-      simulateOrgRatingUpdate({loading: false, isRated: false, rating: null});
+      simulateFeedbackUpdate({loading: false, isRated: false, rating: null});
 
-      const reviewBtn = await screen.findByText('Review');
+      const reviewBtn = await screen.findByText('Review veterinarian');
       fireEvent.press(reviewBtn);
 
       expect(mockNavigate).toHaveBeenCalledWith('Review', {
         appointmentId: 'apt-past-1',
+        practitionerName: 'Dr. Test',
       });
     });
 
@@ -518,17 +521,40 @@ describe('MyAppointmentsScreen', () => {
       switchToPast();
 
       // Trigger state update using helper to avoid nesting error S2004
-      simulateOrgRatingUpdate({loading: false, isRated: true, rating: 5});
+      simulateFeedbackUpdate({
+        loading: false,
+        isRated: true,
+        rating: 5,
+        review: 'Kind and thoughtful care.',
+      });
 
       const ratingText = await screen.findByText('5/5');
       expect(ratingText).toBeTruthy();
+      expect(screen.getByText('Kind and thoughtful care.')).toBeTruthy();
+      expect(screen.getByText('Edit feedback')).toBeTruthy();
+    });
+
+    it('opens the saved feedback for editing from a completed appointment', async () => {
+      renderScreen();
+      switchToPast();
+      simulateFeedbackUpdate({loading: false, isRated: true, rating: 4});
+
+      fireEvent.press(await screen.findByText('Edit feedback'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('Review', {
+        appointmentId: 'apt-past-1',
+        isEditing: true,
+        existingRating: 4,
+        existingReview: undefined,
+        practitionerName: 'Dr. Test',
+      });
     });
 
     it('shows a "-" placeholder when rated but no numeric rating is available', async () => {
       renderScreen();
       switchToPast();
 
-      simulateOrgRatingUpdate({loading: false, isRated: true, rating: null});
+      simulateFeedbackUpdate({loading: false, isRated: true, rating: null});
 
       const ratingText = await screen.findByText('-/5');
       expect(ratingText).toBeTruthy();
@@ -774,7 +800,8 @@ describe('MyAppointmentsScreen', () => {
 
     it('clears the last-fetched companion ref when the screen loses focus', () => {
       renderScreen();
-      expect(() => lastFocusEffectCleanup?.()).not.toThrow();
+      act(() => lastFocusEffectCallback?.());
+      expect(lastFocusEffectCallback).toBeDefined();
     });
 
     it('reports avatar load errors for both upcoming and past cards', () => {

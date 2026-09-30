@@ -2,6 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import type { Appointment, OrganisationRoom, RoomUnit } from '@yosemite-crew/types';
+import { AxiosError, type AxiosAdapter } from 'axios';
+import api, { API_CLIENT_DEFAULTS, clearInFlightGetRequests } from '@/app/services/axios';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
@@ -95,8 +97,8 @@ const INPATIENT = appointment({
  * ChangeRoom refetches the room list on every open (`force: true`) and PATCHes the
  * appointment on Update, so without this every story would fire real requests out of
  * the preview iframe - and a 401 from a reachable API redirects the whole iframe to
- * /signin, taking the story with it. Axios uses the XHR adapter in a browser, so
- * holding `send` is enough to keep all of it off the wire:
+ * /signin, taking the story with it. Every call goes through the shared axios
+ * instance, so replacing its adapter is enough to keep all of it off the wire:
  *
  * - `stalled` never settles. That is what makes the saving state reviewable at all:
  *   it exists only while a request is in flight, which is normally a few frames.
@@ -106,18 +108,21 @@ const INPATIENT = appointment({
  * The service module itself is untouched - the component, the store and
  * updateAppointment are all the real ones.
  */
-const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 const stubTransport = (mode: 'stalled' | 'failing') => {
-  XMLHttpRequest.prototype.send = function stubbedSend(this: XMLHttpRequest) {
-    if (mode === 'stalled') return;
-    setTimeout(() => this.dispatchEvent(new ProgressEvent('error')), 0);
-  };
+  const adapter: AxiosAdapter = (config) =>
+    mode === 'stalled'
+      ? new Promise<never>(() => undefined)
+      : Promise.reject(new AxiosError('Network Error', AxiosError.ERR_NETWORK, config));
+  api.defaults.adapter = adapter;
   // Always restored to the module-level original rather than to whatever was
   // installed before, so a meta-level and a story-level stub cannot strand one
-  // whichever order their cleanups run in.
+  // whichever order their cleanups run in. A stalled GET must not outlive its
+  // story either, or the next one would join it instead of asking again.
   return () => {
-    XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
+    clearInFlightGetRequests();
   };
 };
 
@@ -177,7 +182,7 @@ const dialogQueries = async () => {
 const menuOptionLabels = async () => {
   await waitFor(() => expect(openMenu()).not.toBeNull());
   return within(openMenu() as HTMLElement)
-    .getAllByRole('button')
+    .getAllByRole('option')
     .map((option) => option.textContent);
 };
 
@@ -314,11 +319,14 @@ export const Inpatient: Story = {
     ]);
     await expect(triggers.map((item) => item.textContent)).toEqual(['Ward A', 'Kennel A1']);
 
-    /* The design's 44px field height and 16px stack gap, measured off the border
-       box. `getComputedStyle().height` reads 41 here, not 44: these triggers
-       carry a 1.5px border, and the computed value is the CONTENT box. */
+    /* The shared field height and 16px stack gap, measured off the border box:
+       40px at desktop density, 44px on a phone or a touch screen. */
+    const fieldHeight = globalThis.matchMedia('(width < 40rem), (pointer: coarse)').matches
+      ? 44
+      : 40;
     await expect(triggers.map((item) => Math.round(item.getBoundingClientRect().height))).toEqual([
-      44, 44,
+      fieldHeight,
+      fieldHeight,
     ]);
     const [roomField, unitField] = triggers.map(fieldWrapperOf);
     const gap = unitField.getBoundingClientRect().top - roomField.getBoundingClientRect().bottom;
@@ -328,8 +336,9 @@ export const Inpatient: Story = {
     docs: {
       description: {
         story:
-          'Both fields stack at the same 44px height with a 16px gap, asserted here off the ' +
-          "border box. The unit label is the unit's `displayName`, falling back to its `code` - " +
+          'Both fields stack at the same height with a 16px gap, asserted here off the border ' +
+          'box: 40px at desktop density and 44px on a phone or touch screen. The unit label ' +
+          "is the unit's `displayName`, falling back to its `code` - " +
           'a unit created without a display name shows as "WARD-A-03" rather than blank.',
       },
     },
@@ -394,7 +403,7 @@ export const Saving: Story = {
     await userEvent.click(panel.getByRole('button', { name: 'Select room: Consult 1' }));
     await waitFor(() => expect(openMenu()).not.toBeNull());
     await userEvent.click(
-      within(openMenu() as HTMLElement).getByRole('button', { name: 'Consult 2' })
+      within(openMenu() as HTMLElement).getByRole('option', { name: 'Consult 2' })
     );
     // Saving short-circuits when nothing changed, so the room has to actually move.
     const trigger = panel.getByRole('button', { name: 'Select room: Consult 2' });
@@ -439,7 +448,7 @@ export const SaveFailure: Story = {
     await userEvent.click(panel.getByRole('button', { name: 'Select room: Consult 1' }));
     await waitFor(() => expect(openMenu()).not.toBeNull());
     await userEvent.click(
-      within(openMenu() as HTMLElement).getByRole('button', { name: 'Consult 2' })
+      within(openMenu() as HTMLElement).getByRole('option', { name: 'Consult 2' })
     );
 
     await userEvent.click(panel.getByRole('button', { name: 'Update' }));

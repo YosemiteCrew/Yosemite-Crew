@@ -5,6 +5,14 @@ import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
+router.post(
+  "/organisation",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("audit:view:any"),
+  AuditTrailController.listForOrganisation,
+);
+
 router.get(
   "/companion/:patientId",
   requireWebAuth,

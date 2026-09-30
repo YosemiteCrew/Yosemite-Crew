@@ -227,7 +227,7 @@ export const Terminology: Story = {
 
     // Now choose one by hand, against the hospital default.
     const menu = await openTerminologyMenu(canvasElement);
-    await userEvent.click(within(menu).getByRole('button', { name: 'Companion / Companions' }));
+    await userEvent.click(within(menu).getByRole('option', { name: 'Companion / Companions' }));
     await expectTerminology(canvasElement, 'Companion / Companions');
 
     /* The manual choice is stored WITH the type it was made under. Switching type

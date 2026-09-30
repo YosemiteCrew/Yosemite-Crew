@@ -4,7 +4,7 @@ import { Option } from '@/app/features/companions/types/companion';
 import { IoCheckmarkOutline, IoChevronDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions } from '@/app/hooks/useDropdown';
 import Field from '@/app/ui/Field';
-import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
+import { FIELD_CONTROL_HEIGHT, getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 import { useListboxKeyboardNav } from '@/app/ui/inputs/Dropdown/useDropdownKeyboardNav';
 import { useDropdownPositioning } from '@/app/ui/inputs/Dropdown/useDropdownPositioning';
 
@@ -95,7 +95,7 @@ const MultiSelectPanel = ({
 );
 
 const getTriggerClassName = (open: boolean, hasSelection: boolean, error?: string): string => {
-  const base = `relative flex h-10 min-w-30 cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(Boolean(!hasSelection && error))}`;
+  const base = `relative flex ${FIELD_CONTROL_HEIGHT} min-w-30 cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(Boolean(!hasSelection && error))}`;
   if (open) {
     return `${base} z-20 rounded-b-none! border-[var(--blue)]! border-b-0!`;
   }

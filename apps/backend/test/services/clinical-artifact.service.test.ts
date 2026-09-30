@@ -5102,7 +5102,16 @@ describe("ClinicalArtifactService", () => {
       mockedPrisma.prescription.update.mockResolvedValueOnce({
         id: "prescription-1",
         artifactId,
-        items: [],
+        items: [
+          {
+            id: "prescription-line-1",
+            sourceLineKey: "client-line-1",
+            medication: "Amoxicillin 500mg",
+            inventoryItemId: "item-1",
+            quantity: "2",
+            sortOrder: 0,
+          },
+        ],
         medications: [{ medication: "Amoxicillin" }],
         instructions: { text: "new" },
         notes: { text: "new note" },
@@ -5140,7 +5149,10 @@ describe("ClinicalArtifactService", () => {
       });
       expect(result.artifact.status).toBe("IN_PROGRESS");
       expect(result.prescription.medications).toEqual([
-        { medication: "Amoxicillin" },
+        expect.objectContaining({
+          medication: "Amoxicillin 500mg",
+          prescriptionItemId: "prescription-line-1",
+        }),
       ]);
       expect(
         InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
@@ -5980,7 +5992,16 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
       {
         id: "prescription-1",
         artifactId: "artifact-1",
-        items: [],
+        items: [
+          {
+            id: "prescription-line-1",
+            sourceLineKey: "client-line-1",
+            medication: "Amoxicillin 500mg",
+            inventoryItemId: "item-1",
+            quantity: "2",
+            sortOrder: 0,
+          },
+        ],
         medications: [{ inventoryItemId: "item-1", quantity: 2 }],
         instructions: null,
         notes: null,
@@ -6018,6 +6039,7 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
       Record<string, unknown>
     >;
     expect(meds[0].medication).toBe("Amoxicillin 500mg");
+    expect(meds[0].prescriptionItemId).toBe("prescription-line-1");
     // Scoped to the prescribing organisation: `inventoryItemId` reaches the
     // medication JSON from a client FHIR extension, so an unscoped lookup
     // hydrated another tenant's item name, strength and controlled flag.

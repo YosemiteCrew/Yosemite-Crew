@@ -33,6 +33,19 @@ enum ContactStatus {
   CLOSED
 }
 
+enum PracticeProfileFieldEntity {
+  CLIENT
+  PATIENT
+}
+
+enum PracticeProfileFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+}
+
 enum PrescriptionDispenseRequestStatus {
   PENDING
   NOT_DISPENSED
@@ -623,9 +636,28 @@ model Patient {
   parentLinks          ParentPatient[]
   companionShareTokens CompanionShareToken[]
   petPassports         PetPassport[]
+  duplicateReviewAsA   PatientDuplicateDismissal[] @relation("PatientDuplicateReviewA")
+  duplicateReviewAsB   PatientDuplicateDismissal[] @relation("PatientDuplicateReviewB")
 
   @@index([type])
   @@index([status])
+}
+
+model PatientDuplicateDismissal {
+  id             String   @id @default(uuid())
+  organisationId String
+  patientAId     String
+  patientBId     String
+  dismissedById  String
+  dismissedAt    DateTime @default(now())
+
+  patientA Patient @relation("PatientDuplicateReviewA", fields: [patientAId], references: [id], onDelete: Cascade)
+  patientB Patient @relation("PatientDuplicateReviewB", fields: [patientBId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, patientAId, patientBId])
+  @@index([organisationId, dismissedAt])
+  @@index([patientAId])
+  @@index([patientBId])
 }
 
 model Document {
@@ -857,31 +889,35 @@ model PassportShareConsent {
 }
 
 model Appointment {
-  id              String            @id @default(uuid())
-  patient         Json
-  lead            Json?
-  supportStaff    Json?
-  room            Json?
-  appointmentType Json?
-  caseId          String?
-  encounterId     String?
-  productItemId   String?
-  appointmentKind AppointmentKind   @default(OUTPATIENT)
-  idempotencyKey  String?
-  organisationId  String
-  appointmentDate DateTime
-  startTime       DateTime
-  endTime         DateTime
-  timeSlot        String
-  durationMinutes Int
-  status          AppointmentStatus @default(REQUESTED)
-  isEmergency     Boolean           @default(false)
-  concern         String?
-  attachments     Json?
-  formIds         String[]
-  expiresAt       DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id                    String            @id @default(uuid())
+  patient               Json
+  lead                  Json?
+  supportStaff          Json?
+  room                  Json?
+  appointmentType       Json?
+  caseId                String?
+  encounterId           String?
+  productItemId         String?
+  recurrenceSeriesId    String?
+  recurrenceSeriesIndex Int?
+  recurrenceSeriesTotal Int?
+  recurrenceTimeZone    String?
+  appointmentKind       AppointmentKind   @default(OUTPATIENT)
+  idempotencyKey        String?
+  organisationId        String
+  appointmentDate       DateTime
+  startTime             DateTime
+  endTime               DateTime
+  timeSlot              String
+  durationMinutes       Int
+  status                AppointmentStatus @default(REQUESTED)
+  isEmergency           Boolean           @default(false)
+  concern               String?
+  attachments           Json?
+  formIds               String[]
+  expiresAt             DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   caseRecord      Case?            @relation("CaseAppointments", fields: [caseId], references: [id], onDelete: SetNull)
   encounter       Encounter?       @relation("EncounterAppointments", fields: [encounterId], references: [id], onDelete: SetNull)
@@ -891,6 +927,7 @@ model Appointment {
   @@index([organisationId, appointmentDate])
   @@index([organisationId])
   @@index([organisationId, productItemId])
+  @@index([organisationId, recurrenceSeriesId, recurrenceSeriesIndex], map: "Appointment_organisationId_recurrenceSeriesId_recurrenceSer_idx")
   @@index([caseId])
   @@index([encounterId])
   @@index([status])
@@ -1128,12 +1165,54 @@ model Organization {
   createdAt                              DateTime             @default(now())
   updatedAt                              DateTime             @updatedAt
 
+  practiceProfileFields PracticeProfileField[]
+
   bookingSettings     PublicBookingSettings?
   practiceWebsite     PracticeWebsite?
   bookingSlugHistory  BookingSlugReservation[]
   publicBookingRequests PublicBookingRequest[]
 
   @@index([googlePlacesId, name])
+}
+
+model PracticeProfileField {
+  id             String                     @id @default(uuid())
+  organisationId String
+  entityType     PracticeProfileFieldEntity
+  fieldKey       String
+  label          String
+  type           PracticeProfileFieldType
+  options        String[]                   @default([])
+  sortOrder      Int                        @default(0)
+  isActive       Boolean                    @default(true)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  organisation Organization                @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  values       PracticeProfileFieldValue[]
+
+  // Partial unique index over ACTIVE rows is maintained via SQL migration
+  // because Prisma schema cannot express `WHERE isActive = true`. A removed
+  // field keeps its key so its stored values stay attached to it, and reusing
+  // that key has to be allowed rather than blocked for ever.
+  @@unique([id, organisationId, entityType])
+  @@index([organisationId, entityType, isActive, sortOrder])
+}
+
+model PracticeProfileFieldValue {
+  id             String                     @id @default(uuid())
+  organisationId String
+  fieldId        String
+  entityType     PracticeProfileFieldEntity
+  entityId       String
+  value          Json
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  field PracticeProfileField @relation(fields: [fieldId, organisationId, entityType], references: [id, organisationId, entityType], onDelete: Cascade)
+
+  @@unique([fieldId, entityId])
+  @@index([organisationId, entityType, entityId])
 }
 
 model OrganizationAddress {
@@ -1819,15 +1898,19 @@ model OrganisationInvite {
 }
 
 model OrganisationRating {
-  id             String   @id @default(uuid())
-  organizationId String
-  userId         String
-  rating         Int
-  review         String?  @default("")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(uuid())
+  organizationId   String?
+  userId           String
+  appointmentId    String?
+  practitionerId   String?
+  practitionerName String?
+  rating           Int
+  review           String?  @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@unique([organizationId, userId])
+  @@unique([appointmentId, userId])
 }
 
 model OrganizationUsageCounter {
@@ -2335,6 +2418,7 @@ enum AuditEventType {
   INSURANCE_CLAIM_STATUS_CHANGED
   INSURANCE_CLAIM_CANCELLED
   CARE_REMINDER_SENT
+  CARE_REMINDER_DELIVERY_ATTEMPT
   CARE_REMINDER_RESPONDED
   CARE_REMINDER_CANCELLED
   PROBLEM_CREATED
@@ -2457,6 +2541,8 @@ enum AuditEventType {
   INVENTORY_DISCREPANCY_RECONCILED
   CLINIC_NOTE_CREATED
   CLINIC_NOTE_PINNED
+  PRACTITIONER_FEEDBACK_SUBMITTED
+  PRACTITIONER_FEEDBACK_UPDATED
 }
 
 enum WaitlistStatus {
@@ -3786,6 +3872,123 @@ model InventoryVendor {
   @@index([organisationId, vendorItemCode])
 }
 
+enum PurchaseOrderStatus {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id             String              @id @default(uuid())
+  organisationId String
+  vendorId       String
+  status         PurchaseOrderStatus @default(DRAFT)
+  /// Unique within the organisation.
+  orderNumber    String
+  orderDate      DateTime            @default(now())
+  expectedDate   DateTime?
+  /// Sum of the line totals, rounded to the order currency.
+  totalAmount    Float               @default(0)
+  currency       String
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  lines      PurchaseOrderLine[]
+  deliveries PurchaseOrderDelivery[]
+
+  @@unique([organisationId, orderNumber])
+  @@index([organisationId, status])
+  @@index([vendorId])
+}
+
+model PurchaseOrderLine {
+  id               String    @id @default(uuid())
+  purchaseOrderId  String
+  itemId           String
+  vendorId         String
+  quantityOrdered  Int
+  /// Received so far, net of stock returned to the supplier.
+  quantityReceived Int       @default(0)
+  quantityReturned Int       @default(0)
+  unitCost         Float
+  totalCost        Float
+  packSize         Int       @default(1)
+  batchNumber      String?
+  lotNumber        String?
+  expiryDate       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  purchaseOrder PurchaseOrder               @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  deliveryLines PurchaseOrderDeliveryLine[]
+
+  @@index([purchaseOrderId])
+  @@index([itemId])
+  @@index([vendorId])
+}
+
+model PurchaseOrderDelivery {
+  id              String   @id @default(uuid())
+  purchaseOrderId String
+  vendorId        String
+  /// Client-supplied key; a retried receipt with the same key returns this
+  /// delivery instead of receiving the stock again.
+  idempotencyKey  String
+  deliveryDate    DateTime @default(now())
+  receivedBy      String?
+  notes           String?
+  status          String   @default("RECEIVED")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder               @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  lines         PurchaseOrderDeliveryLine[]
+  returns       PurchaseOrderReturn[]
+
+  @@unique([purchaseOrderId, idempotencyKey])
+  @@index([vendorId])
+}
+
+model PurchaseOrderDeliveryLine {
+  id                  String   @id @default(uuid())
+  deliveryId          String
+  purchaseOrderLineId String
+  itemId              String
+  quantityReceived    Int
+  quantityReturned    Int      @default(0)
+  /// Batch the received stock was posted to; returns come out of it.
+  batchId             String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  delivery          PurchaseOrderDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  purchaseOrderLine PurchaseOrderLine     @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+
+  @@index([deliveryId])
+  @@index([purchaseOrderLineId])
+  @@index([itemId])
+  @@index([batchId])
+}
+
+/// One return of delivered stock to the supplier. Its stock movements carry
+/// this id as their reference.
+model PurchaseOrderReturn {
+  id             String   @id @default(uuid())
+  deliveryId     String
+  idempotencyKey String
+  returnedBy     String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  delivery PurchaseOrderDelivery @relation(fields: [deliveryId], references: [id], onDelete: Restrict)
+
+  @@unique([deliveryId, idempotencyKey])
+}
+
 model InventoryCategory {
   id        String   @id @default(uuid())
   code      String   @unique
@@ -4088,6 +4291,9 @@ model Invoice {
   metadata                Json?
   paidAt                  DateTime?
   finalizedAt             DateTime?
+  dueAt                   DateTime?
+  collectionsReviewedAt   DateTime?
+  collectionsReviewedBy   String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
@@ -4099,6 +4305,7 @@ model Invoice {
   @@unique([appointmentId])
   @@index([parentId])
   @@index([organisationId])
+  @@index([organisationId, dueAt])
   @@index([appointmentId])
   @@index([status])
   @@index([paymentCollectionMethod])
@@ -4106,6 +4313,19 @@ model Invoice {
   @@index([visitBillingStage])
   @@index([readyForBillingAt])
   @@index([taxProvider])
+}
+
+model ClientPaymentTerm {
+  id             String   @id @default(uuid())
+  organisationId String
+  parentId       String
+  netDays        Int      @default(0)
+  updatedBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organisationId, parentId])
+  @@index([organisationId])
 }
 
 model InvoiceTaxSnapshot {
@@ -4311,6 +4531,7 @@ enum CareReminderType {
 
 enum CareReminderStatus {
   PENDING
+  SENDING
   SENT
   RESPONDED
   EXPIRED
@@ -4326,6 +4547,9 @@ model CareReminder {
   dueDate        DateTime
   sendAt         DateTime?
   status         CareReminderStatus @default(PENDING)
+  sendingAt      DateTime?
+  lastAttemptAt  DateTime?
+  lastDelivery   Json?
   sentAt         DateTime?
   respondedAt    DateTime?
   appointmentId  String?
@@ -4338,6 +4562,7 @@ model CareReminder {
   @@index([organisationId, status])
   @@index([organisationId, reminderType])
   @@index([organisationId, dueDate])
+  @@index([status, lastAttemptAt, sendAt])
   @@map("CareReminder")
 }
 
@@ -6719,6 +6944,27 @@ model StaffShift {
   @@map("StaffShift")
 }
 
+enum CalendarBlockTargetType {
+  STAFF
+  ROOM
+}
+
+model CalendarBlock {
+  id             String                  @id @default(uuid())
+  organisationId String
+  targetType     CalendarBlockTargetType
+  targetId       String
+  startAt        DateTime
+  endAt          DateTime
+  reason         String
+  createdBy      String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([organisationId, startAt, endAt])
+  @@index([organisationId, targetType, targetId, startAt])
+}
+
 enum TreatmentOutcomeType {
   RECOVERED
   IMPROVED
@@ -6838,16 +7084,24 @@ model PatientFlag {
   @@map("PatientFlag")
 }
 
+enum InventoryCountResolution {
+  STOCK_ADJUSTED
+  NO_CHANGE
+}
+
 model InventoryCount {
   id              String    @id @default(uuid())
   organisationId  String
   inventoryItemId String
+  inventoryBatchId String?
   countedBy       String?
   countedAt       DateTime
   systemCount     Int
   physicalCount   Int
   discrepancy     Int
   notes           String?
+  resolution      InventoryCountResolution?
+  resolutionNotes String?
   reconciled      Boolean   @default(false)
   reconciledAt    DateTime?
   reconciledBy    String?
@@ -6855,6 +7109,7 @@ model InventoryCount {
   updatedAt       DateTime  @updatedAt
 
   @@index([organisationId, inventoryItemId])
+  @@index([organisationId, inventoryBatchId])
   @@index([organisationId, countedAt])
   @@index([organisationId, reconciled])
   @@map("InventoryCount")

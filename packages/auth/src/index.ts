@@ -1,6 +1,7 @@
 export { getAuthAppInfo } from './config/appInfo.js';
 export { getSuperTokensConfig } from './config/supertokens.config.js';
 export {
+  allowedTurnstileHostnames,
   isValidTurnstileToken,
   verifyTurnstileToken,
   type VerifyTurnstileTokenInput,

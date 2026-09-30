@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { getRouter } from '@storybook/nextjs-vite/navigation.mock';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Appointment, Organisation, UserOrganization } from '@yosemite-crew/types';
 
 import type { ApiDayAvailability } from '../../components/Availability/utils';
@@ -197,8 +198,8 @@ const SEEDED_STORES: SnapshotableStore[] = [
  * line once its `…ByOrgId` map holds the org - but the subscription counter
  * fetches unconditionally, and the workspace hydrates itself from four services
  * on mount. Left alone those reach the wire and log through `logger.error`,
- * which the story verifier counts as a failure. Axios picks the XHR adapter in
- * the browser, so swapping `XMLHttpRequest` is the seam that needs no module
+ * which the story verifier counts as a failure. With the instance pointed at the
+ * XHR adapter, swapping `XMLHttpRequest` is the seam that needs no module
  * mocking.
  *
  * The body is `[]`, not `{}`: several of these services call `.map` straight off
@@ -237,9 +238,17 @@ type Seed = {
   appointmentStatus?: 'loading' | 'loaded';
 };
 
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While the stand-in above is installed the instance is pointed
+ * at the XHR adapter so the stand-in answers it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
+
 const seedRoute = ({ appointment = null, appointmentStatus = 'loaded' }: Seed) => {
   const originalXhr = globalThis.XMLHttpRequest;
   globalThis.XMLHttpRequest = OfflineXhr as unknown as typeof XMLHttpRequest;
+  api.defaults.adapter = 'xhr';
 
   const snapshots = SEEDED_STORES.map((store) => [store, store.getState()] as const);
 
@@ -288,6 +297,7 @@ const seedRoute = ({ appointment = null, appointmentStatus = 'loaded' }: Seed) =
 
   return () => {
     globalThis.XMLHttpRequest = originalXhr;
+    api.defaults.adapter = REAL_ADAPTER;
     for (const [store, state] of snapshots) {
       store.setState(state as never);
     }

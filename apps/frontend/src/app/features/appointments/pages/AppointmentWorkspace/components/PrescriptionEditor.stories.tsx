@@ -168,6 +168,23 @@ type Story = StoryObj<typeof meta>;
 
 export const WithSavedPrescriptions: Story = {};
 
+export const WithRefillAuthorisation: Story = {
+  args: {
+    organisationId: 'org-demo',
+    items: items.map((item, index) => ({
+      ...item,
+      prescriptionItemId: `line-${index + 1}`,
+      dosageForm: 'Tablet',
+      qty: '1',
+      doseUnit: 'tablet',
+      refill: '2',
+      durationDays: '5',
+      durationUnit: 'days',
+      refillValidUntil: '2027-01-31T00:00',
+    })),
+  },
+};
+
 export const Empty: Story = {
   args: { items: [] },
 };

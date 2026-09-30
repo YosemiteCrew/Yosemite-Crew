@@ -53,6 +53,7 @@ jest.mock('@/app/stores/appointmentStore', () => ({
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   createAppointment: jest.fn(),
+  createWeeklyAppointmentSeries: jest.fn(),
   getCalendarPrefillMatchesForPrimaryOrg: jest.fn(() => Promise.resolve(null)),
   loadAppointmentsForPrimaryOrg: jest.fn(() => Promise.resolve()),
   getSlotsForServiceAndDateForPrimaryOrg: jest.fn(() => Promise.resolve([])),
@@ -123,6 +124,9 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
 }));
 
 const { createAppointment } = jest.requireMock(
+  '@/app/features/appointments/services/appointmentService'
+);
+const { createWeeklyAppointmentSeries } = jest.requireMock(
   '@/app/features/appointments/services/appointmentService'
 );
 const { getSlotsForServiceAndDateForPrimaryOrg } = jest.requireMock(
@@ -1362,6 +1366,76 @@ describe('useAppointmentForm', () => {
     expect(refetch).toHaveBeenCalled();
     expect(loadInvoicesForOrgPrimaryOrg).toHaveBeenCalledWith({ force: true });
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it('creates every appointment in a series and reports the first one to onSuccess', async () => {
+    const onSuccess = jest.fn();
+    const firstAppointment = { id: 'appt-1', organisationId: 'org-1' };
+    const secondAppointment = { id: 'appt-2', organisationId: 'org-1' };
+    const occurrences = [
+      {
+        startTime: new Date('2026-10-05T09:00:00.000Z'),
+        endTime: new Date('2026-10-05T09:30:00.000Z'),
+      },
+      {
+        startTime: new Date('2026-10-12T09:00:00.000Z'),
+        endTime: new Date('2026-10-12T09:30:00.000Z'),
+      },
+    ];
+    (createWeeklyAppointmentSeries as jest.Mock).mockResolvedValue([
+      firstAppointment,
+      secondAppointment,
+    ]);
+    (loadAppointmentsForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
+    (loadInvoicesForOrgPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
+    const refetch = jest.fn().mockResolvedValue(undefined);
+    (useSubscriptionCounterUpdate as jest.Mock).mockReturnValue({ refetch });
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', practionerId: 'vet-1' },
+    ]);
+
+    const slot = { startTime: '09:00', endTime: '09:30', vetIds: ['vet-1'] };
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slot]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      { slot, meta: { localStartMinute: 540, localEndMinute: 570, dayOffset: 0 } },
+    ]);
+
+    const { result } = renderHook(() => useAppointmentForm({ onSuccess }));
+    await act(async () => {
+      result.current.setFormData((prev) => ({
+        ...prev,
+        companion: {
+          id: 'comp-1',
+          name: 'Buddy',
+          species: 'Dog',
+          breed: '',
+          parent: { id: 'parent-1', name: 'Owner' },
+        },
+        appointmentType: {
+          id: 'svc-1',
+          name: 'Check',
+          speciality: { id: 'spec-1', name: 'General' },
+        },
+        concern: 'pain',
+        durationMinutes: 30,
+      }));
+    });
+    await waitFor(() => expect(result.current.selectedSlot?.startTime).toBe('09:00'));
+
+    let created = false;
+    await act(async () => {
+      created = await result.current.handleCreate(true, occurrences);
+    });
+
+    expect(created).toBe(true);
+    expect(createWeeklyAppointmentSeries).toHaveBeenCalledWith(
+      result.current.formData,
+      occurrences
+    );
+    expect(createAppointment).not.toHaveBeenCalled();
+    expect(mockUpsertAppointment).toHaveBeenCalledWith(firstAppointment);
+    expect(mockUpsertAppointment).toHaveBeenCalledWith(secondAppointment);
+    expect(onSuccess).toHaveBeenCalledWith(firstAppointment);
   });
 
   it('validateForm returns lead error when multiple leads are available but none selected', async () => {

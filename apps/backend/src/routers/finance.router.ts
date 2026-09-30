@@ -3,6 +3,7 @@ import { buildRateLimitKey } from "src/utils/rate-limit-key";
 import rateLimit from "express-rate-limit";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import {
+  requireAllPermissions,
   requirePermission,
   withOrgPermissions,
   withAppointmentOrgPermissions,
@@ -11,6 +12,8 @@ import {
   withPaymentIntentOrgPermissions,
 } from "src/middlewares/rbac";
 import { FinanceController } from "src/controllers/app/finance.controller";
+import { ClientCollectionsController } from "src/controllers/app/client-collections.controller";
+import { BillingReviewController } from "src/controllers/app/billing-review.controller";
 
 const router = Router();
 
@@ -116,6 +119,38 @@ router.post(
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.applyClientAccountAllocation,
+);
+
+router.get(
+  "/organisation/:organisationId/clients/:parentId/payment-terms",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  ClientCollectionsController.getPaymentTerms,
+);
+
+router.put(
+  "/organisation/:organisationId/clients/:parentId/payment-terms",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  ClientCollectionsController.setPaymentTerms,
+);
+
+router.get(
+  "/organisation/:organisationId/collections/overdue",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  ClientCollectionsController.listOverdue,
+);
+
+router.post(
+  "/organisation/:organisationId/collections/overdue/:invoiceId/review",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  ClientCollectionsController.markReviewed,
 );
 
 router.get(
@@ -238,12 +273,31 @@ router.get(
   FinanceController.listInvoices,
 );
 
+router.get(
+  "/organisation/:organisationId/completed-visits/billing-review",
+  requireWebAuth,
+  withOrgPermissions(),
+  requireAllPermissions(["billing:view:any", "appointments:view:any"]),
+  BillingReviewController.list,
+);
+
 router.post(
   "/invoices",
   requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.createInvoice,
+);
+
+// A counter sale bills the client AND draws the stock down, so it needs both
+// permissions: the billing one alone would let a user whose inventory edit
+// right was revoked still move stock.
+router.post(
+  "/counter-sales",
+  requireWebAuth,
+  withOrgPermissions(),
+  requireAllPermissions(["billing:edit:any", "inventory:edit:any"]),
+  FinanceController.createCounterSale,
 );
 
 router.post(

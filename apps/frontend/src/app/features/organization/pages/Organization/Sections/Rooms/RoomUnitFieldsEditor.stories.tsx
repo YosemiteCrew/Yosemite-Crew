@@ -110,8 +110,8 @@ export const SavedUnit: Story = {
     );
     // The menu is portalled to document.body, so it is outside canvasElement.
     const panel = globalThis.document.querySelector('[data-portal-dropdown]') as HTMLElement;
-    await expect(within(panel).getAllByRole('button')).toHaveLength(4);
-    await userEvent.click(within(panel).getByRole('button', { name: 'Medium' }));
+    await expect(within(panel).getAllByRole('option')).toHaveLength(4);
+    await userEvent.click(within(panel).getByRole('option', { name: 'Medium' }));
 
     /* Exactly two calls, each carrying exactly one key. Three controls share one
        callback and are told apart only by the key they send, so a size handler

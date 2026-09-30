@@ -20,6 +20,7 @@ const ReminderTypeEnum = z.enum([
 
 const ReminderStatusEnum = z.enum([
   "PENDING",
+  "SENDING",
   "SENT",
   "RESPONDED",
   "EXPIRED",

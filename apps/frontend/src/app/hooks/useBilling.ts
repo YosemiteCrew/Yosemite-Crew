@@ -15,7 +15,9 @@ export const useLoadSubscriptionCounterForPrimaryOrg = () => {
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    void checkStatus(primaryOrgId);
+    // checkStatus logs its own failure; a background refresh must not surface as
+    // an unhandled rejection when the billing endpoint is unavailable.
+    checkStatus(primaryOrgId).catch(() => undefined);
   }, [primaryOrgId]);
 };
 

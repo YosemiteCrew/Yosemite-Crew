@@ -13,7 +13,7 @@
 import React from 'react';
 import {Alert, ActionSheetIOS, Platform, View} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
-import {MessageSimple, useMessageContext} from 'stream-chat-react-native';
+import {MessageItemView, useMessageContext} from 'stream-chat-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Share from 'react-native-share';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
@@ -149,7 +149,7 @@ export const EnhancedMessage: React.FC = () => {
       onLongPress={handleLongPress}
       accessibilityRole="button">
       <View>
-        <MessageSimple />
+        <MessageItemView />
       </View>
     </PressableOpacity>
   );

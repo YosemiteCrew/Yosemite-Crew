@@ -14,6 +14,144 @@ tags:
   - name: 'Non-FHIR'
     description: 'Non-FHIR endpoints under /v1'
 paths:
+  '/v1/pms/organisation/{organisationId}/calendar-blocks':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/pms/organisation/{organisationId}/calendar-blocks'
+      operationId: get_v1_pms_organisation_organisationId_calendar_blocks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Calendar blocks in the requested time range
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarBlock'
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/pms/organisation/{organisationId}/calendar-blocks'
+      operationId: post_v1_pms_organisation_organisationId_calendar_blocks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarBlockInput'
+      responses:
+        201:
+          description: Created calendar block
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarBlock'
+  '/v1/pms/organisation/{organisationId}/calendar-blocks/{blockId}':
+    patch:
+      tags:
+        - 'Non-FHIR'
+      summary: 'PATCH /v1/pms/organisation/{organisationId}/calendar-blocks/{blockId}'
+      operationId: patch_v1_pms_organisation_organisationId_calendar_blocks_blockId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: blockId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarBlockUpdate'
+      responses:
+        200:
+          description: Updated calendar block
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarBlock'
+    delete:
+      tags:
+        - 'Non-FHIR'
+      summary: 'DELETE /v1/pms/organisation/{organisationId}/calendar-blocks/{blockId}'
+      operationId: delete_v1_pms_organisation_organisationId_calendar_blocks_blockId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: blockId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        204:
+          description: Calendar block deleted
   '/v1/account-withdrawal/withdraw':
     post:
       tags:
@@ -1220,6 +1358,122 @@ paths:
                     $ref: '#/components/schemas/Appointment'
                   message:
                     type: string
+  /fhir/v1/appointment/pms/series/preview:
+    post:
+      tags:
+        - FHIR
+      summary: Preview weekly appointment dates and lead conflicts
+      operationId: post_fhir_v1_appointment_pms_series_preview
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leadId, timeZone, occurrences]
+              properties:
+                leadId:
+                  type: string
+                timeZone:
+                  type: string
+                occurrences:
+                  type: array
+                  minItems: 2
+                  maxItems: 52
+                  items:
+                    type: object
+                    required: [startTime, endTime]
+                    properties:
+                      startTime:
+                        type: string
+                        format: date-time
+                      endTime:
+                        type: string
+                        format: date-time
+      responses:
+        200:
+          description: Weekly appointment dates with lead conflicts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [index, startTime, endTime, hasConflict]
+                      properties:
+                        index:
+                          type: integer
+                        startTime:
+                          type: string
+                          format: date-time
+                        endTime:
+                          type: string
+                          format: date-time
+                        hasConflict:
+                          type: boolean
+  /fhir/v1/appointment/pms/series:
+    post:
+      tags:
+        - FHIR
+      summary: Book a weekly appointment series
+      operationId: post_fhir_v1_appointment_pms_series
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointment, timeZone, occurrences]
+              properties:
+                appointment:
+                  $ref: '#/components/schemas/Appointment'
+                timeZone:
+                  type: string
+                occurrences:
+                  type: array
+                  minItems: 2
+                  maxItems: 52
+                  items:
+                    type: object
+                    required: [startTime, endTime]
+                    properties:
+                      startTime:
+                        type: string
+                        format: date-time
+                      endTime:
+                        type: string
+                        format: date-time
+      responses:
+        201:
+          description: Created weekly appointment series
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
   '/fhir/v1/appointment/pms/organisation/{organisationId}':
     get:
       tags:
@@ -1373,6 +1627,16 @@ paths:
           description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [this, following]
+                  description: Apply cancellation to this appointment or this appointment and later occurrences.
       responses:
         200:
           description: Response
@@ -1406,6 +1670,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppointmentEnvelope'
+  '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/series/reschedule-preview':
+    post:
+      tags:
+        - FHIR
+      summary: Preview a recurring appointment reschedule
+      operationId: post_fhir_v1_appointment_pms_organisationId_appointmentId_series_reschedule_preview
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Appointment'
+      responses:
+        200:
+          description: Proposed times for this and following appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        [appointmentId, recurrenceSeriesIndex, startTime, endTime, hasConflict]
+                      properties:
+                        appointmentId:
+                          type: string
+                        recurrenceSeriesIndex:
+                          type: integer
+                        startTime:
+                          type: string
+                          format: date-time
+                        endTime:
+                          type: string
+                          format: date-time
+                        hasConflict:
+                          type: boolean
   '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}':
     patch:
       tags:
@@ -1425,6 +1741,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [following]
       requestBody:
         required: true
         content:
@@ -1495,6 +1817,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppointmentEnvelope'
+  '/v1/audit-trail/organisation':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: List organisation audit activity
+      operationId: post_v1_audit_trail_organisation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                cursor:
+                  type: string
+                  maxLength: 200
+              additionalProperties: false
+      responses:
+        200:
+          description: A page of organisation audit activity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - entries
+                  - nextCursor
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - patientId
+                        - eventType
+                        - occurredAt
+                      properties:
+                        id:
+                          type: string
+                        patientId:
+                          type: string
+                        eventType:
+                          type: string
+                        actorType:
+                          type: string
+                          nullable: true
+                          enum:
+                            - PMS_USER
+                            - PARENT
+                            - SYSTEM
+                        actorName:
+                          type: string
+                          nullable: true
+                        entityType:
+                          type: string
+                          nullable: true
+                        occurredAt:
+                          type: string
+                          format: date-time
+                  nextCursor:
+                    type: string
+                    nullable: true
   '/v1/audit-trail/companion/{patientId}':
     get:
       tags:
@@ -4790,6 +5187,101 @@ paths:
                 properties:
                   message:
                     type: string
+  '/fhir/v1/companion/org/{organisationId}/possible-duplicates':
+    get:
+      tags:
+        - FHIR
+      summary: Review possible duplicate patients
+      operationId: get_possible_duplicate_patients
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Possible duplicate patient pairs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        patientA:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            name: { type: string }
+                            dateOfBirth: { type: string, format: date-time }
+                        patientB:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            name: { type: string }
+                            dateOfBirth: { type: string, format: date-time }
+                        matchingOn:
+                          type: string
+                          enum: [microchip, name-and-birth-date]
+        400:
+          description: The clinic could not be identified.
+        403:
+          description: The staff member cannot access this clinic.
+
+  '/fhir/v1/companion/org/{organisationId}/possible-duplicates/{patientAId}/{patientBId}/dismiss':
+    post:
+      tags:
+        - FHIR
+      summary: Dismiss a possible duplicate patient pair
+      operationId: post_dismiss_possible_duplicate_patients
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: patientAId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: patientBId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: The possible match was dismissed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dismissedAt:
+                    type: string
+                    format: date-time
+        400:
+          description: The patient pair is invalid.
+        404:
+          description: The patient records could not be found in this clinic.
+
   /fhir/v1/companion/org/search:
     get:
       tags:
@@ -4838,6 +5330,158 @@ paths:
                 properties:
                   message:
                     type: string
+  '/fhir/v1/companion/org/profile-fields/{entityType}/{entityId}':
+    get:
+      tags:
+        - FHIR
+      summary: List practice fields for a client or patient
+      operationId: list_companion_profile_fields
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [CLIENT, PATIENT]
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Practice fields and values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    fieldKey: { type: string }
+                    label: { type: string }
+                    type: { type: string, enum: [TEXT, NUMBER, DATE, BOOLEAN, SELECT] }
+                    options: { type: array, items: { type: string } }
+                    value: {}
+        404:
+          description: Profile not found
+  '/fhir/v1/companion/org/profile-fields/{entityType}':
+    post:
+      tags:
+        - FHIR
+      summary: Add a practice field to client or patient profiles
+      description: Adding a field with the same label and type as a removed field restores that field together with its saved values.
+      operationId: create_companion_profile_field
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [CLIENT, PATIENT]
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, type]
+              properties:
+                label: { type: string, maxLength: 80 }
+                type: { type: string, enum: [TEXT, NUMBER, DATE, BOOLEAN, SELECT] }
+                options: { type: array, items: { type: string, maxLength: 80 } }
+      responses:
+        201:
+          description: Field created or restored
+        409:
+          description: A field with the same label already exists
+  '/fhir/v1/companion/org/profile-fields/fields/{fieldId}':
+    delete:
+      tags:
+        - FHIR
+      summary: Remove a practice field from profiles
+      description: The field is hidden from every profile and its saved values are kept.
+      operationId: deactivate_companion_profile_field
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: fieldId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Field removed
+        404:
+          description: Field not found
+  '/fhir/v1/companion/org/profile-fields/{entityType}/{entityId}/values':
+    put:
+      tags:
+        - FHIR
+      summary: Save practice field values for a client or patient
+      operationId: save_companion_profile_field_values
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [CLIENT, PATIENT]
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [values]
+              properties:
+                values:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [fieldId, value]
+                    properties:
+                      fieldId: { type: string, format: uuid }
+                      value: {}
+      responses:
+        204:
+          description: Values saved
+        404:
+          description: Profile or field not found
   '/fhir/v1/companion/org/{id}':
     post:
       tags:
@@ -8348,6 +8992,149 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/counter-sales':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/finance/counter-sales'
+      operationId: post_v1_finance_counter_sales
+      description: Complete a counter sale without creating an appointment.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation identifier for the request.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - organisationId
+                - items
+              properties:
+                organisationId:
+                  type: string
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required:
+                      - inventoryItemId
+                      - quantity
+                    properties:
+                      inventoryItemId:
+                        type: string
+                      quantity:
+                        type: integer
+                        minimum: 1
+      responses:
+        201:
+          description: Counter sale invoice created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - error
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - id
+                      - items
+                      - subtotal
+                      - totalAmount
+                      - currency
+                      - status
+                    properties:
+                      id:
+                        type: string
+                      organisationId:
+                        type: string
+                      appointmentId:
+                        type: string
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - name
+                            - quantity
+                            - unitPrice
+                            - total
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            description:
+                              type: string
+                            quantity:
+                              type: number
+                            unitPrice:
+                              type: number
+                            total:
+                              type: number
+                      subtotal:
+                        type: number
+                      totalAmount:
+                        type: number
+                      taxPercent:
+                        type: number
+                      taxTotal:
+                        type: number
+                      discountTotal:
+                        type: number
+                      currency:
+                        type: string
+                      paymentCollectionMethod:
+                        type: string
+                      status:
+                        type: string
+                  meta:
+                    nullable: true
+                  error:
+                    nullable: true
+        400:
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        403:
+          description: Permission denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: An item was not found in this organisation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        409:
+          description: One or more items cannot be sold or are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Request failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
   '/v1/finance/mobile/appointments/{appointmentId}/invoices':
     post:
       tags:
@@ -8718,6 +9505,123 @@ paths:
               schema:
                 $ref: '#/components/schemas/MessageError'
         404:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/organisation/{organisationId}/completed-visits/billing-review':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/organisation/{organisationId}/completed-visits/billing-review'
+      operationId: get_v1_finance_organisation_organisationId_completed_visits_billing_review
+      description: Completed visits that still need a billing action, ordered newest first.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - appointmentDate
+                        - billingStatus
+                      properties:
+                        id:
+                          type: string
+                        appointmentDate:
+                          type: string
+                          format: date-time
+                        patientName:
+                          type: string
+                          nullable: true
+                        clientName:
+                          type: string
+                          nullable: true
+                        appointmentType:
+                          type: string
+                          nullable: true
+                        invoiceId:
+                          type: string
+                          nullable: true
+                        invoiceStatus:
+                          type: string
+                          nullable: true
+                        invoiceTotal:
+                          type: number
+                          nullable: true
+                        currency:
+                          type: string
+                          nullable: true
+                        billingStatus:
+                          type: string
+                          enum:
+                            - MISSING_INVOICE
+                            - DRAFT_INVOICE
+                            - UNBILLED_CHARGES
+                  meta:
+                    type: object
+                    required:
+                      - nextCursor
+                      - hasMore
+                      - limit
+                    properties:
+                      nextCursor:
+                        type: string
+                        nullable: true
+                      hasMore:
+                        type: boolean
+                      limit:
+                        type: integer
+                  error:
+                    nullable: true
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        403:
           description: Response
           content:
             application/json:
@@ -9378,6 +10282,194 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/clients/{parentId}/payment-terms':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Read a client's payment terms
+      operationId: getClientPaymentTerms
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: The client's payment terms
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, error]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientPaymentTerms'
+                  error:
+                    nullable: true
+        404:
+          description: Client account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+    put:
+      tags:
+        - 'Non-FHIR'
+      summary: Update a client's payment terms
+      operationId: setClientPaymentTerms
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [netDays]
+              properties:
+                netDays:
+                  type: integer
+                  minimum: 0
+                  maximum: 365
+      responses:
+        200:
+          description: Updated payment terms
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, error]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientPaymentTerms'
+                  error:
+                    nullable: true
+        400:
+          description: Invalid payment terms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/organisation/{organisationId}/collections/overdue':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: List overdue client invoices
+      operationId: listOverdueClientInvoices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Unpaid invoices past their due dates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, error]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OverdueClientInvoice'
+                  error:
+                    nullable: true
+  '/v1/finance/organisation/{organisationId}/collections/overdue/{invoiceId}/review':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Mark an overdue invoice reviewed
+      operationId: markClientInvoiceReviewed
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Review record
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, error]
+                properties:
+                  data:
+                    type: object
+                    required: [id, collectionsReviewedAt, collectionsReviewedBy]
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      collectionsReviewedAt:
+                        type: string
+                        format: date-time
+                      collectionsReviewedBy:
+                        type: string
+                        format: uuid
+                  error:
+                    nullable: true
+        404:
+          description: Overdue invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
   '/v1/finance/organisation/{organisationId}/provider-receipts':
     get:
       tags:
@@ -19062,6 +20154,152 @@ paths:
                 properties:
                   message:
                     type: string
+  /v1/organisation-rating/practitioner-feedback:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: POST /v1/organisation-rating/practitioner-feedback
+      operationId: post_v1_organisation_rating_practitioner_feedback
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PractitionerFeedbackLookupBody'
+      responses:
+        200:
+          description: Feedback for the completed appointment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feedback:
+                    $ref: '#/components/schemas/PractitionerFeedback'
+                required:
+                  - feedback
+        400:
+          description: Invalid feedback request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        401:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        409:
+          description: Feedback is unavailable for this appointment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Feedback could not be loaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  '/v1/organisation-rating/appointment/{appointmentId}/practitioner-feedback':
+    put:
+      tags:
+        - 'Non-FHIR'
+      summary: 'PUT /v1/organisation-rating/appointment/{appointmentId}/practitioner-feedback'
+      operationId: put_v1_organisation_rating_appointment_appointmentId_practitioner_feedback
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PractitionerFeedbackBody'
+      responses:
+        200:
+          description: Feedback saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        400:
+          description: Invalid feedback
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        401:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        409:
+          description: Feedback is unavailable for this appointment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Feedback could not be saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
   '/v1/organisation-rating/{organisationId}':
     post:
       tags:
@@ -27400,6 +28638,448 @@ paths:
           description: The medication administration entry was not found.
         '409':
           description: The medication administration entry already has an outcome.
+  '/v1/purchase-orders/organisation/{organisationId}':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Create a supplier purchase order
+      description: The order starts as a draft. Confirm it before receiving deliveries against it.
+      operationId: post_v1_purchase_orders_organisation_organisationId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: 'Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.'
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendorId
+                - currency
+                - lines
+              properties:
+                vendorId:
+                  type: string
+                  format: uuid
+                orderNumber:
+                  type: string
+                  maxLength: 100
+                  description: Unique within the organisation. Generated as PO-YYYYMM-NNNN when left out.
+                expectedDate:
+                  type: string
+                  format: date-time
+                currency:
+                  type: string
+                  description: Three-letter currency code.
+                notes:
+                  type: string
+                lines:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/PurchaseOrderLineInput'
+      responses:
+        '201':
+          description: The draft order with its lines.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+        '409':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: List supplier purchase orders
+      operationId: get_v1_purchase_orders_organisation_organisationId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: 'Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.'
+          schema:
+            type: string
+        - name: vendorId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/PurchaseOrderStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        '200':
+          description: One page of orders, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PurchaseOrder'
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  total:
+                    type: integer
+                  totalPages:
+                    type: integer
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+  '/v1/purchase-orders/organisation/{organisationId}/outstanding':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: List order lines still waiting for delivery
+      description: Lines of confirmed or partly received orders that have not been received in full.
+      operationId: get_v1_purchase_orders_organisation_organisationId_outstanding
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: 'Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The outstanding lines, each with the order it belongs to.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/PurchaseOrderLine'
+                    - type: object
+                      properties:
+                        purchaseOrder:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            orderNumber:
+                              type: string
+                            vendorId:
+                              type: string
+                            expectedDate:
+                              type: string
+                              format: date-time
+                              nullable: true
+  '/v1/purchase-orders/{purchaseOrderId}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Get a supplier purchase order
+      operationId: get_v1_purchase_orders_purchaseOrderId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: purchaseOrderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The order with its lines and deliveries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+  '/v1/purchase-orders/{purchaseOrderId}/confirm':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Confirm a draft purchase order
+      operationId: post_v1_purchase_orders_purchaseOrderId_confirm
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: purchaseOrderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The confirmed order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+  '/v1/purchase-orders/{purchaseOrderId}/receive-delivery':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Receive a supplier delivery into stock
+      description: >-
+        Records the delivery and adds each received quantity to its batch and to
+        the item's stock in one step. A line without a batch gets a new batch.
+        Retrying with the same idempotency key returns the recorded delivery
+        without adding the stock again.
+      operationId: post_v1_purchase_orders_purchaseOrderId_receive_delivery
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: purchaseOrderId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - idempotencyKey
+                - lines
+              properties:
+                idempotencyKey:
+                  type: string
+                  maxLength: 200
+                deliveryDate:
+                  type: string
+                  format: date-time
+                notes:
+                  type: string
+                lines:
+                  type: array
+                  minItems: 1
+                  description: Each order line at most once.
+                  items:
+                    type: object
+                    required:
+                      - purchaseOrderLineId
+                      - quantityReceived
+                    properties:
+                      purchaseOrderLineId:
+                        type: string
+                        format: uuid
+                      quantityReceived:
+                        type: integer
+                        minimum: 1
+                        description: At most the quantity still to receive on the line.
+                      batchId:
+                        type: string
+                        format: uuid
+                        description: An existing batch of the same item to add the stock to.
+      responses:
+        '201':
+          description: The recorded delivery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderDelivery'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+        '409':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+  '/v1/purchase-orders/deliveries/{deliveryId}/return':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Return delivered stock to the supplier
+      description: >-
+        Takes each returned quantity out of the batch it was received into and
+        out of the item's stock in one step. Only stock that is not allocated
+        can be returned. Retrying with the same idempotency key returns the
+        delivery without taking the stock out again.
+      operationId: post_v1_purchase_orders_deliveries_deliveryId_return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: deliveryId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - idempotencyKey
+                - lines
+              properties:
+                idempotencyKey:
+                  type: string
+                  maxLength: 200
+                notes:
+                  type: string
+                lines:
+                  type: array
+                  minItems: 1
+                  description: Each delivery line at most once.
+                  items:
+                    type: object
+                    required:
+                      - deliveryLineId
+                      - quantityReturned
+                    properties:
+                      deliveryLineId:
+                        type: string
+                        format: uuid
+                      quantityReturned:
+                        type: integer
+                        minimum: 1
+      responses:
+        '200':
+          description: The delivery with its lines and returns.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderDelivery'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+        '409':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+  '/v1/purchase-orders/{purchaseOrderId}/cancel':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Cancel a purchase order
+      description: Refused once the order has been received in full. Stock already received stays in stock.
+      operationId: post_v1_purchase_orders_purchaseOrderId_cancel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: purchaseOrderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The cancelled order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
+        '404':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderError'
   /v1/practice-website/{organisationId}:
     get:
       tags:
@@ -27624,6 +29304,330 @@ components:
                     nullable: true
                   durationMinutes:
                     type: integer
+    ClientPaymentTerms:
+      type: object
+      required: [netDays, updatedAt, updatedBy]
+      properties:
+        netDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedBy:
+          type: string
+          format: uuid
+          nullable: true
+    OverdueClientInvoice:
+      type: object
+      required:
+        [invoiceId, parentId, dueAt, dueDate, currency, balance, netDays, reviewedAt, reviewedBy]
+      properties:
+        invoiceId:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+        dueAt:
+          type: string
+          format: date-time
+          description: The last moment of the due date in the practice's time zone.
+        dueDate:
+          type: string
+          format: date
+          description: The due date as the practice's calendar date.
+        currency:
+          type: string
+        balance:
+          type: number
+          description: What is still owed on this invoice, in its own currency.
+        netDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+          description: The client's current payment terms in days.
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedBy:
+          type: string
+          format: uuid
+          nullable: true
+    CalendarBlock:
+      type: object
+      required:
+        - id
+        - organisationId
+        - targetType
+        - targetId
+        - startAt
+        - endAt
+        - reason
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        organisationId:
+          type: string
+        targetType:
+          type: string
+          enum: [STAFF, ROOM]
+        targetId:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        createdBy:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CalendarBlockInput:
+      type: object
+      required: [targetType, targetId, startAt, endAt, reason]
+      properties:
+        targetType:
+          type: string
+          enum: [STAFF, ROOM]
+        targetId:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    CalendarBlockUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        targetType:
+          type: string
+          enum: [STAFF, ROOM]
+        targetId:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    PurchaseOrderError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: array
+          description: Present on validation errors.
+          items:
+            type: object
+            properties:
+              path:
+                type: array
+                items:
+                  type: string
+              message:
+                type: string
+    PurchaseOrderStatus:
+      type: string
+      enum: [DRAFT, CONFIRMED, PARTIALLY_RECEIVED, RECEIVED, CANCELLED]
+    PurchaseOrderLineInput:
+      type: object
+      required:
+        - itemId
+        - quantityOrdered
+        - unitCost
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        quantityOrdered:
+          type: integer
+          minimum: 1
+        unitCost:
+          type: number
+          minimum: 0
+        packSize:
+          type: integer
+          minimum: 1
+        batchNumber:
+          type: string
+          description: Batch number given to the stock when it is received into a new batch.
+        lotNumber:
+          type: string
+        expiryDate:
+          type: string
+          format: date-time
+    PurchaseOrderLine:
+      type: object
+      properties:
+        id:
+          type: string
+        purchaseOrderId:
+          type: string
+        itemId:
+          type: string
+        vendorId:
+          type: string
+        quantityOrdered:
+          type: integer
+        quantityReceived:
+          type: integer
+          description: Received so far, net of stock returned to the supplier.
+        quantityReturned:
+          type: integer
+        unitCost:
+          type: number
+        totalCost:
+          type: number
+        packSize:
+          type: integer
+        batchNumber:
+          type: string
+          nullable: true
+        lotNumber:
+          type: string
+          nullable: true
+        expiryDate:
+          type: string
+          format: date-time
+          nullable: true
+        deliveryLines:
+          type: array
+          description: Present when reading a single order.
+          items:
+            $ref: '#/components/schemas/PurchaseOrderDeliveryLine'
+    PurchaseOrder:
+      type: object
+      properties:
+        id:
+          type: string
+        organisationId:
+          type: string
+        vendorId:
+          type: string
+        status:
+          $ref: '#/components/schemas/PurchaseOrderStatus'
+        orderNumber:
+          type: string
+        orderDate:
+          type: string
+          format: date-time
+        expectedDate:
+          type: string
+          format: date-time
+          nullable: true
+        totalAmount:
+          type: number
+          description: Sum of the line totals, rounded to the order currency.
+        currency:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderLine'
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderDelivery'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PurchaseOrderDeliveryLine:
+      type: object
+      properties:
+        id:
+          type: string
+        deliveryId:
+          type: string
+        purchaseOrderLineId:
+          type: string
+        itemId:
+          type: string
+        quantityReceived:
+          type: integer
+        quantityReturned:
+          type: integer
+        batchId:
+          type: string
+          description: The batch the received stock was added to.
+    PurchaseOrderReturn:
+      type: object
+      properties:
+        id:
+          type: string
+        deliveryId:
+          type: string
+        idempotencyKey:
+          type: string
+        returnedBy:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    PurchaseOrderDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+        purchaseOrderId:
+          type: string
+        vendorId:
+          type: string
+        idempotencyKey:
+          type: string
+        deliveryDate:
+          type: string
+          format: date-time
+        receivedBy:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderDeliveryLine'
+        returns:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderReturn'
+        createdAt:
+          type: string
+          format: date-time
     SupplierBillError:
       type: object
       properties:
@@ -33140,6 +35144,48 @@ components:
       additionalProperties: true
       required:
         - rating
+    PractitionerFeedbackLookupBody:
+      type: object
+      properties:
+        appointmentId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+      required:
+        - appointmentId
+    PractitionerFeedbackBody:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        review:
+          type: string
+          maxLength: 1000
+      additionalProperties: false
+      required:
+        - rating
+    PractitionerFeedback:
+      type: object
+      properties:
+        isRated:
+          type: boolean
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        review:
+          type: string
+          nullable: true
+        practitionerName:
+          type: string
+      required:
+        - isRated
+        - rating
+        - review
+        - practitionerName
     SendInviteBody:
       type: object
       properties:

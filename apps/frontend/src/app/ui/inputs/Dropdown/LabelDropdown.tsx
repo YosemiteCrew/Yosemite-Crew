@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
 import Field from '@/app/ui/Field';
-import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
+import { FIELD_CONTROL_HEIGHT, getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 import { useListboxKeyboardNav } from './useDropdownKeyboardNav';
 import { useDropdownPositioning } from './useDropdownPositioning';
 import { deriveEmptyLabel } from '@/app/ui/inputs/Dropdown/emptyLabel';
@@ -50,7 +50,7 @@ const findDropdownOption = (options: DropdownOption[], defaultOption?: string) =
 };
 
 const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
-  const base = `relative flex h-10 min-w-30 cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(hasErrorState)}`;
+  const base = `relative flex ${FIELD_CONTROL_HEIGHT} min-w-30 cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(hasErrorState)}`;
   if (open) return `${base} border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)] z-20`;
   return base;
 };

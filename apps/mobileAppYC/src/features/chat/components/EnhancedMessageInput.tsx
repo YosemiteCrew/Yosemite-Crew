@@ -20,7 +20,7 @@ import {
   Text,
 } from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
-import {MessageInput, useChannelContext} from 'stream-chat-react-native';
+import {MessageComposer, useChannelContext} from 'stream-chat-react-native';
 import Sound from 'react-native-nitro-sound';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {
@@ -457,7 +457,7 @@ const ComposerBar: React.FC<ComposerBarProps> = ({
     </View>
 
     {/* Default Stream Message Input */}
-    <MessageInput />
+    <MessageComposer />
   </View>
 );
 

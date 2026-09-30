@@ -19,6 +19,11 @@ describe('routePermissions', () => {
     ).toBe(true);
   });
 
+  it('requires audit:view:any for the organization audit log', () => {
+    expect(canAccessPathByPermissions('/audit-trail', [])).toBe(false);
+    expect(canAccessPathByPermissions('/audit-trail', [PERMISSIONS.AUDIT_VIEW_ANY])).toBe(true);
+  });
+
   it('requires the explicit controlled-drug register read grant', () => {
     expect(
       canAccessPathByPermissions('/controlled-substances', [PERMISSIONS.APPOINTMENTS_VIEW_ANY])

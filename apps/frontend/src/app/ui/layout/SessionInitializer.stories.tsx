@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, waitFor, within } from 'storybook/test';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Organisation, UserOrganization } from '@yosemite-crew/types';
 
 import type { AnimalTerminologyPreference, UserProfile } from '@/app/features/users/types/profile';
@@ -53,7 +54,7 @@ const buildProfile = (animalTerminology?: AnimalTerminologyPreference): UserProf
 
 /**
  * Thirteen org-scoped loaders fire from a single effect the moment `primaryOrgId`
- * lands, all of them through the shared axios instance, which uses XHR. Storybook
+ * lands, all of them through the shared axios instance, pointed at XHR here. Storybook
  * has no API behind it, so every one of them would reject and the services log
  * `console.error` out of their catch blocks - noise that has nothing to do with
  * the shell and that fails story verification.
@@ -63,6 +64,13 @@ const buildProfile = (animalTerminology?: AnimalTerminologyPreference): UserProf
  * shapes, and no store is clobbered by a fixture the story never asked for. The
  * real constructor goes back on unmount.
  */
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While the stand-in below is installed the instance is pointed
+ * at the XHR adapter so the stand-in answers it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
+
 const parkApiRequests = () => {
   const target = globalThis as unknown as { XMLHttpRequest: typeof XMLHttpRequest };
   const real = target.XMLHttpRequest;
@@ -89,8 +97,10 @@ const parkApiRequests = () => {
   }
 
   target.XMLHttpRequest = ParkedXhr as unknown as typeof XMLHttpRequest;
+  api.defaults.adapter = 'xhr';
   return () => {
     target.XMLHttpRequest = real;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 

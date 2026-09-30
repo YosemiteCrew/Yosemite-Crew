@@ -23,8 +23,18 @@ import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 import StripeStatusPill from '@/app/features/finance/pages/Finance/Sections/StripeStatusPill';
+import CounterSaleDialog from '@/app/features/finance/pages/Finance/Sections/CounterSaleDialog';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 const FINANCE_PAGE_SKELETON = <PageSkeleton variant="list" />;
+
+// A counter sale lists the stock and draws it down as well as billing, so the
+// button needs every permission the dialog and the sale endpoint check.
+const COUNTER_SALE_PERMISSIONS = [
+  PERMISSIONS.BILLING_EDIT_ANY,
+  PERMISSIONS.INVENTORY_VIEW_ANY,
+  PERMISSIONS.INVENTORY_EDIT_ANY,
+];
 
 const FinanceSectionSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
@@ -43,6 +53,7 @@ const PhoneInvoiceList = dynamic(
 
 const Finance = () => {
   const invoices = useInvoicesForPrimaryOrg();
+  const organisationId = useOrgStore((s) => s.primaryOrgId);
   const subscription = useSubscriptionForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
   const query = useSearchStore((s) => s.query);
@@ -50,6 +61,7 @@ const Finance = () => {
   const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState('all');
   const [viewInvoice, setViewInvoice] = useState(false);
+  const [counterSaleOpen, setCounterSaleOpen] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(invoices[0] || null);
   const isPhone = useIsPhone();
   const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
@@ -144,6 +156,14 @@ const Finance = () => {
               would only be reachable by typing the URL.
             */}
             <div className="flex flex-wrap items-center justify-end gap-2">
+              <PermissionGate allOf={COUNTER_SALE_PERMISSIONS}>
+                <Secondary
+                  text="Counter sale"
+                  size="compact"
+                  onClick={() => setCounterSaleOpen(true)}
+                  ariaLabel="Create a counter sale"
+                />
+              </PermissionGate>
               <Secondary
                 href="/finance/estimates"
                 text="Estimates"
@@ -173,6 +193,18 @@ const Finance = () => {
                 text="Reports"
                 size="compact"
                 ariaLabel="View payment reports"
+              />
+              <Secondary
+                href="/finance/collections"
+                text="Overdue"
+                size="compact"
+                ariaLabel="Review overdue accounts"
+              />
+              <Secondary
+                href="/finance/billing-review"
+                text="Billing review"
+                size="compact"
+                ariaLabel="Review completed visits needing billing"
               />
             </div>
             <PhoneInvoiceList
@@ -224,6 +256,13 @@ const Finance = () => {
               */}
               <div className="flex flex-col items-end gap-2">
                 <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <PermissionGate allOf={COUNTER_SALE_PERMISSIONS}>
+                    <Secondary
+                      text="Counter sale"
+                      onClick={() => setCounterSaleOpen(true)}
+                      ariaLabel="Create a counter sale"
+                    />
+                  </PermissionGate>
                   <Secondary
                     href="/finance/estimates"
                     text="Estimates"
@@ -248,6 +287,16 @@ const Finance = () => {
                     href="/finance/reports"
                     text="Reports"
                     ariaLabel="View payment reports"
+                  />
+                  <Secondary
+                    href="/finance/collections"
+                    text="Overdue"
+                    ariaLabel="Review overdue accounts"
+                  />
+                  <Secondary
+                    href="/finance/billing-review"
+                    text="Billing review"
+                    ariaLabel="Review completed visits needing billing"
                   />
                   <StripeStatusPill />
                 </div>
@@ -275,6 +324,15 @@ const Finance = () => {
             activeInvoice={activeInvoice}
           />
         )}
+        {counterSaleOpen ? (
+          <CounterSaleDialog
+            open
+            setOpen={setCounterSaleOpen}
+            organisationId={organisationId}
+            currency={currency}
+            onCreated={openInvoice}
+          />
+        ) : null}
       </PermissionGate>
     </div>
   );

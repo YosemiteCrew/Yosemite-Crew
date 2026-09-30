@@ -2,7 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { IoIosSearch } from 'react-icons/io';
 
 import Field from '@/app/ui/Field';
-import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
+import { FIELD_CONTROL_HEIGHT, getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 
 type OptionProps = {
   value: string;
@@ -164,7 +164,7 @@ const SearchDropdown = ({
     >
       <div className="relative" ref={dropdownRef}>
         <div
-          className={`flex h-10 items-center gap-2 px-3 focus-within:border-[var(--blue)]! ${getFieldControlClassName(Boolean(error))} ${canSearch ? 'rounded-b-none! border-[var(--blue)]! border-b-0!' : ''}`}
+          className={`flex ${FIELD_CONTROL_HEIGHT} items-center gap-2 px-3 focus-within:border-[var(--blue)]! ${getFieldControlClassName(Boolean(error))} ${canSearch ? 'rounded-b-none! border-[var(--blue)]! border-b-0!' : ''}`}
         >
           <IoIosSearch size={15} color="var(--ink-faint)" className="shrink-0" aria-hidden="true" />
           <input

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
 import VitalsForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/VitalsForm';
 import ObservationToolForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/ObservationToolForm';
+import DentalExaminationForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/DentalExaminationForm';
+import DermatologyAssessmentForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/DermatologyAssessmentForm';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 
 type RecordPanelProps = {
@@ -12,18 +14,21 @@ type RecordPanelProps = {
   authorId?: string;
   authorName?: string;
   companionId?: string;
+  species?: string;
   /** Which tab to open on. Defaults to Vitals. */
   initialTab?: RecordTab;
 };
 
-export type RecordTab = 'VITALS' | 'OBSERVATION';
+export type RecordTab = 'VITALS' | 'OBSERVATION' | 'DENTAL' | 'DERMATOLOGY';
 
 const TABS = [
   { key: 'VITALS', label: 'Vitals' },
   { key: 'OBSERVATION', label: 'Observation Tool' },
+  { key: 'DENTAL', label: 'Dental' },
+  { key: 'DERMATOLOGY', label: 'Dermatology' },
 ];
 
-/** Record panel: Vitals + Observation Tool tabs, each with a form + recorded list. */
+/** Record panel: Vitals, Observation Tool, Dental, and Dermatology tabs. */
 const RecordPanel = ({
   appointmentId,
   organisationId,
@@ -31,6 +36,7 @@ const RecordPanel = ({
   authorId,
   authorName,
   companionId,
+  species,
   initialTab = 'VITALS',
 }: RecordPanelProps) => {
   const [tab, setTab] = useState<RecordTab>(initialTab);
@@ -38,15 +44,9 @@ const RecordPanel = ({
 
   if (!encounter) return null;
 
-  return (
-    <div className="flex flex-col gap-4">
-      <TabToggle
-        tabs={TABS}
-        activeKey={tab}
-        onChange={(key) => setTab(key as RecordTab)}
-        panelId={(key) => `record-panel-${key}`}
-      />
-      {tab === 'VITALS' ? (
+  const renderPanel = () => {
+    if (tab === 'VITALS') {
+      return (
         <div id="record-panel-VITALS" role="tabpanel" aria-labelledby="tab-VITALS">
           <VitalsForm
             appointmentId={appointmentId}
@@ -57,7 +57,10 @@ const RecordPanel = ({
             vitals={encounter.vitals}
           />
         </div>
-      ) : (
+      );
+    }
+    if (tab === 'OBSERVATION') {
+      return (
         <div id="record-panel-OBSERVATION" role="tabpanel" aria-labelledby="tab-OBSERVATION">
           <ObservationToolForm
             appointmentId={appointmentId}
@@ -69,7 +72,43 @@ const RecordPanel = ({
             observations={encounter.observations}
           />
         </div>
-      )}
+      );
+    }
+    if (tab === 'DERMATOLOGY') {
+      return (
+        <div id="record-panel-DERMATOLOGY" role="tabpanel" aria-labelledby="tab-DERMATOLOGY">
+          <DermatologyAssessmentForm
+            key={companionId}
+            organisationId={organisationId}
+            patientId={companionId}
+            encounterId={encounterId}
+            assessedBy={authorId}
+            species={species}
+          />
+        </div>
+      );
+    }
+    return (
+      <div id="record-panel-DENTAL" role="tabpanel" aria-labelledby="tab-DENTAL">
+        <DentalExaminationForm
+          organisationId={organisationId}
+          patientId={companionId}
+          encounterId={encounterId}
+          species={species}
+        />
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TabToggle
+        tabs={TABS}
+        activeKey={tab}
+        onChange={(key) => setTab(key as RecordTab)}
+        panelId={(key) => `record-panel-${key}`}
+      />
+      {renderPanel()}
     </div>
   );
 };

@@ -3,18 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Text } from '@/app/ui';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
-import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import type { PrescriptionItem } from '@/app/features/appointments/types/workspace';
-import { formatStampDate } from '@/app/lib/appointmentWorkspace';
+import MedicationAdministrationHistory from './MedicationAdministrationHistory';
+import ScheduleDoseForm from './ScheduleDoseForm';
 import {
-  administerMedication,
   createMedicationAdministration,
-  holdMedication,
   listMedicationAdministrations,
-  missMedication,
-  refuseMedication,
+  recordMedicationOutcome,
   type MedicationAdministrationEntry,
-  type MedicationAdministrationStatus,
+  type MedicationAdministrationOutcome,
 } from '@/app/features/appointments/services/medicationAdministrationService';
 
 type MedicationAdministrationPanelProps = {
@@ -23,27 +20,6 @@ type MedicationAdministrationPanelProps = {
   encounterId?: string;
   prescriptions: PrescriptionItem[];
   readOnly: boolean;
-};
-
-type OutcomeAction = (
-  organisationId: string,
-  entryId: string
-) => Promise<MedicationAdministrationEntry>;
-
-const STATUS_LABELS: Record<MedicationAdministrationStatus, string> = {
-  SCHEDULED: 'Scheduled',
-  GIVEN: 'Given',
-  HELD: 'Held',
-  MISSED: 'Missed',
-  REFUSED: 'Refused',
-};
-
-const STATUS_TONES: Record<MedicationAdministrationStatus, StatusTone> = {
-  SCHEDULED: 'info',
-  GIVEN: 'success',
-  HELD: 'warning',
-  MISSED: 'danger',
-  REFUSED: 'neutral',
 };
 
 const compareScheduledAt = (a: MedicationAdministrationEntry, b: MedicationAdministrationEntry) =>
@@ -144,13 +120,13 @@ const MedicationAdministrationPanel = ({
     }
   };
 
-  const saveOutcome = async (entryId: string, action: OutcomeAction) => {
+  const saveOutcome = async (entryId: string, outcome: MedicationAdministrationOutcome) => {
     if (!organisationId || isSaving) return;
     setSavingEntryId(entryId);
     setIsSaving(true);
     setError(null);
     try {
-      const updated = await action(organisationId, entryId);
+      const updated = await recordMedicationOutcome(organisationId, entryId, outcome);
       setEntries((current) => current.map((entry) => (entry.id === entryId ? updated : entry)));
     } catch {
       setCanRefresh(true);
@@ -203,65 +179,13 @@ const MedicationAdministrationPanel = ({
         )}
 
         {ready && entries.length > 0 && (
-          <ul className="flex flex-col divide-y divide-card-border">
-            {entries.map((entry) => (
-              <li key={entry.id} className="flex min-w-0 flex-col gap-3 py-4 first:pt-0 last:pb-0">
-                <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Text as="h3" variant="body-3-emphasis" className="text-text-primary">
-                      {entry.medicationName}
-                    </Text>
-                    <Text as="p" variant="body-4" className="mt-1 text-text-secondary">
-                      {entry.dose} · {entry.route} · {formatStampDate(entry.scheduledAt)}
-                    </Text>
-                    {entry.status !== 'SCHEDULED' && (
-                      <Text as="p" variant="caption-1" className="mt-1 text-text-secondary">
-                        {entry.status === 'GIVEN' ? 'Recorded as given' : 'Outcome recorded'} ·{' '}
-                        {formatStampDate(entry.administeredAt ?? entry.updatedAt)}
-                      </Text>
-                    )}
-                    {entry.notes && (
-                      <Text as="p" variant="caption-1" className="mt-1 text-text-secondary">
-                        {entry.notes}
-                      </Text>
-                    )}
-                  </div>
-                  <StatusPill
-                    label={STATUS_LABELS[entry.status]}
-                    tone={STATUS_TONES[entry.status]}
-                    className="mt-0.5"
-                  />
-                </div>
-                {entry.status === 'SCHEDULED' && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      text={savingEntryId === entry.id ? 'Saving…' : 'Record given'}
-                      onClick={() => saveOutcome(entry.id, administerMedication)}
-                      isDisabled={readOnly || isSaving}
-                    />
-                    <Button
-                      text="Hold"
-                      variant="secondary"
-                      onClick={() => saveOutcome(entry.id, holdMedication)}
-                      isDisabled={readOnly || isSaving}
-                    />
-                    <Button
-                      text="Mark missed"
-                      variant="secondary"
-                      onClick={() => saveOutcome(entry.id, missMedication)}
-                      isDisabled={readOnly || isSaving}
-                    />
-                    <Button
-                      text="Record refused"
-                      variant="secondary"
-                      onClick={() => saveOutcome(entry.id, refuseMedication)}
-                      isDisabled={readOnly || isSaving}
-                    />
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+          <MedicationAdministrationHistory
+            entries={entries}
+            readOnly={readOnly}
+            isSaving={isSaving}
+            savingEntryId={savingEntryId}
+            onRecordOutcome={saveOutcome}
+          />
         )}
 
         {!readOnly && ready && !isCreating && (
@@ -280,51 +204,17 @@ const MedicationAdministrationPanel = ({
         )}
 
         {isCreating && (
-          <form
+          <ScheduleDoseForm
+            schedulablePrescriptions={schedulablePrescriptions}
+            selectedPrescription={selectedPrescription}
+            prescriptionId={prescriptionId}
+            scheduledAt={scheduledAt}
+            isSaving={isSaving}
+            onPrescriptionChange={setPrescriptionId}
+            onScheduledAtChange={setScheduledAt}
             onSubmit={saveScheduledDose}
-            className="flex flex-col gap-3 rounded-xl border border-card-border p-4"
-          >
-            <label className="flex flex-col gap-1 text-body-4 font-medium text-text-primary">
-              {'Medication'}
-              <select
-                required
-                value={prescriptionId}
-                onChange={(event) => setPrescriptionId(event.target.value)}
-                className="min-h-11 rounded-xl border border-card-border bg-[var(--screen)] px-3 text-body-4"
-              >
-                <option value="">Choose an in-house prescription</option>
-                {schedulablePrescriptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.medicineName} · {item.dose ?? ''} {item.doseUnit ?? ''} ·{' '}
-                    {item.route ?? ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selectedPrescription && (
-              <Text variant="caption-1" className="text-text-secondary">
-                {selectedPrescription.instructions || 'Use the directions on the prescription.'}
-              </Text>
-            )}
-            <label className="flex flex-col gap-1 text-body-4 font-medium text-text-primary">
-              {'Scheduled time'}
-              <input
-                required
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(event) => setScheduledAt(event.target.value)}
-                className="min-h-11 rounded-xl border border-card-border bg-[var(--screen)] px-3 text-body-4"
-              />
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                text={isSaving ? 'Saving…' : 'Save scheduled dose'}
-                type="submit"
-                isDisabled={isSaving}
-              />
-              <Button text="Cancel" variant="secondary" onClick={resetForm} isDisabled={isSaving} />
-            </div>
-          </form>
+            onCancel={resetForm}
+          />
         )}
       </div>
     </SectionContainer>

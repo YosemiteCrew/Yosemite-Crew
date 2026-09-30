@@ -497,7 +497,7 @@ export const AppointmentFormScreen: React.FC = () => {
       ).unwrap();
       dispatchFormEdit({type: 'setDirty', dirty: false});
 
-      if (activeEntry.signingRequired && activeEntry.canSign !== false) {
+      if (activeEntry.signingRequired && activeEntry.canSign === true) {
         if (!result.submission?._id) {
           Alert.alert(
             i18next.t('alerts.forms.signingNotStarted'),

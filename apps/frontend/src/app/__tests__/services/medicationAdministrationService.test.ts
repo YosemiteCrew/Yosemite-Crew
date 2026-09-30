@@ -1,10 +1,7 @@
 import {
-  administerMedication,
   createMedicationAdministration,
-  holdMedication,
   listMedicationAdministrations,
-  missMedication,
-  refuseMedication,
+  recordMedicationOutcome,
 } from '@/app/features/appointments/services/medicationAdministrationService';
 import { getData, postData } from '@/app/services/axios';
 
@@ -78,14 +75,14 @@ describe('medicationAdministrationService', () => {
   });
 
   it.each([
-    ['administers', administerMedication, 'administer'],
-    ['holds', holdMedication, 'hold'],
-    ['marks missed', missMedication, 'miss'],
-    ['records refusal', refuseMedication, 'refuse'],
-  ])('records when a nurse %s a scheduled dose', async (_action, action, endpoint) => {
+    ['administers', 'GIVEN', 'administer'],
+    ['holds', 'HELD', 'hold'],
+    ['marks missed', 'MISSED', 'miss'],
+    ['records refusal', 'REFUSED', 'refuse'],
+  ] as const)('records when a nurse %s a scheduled dose', async (_action, outcome, endpoint) => {
     postDataMock.mockResolvedValue({ data: entry });
 
-    await expect(action('org-1', 'mar-1')).resolves.toEqual(entry);
+    await expect(recordMedicationOutcome('org-1', 'mar-1', outcome)).resolves.toEqual(entry);
     expect(postDataMock).toHaveBeenCalledWith(
       `/v1/pms/organisation/org-1/mar-entries/mar-1/${endpoint}`,
       {}

@@ -92,11 +92,8 @@ export const NewPackage: Story = {
     await expect(grid.children).toHaveLength(2);
 
     // A blank draft: no field may claim to be invalid before the user saves.
-    await expect(canvas.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'false');
-    await expect(canvas.getByLabelText('Approx. duration')).toHaveAttribute(
-      'aria-invalid',
-      'false'
-    );
+    await expect(canvas.getByLabelText('Name')).not.toHaveAttribute('aria-invalid');
+    await expect(canvas.getByLabelText('Approx. duration')).not.toHaveAttribute('aria-invalid');
     await expect(canvas.queryAllByRole('alert')).toHaveLength(0);
 
     /* An empty count string matches no option, so both triggers must announce the
@@ -167,16 +164,16 @@ export const LeadAndSupportAreDifferentScales: Story = {
     /* Lead is a yes/no question wearing a count control's clothes. If it ever
        inherits STAFF_COUNT_OPTIONS the trigger still reads "Lead: ..." and the
        menu still opens - only the answers change. */
-    await expect(await body.findByRole('button', { name: 'No' })).toBeInTheDocument();
-    await expect(body.queryByRole('button', { name: '5' })).not.toBeInTheDocument();
-    await userEvent.click(body.getByRole('button', { name: 'No' }));
+    await expect(await body.findByRole('option', { name: 'No' })).toBeInTheDocument();
+    await expect(body.queryByRole('option', { name: '5' })).not.toBeInTheDocument();
+    await userEvent.click(body.getByRole('option', { name: 'No' }));
     await expect(args.onLeadCountSelect).toHaveBeenCalledWith('0');
     await expect(args.onSupportCountSelect).not.toHaveBeenCalled();
 
     await userEvent.click(canvas.getByRole('button', { name: 'Support: 2' }));
     // Support runs 0-5, so the top of the range proves it is the other list.
-    await expect(await body.findByRole('button', { name: '5' })).toBeInTheDocument();
-    await userEvent.click(body.getByRole('button', { name: '5' }));
+    await expect(await body.findByRole('option', { name: '5' })).toBeInTheDocument();
+    await userEvent.click(body.getByRole('option', { name: '5' }));
     await expect(args.onSupportCountSelect).toHaveBeenCalledWith('5');
     await expect(args.onLeadCountSelect).toHaveBeenCalledTimes(1);
   },

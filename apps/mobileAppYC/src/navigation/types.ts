@@ -48,6 +48,7 @@ export type HomeStackParamList = {
   Passport: {companionId: string};
   MedicalRecords: {companionId: string};
   Prescriptions: {companionId: string};
+  CareReminders: {companionId: string};
   EditCompanionOverview: {companionId: string};
   EditParentOverview: {companionId: string};
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
@@ -154,7 +155,13 @@ export type AppointmentStackParamList = {
       import('@/features/appointments/types').PaymentIntentInfo | null;
   };
   PaymentSuccess: {appointmentId: string; companionId?: string};
-  Review: {appointmentId: string};
+  Review: {
+    appointmentId: string;
+    isEditing?: boolean;
+    existingRating?: number | null;
+    existingReview?: string | null;
+    practitionerName?: string | null;
+  };
   Chat: {appointmentId: string};
   ChatChannel: {
     appointmentId: string;

@@ -474,10 +474,11 @@ export const Phone: Story = {
      that loads `iframe.html` directly renders this at panel width - where a 536px
      grid fits and the scroll assertion below is false for the wrong reason. This
      one CAN be framed, unlike a `sm:`-gated layout: the overflow is driven by the
-     grid's own `min-width` against its container, not by a media query. */
+     grid's own `min-width` against its container, not by a media query. 343px is
+     the 375px viewport less the 16px gutter the file's decorator adds on each side. */
   decorators: [
     (Story) => (
-      <div className="w-[375px]">
+      <div className="w-[343px]">
         <Story />
       </div>
     ),

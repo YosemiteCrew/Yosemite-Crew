@@ -250,6 +250,8 @@ export type LineItem = {
 export type PrescriptionFulfillment = 'IN_HOUSE' | 'PRESCRIPTION_ONLY';
 
 export type PrescriptionItem = {
+  /** Persisted database line id used by refill authorisation; distinct from artifact id. */
+  prescriptionItemId?: string;
   /**
    * The prescription artifact this row belongs to. A backend prescription with
    * several lines becomes one row per line, and each row's `id` is then the LINE
@@ -299,6 +301,8 @@ export type PrescriptionItem = {
   qty?: string;
   /** Number of refills allowed for this medication. */
   refill?: string;
+  /** Temporary expiry choice; saved as a fill authority when the draft is saved. */
+  refillValidUntil?: string;
   /** Controlled-drug schedule from inventory (e.g. "Schedule III"), shown on the controlled pill. */
   drugSchedule?: string;
   /** True when the inventory item requires a prescription (drives the Rx-required pill). */

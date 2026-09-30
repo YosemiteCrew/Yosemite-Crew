@@ -3,6 +3,7 @@ import api, { getData } from '@/app/services/axios';
 export type DispenseRequestStatus = 'PENDING' | 'NOT_DISPENSED' | 'DISPENSED';
 
 export interface DispenseRequestMedication {
+  prescriptionItemId?: string;
   inventoryItemId: string;
   quantity?: number;
   sourceLineKey?: string;

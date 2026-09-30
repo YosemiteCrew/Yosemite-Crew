@@ -1610,6 +1610,57 @@ export const appointmentApi = {
     return data;
   },
 
+  async savePractitionerFeedback({
+    appointmentId,
+    rating,
+    review,
+    accessToken,
+  }: {
+    appointmentId: string;
+    rating: number;
+    review: string;
+    accessToken: string;
+  }) {
+    const url = buildUrl(
+      `/v1/organisation-rating/appointment/${encodeURIComponent(appointmentId)}/practitioner-feedback`,
+    );
+    const {data} = await apiClient.put(
+      url,
+      {rating, review},
+      {headers: withAuthHeaders(accessToken)},
+    );
+    return data;
+  },
+
+  async getPractitionerFeedback({
+    appointmentId,
+    accessToken,
+  }: {
+    appointmentId: string;
+    accessToken: string;
+  }): Promise<{
+    isRated: boolean;
+    rating: number | null;
+    review: string | null;
+    practitionerName: string | null;
+  }> {
+    const url = buildUrl('/v1/organisation-rating/practitioner-feedback');
+    const {data} = await apiClient.post(
+      url,
+      {appointmentId},
+      {
+        headers: withAuthHeaders(accessToken),
+      },
+    );
+    const payload = data.feedback ?? {};
+    return {
+      isRated: Boolean(payload.isRated),
+      rating: payload.rating ?? null,
+      review: payload.review ?? null,
+      practitionerName: payload.practitionerName ?? null,
+    };
+  },
+
   async getOrganisationRatingStatus({
     organisationId,
     accessToken,

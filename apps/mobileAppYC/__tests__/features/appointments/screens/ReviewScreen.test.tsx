@@ -2,7 +2,7 @@ import React from 'react';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {ReviewScreen} from '../../../../src/features/appointments/screens/ReviewScreen';
 import {useDispatch, useSelector} from 'react-redux';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {Alert, Keyboard} from 'react-native';
 import {appointmentApi} from '../../../../src/features/appointments/services/appointmentsService';
 import {
@@ -24,13 +24,14 @@ jest.mock('react-redux', () => ({
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
+  useRoute: jest.fn(),
 }));
 
 jest.mock(
   '../../../../src/features/appointments/services/appointmentsService',
   () => ({
     appointmentApi: {
-      rateOrganisation: jest.fn(),
+      savePractitionerFeedback: jest.fn(),
     },
   }),
 );
@@ -124,6 +125,7 @@ jest.mock(
     const {View, Text} = require('react-native');
     return (props: any) => (
       <View testID="rating-stars">
+        <Text testID="rating-value">{props.value}</Text>
         <Text onPress={() => props.onChange(5)}>Set Rating 5</Text>
       </View>
     );
@@ -177,6 +179,8 @@ describe('ReviewScreen', () => {
           organisationName: 'Clinic Fallback',
           organisationAddress: 'Address Fallback',
           businessGooglePlacesId: 'gp-1',
+          employeeId: 'emp-1',
+          employeeName: 'Dr. Smith',
         },
       ],
     },
@@ -202,6 +206,9 @@ describe('ReviewScreen', () => {
       getState: () => ({
         routes: [{params: {appointmentId: 'appt-1'}}],
       }),
+    });
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {appointmentId: 'appt-1'},
     });
 
     (useSelector as unknown as jest.Mock).mockImplementation(selector =>
@@ -237,7 +244,7 @@ describe('ReviewScreen', () => {
       const {getByText} = renderScreen();
       // Business name is no longer shown as standalone text (design uses the
       // avatar + visit prompt); the fallback business is resolved without crashing.
-      expect(getByText('How was your visit?')).toBeTruthy();
+      expect(getByText('How was your visit with Dr. Smith?')).toBeTruthy();
     });
 
     it('triggers fetchBusinesses if business is missing but appointment exists', async () => {
@@ -286,7 +293,7 @@ describe('ReviewScreen', () => {
       const {getByText} = renderScreen();
       // Companion name drives the personalised prompt (ternary + `subjectName`
       // nullish path) and the meta line renders the formatted visit date.
-      expect(getByText("How was Buddy's visit?")).toBeTruthy();
+      expect(getByText('How was your visit with Dr. Smith?')).toBeTruthy();
       expect(getByText(/Checkup.*Dr\. Smith/)).toBeTruthy();
     });
 
@@ -310,7 +317,57 @@ describe('ReviewScreen', () => {
       const {getByText} = renderScreen();
       // Invalid date -> formatVisitDate returns '' (NaN guard); the type still
       // renders as the meta line.
-      expect(getByText('Follow-up')).toBeTruthy();
+      expect(getByText(/Follow-up.*Dr\. Smith/)).toBeTruthy();
+    });
+
+    it('prefills saved feedback when opened for editing', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {
+          appointmentId: 'appt-1',
+          isEditing: true,
+          existingRating: 2,
+          existingReview: 'Please allow more time for questions.',
+        },
+      });
+
+      const {getByPlaceholderText, getByTestId, getByText} = renderScreen();
+
+      expect(getByTestId('rating-value').props.children).toBe(2);
+      expect(getByPlaceholderText('Your review').props.value).toBe(
+        'Please allow more time for questions.',
+      );
+      expect(getByText('Update feedback')).toBeTruthy();
+    });
+
+    it('refreshes the form when another appointment opens on the same route', () => {
+      const {getByPlaceholderText, getByTestId, rerender} = renderScreen();
+      const nextAppointmentState = {
+        ...mockState,
+        appointments: {
+          items: [
+            ...mockState.appointments.items,
+            {...mockState.appointments.items[0], id: 'appt-2'},
+          ],
+        },
+      };
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector(nextAppointmentState),
+      );
+
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {
+          appointmentId: 'appt-2',
+          isEditing: true,
+          existingRating: 2,
+          existingReview: 'A different completed visit',
+        },
+      });
+      rerender(<ReviewScreen />);
+
+      expect(getByTestId('rating-value').props.children).toBe(2);
+      expect(getByPlaceholderText('Your review').props.value).toBe(
+        'A different completed visit',
+      );
     });
   });
 
@@ -430,6 +487,11 @@ describe('ReviewScreen', () => {
       expect(input.props.value).toBe('Great service!');
     });
 
+    it('limits the review to the length the server accepts', () => {
+      const {getByPlaceholderText} = renderScreen();
+      expect(getByPlaceholderText('Your review').props.maxLength).toBe(1000);
+    });
+
     it('updates rating when stars pressed', () => {
       const {getByText} = renderScreen();
       const setRatingText = getByText('Set Rating 5');
@@ -447,7 +509,6 @@ describe('ReviewScreen', () => {
         .spyOn(Keyboard, 'dismiss')
         .mockImplementation(() => {});
       const {getByPlaceholderText} = renderScreen();
-
       fireEvent(getByPlaceholderText('Your review'), 'submitEditing');
 
       expect(dismissSpy).toHaveBeenCalled();
@@ -464,8 +525,8 @@ describe('ReviewScreen', () => {
 
       await waitFor(() => {
         expect(getFreshStoredTokens).toHaveBeenCalled();
-        expect(appointmentApi.rateOrganisation).toHaveBeenCalledWith({
-          organisationId: 'biz-1',
+        expect(appointmentApi.savePractitionerFeedback).toHaveBeenCalledWith({
+          appointmentId: 'appt-1',
           rating: 4,
           review: '',
           accessToken: 'valid-token',
@@ -481,10 +542,10 @@ describe('ReviewScreen', () => {
       fireEvent(getByTestId('submit-btn'), 'onTouchEnd');
 
       await waitFor(() => {
-        expect(appointmentApi.rateOrganisation).not.toHaveBeenCalled();
+        expect(appointmentApi.savePractitionerFeedback).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledWith(
           expect.stringContaining('Failed to submit'),
-          expect.any(Error),
+          expect.any(String),
         );
         // The user must see this, not just the developer console.
         expect(Alert.alert).toHaveBeenCalledWith(
@@ -507,14 +568,22 @@ describe('ReviewScreen', () => {
       fireEvent(getByTestId('submit-btn'), 'onTouchEnd');
 
       await waitFor(() => {
-        expect(appointmentApi.rateOrganisation).not.toHaveBeenCalled();
+        expect(appointmentApi.savePractitionerFeedback).not.toHaveBeenCalled();
         expect(mockGoBack).toHaveBeenCalled();
       });
     });
 
     it('handles API submission failure', async () => {
-      (appointmentApi.rateOrganisation as jest.Mock).mockRejectedValue(
-        new Error('API Fail'),
+      (appointmentApi.savePractitionerFeedback as jest.Mock).mockRejectedValue(
+        Object.assign(new Error('API Fail'), {
+          config: {
+            method: 'put',
+            url: '/v1/organisation-rating/appointment/apt-1/practitioner-feedback',
+            headers: {Authorization: 'Bearer secret-token'},
+            data: '{"rating":4,"review":"Private review text"}',
+          },
+          response: {status: 500},
+        }),
       );
 
       const {getByTestId} = renderScreen();
@@ -523,18 +592,23 @@ describe('ReviewScreen', () => {
       await waitFor(() => {
         expect(console.warn).toHaveBeenCalledWith(
           expect.stringContaining('Failed to submit'),
-          expect.any(Error),
+          expect.any(String),
         );
         expect(mockGoBack).not.toHaveBeenCalled();
         expect(Alert.alert).toHaveBeenCalledWith(
           'Review not submitted',
           'API Fail',
         );
+        const logged = JSON.stringify((console.warn as jest.Mock).mock.calls);
+        expect(logged).not.toContain('secret-token');
+        expect(logged).not.toContain('Private review text');
       });
     });
 
     it('falls back to a generic message when the rejection has no message', async () => {
-      (appointmentApi.rateOrganisation as jest.Mock).mockRejectedValue({});
+      (appointmentApi.savePractitionerFeedback as jest.Mock).mockRejectedValue(
+        {},
+      );
 
       const {getByTestId} = renderScreen();
       fireEvent(getByTestId('submit-btn'), 'onTouchEnd');
@@ -560,7 +634,7 @@ describe('ReviewScreen', () => {
       // Null expiry exercises the `tokens?.expiresAt ?? undefined` fallback.
       await waitFor(() => {
         expect(isTokenExpired).toHaveBeenCalledWith(undefined);
-        expect(appointmentApi.rateOrganisation).toHaveBeenCalled();
+        expect(appointmentApi.savePractitionerFeedback).toHaveBeenCalled();
       });
     });
 
@@ -573,10 +647,10 @@ describe('ReviewScreen', () => {
       // `!tokens?.accessToken` short-circuits the guard before isTokenExpired.
       await waitFor(() => {
         expect(isTokenExpired).not.toHaveBeenCalled();
-        expect(appointmentApi.rateOrganisation).not.toHaveBeenCalled();
+        expect(appointmentApi.savePractitionerFeedback).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledWith(
           expect.stringContaining('Failed to submit'),
-          expect.any(Error),
+          expect.any(String),
         );
       });
     });

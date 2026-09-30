@@ -21,6 +21,7 @@ import {
 jest.mock("src/config/prisma", () => ({
   prisma: {
     $transaction: jest.fn(),
+    $executeRaw: jest.fn(),
     organizationBilling: {
       findUnique: jest.fn(),
     },
@@ -38,6 +39,7 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
       update: jest.fn(),
       deleteMany: jest.fn(),
+      delete: jest.fn(),
       aggregate: jest.fn(),
     },
     inventoryVendor: {
@@ -46,15 +48,19 @@ jest.mock("src/config/prisma", () => ({
       findFirst: jest.fn(),
       update: jest.fn(),
       deleteMany: jest.fn(),
+      delete: jest.fn(),
     },
     inventoryMetaField: {
       create: jest.fn(),
+      findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
       deleteMany: jest.fn(),
+      delete: jest.fn(),
     },
     inventoryStockMovement: {
       create: jest.fn(),
+      createMany: jest.fn(),
       findMany: jest.fn(),
     },
     inventoryCategory: {
@@ -87,6 +93,7 @@ describe("Inventory service", () => {
       async (callback: unknown) =>
         typeof callback === "function" ? callback(prisma) : undefined,
     );
+    (prisma.$executeRaw as jest.Mock).mockResolvedValue(1);
     // A Connect-written billing currency; until the account can take charges
     // the column is not trusted and the country decides (#3607).
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
@@ -652,18 +659,20 @@ describe("Inventory service", () => {
       }),
     );
     expect(
-      (prisma.inventoryItem.updateMany as jest.Mock).mock.calls[0][0].data,
+      (prisma.inventoryItem.update as jest.Mock).mock.calls[0][0].data,
     ).toEqual(
       expect.objectContaining({
         onHand: expect.any(Number),
       }),
     );
     expect(
-      (prisma.inventoryItem.updateMany as jest.Mock).mock.calls[0][0].data,
+      (prisma.inventoryItem.update as jest.Mock).mock.calls[0][0].data,
     ).not.toHaveProperty("allocated");
 
     await InventoryService.deleteBatch("batch-1", "org-1");
-    expect(prisma.inventoryBatch.deleteMany).toHaveBeenCalled();
+    expect(prisma.inventoryBatch.delete).toHaveBeenCalledWith({
+      where: { id: "batch-1", organisationId: "org-1" },
+    });
   });
 
   it("consumes stock and calculates turnover", async () => {
@@ -1187,15 +1196,13 @@ describe("Inventory service", () => {
     });
 
     it("deleteVendor only deletes within the authorized organisation", async () => {
-      (prisma.inventoryVendor.deleteMany as jest.Mock).mockResolvedValueOnce({
-        count: 0,
-      });
+      (prisma.inventoryVendor.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
 
       await InventoryVendorService.deleteVendor("foreign-vendor", "org-1");
 
-      expect(prisma.inventoryVendor.deleteMany).toHaveBeenCalledWith({
-        where: { id: "foreign-vendor", organisationId: "org-1" },
-      });
+      expect(prisma.inventoryVendor.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -1331,6 +1338,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       grossProfit: 5,
       marginPercentage: 10,
     });
+    mockOf(prisma.$executeRaw).mockResolvedValue(1);
     mockOf(getInventoryCategories).mockReturnValue([
       {
         code: "SEED",
@@ -1359,16 +1367,19 @@ describe("Inventory service guards, helpers, and branch paths", () => {
     mockOf(prisma.inventoryBatch.create).mockResolvedValue(batchRow());
     mockOf(prisma.inventoryBatch.createMany).mockResolvedValue({ count: 1 });
     mockOf(prisma.inventoryBatch.update).mockResolvedValue(batchRow());
-    mockOf(prisma.inventoryBatch.deleteMany).mockResolvedValue({ count: 1 });
+    mockOf(prisma.inventoryBatch.delete).mockResolvedValue(batchRow());
     mockOf(prisma.inventoryBatch.aggregate).mockResolvedValue({
       _sum: { quantity: 0 },
     });
     mockOf(prisma.inventoryVendor.findMany).mockResolvedValue([]);
     mockOf(prisma.inventoryVendor.findFirst).mockResolvedValue(null);
-    mockOf(prisma.inventoryVendor.deleteMany).mockResolvedValue({ count: 0 });
+    mockOf(prisma.inventoryVendor.delete).mockResolvedValue({ id: "vendor-1" });
     mockOf(prisma.inventoryMetaField.findMany).mockResolvedValue([]);
-    mockOf(prisma.inventoryMetaField.deleteMany).mockResolvedValue({
-      count: 1,
+    mockOf(prisma.inventoryMetaField.findUnique).mockResolvedValue({
+      id: "field-1",
+    });
+    mockOf(prisma.inventoryMetaField.delete).mockResolvedValue({
+      id: "field-1",
     });
     mockOf(prisma.inventoryCategory.findMany).mockResolvedValue([]);
     mockOf(prisma.inventorySubcategory.findMany).mockResolvedValue([]);
@@ -2563,7 +2574,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
 
       await InventoryService.deleteBatch("batch-1", "org-1");
 
-      expect(prisma.inventoryItem.updateMany).toHaveBeenCalledWith({
+      expect(prisma.inventoryItem.update).toHaveBeenCalledWith({
         where: { id: "item-9" },
         data: { onHand: 2, allocated: 1 },
       });
@@ -2652,7 +2663,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
         itemRow({ onHand: 10, allocated: 5 }),
       );
-      mockOf(prisma.inventoryItem.updateMany).mockResolvedValue({ count: 1 });
+      mockOf(prisma.$executeRaw).mockResolvedValue(1);
       mockOf(prisma.inventoryBatch.findMany)
         .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 10 })])
         .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 5 })]);
@@ -2670,16 +2681,13 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         "org-1",
       );
 
-      // Conditional decrement, not a computed literal: the `gte` is what stops a
-      // second concurrent draw-down of the same reservation from also landing.
-      expect(prisma.inventoryItem.updateMany).toHaveBeenCalledWith({
-        where: {
-          id: "item-1",
-          organisationId: "org-1",
-          allocated: { gte: 5 },
-        },
-        data: { allocated: { decrement: 5 } },
-      });
+      // Conditional decrement only succeeds if the reservation still covers
+      // the draw, so a competing draw cannot also consume these units.
+      const allocatedDecrement = mockOf(prisma.$executeRaw).mock.calls.find(
+        ([parts]: [TemplateStringsArray]) =>
+          parts.join("").includes('"allocated" >='),
+      );
+      expect(allocatedDecrement?.slice(1)).toEqual([5, "item-1", "org-1", 5]);
       expect(updated.onHand).toBe(5);
     });
 
@@ -2689,7 +2697,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       );
       // The row moved between the read and the write - the conditional decrement
       // matches nothing, which is the race this guard exists to lose safely.
-      mockOf(prisma.inventoryItem.updateMany).mockResolvedValue({ count: 0 });
+      mockOf(prisma.$executeRaw).mockResolvedValue(0);
 
       await expect(
         InventoryService.consumeStock(
@@ -2765,16 +2773,21 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       mockOf(prisma.inventoryItem.update).mockResolvedValue(
         itemRow({ onHand: 10 }),
       );
+      mockOf(prisma.$executeRaw).mockResolvedValue(2);
 
       const updated = await InventoryService.consumeStock(
         { itemId: "item-1", quantity: 6, reason: "APPOINTMENT_USAGE" },
         "org-1",
       );
 
-      expect(mockOf(prisma.inventoryBatch.update).mock.calls).toEqual([
-        [{ where: { id: "first" }, data: { quantity: { decrement: 4 } } }],
-        [{ where: { id: "second" }, data: { quantity: { decrement: 2 } } }],
-      ]);
+      // One conditional UPDATE covers every drained batch, each row guarded
+      // by the quantity planned from it.
+      const batchUpdates = mockOf(prisma.$executeRaw).mock.calls;
+      expect(batchUpdates).toHaveLength(1);
+      expect(batchUpdates[0][0].join("?")).toContain(
+        'b."quantity" >= v."quantity"',
+      );
+      expect(batchUpdates[0][1].values).toEqual(["first", 4, "second", 2]);
       expect(updated.onHand).toBe(10);
       expect(updated._id).toBe("item-1");
     });
@@ -2795,6 +2808,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       mockOf(prisma.inventoryItem.update).mockResolvedValue(
         itemRow({ onHand: 4 }),
       );
+      mockOf(prisma.$executeRaw).mockResolvedValue(2);
 
       await InventoryService.consumeStock(
         {
@@ -2806,34 +2820,53 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         "org-1",
       );
 
-      expect(mockOf(prisma.inventoryStockMovement.create).mock.calls).toEqual([
+      expect(
+        mockOf(prisma.inventoryStockMovement.createMany).mock.calls,
+      ).toEqual([
         [
           {
-            data: {
-              itemId: "item-1",
-              batchId: "batch-a",
-              change: -4,
-              reason: "APPOINTMENT_USAGE",
-              referenceId: "appt-1",
-              userId: undefined,
-              createdAt: expect.any(Date),
-            },
-          },
-        ],
-        [
-          {
-            data: {
-              itemId: "item-1",
-              batchId: "batch-b",
-              change: -2,
-              reason: "APPOINTMENT_USAGE",
-              referenceId: "appt-1",
-              userId: undefined,
-              createdAt: expect.any(Date),
-            },
+            data: [
+              {
+                itemId: "item-1",
+                batchId: "batch-a",
+                change: -4,
+                reason: "APPOINTMENT_USAGE",
+                referenceId: "appt-1",
+                createdAt: expect.any(Date),
+              },
+              {
+                itemId: "item-1",
+                batchId: "batch-b",
+                change: -2,
+                reason: "APPOINTMENT_USAGE",
+                referenceId: "appt-1",
+                createdAt: expect.any(Date),
+              },
+            ],
           },
         ],
       ]);
+    });
+
+    it("rejects a batch draw that lost a concurrency race", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "batch-a", quantity: 5 }),
+      ]);
+      mockOf(prisma.$executeRaw).mockResolvedValue(0);
+
+      await expect(
+        InventoryService.consumeStock(
+          { itemId: "item-1", quantity: 5, reason: "APPOINTMENT_USAGE" },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Insufficient stock",
+        statusCode: 400,
+      });
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
     });
   });
 
@@ -3306,7 +3339,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       );
 
       expect(prisma.inventoryVendor.update).toHaveBeenCalledWith({
-        where: { id: "vendor-1" },
+        where: { id: "vendor-1", organisationId: "org-1" },
         data: {
           name: "Renamed",
           brand: undefined,
@@ -3427,9 +3460,12 @@ describe("Inventory service guards, helpers, and branch paths", () => {
     });
 
     it("deletes a field by id", async () => {
+      mockOf(prisma.inventoryMetaField.findUnique).mockResolvedValueOnce({
+        id: "field-1",
+      });
       await InventoryMetaFieldService.deleteField("field-1");
 
-      expect(prisma.inventoryMetaField.deleteMany).toHaveBeenCalledWith({
+      expect(prisma.inventoryMetaField.delete).toHaveBeenCalledWith({
         where: { id: "field-1" },
       });
     });
@@ -3440,7 +3476,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
     ])("rejects a blank fieldId in %s", async (_label, call) => {
       await expect(call()).rejects.toThrow("Invalid id");
       expect(prisma.inventoryMetaField.update).not.toHaveBeenCalled();
-      expect(prisma.inventoryMetaField.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.inventoryMetaField.delete).not.toHaveBeenCalled();
     });
 
     it("lists fields for a valid business type", async () => {

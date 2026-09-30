@@ -7,6 +7,8 @@ import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/
 const useTeamForPrimaryOrgMock = jest.fn();
 const getSlotsMock = jest.fn();
 const updateAppointmentMock = jest.fn();
+const previewSeriesRescheduleMock = jest.fn();
+const rescheduleSeriesMock = jest.fn();
 const allowRescheduleMock = jest.fn();
 const notifyMock = jest.fn();
 
@@ -16,7 +18,13 @@ jest.mock('@/app/hooks/useTeam', () => ({
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   getSlotsForServiceAndDateForPrimaryOrg: (...args: any[]) => getSlotsMock(...args),
+  previewAppointmentSeriesReschedule: (...args: any[]) => previewSeriesRescheduleMock(...args),
+  rescheduleAppointmentSeries: (...args: any[]) => rescheduleSeriesMock(...args),
   updateAppointment: (...args: any[]) => updateAppointmentMock(...args),
+}));
+
+jest.mock('@/app/lib/timezone', () => ({
+  formatDateInPreferredTimeZone: (date: Date) => date.toISOString(),
 }));
 
 jest.mock('@/app/lib/date', () => ({
@@ -78,8 +86,8 @@ jest.mock('@/app/features/appointments/components/DateTimePickerSection', () => 
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
+  Primary: ({ text, onClick, isDisabled }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),
@@ -95,6 +103,13 @@ describe('Reschedule section', () => {
     lead: { id: 'lead-1', name: 'Dr. A' },
     durationMinutes: 30,
   };
+  const seriesAppointment = {
+    ...activeAppointment,
+    recurrenceSeriesId: 'series-1',
+    recurrenceSeriesIndex: 2,
+    recurrenceSeriesTotal: 5,
+    recurrenceTimeZone: 'Europe/Madrid',
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -105,6 +120,8 @@ describe('Reschedule section', () => {
     getSlotsMock.mockResolvedValue([{ startTime: '10:00', endTime: '10:30', vetIds: ['lead-1'] }]);
     allowRescheduleMock.mockReturnValue(true);
     updateAppointmentMock.mockResolvedValue({});
+    previewSeriesRescheduleMock.mockResolvedValue([]);
+    rescheduleSeriesMock.mockResolvedValue([]);
   });
 
   it('blocks the update and warns for non-reschedulable status', async () => {
@@ -144,6 +161,71 @@ describe('Reschedule section', () => {
 
     await waitFor(() => expect(updateAppointmentMock).toHaveBeenCalled());
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('previews and updates this and following occurrences when selected', async () => {
+    previewSeriesRescheduleMock.mockResolvedValue([
+      {
+        appointmentId: 'a-1',
+        recurrenceSeriesIndex: 2,
+        startTime: '2026-01-01T10:00:00.000Z',
+        endTime: '2026-01-01T10:30:00.000Z',
+        hasConflict: false,
+      },
+      {
+        appointmentId: 'a-2',
+        recurrenceSeriesIndex: 3,
+        startTime: '2026-01-08T10:00:00.000Z',
+        endTime: '2026-01-08T10:30:00.000Z',
+        hasConflict: false,
+      },
+    ]);
+    render(
+      <Reschedule showModal setShowModal={setShowModal} activeAppointment={seriesAppointment} />
+    );
+
+    fireEvent.click(screen.getByText('Pick slot'));
+    fireEvent.click(screen.getByLabelText('This and following appointments'));
+
+    await waitFor(() => expect(screen.getAllByText('Available')).toHaveLength(2));
+    expect(previewSeriesRescheduleMock).toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Update following appointments'));
+    await waitFor(() => expect(rescheduleSeriesMock).toHaveBeenCalled());
+    expect(updateAppointmentMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks a following-series update when any previewed occurrence conflicts', async () => {
+    previewSeriesRescheduleMock.mockResolvedValue([
+      {
+        appointmentId: 'a-1',
+        recurrenceSeriesIndex: 2,
+        startTime: '2026-01-01T10:00:00.000Z',
+        endTime: '2026-01-01T10:30:00.000Z',
+        hasConflict: true,
+      },
+    ]);
+    render(
+      <Reschedule showModal setShowModal={setShowModal} activeAppointment={seriesAppointment} />
+    );
+    fireEvent.click(screen.getByLabelText('This and following appointments'));
+    await waitFor(() => expect(screen.getByText('Conflict')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Update following appointments'));
+    expect(rescheduleSeriesMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks following-series updates when the conflict preview fails', async () => {
+    previewSeriesRescheduleMock.mockRejectedValue(new Error('offline'));
+    render(
+      <Reschedule showModal setShowModal={setShowModal} activeAppointment={seriesAppointment} />
+    );
+    fireEvent.click(screen.getByLabelText('This and following appointments'));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Unable to check every appointment. Try again.'
+      )
+    );
+    fireEvent.click(screen.getByText('Update following appointments'));
+    expect(rescheduleSeriesMock).not.toHaveBeenCalled();
   });
 
   it('resets state on modal header close', async () => {

@@ -104,6 +104,43 @@ export const FREQUENCY_OPTIONS = [
 /** Duration units offered for the duration field. */
 export const DURATION_UNIT_OPTIONS = ['days', 'weeks', 'months'];
 
+const FREQUENCY_PER_DAY: Array<[RegExp, number]> = [
+  [/sid|once(?!.*weekly)/, 1],
+  [/bid|twice/, 2],
+  [/tid|three times|thrice/, 3],
+  [/qid|four times/, 4],
+  [/every 4 hour/, 6],
+  [/every 6 hour|q6h/, 4],
+  [/every 8 hour|q8h/, 3],
+  [/every 12 hour|q12h/, 2],
+  [/weekly/, 1 / 7],
+  [/before meals|after meals/, 3],
+];
+
+const durationInDays = (duration: number, unit?: string) => {
+  if (unit === 'weeks' || unit === 'week') return duration * 7;
+  if (unit === 'months' || unit === 'month') return duration * 30;
+  return duration;
+};
+
+/** Course quantity used by both refill authority and dispensing, in base dose units. */
+export const resolvePrescriptionFillQuantity = (
+  item: Pick<PrescriptionItem, 'qty' | 'frequency' | 'durationDays' | 'durationUnit'>
+): string | undefined => {
+  const quantity = Number(item.qty);
+  if (!Number.isFinite(quantity) || quantity <= 0) return undefined;
+  const frequency = item.frequency?.toLowerCase() ?? '';
+  const perDay = FREQUENCY_PER_DAY.find(([matcher]) => matcher.test(frequency))?.[1];
+
+  const duration = Number(item.durationDays);
+  if (perDay === undefined || !Number.isFinite(duration) || duration <= 0) {
+    return String(Math.max(1, Math.ceil(quantity)));
+  }
+  const unit = item.durationUnit?.toLowerCase();
+  const days = durationInDays(duration, unit);
+  return String(Math.max(1, Math.ceil(quantity * perDay * days)));
+};
+
 /** Per-dose units offered when inventory cannot infer one from the form. */
 export const DOSE_UNIT_OPTIONS = [
   'tablet',

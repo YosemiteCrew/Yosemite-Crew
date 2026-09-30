@@ -1625,7 +1625,6 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           patientId={companion.id}
           parentId={companion.parent.id}
           encounter={operationalEncounter}
-          hideBillBuilder={isCompletedAppointment}
           bookedItemName={appointment.appointmentType?.name}
           onOpenSummary={() => handleStepChange('SUMMARY')}
         />

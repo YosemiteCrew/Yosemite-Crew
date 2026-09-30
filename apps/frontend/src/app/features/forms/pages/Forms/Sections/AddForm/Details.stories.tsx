@@ -124,10 +124,9 @@ export const Blank: Story = {
     // `aria-invalid` is written from the same map the messages come from.
     const name = canvas.getByRole('textbox', { name: 'Form name' });
     await expect(name).toHaveValue('');
-    await expect(name).toHaveAttribute('aria-invalid', 'false');
-    await expect(canvas.getByRole('textbox', { name: 'Description' })).toHaveAttribute(
-      'aria-invalid',
-      'false'
+    await expect(name).not.toHaveAttribute('aria-invalid');
+    await expect(canvas.getByRole('textbox', { name: 'Description' })).not.toHaveAttribute(
+      'aria-invalid'
     );
     await expect(canvas.queryAllByRole('alert')).toHaveLength(0);
     await expect(canvas.getByRole('button', { name: 'Next' })).toBeInTheDocument();

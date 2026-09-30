@@ -44,35 +44,46 @@ jest.mock('../../../../src/features/chat/services/streamChatService', () => ({
 }));
 
 // 4. Stream Chat Components.
-// The mocked Channel invokes the EmptyStateIndicator / TypingIndicator render
-// props so the screen's renderEmptyState / renderTypingIndicator callbacks run.
 jest.mock('stream-chat-react-native', () => {
-  const {View, Button} = require('react-native');
+  const ReactModule = require('react');
+  const {View, Button, Text} = require('react-native');
+  const ComponentsContext = ReactModule.createContext({});
   return {
     OverlayProvider: ({children}: any) => <View>{children}</View>,
     Chat: ({children}: any) => <View testID="StreamChat">{children}</View>,
-    Channel: ({children, EmptyStateIndicator, TypingIndicator}: any) => (
-      <View testID="StreamChannel">
-        {EmptyStateIndicator ? <EmptyStateIndicator /> : null}
-        {TypingIndicator ? <TypingIndicator /> : null}
+    WithComponents: ({children, overrides}: any) => (
+      <ComponentsContext.Provider value={overrides}>
         {children}
-      </View>
+      </ComponentsContext.Provider>
     ),
-    MessageList: ({onThreadSelect}: any) => (
-      <View testID="MessageList">
-        <Button
-          title="Select Thread"
-          onPress={() => onThreadSelect({id: 'thread-123'})}
-          testID="ThreadSelectBtn"
-        />
-        <Button
-          title="Select Thread No Id"
-          onPress={() => onThreadSelect(null)}
-          testID="ThreadSelectBtnNoId"
-        />
-      </View>
+    Channel: ({children}: any) => (
+      <View testID="StreamChannel">{children}</View>
     ),
-    MessageInput: () => <View testID="MessageInput" />,
+    MessageList: ({onThreadSelect}: any) => {
+      const components = ReactModule.useContext(ComponentsContext) as any;
+      const EmptyStateIndicator = components.EmptyStateIndicator;
+      const TypingIndicator = components.TypingIndicator;
+      return (
+        <View testID="MessageList">
+          <Text testID="custom-attachment-override">
+            {typeof components.Attachment}
+          </Text>
+          {EmptyStateIndicator ? <EmptyStateIndicator /> : null}
+          {TypingIndicator ? <TypingIndicator /> : null}
+          <Button
+            title="Select Thread"
+            onPress={() => onThreadSelect({id: 'thread-123'})}
+            testID="ThreadSelectBtn"
+          />
+          <Button
+            title="Select Thread No Id"
+            onPress={() => onThreadSelect(null)}
+            testID="ThreadSelectBtnNoId"
+          />
+        </View>
+      );
+    },
+    MessageComposer: () => <View testID="MessageInput" />,
     useMessageComposer: () => ({
       textComposer: {setText: mockSetComposerText, text: mockComposerText},
     }),
@@ -280,7 +291,10 @@ describe('ChatChannelScreen', () => {
       expect(getByTestId('StreamChannel')).toBeTruthy();
     });
     expect(getByTestId('MessageInput')).toBeTruthy();
-    // The Channel render props for empty/typing state are wired up.
+    // The SDK component overrides for attachments and list states are wired up.
+    expect(getByTestId('custom-attachment-override').props.children).toBe(
+      'function',
+    );
     expect(getByTestId('empty-state')).toBeTruthy();
     expect(getByTestId('typing-indicator-stub')).toBeTruthy();
     expect(connectStreamUser).toHaveBeenCalledWith(

@@ -175,6 +175,10 @@ describe('Finance page', () => {
       'href',
       '/finance/reports'
     );
+    expect(screen.getByRole('link', { name: 'Review overdue accounts' })).toHaveAttribute(
+      'href',
+      '/finance/collections'
+    );
     expect(invoiceTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [expect.objectContaining({ id: 'inv-1' })],
@@ -192,6 +196,10 @@ describe('Finance page', () => {
     expect(screen.getByRole('link', { name: 'View payment reports' })).toHaveAttribute(
       'href',
       '/finance/reports'
+    );
+    expect(screen.getByRole('link', { name: 'Review overdue accounts' })).toHaveAttribute(
+      'href',
+      '/finance/collections'
     );
     expect(screen.getByRole('link', { name: 'View payment reports' }).parentElement).toHaveClass(
       'flex-wrap'
@@ -356,6 +364,21 @@ describe('Finance page', () => {
       'href',
       '/finance/discounts'
     );
+  });
+
+  it('links to the billing review from desktop and phone finance navigation', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    const { rerender } = render(<ProtectedFinance />);
+
+    expect(
+      screen.getByRole('link', { name: 'Review completed visits needing billing' })
+    ).toHaveAttribute('href', '/finance/billing-review');
+
+    mockIsPhone.mockReturnValue(true);
+    rerender(<ProtectedFinance />);
+    expect(
+      screen.getByRole('link', { name: 'Review completed visits needing billing' })
+    ).toHaveAttribute('href', '/finance/billing-review');
   });
 
   it('stacks page actions above the status filter, not beside it', () => {

@@ -84,7 +84,7 @@ const chooseStatus = async (dialog: HTMLElement, from: string, to: string) => {
     expect(panels.length).toBeGreaterThan(0);
     return panels[panels.length - 1] as HTMLElement;
   });
-  await userEvent.click(within(panel).getByRole('button', { name: to }));
+  await userEvent.click(within(panel).getByRole('option', { name: to }));
   return waitFor(() =>
     expect(
       within(dialog).getByRole('button', { name: `Companion status: ${to}` })

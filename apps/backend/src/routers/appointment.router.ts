@@ -81,6 +81,22 @@ router.post(
   AppointmentController.createFromPms,
 );
 
+router.post(
+  "/pms/series/preview",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.previewWeeklySeries,
+);
+
+router.post(
+  "/pms/series",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.createWeeklySeriesFromPms,
+);
+
 // List appointments for organisation
 router.get(
   "/pms/organisation/:organisationId",
@@ -169,6 +185,14 @@ router.post(
 );
 
 // Update appointment
+router.post(
+  "/pms/:organisationId/:appointmentId/series/reschedule-preview",
+  requireWebAuth,
+  withAppointmentOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.previewAppointmentSeriesReschedule,
+);
+
 router.patch(
   "/pms/:organisationId/:appointmentId",
   requireWebAuth,

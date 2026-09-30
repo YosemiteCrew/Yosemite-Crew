@@ -199,10 +199,19 @@ jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/Passport
 
 jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep', () => ({
   __esModule: true,
-  default: ({ onOpenSummary }: { onOpenSummary: () => void }) => (
-    <button type="button" onClick={onOpenSummary}>
-      Mock open summary
-    </button>
+  default: ({
+    onOpenSummary,
+    hideBillBuilder,
+  }: {
+    onOpenSummary: () => void;
+    hideBillBuilder?: boolean;
+  }) => (
+    <div>
+      <span>{`Mock bill builder hidden: ${String(Boolean(hideBillBuilder))}`}</span>
+      <button type="button" onClick={onOpenSummary}>
+        Mock open summary
+      </button>
+    </div>
   ),
 }));
 
@@ -457,6 +466,17 @@ describe('AppointmentWorkspace container', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quick Actions' }));
 
     expect(useAppointmentWorkspaceStore.getState().activeSideAction).toBe('RECORD');
+  });
+
+  it('keeps invoice building available for completed visits', async () => {
+    mockStepParam = 'INVOICE';
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date()), status: 'COMPLETED' } as Appointment}
+      />
+    );
+
+    expect(await screen.findByText('Mock bill builder hidden: false')).toBeInTheDocument();
   });
 
   it('hydrates clinical artifacts from the backend adapter', async () => {

@@ -24,6 +24,9 @@ jest.mock("src/config/prisma", () => ({
       createMany: jest.fn(),
       upsert: jest.fn(),
     },
+    calendarBlock: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   },
 }));
 
@@ -507,6 +510,95 @@ describe("AvailabilityService", () => {
       });
     });
 
+    it("removes staff calendar blocks from bookable availability", async () => {
+      const refDate = new Date("2026-03-09T00:00:00Z");
+      baseSpy.mockResolvedValue([
+        {
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "09:00", endTime: "12:00", isAvailable: true }],
+        },
+      ]);
+      overrideSpy.mockResolvedValue(null);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.calendarBlock.findMany as jest.Mock).mockResolvedValue([
+        {
+          startAt: new Date("2026-03-09T10:00:00Z"),
+          endAt: new Date("2026-03-09T11:00:00Z"),
+        },
+      ]);
+
+      const result = await AvailabilityService.getWeeklyFinalAvailability(
+        "org1",
+        "u1",
+        refDate,
+      );
+
+      expect(result.find((day) => day.dayOfWeek === "MONDAY")?.slots).toEqual([
+        { startTime: "09:00", endTime: "10:00", isAvailable: true },
+        { startTime: "11:00", endTime: "12:00", isAvailable: true },
+      ]);
+      expect(prisma.calendarBlock.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org1",
+          targetType: "STAFF",
+          targetId: "u1",
+          startAt: { lte: new Date("2026-03-15T23:59:59.999Z") },
+          endAt: { gte: new Date("2026-03-09T00:00:00.000Z") },
+        },
+        select: { startAt: true, endAt: true },
+      });
+    });
+
+    it("removes a block from every day it spans and only inside this week", async () => {
+      baseSpy.mockResolvedValue(
+        ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY"].map(
+          (dayOfWeek) => ({
+            dayOfWeek,
+            slots: [
+              { startTime: "09:00", endTime: "17:00", isAvailable: true },
+            ],
+          }),
+        ),
+      );
+      overrideSpy.mockResolvedValue(null);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.calendarBlock.findMany as jest.Mock).mockResolvedValueOnce([
+        // Training that started in the previous week and runs to Monday noon.
+        {
+          startAt: new Date("2026-03-07T09:00:00Z"),
+          endAt: new Date("2026-03-09T12:00:00Z"),
+        },
+        // A closure from Tuesday afternoon to Thursday morning.
+        {
+          startAt: new Date("2026-03-10T15:00:00Z"),
+          endAt: new Date("2026-03-12T10:00:00Z"),
+        },
+      ]);
+
+      const result = await AvailabilityService.getWeeklyFinalAvailability(
+        "org1",
+        "u1",
+        new Date("2026-03-11T08:00:00Z"),
+      );
+      const slotsOn = (day: string) =>
+        result.find((entry) => entry.dayOfWeek === day)?.slots;
+
+      expect(slotsOn("MONDAY")).toEqual([
+        { startTime: "12:00", endTime: "17:00", isAvailable: true },
+      ]);
+      expect(slotsOn("TUESDAY")).toEqual([
+        { startTime: "09:00", endTime: "15:00", isAvailable: true },
+      ]);
+      expect(slotsOn("WEDNESDAY")).toEqual([]);
+      expect(slotsOn("THURSDAY")).toEqual([
+        { startTime: "10:00", endTime: "17:00", isAvailable: true },
+      ]);
+      // The previous week's Saturday and Sunday never touch this week's Sunday.
+      expect(slotsOn("SUNDAY")).toEqual([
+        { startTime: "09:00", endTime: "17:00", isAvailable: true },
+      ]);
+    });
+
     it("bounds the occupancy query to this week's Sunday, not next Monday (#3141)", async () => {
       // Monday 2026-09-14 through Sunday 2026-09-20 is the queried week.
       const refDate = new Date("2026-09-14T12:00:00Z");
@@ -769,6 +861,43 @@ describe("AvailabilityService", () => {
         1,
       );
       expect(prisma.occupancy.findMany).toHaveBeenCalledTimes(2);
+      expect(prisma.calendarBlock.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("applies staff blocks to roster status without affecting other staff", async () => {
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue([
+        baseRow("u-blocked"),
+        baseRow("u-available"),
+      ]);
+      (
+        prisma.weeklyAvailabilityOverride.findMany as jest.Mock
+      ).mockResolvedValue([]);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.calendarBlock.findMany as jest.Mock).mockResolvedValue([
+        {
+          targetId: "u-blocked",
+          startAt: new Date("2026-03-11T10:00:00.000Z"),
+          endAt: new Date("2026-03-11T11:00:00.000Z"),
+        },
+      ]);
+
+      const statuses = await AvailabilityService.getCurrentStatusBulk(ORG, [
+        "u-blocked",
+        "u-available",
+      ]);
+
+      expect(statuses.get("u-blocked")).toBe("Unavailable");
+      expect(statuses.get("u-available")).toBe("Available");
+      expect(prisma.calendarBlock.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: ORG,
+          targetType: "STAFF",
+          targetId: { in: ["u-blocked", "u-available"] },
+          startAt: { lte: new Date("2026-03-15T23:59:59.999Z") },
+          endAt: { gte: new Date("2026-03-09T00:00:00.000Z") },
+        },
+        select: { targetId: true, startAt: true, endAt: true },
+      });
     });
 
     it("downgrades only the member whose availability data is malformed", async () => {

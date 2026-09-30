@@ -16,6 +16,7 @@ import {
   resolveDrugUnit,
   resolveItemDeaSchedule,
 } from "./controlled-substance-dispense";
+import { PrescriptionFillAuthorisationService } from "./prescription-fill-authorisation.service";
 
 export class InventoryConsumptionServiceError extends Error {
   constructor(
@@ -1085,32 +1086,40 @@ const requireInventoryItemForAdjustment = async (
 const finalizeInventoryAdjustment = async (
   tx: Prisma.TransactionClient,
   params: InventoryConsumptionApplyParams,
-  item: { allocated: number | null },
   allocatedDirection: 1 | -1,
   action: InventoryConsumptionAction,
 ) => {
-  const onHand = await updateInventoryItemOnHand(
+  const locked = await lockItemAndSumOnHand(
     tx,
     params.organisationId,
     params.inventoryItemId,
   );
-  const allocated =
-    params.stockSource === "ALLOCATED"
-      ? Math.max(
-          0,
-          (item.allocated ?? 0) + allocatedDirection * params.quantity,
-        )
-      : (item.allocated ?? 0);
+  const onHand = locked.onHand;
+  // Checked again under the item lock: the check before the batches moved read
+  // an unlocked item, so a concurrent dispense could have taken the same
+  // unreserved units. Throwing here rolls back the whole dispense.
+  if (
+    allocatedDirection === -1 &&
+    params.stockSource !== "ALLOCATED" &&
+    onHand < locked.allocated
+  ) {
+    throw new InventoryConsumptionServiceError("Insufficient stock", 400);
+  }
+  const allocated = Math.max(
+    0,
+    locked.allocated + allocatedDirection * params.quantity,
+  );
   await tx.inventoryItem.update({
     where: { id: params.inventoryItemId },
     data:
       params.stockSource === "ALLOCATED" ? { onHand, allocated } : { onHand },
   });
 
-  return createInventoryConsumptionAppliedEvent(
+  const event = await createInventoryConsumptionAppliedEvent(
     tx,
     toConsumptionEventParams({ ...params, action }),
   );
+  return { event, onHand };
 };
 
 // #3142: controlled stock must never move without a controlled substance
@@ -1272,7 +1281,7 @@ const applyInventoryRelease = async (
   const releaseLockKey = `inventory-release:${params.inventoryItemId}`;
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${releaseLockKey}))`;
 
-  const item = await requireInventoryItemForAdjustment(tx, params);
+  await requireInventoryItemForAdjustment(tx, params);
 
   // Both signs, because the positives are what bounds this release.
   const movements = await tx.inventoryStockMovement.findMany({
@@ -1375,13 +1384,7 @@ const applyInventoryRelease = async (
     );
   }
 
-  const event = await finalizeInventoryAdjustment(
-    tx,
-    params,
-    item,
-    1,
-    "RELEASE",
-  );
+  const { event } = await finalizeInventoryAdjustment(tx, params, 1, "RELEASE");
 
   // Deliberately not gated on `item.controlledItem`. That flag is re-read here
   // at release time and is an ordinary editable boolean, so unticking it after
@@ -1402,6 +1405,9 @@ const applyInventoryRelease = async (
 
   return event;
 };
+
+const STOCK_CHANGED_MESSAGE =
+  "Stock for this item changed while the dispense was being recorded. Try again.";
 
 const applyInventoryConsumption = async (
   tx: Prisma.TransactionClient,
@@ -1425,7 +1431,6 @@ const applyInventoryConsumption = async (
   // Refused before any stock moves, so a controlled item with no schedule
   // fails the dispense outright rather than half-applying it.
   const deaSchedule = requireDispenseDeaSchedule(item);
-  const openingOnHand = item.onHand ?? 0;
   const draws: {
     batchId: string;
     quantity: number;
@@ -1450,22 +1455,6 @@ const applyInventoryConsumption = async (
 
     const consume = Math.min(available, remaining);
     remaining -= consume;
-
-    await tx.inventoryBatch.update({
-      where: { id: batch.id },
-      data: { quantity: { decrement: consume } },
-    });
-
-    await tx.inventoryStockMovement.create({
-      data: {
-        itemId: params.inventoryItemId,
-        batchId: batch.id,
-        change: -consume,
-        reason: params.movementReason ?? "MANUAL_ADJUSTMENT",
-        referenceId: params.sourceId,
-      },
-    });
-
     draws.push({
       batchId: batch.id,
       quantity: consume,
@@ -1480,10 +1469,45 @@ const applyInventoryConsumption = async (
     );
   }
 
-  const event = await finalizeInventoryAdjustment(
+  // One conditional write for every batch drawn from: a row is only written if
+  // it still holds what this draw needs. A concurrent dispense or count that
+  // took from it since matches no row, and the whole dispense is refused
+  // rather than taking the batch below zero.
+  const claimed = await tx.$executeRaw`
+    UPDATE "InventoryBatch" AS b
+    SET "quantity" = b."quantity" - v."quantity", "updatedAt" = NOW()
+    FROM (VALUES ${Prisma.join(
+      draws.map(
+        ({ batchId, quantity }) =>
+          Prisma.sql`(${batchId}::text, ${quantity}::int)`,
+      ),
+    )}) AS v("id", "quantity")
+    WHERE b."id" = v."id"
+      AND b."organisationId" = ${params.organisationId}
+      AND b."quantity" >= v."quantity"
+  `;
+  if (claimed !== draws.length) {
+    throw new InventoryConsumptionServiceError(STOCK_CHANGED_MESSAGE, 409);
+  }
+
+  // Increasing timestamps in draw order, as one insert per draw used to give:
+  // a release walks these newest first, so it keeps restoring the last batch
+  // drawn before the first.
+  const drawnAt = Date.now();
+  await tx.inventoryStockMovement.createMany({
+    data: draws.map(({ batchId, quantity }, index) => ({
+      itemId: params.inventoryItemId,
+      batchId,
+      change: -quantity,
+      reason: params.movementReason ?? "MANUAL_ADJUSTMENT",
+      referenceId: params.sourceId,
+      createdAt: new Date(drawnAt + index),
+    })),
+  });
+
+  const { event, onHand } = await finalizeInventoryAdjustment(
     tx,
     params,
-    item,
     -1,
     "CONSUME",
   );
@@ -1494,7 +1518,9 @@ const applyInventoryConsumption = async (
       item,
       deaSchedule,
       eventId: event.id,
-      openingOnHand,
+      // From the stock read under the item lock, not the unlocked read above,
+      // so two concurrent dispenses cannot both start from the same balance.
+      openingOnHand: onHand + params.quantity,
       draws,
     });
   }
@@ -1614,11 +1640,27 @@ const resolveInventoryItemIdByBatch = async (
   return batch ?? null;
 };
 
-const updateInventoryItemOnHand = async (
+/**
+ * Locks the item row, then sums its batches. The batch rows this transaction
+ * wrote are already locked, so this keeps the batch-then-item order the count
+ * path uses, and a change to another batch of this item that commits while we
+ * wait is included in the sum instead of overwritten. Two statements on
+ * purpose: the sum must be read after the lock is granted.
+ */
+const lockItemAndSumOnHand = async (
   tx: Prisma.TransactionClient,
   organisationId: string,
   inventoryItemId: string,
 ) => {
+  const [lockedItem] = await tx.$queryRaw<{ allocated: number }[]>`
+    SELECT "allocated" FROM "InventoryItem"
+    WHERE "id" = ${inventoryItemId}
+      AND "organisationId" = ${organisationId}
+    FOR UPDATE
+  `;
+  if (!lockedItem) {
+    throw new InventoryConsumptionServiceError("Inventory item not found", 404);
+  }
   const batchesAfter = await tx.inventoryBatch.findMany({
     where: { itemId: inventoryItemId, organisationId },
   });
@@ -1627,12 +1669,7 @@ const updateInventoryItemOnHand = async (
     0,
   );
 
-  await tx.inventoryItem.update({
-    where: { id: inventoryItemId },
-    data: { onHand },
-  });
-
-  return onHand;
+  return { onHand, allocated: lockedItem.allocated };
 };
 
 const createInventoryConsumptionEvent = (
@@ -2398,6 +2435,33 @@ export const InventoryConsumptionService = {
       const metadata = request.metadata ?? params.metadata;
       const stockSource =
         resolveDispenseStockSourceFromMetadata(metadata) ?? "NORMAL";
+
+      // Each line that names a prescription item spends one authorised fill,
+      // in this transaction and before any stock moves, so a refused fill
+      // leaves the stock untouched. Chained rather than run together: one
+      // transaction client runs one query at a time, and each fill takes its
+      // item's lock in line order.
+      const fills = (Array.isArray(medications) ? medications : []).flatMap(
+        (medication) => {
+          const line = toRecord(medication);
+          const itemId = asNonEmptyString(line.prescriptionItemId);
+          const quantity = resolveDispenseTotalUnits(line);
+          return itemId && quantity !== undefined ? [{ itemId, quantity }] : [];
+        },
+      );
+      await fills.reduce<Promise<unknown>>(
+        (previous, fill) =>
+          previous.then(() =>
+            PrescriptionFillAuthorisationService.recordDispensedFillInTx(tx, {
+              organisationId,
+              itemId: fill.itemId,
+              dispenseRequestId: request.id,
+              quantity: fill.quantity,
+              dispensedBy: params.reviewedBy,
+            }),
+          ),
+        Promise.resolve(),
+      );
 
       const inventoryEvents = await consumePrescriptionMedications(tx, {
         organisationId,

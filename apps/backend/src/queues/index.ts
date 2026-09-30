@@ -10,6 +10,7 @@ import { registerPublicBookingSchedulers } from "./public-booking.scheduler";
 import { registerParasiteRiskScheduler } from "./parasite-risk.scheduler";
 import { registerSuperadminContactScheduler } from "./superadmin-contact.scheduler";
 import { registerDeveloperMeterScheduler } from "./developer-meter.scheduler";
+import { registerCareReminderScheduler } from "./care-reminder.scheduler";
 import { AppointmentQueue } from "./appointment.queue";
 import { IdexxReferenceQueue } from "./idexx-reference.queue";
 import { LabResultsQueue } from "./lab-results.queue";
@@ -21,6 +22,7 @@ import { PublicBookingQueue } from "./public-booking.queue";
 import { ParasiteRiskQueue } from "./parasite-risk.queue";
 import { SuperadminContactQueue } from "./superadmin-contact.queue";
 import { DeveloperMeterQueue } from "./developer-meter.queue";
+import { CareReminderQueue } from "./care-reminder.queue";
 import {
   pruneLegacyRepeatablesAcross,
   SchedulerCapableQueue,
@@ -39,6 +41,7 @@ export const scheduledQueues = [
   ParasiteRiskQueue,
   SuperadminContactQueue,
   DeveloperMeterQueue,
+  CareReminderQueue,
 ] as unknown as SchedulerCapableQueue[];
 import "./ap-delivery.queue";
 import "./ap-inbox.queue";
@@ -60,5 +63,6 @@ export async function initQueues() {
   await registerParasiteRiskScheduler();
   await registerSuperadminContactScheduler();
   await registerDeveloperMeterScheduler();
+  await registerCareReminderScheduler();
   logger.info("📬 BullMQ queues initialized");
 }

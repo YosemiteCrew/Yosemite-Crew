@@ -170,7 +170,11 @@ const loadOwnedItem = async (
       id: true,
       prescriptionId: true,
       prescription: {
-        select: { artifact: { select: { encounterId: true, authorId: true } } },
+        select: {
+          artifact: {
+            select: { encounterId: true, authorId: true, status: true },
+          },
+        },
       },
     },
   });
@@ -210,6 +214,14 @@ const resolvePatientId = async (
   return encounter?.patientId ?? null;
 };
 
+/**
+ * The authority fills are counted against, or null.
+ *
+ * A voided prescription (cancelled, or retired by a revision) keeps its
+ * authority row ACTIVE, because retiring the artifact does not touch it. The
+ * artifact status is therefore part of what "active" means here, so a retired
+ * prescription never reports repeats left or accepts another fill.
+ */
 const loadActiveAuthorization = (
   tx: Prisma.TransactionClient,
   organisationId: string,
@@ -220,17 +232,29 @@ const loadActiveAuthorization = (
       organisationId,
       itemId,
       status: PrescriptionFillAuthorizationStatus.ACTIVE,
+      item: {
+        prescription: {
+          artifact: { organisationId, status: { not: "VOID" } },
+        },
+      },
     },
     orderBy: { version: "desc" },
   });
 
+/**
+ * Fills already given or held for this item, under ANY version of its
+ * authority. A correction supersedes the authority but not the fills already
+ * handed over, so counting per version would hand every repeat back each time
+ * the clinician edits the expiry or the refill count.
+ */
 const countAllocatedFills = (
   tx: Prisma.TransactionClient,
-  authorizationId: string,
+  authority: { organisationId: string; itemId: string },
 ) =>
   tx.prescriptionFillReservation.count({
     where: {
-      authorizationId,
+      organisationId: authority.organisationId,
+      itemId: authority.itemId,
       status: { not: PrescriptionFillReservationStatus.CANCELLED },
     },
   });
@@ -287,6 +311,38 @@ const describeEligibility = (
     unit: authority.perFillQuantityUnit,
     expiresAt: authority.validUntil,
   };
+};
+
+/** Refuses a fill the authority no longer allows, counted under the item's lock. */
+const assertFillAvailable = async (
+  tx: Prisma.TransactionClient,
+  authority: AuthorityRow & { organisationId: string; itemId: string },
+  now: Date,
+) => {
+  const allocated = await countAllocatedFills(tx, authority);
+  const eligibility = describeEligibility(authority, allocated, now);
+  if (!eligibility.eligible) {
+    throw new PrescriptionFillAuthorisationServiceError(
+      `Fill not permitted: ${eligibility.reasonCodes.join(", ")}`,
+      409,
+    );
+  }
+};
+
+/**
+ * The allocation sequence, not the repeat number: a cancelled ordinal is never
+ * reused, so this only ever moves forward.
+ */
+const nextFillOrdinal = async (
+  tx: Prisma.TransactionClient,
+  authorizationId: string,
+) => {
+  const highest = await tx.prescriptionFillReservation.findFirst({
+    where: { authorizationId },
+    orderBy: { fillOrdinal: "desc" },
+    select: { fillOrdinal: true },
+  });
+  return (highest?.fillOrdinal ?? -1) + 1;
 };
 
 export const PrescriptionFillAuthorisationService = {
@@ -356,6 +412,12 @@ export const PrescriptionFillAuthorisationService = {
         actorId: authorisedBy,
         canEditAny: params.canEditAny,
       });
+      if (item.prescription.artifact.status === "VOID") {
+        throw new PrescriptionFillAuthorisationServiceError(
+          "Refills cannot be authorised on a cancelled prescription",
+          409,
+        );
+      }
       const patientId = await resolvePatientId(
         tx,
         organisationId,
@@ -374,6 +436,14 @@ export const PrescriptionFillAuthorisationService = {
           data: { status: PrescriptionFillAuthorizationStatus.SUPERSEDED },
         });
       }
+      // Numbered after the newest row of any status: re-authorising after a
+      // revoke has no ACTIVE predecessor, and restarting at 1 would collide
+      // with the revoked version on the (itemId, version) key.
+      const newest = await tx.prescriptionFillAuthorization.findFirst({
+        where: { organisationId, itemId },
+        orderBy: { version: "desc" },
+        select: { version: true },
+      });
 
       return tx.prescriptionFillAuthorization.create({
         data: {
@@ -381,7 +451,7 @@ export const PrescriptionFillAuthorisationService = {
           patientId,
           prescriptionId: item.prescriptionId,
           itemId,
-          version: (previous?.version ?? 0) + 1,
+          version: (newest?.version ?? 0) + 1,
           validUntil: params.validUntil,
           maxAdditionalFills: params.maxAdditionalFills,
           perFillQuantity,
@@ -523,8 +593,101 @@ export const PrescriptionFillAuthorisationService = {
       return NOT_AUTHORISED;
     }
 
-    const allocated = await countAllocatedFills(prisma, authority.id);
+    const allocated = await countAllocatedFills(prisma, authority);
     return describeEligibility(authority, allocated, now);
+  },
+
+  /** Complete an authorised fill in the caller's dispense transaction. */
+  async recordDispensedFillInTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      organisationId: string;
+      itemId: string;
+      dispenseRequestId: string;
+      quantity: Prisma.Decimal.Value;
+      dispensedBy?: string | null;
+      now?: Date;
+    },
+  ) {
+    const organisationId = requireField(
+      asNonEmptyString(params.organisationId),
+      "organisationId",
+    );
+    const itemId = requireField(asNonEmptyString(params.itemId), "itemId");
+    const dispenseRequestId = requireField(
+      asNonEmptyString(params.dispenseRequestId),
+      "dispenseRequestId",
+    );
+    const now = params.now ?? new Date();
+    const quantity = new Prisma.Decimal(params.quantity);
+    const idempotencyKey = `dispense:${dispenseRequestId}:${itemId}`;
+
+    if (quantity.lessThanOrEqualTo(0)) {
+      throw new PrescriptionFillAuthorisationServiceError(
+        "quantity must be greater than zero",
+        400,
+      );
+    }
+
+    await lockItem(tx, organisationId, itemId);
+    const replay = await tx.prescriptionFillReservation.findUnique({
+      where: {
+        organisationId_idempotencyKey: { organisationId, idempotencyKey },
+      },
+    });
+    if (replay) {
+      if (
+        replay.itemId !== itemId ||
+        !new Prisma.Decimal(replay.quantity).equals(quantity)
+      ) {
+        throw new PrescriptionFillAuthorisationServiceError(
+          "Dispense request conflicts with its recorded fill",
+          409,
+        );
+      }
+      return replay;
+    }
+
+    const authority = await loadActiveAuthorization(tx, organisationId, itemId);
+    if (!authority) {
+      // Any authority row without a usable one means refills were authorised
+      // and then withdrawn (revoked, or the prescription retired), so the
+      // dispense is refused rather than going through untracked.
+      const latest = await tx.prescriptionFillAuthorization.findFirst({
+        where: { organisationId, itemId },
+        orderBy: { version: "desc" },
+        select: { status: true },
+      });
+      if (latest) {
+        throw new PrescriptionFillAuthorisationServiceError(
+          "Fill authorisation is no longer active",
+          409,
+        );
+      }
+      return null;
+    }
+    await assertFillAvailable(tx, authority, now);
+    // The fill records what this dispense actually issues. That figure comes
+    // from the signed prescription line, which is also what the stock movement
+    // in the same transaction consumes, so the fill history and the stock
+    // ledger cannot disagree.
+    return tx.prescriptionFillReservation.create({
+      data: {
+        organisationId,
+        authorizationId: authority.id,
+        itemId,
+        dispenseRequestId,
+        fillOrdinal: await nextFillOrdinal(tx, authority.id),
+        quantity,
+        fulfilledQuantity: quantity,
+        quantityUnit: authority.perFillQuantityUnit,
+        idempotencyKey,
+        reservedBy: asNonEmptyString(params.dispensedBy),
+        reservedAt: now,
+        status: PrescriptionFillReservationStatus.COMPLETED,
+        completedAt: now,
+      },
+    });
   },
 
   /**
@@ -597,23 +760,7 @@ export const PrescriptionFillAuthorisationService = {
         );
       }
 
-      const allocated = await countAllocatedFills(tx, authority.id);
-      const eligibility = describeEligibility(authority, allocated, now);
-
-      if (!eligibility.eligible) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          `Fill not permitted: ${eligibility.reasonCodes.join(", ")}`,
-          409,
-        );
-      }
-
-      // The allocation sequence, not the repeat number: a cancelled ordinal is
-      // never reused, so this only ever moves forward.
-      const highest = await tx.prescriptionFillReservation.findFirst({
-        where: { authorizationId: authority.id },
-        orderBy: { fillOrdinal: "desc" },
-        select: { fillOrdinal: true },
-      });
+      await assertFillAvailable(tx, authority, now);
 
       return tx.prescriptionFillReservation.create({
         data: {
@@ -621,7 +768,7 @@ export const PrescriptionFillAuthorisationService = {
           authorizationId: authority.id,
           itemId,
           dispenseRequestId: asNonEmptyString(params.dispenseRequestId),
-          fillOrdinal: (highest?.fillOrdinal ?? -1) + 1,
+          fillOrdinal: await nextFillOrdinal(tx, authority.id),
           quantity: authority.perFillQuantity,
           quantityUnit: authority.perFillQuantityUnit,
           idempotencyKey,

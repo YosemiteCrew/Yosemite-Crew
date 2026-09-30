@@ -189,7 +189,7 @@ export const BasicDetails: Story = {
        chosen category. With Vaccine picked it must offer the seven vaccine
        subcategories and none of the medicine ones. */
     const panel = await openPanel(canvas.getByRole('button', { name: 'Sub category' }));
-    const options = within(panel).getAllByRole('button');
+    const options = within(panel).getAllByRole('option');
     await expect(options).toHaveLength(7);
     await expect(within(panel).getByText('Rabies')).toBeInTheDocument();
     await expect(within(panel).queryByText('Antibiotic')).not.toBeInTheDocument();
@@ -486,7 +486,7 @@ export const StockControl: Story = {
        extending it. If the override stopped applying, the field would still look
        populated - with nine locations this practice does not have. */
     const panel = await openPanel(canvas.getByRole('button', { name: 'Stock location' }));
-    const options = within(panel).getAllByRole('button');
+    const options = within(panel).getAllByRole('option');
     await expect(options.map((option) => option.textContent)).toEqual([
       'Main pharmacy',
       'Ward store',

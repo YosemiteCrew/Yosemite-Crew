@@ -37,6 +37,13 @@ describe('dropdown metric parity', () => {
     expect(triggerMetrics(MULTI_SOURCE)).toEqual(triggerMetrics(LABEL_SOURCE));
   });
 
+  it('both take their height from the shared field control height', () => {
+    const triggerLine = (src: string) =>
+      src.split('\n').find((candidate) => candidate.includes('const base =')) ?? '';
+    expect(triggerLine(LABEL_SOURCE)).toContain('FIELD_CONTROL_HEIGHT');
+    expect(triggerLine(MULTI_SOURCE)).toContain('FIELD_CONTROL_HEIGHT');
+  });
+
   it('both render the typed search text at the same size', () => {
     /* Only the search input is compared, not every text size in the file:
        LabelDropdown legitimately uses 11px and 12px for other elements, and an

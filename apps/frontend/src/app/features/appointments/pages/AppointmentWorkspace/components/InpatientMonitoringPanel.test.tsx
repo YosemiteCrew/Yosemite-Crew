@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InpatientMonitoringPanel from './InpatientMonitoringPanel';
+import InpatientObservationForm from './InpatientObservationForm';
 import { setPreferredTimeZone } from '@/app/lib/timezone';
 import {
   listHospitalizationObservations,
@@ -397,5 +398,31 @@ describe('InpatientMonitoringPanel', () => {
       'patient-2',
       'encounter-2'
     );
+  });
+});
+
+describe('InpatientObservationForm', () => {
+  it('renders its initial time and forwards form actions', () => {
+    const onSubmit = jest.fn(async () => undefined);
+    const onCancel = jest.fn();
+
+    render(
+      <InpatientObservationForm
+        defaultObservedAt="2026-09-29T17:30"
+        isSaving={false}
+        error={null}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+      />
+    );
+
+    expect(screen.getByLabelText('Observed at')).toHaveValue('2026-09-29T17:30');
+    const form = screen.getByRole('button', { name: 'Save observation' }).closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form as HTMLFormElement);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

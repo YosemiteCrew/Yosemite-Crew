@@ -147,17 +147,20 @@ export const Editable: Story = {
 
     /* The delete button is positioned against the ROW, not against the input, and
        the row starts at the caption. `top-3` therefore lands it over the caption
-       band rather than centred on the 44px field it deletes. */
+       band rather than centred on the field it deletes. */
     await expect(removeBox.top).toBeLessThan(inputBox.top);
 
     // It is inset 16px from the field's right edge (`right-4`).
     await expect(Math.round(inputBox.right - removeBox.right)).toBe(16);
 
     /* A bare glyph with no padding: 24px of hit area for a destructive control,
-       next to a 44px field. That is under the 44px WCAG target-size floor the
-       inputs themselves clear. */
+       next to a field that is 40px at desktop density and 44px on a phone or a
+       touch screen, where the inputs clear the 44px touch-target floor. */
+    const fieldHeight = globalThis.matchMedia('(width < 40rem), (pointer: coarse)').matches
+      ? 44
+      : 40;
     await expect(Math.round(removeBox.height)).toBe(24);
-    await expect(Math.round(inputBox.height)).toBe(44);
+    await expect(Math.round(inputBox.height)).toBe(fieldHeight);
   },
 };
 

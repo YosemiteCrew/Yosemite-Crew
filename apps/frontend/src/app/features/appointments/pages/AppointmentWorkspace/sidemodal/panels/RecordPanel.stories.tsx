@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
+import type { UserOrganization } from '@yosemite-crew/types';
+import api from '@/app/services/axios';
+import { useOrgStore } from '@/app/stores/orgStore';
 import type {
   AppointmentEncounter,
   ObservationRecord,
@@ -79,6 +83,41 @@ const seedEncounter =
     };
   };
 
+const seedDentalEncounter = () => {
+  const restoreEncounter = seedEncounter({ vitals: VITALS, observations: OBSERVATIONS })();
+  const previousAdapter = api.defaults.adapter;
+  const adapter: AxiosAdapter = async (config: InternalAxiosRequestConfig) => ({
+    data: [],
+    status: 200,
+    statusText: 'OK',
+    headers: {},
+    config,
+  });
+  api.defaults.adapter = adapter;
+  /* The dental tab checks appointments:view:any and appointments:edit:any against
+     the real org store, so a clinician membership is seeded rather than mocked. */
+  const orgSnapshot = useOrgStore.getState();
+  const membership: UserOrganization = {
+    practitionerReference: 'Practitioner/prac-amara',
+    organizationReference: `Organization/${ORG_ID}`,
+    roleCode: 'OWNER',
+    roleDisplay: 'Owner',
+    active: true,
+  };
+  useOrgStore.setState({
+    primaryOrgId: ORG_ID,
+    orgIds: [ORG_ID],
+    membershipsByOrgId: { [ORG_ID]: membership },
+    status: 'loaded',
+  });
+
+  return () => {
+    api.defaults.adapter = previousAdapter;
+    useOrgStore.setState(orgSnapshot);
+    restoreEncounter();
+  };
+};
+
 /** No entry at all for this appointment id, which is the pre-hydration state. */
 const withoutEncounter = () => {
   const snapshot = useAppointmentWorkspaceStore.getState();
@@ -89,8 +128,43 @@ const withoutEncounter = () => {
 };
 
 /** The mounted tabpanel for a tab key, or null when that tab is not the active one. */
-const panelFor = (canvasElement: HTMLElement, key: 'VITALS' | 'OBSERVATION') =>
-  canvasElement.querySelector(`#record-panel-${key}`) as HTMLElement | null;
+const panelFor = (
+  canvasElement: HTMLElement,
+  key: 'VITALS' | 'OBSERVATION' | 'DENTAL' | 'DERMATOLOGY'
+) => canvasElement.querySelector(`#record-panel-${key}`) as HTMLElement | null;
+
+const dermatologyAssessment = {
+  id: 'derm-story-1',
+  patientId: 'companion-1',
+  assessedAt: '2026-09-20T10:00:00.000Z',
+  affectedRegions: ['Paws', 'Ears'],
+  primaryLesions: ['papules'],
+  secondaryLesions: ['crusts'],
+};
+
+const stubDermatologyApi = () => {
+  const previous = api.defaults.adapter;
+  const adapter: AxiosAdapter = (config: InternalAxiosRequestConfig) =>
+    Promise.resolve({
+      data:
+        config.method === 'post'
+          ? {
+              ...dermatologyAssessment,
+              id: 'derm-story-2',
+              encounterId: 'enc-1',
+              assessedAt: '2026-09-27T10:00:00.000Z',
+            }
+          : [dermatologyAssessment],
+      status: config.method === 'post' ? 201 : 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    } as AxiosResponse);
+  api.defaults.adapter = adapter;
+  return () => {
+    api.defaults.adapter = previous;
+  };
+};
 
 const meta = {
   title: 'Workspace/RecordPanel',
@@ -100,7 +174,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Record tab of the quick-actions drawer. It owns three things the two form stories ' +
+          'The Record tab of the quick-actions drawer. It owns three things the form stories ' +
           'next to it cannot show, because none of them exist inside a form.\n\n' +
           '**The encounter gate.** The panel subscribes to `encountersById[appointmentId]` and ' +
           'returns `null` when there is no entry, so before the workspace hydrates the drawer tab ' +
@@ -119,10 +193,8 @@ const meta = {
           'action rather than as a type error.\n\n' +
           'The inactive tab is unmounted rather than hidden, which means an in-progress vitals ' +
           'draft does not survive a trip to the Observation tab. That is drawn here too.\n\n' +
-          'Nothing here needs the network. `VitalsForm` asks for its template list on mount and ' +
-          'gathers the three requests with `Promise.allSettled`, so offline it resolves to an ' +
-          'empty list; the observation submission is only fired by pressing Start, which no story ' +
-          'here does.',
+          '`VitalsForm` resolves an empty template list when offline. Observation and dental ' +
+          'records are loaded only when their tabs are opened.',
       },
     },
   },
@@ -134,6 +206,7 @@ const meta = {
     authorId: 'prac-amara',
     authorName: 'Dr. Amara Weber',
     companionId: 'companion-1',
+    species: 'dog',
   },
   decorators: [
     /* The quick-actions drawer is 530px wide with 16px of padding, and both
@@ -158,7 +231,7 @@ export const VitalsTab: Story = {
 
     const vitalsTab = canvas.getByRole('tab', { name: 'Vitals' });
     const observationTab = canvas.getByRole('tab', { name: 'Observation Tool' });
-    await expect(canvas.getAllByRole('tab')).toHaveLength(2);
+    await expect(canvas.getAllByRole('tab')).toHaveLength(3);
     await expect(vitalsTab).toHaveAttribute('aria-selected', 'true');
     await expect(observationTab).toHaveAttribute('aria-selected', 'false');
 
@@ -190,7 +263,7 @@ export const VitalsTab: Story = {
     docs: {
       description: {
         story:
-          'The tab the drawer opens on. Two equal-width tabs over the vitals list, with the ' +
+          'The tab the drawer opens on. Three equal-width tabs over the vitals list, with the ' +
           'active one carrying the blue underline that `-mb-px` pulls onto the strip border.',
       },
     },
@@ -206,7 +279,7 @@ export const VitalsTabEmpty: Story = {
     /* An encounter with empty arrays is NOT the missing-encounter case: the tab
        strip and the panel are both still here. That distinction is the whole
        reason this story sits next to the no-encounter one. */
-    await expect(canvas.getAllByRole('tab')).toHaveLength(2);
+    await expect(canvas.getAllByRole('tab')).toHaveLength(3);
     await expect(panelFor(canvasElement, 'VITALS')).toBeInTheDocument();
 
     const panel = panelFor(canvasElement, 'VITALS') as HTMLElement;
@@ -273,6 +346,57 @@ export const ObservationTab: Story = {
           'change to the prop does not move the tab.',
       },
     },
+  },
+};
+
+export const DentalTab: Story = {
+  name: 'Dental chart for a dog',
+  args: { initialTab: 'DENTAL' },
+  beforeEach: seedDentalEncounter,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const dentalTab = canvas.getByRole('tab', { name: 'Dental' });
+    await expect(dentalTab).toHaveAttribute('aria-selected', 'true');
+    await expect(dentalTab).toHaveAttribute('aria-controls', 'record-panel-DENTAL');
+    const panel = panelFor(canvasElement, 'DENTAL') as HTMLElement;
+    await expect(panel).toHaveAttribute('role', 'tabpanel');
+    await expect(
+      within(panel).getByRole('heading', { name: 'Dental examination' })
+    ).toBeInTheDocument();
+    const canine = await within(panel).findByRole('button', {
+      name: 'Tooth 104, right maxillary canine, not charted',
+    });
+    await waitFor(() => expect(canine).toBeEnabled());
+    await expect(within(panel).getByRole('group', { name: 'Dentition' })).toBeInTheDocument();
+    await expect(within(panel).getByRole('button', { name: 'Save examination' })).toBeVisible();
+  },
+};
+
+export const DermatologyTab: Story = {
+  name: 'Dermatology findings with previous visit',
+  args: { initialTab: 'DERMATOLOGY' },
+  beforeEach: () => {
+    const restoreEncounter = seedEncounter()();
+    const restoreApi = stubDermatologyApi();
+    return () => {
+      restoreApi();
+      restoreEncounter();
+    };
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const panel = panelFor(canvasElement, 'DERMATOLOGY') as HTMLElement;
+    await expect(canvas.getByRole('tab', { name: 'Dermatology' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    // The comparison appears once the previous visit's findings have loaded.
+    await expect(await within(panel).findByText('Compare with previous visit')).toBeInTheDocument();
+    await expect(
+      within(panel).getByRole('group', { name: 'Affected body regions' })
+    ).toBeInTheDocument();
+    await expect(within(panel).getByRole('checkbox', { name: 'Paws' })).toBeInTheDocument();
+    await expect(within(panel).getByText('Paws, Ears')).toBeInTheDocument();
   },
 };
 
@@ -367,7 +491,7 @@ export const Phone: Story = {
     const tablist = canvas.getByRole('tablist');
     const [vitalsTab, observationTab] = canvas.getAllByRole('tab');
 
-    /* Both tabs are `flex-1` with `px-6`, so the split must stay even even though
+    /* All tabs are `flex-1` with `px-6`, so the split must stay even even though
        "Observation Tool" is nearly three times the length of "Vitals". At 375 the
        drawer is full-screen and this is the width where an intrinsic-width tab
        would first show up as a lopsided strip. */

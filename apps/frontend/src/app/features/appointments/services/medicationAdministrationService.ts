@@ -2,6 +2,9 @@ import { getData, postData } from '@/app/services/axios';
 
 export type MedicationAdministrationStatus = 'SCHEDULED' | 'GIVEN' | 'HELD' | 'MISSED' | 'REFUSED';
 
+/** The outcomes a nurse can record against a dose that is still scheduled. */
+export type MedicationAdministrationOutcome = Exclude<MedicationAdministrationStatus, 'SCHEDULED'>;
+
 export type MedicationAdministrationEntry = {
   id: string;
   organisationId: string;
@@ -34,6 +37,13 @@ export type CreateMedicationAdministrationInput = {
 const marEndpoint = (organisationId: string) =>
   `/v1/pms/organisation/${organisationId}/mar-entries`;
 
+const OUTCOME_ENDPOINTS: Record<MedicationAdministrationOutcome, string> = {
+  GIVEN: 'administer',
+  HELD: 'hold',
+  MISSED: 'miss',
+  REFUSED: 'refuse',
+};
+
 export const listMedicationAdministrations = async (
   organisationId: string,
   patientId: string,
@@ -57,33 +67,13 @@ export const createMedicationAdministration = async (
   return response.data;
 };
 
-export const administerMedication = async (organisationId: string, entryId: string) => {
+export const recordMedicationOutcome = async (
+  organisationId: string,
+  entryId: string,
+  outcome: MedicationAdministrationOutcome
+) => {
   const response = await postData<MedicationAdministrationEntry>(
-    `${marEndpoint(organisationId)}/${entryId}/administer`,
-    {}
-  );
-  return response.data;
-};
-
-export const holdMedication = async (organisationId: string, entryId: string) => {
-  const response = await postData<MedicationAdministrationEntry>(
-    `${marEndpoint(organisationId)}/${entryId}/hold`,
-    {}
-  );
-  return response.data;
-};
-
-export const missMedication = async (organisationId: string, entryId: string) => {
-  const response = await postData<MedicationAdministrationEntry>(
-    `${marEndpoint(organisationId)}/${entryId}/miss`,
-    {}
-  );
-  return response.data;
-};
-
-export const refuseMedication = async (organisationId: string, entryId: string) => {
-  const response = await postData<MedicationAdministrationEntry>(
-    `${marEndpoint(organisationId)}/${entryId}/refuse`,
+    `${marEndpoint(organisationId)}/${entryId}/${OUTCOME_ENDPOINTS[outcome]}`,
     {}
   );
   return response.data;

@@ -166,7 +166,7 @@ const openPanel = async (dialog: HTMLElement, placeholder: string, selection: st
 
 const chooseStatus = async (dialog: HTMLElement, placeholder: string, from: string, to: string) => {
   const panel = await openPanel(dialog, placeholder, from);
-  await userEvent.click(within(panel).getByRole('button', { name: to }));
+  await userEvent.click(within(panel).getByRole('option', { name: to }));
   return waitFor(() => expect(trigger(dialog, placeholder, to)).toBeInTheDocument());
 };
 
@@ -234,7 +234,7 @@ export const Open: Story = {
 
     const panel = await openPanel(dialog, 'Companion status', 'Active');
     const options = within(panel)
-      .getAllByRole('button')
+      .getAllByRole('option')
       .map((option) => option.textContent);
     /* Two options, in this order. `RecordStatus` also has `inactive`, and the
        directory filters on it - so a wrapper that passed the whole union through

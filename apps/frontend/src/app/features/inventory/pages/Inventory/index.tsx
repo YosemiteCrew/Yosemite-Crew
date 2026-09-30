@@ -245,6 +245,7 @@ export const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryR
       const durationUnit =
         typeof m.metadata?.durationUnit === 'string' ? m.metadata.durationUnit : undefined;
       return {
+        prescriptionItemId: m.prescriptionItemId,
         name:
           m.inventoryItemName ??
           m.medication ??
@@ -1468,6 +1469,7 @@ const useInventoryContent = () => {
             stockLocationOptions={stockLocationOptions}
             initialSection={infoInitialSection}
             organisationId={primaryOrgId ?? undefined}
+            onRefresh={() => inventoryModule.loadInventory(primaryOrgId ?? undefined)}
           />
         )}
       </PermissionGate>

@@ -29,6 +29,7 @@ const publicBookingQueue = queueDouble("public-booking");
 const parasiteRiskQueue = queueDouble("parasite-risk");
 const superadminContactQueue = queueDouble("superadmin-contact-forward");
 const developerMeterQueue = queueDouble("developer-meter-delivery");
+const careReminderQueue = queueDouble("care-reminder");
 
 jest.mock("../../src/queues/appointment.queue", () => ({
   AppointmentQueue: appointmentQueue,
@@ -64,6 +65,9 @@ jest.mock("../../src/queues/superadmin-contact.queue", () => ({
 jest.mock("../../src/queues/developer-meter.queue", () => ({
   DeveloperMeterQueue: developerMeterQueue,
 }));
+jest.mock("../../src/queues/care-reminder.queue", () => ({
+  CareReminderQueue: careReminderQueue,
+}));
 
 const pruneLegacyRepeatablesAcross = jest.fn(
   async (..._queues: unknown[]): Promise<void> => undefined,
@@ -84,6 +88,7 @@ const registerPublicBookingSchedulers = jest.fn(async () => undefined);
 const registerParasiteRiskScheduler = jest.fn(async () => undefined);
 const registerSuperadminContactScheduler = jest.fn(async () => undefined);
 const registerDeveloperMeterScheduler = jest.fn(async () => undefined);
+const registerCareReminderScheduler = jest.fn(async () => undefined);
 
 jest.mock("../../src/queues/task.schedulers", () => ({
   registerTaskSchedulers: () => registerTaskSchedulers(),
@@ -119,6 +124,9 @@ jest.mock("../../src/queues/superadmin-contact.scheduler", () => ({
 jest.mock("../../src/queues/developer-meter.scheduler", () => ({
   registerDeveloperMeterScheduler: () => registerDeveloperMeterScheduler(),
 }));
+jest.mock("../../src/queues/care-reminder.scheduler", () => ({
+  registerCareReminderScheduler: () => registerCareReminderScheduler(),
+}));
 
 const info = jest.fn();
 jest.mock("src/utils/logger", () => ({
@@ -140,6 +148,7 @@ const registrations = [
   registerParasiteRiskScheduler,
   registerSuperadminContactScheduler,
   registerDeveloperMeterScheduler,
+  registerCareReminderScheduler,
 ];
 
 const orderOf = (mock: jest.Mock): number =>
@@ -167,8 +176,9 @@ describe("scheduledQueues", () => {
       parasiteRiskQueue,
       superadminContactQueue,
       developerMeterQueue,
+      careReminderQueue,
     ]);
-    expect(new Set(scheduledQueues)).toHaveProperty("size", 12);
+    expect(new Set(scheduledQueues)).toHaveProperty("size", 13);
   });
 });
 

@@ -581,6 +581,38 @@ describe("ClientAccountService.proposeAllocation", () => {
     ]);
   });
 
+  it("plans by due date when payment terms give invoices different due dates", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      dbInvoice({
+        id: "invoice-1",
+        totalAmount: 100,
+        dueAt: new Date("2026-08-31T23:59:59.999Z"),
+      }),
+      dbInvoice({
+        id: "invoice-2",
+        totalAmount: 80,
+        finalizedAt: new Date("2026-08-15T00:00:00.000Z"),
+        dueAt: new Date("2026-08-15T23:59:59.999Z"),
+      }),
+    ]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ amount: 100 }),
+    ]);
+    mockedSummaries.mockResolvedValue(
+      balances({ "invoice-1": 100, "invoice-2": 80 }),
+    );
+
+    const [proposal] = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(proposal.lines).toEqual([
+      { receiptId: "receipt-1", invoiceId: "invoice-2", amount: 80 },
+      { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 20 },
+    ]);
+  });
+
   it("reports the credit a smaller debt leaves over", async () => {
     mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
     mockedPrisma.providerReceipt.findMany.mockResolvedValue([

@@ -54,6 +54,7 @@ jest.mock('@/hooks', () => ({
 const SECTION_TRANSLATIONS: Record<string, string> = {
   'passport.title': 'Pasaporte de mascota',
   'prescriptions.title': 'Recetas',
+  'careReminders.title': 'Cuidado pendiente',
 };
 
 jest.mock('react-i18next', () => ({
@@ -382,6 +383,17 @@ describe('ProfileOverviewScreen', () => {
     const {getByText} = setup();
     fireEvent.press(getByText('medicalRecords.title'));
     expect(mockNavigate).toHaveBeenCalledWith('MedicalRecords', {
+      companionId: 'comp-123',
+    });
+  });
+
+  it('localises the due-care tile and opens reminders for the selected companion', () => {
+    const {getByText, queryByText} = setup();
+
+    expect(getByText('Cuidado pendiente')).toBeTruthy();
+    expect(queryByText('Care due')).toBeNull();
+    fireEvent.press(getByText('Cuidado pendiente'));
+    expect(mockNavigate).toHaveBeenCalledWith('CareReminders', {
       companionId: 'comp-123',
     });
   });
