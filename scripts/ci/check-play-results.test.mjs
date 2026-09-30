@@ -2,10 +2,12 @@
 // did not happen fails, a run that happened with failing stories does not.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { collectFailures, main, problemsWith } from './check-play-results.mjs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { collectFailures, main, MIN_PASS_SHARE, problemsWith } from './check-play-results.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'play-results-'));
 const write = (name, value) => {
@@ -121,7 +123,33 @@ test('zero tests is a problem', () => {
 
 test('tests that all failed is a problem', () => {
   const [problem] = problemsWith(results({ numPassedTests: 0, numFailedTests: 3 }));
-  assert.match(problem, /none of 3 stories passed/);
+  assert.match(problem, /only 0 of 3 tests passed/);
+});
+
+// A browser that dies partway through leaves a few passes and a wall of
+// failures; that is not a story backlog.
+test('a pass share below the floor is a problem, at the floor is not', () => {
+  const total = 100;
+  const floor = total * MIN_PASS_SHARE;
+  assert.equal(
+    problemsWith(results({ numTotalTests: total, numPassedTests: floor - 1 })).length,
+    1
+  );
+  assert.deepEqual(problemsWith(results({ numTotalTests: total, numPassedTests: floor })), []);
+});
+
+test('a shard where every test was skipped is a problem, and says so', () => {
+  assert.deepEqual(
+    problemsWith(results({ numTotalTests: 4, numPassedTests: 0, numPendingTests: 4 })),
+    ['all 4 tests were skipped, so this shard checked nothing']
+  );
+});
+
+test('a failed suite without a name does not crash the summary', () => {
+  const summary = write('summary-noname.md', '');
+  const data = results();
+  data.testResults.push({ status: 'failed', message: 'boom', assertionResults: [] });
+  assert.equal(run([write('noname.json', data)], { GITHUB_STEP_SUMMARY: summary }), 0);
 });
 
 test('an interrupted run is a problem', () => {
@@ -161,9 +189,35 @@ test('a real run with failing stories passes and lists them in the step summary'
 test('the step summary says when a run was not real', () => {
   const summary = write('summary-bad.md', '');
   run([write('none2.json', results({ numPassedTests: 0 }))], { GITHUB_STEP_SUMMARY: summary });
-  assert.match(readFileSync(summary, 'utf8'), /\*\*Not a real run:\*\* none of 3 stories passed/);
+  assert.match(readFileSync(summary, 'utf8'), /\*\*Not a real run:\*\* only 0 of 3 tests passed/);
 });
 
 test('no argument is a usage error', () => {
   assert.equal(run([]), 2);
+});
+
+// The workflow runs the file as a script, so the entry point is what CI relies
+// on. Run through a symlinked directory too: a path mismatch there once made
+// the script skip main() and exit 0.
+const script = join(dirname(fileURLToPath(import.meta.url)), 'check-play-results.mjs');
+const linkedDir = join(dir, 'linked');
+symlinkSync(dirname(script), linkedDir);
+
+for (const path of [script, join(linkedDir, 'check-play-results.mjs')]) {
+  test(`the CLI fails on a missing results file (${path === script ? 'real' : 'symlinked'} path)`, () => {
+    const { status, stderr: err } = spawnSync(process.execPath, [path, join(dir, 'absent.json')], {
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_STEP_SUMMARY: '' },
+    });
+    assert.equal(status, 1);
+    assert.match(err, /was not written/);
+  });
+}
+
+test('the CLI passes a real run', () => {
+  const { status } = spawnSync(process.execPath, [script, write('cli-ok.json', results())], {
+    encoding: 'utf8',
+    env: { ...process.env, GITHUB_STEP_SUMMARY: '' },
+  });
+  assert.equal(status, 0);
 });

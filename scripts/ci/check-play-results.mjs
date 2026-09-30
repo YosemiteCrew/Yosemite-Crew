@@ -9,19 +9,27 @@
 // are treated differently on purpose:
 //
 //   - The run did not happen. The browser did not launch, nothing matched the
-//     shard, or every story fell over before an assertion could pass. The
+//     shard, or so many stories fell over that the harness, not the stories,
+//     is what broke (see MIN_PASS_SHARE). The
 //     runner exits 1 for this exactly as it does for a failing assertion, so
 //     its exit code cannot tell the two apart. This script can, and exits 1.
 //   - The run happened and some play functions failed. Those are listed, but
 //     the job stays advisory until the backlog is cleared, so this exits 0.
 //
-// A missing results file counts as "did not happen": jest aborts in its global
-// setup when the browser cannot launch and writes nothing.
+// A missing results file counts as "did not happen": when the browser cannot
+// launch, jest aborts before it writes anything.
 
-import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 
 const STORY_LINK = /[?&]path=\/story\/([\w-]+)/;
+
+// Below this share of passing tests the shard is treated as a broken harness (a
+// browser that died partway, every page crashing) rather than a story backlog.
+// The backlog runs at roughly one failing test in ten per shard, so half is far
+// from it while still catching a run that mostly did not happen.
+export const MIN_PASS_SHARE = 0.5;
 
 // The runner wraps every failure in the same preamble (error class, a "Click to
 // debug" link, "Message:"); the first line after it is the one that says what
@@ -64,15 +72,21 @@ export const problemsWith = (results) => {
   if (results.wasInterrupted) problems.push('the run was interrupted before it finished');
   if (!(results.numTotalTests > 0)) {
     problems.push('no story was tested, so this shard checked nothing');
-  } else if (!(results.numPassedTests > 0)) {
+  } else if (results.numPendingTests === results.numTotalTests) {
+    problems.push(`all ${results.numTotalTests} tests were skipped, so this shard checked nothing`);
+  } else if (!(results.numPassedTests >= results.numTotalTests * MIN_PASS_SHARE)) {
     problems.push(
-      `none of ${results.numTotalTests} stories passed, which is the browser or the harness failing, not the stories`
+      `only ${results.numPassedTests ?? 0} of ${results.numTotalTests} tests passed, which is the ` +
+        'browser or the harness failing, not the stories'
     );
   }
   return problems;
 };
 
-const escapeCell = (text) => text.replaceAll('|', '\\|').slice(0, 300);
+const escapeCell = (text) =>
+  String(text ?? '')
+    .replaceAll('|', '\\|')
+    .slice(0, 300);
 
 export const main = (argv, env = process.env) => {
   const [file] = argv;
@@ -136,6 +150,8 @@ export const main = (argv, env = process.env) => {
   return 0;
 };
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+// Compared as real paths: `import.meta.url` is percent-encoded and resolves
+// symlinks, argv[1] does neither, and a mismatch would skip main() and exit 0.
+if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   process.exit(main(process.argv.slice(2)));
 }
