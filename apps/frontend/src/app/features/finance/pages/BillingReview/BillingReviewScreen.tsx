@@ -116,7 +116,7 @@ const VisitCard = ({ item }: { item: BillingReviewItem }) => (
       <span className="text-caption-2 text-text-tertiary">{invoiceSummary(item)}</span>
       <Link
         href={visitHref(item.id)}
-        className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-body-4-emphasis text-action-primary hover:bg-action-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-body-4-emphasis text-text-brand hover:bg-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         Review visit <IoArrowForwardOutline aria-hidden="true" />
       </Link>
@@ -290,7 +290,7 @@ const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps)
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-xl border border-card-border bg-card px-3 py-2 text-caption-1 text-text-secondary">
-          <IoReceiptOutline aria-hidden="true" className="text-action-primary" />
+          <IoReceiptOutline aria-hidden="true" className="text-text-brand" />
           {items.length} shown
         </div>
       </header>
