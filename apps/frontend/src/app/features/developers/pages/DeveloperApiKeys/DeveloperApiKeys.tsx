@@ -41,32 +41,34 @@ const DeveloperApiKeys = ({ guidedAppointmentTest = false }: DeveloperApiKeysPro
   const [creating, setCreating] = useState(false);
   const [issued, setIssued] = useState<IssuedApiKey | null>(null);
 
-  const loadKeys = useCallback(async () => {
-    // No setLoading(true) here: this runs from the mount effect and `loading`
-    // already starts true, so setting it again would be a synchronous state
-    // write during the effect body.
-    try {
-      const next = await listApiKeys();
-      setKeys(next);
-      setError(null);
-    } catch (err) {
-      logger.error('Failed to load API keys', err);
-      setKeys(null);
-      setError('Could not load your API keys. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const showLoadError = useCallback((err: unknown) => {
+    logger.error('Failed to load API keys', err);
+    setKeys(null);
+    setError('Could not load your API keys. Please try again.');
+    setLoading(false);
   }, []);
+
+  // No setLoading(true) here: the first load runs from the mount effect and
+  // `loading` already starts true, so setting it again would be a synchronous
+  // state write during the effect body.
+  const fetchKeys = useCallback(async () => {
+    const next = await listApiKeys();
+    setKeys(next);
+    setError(null);
+    setLoading(false);
+  }, []);
+
+  const loadKeys = useCallback(() => fetchKeys().catch(showLoadError), [fetchKeys, showLoadError]);
 
   useEffect(() => {
     // Wrapped rather than called directly: the hooks lint cannot see through the
     // useCallback to prove the setStates all happen after an await, and flags a
-    // bare `loadKeys()` as a synchronous state write.
+    // bare `fetchKeys()` as a synchronous state write.
     const run = async () => {
-      await loadKeys();
+      await fetchKeys();
     };
-    run();
-  }, [loadKeys]);
+    run().catch(showLoadError);
+  }, [fetchKeys, showLoadError]);
 
   const handleCreate = async (input: NewApiKeyInput) => {
     if (creating) return;

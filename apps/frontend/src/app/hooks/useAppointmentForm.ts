@@ -31,6 +31,7 @@ import {
 import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { useCanMoreForPrimaryOrg, useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { labelWithCurrency } from '@/app/lib/money';
+import { mapWithConcurrency } from '@/app/lib/concurrency';
 import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
 import { EMPTY_APPOINTMENT } from '@/app/features/appointments/constants/emptyAppointment';
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
@@ -201,28 +202,6 @@ const findPreferredSlotMatch = (
       )
     ) ?? matches[0]
   );
-};
-
-const mapWithConcurrency = async <T, R>(
-  items: T[],
-  limit: number,
-  mapper: (item: T) => Promise<R>
-): Promise<R[]> => {
-  if (items.length === 0) return [];
-  const safeLimit = Math.max(1, limit);
-  const results: R[] = new Array(items.length);
-  let nextIndex = 0;
-
-  const worker = async () => {
-    while (nextIndex < items.length) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-      results[currentIndex] = await mapper(items[currentIndex]);
-    }
-  };
-
-  await Promise.all(Array.from({ length: Math.min(safeLimit, items.length) }, () => worker()));
-  return results;
 };
 
 type ThreeDaySlots = {

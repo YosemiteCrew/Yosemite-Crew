@@ -1,4 +1,5 @@
 import api, { deleteData, getData, patchData, postData } from '@/app/services/axios';
+import { mapWithConcurrency } from '@/app/lib/concurrency';
 import type { WorkspaceDocumentRow, WorkspaceDocumentPacketSigning } from '@yosemite-crew/types';
 import type {
   AppointmentEncounter,
@@ -971,6 +972,8 @@ export const persistEncounterTreatmentLine = (
     lineItemToTreatmentDTO({ id: '', ...item } as LineItem)
   );
 
+const TREATMENT_DELETE_CONCURRENCY = 4;
+
 /** A backend treatment row that is an editable, unbilled service/package line. */
 const isEditableServiceRow = (row: Record<string, unknown>): boolean =>
   !isMedicationTreatmentItem(row) && asString(row.billingStatus) !== 'BILLED';
@@ -997,23 +1000,21 @@ export const persistTreatmentItems = async (
 
   // Reconcile removals: any unbilled service/package row on the backend that the
   // clinician dropped from the local list must be deleted.
+  // The removals are independent of each other, so a few run at once.
   const backendRows = await listEncounterTreatmentItems(organisationId, encounterId);
-  for (const row of backendRows) {
-    const rowId = asString(row.id);
-    if (!rowId || keptPersistedIds.has(rowId) || !isEditableServiceRow(row)) continue;
-    await deleteEncounterTreatmentItem(organisationId, rowId);
-  }
+  const removedRowIds = backendRows
+    .filter((row) => isEditableServiceRow(row))
+    .map((row) => asString(row.id))
+    .filter((rowId): rowId is string => rowId !== undefined && !keptPersistedIds.has(rowId));
+  await mapWithConcurrency(removedRowIds, TREATMENT_DELETE_CONCURRENCY, (rowId) =>
+    deleteEncounterTreatmentItem(organisationId, rowId)
+  );
 
-  for (const item of items) {
-    if (isPersistedTreatmentId(item.id)) {
-      // Push edits to an existing row.
-      await updateEncounterTreatmentItem(
-        organisationId,
-        item.id,
-        lineItemToTreatmentUpdateDTO(item)
-      );
-    } else {
-      await createEncounterTreatmentItem(organisationId, encounterId, lineItemToTreatmentDTO(item));
-    }
-  }
+  // Saves stay one at a time, in list order, so new rows are created in the
+  // order the clinician added them.
+  await mapWithConcurrency(items, 1, (item) =>
+    isPersistedTreatmentId(item.id)
+      ? updateEncounterTreatmentItem(organisationId, item.id, lineItemToTreatmentUpdateDTO(item))
+      : createEncounterTreatmentItem(organisationId, encounterId, lineItemToTreatmentDTO(item))
+  );
 };

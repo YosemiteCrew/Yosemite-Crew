@@ -228,6 +228,71 @@ describe('Reschedule section', () => {
     expect(rescheduleSeriesMock).not.toHaveBeenCalled();
   });
 
+  const LOAD_ERROR = 'Could not load available times. Please try again.';
+  const nextDateAppointment = {
+    ...activeAppointment,
+    id: 'a-2',
+    appointmentDate: new Date('2026-01-02T10:00:00Z'),
+  };
+
+  it('tells the user when available times cannot be loaded', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    getSlotsMock.mockRejectedValue(new Error('offline'));
+    try {
+      render(
+        <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />
+      );
+
+      expect(await screen.findByText(LOAD_ERROR)).toBeInTheDocument();
+      expect(logSpy).toHaveBeenCalledWith(new Error('offline'));
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  it('shows the load message when times fail to load after a slot was selected', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    getSlotsMock
+      .mockResolvedValueOnce([{ startTime: '10:00', endTime: '10:30', vetIds: ['lead-1'] }])
+      .mockRejectedValueOnce(new Error('offline'));
+    try {
+      const { rerender } = render(
+        <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />
+      );
+      await waitFor(() => expect(getSlotsMock).toHaveBeenCalledTimes(1));
+
+      rerender(
+        <Reschedule showModal setShowModal={setShowModal} activeAppointment={nextDateAppointment} />
+      );
+
+      expect(await screen.findByText(LOAD_ERROR)).toBeInTheDocument();
+      expect(screen.queryByText('No lead is available for this slot.')).not.toBeInTheDocument();
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  it('clears the load message once times load for the next appointment', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    // The next date has no free times, so nothing else would clear the message.
+    getSlotsMock.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([]);
+    try {
+      const { rerender } = render(
+        <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />
+      );
+      expect(await screen.findByText(LOAD_ERROR)).toBeInTheDocument();
+
+      rerender(
+        <Reschedule showModal setShowModal={setShowModal} activeAppointment={nextDateAppointment} />
+      );
+
+      await waitFor(() => expect(getSlotsMock).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.queryByText(LOAD_ERROR)).not.toBeInTheDocument());
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   it('resets state on modal header close', async () => {
     render(
       <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />
