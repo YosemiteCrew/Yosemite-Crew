@@ -23,6 +23,8 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { useExtensionPoint } from '@/app/features/plugins';
+import type { FormsListActionExtension } from '@/app/features/plugins/types';
 
 const AddForm = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/AddForm'));
 const FormInfo = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/FormInfo'));
@@ -99,6 +101,16 @@ const Forms = () => {
   const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
   const loadSpecialityCatalog = useRevampCatalogStore((s) => s.loadSpecialityCatalog);
   const fetchedRef = useRef(false);
+
+  const formsListContext = useMemo(
+    () => ({ type: 'forms.list' as const, organisationId: primaryOrgId ?? '' }),
+    [primaryOrgId]
+  );
+
+  const { extensions: formsListActionExtensions } = useExtensionPoint<FormsListActionExtension>(
+    'forms.list.actions',
+    formsListContext
+  );
 
   const orgSpecialities = useMemo(
     () => (primaryOrgId ? specialities.filter((s) => s.organisationId === primaryOrgId) : []),
@@ -309,6 +321,19 @@ const Forms = () => {
               ) : null
             }
           />
+          {formsListActionExtensions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-[var(--hairline)]">
+              {formsListActionExtensions.map((ext) => (
+                <ext.extension.component
+                  key={ext.id}
+                  organisationId={primaryOrgId ?? ''}
+                  onAction={(forms) => {
+                    console.log('Plugin action triggered', ext.id, forms);
+                  }}
+                />
+              ))}
+            </div>
+          )}
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
             <FormsTable
               filteredList={filteredList}

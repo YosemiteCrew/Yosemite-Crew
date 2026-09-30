@@ -25,6 +25,11 @@ import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { Icon } from '@/app/ui/icons/Icon';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
+import { useExtensionPoint } from '@/app/features/plugins';
+import type {
+  FormDetailTabExtension,
+  FormDetailActionExtension,
+} from '@/app/features/plugins/types';
 
 const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
@@ -135,6 +140,25 @@ const FormInfo = ({
     }
     return [...serviceOptions, ...unavailable];
   }, [activeForm.services, serviceOptions]);
+
+  const formDetailContext = React.useMemo(
+    () => ({
+      type: 'forms' as const,
+      formId: activeForm._id ?? '',
+      organisationId: primaryOrgId ?? '',
+    }),
+    [activeForm._id, primaryOrgId]
+  );
+
+  const { extensions: formDetailTabExtensions } = useExtensionPoint<FormDetailTabExtension>(
+    'forms.detail.tabs',
+    formDetailContext
+  );
+
+  const { extensions: formDetailActionExtensions } = useExtensionPoint<FormDetailActionExtension>(
+    'forms.detail.actions',
+    formDetailContext
+  );
   const detailsData = React.useMemo(
     () => ({
       ...activeForm,
@@ -354,11 +378,35 @@ const FormInfo = ({
                   />
                 </Accordion>
               ))}
+            {formDetailTabExtensions.map((ext) => (
+              <Accordion
+                key={ext.id}
+                title={ext.extension.component.displayName || ext.id}
+                defaultOpen
+                showEditIcon={false}
+                isEditing={true}
+              >
+                <ext.extension.component
+                  formId={activeForm._id ?? ''}
+                  organisationId={primaryOrgId ?? ''}
+                  form={activeForm}
+                />
+              </Accordion>
+            ))}
           </div>
         </div>
         <ModalFooter align="stretch">
           <div className="flex flex-col gap-3">
             {canMutateTemplateState && renderActions()}
+            {formDetailActionExtensions.map((ext) => (
+              <ext.extension.component
+                key={ext.id}
+                formId={activeForm._id ?? ''}
+                organisationId={primaryOrgId ?? ''}
+                form={activeForm}
+                onAction={() => setShowModal(false)}
+              />
+            ))}
             {canEditTemplateStructure ? (
               <Secondary
                 href="#"
