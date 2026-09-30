@@ -187,6 +187,7 @@ const meta = {
     objective: '',
     assessment: '',
     plan: '',
+    templates: [],
     terminologyText: (text: string) => text,
     onSubjectiveChange: fn(),
     onObjectiveChange: fn(),
