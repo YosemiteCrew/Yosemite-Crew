@@ -672,33 +672,51 @@ const LoadStatus = ({
   </>
 );
 
-const DentalExaminationForm = ({ organisationId, patientId, encounterId, species }: Props) => {
-  const permissions = usePermissions();
-  const canView = permissions.can(PERMISSIONS.APPOINTMENTS_VIEW_ANY);
-  const canEdit = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
-  const [rawDraft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
+const saveLabelFor = (isSaving: boolean, isUpdate: boolean) => {
+  if (isSaving) return 'Saving…';
+  return isUpdate ? 'Update examination' : 'Save examination';
+};
+
+type ExamSaveState = {
+  /** True when no edit may be made right now, which is also why the save button is off. */
+  formDisabled: boolean;
+  canSave: boolean;
+  saveError: boolean;
+  saveLabel: string;
+  save: () => void;
+};
+
+type ExamSaveArgs = {
+  organisationId: string;
+  patientId?: string;
+  encounterId?: string;
+  currentExam?: DentalExaminationRecord;
+  draft: ExamDraft;
+  canEdit: boolean;
+  chartReady: boolean;
+  remember: (patientId: string, record: DentalExaminationRecord) => void;
+  dispatch: React.Dispatch<DraftAction>;
+};
+
+/**
+ * Owns saving this visit's examination: the in-flight and failure state, whether the form is
+ * editable, and the handler that creates the examination or updates the one already there.
+ */
+const useDentalExamSave = ({
+  organisationId,
+  patientId,
+  encounterId,
+  currentExam,
+  draft,
+  canEdit,
+  chartReady,
+  remember,
+  dispatch,
+}: ExamSaveArgs): ExamSaveState => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveFailedFor, setSaveFailedFor] = useState<string | null>(null);
-  const { records, isLoading, loadFailed, retry, remember } = useDentalHistory(
-    organisationId,
-    patientId,
-    encounterId,
-    canView,
-    dispatch
-  );
-
-  // A draft from another patient is never shown, not even for the frame before it reloads.
-  const draft = rawDraft.patientId === patientId ? rawDraft : EMPTY_DRAFT;
-  const { currentExam, previousExam } = findExams(records, encounterId);
-  const chartReady = Boolean(patientId && canView && !isLoading && !loadFailed);
   const formDisabled = !chartReady || !canEdit || !encounterId || isSaving;
   const canSave = !formDisabled && Boolean(draft.overallGrade);
-  const saveError = Boolean(patientId && saveFailedFor === patientId);
-  const selectedFinding = draft.selectedTooth ? draft.findings[draft.selectedTooth] : undefined;
-  let saveLabel = currentExam ? 'Update examination' : 'Save examination';
-  if (isSaving) saveLabel = 'Saving…';
-
-  const setField = (key: DraftField, value: string) => dispatch({ type: 'field', key, value });
 
   const save = async () => {
     if (!canSave || !patientId || !encounterId) return;
@@ -719,6 +737,263 @@ const DentalExaminationForm = ({ organisationId, patientId, encounterId, species
     }
   };
 
+  return {
+    formDisabled,
+    canSave,
+    saveError: Boolean(patientId && saveFailedFor === patientId),
+    saveLabel: saveLabelFor(isSaving, Boolean(currentExam)),
+    save,
+  };
+};
+
+const DentalExamHeader = () => (
+  <header className="rounded-2xl border border-card-border bg-[var(--screen)] p-4">
+    <p className="text-caption-2 font-semibold uppercase tracking-[0.12em] text-text-brand">
+      Clinical record
+    </p>
+    <h3 className="mt-1 text-body-2 font-bold text-text-primary">Dental examination</h3>
+    <p className="mt-1 text-body-4 text-text-secondary">
+      Chart each tooth with Modified Triadan numbers, then save the visit findings.
+    </p>
+  </header>
+);
+
+const OverallGradeField = ({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) => (
+  <label className="flex flex-col gap-1 text-body-4 font-medium text-text-primary">
+    <span>
+      Overall periodontal grade <span className="text-text-error">Required</span>
+    </span>
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      disabled={disabled}
+      className="min-h-11 rounded-xl border border-card-border bg-[var(--screen)] px-3 text-body-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+    >
+      <option value="">Select a grade</option>
+      {GRADE_OPTIONS.map((grade) => (
+        <option key={grade} value={grade}>
+          Grade {grade.slice(-1)}
+        </option>
+      ))}
+    </select>
+  </label>
+);
+
+type DraftFieldProps = {
+  draft: ExamDraft;
+  disabled: boolean;
+  onChange: (key: DraftField, value: string) => void;
+};
+
+const ExamScores = ({ draft, disabled, onChange }: DraftFieldProps) => (
+  <section aria-label="Examination scores" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <ScoreSelect
+      label="Calculus score"
+      value={draft.calculus}
+      disabled={disabled}
+      onChange={(value) => onChange('calculus', value)}
+    />
+    <ScoreSelect
+      label="Plaque score"
+      value={draft.plaque}
+      disabled={disabled}
+      onChange={(value) => onChange('plaque', value)}
+    />
+    <ScoreSelect
+      label="Gingival score"
+      value={draft.gingival}
+      disabled={disabled}
+      onChange={(value) => onChange('gingival', value)}
+    />
+  </section>
+);
+
+const ExamNotes = ({ draft, disabled, onChange }: DraftFieldProps) => (
+  <>
+    <label className={LABEL_CLASS}>
+      <span>Procedures performed</span>
+      <input
+        value={draft.procedures}
+        onChange={(event) => onChange('procedures', event.target.value)}
+        placeholder="Separate procedures with commas"
+        disabled={disabled}
+        className={`${FIELD_CLASS} px-3`}
+      />
+    </label>
+    <label className={LABEL_CLASS}>
+      <span>Examination notes</span>
+      <Textarea
+        value={draft.notes}
+        onChange={(event) => onChange('notes', event.target.value)}
+        maxLength={3000}
+        rows={3}
+        disabled={disabled}
+        className="rounded-xl border border-card-border bg-[var(--screen)] px-3 py-2 text-body-4 text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      />
+    </label>
+  </>
+);
+
+const SaveStatus = ({
+  canEdit,
+  saveError,
+  saved,
+  canSave,
+  saveLabel,
+  onSave,
+}: {
+  canEdit: boolean;
+  saveError: boolean;
+  saved: boolean;
+  canSave: boolean;
+  saveLabel: string;
+  onSave: () => void;
+}) => (
+  <>
+    {saveError ? (
+      <p role="alert" className="text-body-4 text-text-error">
+        Unable to save dental findings. Please try again.
+      </p>
+    ) : null}
+    {saved ? (
+      <output className="block text-body-4 text-pill-success-text">
+        Dental examination saved.
+      </output>
+    ) : null}
+    {canEdit ? (
+      <div className="flex justify-end">
+        <Primary onClick={onSave} isDisabled={!canSave} text={saveLabel} />
+      </div>
+    ) : null}
+  </>
+);
+
+type PanelProps = {
+  canEdit: boolean;
+  hasVisit: boolean;
+  isLoading: boolean;
+  loadFailed: boolean;
+  onRetry: () => void;
+  species?: string;
+  draft: ExamDraft;
+  dispatch: React.Dispatch<DraftAction>;
+  chartReady: boolean;
+  previousExam?: DentalExaminationRecord;
+  examSave: ExamSaveState;
+};
+
+/** The tooth the clinician has open, its finding, and what the last visit said about it. */
+const resolveToothSelection = (draft: ExamDraft, previousExam?: DentalExaminationRecord) => {
+  const selectedTooth = draft.selectedTooth;
+  return {
+    selectedTooth,
+    selectedFinding: selectedTooth ? draft.findings[selectedTooth] : undefined,
+    previousFinding: previousExam?.findings.find((finding) => finding.tooth === selectedTooth),
+  };
+};
+
+/** Lays the examination out, top to bottom, from state the form has already decided on. */
+const DentalExaminationPanel = ({
+  canEdit,
+  hasVisit,
+  isLoading,
+  loadFailed,
+  onRetry,
+  species,
+  draft,
+  dispatch,
+  chartReady,
+  previousExam,
+  examSave,
+}: PanelProps) => {
+  const setField = (key: DraftField, value: string) => dispatch({ type: 'field', key, value });
+  const { selectedTooth, selectedFinding, previousFinding } = resolveToothSelection(
+    draft,
+    previousExam
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <DentalExamHeader />
+      <LoadStatus
+        canEdit={canEdit}
+        hasVisit={hasVisit}
+        isLoading={isLoading}
+        loadFailed={loadFailed}
+        onRetry={onRetry}
+      />
+      <OverallGradeField
+        value={draft.overallGrade}
+        disabled={examSave.formDisabled}
+        onChange={(value) => setField('overallGrade', value)}
+      />
+      <DentalToothChart
+        species={species}
+        selectedTooth={selectedTooth}
+        findings={draft.findings}
+        disabled={!chartReady}
+        onSelect={(tooth) => dispatch({ type: 'select', tooth })}
+      />
+      <DentalToothEditor
+        tooth={selectedTooth}
+        finding={selectedFinding}
+        previousFinding={previousFinding}
+        previousExamDate={previousExam?.examinedAt}
+        disabled={examSave.formDisabled}
+        onUpdate={(patch) => dispatch({ type: 'finding', patch })}
+      />
+      <PreviousExamSummary exam={previousExam} />
+      <ExamScores draft={draft} disabled={examSave.formDisabled} onChange={setField} />
+      <ExamNotes draft={draft} disabled={examSave.formDisabled} onChange={setField} />
+      <SaveStatus
+        canEdit={canEdit}
+        saveError={examSave.saveError}
+        saved={draft.saved}
+        canSave={examSave.canSave}
+        saveLabel={examSave.saveLabel}
+        onSave={examSave.save}
+      />
+    </div>
+  );
+};
+
+const DentalExaminationForm = ({ organisationId, patientId, encounterId, species }: Props) => {
+  const permissions = usePermissions();
+  const canView = permissions.can(PERMISSIONS.APPOINTMENTS_VIEW_ANY);
+  const canEdit = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
+  const [rawDraft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
+  const { records, isLoading, loadFailed, retry, remember } = useDentalHistory(
+    organisationId,
+    patientId,
+    encounterId,
+    canView,
+    dispatch
+  );
+
+  // A draft from another patient is never shown, not even for the frame before it reloads.
+  const draft = rawDraft.patientId === patientId ? rawDraft : EMPTY_DRAFT;
+  const { currentExam, previousExam } = findExams(records, encounterId);
+  const chartReady = Boolean(patientId && canView && !isLoading && !loadFailed);
+  const examSave = useDentalExamSave({
+    organisationId,
+    patientId,
+    encounterId,
+    currentExam,
+    draft,
+    canEdit,
+    chartReady,
+    remember,
+    dispatch,
+  });
+
   if (!patientId) {
     return <Notice>Dental findings can be recorded once the patient is loaded.</Notice>;
   }
@@ -727,123 +1002,19 @@ const DentalExaminationForm = ({ organisationId, patientId, encounterId, species
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <header className="rounded-2xl border border-card-border bg-[var(--screen)] p-4">
-        <p className="text-caption-2 font-semibold uppercase tracking-[0.12em] text-text-brand">
-          Clinical record
-        </p>
-        <h3 className="mt-1 text-body-2 font-bold text-text-primary">Dental examination</h3>
-        <p className="mt-1 text-body-4 text-text-secondary">
-          Chart each tooth with Modified Triadan numbers, then save the visit findings.
-        </p>
-      </header>
-
-      <LoadStatus
-        canEdit={canEdit}
-        hasVisit={Boolean(encounterId)}
-        isLoading={isLoading}
-        loadFailed={loadFailed}
-        onRetry={retry}
-      />
-
-      <label className="flex flex-col gap-1 text-body-4 font-medium text-text-primary">
-        <span>
-          Overall periodontal grade <span className="text-text-error">Required</span>
-        </span>
-        <select
-          value={draft.overallGrade}
-          onChange={(event) => setField('overallGrade', event.target.value)}
-          disabled={formDisabled}
-          className="min-h-11 rounded-xl border border-card-border bg-[var(--screen)] px-3 text-body-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        >
-          <option value="">Select a grade</option>
-          {GRADE_OPTIONS.map((grade) => (
-            <option key={grade} value={grade}>
-              Grade {grade.slice(-1)}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <DentalToothChart
-        species={species}
-        selectedTooth={draft.selectedTooth}
-        findings={draft.findings}
-        disabled={!chartReady}
-        onSelect={(tooth) => dispatch({ type: 'select', tooth })}
-      />
-
-      <DentalToothEditor
-        tooth={draft.selectedTooth}
-        finding={selectedFinding}
-        previousFinding={previousExam?.findings.find(
-          (finding) => finding.tooth === draft.selectedTooth
-        )}
-        previousExamDate={previousExam?.examinedAt}
-        disabled={formDisabled}
-        onUpdate={(patch) => dispatch({ type: 'finding', patch })}
-      />
-      <PreviousExamSummary exam={previousExam} />
-
-      <section aria-label="Examination scores" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <ScoreSelect
-          label="Calculus score"
-          value={draft.calculus}
-          disabled={formDisabled}
-          onChange={(value) => setField('calculus', value)}
-        />
-        <ScoreSelect
-          label="Plaque score"
-          value={draft.plaque}
-          disabled={formDisabled}
-          onChange={(value) => setField('plaque', value)}
-        />
-        <ScoreSelect
-          label="Gingival score"
-          value={draft.gingival}
-          disabled={formDisabled}
-          onChange={(value) => setField('gingival', value)}
-        />
-      </section>
-
-      <label className={LABEL_CLASS}>
-        <span>Procedures performed</span>
-        <input
-          value={draft.procedures}
-          onChange={(event) => setField('procedures', event.target.value)}
-          placeholder="Separate procedures with commas"
-          disabled={formDisabled}
-          className={`${FIELD_CLASS} px-3`}
-        />
-      </label>
-      <label className={LABEL_CLASS}>
-        <span>Examination notes</span>
-        <Textarea
-          value={draft.notes}
-          onChange={(event) => setField('notes', event.target.value)}
-          maxLength={3000}
-          rows={3}
-          disabled={formDisabled}
-          className="rounded-xl border border-card-border bg-[var(--screen)] px-3 py-2 text-body-4 text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        />
-      </label>
-
-      {saveError ? (
-        <p role="alert" className="text-body-4 text-text-error">
-          Unable to save dental findings. Please try again.
-        </p>
-      ) : null}
-      {draft.saved ? (
-        <output className="block text-body-4 text-pill-success-text">
-          Dental examination saved.
-        </output>
-      ) : null}
-      {canEdit ? (
-        <div className="flex justify-end">
-          <Primary onClick={save} isDisabled={!canSave} text={saveLabel} />
-        </div>
-      ) : null}
-    </div>
+    <DentalExaminationPanel
+      canEdit={canEdit}
+      hasVisit={Boolean(encounterId)}
+      isLoading={isLoading}
+      loadFailed={loadFailed}
+      onRetry={retry}
+      species={species}
+      draft={draft}
+      dispatch={dispatch}
+      chartReady={chartReady}
+      previousExam={previousExam}
+      examSave={examSave}
+    />
   );
 };
 
