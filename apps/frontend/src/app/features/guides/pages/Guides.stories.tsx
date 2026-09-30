@@ -17,6 +17,29 @@ const cards = (canvasElement: HTMLElement) =>
 const searchBox = (canvasElement: HTMLElement) =>
   within(canvasElement).getByRole('searchbox', { name: 'Search' });
 
+/** The library is generated from the film curriculum, so its size is read, never restated. */
+const LIBRARY_SIZE = guidesData.length;
+
+/** The category pills the data implies: All, then each category in first-seen order. */
+const CATEGORY_PILLS = ['All', ...new Set(guidesData.map((guide) => guide.category))];
+
+/**
+ * A query that hits guides in some categories but not all, and a category that
+ * holds none of those hits - the two halves of "the category, not the search,
+ * emptied the grid". Found from the data so a regenerated library cannot turn
+ * the story into a different one.
+ */
+const QUERY = 'stock';
+const queryHits = guidesData.filter((guide) =>
+  [guide.title, guide.description, guide.category, guide.persona ?? '', ...guide.tags]
+    .join(' ')
+    .toLowerCase()
+    .includes(QUERY)
+);
+const categoryWithoutHits = CATEGORY_PILLS.slice(1).find(
+  (category) => !queryHits.some((guide) => guide.category === category)
+) as string;
+
 /**
  * The three strings the state card actually rendered, in order: title, message,
  * clear-button label. Read off the card's own children rather than queried one
@@ -41,8 +64,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The guides library: six static walkthroughs from `guidesData`, a category pill row, ' +
-          'a search field and a player modal.\n\n' +
+          'The guides library: one card per film in `guidesData`, a persona row, a category ' +
+          'pill row, a search field and a player modal.\n\n' +
           'The **filtered-empty branch at Guides.tsx:159-219 had never been drawn**. Reaching it ' +
           'takes a query that matches nothing or a category that excludes everything, and the ' +
           'route wraps the page in `ProtectedRoute` + `OrgGuard` - which hold a `PageSkeleton` ' +
@@ -58,8 +81,8 @@ const meta = {
           'category misses OR the query misses, so a query with hits inside one category still ' +
           'empties the grid under another. Both routes in are drawn below because they fail ' +
           'independently - a search bug and a category bug both end at the same sentence.\n\n' +
-          'The query is matched against title, description, category and the joined tags, so ' +
-          'typing "barcode" - a word that appears in no visible label - is a legitimate hit.',
+          'The query is matched against title, description, category, persona and the joined ' +
+          'tags, so a word that appears in no visible label can still be a legitimate hit.',
       },
     },
   },
@@ -86,31 +109,30 @@ export const Library: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const all = cards(canvasElement);
-    await expect(all).toHaveLength(guidesData.length);
+    await expect(all).toHaveLength(LIBRARY_SIZE);
 
-    /* Track count AND child count, because they disagree silently: a grid with
-       three tracks and six children is the intended two rows, while three tracks
-       and five children is a filter that quietly dropped one. */
+    /* Track count AND child count, because they disagree silently: three tracks
+       holding every guide is the intended grid, while one child short is a
+       filter that quietly dropped a guide. */
     const grid = all[0].parentElement as HTMLElement;
     await expect(getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(3);
-    await expect(grid.children).toHaveLength(6);
+    await expect(grid.children).toHaveLength(LIBRARY_SIZE);
 
-    /* Six pills: All plus one per distinct category, in first-seen order. Read
-       off the pill row itself rather than by looking each name up and asserting
-       it equals the name we looked it up by - that version could not see a
-       seventh pill, a duplicated category, or the row in the wrong order. */
+    /* All plus one pill per distinct category, in first-seen order. Read off the
+       pill row itself rather than by looking each name up and asserting it
+       equals the name we looked it up by - that version could not see an extra
+       pill, a duplicated category, or the row in the wrong order. */
     const pillRow = canvas.getByRole('button', { name: 'All' }).parentElement as HTMLElement;
     await expect(
       Array.from(pillRow.children).map((pill) => (pill.textContent ?? '').trim())
-    ).toEqual(['All', 'Getting started', 'Appointments', 'Finance', 'Inventory', 'Integrations']);
+    ).toEqual(CATEGORY_PILLS);
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The resting state. Three cards carry a status affordance and three carry none: ' +
-          '"Your first day" reads Watched, "Invoices, deposits and payouts" reads New, and ' +
-          '"Run a visit end to end" shows the 60% progress bar instead of either word.',
+          'The resting state: every guide in the library, three to a row, under the full ' +
+          'category row.',
       },
     },
   },
@@ -120,7 +142,7 @@ export const SearchFindsNothing: Story = {
   name: 'Search matches nothing',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(cards(canvasElement)).toHaveLength(6);
+    await expect(cards(canvasElement)).toHaveLength(LIBRARY_SIZE);
 
     await userEvent.type(searchBox(canvasElement), 'radiology');
 
@@ -157,21 +179,26 @@ export const CategoryEmptiesTheSearch: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // "stock" hits exactly one guide, and it lives under Inventory.
-    await userEvent.type(searchBox(canvasElement), 'stock');
-    await waitFor(() => expect(cards(canvasElement)).toHaveLength(1));
-    await expect(cards(canvasElement)[0]).toHaveAccessibleName(
-      'Play guide: Stock that counts itself'
+    // Without a hit, or without a category that excludes every hit, this story
+    // would quietly become the search-only one above.
+    await expect(queryHits.length).toBeGreaterThan(0);
+    await expect(categoryWithoutHits).toBeDefined();
+
+    // The query has hits, and they are exactly the guides that mention it.
+    await userEvent.type(searchBox(canvasElement), QUERY);
+    await waitFor(() => expect(cards(canvasElement)).toHaveLength(queryHits.length));
+    await expect(cards(canvasElement).map((card) => card.getAttribute('aria-label'))).toEqual(
+      queryHits.map((guide) => `Play guide: ${guide.title}`)
     );
 
-    // Finance excludes it, so the same query now matches nothing.
-    await userEvent.click(canvas.getByRole('button', { name: 'Finance' }));
+    // A category holding none of them empties the grid under the same query.
+    await userEvent.click(canvas.getByRole('button', { name: categoryWithoutHits }));
 
     const title = await canvas.findByText('No guides match your search');
     await expect(title).toBeInTheDocument();
     await expect(cards(canvasElement)).toHaveLength(0);
     // The query survives the category change - the field is not cleared for you.
-    await expect(searchBox(canvasElement)).toHaveValue('stock');
+    await expect(searchBox(canvasElement)).toHaveValue(QUERY);
   },
   parameters: {
     docs: {
@@ -197,7 +224,7 @@ export const ClearFiltersRestores: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Clear filters' }));
 
     // Both filters are reset, not just the one that emptied the grid.
-    await waitFor(() => expect(cards(canvasElement)).toHaveLength(6));
+    await waitFor(() => expect(cards(canvasElement)).toHaveLength(LIBRARY_SIZE));
     await expect(searchBox(canvasElement)).toHaveValue('');
     await expect(canvas.queryByText('No guides match your search')).not.toBeInTheDocument();
 
@@ -266,7 +293,7 @@ export const PhoneFilteredEmpty: Story = {
     docs: {
       description: {
         story:
-          'The same empty branch at 375px. The five category pills wrap to two rows and the ' +
+          'The same empty branch at 375px. The category pills wrap onto several rows and the ' +
           'search field goes full width beneath them, so the state card starts lower down the ' +
           'page than the desktop story suggests.',
       },

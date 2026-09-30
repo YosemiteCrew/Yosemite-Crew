@@ -170,8 +170,8 @@ export const RoomListboxOpen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const panel = await openListbox(canvas.getByRole('button', { name: 'Room: Consult 2' }));
-    // Options are plain <button>s, not role="option".
-    await expect(within(panel).getAllByRole('button')).toHaveLength(ROOM_OPTIONS.length);
+    // One listbox option per room.
+    await expect(within(panel).getAllByRole('option')).toHaveLength(ROOM_OPTIONS.length);
     await expect(within(panel).getByText('Theatre A')).toBeInTheDocument();
   },
   parameters: {
@@ -191,7 +191,7 @@ export const UnitListboxOpen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const panel = await openListbox(canvas.getByRole('button', { name: 'Unit: ICU' }));
-    await expect(within(panel).getAllByRole('button')).toHaveLength(UNIT_OPTIONS.length);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(UNIT_OPTIONS.length);
     await expect(within(panel).getByText('Recovery')).toBeInTheDocument();
   },
   parameters: {

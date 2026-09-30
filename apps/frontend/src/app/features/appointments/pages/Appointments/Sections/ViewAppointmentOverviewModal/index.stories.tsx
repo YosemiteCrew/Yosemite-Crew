@@ -290,14 +290,13 @@ export const RoomDropdownOpen: Story = {
 
     await expect(roomTrigger).toHaveAttribute('aria-expanded', 'true');
 
-    /* The panel is portalled to document.body, so it is NOT inside the dialog - and it
-       is a labelled <div> of <button>s rather than a listbox with options, despite the
-       trigger advertising `aria-haspopup="listbox"`. Queried as buttons because that
-       is what is actually in the tree. */
+    /* The panel is portalled to document.body, so it is NOT inside the dialog. It is
+       the listbox the trigger's `aria-haspopup="listbox"` promises, one option per
+       room. */
     const dropdown = await findPortalDropdown();
     await expect(
       within(dropdown)
-        .getAllByRole('button')
+        .getAllByRole('option')
         .map((option) => option.textContent?.trim())
     ).toEqual(['Consult 2', 'Consult 3']);
   },
@@ -335,7 +334,7 @@ export const InpatientUnitSelector: Story = {
     const dropdown = await findPortalDropdown();
     await expect(
       within(dropdown)
-        .getAllByRole('button')
+        .getAllByRole('option')
         .map((option) => option.textContent?.trim())
     ).toEqual(['Kennel A1', 'Kennel A2']);
   },

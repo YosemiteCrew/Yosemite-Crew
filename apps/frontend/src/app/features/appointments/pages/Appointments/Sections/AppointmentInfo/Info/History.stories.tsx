@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Appointment, Organisation, UserOrganization } from '@yosemite-crew/types';
 
 import type {
@@ -123,8 +124,8 @@ const historyResponse = (
  * Keeping the timeline off the wire
  *
  * `fetchCompanionHistory` is an ESM export, so a story cannot reassign it. It
- * reaches the API through the shared axios instance, which uses the XHR adapter
- * in the browser - so the seam is `XMLHttpRequest.prototype`.
+ * reaches the API through the shared axios instance, which these stories point at
+ * the XHR adapter - so the seam is `XMLHttpRequest.prototype`.
  *
  * Answering is not optional: `getData` reports a failed request through the
  * logger and the timeline logs its own catch, so an unanswered call surfaces as
@@ -134,6 +135,12 @@ const historyResponse = (
 
 const REAL_XHR_OPEN = XMLHttpRequest.prototype.open;
 const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 type StubbedXhr = XMLHttpRequest & { storyUrl?: string };
 
@@ -163,6 +170,7 @@ const narrowToRequestedTypes = (
 };
 
 const stubTransport = (response: CompanionHistoryResponse) => {
+  api.defaults.adapter = 'xhr';
   XMLHttpRequest.prototype.open = function stubbedOpen(
     this: StubbedXhr,
     method: string,
@@ -190,6 +198,7 @@ const stubTransport = (response: CompanionHistoryResponse) => {
   return () => {
     XMLHttpRequest.prototype.open = REAL_XHR_OPEN;
     XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 

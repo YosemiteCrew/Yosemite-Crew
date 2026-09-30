@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Appointment } from '@yosemite-crew/types';
 
 import type {
@@ -319,13 +320,12 @@ const withTasks = (rows: Task[]) => () => {
  * Answering the API
  *
  * The save, the label print and the mount-time template loads are ESM exports
- * reached through the shared axios instance, which uses the XHR adapter in the
- * browser - so the seam is `XMLHttpRequest.prototype`, the same one
+ * reached through the shared axios instance, which these stories point at the XHR
+ * adapter - so the seam is `XMLHttpRequest.prototype`, the same one
  * SoapCodedTermPicker.stories.tsx and ChangeRoom.stories.tsx use. Nothing is
  * allowed to escape to the real API: an unmatched request is answered with an
- * empty list rather than handed to the transport, because every service here
- * has a 60s timeout and a cross-origin call would hang the story instead of
- * failing it.
+ * empty list rather than handed to the transport, because every service here has a
+ * 60s timeout and a cross-origin call would hang the story instead of failing it.
  * ------------------------------------------------------------------ */
 
 type StubbedXhr = XMLHttpRequest & { storyUrl?: string; storyMethod?: string };
@@ -335,6 +335,12 @@ type ApiRoute = { match: (method: string, url: string) => boolean; reply: ApiRep
 
 const REAL_XHR_OPEN = XMLHttpRequest.prototype.open;
 const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 /** Every URL the step asked for during the current story, in order. */
 const apiRequests: string[] = [];
@@ -360,6 +366,7 @@ const answerWith = (xhr: XMLHttpRequest, reply: ApiReply) => {
 const withApi = (routes: ApiRoute[]) => () => {
   apiRequests.length = 0;
 
+  api.defaults.adapter = 'xhr';
   XMLHttpRequest.prototype.open = function stubbedOpen(
     this: StubbedXhr,
     method: string,
@@ -389,6 +396,7 @@ const withApi = (routes: ApiRoute[]) => () => {
   return () => {
     XMLHttpRequest.prototype.open = REAL_XHR_OPEN;
     XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 
@@ -1153,7 +1161,7 @@ export const PrintLabelsDeduped: Story = {
 };
 
 export const SaveRejectedAsFinalized: Story = {
-  name: 'Save rejected: already finalized',
+  name: 'Save rejected: the record changed',
   args: {
     organisationId: ORG_ID,
     encounterId: ENCOUNTER_ID,
@@ -1190,12 +1198,13 @@ export const SaveRejectedAsFinalized: Story = {
     await expect(await canvas.findByRole('button', { name: 'Saving…' })).toBeDisabled();
 
     const alert = await canvas.findByRole('alert', {}, { timeout: 4000 });
-    /* A 409 is NOT retryable here: every save sends status 'draft', so once a
-       prescription is final each later save conflicts the same way. The generic
-       "please try again" copy would be actively misleading, and the server's own
-       wording names an "artifact" this screen never shows. */
+    /* A 409 is a version conflict: the saved record moved on since this draft was
+       loaded. Retrying would conflict the same way, so the generic "please try
+       again" copy would be actively misleading, and the server's own wording names
+       an "artifact" this screen never shows. The step says the draft is kept and
+       asks for a reload. */
     await expect(alert).toHaveTextContent(
-      'This prescription is already finalized and can no longer be edited.'
+      'This record changed. Your draft is still here. Reload the saved record before retrying.'
     );
 
     /* Invoice must NOT open on a failed persist - staged rows would otherwise

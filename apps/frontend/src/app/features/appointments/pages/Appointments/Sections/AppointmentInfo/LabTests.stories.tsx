@@ -390,7 +390,7 @@ const chooseOption = async (trigger: HTMLElement, optionName: string) => {
   await userEvent.click(trigger);
   // The panel is portalled onto document.body, so it is NOT inside canvasElement.
   const menu = within(globalThis.document.body);
-  await userEvent.click(await menu.findByRole('button', { name: optionName }));
+  await userEvent.click(await menu.findByRole('option', { name: optionName }));
 };
 
 /** The meter track and its marker for one result row. */

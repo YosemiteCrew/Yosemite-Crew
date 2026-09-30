@@ -4,6 +4,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Appointment, UserOrganization } from '@yosemite-crew/types';
 import { createEmptyFormData } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/appointmentInfoTypes';
 import type { FormsProps } from '@/app/features/forms/types/forms';
+import api, { API_CLIENT_DEFAULTS, clearInFlightGetRequests } from '@/app/services/axios';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 
@@ -100,20 +101,19 @@ const APPOINTMENT: Appointment = {
 /**
  * Only the "Sending" story needs this: the label exists solely while
  * `linkAppointmentForms` is in flight, which is a few frames against a real API.
- * Axios uses the XHR adapter in a browser, so holding `send` freezes the request
- * without touching the service module - the component, the store and the service
- * are all the real ones, and no request leaves the preview iframe.
+ * Replacing the shared axios instance's adapter freezes the request without
+ * touching the service module - the component, the store and the service are all
+ * the real ones, and no request leaves the preview iframe.
  */
-const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 const stallTransport = () => {
-  XMLHttpRequest.prototype.send = function stalledSend() {
-    return undefined;
-  };
+  api.defaults.adapter = () => new Promise<never>(() => undefined);
   // Restored to the module-level original, so a meta-level and a story-level
   // cleanup cannot strand the stub whichever order they run in.
   return () => {
-    XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
+    clearInFlightGetRequests();
   };
 };
 

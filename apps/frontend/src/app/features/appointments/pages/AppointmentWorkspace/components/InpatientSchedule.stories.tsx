@@ -281,7 +281,7 @@ export const AssigneeDropdownOpen: Story = {
     // The listbox portals to document.body, so it is outside canvasElement.
     const panel = document.querySelector('[data-portal-dropdown]') as HTMLElement | null;
     await expect(panel).toBeInTheDocument();
-    const options = within(panel as HTMLElement).getAllByRole('button');
+    const options = within(panel as HTMLElement).getAllByRole('option');
     await expect(options).toHaveLength(4);
     await expect(options[0]).toHaveTextContent('Priya Raman');
     await expect(options.at(-1)).toHaveTextContent('Tom Beckett');

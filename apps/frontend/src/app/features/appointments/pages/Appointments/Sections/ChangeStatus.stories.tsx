@@ -198,13 +198,13 @@ const dialogQueries = async () => {
 const menuOptionLabels = async () => {
   await waitFor(() => expect(openMenu()).not.toBeNull());
   return within(openMenu() as HTMLElement)
-    .getAllByRole('button')
+    .getAllByRole('option')
     .map((option) => option.textContent);
 };
 
 const chooseFromMenu = async (label: string) => {
   await waitFor(() => expect(openMenu()).not.toBeNull());
-  await userEvent.click(within(openMenu() as HTMLElement).getByRole('button', { name: label }));
+  await userEvent.click(within(openMenu() as HTMLElement).getByRole('option', { name: label }));
 };
 
 /**
@@ -306,16 +306,17 @@ export const AcceptingWithLead: Story = {
        lands on Upcoming, so the lead and support fields are already on screen.
        The order is asserted along with the count - the support picker sitting
        above the lead picker would be a silent layout regression. */
+    // Polled, not read once: the support trigger names its current pick only after
+    // the team list has loaded, which can land after the three triggers mount.
     const triggers = await waitFor(() => {
       const found = dropdownTriggers(dialog);
-      expect(found).toHaveLength(3);
+      expect(found.map((item) => item.getAttribute('aria-label'))).toEqual([
+        'Appointment status: Upcoming',
+        'Select lead',
+        'Select support staff (optional): Dr. Osei',
+      ]);
       return found;
     });
-    await expect(triggers.map((item) => item.getAttribute('aria-label'))).toEqual([
-      'Appointment status: Upcoming',
-      'Select lead',
-      'Select support staff (optional): Dr. Osei',
-    ]);
 
     await userEvent.click(triggers[1]);
     /* Two of the three team members. Dr. Marsh is on the 09:30 window, not on

@@ -317,8 +317,8 @@ export const TypeChangeRewritesTheDraft: Story = {
       expect(document.querySelector('[data-portal-dropdown]')).toBeInTheDocument()
     );
     const panel = document.querySelector('[data-portal-dropdown]') as HTMLElement;
-    await expect(within(panel).getAllByRole('button')).toHaveLength(3);
-    await userEvent.click(within(panel).getByRole('button', { name: 'Procedure' }));
+    await expect(within(panel).getAllByRole('option')).toHaveLength(3);
+    await userEvent.click(within(panel).getByRole('option', { name: 'Procedure' }));
 
     // One click, three changes: type, code, and the bookable default.
     await expect(canvas.getByRole('button', { name: 'Type: Procedure' })).toBeInTheDocument();

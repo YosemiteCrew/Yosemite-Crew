@@ -273,8 +273,8 @@ export const FilledIn: Story = {
     await userEvent.click(panel.getByRole('button', { name: 'Type: Cancellation policy' }));
     await waitFor(() => expect(listbox()).not.toBeNull());
     // All five `OrgDocumentCategoryOptions`, by label rather than raw enum.
-    await expect(within(listbox()).getAllByRole('button')).toHaveLength(5);
-    await userEvent.click(within(listbox()).getByRole('button', { name: 'Fire safety' }));
+    await expect(within(listbox()).getAllByRole('option')).toHaveLength(5);
+    await userEvent.click(within(listbox()).getByRole('option', { name: 'Fire safety' }));
 
     /* The choice lands in the trigger's accessible name, so it is announced
        rather than only being a swapped label inside a closed control. The

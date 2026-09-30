@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { SoapCodedTerm } from '@yosemite-crew/types';
 import type { ClinicalTermSuggestion } from '@/app/features/appointments/services/clinicalTermsService';
 
@@ -59,15 +60,21 @@ const PINNED: SoapCodedTerm[] = [
  * Stubbing the vocabulary service
  *
  * `suggestClinicalTerms` is an ESM export, so it cannot be reassigned from a
- * story. It reaches the API through the shared axios instance, which uses the
- * XHR adapter in the browser - so the seam is `XMLHttpRequest.prototype`, the
- * same one ChangeRoom.stories.tsx uses. Only the suggest endpoint is answered;
- * anything else is handed to the real transport untouched.
+ * story. It reaches the API through the shared axios instance, which these stories
+ * point at the XHR adapter - so the seam is `XMLHttpRequest.prototype`, the same
+ * one ChangeRoom.stories.tsx uses. Only the suggest endpoint is answered; anything
+ * else is handed to the real transport untouched.
  * ------------------------------------------------------------------ */
 
 const SUGGEST_PATH = '/codes/terms/suggest';
 const REAL_XHR_OPEN = XMLHttpRequest.prototype.open;
 const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 type StubbedXhr = XMLHttpRequest & { storyUrl?: string };
 
@@ -93,6 +100,7 @@ const answerWith = (xhr: XMLHttpRequest, status: number, body: unknown) => {
 const withSuggestions = (reply: { status?: number; items?: ClinicalTermSuggestion[] }) => () => {
   suggestRequests.length = 0;
 
+  api.defaults.adapter = 'xhr';
   XMLHttpRequest.prototype.open = function stubbedOpen(
     this: StubbedXhr,
     method: string,
@@ -125,6 +133,7 @@ const withSuggestions = (reply: { status?: number; items?: ClinicalTermSuggestio
   return () => {
     XMLHttpRequest.prototype.open = REAL_XHR_OPEN;
     XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 

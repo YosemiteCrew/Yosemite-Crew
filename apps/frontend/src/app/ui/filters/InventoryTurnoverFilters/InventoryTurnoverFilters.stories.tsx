@@ -189,7 +189,7 @@ export const CategoryPanelOpen: Story = {
       return element;
     });
     // The synthetic "All categories" row plus the five real ones.
-    await expect(within(panel).getAllByRole('button')).toHaveLength(6);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(6);
     await expect(within(panel).getByText('Diagnostics')).toBeInTheDocument();
   },
   parameters: {

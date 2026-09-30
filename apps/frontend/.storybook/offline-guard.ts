@@ -34,8 +34,9 @@
  * Wraps the two browser primitives every one of those calls passes through -
  * `fetch` and `XMLHttpRequest.prototype.open/send` - and answers anything bound
  * for the real API offline instead of letting it leave the page. Both are
- * needed: axios picks the XHR adapter in a browser, while SuperTokens' session
- * refresh and the handful of raw-`fetch` services go through `fetch`.
+ * needed: the app's axios instance uses the fetch adapter, SuperTokens' session
+ * refresh and the raw-`fetch` services go through `fetch`, and stories that stub
+ * `XMLHttpRequest` point axios at its XHR adapter for their own duration.
  *
  * DESIGN NOTES (this is global to all 3,291 stories, so the choices are narrow
  * on purpose)

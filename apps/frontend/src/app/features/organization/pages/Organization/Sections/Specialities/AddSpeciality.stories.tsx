@@ -163,15 +163,15 @@ const toastText = () =>
 /** Opens the catalogue, narrows it and picks one speciality. */
 const pickSpeciality = async (name: string) => {
   const dialog = panel();
-  const search = within(dialog).getByRole('textbox', { name: 'Search or create specialty' });
+  const search = within(dialog).getByRole('combobox', { name: 'Search or create specialty' });
   await userEvent.click(search);
   /* Typed rather than picked straight off the full list: `onChange` reopens the
      dropdown even when the input still holds focus from the previous pick, which
      a second click would not. */
   await userEvent.type(search, name.slice(0, 6));
-  await userEvent.click(await within(dialog).findByRole('button', { name }));
+  await userEvent.click(await within(dialog).findByRole('option', { name }));
   /* The delete control is what proves the pick reached `formData`. The dropdown
-     button carrying the same name has been filtered out by now, so waiting on
+     option carrying the same name has been filtered out by now, so waiting on
      the name alone would match either one. */
   await within(dialog).findByRole('button', { name: `Delete ${name}` });
 };
@@ -247,7 +247,7 @@ export const Empty: Story = {
     await expect(draftNames()).toEqual([]);
     await expect(view.getByRole('button', { name: 'Save' })).toBeEnabled();
 
-    const search = view.getByRole('textbox', { name: 'Search or create specialty' });
+    const search = view.getByRole('combobox', { name: 'Search or create specialty' });
     await userEvent.click(search);
     const dropdown = await waitFor(() => {
       const node = dialog.querySelector('.step-search-dropdown');
@@ -261,10 +261,10 @@ export const Empty: Story = {
        `specialities` prop. Counted rather than spot-checked, because a filter
        that silently stopped matching would still leave the two names below in
        the list. */
-    await expect(within(dropdown).getAllByRole('button')).toHaveLength(14);
-    await expect(within(dropdown).getByRole('button', { name: 'Cardiology' })).toBeVisible();
+    await expect(within(dropdown).getAllByRole('option')).toHaveLength(14);
+    await expect(within(dropdown).getByRole('option', { name: 'Cardiology' })).toBeVisible();
     await expect(
-      within(dropdown).queryByRole('button', { name: 'General Practice' })
+      within(dropdown).queryByRole('option', { name: 'General Practice' })
     ).not.toBeInTheDocument();
   },
   parameters: {
@@ -294,7 +294,7 @@ export const LateBusinessType: Story = {
        services, which is what every speciality added on a fully loaded page
        looks like for good. */
     await expect(
-      view.getByRole('textbox', { name: 'Search or create service' })
+      view.getByRole('combobox', { name: 'Search or create service' })
     ).toBeInTheDocument();
     await expect(draftNames()).toEqual(['Observational tools']);
 

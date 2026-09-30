@@ -132,7 +132,7 @@ export const Select: Story = {
     await userEvent.click(trigger);
     // The panel portals to document.body, so it is outside canvasElement.
     const panel = within(globalThis.document.body);
-    const over = await panel.findByRole('button', { name: 'Over (6-9)' });
+    const over = await panel.findByRole('option', { name: 'Over (6-9)' });
     await userEvent.click(over);
 
     // The renderer unwraps the option and emits the VALUE, not the option object.
@@ -252,7 +252,7 @@ export const ReadOnlySelectIsLocked: Story = {
 
     await userEvent.click(trigger, { pointerEventsCheck: 0 });
     await expect(
-      within(globalThis.document.body).queryByRole('button', { name: 'Over (6-9)' })
+      within(globalThis.document.body).queryByRole('option', { name: 'Over (6-9)' })
     ).toBeNull();
     await expect(args.onChange).not.toHaveBeenCalled();
     // And it still shows the real answer.
