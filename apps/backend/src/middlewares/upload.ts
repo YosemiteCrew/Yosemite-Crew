@@ -391,9 +391,11 @@ async function handleMultipleFileUpload(
 }
 
 // Pre-signed url for view/download
-async function generatePresignedDownloadUrl(key: string) {
-  const CF_BASE = getCloufrontBaeUrl();
-  return `https://${CF_BASE}/${key}`;
+function generatePresignedDownloadUrl(key: string): Promise<string> {
+  // Read in the chain so a missing CloudFront setting arrives as a rejection.
+  return Promise.resolve(key).then(
+    (value) => `https://${getCloufrontBaeUrl()}/${value}`,
+  );
 }
 
 // Lifecycle
