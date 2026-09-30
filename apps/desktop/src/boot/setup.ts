@@ -286,7 +286,7 @@ export const setupOfflineSync = async (deps: OfflineSyncDeps): Promise<OfflineSy
       ],
     });
     const transport = {
-      fetchChanges: async (): Promise<Record<string, unknown>[]> => [],
+      fetchChanges: (): Promise<Record<string, unknown>[]> => Promise.resolve([]),
       upsertRows: async (
         table: string,
         rows: Record<string, unknown>[]
