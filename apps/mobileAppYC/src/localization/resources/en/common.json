@@ -425,6 +425,26 @@
     "loadFailed": "Prescriptions could not be loaded. Please try again.",
     "retry": "Try again"
   },
+  "careReminders": {
+    "title": "Care due",
+    "intro": "Upcoming and overdue care for this companion.",
+    "empty": "No upcoming care reminders.",
+    "overdue": "Overdue · {{date}}",
+    "due": "Due · {{date}}",
+    "scheduled": "Reminder scheduled",
+    "sent": "Reminder sent",
+    "signInAgain": "Please sign in again to view care reminders.",
+    "loadFailed": "Care reminders could not be loaded. Please try again.",
+    "retry": "Try again",
+    "types": {
+      "VACCINATION_BOOSTER": "Vaccination",
+      "ANNUAL_CHECKUP": "Annual check-up",
+      "PARASITE_TREATMENT": "Parasite treatment",
+      "DENTAL_CLEANING": "Dental care",
+      "FOLLOW_UP": "Follow-up",
+      "CUSTOM": "Care reminder"
+    }
+  },
   "appointments": {
     "editFeedback": "Edit feedback",
     "submitFeedback": "Submit feedback",
