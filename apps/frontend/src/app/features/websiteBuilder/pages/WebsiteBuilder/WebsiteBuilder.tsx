@@ -169,8 +169,7 @@ type Notify = ReturnType<typeof useNotify>['notify'];
 
 /** Loads the saved site. One state, so "ready" always carries both the saved site and the draft. */
 const useWebsiteConfig = (primaryOrgId: string | null | undefined) => {
-  const state = useState<BuilderView>({ status: 'loading' });
-  const setView = state[1];
+  const [view, setView] = useState<BuilderView>({ status: 'loading' });
 
   useEffect(() => {
     if (!primaryOrgId) return;
@@ -188,7 +187,7 @@ const useWebsiteConfig = (primaryOrgId: string | null | undefined) => {
     };
   }, [primaryOrgId, setView]);
 
-  return state;
+  return [view, setView] as const;
 };
 
 /** The preview lists what the booking page can offer: active, bookable services. */
