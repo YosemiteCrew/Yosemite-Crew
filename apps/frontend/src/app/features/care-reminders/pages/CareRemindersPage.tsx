@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import CareReminderList, { REMINDER_TYPES } from './CareReminderList';
+import CareReminderList from './CareReminderList';
+import { REMINDER_TYPES } from '../reminderTypes';
 import PermissionGate from '@/app/ui/layout/guards/PermissionGate';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
