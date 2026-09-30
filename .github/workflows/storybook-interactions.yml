@@ -4,24 +4,29 @@ name: Storybook Interactions
 # interaction assertions are executed by something rather than only by a human
 # opening the panel.
 #
-# ADVISORY, deliberately. `continue-on-error` is set and this job is NOT part of
-# the `CI Required` aggregate. A full run on dev currently reports 113 failing
-# tests out of 3366, so making it required today would block every merge on a
-# backlog nobody has triaged. #2281 offers exactly this - land advisory, promote
-# once it has been green for a while - and the promotion is a one-line change:
-# drop `continue-on-error` and add this job to the required contexts.
+# ADVISORY for failing stories, NOT for a run that did not happen. This job is
+# not part of the `CI Required` aggregate, and a failing play function does not
+# fail it: there is a backlog of failing stories, and making them block every
+# merge today is #2281's call, not this file's. What DOES fail it is a run that
+# checked nothing - the browser did not launch, the shard matched no story, or
+# not one story passed. The runner exits 1 for those exactly as it does for a
+# failing assertion, so the results file decides instead
+# (scripts/ci/check-play-results.mjs). Promotion to required: drop
+# `continue-on-error` on the run step and add this job to the required contexts.
 on:
   pull_request:
     branches: [main, dev]
     paths:
       - 'apps/frontend/**'
       - 'pnpm-lock.yaml'
+      - 'scripts/ci/check-play-results.mjs'
       - '.github/workflows/storybook-interactions.yml'
   push:
     branches: [main, dev]
     paths:
       - 'apps/frontend/**'
       - 'pnpm-lock.yaml'
+      - 'scripts/ci/check-play-results.mjs'
       - '.github/workflows/storybook-interactions.yml'
   workflow_dispatch:
 
@@ -71,17 +76,35 @@ jobs:
 
       # Only chromium. The runner defaults to it, and installing three engines
       # costs minutes for coverage the play functions do not use.
-      - name: Install Playwright chromium
-        run: pnpm --filter frontend exec playwright install chromium --with-deps
+      #
+      # Installed with the Playwright that @storybook/test-runner itself
+      # resolves, not the frontend's own `playwright` bin. The two drift: the
+      # frontend's e2e Playwright moved to a newer browser build while the test
+      # runner still pinned an older one, so the old step downloaded a chromium
+      # the runner never looks for and every shard died with "Executable doesn't
+      # exist ... Failed to launch browser" before running a single story.
+      - name: Install the chromium the test runner launches
+        working-directory: apps/frontend
+        run: |
+          pw_dir=$(node -p "require('path').dirname(require.resolve('playwright/package.json', { paths: [require('path').dirname(require.resolve('@storybook/test-runner/package.json'))] }))")
+          echo "test runner resolves playwright $(node -p "require('$pw_dir/package.json').version")"
+          node "$pw_dir/cli.js" install chromium --with-deps
 
       - name: Build Storybook
         run: pnpm --filter frontend run storybook:build
 
       # concurrently + http-server + wait-on is the combination the test-runner
       # documents for CI: serve the static build, wait for it, run, tear down.
+      # `continue-on-error` keeps failing stories advisory; the next step is what
+      # fails the job when the run itself did not happen.
       - name: Run play functions
         continue-on-error: true
         run: |
           pnpm --filter frontend exec concurrently -k -s first -n "SB,TEST" \
             "pnpm --filter frontend exec http-server storybook-static --port 6006 --silent" \
-            "pnpm --filter frontend exec wait-on -t 120000 http://127.0.0.1:6006/index.json && pnpm --filter frontend exec test-storybook --maxWorkers=2 --shard=${{ matrix.shard }}/4"
+            "pnpm --filter frontend exec wait-on -t 120000 http://127.0.0.1:6006/index.json && pnpm --filter frontend exec test-storybook --maxWorkers=2 --shard=${{ matrix.shard }}/4 --json -- --outputFile=${{ runner.temp }}/play-results.json"
+
+      # Fails on a missing results file, zero tests, or zero passes. Lists every
+      # failing story in the job summary either way.
+      - name: Check the play functions ran
+        run: node scripts/ci/check-play-results.mjs "${{ runner.temp }}/play-results.json"
