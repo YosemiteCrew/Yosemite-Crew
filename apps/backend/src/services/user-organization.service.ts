@@ -1050,7 +1050,9 @@ export const UserOrganizationService = {
       },
     });
 
-    return mapWithConcurrency(mappings, async (mapping) => {
+    // Members are loaded one at a time; each member already runs its own five
+    // reads together.
+    return mapInSequence(mappings, async (mapping) => {
       const userRef = mapping.practitionerReference;
       const userId =
         extractReferenceId(userRef) ?? mapping.practitionerReference;

@@ -68,7 +68,7 @@ describe("LabStatusService", () => {
     );
   });
 
-  it("refreshes orders a few at a time and logs a failure without stopping", async () => {
+  it("refreshes orders one at a time and logs a failure without stopping", async () => {
     prismaMock.labOrder.findMany.mockResolvedValue(
       ["ORDER-1", "ORDER-2", "ORDER-3"].map((idexxOrderId) => ({
         provider: "IDEXX",
@@ -89,11 +89,12 @@ describe("LabStatusService", () => {
     const pending = LabStatusService.pollPending();
     await new Promise((resolve) => setImmediate(resolve));
 
-    // A slow order does not hold up the others.
-    expect(labOrderServiceMock.getOrder).toHaveBeenCalledTimes(3);
+    // The next order waits for the one in progress.
+    expect(labOrderServiceMock.getOrder).toHaveBeenCalledTimes(1);
 
     releaseFirst({ id: "ORDER-1" });
     await expect(pending).resolves.toBeUndefined();
+    expect(labOrderServiceMock.getOrder).toHaveBeenCalledTimes(3);
 
     expect(loggerMock.error).toHaveBeenCalledTimes(1);
     expect(loggerMock.error).toHaveBeenCalledWith(

@@ -1465,7 +1465,7 @@ describe("OrganizationService", () => {
       expect(result.data[0].specialitiesWithServices).toHaveLength(1);
     });
 
-    it("loads each organisation's catalogue together and keeps the distance order", async () => {
+    it("loads organisations one at a time and keeps the distance order", async () => {
       const nearOrg = (id: string) => ({
         ...baseOrg,
         id,
@@ -1510,11 +1510,13 @@ describe("OrganizationService", () => {
       );
       await new Promise((resolve) => setImmediate(resolve));
 
-      expect(prisma.speciality.findMany).toHaveBeenCalledTimes(2);
+      // The next organisation waits for the one being loaded.
+      expect(prisma.speciality.findMany).toHaveBeenCalledTimes(1);
 
       releaseSlow([]);
       const result = await pending;
 
+      expect(prisma.speciality.findMany).toHaveBeenCalledTimes(2);
       expect(result.data.map((entry) => entry.org._id)).toEqual([
         "org-slow",
         "org-fast",

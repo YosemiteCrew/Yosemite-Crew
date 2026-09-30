@@ -1860,5 +1860,41 @@ describe("UserOrganizationService", () => {
         }),
       );
     });
+
+    it("loads members one at a time in their stored order", async () => {
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
+        { ...prismaMapping, id: "first" },
+        { ...prismaMapping, id: "second" },
+      ]);
+      let releaseFirst!: (value: unknown) => void;
+      (prisma.user.findFirst as jest.Mock)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+        )
+        .mockResolvedValueOnce({ firstName: "Second", lastName: null });
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.occupancy.count as jest.Mock).mockResolvedValue(0);
+      (AvailabilityService.getCurrentStatus as jest.Mock).mockResolvedValue(
+        "OFF_DUTY",
+      );
+      (
+        AvailabilityService.getWeeklyWorkingHours as jest.Mock
+      ).mockResolvedValue(0);
+
+      const pending = UserOrganizationService.listByOrganisationId(orgId);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // The next member waits for the one being loaded.
+      expect(prisma.user.findFirst).toHaveBeenCalledTimes(1);
+
+      releaseFirst({ firstName: "First", lastName: null });
+      const roster = await pending;
+
+      expect(prisma.user.findFirst).toHaveBeenCalledTimes(2);
+      expect(roster.map((entry) => entry.name)).toEqual(["First", "Second"]);
+    });
   });
 });
