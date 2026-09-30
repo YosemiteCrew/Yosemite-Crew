@@ -1,8 +1,10 @@
-import { IntegrationAdapter, LaikaCredentials } from "../types";
-import { validateRequiredCredentials } from "../requiredCredentials";
+import { IntegrationAdapter, IntegrationValidationResult } from "../types";
 
 export class LaikaAdapter implements IntegrationAdapter {
-  validateCredentials(credentials: LaikaCredentials) {
-    return validateRequiredCredentials("LAIKA", credentials, ["apiKey"]);
+  validateCredentials(): Promise<IntegrationValidationResult> {
+    return Promise.resolve({
+      ok: false,
+      reason: "LAIKA cannot be validated until a connection is available.",
+    });
   }
 }

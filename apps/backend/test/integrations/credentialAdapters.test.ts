@@ -158,7 +158,6 @@ const cases: Array<[string, () => Adapter, string[]]> = [
     () => new InventorySyncAdapter(),
     ["apiKey", "warehouseId"],
   ],
-  ["LaikaAdapter", () => new LaikaAdapter(), ["apiKey"]],
   [
     "LoyaltyProgramAdapter",
     () => new LoyaltyProgramAdapter(),
@@ -298,4 +297,17 @@ describe.each(cases)("%s credential validation", (_name, create, fields) => {
       adapter.validateCredentials({ ...withoutField, unrelated: "x" }),
     ).resolves.toEqual(expected);
   });
+});
+
+describe("LaikaAdapter credential validation", () => {
+  it.each([undefined, {}, { apiKey: "any text at all" }])(
+    "never reports a connection for %p",
+    async (credentials) => {
+      const adapter: Adapter = new LaikaAdapter();
+      await expect(adapter.validateCredentials(credentials)).resolves.toEqual({
+        ok: false,
+        reason: "LAIKA cannot be validated until a connection is available.",
+      });
+    },
+  );
 });
