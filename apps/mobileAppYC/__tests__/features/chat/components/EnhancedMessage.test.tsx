@@ -19,9 +19,9 @@ import {Toast} from 'toastify-react-native';
 jest.mock('stream-chat-react-native', () => {
   const {View: RNView, Text: RNText} = require('react-native');
   return {
-    MessageSimple: () => (
+    MessageItemView: () => (
       <RNView>
-        <RNText>MessageSimple</RNText>
+        <RNText>MessageItemView</RNText>
       </RNView>
     ),
     useMessageContext: jest.fn(),
@@ -85,9 +85,9 @@ describe('EnhancedMessage', () => {
   });
 
   // --- Rendering ---
-  it('renders the MessageSimple component', () => {
+  it('renders the MessageItemView component', () => {
     const {getByText} = render(<EnhancedMessage />);
-    expect(getByText('MessageSimple')).toBeTruthy();
+    expect(getByText('MessageItemView')).toBeTruthy();
   });
 
   it('exposes a button role on the long-pressable message wrapper', () => {
@@ -102,7 +102,7 @@ describe('EnhancedMessage', () => {
     it('shows action sheet on long press with correct options (not my message)', () => {
       const {getByText} = render(<EnhancedMessage />);
 
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       expect(ReactNativeHapticFeedback.trigger).toHaveBeenCalledWith(
         'impactMedium',
@@ -123,7 +123,7 @@ describe('EnhancedMessage', () => {
       });
 
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       expect(ActionSheetIOS.showActionSheetWithOptions).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -142,7 +142,7 @@ describe('EnhancedMessage', () => {
 
     it('handles Copy Message action', () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       // Simulate tapping option 0 (Copy)
       // We grab the callback function passed as the second argument
@@ -159,7 +159,7 @@ describe('EnhancedMessage', () => {
 
     it('handles Share Message action', async () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       // Simulate tapping option 1 (Share)
       const callback = (ActionSheetIOS.showActionSheetWithOptions as jest.Mock)
@@ -177,7 +177,7 @@ describe('EnhancedMessage', () => {
         new Error('User cancelled'),
       );
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       const callback = (ActionSheetIOS.showActionSheetWithOptions as jest.Mock)
         .mock.calls[0][1];
@@ -188,7 +188,7 @@ describe('EnhancedMessage', () => {
 
     it('handles Reply action', () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       // Simulate tapping option 2 (Reply)
       const callback = (ActionSheetIOS.showActionSheetWithOptions as jest.Mock)
@@ -208,7 +208,7 @@ describe('EnhancedMessage', () => {
       });
 
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       expect(ActionSheetIOS.showActionSheetWithOptions).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -221,7 +221,7 @@ describe('EnhancedMessage', () => {
 
     it('handles clicking Cancel button (index out of handlers bounds)', () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       const callback = (ActionSheetIOS.showActionSheetWithOptions as jest.Mock)
         .mock.calls[0][1];
@@ -243,7 +243,7 @@ describe('EnhancedMessage', () => {
 
     it('shows Alert on long press for Android', () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       expect(Alert.alert).toHaveBeenCalledWith(
         'Message Options',
@@ -260,7 +260,7 @@ describe('EnhancedMessage', () => {
 
     it('triggers handler when Alert option is pressed', () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       // Get the buttons array passed to Alert.alert
       const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
@@ -279,7 +279,7 @@ describe('EnhancedMessage', () => {
       });
 
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
       const deleteBtn = buttons.find((b: any) => b.text === 'Delete Message');
@@ -299,7 +299,7 @@ describe('EnhancedMessage', () => {
 
     it('opens confirmation alert when Delete is selected', () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       // Simulate selecting Delete (index 3: Copy, Share, Reply, Delete)
       const callback = (ActionSheetIOS.showActionSheetWithOptions as jest.Mock)
@@ -318,7 +318,7 @@ describe('EnhancedMessage', () => {
 
     it('cancels deletion when Cancel is pressed in confirmation', () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       // Select Delete option
       const actionSheetCallback = (
@@ -340,7 +340,7 @@ describe('EnhancedMessage', () => {
 
     it('proceeds with deletion when Delete is pressed in confirmation', async () => {
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       // Select Delete option
       const actionSheetCallback = (
@@ -368,7 +368,7 @@ describe('EnhancedMessage', () => {
         .mockImplementation(() => {});
 
       const {getByText} = render(<EnhancedMessage />);
-      fireEvent(getByText('MessageSimple'), 'longPress');
+      fireEvent(getByText('MessageItemView'), 'longPress');
 
       const actionSheetCallback = (
         ActionSheetIOS.showActionSheetWithOptions as jest.Mock
