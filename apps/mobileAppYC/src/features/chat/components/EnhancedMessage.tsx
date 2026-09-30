@@ -20,6 +20,7 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {Toast} from 'toastify-react-native';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 export const EnhancedMessage: React.FC = () => {
   const {channel, message, isMyMessage, setQuotedMessage} = useMessageContext();
 
@@ -94,7 +95,7 @@ export const EnhancedMessage: React.FC = () => {
               text: 'Delete',
               style: 'destructive',
               onPress: () => {
-                confirmDeleteMessage();
+                runInBackground(confirmDeleteMessage());
               },
             },
           ],

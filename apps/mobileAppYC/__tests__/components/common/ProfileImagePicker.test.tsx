@@ -630,5 +630,61 @@ describe('ProfileImagePicker', () => {
       );
       consoleSpy.mockRestore();
     });
+
+    it('logs when the camera picker rejects after opening', async () => {
+      const consoleSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
+      const failure = new Error('camera session failed');
+      (launchCamera as jest.Mock).mockRejectedValueOnce(failure);
+      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
+
+      const {UNSAFE_getByType} = render(
+        <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
+      );
+      fireEvent.press(UNSAFE_getByType(PressableType));
+
+      const takePhoto = alertSpy.mock.calls[0][2]!.find(
+        b => b.text === 'Take Photo',
+      )!;
+      await act(async () => {
+        takePhoto.onPress!();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to open camera picker',
+        failure,
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('logs when the gallery picker rejects after opening', async () => {
+      const consoleSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
+      const failure = new Error('gallery session failed');
+      (launchImageLibrary as jest.Mock).mockRejectedValueOnce(failure);
+      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
+
+      const {UNSAFE_getByType} = render(
+        <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
+      );
+      fireEvent.press(UNSAFE_getByType(PressableType));
+
+      const chooseGallery = alertSpy.mock.calls[0][2]!.find(
+        b => b.text === 'Choose from Gallery',
+      )!;
+      await act(async () => {
+        chooseGallery.onPress!();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to open gallery picker',
+        failure,
+      );
+      consoleSpy.mockRestore();
+    });
   });
 });

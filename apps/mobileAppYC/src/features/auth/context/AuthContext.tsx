@@ -19,6 +19,7 @@ import {
 } from '@/features/auth';
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
 import {DEV_MOCK_SESSION, seedDevSession} from '@/config/devSession';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 export type {
   AuthProvider as AuthProviderType,
@@ -52,7 +53,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({
       seedDevSession(dispatch);
       return;
     }
-    dispatch(initializeAuth({force: true}));
+    runInBackground(dispatch(initializeAuth({force: true})));
   }, [dispatch]);
 
   const login = useCallback(

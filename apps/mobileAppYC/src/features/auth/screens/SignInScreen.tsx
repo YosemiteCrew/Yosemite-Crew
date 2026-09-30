@@ -338,7 +338,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       onExistingProfile: async (result: any) => {
         await login(result.user, result.tokens);
       },
-      onNewProfile: async (createAccountPayload: any) => {
+      onNewProfile: (createAccountPayload: any) => {
         navigation.reset({
           index: 0,
           routes: [{name: 'CreateAccount', params: createAccountPayload}],

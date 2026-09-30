@@ -262,6 +262,25 @@ describe('VoiceMessagePlayer', () => {
     expect(Sound.removePlayBackListener).toHaveBeenCalled();
   });
 
+  it('logs instead of failing when playback cannot be stopped on unmount', async () => {
+    const failure = new Error('player already released');
+    (Sound.stopPlayer as jest.Mock).mockRejectedValueOnce(failure);
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const {unmount} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    pressPlayPauseButton();
+    await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
+    unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith('Audio stop error:', failure);
+    errorSpy.mockRestore();
+  });
+
   it('cleans up resources on unmount if paused mid-track', async () => {
     const {unmount} = render(
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,

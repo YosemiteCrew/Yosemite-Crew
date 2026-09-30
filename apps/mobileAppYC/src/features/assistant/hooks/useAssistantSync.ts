@@ -8,6 +8,7 @@ import {consumePendingLink} from '../services/assistantSnapshot';
 import {resolveHandoffTarget} from '../services/handoffNavigation';
 import {getSnapshotModule} from '../services/nativeBridge';
 import {ASSISTANT_ACTIONS} from '../actions/catalogue';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 /**
  * The slice of the navigation container this hook needs.
@@ -59,7 +60,7 @@ export const useAssistantSync = (
       clearTimeout(timerRef.current);
     }
     timerRef.current = setTimeout(() => {
-      dispatch(refreshAssistantSnapshot());
+      runInBackground(dispatch(refreshAssistantSnapshot()));
     }, SNAPSHOT_DEBOUNCE_MS);
 
     return () => {
@@ -92,7 +93,9 @@ export const useAssistantSync = (
         link: action?.deepLink ?? 'yc://app/assistant',
       };
     });
-    module.publishShortcuts(JSON.stringify(payload));
+    module.publishShortcuts(JSON.stringify(payload)).catch(error => {
+      console.warn('[Assistant] Could not publish launcher shortcuts', error);
+    });
   }, [t]);
 
   const routePendingLink = useCallback(async () => {
@@ -118,7 +121,12 @@ export const useAssistantSync = (
   }, [navigator]);
 
   useEffect(() => {
-    routePendingLink();
+    const routeLink = () => {
+      routePendingLink().catch(error => {
+        console.warn('[Assistant] Could not open the assistant link', error);
+      });
+    };
+    routeLink();
 
     // A handoff intent opens the app; if it was already running, the link
     // arrives while the app is resuming rather than at mount.
@@ -126,7 +134,7 @@ export const useAssistantSync = (
       'change',
       (status: AppStateStatus) => {
         if (status === 'active') {
-          routePendingLink();
+          routeLink();
         }
       },
     );

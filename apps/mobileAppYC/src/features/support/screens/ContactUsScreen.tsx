@@ -50,6 +50,7 @@ import {
 } from '../services/contactService';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type ContactUsScreenProps = NativeStackScreenProps<
   HomeStackParamList,
   'ContactUs'
@@ -773,7 +774,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <LiquidGlassButton
           title={tabId === 'feature' ? 'Send' : 'Submit'}
           onPress={() => {
-            handleSimpleFormSubmit(tabId);
+            runInBackground(handleSimpleFormSubmit(tabId));
           }}
           glassEffect="regular"
           interactive
@@ -929,7 +930,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <LiquidGlassButton
           title="Submit"
           onPress={() => {
-            handleDsarSubmit();
+            runInBackground(handleDsarSubmit());
           }}
           glassEffect="regular"
           interactive
@@ -1049,7 +1050,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <LiquidGlassButton
           title="Submit"
           onPress={() => {
-            handleComplaintSubmit();
+            runInBackground(handleComplaintSubmit());
           }}
           glassEffect="regular"
           interactive
@@ -1158,13 +1159,13 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
       <UploadDocumentBottomSheet
         ref={uploadSheetRef}
         onTakePhoto={() => {
-          handleTakePhoto();
+          runInBackground(handleTakePhoto());
         }}
         onChooseGallery={() => {
-          handleChooseFromGallery();
+          runInBackground(handleChooseFromGallery());
         }}
         onUploadDrive={() => {
-          handleUploadFromDrive();
+          runInBackground(handleUploadFromDrive());
         }}
       />
 
