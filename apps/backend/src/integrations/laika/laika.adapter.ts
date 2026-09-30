@@ -3,6 +3,6 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class LaikaAdapter implements IntegrationAdapter {
   validateCredentials(credentials: LaikaCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("LAIKA", credentials, ["apiKey"]);
   }
 }

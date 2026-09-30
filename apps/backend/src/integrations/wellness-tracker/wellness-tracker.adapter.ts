@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class WellnessTrackerAdapter implements IntegrationAdapter {
   validateCredentials(credentials: WellnessTrackerCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("WELLNESS_TRACKER", credentials, [
+      "apiKey",
+    ]);
   }
 }

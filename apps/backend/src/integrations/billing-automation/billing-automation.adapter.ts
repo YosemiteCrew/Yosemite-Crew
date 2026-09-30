@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class BillingAutomationAdapter implements IntegrationAdapter {
   validateCredentials(credentials: BillingAutomationCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "orgId"]);
+    return validateRequiredCredentials("BILLING_AUTOMATION", credentials, [
+      "apiKey",
+      "orgId",
+    ]);
   }
 }

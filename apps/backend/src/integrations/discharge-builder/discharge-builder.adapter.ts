@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class DischargeBuilderAdapter implements IntegrationAdapter {
   validateCredentials(credentials: DischargeBuilderCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("DISCHARGE_BUILDER", credentials, [
+      "apiKey",
+    ]);
   }
 }

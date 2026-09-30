@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class ReviewManagerAdapter implements IntegrationAdapter {
   validateCredentials(credentials: ReviewManagerCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("REVIEW_MANAGER", credentials, [
+      "apiKey",
+    ]);
   }
 }

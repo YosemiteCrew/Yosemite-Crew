@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class ClientMessagingAdapter implements IntegrationAdapter {
   validateCredentials(credentials: ClientMessagingCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "orgId"]);
+    return validateRequiredCredentials("CLIENT_MESSAGING", credentials, [
+      "apiKey",
+      "orgId",
+    ]);
   }
 }

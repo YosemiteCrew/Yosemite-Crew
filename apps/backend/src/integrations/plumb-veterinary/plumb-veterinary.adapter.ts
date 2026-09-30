@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class PlumbVeterinaryAdapter implements IntegrationAdapter {
   validateCredentials(credentials: PlumbVeterinaryCredentials) {
-    return validateRequiredCredentials(credentials, ["username", "password"]);
+    return validateRequiredCredentials("PLUMB_VETERINARY", credentials, [
+      "username",
+      "password",
+    ]);
   }
 }

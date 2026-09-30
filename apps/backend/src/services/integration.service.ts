@@ -1,5 +1,6 @@
 import {
   getIntegrationAdapter,
+  isProviderAvailable,
   normalizeProvider,
   type IntegrationConfig,
   type IntegrationCredentials,
@@ -73,6 +74,21 @@ const requireOrganisationId = (value: string): string => {
 
 const isMerckProvider = (provider: IntegrationProvider) =>
   provider === "MERCK_MANUALS";
+
+/**
+ * Refuses configuration for a provider that has no working connection behind it.
+ *
+ * Without this a practice can store any text as credentials, be shown as valid
+ * and switch the integration on, while the provider it picked is one the
+ * Integrations page still lists as coming soon and nothing ever connects.
+ */
+const assertProviderAvailable = (provider: IntegrationProvider) => {
+  if (isProviderAvailable(provider)) return;
+  throw new IntegrationServiceError(
+    `${provider} is not available yet, so its credentials cannot be saved and it cannot be enabled.`,
+    400,
+  );
+};
 
 const buildEnabledIntegrationData = () => ({
   status: "enabled" as const,
@@ -236,6 +252,7 @@ export const IntegrationService = {
   ) {
     requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
+    assertProviderAvailable(normalized);
 
     if (!credentials || Object.keys(credentials).length === 0) {
       throw new IntegrationServiceError("credentials are required.", 400);
@@ -288,6 +305,7 @@ export const IntegrationService = {
   async setEnabled(organisationId: string, provider: string) {
     const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
+    assertProviderAvailable(normalized);
 
     if (isMerckProvider(normalized)) {
       return enableMerckIntegrationInPostgres(safeOrganisationId);

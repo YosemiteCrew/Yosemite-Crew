@@ -3,7 +3,7 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class XeroAdapter implements IntegrationAdapter {
   validateCredentials(credentials: XeroCredentials) {
-    return validateRequiredCredentials(credentials, [
+    return validateRequiredCredentials("XERO", credentials, [
       "clientId",
       "clientSecret",
       "tenantId",

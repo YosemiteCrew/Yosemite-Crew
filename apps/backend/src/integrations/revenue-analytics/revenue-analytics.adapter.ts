@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class RevenueAnalyticsAdapter implements IntegrationAdapter {
   validateCredentials(credentials: RevenueAnalyticsCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("REVENUE_ANALYTICS", credentials, [
+      "apiKey",
+    ]);
   }
 }

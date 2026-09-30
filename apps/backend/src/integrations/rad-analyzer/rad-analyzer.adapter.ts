@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class RadAnalyzerAdapter implements IntegrationAdapter {
   validateCredentials(credentials: RadAnalyzerCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "deviceId"]);
+    return validateRequiredCredentials("RAD_ANALYZER", credentials, [
+      "apiKey",
+      "deviceId",
+    ]);
   }
 }

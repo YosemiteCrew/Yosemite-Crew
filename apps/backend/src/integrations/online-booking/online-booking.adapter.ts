@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class OnlineBookingAdapter implements IntegrationAdapter {
   validateCredentials(credentials: OnlineBookingCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("ONLINE_BOOKING", credentials, [
+      "apiKey",
+    ]);
   }
 }

@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class CarePlanManagerAdapter implements IntegrationAdapter {
   validateCredentials(credentials: CarePlanManagerCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "orgId"]);
+    return validateRequiredCredentials("CARE_PLAN_MANAGER", credentials, [
+      "apiKey",
+      "orgId",
+    ]);
   }
 }

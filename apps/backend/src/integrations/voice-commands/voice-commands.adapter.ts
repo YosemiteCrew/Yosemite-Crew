@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class VoiceCommandsAdapter implements IntegrationAdapter {
   validateCredentials(credentials: VoiceCommandsCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("VOICE_COMMANDS", credentials, [
+      "apiKey",
+    ]);
   }
 }

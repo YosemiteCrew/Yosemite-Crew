@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class ProtocolSyncAdapter implements IntegrationAdapter {
   validateCredentials(credentials: ProtocolSyncCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("PROTOCOL_SYNC", credentials, [
+      "apiKey",
+    ]);
   }
 }

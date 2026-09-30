@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class VetScanAdapter implements IntegrationAdapter {
   validateCredentials(credentials: VetScanCredentials) {
-    return validateRequiredCredentials(credentials, ["username", "password"]);
+    return validateRequiredCredentials("VETSCAN", credentials, [
+      "username",
+      "password",
+    ]);
   }
 }

@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class AppointmentRemindersAdapter implements IntegrationAdapter {
   validateCredentials(credentials: AppointmentRemindersCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("APPOINTMENT_REMINDERS", credentials, [
+      "apiKey",
+    ]);
   }
 }

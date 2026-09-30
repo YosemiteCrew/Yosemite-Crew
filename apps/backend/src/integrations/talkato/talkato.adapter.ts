@@ -3,6 +3,6 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class TalkatoAdapter implements IntegrationAdapter {
   validateCredentials(credentials: TalkatoCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("TALKATO", credentials, ["apiKey"]);
   }
 }

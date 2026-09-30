@@ -3,7 +3,7 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class QuickBooksAdapter implements IntegrationAdapter {
   validateCredentials(credentials: QuickBooksCredentials) {
-    return validateRequiredCredentials(credentials, [
+    return validateRequiredCredentials("QUICKBOOKS", credentials, [
       "realmId",
       "accessToken",
       "refreshToken",

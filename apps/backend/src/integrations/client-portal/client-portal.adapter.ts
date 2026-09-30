@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class ClientPortalAdapter implements IntegrationAdapter {
   validateCredentials(credentials: ClientPortalCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "orgId"]);
+    return validateRequiredCredentials("CLIENT_PORTAL", credentials, [
+      "apiKey",
+      "orgId",
+    ]);
   }
 }

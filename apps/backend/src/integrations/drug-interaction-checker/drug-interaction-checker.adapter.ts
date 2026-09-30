@@ -6,6 +6,10 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class DrugInteractionCheckerAdapter implements IntegrationAdapter {
   validateCredentials(credentials: DrugInteractionCheckerCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials(
+      "DRUG_INTERACTION_CHECKER",
+      credentials,
+      ["apiKey"],
+    );
   }
 }

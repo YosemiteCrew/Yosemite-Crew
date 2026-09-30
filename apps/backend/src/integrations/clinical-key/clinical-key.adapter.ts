@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class ClinicalKeyAdapter implements IntegrationAdapter {
   validateCredentials(credentials: ClinicalKeyCredentials) {
-    return validateRequiredCredentials(credentials, ["username", "password"]);
+    return validateRequiredCredentials("CLINICAL_KEY", credentials, [
+      "username",
+      "password",
+    ]);
   }
 }

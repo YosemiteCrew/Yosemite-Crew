@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class VetnoxAdapter implements IntegrationAdapter {
   validateCredentials(credentials: VetnoxCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "practiceId"]);
+    return validateRequiredCredentials("VETNOX", credentials, [
+      "apiKey",
+      "practiceId",
+    ]);
   }
 }

@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class WebsiteBuilderAdapter implements IntegrationAdapter {
   validateCredentials(credentials: WebsiteBuilderCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "domain"]);
+    return validateRequiredCredentials("WEBSITE_BUILDER", credentials, [
+      "apiKey",
+      "domain",
+    ]);
   }
 }

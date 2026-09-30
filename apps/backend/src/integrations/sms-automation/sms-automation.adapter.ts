@@ -3,7 +3,7 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class SmsAutomationAdapter implements IntegrationAdapter {
   validateCredentials(credentials: SmsAutomationCredentials) {
-    return validateRequiredCredentials(credentials, [
+    return validateRequiredCredentials("SMS_AUTOMATION", credentials, [
       "accountSid",
       "authToken",
       "fromNumber",

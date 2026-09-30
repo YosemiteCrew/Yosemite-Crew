@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class PharmacyIntegrationAdapter implements IntegrationAdapter {
   validateCredentials(credentials: PharmacyIntegrationCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "pharmacyId"]);
+    return validateRequiredCredentials("PHARMACY_INTEGRATION", credentials, [
+      "apiKey",
+      "pharmacyId",
+    ]);
   }
 }

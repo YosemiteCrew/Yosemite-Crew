@@ -60,6 +60,7 @@ import { ECommerceAdapter } from "./e-commerce/e-commerce.adapter";
 import { SupplyChainAdapter } from "./supply-chain/supply-chain.adapter";
 import type { IntegrationAdapter, IntegrationProvider } from "./types";
 export * from "./types";
+export * from "./providerAvailability";
 
 const adapters: Record<IntegrationProvider, IntegrationAdapter> = {
   IDEXX: new IdexxAdapter(),

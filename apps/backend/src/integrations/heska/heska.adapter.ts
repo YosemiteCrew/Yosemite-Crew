@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class HeskaAdapter implements IntegrationAdapter {
   validateCredentials(credentials: HeskaCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "deviceSerial"]);
+    return validateRequiredCredentials("HESKA", credentials, [
+      "apiKey",
+      "deviceSerial",
+    ]);
   }
 }

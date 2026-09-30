@@ -3,6 +3,9 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class DataExportAdapter implements IntegrationAdapter {
   validateCredentials(credentials: DataExportCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey", "exportScope"]);
+    return validateRequiredCredentials("DATA_EXPORT", credentials, [
+      "apiKey",
+      "exportScope",
+    ]);
   }
 }

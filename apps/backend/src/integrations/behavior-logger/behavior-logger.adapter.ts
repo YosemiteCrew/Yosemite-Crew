@@ -3,6 +3,8 @@ import { validateRequiredCredentials } from "../requiredCredentials";
 
 export class BehaviorLoggerAdapter implements IntegrationAdapter {
   validateCredentials(credentials: BehaviorLoggerCredentials) {
-    return validateRequiredCredentials(credentials, ["apiKey"]);
+    return validateRequiredCredentials("BEHAVIOR_LOGGER", credentials, [
+      "apiKey",
+    ]);
   }
 }
