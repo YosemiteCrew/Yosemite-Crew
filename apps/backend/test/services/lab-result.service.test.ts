@@ -94,4 +94,22 @@ describe("LabResultService", () => {
     });
     expect(result).toEqual({ resultId: "RESULT-2" });
   });
+
+  it.each([
+    ["organisationId", ["  ", "IDEXX", "RESULT-2"]],
+    ["provider", ["ORG-1", "", "RESULT-2"]],
+    ["resultId", ["ORG-1", "IDEXX", "   "]],
+  ] as const)(
+    "rejects a blank %s without querying",
+    async (_field, [organisationId, provider, resultId]) => {
+      await expect(
+        LabResultService.getByResultId(organisationId, provider, resultId),
+      ).rejects.toMatchObject({
+        name: "LabResultServiceError",
+        statusCode: 400,
+        message: "Invalid organisationId, provider or resultId",
+      });
+      expect(prismaMock.labResult.findFirst).not.toHaveBeenCalled();
+    },
+  );
 });
