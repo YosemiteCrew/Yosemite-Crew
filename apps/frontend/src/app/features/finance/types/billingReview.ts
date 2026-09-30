@@ -1,4 +1,4 @@
-export type BillingReviewStatus = 'MISSING_INVOICE' | 'DRAFT_INVOICE' | 'READY_FOR_BILLING';
+export type BillingReviewStatus = 'MISSING_INVOICE' | 'DRAFT_INVOICE' | 'UNBILLED_CHARGES';
 
 export type BillingReviewItem = {
   id: string;
@@ -8,6 +8,8 @@ export type BillingReviewItem = {
   appointmentType: string | null;
   invoiceId: string | null;
   invoiceStatus: string | null;
+  invoiceTotal: number | null;
+  currency: string | null;
   billingStatus: BillingReviewStatus;
 };
 

@@ -10,7 +10,10 @@ Covers billing: discount policy, subscriptions and usage metering, invoices and 
 
 ### GET /organisation/:organisationId/completed-visits/billing-review
 
-Lists completed visits with a missing or unsettled invoice. Query fields: `limit` and `cursor`. Each row includes the visit date, client and patient names when available, invoice state, and appointment id for opening the visit.
+- Auth: `requireWebAuth`
+- Permissions: `billing:view:any` and `appointments:view:any`, scoped to the organisation
+
+Read-only list of completed visits whose billing is incomplete: no invoice, a draft invoice, or a priced charge on the visit that is not on its invoice. Query fields: `limit` (default 50, at most 100) and `cursor`. Each row includes the visit date, client and patient names when available, the reason, and the invoice status, total and currency. Totals are per invoice in its own currency and are never added together.
 
 ### GET /organisation/:organisationId/discount-settings
 

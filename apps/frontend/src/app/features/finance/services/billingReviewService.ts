@@ -15,7 +15,11 @@ const normalizeItem = (value: unknown): BillingReviewItem => {
   const row = (value ?? {}) as Record<string, unknown>;
   const status = row.billingStatus;
   const billingStatus: BillingReviewStatus =
-    status === 'DRAFT_INVOICE' || status === 'READY_FOR_BILLING' ? status : 'MISSING_INVOICE';
+    status === 'DRAFT_INVOICE' || status === 'UNBILLED_CHARGES' ? status : 'MISSING_INVOICE';
+  const invoiceTotal =
+    typeof row.invoiceTotal === 'number' && Number.isFinite(row.invoiceTotal)
+      ? row.invoiceTotal
+      : null;
 
   return {
     id: typeof row.id === 'string' ? row.id : '',
@@ -25,6 +29,8 @@ const normalizeItem = (value: unknown): BillingReviewItem => {
     appointmentType: toNullableString(row.appointmentType),
     invoiceId: toNullableString(row.invoiceId),
     invoiceStatus: toNullableString(row.invoiceStatus),
+    invoiceTotal,
+    currency: toNullableString(row.currency),
     billingStatus,
   };
 };

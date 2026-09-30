@@ -9449,12 +9449,18 @@ paths:
                         invoiceStatus:
                           type: string
                           nullable: true
+                        invoiceTotal:
+                          type: number
+                          nullable: true
+                        currency:
+                          type: string
+                          nullable: true
                         billingStatus:
                           type: string
                           enum:
                             - MISSING_INVOICE
                             - DRAFT_INVOICE
-                            - READY_FOR_BILLING
+                            - UNBILLED_CHARGES
                   meta:
                     type: object
                     required:

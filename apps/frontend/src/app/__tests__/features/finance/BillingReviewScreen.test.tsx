@@ -15,6 +15,8 @@ const missingInvoice: BillingReviewItem = {
   appointmentType: 'Wellness exam',
   invoiceId: null,
   invoiceStatus: null,
+  invoiceTotal: null,
+  currency: null,
   billingStatus: 'MISSING_INVOICE',
 };
 
@@ -52,17 +54,30 @@ describe('BillingReviewContent', () => {
           id: 'visit-2',
           billingStatus: 'DRAFT_INVOICE',
           invoiceStatus: 'PENDING',
+          invoiceTotal: 120.5,
+          currency: 'GBP',
           patientName: null,
           clientName: null,
         },
         {
           ...missingInvoice,
           id: 'visit-3',
-          billingStatus: 'READY_FOR_BILLING',
-          invoiceStatus: 'OPEN',
+          billingStatus: 'UNBILLED_CHARGES',
+          invoiceStatus: 'PAID',
+          invoiceTotal: 4500,
+          currency: 'INR',
           patientName: null,
           clientName: null,
           appointmentType: null,
+        },
+        {
+          ...missingInvoice,
+          id: 'visit-4',
+          billingStatus: 'DRAFT_INVOICE',
+          invoiceStatus: 'SOMETHING_NEW',
+          invoiceTotal: null,
+          patientName: 'Pepper',
+          clientName: null,
         },
       ])
     );
@@ -72,9 +87,13 @@ describe('BillingReviewContent', () => {
     expect(await screen.findByText('Milo')).toBeInTheDocument();
     expect(screen.getAllByText('Client: Alex Morgan')).toHaveLength(1);
     expect(screen.getByTitle('Invoice needed')).toBeInTheDocument();
-    expect(screen.getByTitle('Invoice in draft')).toBeInTheDocument();
-    expect(screen.getByTitle('Invoice ready')).toBeInTheDocument();
-    expect(screen.getByText('Invoice pending')).toBeInTheDocument();
+    expect(screen.getAllByTitle('Invoice in draft')).toHaveLength(2);
+    expect(screen.getByTitle('Charges not invoiced')).toBeInTheDocument();
+    // Each invoice total is shown in its own currency, never combined.
+    expect(screen.getByText('Invoice pending · £120.50')).toBeInTheDocument();
+    expect(screen.getByText('Invoice paid · ₹4,500.00')).toBeInTheDocument();
+    expect(screen.getByText('Invoice on file')).toBeInTheDocument();
+    expect(screen.queryByText(/something/i)).not.toBeInTheDocument();
     expect(screen.getByText('No invoice on file')).toBeInTheDocument();
     expect(screen.getByText('Client unavailable')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Review visit' })[0]).toHaveAttribute(

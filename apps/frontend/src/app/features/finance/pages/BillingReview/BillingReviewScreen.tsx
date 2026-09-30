@@ -21,6 +21,7 @@ import Fallback from '@/app/ui/overlays/Fallback';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { getPreferredTimeZone } from '@/app/lib/timezone';
+import { formatMoneyPrecise } from '@/app/lib/money';
 import { listBillingReview } from '@/app/features/finance/services/billingReviewService';
 import type {
   BillingReviewItem,
@@ -41,7 +42,26 @@ type BillingReviewListProps = {
 const statusLabel: Record<BillingReviewStatus, string> = {
   MISSING_INVOICE: 'Invoice needed',
   DRAFT_INVOICE: 'Invoice in draft',
-  READY_FOR_BILLING: 'Invoice ready',
+  UNBILLED_CHARGES: 'Charges not invoiced',
+};
+
+const invoiceStatusLabel: Record<string, string> = {
+  PENDING: 'Invoice pending',
+  AWAITING_PAYMENT: 'Invoice awaiting payment',
+  PAID: 'Invoice paid',
+  FAILED: 'Invoice payment failed',
+  CANCELLED: 'Invoice cancelled',
+  REFUNDED: 'Invoice refunded',
+};
+
+// One invoice per visit, so its total is shown in that invoice's own currency
+// and never added to another visit's total.
+const invoiceSummary = (item: BillingReviewItem): string => {
+  if (!item.invoiceStatus) return 'No invoice on file';
+  const status = invoiceStatusLabel[item.invoiceStatus] ?? 'Invoice on file';
+  return item.invoiceTotal === null
+    ? status
+    : `${status} · ${formatMoneyPrecise(item.invoiceTotal, item.currency ?? undefined)}`;
 };
 
 const PAGE_SKELETON = <PageSkeleton variant="list" />;
@@ -93,11 +113,7 @@ const VisitCard = ({ item }: { item: BillingReviewItem }) => (
       />
     </div>
     <div className="mt-4 flex items-center justify-between gap-3 border-t border-card-border pt-3">
-      <span className="text-caption-2 text-text-tertiary">
-        {item.invoiceStatus
-          ? `Invoice ${item.invoiceStatus.toLowerCase().replaceAll('_', ' ')}`
-          : 'No invoice on file'}
-      </span>
+      <span className="text-caption-2 text-text-tertiary">{invoiceSummary(item)}</span>
       <Link
         href={visitHref(item.id)}
         className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-body-4-emphasis text-action-primary hover:bg-action-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -318,7 +334,8 @@ const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps)
           <IoReceiptOutline aria-hidden="true" className="mx-auto size-8 text-text-tertiary" />
           <h2 className="mt-3 text-body-2-emphasis text-text-primary">You’re caught up</h2>
           <p className="mx-auto mt-1 max-w-md text-body-4 text-text-secondary">
-            Completed visits with a missing or unfinished invoice will appear here.
+            Completed visits with a missing or draft invoice, or charges not yet invoiced, will
+            appear here.
           </p>
         </section>
       )}
