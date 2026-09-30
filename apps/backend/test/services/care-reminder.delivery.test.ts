@@ -47,6 +47,7 @@ import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { NotificationService } from "../../src/services/notification.service";
 import { sendEmail } from "../../src/utils/email";
 import logger from "../../src/utils/logger";
+import { Prisma } from "@prisma/client";
 import { resolveCareReminderSuppression } from "../../src/services/care-reminder-opt-out.service";
 
 const pendingReminder = {
@@ -293,4 +294,70 @@ describe("CareReminderService.sendScheduledDue", () => {
     expect(logger.error).toHaveBeenCalled();
     send.mockRestore();
   });
+
+  it("only picks send times inside the last week", async () => {
+    jest.useFakeTimers({ now: new Date("2026-09-30T12:00:00Z") });
+    try {
+      await CareReminderService.sendScheduledDue();
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(mockPrisma.careReminder.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sendAt: {
+            lte: new Date("2026-09-30T12:00:00Z"),
+            gte: new Date("2026-09-23T12:00:00Z"),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("returns an abandoned send claim to pending without a result before picking due reminders", async () => {
+    jest.useFakeTimers({ now: new Date("2026-09-30T12:00:00Z") });
+    try {
+      await CareReminderService.sendScheduledDue();
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(mockPrisma.careReminder.updateMany).toHaveBeenCalledWith({
+      where: {
+        status: "SENDING",
+        sendingAt: { lt: new Date("2026-09-30T11:45:00Z") },
+      },
+      data: { status: "PENDING", sendingAt: null, lastDelivery: Prisma.DbNull },
+    });
+    expect(
+      mockPrisma.careReminder.updateMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      mockPrisma.careReminder.findMany.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("records a scheduled send as a system action", async () => {
+    await CareReminderService.send(
+      pendingReminder.id,
+      pendingReminder.organisationId,
+    );
+
+    const actors = (AuditTrailService.recordSafely as jest.Mock).mock.calls.map(
+      ([entry]) => entry.actorType,
+    );
+    expect(actors).toEqual(["SYSTEM", "SYSTEM"]);
+  });
+});
+
+it("records a staff send against the staff member", async () => {
+  await CareReminderService.send(
+    pendingReminder.id,
+    pendingReminder.organisationId,
+    "staff-1",
+  );
+
+  expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+    expect.objectContaining({ actorType: "PMS_USER", actorId: "staff-1" }),
+  );
 });

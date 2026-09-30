@@ -49,6 +49,9 @@ type ReminderStatus =
 
 type DeliverySummary = { push: ChannelOutcome; email: ChannelOutcome };
 
+const STALE_SEND_CLAIM_MS = 15 * 60 * 1000;
+const SCHEDULED_SEND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
 export interface CreateCareReminderParams {
   organisationId: string;
   patientId: string;
@@ -479,7 +482,7 @@ export const CareReminderService = {
         organisationId,
         patientId: reminder.patientId,
         eventType: "CARE_REMINDER_DELIVERY_ATTEMPT",
-        actorType: "PMS_USER",
+        actorType: sentBy ? "PMS_USER" : "SYSTEM",
         actorId: sentBy ?? null,
         entityType: "COMPANION",
         entityId: id,
@@ -516,7 +519,7 @@ export const CareReminderService = {
       organisationId,
       patientId: reminder.patientId,
       eventType: "CARE_REMINDER_DELIVERY_ATTEMPT",
-      actorType: "PMS_USER",
+      actorType: sentBy ? "PMS_USER" : "SYSTEM",
       actorId: sentBy ?? null,
       entityType: "COMPANION",
       entityId: id,
@@ -533,7 +536,7 @@ export const CareReminderService = {
         organisationId,
         patientId: reminder.patientId,
         eventType: "CARE_REMINDER_SENT",
-        actorType: "PMS_USER",
+        actorType: sentBy ? "PMS_USER" : "SYSTEM",
         actorId: sentBy ?? null,
         entityType: "COMPANION",
         entityId: id,
@@ -556,10 +559,27 @@ export const CareReminderService = {
   },
 
   async sendScheduledDue() {
+    const now = Date.now();
+    // A claim this old belongs to a send that never finished (a restart mid-send).
+    // It goes back to PENDING without a result so staff can see it and decide;
+    // lastAttemptAt stays set, so the scheduler below never resends it on its own.
+    await prisma.careReminder.updateMany({
+      where: {
+        status: "SENDING",
+        sendingAt: { lt: new Date(now - STALE_SEND_CLAIM_MS) },
+      },
+      data: { status: "PENDING", sendingAt: null, lastDelivery: Prisma.DbNull },
+    });
     const due = await prisma.careReminder.findMany({
       where: {
         status: "PENDING",
-        sendAt: { lte: new Date() },
+        // A send time further back than the window is left for staff to send by
+        // hand, so old rows or a long worker outage never release a burst of
+        // stale reminders to owners.
+        sendAt: {
+          lte: new Date(now),
+          gte: new Date(now - SCHEDULED_SEND_WINDOW_MS),
+        },
         lastAttemptAt: null,
       },
       select: { id: true, organisationId: true },
