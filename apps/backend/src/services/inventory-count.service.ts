@@ -55,6 +55,17 @@ const assertCount = async (id: string, organisationId: string) => {
   return record;
 };
 
+const EXPIRED_BATCH_MESSAGE = "This batch has expired and cannot be counted.";
+
+// Expired stock leaves through a write-off, not a count: an adjustment would put
+// expired units back into what dispensing draws from. Answered as not found, the
+// same as a batch from another organisation.
+const assertBatchNotExpired = (expiryDate: Date | null) => {
+  if (expiryDate && expiryDate.getTime() <= Date.now()) {
+    throw new InventoryCountError(EXPIRED_BATCH_MESSAGE, 404);
+  }
+};
+
 export const InventoryCountService = {
   async record(params: CreateCountParams) {
     const item = await prisma.inventoryItem.findFirst({
@@ -73,12 +84,13 @@ export const InventoryCountService = {
             itemId: params.inventoryItemId,
             organisationId: params.organisationId,
           },
-          select: { id: true, quantity: true },
+          select: { id: true, quantity: true, expiryDate: true },
         })
       : null;
     if (params.inventoryBatchId && !batch) {
       throw new InventoryCountError("Inventory batch not found.", 404);
     }
+    if (batch) assertBatchNotExpired(batch.expiryDate);
 
     const systemCount = batch?.quantity ?? params.systemCount;
     if (systemCount === undefined) {
@@ -210,11 +222,17 @@ export const InventoryCountService = {
             itemId: existing.inventoryItemId,
             organisationId,
           },
-          select: { id: true, quantity: true, allocated: true },
+          select: {
+            id: true,
+            quantity: true,
+            allocated: true,
+            expiryDate: true,
+          },
         });
         if (!batch) {
           throw new InventoryCountError("Inventory batch not found.", 404);
         }
+        assertBatchNotExpired(batch.expiryDate);
         if (batch.quantity !== existing.systemCount) {
           throw new InventoryCountError(
             "Stock changed after this count was recorded. Record a new count.",
@@ -243,6 +261,19 @@ export const InventoryCountService = {
           );
         }
 
+        // Lock the item row before summing its batches. The batch row is
+        // already locked above, so this keeps the batch-then-item order the
+        // dispense path uses, and a dispense on another batch of this item that
+        // commits while we wait is included in the sum instead of overwritten.
+        const [lockedItem] = await tx.$queryRaw<{ allocated: number }[]>`
+          SELECT "allocated" FROM "InventoryItem"
+          WHERE "id" = ${existing.inventoryItemId}
+            AND "organisationId" = ${organisationId}
+          FOR UPDATE
+        `;
+        if (!lockedItem) {
+          throw new InventoryCountError("Inventory item not found.", 404);
+        }
         const totals = await tx.inventoryBatch.aggregate({
           where: {
             itemId: existing.inventoryItemId,
@@ -250,9 +281,16 @@ export const InventoryCountService = {
           },
           _sum: { quantity: true },
         });
+        const onHand = totals._sum.quantity ?? 0;
+        if (onHand < lockedItem.allocated) {
+          throw new InventoryCountError(
+            "The count is below stock already allocated for use.",
+            409,
+          );
+        }
         await tx.inventoryItem.update({
           where: { id: existing.inventoryItemId },
-          data: { onHand: totals._sum.quantity ?? 0 },
+          data: { onHand },
         });
         await tx.inventoryStockMovement.create({
           data: {

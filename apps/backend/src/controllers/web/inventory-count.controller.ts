@@ -74,7 +74,10 @@ export const InventoryCountController = {
 
   list: async (req: Request, res: Response) => {
     const inventoryItemId = req.query.inventoryItemId as string | undefined;
-    const inventoryBatchId = req.query.inventoryBatchId as string | undefined;
+    const inventoryBatchId =
+      typeof req.query.inventoryBatchId === "string"
+        ? req.query.inventoryBatchId
+        : undefined;
     const reconciled = parseOptionalBooleanFlag(req.query.reconciled);
     const fromDate = req.query.fromDate
       ? new Date(req.query.fromDate as string)

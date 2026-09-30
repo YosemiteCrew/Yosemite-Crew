@@ -245,6 +245,28 @@ describe("InventoryCountController.list", () => {
     });
   });
 
+  it("filters by a single batch and ignores a repeated batch parameter", async () => {
+    service.list.mockResolvedValue([] as never);
+
+    await InventoryCountController.list(
+      buildRequest({ query: { inventoryBatchId: "batch-1" } }),
+      buildResponse(),
+    );
+    await InventoryCountController.list(
+      buildRequest({ query: { inventoryBatchId: ["batch-1", "batch-2"] } }),
+      buildResponse(),
+    );
+
+    expect(service.list).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ inventoryBatchId: "batch-1" }),
+    );
+    expect(service.list).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ inventoryBatchId: undefined }),
+    );
+  });
+
   it("leaves every optional filter undefined when the query is empty", async () => {
     service.list.mockResolvedValue([] as never);
     const res = buildResponse();
@@ -313,6 +335,21 @@ describe("InventoryCountController.reconcile", () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(401);
+    expect(service.reconcile).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown resolution before calling the service", async () => {
+    const res = buildResponse();
+
+    await InventoryCountController.reconcile(
+      buildRequest({
+        params: { countId: COUNT_ID },
+        body: { resolution: "WRITE_OFF" },
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
     expect(service.reconcile).not.toHaveBeenCalled();
   });
 

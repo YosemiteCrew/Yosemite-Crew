@@ -46,6 +46,7 @@ const mockTx = {
   },
   inventoryStockMovement: { create: jest.fn() },
   $executeRaw: jest.fn(),
+  $queryRaw: jest.fn(),
 };
 const mockTransaction = prisma.$transaction as jest.Mock;
 const mockAudit = AuditTrailService.recordSafely as jest.Mock;
@@ -75,6 +76,7 @@ const baseCount = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockItemFindFirst.mockResolvedValue({ id: "item-1" });
+  mockTx.$queryRaw.mockResolvedValue([{ allocated: 0 }]);
   mockTransaction.mockImplementation(
     (callback: (tx: typeof mockTx) => Promise<unknown>) => callback(mockTx),
   );
@@ -233,8 +235,33 @@ describe("InventoryCountService.record", () => {
     );
   });
 
+  it("refuses to count an expired batch", async () => {
+    mockBatchFindFirst.mockResolvedValue({
+      id: "batch-1",
+      quantity: 12,
+      expiryDate: new Date(Date.now() - 60_000),
+    });
+    await expect(
+      InventoryCountService.record({
+        organisationId: "org-1",
+        inventoryItemId: "item-1",
+        inventoryBatchId: "batch-1",
+        countedAt,
+        physicalCount: 10,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "This batch has expired and cannot be counted.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   it("uses the current organisation-scoped batch quantity as the system count", async () => {
-    mockBatchFindFirst.mockResolvedValue({ id: "batch-1", quantity: 12 });
+    mockBatchFindFirst.mockResolvedValue({
+      id: "batch-1",
+      quantity: 12,
+      expiryDate: new Date(Date.now() + 86_400_000),
+    });
     mockCreate.mockResolvedValue({
       ...baseCount,
       inventoryBatchId: "batch-1",
@@ -257,7 +284,7 @@ describe("InventoryCountService.record", () => {
         itemId: "item-1",
         organisationId: "org-1",
       },
-      select: { id: true, quantity: true },
+      select: { id: true, quantity: true, expiryDate: true },
     });
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -400,6 +427,17 @@ describe("InventoryCountService.reconcile", () => {
     expect(mockTx.$executeRaw.mock.calls[0][0].join(" ")).toContain(
       '"quantity" =',
     );
+    expect(mockTx.$queryRaw.mock.calls[0][0].join(" ")).toContain("FOR UPDATE");
+    expect(mockTx.$queryRaw.mock.calls[0].slice(1)).toEqual([
+      "item-1",
+      "org-1",
+    ]);
+    expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeGreaterThan(
+      mockTx.$executeRaw.mock.invocationCallOrder[0],
+    );
+    expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      mockTx.inventoryBatch.aggregate.mock.invocationCallOrder[0],
+    );
     expect(mockTx.inventoryItem.update).toHaveBeenCalledWith({
       where: { id: "item-1" },
       data: { onHand: 37 },
@@ -537,6 +575,63 @@ describe("InventoryCountService.reconcile", () => {
     ).rejects.toMatchObject({ statusCode: 409 });
     expect(mockTx.$executeRaw).not.toHaveBeenCalled();
   });
+
+  it("refuses to adjust stock on a batch that has since expired", async () => {
+    mockTx.inventoryCount.findFirst.mockResolvedValue({
+      ...baseCount,
+      inventoryBatchId: "batch-1",
+    });
+    mockTx.inventoryBatch.findFirst.mockResolvedValue({
+      id: "batch-1",
+      quantity: 40,
+      allocated: 0,
+      expiryDate: new Date(Date.now() - 60_000),
+    });
+    await expect(
+      InventoryCountService.reconcile(
+        "count-1",
+        "org-1",
+        "user-2",
+        "STOCK_ADJUSTED",
+      ),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(mockTx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the item is gone", [], 404],
+    ["item allocations exceed the new on-hand total", [{ allocated: 38 }], 409],
+  ])(
+    "rolls back the adjustment when %s",
+    async (_reason, lockedRows, status) => {
+      mockTx.inventoryCount.findFirst.mockResolvedValue({
+        ...baseCount,
+        inventoryBatchId: "batch-1",
+      });
+      mockTx.inventoryBatch.findFirst.mockResolvedValue({
+        id: "batch-1",
+        quantity: 40,
+        allocated: 0,
+        expiryDate: null,
+      });
+      mockTx.$executeRaw.mockResolvedValue(1);
+      mockTx.$queryRaw.mockResolvedValue(lockedRows);
+      mockTx.inventoryBatch.aggregate.mockResolvedValue({
+        _sum: { quantity: 37 },
+      });
+      await expect(
+        InventoryCountService.reconcile(
+          "count-1",
+          "org-1",
+          "user-2",
+          "STOCK_ADJUSTED",
+        ),
+      ).rejects.toMatchObject({ statusCode: status });
+      expect(mockTx.inventoryItem.update).not.toHaveBeenCalled();
+      expect(mockTx.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(mockAudit).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects a concurrent stock change after reading the batch", async () => {
     mockTx.inventoryCount.findFirst.mockResolvedValue({
