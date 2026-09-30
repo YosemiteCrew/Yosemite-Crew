@@ -243,9 +243,8 @@ export const NotificationService = {
       : (options ?? {});
 
     // One device after another, in the order the tokens were registered.
-    return mapInSequence(
-      tokens.filter((record) => Boolean(record)),
-      (record) => this.sendToDevice(record.deviceToken, payload, sendOptions),
+    return mapInSequence(tokens.filter(Boolean), (record) =>
+      this.sendToDevice(record.deviceToken, payload, sendOptions),
     );
   },
 
