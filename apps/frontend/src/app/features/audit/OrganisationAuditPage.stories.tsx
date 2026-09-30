@@ -55,7 +55,8 @@ export const Activity: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole('heading', { name: 'Audit log' })).toBeInTheDocument();
-    await expect(canvas.getByText('Appointment booked')).toBeInTheDocument();
+    // The heading renders at once; the rows arrive when the feed resolves.
+    await expect(await canvas.findByText('Appointment booked')).toBeInTheDocument();
     await expect(canvas.getByText('Payment received')).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Export loaded activity' })).toBeEnabled();
   },

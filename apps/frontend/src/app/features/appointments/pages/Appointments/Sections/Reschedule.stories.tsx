@@ -181,7 +181,7 @@ const dialogQueries = async () => {
 const menuOptionLabels = async () => {
   await waitFor(() => expect(openMenu()).not.toBeNull());
   return within(openMenu() as HTMLElement)
-    .getAllByRole('button')
+    .getAllByRole('option')
     .map((option) => option.textContent);
 };
 
@@ -299,7 +299,8 @@ export const Default: Story = {
     // Both fields are display-only; the day strip and the chips are the controls.
     await expect(time).toHaveAttribute('readonly');
     await expect(panel.getByLabelText('Date')).toHaveAttribute('readonly');
-    await expect(time).toHaveAttribute('aria-invalid', 'false');
+    // The shared Input only sets aria-invalid when there is an error; absent reads as valid.
+    await expect(time).not.toHaveAttribute('aria-invalid');
 
     await settleDateStrip(dialog);
     const lead = panel.getByRole('button', { name: 'Lead: Dr. Weber' });
@@ -389,7 +390,7 @@ export const LeadMustBeChosen: Story = {
     await userEvent.click(lead);
     expect(await menuOptionLabels()).toEqual(['Dr. Weber', 'Dr. Osei']);
     await userEvent.click(
-      within(openMenu() as HTMLElement).getByRole('button', { name: 'Dr. Osei' })
+      within(openMenu() as HTMLElement).getByRole('option', { name: 'Dr. Osei' })
     );
 
     await waitFor(() =>
@@ -522,9 +523,13 @@ export const Phone: Story = {
     await expect(Math.round(date.width)).toBe(Math.round(time.width));
     await expect(date.right).toBeLessThanOrEqual(time.left + 1);
 
-    // Design's 44px field height, off the border box - the computed height reads
-    // 41 because these carry a 1.5px border and that value is the content box.
-    await expect(Math.round(date.height)).toBe(44);
+    /* The shared 40px field height (ui/README.md), off the border box. Date and
+       Time are display-only (not focusable, clicks ignored), so this is a field
+       height rather than a touch target; the day strip and slot chips are the
+       controls. The Lead picker beside them must match it. */
+    await expect(Math.round(date.height)).toBe(40);
+    const leadTrigger = panel.getByRole('button', { name: /^Lead/ }).getBoundingClientRect();
+    await expect(Math.round(leadTrigger.height)).toBe(Math.round(date.height));
     await expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
   },
 };

@@ -231,7 +231,8 @@ export const Populated: Story = {
     await expect(
       await canvas.findByRole('heading', { level: 1, name: 'Payments and refunds' })
     ).toBeVisible();
-    const totals = within(canvas.getByRole('region', { name: 'Report totals' }));
+    // The heading renders at once; the totals arrive when the report resolves.
+    const totals = within(await canvas.findByRole('region', { name: 'Report totals' }));
     await expect(totals.getByText('GBP activity')).toBeVisible();
     await expect(totals.getByText('£100.50')).toBeVisible();
     const table = within(await canvas.findByRole('table'));

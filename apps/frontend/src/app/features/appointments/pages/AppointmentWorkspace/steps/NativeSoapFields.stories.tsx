@@ -2,6 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import type { SoapCodedProblems } from '@yosemite-crew/types';
 import type { ClinicalTermSuggestion } from '@/app/features/appointments/services/clinicalTermsService';
+import axios, { type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios';
+import api from '@/app/services/axios';
 
 import NativeSoapFields from './NativeSoapFields';
 
@@ -62,70 +64,38 @@ const RADIOGRAPHY: ClinicalTermSuggestion = {
  * four separate ways and the stub is not optional - without it these stories
  * would fire real suggest calls at the dev API. `suggestClinicalTerms` is an ESM
  * export and cannot be reassigned, and it reaches the API through the shared
- * axios instance's XHR adapter, so the seam is `XMLHttpRequest.prototype` - the
- * same one SoapCodedTermPicker.stories.tsx uses. Everything that is not the
- * suggest endpoint is handed to the real transport untouched.
+ * axios instance, so the seam is that instance's adapter (the transport is
+ * `fetch`, so an `XMLHttpRequest` stub would never see the call). Everything
+ * that is not the suggest endpoint is handed to the real transport untouched.
  * ------------------------------------------------------------------ */
 
 const SUGGEST_PATH = '/codes/terms/suggest';
-const REAL_XHR_OPEN = XMLHttpRequest.prototype.open;
-const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
-
-type StubbedXhr = XMLHttpRequest & { storyUrl?: string };
+const ORIGINAL_ADAPTER = api.defaults.adapter;
+const REAL_ADAPTER = axios.getAdapter(ORIGINAL_ADAPTER);
 
 /** Every suggest URL asked for during the current story, in order. */
 const suggestRequests: string[] = [];
-
-const answerWith = (xhr: XMLHttpRequest, status: number, body: unknown) => {
-  const text = JSON.stringify(body);
-  // Own data properties shadow the prototype's accessors - the only way to hand
-  // axios a response on a request that was never really sent.
-  Object.defineProperty(xhr, 'readyState', { value: 4, configurable: true });
-  Object.defineProperty(xhr, 'status', { value: status, configurable: true });
-  Object.defineProperty(xhr, 'statusText', { value: 'OK', configurable: true });
-  Object.defineProperty(xhr, 'responseText', { value: text, configurable: true });
-  Object.defineProperty(xhr, 'response', { value: text, configurable: true });
-  // axios listens on `onloadend`; dispatching the event runs that handler.
-  xhr.dispatchEvent(new ProgressEvent('loadend'));
-};
 
 const withSuggestions =
   (items: ClinicalTermSuggestion[] = []) =>
   () => {
     suggestRequests.length = 0;
 
-    XMLHttpRequest.prototype.open = function stubbedOpen(
-      this: StubbedXhr,
-      method: string,
-      url: string | URL,
-      isAsync?: boolean,
-      username?: string | null,
-      password?: string | null
-    ) {
-      this.storyUrl = String(url);
-      REAL_XHR_OPEN.call(this, method, url, isAsync ?? true, username, password);
-    };
-
-    XMLHttpRequest.prototype.send = function stubbedSend(
-      this: StubbedXhr,
-      body?: Document | XMLHttpRequestBodyInit | null
-    ) {
-      if (!this.storyUrl?.includes(SUGGEST_PATH)) {
-        REAL_XHR_SEND.call(this, body ?? null);
-        return;
-      }
-      suggestRequests.push(this.storyUrl);
+    api.defaults.adapter = (async (config: InternalAxiosRequestConfig) => {
+      const url = String(config.url ?? '');
+      if (!url.includes(SUGGEST_PATH)) return REAL_ADAPTER(config);
+      suggestRequests.push(url);
       // Answered on a later tick so the picker's debounce and request-sequence
       // guard are exercised rather than short-circuited.
-      setTimeout(() => answerWith(this, 200, { items }), 0);
-    };
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return { data: { items }, status: 200, statusText: 'OK', headers: {}, config };
+    }) as AxiosAdapter;
 
-    /* Restored to the module-level originals rather than to whatever was installed
+    /* Restored to the module-level original rather than to whatever was installed
      before, so a meta-level and a story-level stub cannot strand one another
      whichever order their cleanups run in. */
     return () => {
-      XMLHttpRequest.prototype.open = REAL_XHR_OPEN;
-      XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+      api.defaults.adapter = ORIGINAL_ADAPTER;
     };
   };
 
@@ -176,7 +146,7 @@ const meta = {
           'placeholder and to nothing else - the other three placeholders are literals in the ' +
           'component - so an organisation that calls its animals "animals" still reads ' +
           '"Examination findings and recorded vitals" underneath.\n\n' +
-          'The vocabulary endpoint is answered from an `XMLHttpRequest` stub, so no story here ' +
+          'The vocabulary endpoint is answered from a stub on the API client, so no story here ' +
           'reaches the terminology service.',
       },
     },
@@ -439,7 +409,9 @@ export const Phone: Story = {
   /* Width pinned here as well as through the viewport global. The global is
      applied by the Storybook MANAGER, so a runner loading `iframe.html` directly
      renders this at panel width - where the overflow check below is true for the
-     wrong reason. */
+     wrong reason. Full-bleed so the 375px frame IS the phone viewport: the
+     default padded layout would add its own gutter on top of it. */
+  parameters: { layout: 'fullscreen' },
   decorators: [
     (Story) => (
       <div className="flex w-[375px] flex-col gap-5 p-3">
