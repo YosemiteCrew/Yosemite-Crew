@@ -331,6 +331,7 @@ export class FormSigningService {
     if (!instance?.appointmentId) {
       throw new Error("Form submission not found");
     }
+    const appointmentId = instance.appointmentId;
     const ownAnswers = instance.authorId === parentId;
     // As for a form submission (ensureRequiredSignerMatches): who signs is
     // the one pinned when it was submitted, and a consent that names no one
@@ -396,26 +397,58 @@ export class FormSigningService {
       throw new Error("Form submission not found");
     }
 
-    if (
-      await hasNewerSubmissionForSigner(
-        prisma,
-        {
-          id: instance.id,
-          organisationId: instance.organisationId,
-          templateId: instance.templateId,
-          appointmentId: instance.appointmentId,
-          authorId: instance.authorId,
-          createdAt: instance.createdAt,
-        },
+    const signingState =
+      await FormSigningService.prepareTemplateInstanceSigning(
+        { ...instance, appointmentId },
         parentId,
-      )
-    ) {
+      );
+    if ("documentId" in signingState) return signingState;
+
+    const { signerEmail, signerName } =
+      await FormSigningService.resolveSignerInfo({
+        isParent: true,
+        initiatedBy: parentId,
+      });
+    if (!signerEmail) {
+      throw new Error("Signer email is required for signing");
+    }
+
+    const signed = await signPersistedRenderedDocument({
+      renderedDocumentId: signingState.document.id,
+      organisationId: instance.organisationId,
+      signerId: parentId,
+      signerType: "PARENT",
+      signerEmail,
+      signerName,
+    });
+    const signing = signed.signing as {
+      documentId?: string;
+      signingUrl?: string | null;
+    } | null;
+
+    return {
+      documentId: signing?.documentId ?? signingState.document.id,
+      signingUrl: signing?.signingUrl ?? null,
+    };
+  }
+
+  private static async prepareTemplateInstanceSigning(
+    instance: {
+      id: string;
+      organisationId: string;
+      templateId: string;
+      appointmentId: string;
+      authorId: string | null;
+      createdAt: Date;
+    },
+    signerId: string,
+  ) {
+    if (await hasNewerSubmissionForSigner(prisma, instance, signerId)) {
       throw new Error(
         "A newer version of this form is waiting for your signature",
       );
     }
 
-    // One submitted before submitting rendered a document is rendered now.
     const document =
       (await prisma.renderedDocument.findUnique({
         where: { templateInstanceId: instance.id },
@@ -435,13 +468,11 @@ export class FormSigningService {
       signingUrl?: string | null;
       awaitingSend?: boolean;
     } | null;
-    // Only a signing Documenso sent to them: one still waiting for its send
-    // (or never sent) is not handed out, and expires so it can be sent anew.
     if (
       isOpenSigning(open) &&
       open?.awaitingSend !== true &&
       open?.documentId &&
-      open.signerId === parentId
+      open.signerId === signerId
     ) {
       return {
         documentId: open.documentId,
@@ -449,39 +480,9 @@ export class FormSigningService {
       };
     }
 
-    const { signerEmail, signerName } =
-      await FormSigningService.resolveSignerInfo({
-        isParent: true,
-        initiatedBy: parentId,
-      });
-    if (!signerEmail) {
-      throw new Error("Signer email is required for signing");
-    }
-
-    const signed = await signPersistedRenderedDocument({
-      renderedDocumentId: document.id,
-      organisationId: instance.organisationId,
-      signerId: parentId,
-      signerType: "PARENT",
-      signerEmail,
-      signerName,
-    });
-    const signing = signed.signing as {
-      documentId?: string;
-      signingUrl?: string | null;
-    } | null;
-
-    return {
-      documentId: signing?.documentId ?? document.id,
-      signingUrl: signing?.signingUrl ?? null,
-    };
+    return { document };
   }
 
-  /**
-   * A template-backed form that requires a vet signature is a template instance
-   * with a rendered document. The staff member who submitted it (or the one
-   * assigned to the appointment) signs that document.
-   */
   private static async startTemplateInstanceStaffSigning(
     instanceId: string,
     userId: string,
@@ -504,6 +505,7 @@ export class FormSigningService {
     if (!instance?.appointmentId) {
       throw new Error("Form submission not found");
     }
+    const appointmentId = instance.appointmentId;
     if (instance.organisationId !== organisationId) {
       throw new Error("Unauthorized to sign this submission");
     }
@@ -522,9 +524,6 @@ export class FormSigningService {
       throw new Error("Form requires client signature");
     }
 
-    // The user must be the author (who filled it in) or a user assigned to the
-    // appointment. For now we allow the author or any user in the organisation
-    // who is the initiatedBy - the controller already enforces org membership.
     const user = await prisma.user.findUnique({
       where: { userId },
       select: { email: true, firstName: true, lastName: true },
@@ -533,65 +532,30 @@ export class FormSigningService {
       throw new Error("Unable to find submitting user");
     }
 
-    if (
-      await hasNewerSubmissionForSigner(
-        prisma,
-        {
-          id: instance.id,
-          organisationId: instance.organisationId,
-          templateId: instance.templateId,
-          appointmentId: instance.appointmentId,
-          authorId: instance.authorId,
-          createdAt: instance.createdAt,
-        },
+    if (instance.authorId !== userId) {
+      const appointment = await prisma.appointment.findFirst({
+        where: { id: instance.appointmentId, organisationId },
+        select: { lead: true },
+      });
+      const leadId = (appointment?.lead as { id?: string } | null)?.id;
+      if (leadId !== userId) {
+        throw new Error("Unauthorized to sign this submission");
+      }
+    }
+
+    const signingState =
+      await FormSigningService.prepareTemplateInstanceSigning(
+        { ...instance, appointmentId },
         userId,
-      )
-    ) {
-      throw new Error(
-        "A newer version of this form is waiting for your signature",
       );
-    }
-
-    // One submitted before submitting rendered a document is rendered now.
-    const document =
-      (await prisma.renderedDocument.findUnique({
-        where: { templateInstanceId: instance.id },
-        select: { id: true, signing: true },
-      })) ??
-      (await TemplateService.renderMissingDocument(
-        instance.id,
-        instance.organisationId,
-      ));
-    if (!document) {
-      throw new Error("Submission has no document to sign yet");
-    }
-
-    const open = document.signing as {
-      signerId?: string;
-      documentId?: string;
-      signingUrl?: string | null;
-      awaitingSend?: boolean;
-    } | null;
-    // Only a signing Documenso sent to them: one still waiting for its send
-    // (or never sent) is not handed out, and expires so it can be sent anew.
-    if (
-      isOpenSigning(open) &&
-      open?.awaitingSend !== true &&
-      open?.documentId &&
-      open.signerId === userId
-    ) {
-      return {
-        documentId: open.documentId,
-        signingUrl: open.signingUrl ?? null,
-      };
-    }
+    if ("documentId" in signingState) return signingState;
 
     if (!user.email) {
       throw new Error("Signer email is required for signing");
     }
 
     const signed = await signPersistedRenderedDocument({
-      renderedDocumentId: document.id,
+      renderedDocumentId: signingState.document.id,
       organisationId: instance.organisationId,
       signerId: userId,
       signerType: "PMS_USER",
@@ -604,7 +568,7 @@ export class FormSigningService {
     } | null;
 
     return {
-      documentId: signing?.documentId ?? document.id,
+      documentId: signing?.documentId ?? signingState.document.id,
       signingUrl: signing?.signingUrl ?? null,
     };
   }

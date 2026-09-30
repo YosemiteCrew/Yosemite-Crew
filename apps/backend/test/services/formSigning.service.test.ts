@@ -2072,6 +2072,71 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
     );
   });
 
+  it.each([
+    { userId: "lead-vet", leadId: "lead-vet", canSign: true },
+    { userId: "other-staff", leadId: "lead-vet", canSign: false },
+  ])(
+    "restricts template-instance signing to the author or appointment lead",
+    async ({ userId, leadId, canSign }) => {
+      mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
+      mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+        id: "instance-vet",
+        organisationId: "org-1",
+        templateId: "tpl-vet",
+        appointmentId: "appt-1",
+        authorId: "template-author",
+        createdAt: new Date("2026-01-01"),
+        generatedPdf: { signer: "VET" },
+        status: "COMPLETED",
+        template: { kind: "FORM", rules: { requiredSigner: "VET" } },
+      });
+      mockedPrisma.user.findUnique.mockResolvedValueOnce({
+        email: "vet@example.com",
+        firstName: "Vet",
+        lastName: "User",
+      });
+      mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+        lead: { id: leadId },
+      });
+      if (canSign) {
+        (hasNewerSubmissionForSigner as jest.Mock).mockResolvedValueOnce(false);
+        mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+          id: "doc-vet",
+          signing: null,
+        });
+        mockedSignPersistedRenderedDocument.mockResolvedValueOnce({
+          signing: {
+            documentId: "999",
+            signingUrl: "https://documenso.example/sign/vet-token",
+          },
+        });
+      }
+
+      const signing = FormSigningService.startSigning({
+        isParent: false,
+        submissionId: "instance-vet",
+        initiatedBy: userId,
+        organisationId: "org-1",
+      });
+
+      if (canSign) {
+        await expect(signing).resolves.toEqual({
+          documentId: "999",
+          signingUrl: "https://documenso.example/sign/vet-token",
+        });
+        expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+          where: { id: "appt-1", organisationId: "org-1" },
+          select: { lead: true },
+        });
+      } else {
+        await expect(signing).rejects.toThrow(
+          "Unauthorized to sign this submission",
+        );
+        expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("refuses practice staff on a template instance that requires client signature", async () => {
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
     mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
