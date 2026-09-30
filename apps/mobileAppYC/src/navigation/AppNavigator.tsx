@@ -144,7 +144,7 @@ export const AppNavigator: React.FC = () => {
     runInBackground(loadPendingProfileRef.current());
     const subscription = DeviceEventEmitter.addListener(
       PENDING_PROFILE_UPDATED_EVENT,
-      () => loadPendingProfileRef.current(),
+      () => runInBackground(loadPendingProfileRef.current()),
     );
     return () => subscription.remove();
   }, []);
