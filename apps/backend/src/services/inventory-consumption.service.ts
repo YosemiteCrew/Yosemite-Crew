@@ -1455,31 +1455,6 @@ const applyInventoryConsumption = async (
 
     const consume = Math.min(available, remaining);
     remaining -= consume;
-
-    // Only written if the batch still holds what this draw needs. A concurrent
-    // dispense or count that took from it since matches no row, and the whole
-    // dispense is refused rather than taking the batch below zero.
-    const claimed = await tx.$executeRaw`
-      UPDATE "InventoryBatch"
-      SET "quantity" = "quantity" - ${consume}, "updatedAt" = ${new Date()}
-      WHERE "id" = ${batch.id}
-        AND "organisationId" = ${params.organisationId}
-        AND "quantity" >= ${consume}
-    `;
-    if (claimed !== 1) {
-      throw new InventoryConsumptionServiceError(STOCK_CHANGED_MESSAGE, 409);
-    }
-
-    await tx.inventoryStockMovement.create({
-      data: {
-        itemId: params.inventoryItemId,
-        batchId: batch.id,
-        change: -consume,
-        reason: params.movementReason ?? "MANUAL_ADJUSTMENT",
-        referenceId: params.sourceId,
-      },
-    });
-
     draws.push({
       batchId: batch.id,
       quantity: consume,
@@ -1493,6 +1468,42 @@ const applyInventoryConsumption = async (
       500,
     );
   }
+
+  // One conditional write for every batch drawn from: a row is only written if
+  // it still holds what this draw needs. A concurrent dispense or count that
+  // took from it since matches no row, and the whole dispense is refused
+  // rather than taking the batch below zero.
+  const claimed = await tx.$executeRaw`
+    UPDATE "InventoryBatch" AS b
+    SET "quantity" = b."quantity" - v."quantity", "updatedAt" = NOW()
+    FROM (VALUES ${Prisma.join(
+      draws.map(
+        ({ batchId, quantity }) =>
+          Prisma.sql`(${batchId}::text, ${quantity}::int)`,
+      ),
+    )}) AS v("id", "quantity")
+    WHERE b."id" = v."id"
+      AND b."organisationId" = ${params.organisationId}
+      AND b."quantity" >= v."quantity"
+  `;
+  if (claimed !== draws.length) {
+    throw new InventoryConsumptionServiceError(STOCK_CHANGED_MESSAGE, 409);
+  }
+
+  // Increasing timestamps in draw order, as one insert per draw used to give:
+  // a release walks these newest first, so it keeps restoring the last batch
+  // drawn before the first.
+  const drawnAt = Date.now();
+  await tx.inventoryStockMovement.createMany({
+    data: draws.map(({ batchId, quantity }, index) => ({
+      itemId: params.inventoryItemId,
+      batchId,
+      change: -quantity,
+      reason: params.movementReason ?? "MANUAL_ADJUSTMENT",
+      referenceId: params.sourceId,
+      createdAt: new Date(drawnAt + index),
+    })),
+  });
 
   const { event, onHand } = await finalizeInventoryAdjustment(
     tx,
