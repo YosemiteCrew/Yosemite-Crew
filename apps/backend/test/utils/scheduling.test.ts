@@ -335,7 +335,9 @@ describe("scheduling utils", () => {
         referenceDate,
         getBookableSlotsForDate: (_organisationId, vetId) => {
           started.push(vetId);
-          return new Promise((resolve) => resolvers.set(vetId, resolve));
+          return new Promise<ReturnType<typeof windowFor>>((resolve) =>
+            resolvers.set(vetId, resolve),
+          );
         },
       });
 

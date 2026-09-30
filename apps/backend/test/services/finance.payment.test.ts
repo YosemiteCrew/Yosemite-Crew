@@ -3710,7 +3710,7 @@ describe("FinancePaymentService", () => {
         inFlight -= 1;
         if (paymentId === "pay_2") throw new Error("provider refused");
         return {
-          refund: { id: `refund_${paymentId}`, amountRefunded: 30 },
+          refund: { refundId: `refund_${paymentId}`, amountRefunded: 30 },
           payment: { invoice: { id: "inv_seq", currency: "usd" } },
         } as never;
       });
@@ -3743,7 +3743,7 @@ describe("FinancePaymentService", () => {
         );
         return {
           refund: {
-            id: `refund_${paymentId}`,
+            refundId: `refund_${paymentId}`,
             amountRefunded: input?.amount ?? 0,
           },
           payment: {
@@ -3759,7 +3759,7 @@ describe("FinancePaymentService", () => {
     try {
       const result =
         await FinancePaymentService.refundInvoicePayments("inv_seq");
-      expect(result.refunds.map((refund) => refund.id)).toEqual([
+      expect(result.refunds.map((refund) => refund.refundId)).toEqual([
         "refund_pay_1",
         "refund_pay_2",
       ]);
