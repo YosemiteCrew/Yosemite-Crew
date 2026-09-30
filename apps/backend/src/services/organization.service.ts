@@ -21,6 +21,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { buildGeoPoint } from "src/utils/geojson";
 import { calculateDistanceMeters, toRadians } from "src/utils/geo";
+import { mapWithConcurrency } from "../utils/async-iteration";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -1151,9 +1152,7 @@ export const OrganizationService = {
 
     const total = organisations.length;
     const pageOrgs = organisations.slice(skip, skip + limit);
-    const results = [];
-
-    for (const org of pageOrgs) {
+    const results = await mapWithConcurrency(pageOrgs, async (org) => {
       // Select explicitly rather than spreading the rows. This response is
       // UNAUTHENTICATED, and the `org` object below is already hand-projected
       // for exactly that reason; the speciality and service rows were not, so
@@ -1213,7 +1212,7 @@ export const OrganizationService = {
             )
           : null;
 
-      results.push({
+      return {
         org: {
           _id: org.id,
           name: org.name,
@@ -1242,8 +1241,8 @@ export const OrganizationService = {
         distanceInMeters,
         rating: org.averageRating,
         specialitiesWithServices,
-      });
-    }
+      };
+    });
 
     return {
       data: results,

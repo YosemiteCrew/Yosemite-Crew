@@ -1465,6 +1465,62 @@ describe("OrganizationService", () => {
       expect(result.data[0].specialitiesWithServices).toHaveLength(1);
     });
 
+    it("loads each organisation's catalogue together and keeps the distance order", async () => {
+      const nearOrg = (id: string) => ({
+        ...baseOrg,
+        id,
+        name: id,
+        address: {
+          addressLine: "Line 1",
+          country: "US",
+          city: "City",
+          state: "CA",
+          postalCode: "90001",
+          latitude: 10,
+          longitude: 20,
+          location: null,
+        },
+      });
+      // Start from empty queues so no earlier test's stubs answer these reads.
+      (prisma.organization.findMany as jest.Mock).mockReset();
+      (prisma.speciality.findMany as jest.Mock).mockReset();
+      (prisma.service.findMany as jest.Mock).mockReset();
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        nearOrg("org-slow"),
+        nearOrg("org-fast"),
+      ]);
+      let releaseSlow!: (value: unknown) => void;
+      (prisma.speciality.findMany as jest.Mock)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseSlow = resolve;
+          }),
+        )
+        .mockResolvedValueOnce([]);
+      (prisma.service.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const pending = OrganizationService.listNearbyForAppointmentsPaginated(
+        10,
+        20,
+        500,
+        1,
+        10,
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.speciality.findMany).toHaveBeenCalledTimes(2);
+
+      releaseSlow([]);
+      const result = await pending;
+
+      expect(result.data.map((entry) => entry.org._id)).toEqual([
+        "org-slow",
+        "org-fast",
+      ]);
+    });
+
     // /getNearby is UNAUTHENTICATED - organization.router.ts mounts it behind
     // attachSessionIfPresent, which never rejects. The speciality and service
     // rows used to be spread whole into the response, publishing a practice's
