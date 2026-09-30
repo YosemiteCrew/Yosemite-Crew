@@ -173,9 +173,7 @@ export const OrganisationAuditContent = ({
           </div>
         )}
         {loading && (
-          <p className="p-5 text-body-4 text-text-secondary" role="status">
-            Loading activity…
-          </p>
+          <output className="block p-5 text-body-4 text-text-secondary">Loading activity…</output>
         )}
         {showEmpty && (
           <p className="p-5 text-body-4 text-text-secondary">No activity to show yet.</p>

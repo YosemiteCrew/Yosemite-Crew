@@ -10,8 +10,8 @@ import { z } from "zod";
 
 const OrganisationAuditFeedSchema = z
   .object({
-    limit: z.coerce.number().int().positive().optional(),
-    cursor: z.string().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+    cursor: z.string().max(200).optional(),
   })
   .strict();
 

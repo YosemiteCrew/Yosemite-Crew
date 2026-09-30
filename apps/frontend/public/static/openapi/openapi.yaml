@@ -1522,6 +1522,8 @@ paths:
                   maximum: 100
                 cursor:
                   type: string
+                  maxLength: 200
+              additionalProperties: false
       responses:
         200:
           description: A page of organisation audit activity.

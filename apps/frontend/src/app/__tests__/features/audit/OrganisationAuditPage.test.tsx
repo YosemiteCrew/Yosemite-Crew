@@ -114,5 +114,36 @@ describe('OrganisationAuditPage', () => {
       resolveFirst({ entries: [row], nextCursor: null });
     });
     expect(screen.queryByText('patient-1')).not.toBeInTheDocument();
+    expect(screen.getByText('patient-org-b')).toBeInTheDocument();
+  });
+
+  it('drops a pending next page from the previous organization', async () => {
+    let resolveMore: (value: unknown) => void = () => {};
+    getFeed
+      .mockResolvedValueOnce({ entries: [row], nextCursor: 'next-page' })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveMore = resolve;
+        })
+      )
+      .mockResolvedValueOnce({
+        entries: [{ ...row, id: 'org-b-event', patientId: 'patient-org-b' }],
+        nextCursor: null,
+      });
+    const view = render(<OrganisationAuditPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more activity' }));
+
+    mockOrgId = 'org-b';
+    view.rerender(<OrganisationAuditPage />);
+    expect(await screen.findByText('patient-org-b')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveMore({
+        entries: [{ ...row, id: 'event-2', patientId: 'patient-2' }],
+        nextCursor: null,
+      });
+    });
+    expect(screen.queryByText('patient-2')).not.toBeInTheDocument();
+    expect(screen.getByText('patient-org-b')).toBeInTheDocument();
   });
 });

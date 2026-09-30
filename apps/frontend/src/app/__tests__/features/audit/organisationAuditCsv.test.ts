@@ -31,6 +31,7 @@ describe('organisationAuditCsv', () => {
         },
       ])
     ).toContain('"Unknown","Record","\' =HYPERLINK(""x"")"');
+    expect(organisationAuditCsv([{ ...entry, patientId: '\tcmd' }])).toContain('"\'\tcmd"');
     expect(organisationAuditCsv([]).split('\r\n')).toHaveLength(1);
   });
 });

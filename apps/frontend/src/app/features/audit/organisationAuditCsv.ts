@@ -6,7 +6,8 @@ import {
 } from '@/app/features/audit/auditPresentation';
 
 const csvCell = (value: string): string => {
-  const safe = /^\s*[-=+@]/.test(value) ? `'${value}` : value;
+  // Tab and carriage return also start a formula in some spreadsheet apps.
+  const safe = /^(?:[\t\r]|\s*[-=+@])/.test(value) ? `'${value}` : value;
   return `"${safe.replaceAll('"', '""')}"`;
 };
 

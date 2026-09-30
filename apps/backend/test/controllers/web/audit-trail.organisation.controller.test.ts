@@ -83,6 +83,8 @@ describe("AuditTrailController.listForOrganisation", () => {
     ["malformed limit", { limit: "2rows" }],
     ["fractional limit", { limit: "12.8" }],
     ["non-positive limit", { limit: 0 }],
+    ["oversized limit", { limit: 101 }],
+    ["oversized cursor", { cursor: "a".repeat(201) }],
     ["organization override", { organisationId: "org-b" }],
   ])("rejects %s at the request boundary", async (_label, body) => {
     const response = await call({ organisationId: "org-a", body });
