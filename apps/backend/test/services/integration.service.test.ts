@@ -214,11 +214,13 @@ describe("IntegrationService", () => {
 
       expect(result).toEqual({ ok: true });
       expect(adapter.validateCredentials).toHaveBeenCalled();
-      expect(prisma.integrationAccount.updateMany).toHaveBeenCalledWith(
+      expect(prisma.integrationAccount.update).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: { id: "1" },
           data: expect.objectContaining({ credentialsStatus: "valid" }),
         }),
       );
+      expect(prisma.integrationAccount.updateMany).not.toHaveBeenCalled();
     });
   });
 
@@ -278,6 +280,7 @@ describe("IntegrationService", () => {
 
   it("validates credentials and updates status", async () => {
     (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+      id: "account-1",
       credentials: { username: "u" },
     });
     adapter.validateCredentials.mockResolvedValue({
@@ -291,7 +294,13 @@ describe("IntegrationService", () => {
     );
 
     expect(result).toEqual({ ok: false, reason: "bad" });
-    expect(prisma.integrationAccount.updateMany).toHaveBeenCalled();
+    expect(prisma.integrationAccount.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "account-1" },
+        data: expect.objectContaining({ credentialsStatus: "invalid" }),
+      }),
+    );
+    expect(prisma.integrationAccount.updateMany).not.toHaveBeenCalled();
   });
 
   it("throws when required account is missing", async () => {

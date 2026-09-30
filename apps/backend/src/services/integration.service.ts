@@ -410,8 +410,8 @@ export const IntegrationService = {
       account.credentials as unknown as IntegrationCredentials,
     );
 
-    await prisma.integrationAccount.updateMany({
-      where: { organisationId: safeOrganisationId, provider: normalized },
+    await prisma.integrationAccount.update({
+      where: { id: account.id },
       data: {
         credentialsStatus: result.ok ? "valid" : "invalid",
         lastValidatedAt: new Date(),

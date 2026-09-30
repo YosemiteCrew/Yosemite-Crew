@@ -29,5 +29,8 @@ export const validateRequiredCredentials = <T extends object>(
       return Promise.resolve({ ok: false, reason: `${field} is required.` });
     }
   }
-  return Promise.resolve({ ok: true });
+  return Promise.resolve({
+    ok: false,
+    reason: `${provider} cannot be validated until a connection is available.`,
+  });
 };

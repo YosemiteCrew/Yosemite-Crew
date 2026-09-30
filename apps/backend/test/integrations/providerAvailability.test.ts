@@ -44,12 +44,15 @@ describe("integration provider availability", () => {
 });
 
 describe("validateRequiredCredentials", () => {
-  it("accepts a well-formed payload for a provider that is not connected yet", async () => {
+  it("does not report a connection for a well-formed payload", async () => {
     await expect(
       validateRequiredCredentials("LAIKA", { apiKey: "shape check only" }, [
         "apiKey",
       ]),
-    ).resolves.toEqual({ ok: true });
+    ).resolves.toEqual({
+      ok: false,
+      reason: "LAIKA cannot be validated until a connection is available.",
+    });
   });
 
   it("still rejects a missing or blank field for a provider that is not connected yet", async () => {

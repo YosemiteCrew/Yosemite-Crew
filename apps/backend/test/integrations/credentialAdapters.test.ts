@@ -277,12 +277,13 @@ describe.each(cases)("%s credential validation", (_name, create, fields) => {
     await expect(adapter.validateCredentials({})).resolves.toEqual(missing);
   });
 
-  it("accepts credentials with every required field", async () => {
-    await expect(create().validateCredentials(filled(fields))).resolves.toEqual(
-      {
-        ok: true,
-      },
-    );
+  it("does not report a connection for well-formed credentials", async () => {
+    await expect(
+      create().validateCredentials(filled(fields)),
+    ).resolves.toMatchObject({
+      ok: false,
+      reason: expect.stringContaining("until a connection is available."),
+    });
   });
 
   it.each(fields)("reports %s when it is blank or absent", async (field) => {
