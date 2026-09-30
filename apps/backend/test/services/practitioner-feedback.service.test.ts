@@ -8,6 +8,7 @@ import {
   PractitionerFeedbackService,
   PractitionerFeedbackServiceError,
 } from "src/services/practitioner-feedback.service";
+import { AuditTrailService } from "src/services/audit-trail.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -16,6 +17,10 @@ jest.mock("src/config/prisma", () => ({
       upsert: jest.fn(),
     },
   },
+}));
+
+jest.mock("src/services/audit-trail.service", () => ({
+  AuditTrailService: { recordSafely: jest.fn() },
 }));
 
 jest.mock("src/services/appointment.prisma.service", () => ({
@@ -95,7 +100,10 @@ describe("PractitionerFeedbackService", () => {
   });
 
   it("creates feedback using only the practitioner on the owned appointment", async () => {
-    (prisma.organisationRating.upsert as jest.Mock).mockResolvedValue({});
+    (prisma.organisationRating.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.organisationRating.upsert as jest.Mock).mockResolvedValue({
+      id: "feedback-1",
+    });
 
     await expect(
       PractitionerFeedbackService.rateAppointment(
@@ -119,21 +127,64 @@ describe("PractitionerFeedbackService", () => {
       },
       update: { rating: 5, review: "Great care" },
     });
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith({
+      organisationId: "clinic-1",
+      patientId: "patient-1",
+      eventType: "PRACTITIONER_FEEDBACK_SUBMITTED",
+      actorType: "PARENT",
+      actorId: parentId,
+      entityType: "APPOINTMENT",
+      entityId: appointmentId,
+      metadata: { feedbackId: "feedback-1" },
+    });
   });
 
   it("updates only the feedback fields so the original practitioner attribution stays fixed", async () => {
+    (prisma.organisationRating.findUnique as jest.Mock).mockResolvedValue({
+      id: "feedback-1",
+    });
+    (prisma.organisationRating.upsert as jest.Mock).mockResolvedValue({
+      id: "feedback-1",
+    });
     await PractitionerFeedbackService.rateAppointment(
       appointmentId,
       parentId,
       2,
-      "Updated",
+      "Second thoughts",
     );
 
     expect(prisma.organisationRating.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: { rating: 2, review: "Updated" },
+        update: { rating: 2, review: "Second thoughts" },
       }),
     );
+    expect(prisma.organisationRating.findUnique).toHaveBeenCalledWith({
+      where: { appointmentId_userId: { appointmentId, userId: parentId } },
+      select: { id: true },
+    });
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "PRACTITIONER_FEEDBACK_UPDATED",
+        actorType: "PARENT",
+        actorId: parentId,
+        metadata: { feedbackId: "feedback-1" },
+      }),
+    );
+    expect(
+      JSON.stringify((AuditTrailService.recordSafely as jest.Mock).mock.calls),
+    ).not.toContain("Second thoughts");
+  });
+
+  it("does not save or audit feedback on an appointment the parent cannot see", async () => {
+    (AppointmentPrismaService.getById as jest.Mock).mockRejectedValue(
+      new AppointmentPrismaServiceError("Appointment not found", 404),
+    );
+
+    await expect(
+      PractitionerFeedbackService.rateAppointment(appointmentId, parentId, 5),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prisma.organisationRating.upsert).not.toHaveBeenCalled();
+    expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
   });
 
   it("rejects feedback before the appointment is complete", async () => {

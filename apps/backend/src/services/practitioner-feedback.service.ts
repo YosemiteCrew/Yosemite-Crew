@@ -1,5 +1,6 @@
 import { fromFHIRAppointment } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
+import { AuditTrailService } from "src/services/audit-trail.service";
 import {
   AppointmentPrismaService,
   AppointmentPrismaServiceError,
@@ -56,12 +57,20 @@ const getCompletedAppointmentTarget = async (
   }
 
   return {
-    appointmentId,
-    practitionerId,
-    practitionerName: appointment.lead.name.trim(),
-    userId: parentId,
+    feedback: {
+      appointmentId,
+      practitionerId,
+      practitionerName: appointment.lead.name.trim(),
+      userId: parentId,
+    },
+    organisationId: appointment.organisationId,
+    patientId: appointment.patient.id,
   };
 };
+
+const feedbackKey = (appointmentId: string, userId: string) => ({
+  appointmentId_userId: { appointmentId, userId },
+});
 
 const validateFeedback = (rating: number, review?: string) => {
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -82,12 +91,7 @@ export const PractitionerFeedbackService = {
   async getForAppointment(appointmentId: string, parentId: string) {
     const target = await getCompletedAppointmentTarget(appointmentId, parentId);
     const feedback = await prisma.organisationRating.findUnique({
-      where: {
-        appointmentId_userId: {
-          appointmentId: target.appointmentId,
-          userId: target.userId,
-        },
-      },
+      where: feedbackKey(appointmentId, parentId),
     });
 
     return feedback
@@ -101,7 +105,7 @@ export const PractitionerFeedbackService = {
           isRated: false,
           rating: null,
           review: null,
-          practitionerName: target.practitionerName,
+          practitionerName: target.feedback.practitionerName,
         };
   },
 
@@ -114,17 +118,17 @@ export const PractitionerFeedbackService = {
     validateFeedback(rating, review);
     const target = await getCompletedAppointmentTarget(appointmentId, parentId);
     const normalizedReview = review?.trim() || null;
+    const where = feedbackKey(appointmentId, parentId);
 
-    await prisma.organisationRating.upsert({
-      where: {
-        appointmentId_userId: {
-          appointmentId: target.appointmentId,
-          userId: target.userId,
-        },
-      },
+    const existing = await prisma.organisationRating.findUnique({
+      where,
+      select: { id: true },
+    });
+    const saved = await prisma.organisationRating.upsert({
+      where,
       create: {
         organizationId: null,
-        ...target,
+        ...target.feedback,
         rating,
         review: normalizedReview,
       },
@@ -132,6 +136,20 @@ export const PractitionerFeedbackService = {
         rating,
         review: normalizedReview,
       },
+    });
+
+    // Who changed the feedback and when; the review text stays out of the trail.
+    await AuditTrailService.recordSafely({
+      organisationId: target.organisationId,
+      patientId: target.patientId,
+      eventType: existing
+        ? "PRACTITIONER_FEEDBACK_UPDATED"
+        : "PRACTITIONER_FEEDBACK_SUBMITTED",
+      actorType: "PARENT",
+      actorId: parentId,
+      entityType: "APPOINTMENT",
+      entityId: appointmentId,
+      metadata: { feedbackId: saved.id },
     });
 
     return { success: true };

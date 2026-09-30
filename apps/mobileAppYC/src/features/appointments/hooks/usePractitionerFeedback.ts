@@ -4,6 +4,7 @@ import {
   isTokenExpired,
 } from '@/features/auth/sessionManager';
 import {appointmentApi} from '@/features/appointments/services/appointmentsService';
+import {describeRequestError} from '@/shared/utils/safeErrorLog';
 
 export type PractitionerFeedbackState = {
   isRated: boolean;
@@ -61,7 +62,7 @@ export const useFetchPractitionerFeedbackIfNeeded = ({
       } catch (error) {
         console.warn(
           '[Appointments] Failed to fetch veterinarian feedback',
-          error,
+          describeRequestError(error),
         );
         setFeedbackByAppointment(previous => ({
           ...previous,

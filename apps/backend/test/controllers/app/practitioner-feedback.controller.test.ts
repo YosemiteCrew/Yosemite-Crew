@@ -6,6 +6,7 @@ import {
 } from "src/services/practitioner-feedback.service";
 import { PractitionerFeedbackController } from "src/controllers/app/practitioner-feedback.controller";
 import { resolveVerifiedUserId } from "src/utils/request";
+import logger from "src/utils/logger";
 
 jest.mock("src/services/authUserMobile.service", () => ({
   AuthUserMobileService: { getByProviderUserId: jest.fn() },
@@ -186,6 +187,7 @@ describe("PractitionerFeedbackController", () => {
     expect(response.json).toHaveBeenCalledWith({
       message: "Feedback is not available yet.",
     });
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it("returns a safe server error when loading fails unexpectedly", async () => {
@@ -223,10 +225,17 @@ describe("PractitionerFeedbackController", () => {
     const response = makeResponse();
     (
       PractitionerFeedbackService.rateAppointment as jest.Mock
-    ).mockRejectedValue(new Error("database detail"));
+    ).mockRejectedValue(
+      Object.assign(new Error("database detail"), {
+        meta: { review: "Private review text" },
+      }),
+    );
 
     await PractitionerFeedbackController.rateAppointment(
-      makeRequest({ appointmentId: "appointment-1" }, { rating: 5 }),
+      makeRequest(
+        { appointmentId: "appointment-1" },
+        { rating: 5, review: "Private review text" },
+      ),
       response,
     );
 
@@ -234,5 +243,12 @@ describe("PractitionerFeedbackController", () => {
     expect(response.json).toHaveBeenCalledWith({
       message: "Unable to save feedback.",
     });
+    expect(logger.error).toHaveBeenCalledWith(
+      "Unable to save practitioner feedback",
+      { error: { kind: "error", name: "Error", message: "database detail" } },
+    );
+    expect(
+      JSON.stringify((logger.error as jest.Mock).mock.calls),
+    ).not.toContain("Private review text");
   });
 });

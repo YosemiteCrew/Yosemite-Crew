@@ -487,6 +487,11 @@ describe('ReviewScreen', () => {
       expect(input.props.value).toBe('Great service!');
     });
 
+    it('limits the review to the length the server accepts', () => {
+      const {getByPlaceholderText} = renderScreen();
+      expect(getByPlaceholderText('Your review').props.maxLength).toBe(1000);
+    });
+
     it('updates rating when stars pressed', () => {
       const {getByText} = renderScreen();
       const setRatingText = getByText('Set Rating 5');
@@ -540,7 +545,7 @@ describe('ReviewScreen', () => {
         expect(appointmentApi.savePractitionerFeedback).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledWith(
           expect.stringContaining('Failed to submit'),
-          expect.any(Error),
+          expect.any(String),
         );
         // The user must see this, not just the developer console.
         expect(Alert.alert).toHaveBeenCalledWith(
@@ -570,7 +575,15 @@ describe('ReviewScreen', () => {
 
     it('handles API submission failure', async () => {
       (appointmentApi.savePractitionerFeedback as jest.Mock).mockRejectedValue(
-        new Error('API Fail'),
+        Object.assign(new Error('API Fail'), {
+          config: {
+            method: 'put',
+            url: '/v1/organisation-rating/appointment/apt-1/practitioner-feedback',
+            headers: {Authorization: 'Bearer secret-token'},
+            data: '{"rating":4,"review":"Private review text"}',
+          },
+          response: {status: 500},
+        }),
       );
 
       const {getByTestId} = renderScreen();
@@ -579,13 +592,16 @@ describe('ReviewScreen', () => {
       await waitFor(() => {
         expect(console.warn).toHaveBeenCalledWith(
           expect.stringContaining('Failed to submit'),
-          expect.any(Error),
+          expect.any(String),
         );
         expect(mockGoBack).not.toHaveBeenCalled();
         expect(Alert.alert).toHaveBeenCalledWith(
           'Review not submitted',
           'API Fail',
         );
+        const logged = JSON.stringify((console.warn as jest.Mock).mock.calls);
+        expect(logged).not.toContain('secret-token');
+        expect(logged).not.toContain('Private review text');
       });
     });
 
@@ -634,7 +650,7 @@ describe('ReviewScreen', () => {
         expect(appointmentApi.savePractitionerFeedback).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledWith(
           expect.stringContaining('Failed to submit'),
-          expect.any(Error),
+          expect.any(String),
         );
       });
     });

@@ -34,6 +34,8 @@ import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 import i18next from 'i18next';
+import {describeRequestError} from '@/shared/utils/safeErrorLog';
+
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const formatVisitDate = (value?: string | null): string => {
@@ -140,7 +142,10 @@ const ReviewForm: React.FC<AppointmentStackParamList['Review']> = ({
       });
       navigation.goBack();
     } catch (error) {
-      console.warn('[Review] Failed to submit rating', error);
+      console.warn(
+        '[Review] Failed to submit feedback',
+        describeRequestError(error),
+      );
       const message =
         error instanceof Error
           ? error.message
@@ -214,6 +219,7 @@ const ReviewForm: React.FC<AppointmentStackParamList['Review']> = ({
             <TextInput
               value={review}
               onChangeText={setReview}
+              maxLength={1000}
               multiline={false}
               placeholder={i18next.t('appointments.reviewPlaceholder')}
               placeholderTextColor={theme.colors.inkFaint}

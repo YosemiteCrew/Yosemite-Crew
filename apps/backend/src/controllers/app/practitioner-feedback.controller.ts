@@ -7,6 +7,7 @@ import {
 } from "src/services/practitioner-feedback.service";
 import logger from "src/utils/logger";
 import { resolveVerifiedUserId } from "src/utils/request";
+import { toSafeErrorLog } from "src/utils/safe-error-log";
 
 const FeedbackBodySchema = z
   .object({
@@ -37,10 +38,12 @@ const resolveParentId = async (req: Request, res: Response) => {
 };
 
 const sendError = (res: Response, action: string, error: unknown) => {
-  logger.error(`Unable to ${action} practitioner feedback`, { error });
   if (error instanceof PractitionerFeedbackServiceError) {
     return res.status(error.statusCode).json({ message: error.message });
   }
+  logger.error(`Unable to ${action} practitioner feedback`, {
+    error: toSafeErrorLog(error),
+  });
   return res.status(500).json({
     message:
       action === "load"

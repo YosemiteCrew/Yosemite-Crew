@@ -131,7 +131,14 @@ describe('useFetchPractitionerFeedbackIfNeeded', () => {
   });
 
   it('marks API failures as retryable and logs the failure', async () => {
-    const error = new Error('offline');
+    const error = Object.assign(new Error('offline'), {
+      config: {
+        method: 'post',
+        url: '/v1/organisation-rating/practitioner-feedback',
+        headers: {Authorization: 'Bearer secret-token'},
+      },
+      response: {status: 503},
+    });
     (appointmentApi.getPractitionerFeedback as jest.Mock).mockRejectedValue(
       error,
     );
@@ -146,8 +153,11 @@ describe('useFetchPractitionerFeedbackIfNeeded', () => {
 
     expect(console.warn).toHaveBeenCalledWith(
       '[Appointments] Failed to fetch veterinarian feedback',
-      error,
+      'POST /v1/organisation-rating/practitioner-feedback failed (503): offline',
     );
+    expect(
+      JSON.stringify((console.warn as jest.Mock).mock.calls),
+    ).not.toContain('secret-token');
     const finalUpdate = setFeedbackByAppointment.mock.calls.at(-1)?.[0];
     expect(finalUpdate({})[appointmentId]).toEqual({
       isRated: false,
