@@ -314,11 +314,14 @@ export const Inpatient: Story = {
     ]);
     await expect(triggers.map((item) => item.textContent)).toEqual(['Ward A', 'Kennel A1']);
 
-    /* The design's 44px field height and 16px stack gap, measured off the border
-       box. `getComputedStyle().height` reads 41 here, not 44: these triggers
-       carry a 1.5px border, and the computed value is the CONTENT box. */
+    /* The shared field height and 16px stack gap, measured off the border box:
+       40px at desktop density, 44px on a phone or a touch screen. */
+    const fieldHeight = globalThis.matchMedia('(width < 40rem), (pointer: coarse)').matches
+      ? 44
+      : 40;
     await expect(triggers.map((item) => Math.round(item.getBoundingClientRect().height))).toEqual([
-      44, 44,
+      fieldHeight,
+      fieldHeight,
     ]);
     const [roomField, unitField] = triggers.map(fieldWrapperOf);
     const gap = unitField.getBoundingClientRect().top - roomField.getBoundingClientRect().bottom;
@@ -328,8 +331,9 @@ export const Inpatient: Story = {
     docs: {
       description: {
         story:
-          'Both fields stack at the same 44px height with a 16px gap, asserted here off the ' +
-          "border box. The unit label is the unit's `displayName`, falling back to its `code` - " +
+          'Both fields stack at the same height with a 16px gap, asserted here off the border ' +
+          'box: 40px at desktop density and 44px on a phone or touch screen. The unit label ' +
+          "is the unit's `displayName`, falling back to its `code` - " +
           'a unit created without a display name shows as "WARD-A-03" rather than blank.',
       },
     },

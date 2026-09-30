@@ -297,7 +297,7 @@ export const Drawer: Story = {
 
     // Empty form: nothing typed, neither dropdown answered, no errors raised yet.
     await expect(panel.getByLabelText('Email')).toHaveValue('');
-    await expect(panel.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'false');
+    await expect(panel.getByLabelText('Email')).not.toHaveAttribute('aria-invalid');
     await expect(panel.getByRole('button', { name: 'Speciality' })).toHaveAttribute(
       'aria-expanded',
       'false'
@@ -470,7 +470,7 @@ export const InvalidEmail: Story = {
        outlive the value that caused it. */
     await userEvent.type(panel.getByLabelText('Email'), 'sunrisevet.example');
     await waitFor(() => expect(panel.queryAllByRole('alert')).toHaveLength(0));
-    await expect(panel.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'false');
+    await expect(panel.getByLabelText('Email')).not.toHaveAttribute('aria-invalid');
   },
   parameters: {
     docs: {

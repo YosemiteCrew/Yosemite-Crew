@@ -70,6 +70,32 @@ const partsOf = (canvasElement: HTMLElement, label: string) => {
   return { labelEl, shell };
 };
 
+/**
+ * The notch, measured as a fieldset draws it. A rendered `legend` owns the top
+ * edge of the fieldset's box and the browser runs the top border through the
+ * legend's middle, cutting it where the text sits - so the label box starts
+ * exactly at the shell's top edge and straddles the drawn border from there.
+ * Absolutely positioning or floating the legend stops it being the rendered
+ * legend: the border closes up and the label drops inside the box beside the
+ * value, which is a different component entirely.
+ */
+const expectNotchedLabel = async (labelEl: HTMLElement, shell: HTMLElement) => {
+  await expect(labelEl.tagName).toBe('LEGEND');
+  await expect(labelEl.parentElement).toBe(shell);
+  const labelStyle = globalThis.getComputedStyle(labelEl);
+  await expect(['static', 'relative']).toContain(labelStyle.position);
+  await expect(labelStyle.float).toBe('none');
+
+  const labelBox = labelEl.getBoundingClientRect();
+  const shellBox = shell.getBoundingClientRect();
+  await expect(Math.round(labelBox.top)).toBe(Math.round(shellBox.top));
+  // Inset from the corner, so the border still turns before the label starts.
+  await expect(labelBox.left).toBeGreaterThan(shellBox.left);
+  // Above the value row, not beside it inside the box.
+  const content = [...shell.children].find((child) => child !== labelEl) as HTMLElement;
+  await expect(labelBox.bottom).toBeLessThanOrEqual(content.getBoundingClientRect().top);
+};
+
 /** The initials chip AppointmentAvatar draws when there is no photo. */
 const chipIn = (canvasElement: HTMLElement) =>
   canvasElement.querySelector<HTMLElement>('div[aria-hidden="true"]');
@@ -153,15 +179,8 @@ export const Assigned: Story = {
     await expect(shellStyle.backgroundColor).toBe(resolveToken(shell, '--field-bg'));
     await expect(shellStyle.backgroundColor).not.toBe(resolveToken(shell, '--screen'));
 
-    /* The notch: the label straddles the top border rather than sitting inside the
-       box. `-top-[7px]` flipped to `top-[7px]` drops it into the field beside the
-       value, which is a different component entirely. */
-    const labelBox = labelEl.getBoundingClientRect();
-    const shellBox = shell.getBoundingClientRect();
-    await expect(labelBox.top).toBeLessThan(shellBox.top);
-    await expect(labelBox.bottom).toBeGreaterThan(shellBox.top);
-    // Inset from the corner, so the border still turns before the label starts.
-    await expect(labelBox.left).toBeGreaterThan(shellBox.left);
+    // The notch: the label straddles the top border rather than sitting inside the box.
+    await expectNotchedLabel(labelEl, shell);
 
     /* The legend must paint NOTHING. Any background here is the old bug: a patch
        that happens to match one ground and shows as a coloured rectangle on every
@@ -295,7 +314,6 @@ export const Shell: Story = {
     for (const label of ['Consultation type', 'Room']) {
       const { labelEl, shell } = partsOf(canvasElement, label);
       const shellBox = shell.getBoundingClientRect();
-      const labelBox = labelEl.getBoundingClientRect();
 
       /* The shell is chrome, not a staff field: whatever it is given, it holds the
          same 46px box, the same 14px radius and the same notch. Four other fields in
@@ -303,8 +321,7 @@ export const Shell: Story = {
          as a step in the row rather than as a broken component. */
       await expect(Math.round(shellBox.height)).toBe(46);
       await expect(globalThis.getComputedStyle(shell).borderRadius).toBe('14px');
-      await expect(labelBox.top).toBeLessThan(shellBox.top);
-      await expect(labelBox.bottom).toBeGreaterThan(shellBox.top);
+      await expectNotchedLabel(labelEl, shell);
     }
 
     /* Extra children sit after the value rather than replacing it, and the value

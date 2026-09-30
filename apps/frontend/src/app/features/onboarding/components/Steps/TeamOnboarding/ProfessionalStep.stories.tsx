@@ -274,7 +274,7 @@ export const MissingRequired: Story = {
     );
     await expect(
       canvas.getByRole('textbox', { name: 'LinkedIn profile URL (optional)' })
-    ).toHaveAttribute('aria-invalid', 'false');
+    ).not.toHaveAttribute('aria-invalid');
 
     // The guard returns before `setIsSaving(true)`, the only thing that happens
     // ahead of `updateUserProfile`, so these two untouched is the proof that no

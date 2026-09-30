@@ -243,7 +243,7 @@ export const ErrorsOnlyRecomputeOnSave: Story = {
     // `handleSave` REPLACES the error object rather than merging into it, so the
     // cleared field must lose its message rather than keep it from the last press.
     await waitFor(() => expect(panel.queryByText('Name is required')).not.toBeInTheDocument());
-    await expect(panel.getByLabelText('Document title')).toHaveAttribute('aria-invalid', 'false');
+    await expect(panel.getByLabelText('Document title')).not.toHaveAttribute('aria-invalid');
 
     /* What is left is the file error alone - and with the title's alert gone,
        the drawer is now refusing to save while announcing nothing at all. */

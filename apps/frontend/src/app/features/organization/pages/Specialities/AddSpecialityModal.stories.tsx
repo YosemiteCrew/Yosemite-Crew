@@ -97,7 +97,7 @@ export const Empty: Story = {
     const input = panel.getByLabelText('Speciality name');
     await expect(input).toHaveValue('');
     // Nothing is validated until a submit, so the field opens clean.
-    await expect(input).toHaveAttribute('aria-invalid', 'false');
+    await expect(input).not.toHaveAttribute('aria-invalid');
     await expect(panel.queryByRole('alert')).not.toBeInTheDocument();
 
     /* `href="#"` must not produce anchors. An <a href="#"> looks identical, takes
@@ -146,7 +146,7 @@ export const NameRequired: Story = {
        the user is not still being shouted at while they fix it. */
     await userEvent.type(input, 'D');
     await expect(panel.queryByRole('alert')).not.toBeInTheDocument();
-    await expect(input).toHaveAttribute('aria-invalid', 'false');
+    await expect(input).not.toHaveAttribute('aria-invalid');
   },
 };
 

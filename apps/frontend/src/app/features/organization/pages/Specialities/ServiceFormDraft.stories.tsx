@@ -203,10 +203,7 @@ export const ValidationErrors: Story = {
     await expect(canvas.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true');
     await expect(canvas.getByLabelText('Gross amt.')).toHaveAttribute('aria-invalid', 'true');
     // The 0% default discount is valid, so its field must stay clean.
-    await expect(canvas.getByLabelText('Default discount (%)')).toHaveAttribute(
-      'aria-invalid',
-      'false'
-    );
+    await expect(canvas.getByLabelText('Default discount (%)')).not.toHaveAttribute('aria-invalid');
 
     // Typing clears only the field that was typed into.
     await userEvent.type(canvas.getByLabelText('Name'), 'Fluoride varnish');
@@ -253,10 +250,7 @@ export const DiscountRangeErrors: Story = {
     ).toBeInTheDocument();
     // The cross-field message lands on the default-discount field, not on max.
     await expect(defaultDiscount).toHaveAttribute('aria-invalid', 'true');
-    await expect(canvas.getByLabelText('Max. Discount (%)')).toHaveAttribute(
-      'aria-invalid',
-      'false'
-    );
+    await expect(canvas.getByLabelText('Max. Discount (%)')).not.toHaveAttribute('aria-invalid');
   },
   parameters: {
     docs: {
