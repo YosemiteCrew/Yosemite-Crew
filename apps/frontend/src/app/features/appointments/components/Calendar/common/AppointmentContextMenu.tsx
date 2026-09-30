@@ -11,6 +11,7 @@ import {
 } from '@/app/lib/appointments';
 import {
   assignEncounterUnit,
+  cancelAppointmentSeriesFromPms,
   changeAppointmentStatus,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
@@ -51,15 +52,16 @@ type AppointmentContextMenuProps = {
   onClose: () => void;
 };
 
-const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = ({
-  appointment,
-  canEditAppointments,
-  menuRef,
-  menuStyle,
-  handleViewAppointment,
-  handleRescheduleAppointment,
-  onClose,
-}) => {
+const useAppointmentContextMenu = (props: AppointmentContextMenuProps) => {
+  const {
+    appointment,
+    canEditAppointments,
+    menuRef,
+    menuStyle,
+    handleViewAppointment,
+    handleRescheduleAppointment,
+    onClose,
+  } = props;
   const router = useRouter();
   useLoadRoomsForPrimaryOrg({ force: true, silent: true });
   const rooms = useRoomsForPrimaryOrg();
@@ -88,13 +90,14 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
   );
   const clinicalNotesLabel = getClinicalNotesLabel(orgType);
   const clinicalNotesIntent = getClinicalNotesIntent(orgType);
-  const statusOptions = useMemo(
-    () =>
-      isRequestedLikeStatus(appointment.status)
-        ? []
-        : getAllowedAppointmentStatusTransitions(appointment.status),
-    [appointment.status]
-  );
+  const statusOptions = useMemo(() => {
+    const transitions = isRequestedLikeStatus(appointment.status)
+      ? []
+      : getAllowedAppointmentStatusTransitions(appointment.status);
+    return appointment.recurrenceSeriesId
+      ? transitions.filter((status) => status !== 'CANCELLED')
+      : transitions;
+  }, [appointment.recurrenceSeriesId, appointment.status]);
 
   const openCompanionHistory = () => {
     router.push(
@@ -128,6 +131,23 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
       onClose();
     } catch (error) {
       setMenuError(resolveMenuError(error, 'Unable to update appointment status.'));
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const handleSeriesCancellation = async (scope: 'this' | 'following') => {
+    try {
+      setSavingKey(scope === 'this' ? 'cancel-this' : 'cancel-following');
+      setMenuError(null);
+      if (scope === 'following') {
+        await cancelAppointmentSeriesFromPms(appointment);
+      } else {
+        await changeAppointmentStatus(appointment, 'CANCELLED');
+      }
+      onClose();
+    } catch (error) {
+      setMenuError(resolveMenuError(error, 'Unable to cancel appointment.'));
     } finally {
       setSavingKey(null);
     }
@@ -221,6 +241,19 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
     });
   }
 
+  if (
+    canEditAppointments &&
+    appointment.recurrenceSeriesId &&
+    (appointment.status === 'REQUESTED' || appointment.status === 'UPCOMING')
+  ) {
+    actions.push({
+      key: 'cancel-series',
+      label: 'Cancel appointment',
+      destructive: true,
+      submenu: 'cancel-series',
+    });
+  }
+
   if (canEditAppointments && allowReschedule(appointment.status)) {
     actions.push({
       key: 'reschedule',
@@ -286,6 +319,45 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
     showSubmenu(submenu, key, itemRefs);
   };
 
+  return {
+    actions,
+    activeSubmenu,
+    handleSeriesCancellation,
+    handleStatusChange,
+    itemRefs,
+    menuError,
+    menuPositionStyle,
+    menuRef,
+    openSubmenu,
+    roomOptions,
+    savingKey,
+    setActiveSubmenu,
+    statusOptions,
+    submenuPosition,
+    submenuRef,
+    submenuStyle,
+  };
+};
+
+const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (props) => {
+  const {
+    actions,
+    activeSubmenu,
+    handleSeriesCancellation,
+    handleStatusChange,
+    itemRefs,
+    menuError,
+    menuPositionStyle,
+    menuRef,
+    openSubmenu,
+    roomOptions,
+    savingKey,
+    setActiveSubmenu,
+    statusOptions,
+    submenuRef,
+    submenuStyle,
+  } = useAppointmentContextMenu(props);
+
   return (
     <>
       <div
@@ -331,6 +403,17 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
           onSelectStatus={(status) => {
             void handleStatusChange(status);
           }}
+        />
+      )}
+
+      {activeSubmenu === 'cancel-series' && (
+        <StatusSubmenu
+          submenuRef={submenuRef}
+          submenuStyle={submenuStyle}
+          statusOptions={[]}
+          savingKey={savingKey}
+          cancelSeriesOnly
+          onSelectStatus={(_status, scope) => handleSeriesCancellation(scope ?? 'this')}
         />
       )}
 

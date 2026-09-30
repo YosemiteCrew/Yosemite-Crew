@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import AppointmentContextMenu from '@/app/features/appointments/components/Calendar/common/AppointmentContextMenu';
 import {
   assignEncounterUnit,
+  cancelAppointmentSeriesFromPms,
   changeAppointmentStatus,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
@@ -53,6 +54,7 @@ jest.mock('@/app/features/organization/services/roomService', () => ({
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   assignEncounterUnit: jest.fn(),
+  cancelAppointmentSeriesFromPms: jest.fn(),
   changeAppointmentStatus: jest.fn(),
   updateAppointment: jest.fn(),
 }));
@@ -173,6 +175,48 @@ describe('AppointmentContextMenu', () => {
     );
 
     expect(screen.queryByRole('menuitem', { name: /Change status/i })).not.toBeInTheDocument();
+  });
+
+  it('offers scoped cancellation for recurring appointments only', async () => {
+    const onClose = jest.fn();
+    renderMenu(
+      { ...baseAppointment, status: 'UPCOMING', recurrenceSeriesId: 'series-1' },
+      { onClose }
+    );
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /Cancel appointment/ }));
+    expect(screen.getByRole('menu', { name: 'Cancel appointment series' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Cancel this appointment' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Cancel this and following' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel this and following' }));
+    });
+    expect(cancelAppointmentSeriesFromPms).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrenceSeriesId: 'series-1' })
+    );
+    expect(changeAppointmentStatus).not.toHaveBeenCalledWith(expect.anything(), 'CANCELLED');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('cancels only the selected recurring appointment when requested', async () => {
+    renderMenu({ ...baseAppointment, status: 'REQUESTED', recurrenceSeriesId: 'series-1' });
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /Cancel appointment/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel this appointment' }));
+    });
+
+    expect(changeAppointmentStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrenceSeriesId: 'series-1' }),
+      'CANCELLED'
+    );
+    expect(cancelAppointmentSeriesFromPms).not.toHaveBeenCalled();
+  });
+
+  it('does not offer series cancellation for a non-recurring appointment', () => {
+    renderMenu({ ...baseAppointment, status: 'UPCOMING' });
+    expect(screen.queryByRole('menuitem', { name: /Cancel appointment/ })).not.toBeInTheDocument();
   });
 
   it('shows a room submenu and updates the room inline', async () => {

@@ -1220,6 +1220,122 @@ paths:
                     $ref: '#/components/schemas/Appointment'
                   message:
                     type: string
+  /fhir/v1/appointment/pms/series/preview:
+    post:
+      tags:
+        - FHIR
+      summary: Preview weekly appointment dates and lead conflicts
+      operationId: post_fhir_v1_appointment_pms_series_preview
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leadId, timeZone, occurrences]
+              properties:
+                leadId:
+                  type: string
+                timeZone:
+                  type: string
+                occurrences:
+                  type: array
+                  minItems: 2
+                  maxItems: 52
+                  items:
+                    type: object
+                    required: [startTime, endTime]
+                    properties:
+                      startTime:
+                        type: string
+                        format: date-time
+                      endTime:
+                        type: string
+                        format: date-time
+      responses:
+        200:
+          description: Weekly appointment dates with lead conflicts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [index, startTime, endTime, hasConflict]
+                      properties:
+                        index:
+                          type: integer
+                        startTime:
+                          type: string
+                          format: date-time
+                        endTime:
+                          type: string
+                          format: date-time
+                        hasConflict:
+                          type: boolean
+  /fhir/v1/appointment/pms/series:
+    post:
+      tags:
+        - FHIR
+      summary: Book a weekly appointment series
+      operationId: post_fhir_v1_appointment_pms_series
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointment, timeZone, occurrences]
+              properties:
+                appointment:
+                  $ref: '#/components/schemas/Appointment'
+                timeZone:
+                  type: string
+                occurrences:
+                  type: array
+                  minItems: 2
+                  maxItems: 52
+                  items:
+                    type: object
+                    required: [startTime, endTime]
+                    properties:
+                      startTime:
+                        type: string
+                        format: date-time
+                      endTime:
+                        type: string
+                        format: date-time
+      responses:
+        201:
+          description: Created weekly appointment series
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
   '/fhir/v1/appointment/pms/organisation/{organisationId}':
     get:
       tags:
@@ -1373,6 +1489,16 @@ paths:
           description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [this, following]
+                  description: Apply cancellation to this appointment or this appointment and later occurrences.
       responses:
         200:
           description: Response
@@ -1406,6 +1532,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppointmentEnvelope'
+  '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/series/reschedule-preview':
+    post:
+      tags:
+        - FHIR
+      summary: Preview a recurring appointment reschedule
+      operationId: post_fhir_v1_appointment_pms_organisationId_appointmentId_series_reschedule_preview
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Appointment'
+      responses:
+        200:
+          description: Proposed times for this and following appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        [appointmentId, recurrenceSeriesIndex, startTime, endTime, hasConflict]
+                      properties:
+                        appointmentId:
+                          type: string
+                        recurrenceSeriesIndex:
+                          type: integer
+                        startTime:
+                          type: string
+                          format: date-time
+                        endTime:
+                          type: string
+                          format: date-time
+                        hasConflict:
+                          type: boolean
   '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}':
     patch:
       tags:
@@ -1425,6 +1603,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [following]
       requestBody:
         required: true
         content:

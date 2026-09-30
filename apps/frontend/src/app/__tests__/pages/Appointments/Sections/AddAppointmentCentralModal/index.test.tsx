@@ -10,11 +10,13 @@ import AddAppointmentCentralModal, {
   SlotBadge,
   DiscardConfirmationModal,
   buildBookButtonLabel,
+  WeeklySeriesPreviewList,
 } from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
 import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
+import { getPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
 
 // ── React 19 createPortal mock ──────────────────────────────────────────────
 jest.mock('react-dom', () => ({
@@ -299,6 +301,63 @@ describe('AddAppointmentCentralModal', () => {
   it('renders the Book appointment submit button', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
     expect(screen.getByRole('button', { name: /book appointment/i })).toBeInTheDocument();
+  });
+
+  it('reveals the bounded weekly-series controls and changes the first action to preview', () => {
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    fireEvent.click(screen.getByLabelText('Repeat this appointment weekly'));
+
+    expect(screen.getByLabelText('Number of appointments')).toHaveValue(4);
+    expect(screen.getByRole('button', { name: 'Preview dates' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Preview series' })).toBeInTheDocument();
+  });
+
+  it('clears weekly-series choices after the modal closes', () => {
+    const { rerender } = render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    fireEvent.click(screen.getByLabelText('Repeat this appointment weekly'));
+    fireEvent.change(screen.getByLabelText('Number of appointments'), { target: { value: '8' } });
+    expect(screen.getByLabelText('Repeat this appointment weekly')).toBeChecked();
+
+    rerender(<AddAppointmentCentralModal {...defaultProps} showModal={false} />);
+    rerender(<AddAppointmentCentralModal {...defaultProps} showModal />);
+
+    expect(screen.getByLabelText('Repeat this appointment weekly')).not.toBeChecked();
+    expect(screen.queryByLabelText('Number of appointments')).not.toBeInTheDocument();
+  });
+
+  it('formats weekly-series preview dates in the practice time zone', () => {
+    const previous = getPreferredTimeZone();
+    // 23:30 UTC is already the next morning in Kolkata.
+    expect(setPreferredTimeZone('Asia/Kolkata')).toBe(true);
+    try {
+      render(
+        <WeeklySeriesPreviewList
+          preview={[
+            {
+              index: 1,
+              startTime: '2026-09-28T23:30:00.000Z',
+              endTime: '2026-09-29T00:00:00.000Z',
+              hasConflict: false,
+            },
+            {
+              index: 2,
+              startTime: '2026-10-05T23:30:00.000Z',
+              endTime: '2026-10-06T00:00:00.000Z',
+              hasConflict: true,
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText('Tue, Sep 29, 2026, 5:00 AM')).toBeInTheDocument();
+      expect(screen.getByText('Tue, Oct 6, 2026, 5:00 AM')).toBeInTheDocument();
+      expect(screen.getByText('Available')).toBeInTheDocument();
+      expect(screen.getByText('Conflict')).toBeInTheDocument();
+    } finally {
+      setPreferredTimeZone(previous);
+    }
   });
 
   it('renders a Cancel button that closes the modal when there are no unsaved changes', () => {

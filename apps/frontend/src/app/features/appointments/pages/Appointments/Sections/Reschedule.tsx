@@ -3,7 +3,10 @@ import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
+  previewAppointmentSeriesReschedule,
+  rescheduleAppointmentSeries,
   updateAppointment,
+  type AppointmentSeriesReschedulePreview,
 } from '@/app/features/appointments/services/appointmentService';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
@@ -20,6 +23,7 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
 import { allowReschedule } from '@/app/lib/appointments';
 import { useNotify } from '@/app/hooks/useNotify';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 
 type RescheduleProp = {
   showModal: boolean;
@@ -49,6 +53,11 @@ type RescheduleStatePatch = Partial<{
   formDataErrors: Partial<RescheduleFormErrors>;
 }>;
 
+type SeriesPreviewState =
+  | { key: string; status: 'loading' }
+  | { key: string; status: 'error' }
+  | { key: string; status: 'success'; data: AppointmentSeriesReschedulePreview };
+
 type RescheduleAction =
   | { type: 'RESET'; state: RescheduleState }
   | { type: 'PATCH'; patch: RescheduleStatePatch }
@@ -68,9 +77,86 @@ const rescheduleReducer = (state: RescheduleState, action: RescheduleAction): Re
   };
 };
 
-const Reschedule = ({ showModal, setShowModal, activeAppointment }: RescheduleProp) => {
+const getRescheduleErrors = (
+  formData: Appointment,
+  selectedSlot: Slot | null,
+  slotLeadOptions: Array<{ label: string; value: string }>
+): RescheduleFormErrors => {
+  const errors: RescheduleFormErrors = {};
+  if (!formData.durationMinutes) errors.duration = 'Please select a duration';
+  if (!selectedSlot) errors.slot = 'Please select a slot';
+  if (selectedSlot && slotLeadOptions.length === 0) {
+    errors.slot = 'No lead is available for this slot. Please choose another slot.';
+    errors.leadId = 'No lead is available for this slot.';
+  } else if (selectedSlot && slotLeadOptions.length > 1 && !formData.lead?.id) {
+    errors.leadId = 'Multiple leads are available. Please choose a lead.';
+  } else if (
+    selectedSlot &&
+    formData.lead?.id &&
+    !slotLeadOptions.some((option) => option.value === formData.lead?.id)
+  ) {
+    errors.leadId = 'Selected lead is not available for this slot.';
+  }
+  return errors;
+};
+
+const SeriesReschedulePreview = ({
+  preview,
+  loading,
+  error,
+}: {
+  preview: AppointmentSeriesReschedulePreview | null;
+  loading: boolean;
+  error: boolean;
+}) => {
+  if (loading) {
+    return (
+      <output className="block font-satoshi text-xs text-text-secondary">
+        Checking later appointments…
+      </output>
+    );
+  }
+  if (error) {
+    return (
+      <p role="alert" className="font-satoshi text-xs text-text-error">
+        Unable to check every appointment. Try again.
+      </p>
+    );
+  }
+  if (!preview) return null;
+  return (
+    <ul className="flex flex-col gap-1 font-satoshi text-xs text-text-secondary">
+      {preview.map((occurrence) => (
+        <li key={occurrence.appointmentId}>
+          {formatDateInPreferredTimeZone(new Date(occurrence.startTime), {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          })}{' '}
+          <span
+            className={occurrence.hasConflict ? 'text-text-error' : 'text-[var(--success-text)]'}
+          >
+            {occurrence.hasConflict ? 'Conflict' : 'Available'}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+const useRescheduleForm = (props: RescheduleProp) => {
+  const { showModal, setShowModal, activeAppointment } = props;
   const { notify } = useNotify();
   const teams = useTeamForPrimaryOrg();
+  const [seriesScope, setSeriesScope] = useState<'this' | 'following'>('this');
+  const [seriesPreviewState, setSeriesPreviewState] = useState<SeriesPreviewState | null>(null);
+  const isRecurringAppointment = Boolean(
+    activeAppointment.recurrenceSeriesId &&
+    activeAppointment.recurrenceSeriesIndex &&
+    activeAppointment.recurrenceSeriesTotal
+  );
   const [state, dispatch] = useReducer(rescheduleReducer, undefined, () => ({
     formData: activeAppointment,
     selectedDate: toUtcCalendarDate(activeAppointment.appointmentDate),
@@ -115,6 +201,8 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
   const [prevActiveAppointment, setPrevActiveAppointment] = useState(activeAppointment);
   if (prevActiveAppointment !== activeAppointment) {
     setPrevActiveAppointment(activeAppointment);
+    setSeriesScope('this');
+    setSeriesPreviewState(null);
     dispatch({
       type: 'PATCH',
       patch: {
@@ -194,6 +282,7 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
 
   const handleCancel = () => {
     setShowModal(false);
+    setSeriesPreviewState(null);
     patchState({ selectedSlot: null, timeSlots: [], formDataErrors: {} });
   };
 
@@ -207,36 +296,18 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
       return;
     }
 
-    const errors: {
-      leadId?: string;
-      duration?: string;
-      slot?: string;
-    } = {};
-    const slotLeadOptions = getLeadOptionsForSlot(selectedSlot);
-    if (!formData.durationMinutes) errors.duration = 'Please select a duration';
-    if (!selectedSlot) errors.slot = 'Please select a slot';
-    if (selectedSlot && slotLeadOptions.length === 0) {
-      errors.slot = 'No lead is available for this slot. Please choose another slot.';
-      errors.leadId = 'No lead is available for this slot.';
-    }
-    if (selectedSlot && slotLeadOptions.length > 1 && !formData.lead?.id) {
-      errors.leadId = 'Multiple leads are available. Please choose a lead.';
-    }
-    if (
-      selectedSlot &&
-      formData.lead?.id &&
-      slotLeadOptions.length > 0 &&
-      !slotLeadOptions.some((option) => option.value === formData.lead?.id)
-    ) {
-      errors.leadId = 'Selected lead is not available for this slot.';
-    }
+    const errors = getRescheduleErrors(formData, selectedSlot, getLeadOptionsForSlot(selectedSlot));
     dispatch({ type: 'SET_FORM_DATA_ERRORS', errors });
     if (Object.keys(errors).length > 0) {
       return;
     }
     try {
       const payload: Appointment = { ...formData, status: activeAppointment.status };
-      await updateAppointment(payload);
+      if (isRecurringAppointment && seriesScope === 'following') {
+        await rescheduleAppointmentSeries(payload);
+      } else {
+        await updateAppointment(payload);
+      }
       setShowModal(false);
       patchState({ formDataErrors: {}, timeSlots: [], selectedSlot: null });
     } catch (error) {
@@ -280,12 +351,100 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
     });
   }, [selectedSlot, selectedDate, patchState]);
 
+  const shouldPreviewSeries = showModal && isRecurringAppointment && seriesScope === 'following';
+  const previewKey = JSON.stringify([
+    activeAppointment.id,
+    formData.startTime,
+    formData.endTime,
+    formData.lead?.id,
+  ]);
+  const currentPreviewState =
+    shouldPreviewSeries && seriesPreviewState?.key === previewKey ? seriesPreviewState : null;
+  const seriesPreview = currentPreviewState?.status === 'success' ? currentPreviewState.data : null;
+  const seriesPreviewError = currentPreviewState?.status === 'error';
+  const isSeriesPreviewLoading =
+    shouldPreviewSeries && (!currentPreviewState || currentPreviewState.status === 'loading');
+
+  useEffect(() => {
+    if (!shouldPreviewSeries) return;
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => {
+        if (cancelled) return null;
+        setSeriesPreviewState({ key: previewKey, status: 'loading' });
+        return previewAppointmentSeriesReschedule(formData);
+      })
+      .then((preview) => {
+        if (!cancelled && preview) {
+          setSeriesPreviewState({ key: previewKey, status: 'success', data: preview });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSeriesPreviewState({ key: previewKey, status: 'error' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [formData, previewKey, shouldPreviewSeries]);
+
+  const hasSeriesConflict = Boolean(seriesPreview?.some((occurrence) => occurrence.hasConflict));
+
   const handleLeadSelect = (option: { label: string; value: string }) => {
     patchState({
       formData: { lead: { name: option.label, id: option.value } },
       formDataErrors: { leadId: undefined },
     });
   };
+
+  return {
+    formData,
+    formDataErrors,
+    handleAppointmentUpdate,
+    handleCancel,
+    handleLeadSelect,
+    hasSeriesConflict,
+    isRecurringAppointment,
+    isSeriesPreviewLoading,
+    LeadOptions,
+    selectedDate,
+    selectedSlot,
+    seriesPreview,
+    seriesPreviewError,
+    seriesScope,
+    setSelectedDate,
+    setSelectedSlot,
+    setSeriesScope,
+    setSeriesPreviewState,
+    setShowModal,
+    showModal,
+    timeSlots,
+  };
+};
+
+const Reschedule = (props: RescheduleProp) => {
+  const {
+    formData,
+    formDataErrors,
+    handleAppointmentUpdate,
+    handleCancel,
+    handleLeadSelect,
+    hasSeriesConflict,
+    isRecurringAppointment,
+    isSeriesPreviewLoading,
+    LeadOptions,
+    selectedDate,
+    selectedSlot,
+    seriesPreview,
+    seriesPreviewError,
+    seriesScope,
+    setSelectedDate,
+    setSelectedSlot,
+    setSeriesScope,
+    setSeriesPreviewState,
+    setShowModal,
+    showModal,
+    timeSlots,
+  } = useRescheduleForm(props);
 
   return (
     <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleCancel}>
@@ -304,7 +463,63 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
           onLeadSelect={handleLeadSelect}
           showSupportStaff={false}
         />
-        <Primary href="#" text="Send request" onClick={handleAppointmentUpdate} />
+        {isRecurringAppointment ? (
+          <fieldset className="rounded-2xl border border-[var(--hairline)] px-3 py-2.5">
+            <legend className="px-1 font-satoshi text-xs font-medium text-text-primary">
+              Apply this change to
+            </legend>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 font-satoshi text-xs text-text-primary">
+                <input
+                  type="radio"
+                  name="reschedule-series-scope"
+                  value="this"
+                  checked={seriesScope === 'this'}
+                  onChange={() => {
+                    setSeriesScope('this');
+                    setSeriesPreviewState(null);
+                  }}
+                />
+                <span>This appointment only</span>
+              </label>
+              <label className="flex items-center gap-2 font-satoshi text-xs text-text-primary">
+                <input
+                  type="radio"
+                  name="reschedule-series-scope"
+                  value="following"
+                  checked={seriesScope === 'following'}
+                  onChange={() => {
+                    setSeriesScope('following');
+                    setSeriesPreviewState(null);
+                  }}
+                />
+                <span>This and following appointments</span>
+              </label>
+            </div>
+            {seriesScope === 'following' ? (
+              <div className="mt-2 rounded-xl bg-[var(--hairline-soft)] px-3 py-2">
+                <SeriesReschedulePreview
+                  preview={seriesPreview}
+                  loading={isSeriesPreviewLoading}
+                  error={seriesPreviewError}
+                />
+              </div>
+            ) : null}
+          </fieldset>
+        ) : null}
+        <Primary
+          href="#"
+          text={seriesScope === 'following' ? 'Update following appointments' : 'Send request'}
+          onClick={handleAppointmentUpdate}
+          isDisabled={
+            isRecurringAppointment &&
+            seriesScope === 'following' &&
+            (isSeriesPreviewLoading ||
+              Boolean(seriesPreviewError) ||
+              !seriesPreview ||
+              hasSeriesConflict)
+          }
+        />
       </div>
     </CenterModal>
   );
