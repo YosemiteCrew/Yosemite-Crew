@@ -65,7 +65,7 @@
 .MCPExamples li {
   font-size: 13px;
   color: var(--ink-body);
-  background: var(--color-surface-muted);
+  background: var(--color-inset);
   padding: 12px 16px;
   border-radius: 10px;
   border: 1px solid var(--color-card-border);
@@ -154,7 +154,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  background: var(--color-surface-muted);
+  background: var(--color-inset);
   padding: 8px;
   border-radius: 10px;
   border: 1px solid var(--color-card-border);
@@ -164,6 +164,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 40px;
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 500;
@@ -195,6 +196,7 @@
   align-items: center;
   gap: 4px;
   margin-left: auto;
+  min-height: 40px;
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 500;
@@ -279,7 +281,7 @@
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 14px;
   color: var(--ink);
-  background: var(--color-surface-muted);
+  background: var(--color-inset);
   padding: 4px 8px;
   border-radius: 8px;
 }
@@ -334,7 +336,7 @@
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   color: var(--ink);
-  background: var(--color-surface-muted);
+  background: var(--color-inset);
   padding: 4px 8px;
   border-radius: 8px;
 }
@@ -344,7 +346,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: var(--color-surface-muted);
+  background: var(--color-inset);
   border: 1px solid var(--color-card-border);
   border-radius: 12px;
 }
@@ -407,5 +409,12 @@
     margin-left: 0;
     width: 100%;
     justify-content: center;
+  }
+}
+
+@media (max-width: 640px), (pointer: coarse) {
+  .MCPExportTab,
+  .MCPExportCopy {
+    min-height: 44px;
   }
 }
