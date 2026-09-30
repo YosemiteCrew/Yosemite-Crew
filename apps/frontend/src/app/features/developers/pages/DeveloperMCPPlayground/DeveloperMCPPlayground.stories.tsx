@@ -1,5 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, userEvent, within } from 'storybook/test';
+
+import { useAuthStore } from '@/app/stores/authStore';
 import DeveloperMCPPlayground from './DeveloperMCPPlayground';
+
+const withDeveloperSession = () => {
+  const snapshot = useAuthStore.getState();
+  useAuthStore.setState({ status: 'authenticated', role: 'developer' });
+  return () => {
+    useAuthStore.setState({ status: snapshot.status, role: snapshot.role });
+  };
+};
 
 const meta = {
   title: 'Developers/DeveloperMCPPlayground',
@@ -21,12 +32,20 @@ const meta = {
       </div>
     ),
   ],
+  beforeEach: withDeveloperSession,
 } satisfies Meta<typeof DeveloperMCPPlayground>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByRole('heading', { level: 1, name: 'MCP playground' })).toBeVisible();
+    await expect(canvas.getByLabelText('API key')).toBeVisible();
+  },
+};
 
 export const WithApiKey: Story = {
   parameters: {
@@ -37,10 +56,10 @@ export const WithApiKey: Story = {
     },
   },
   play: async ({ canvasElement }) => {
-    const input = canvasElement.querySelector('input[type="password"]') as HTMLInputElement;
-    if (input) {
-      input.value = 'yc_dev_examplekey123';
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    const canvas = within(canvasElement);
+    const input = canvas.getByLabelText('API key');
+
+    await userEvent.type(input, 'yc_dev_examplekey123');
+    await expect(input).toHaveValue('yc_dev_examplekey123');
   },
 };
