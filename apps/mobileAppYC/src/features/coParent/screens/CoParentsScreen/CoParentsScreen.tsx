@@ -23,6 +23,7 @@ import {
 } from '@/features/companion';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Props = NativeStackScreenProps<HomeStackParamList, 'CoParents'>;
 
 export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
@@ -67,12 +68,14 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
       if (!selectedCompanion?.id) {
         return;
       }
-      dispatch(
-        fetchCoParents({
-          companionId: selectedCompanion.id,
-          companionName: selectedCompanion.name,
-          companionImage: selectedCompanion.profileImage ?? undefined,
-        }),
+      runInBackground(
+        dispatch(
+          fetchCoParents({
+            companionId: selectedCompanion.id,
+            companionName: selectedCompanion.name,
+            companionImage: selectedCompanion.profileImage ?? undefined,
+          }),
+        ),
       );
     }, [
       dispatch,

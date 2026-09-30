@@ -214,6 +214,25 @@ describe('ParasiteRiskScreen', () => {
     });
   });
 
+  it('logs failed forecast and follow requests instead of leaving them unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDispatch.mockImplementation((action: {type: string}) =>
+      Promise.reject(new Error(`${action.type} failed`)),
+    );
+    renderScreen();
+
+    fireEvent.press(screen.getByLabelText('parasiteRisk.follow'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('parasiteRisk/follow/mock failed'),
+    );
+    mockDispatch.mockReset();
+  });
+
   it('unfollows the subscription for the current forecast cell', () => {
     setState({
       subscriptions: [

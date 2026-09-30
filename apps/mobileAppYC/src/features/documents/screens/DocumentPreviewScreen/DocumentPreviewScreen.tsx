@@ -22,6 +22,7 @@ import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 import {parseISODate} from '@/shared/utils/dateHelpers';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 const resolveCategoryLabel = (categoryId?: string | null): string =>
   DOCUMENT_CATEGORIES.find(c => c.id === categoryId)?.label ?? categoryId ?? '';
 
@@ -127,7 +128,7 @@ export const DocumentPreviewScreen: React.FC = () => {
     }
 
     if (!hasViewableAttachments || needsFreshUrls) {
-      dispatch(fetchDocumentView({documentId}));
+      runInBackground(dispatch(fetchDocumentView({documentId})));
     }
   }, [
     dispatch,

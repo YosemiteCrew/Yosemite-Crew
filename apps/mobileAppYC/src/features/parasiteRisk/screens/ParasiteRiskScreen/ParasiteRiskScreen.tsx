@@ -61,6 +61,7 @@ import {
   TREND_PRESENTATION,
 } from '../../utils/riskPresentation';
 import type {ParasiteRiskCellReading, RiskLocation} from '../../types';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ParasiteRisk'>;
 
@@ -224,21 +225,21 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
 
   const handleSelectLocation = useCallback(
     (next: RiskLocation) => {
-      dispatch(loadRiskForLocation(next));
+      runInBackground(dispatch(loadRiskForLocation(next)));
     },
     [dispatch],
   );
 
   const handleRefresh = useCallback(() => {
-    if (location) dispatch(loadRiskForLocation(location));
+    if (location) runInBackground(dispatch(loadRiskForLocation(location)));
   }, [dispatch, location]);
 
   const handleToggleFollow = useCallback(() => {
     if (!location) return;
     if (currentSubscription) {
-      dispatch(unfollowLocation(currentSubscription.id));
+      runInBackground(dispatch(unfollowLocation(currentSubscription.id)));
     } else {
-      dispatch(followLocation({location}));
+      runInBackground(dispatch(followLocation({location})));
     }
   }, [currentSubscription, dispatch, location]);
 
@@ -263,7 +264,7 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
   }, [guardFeature, navigation]);
 
   useEffect(() => {
-    dispatch(loadSubscriptions());
+    runInBackground(dispatch(loadSubscriptions()));
   }, [dispatch]);
 
   // A persisted location rehydrates with whatever reading was stored alongside
@@ -275,7 +276,7 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
     if (revalidatedOnOpen.current || !location || loading) return;
     revalidatedOnOpen.current = true;
     if (isReadingStale(reading, Date.now())) {
-      dispatch(loadRiskForLocation(location));
+      runInBackground(dispatch(loadRiskForLocation(location)));
     }
   }, [dispatch, loading, location, reading]);
 

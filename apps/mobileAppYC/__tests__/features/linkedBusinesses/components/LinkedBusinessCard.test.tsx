@@ -312,6 +312,31 @@ describe('LinkedBusinessCard', () => {
       expect(Linking.openURL).not.toHaveBeenCalled();
     });
 
+    it('logs instead of failing when the maps app cannot be opened', async () => {
+      const previousOS = Platform.OS;
+      Platform.OS = 'android';
+      (Linking.canOpenURL as jest.Mock).mockRejectedValueOnce(
+        new Error('no maps app'),
+      );
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      render(<LinkedBusinessCard business={mockBusiness} />);
+      const dirBtn = getDirectionsButton();
+      expect(dirBtn).toBeDefined();
+      if (dirBtn) {
+        fireEvent.press(dirBtn);
+      }
+
+      await waitFor(() =>
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: no maps app'),
+        ),
+      );
+      warnSpy.mockRestore();
+      Platform.OS = previousOS;
+    });
+
     it('opens Apple Maps when supported', async () => {
       (Linking.canOpenURL as jest.Mock).mockResolvedValueOnce(true);
 

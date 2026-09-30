@@ -1,7 +1,12 @@
 import React from 'react';
 import {Alert} from 'react-native';
 import * as Redux from 'react-redux';
-import {render, fireEvent, screen} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import {mockTheme} from '../../../../setup/mockTheme';
 import {CoParentsScreen} from '@/features/coParent/screens/CoParentsScreen/CoParentsScreen';
 
@@ -175,6 +180,24 @@ describe('CoParentsScreen', () => {
     render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
 
     expect(screen.getByTestId('skeleton-list')).toBeTruthy();
+  });
+
+  it('logs a failed co-parent fetch instead of leaving it unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDispatch.mockImplementation(() =>
+      Promise.reject(new Error('co-parents failed')),
+    );
+
+    render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: co-parents failed'),
+      ),
+    );
+    mockDispatch.mockReset();
+    warnSpy.mockRestore();
   });
 
   it('shows the empty state when there are no co-parents', () => {

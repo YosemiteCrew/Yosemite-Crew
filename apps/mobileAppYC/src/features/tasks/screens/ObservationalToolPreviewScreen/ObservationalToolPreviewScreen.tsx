@@ -20,6 +20,7 @@ import {
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
 import {describeRequestError} from '../../../../shared/utils/safeErrorLog';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Navigation = NativeStackNavigationProp<
   TaskStackParamList,
@@ -98,7 +99,7 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
       }
     };
 
-    load();
+    runInBackground(load());
     return () => {
       isMounted = false;
     };

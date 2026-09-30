@@ -3,13 +3,17 @@ import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCompanion} from '@/features/companion';
 import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskTypeSelection} from '@/features/tasks/types';
-import {getUpdatedFormDataFromTaskType, getErrorFieldsToClear} from '@/features/tasks/utils/taskFormHelpers';
+import {
+  getUpdatedFormDataFromTaskType,
+  getErrorFieldsToClear,
+} from '@/features/tasks/utils/taskFormHelpers';
 import {useTaskFormSetup} from './useTaskFormSetup';
 import {useTaskFormHelpers} from './useTaskFormHelpers';
 import {useScreenHandlers} from './useScreenHandlers';
 import {validateTaskForm} from '@/features/tasks/screens/AddTaskScreen/validation';
 import {fetchCoParents} from '@/features/coParent/thunks';
 import {selectAuthUser} from '@/features/auth/selectors';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 /**
  * Consolidated hook for AddTaskScreen
@@ -18,17 +22,30 @@ import {selectAuthUser} from '@/features/auth/selectors';
 export const useAddTaskScreen = (navigation: any) => {
   const dispatch = useDispatch<AppDispatch>();
 
-  const companions = useSelector((state: RootState) => state.companion.companions);
-  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
+  const companions = useSelector(
+    (state: RootState) => state.companion.companions,
+  );
+  const selectedCompanionId = useSelector(
+    (state: RootState) => state.companion.selectedCompanionId,
+  );
   const loading = useSelector((state: RootState) => state.tasks.loading);
   const currentUser = useSelector(selectAuthUser);
 
   const formSetup = useTaskFormSetup();
-  const {formData, hasUnsavedChanges, setErrors, setHasUnsavedChanges, updateField, clearError} = formSetup;
+  const {
+    formData,
+    hasUnsavedChanges,
+    setErrors,
+    setHasUnsavedChanges,
+    updateField,
+    clearError,
+  } = formSetup;
 
-  const [taskTypeSelection, setTaskTypeSelection] = useState<TaskTypeSelection | null>(null);
+  const [taskTypeSelection, setTaskTypeSelection] =
+    useState<TaskTypeSelection | null>(null);
 
-  const {isMedicationForm, isObservationalToolForm, isSimpleForm} = useTaskFormHelpers(formData);
+  const {isMedicationForm, isObservationalToolForm, isSimpleForm} =
+    useTaskFormHelpers(formData);
 
   useEffect(() => {
     if (!selectedCompanionId && companions.length > 0) {
@@ -59,11 +76,15 @@ export const useAddTaskScreen = (navigation: any) => {
   useEffect(() => {
     if (selectedCompanionId) {
       const companion = companions.find(c => c.id === selectedCompanionId);
-      dispatch(fetchCoParents({
-        companionId: selectedCompanionId,
-        companionName: companion?.name,
-        companionImage: companion?.profileImage ?? undefined,
-      }));
+      runInBackground(
+        dispatch(
+          fetchCoParents({
+            companionId: selectedCompanionId,
+            companionName: companion?.name,
+            companionImage: companion?.profileImage ?? undefined,
+          }),
+        ),
+      );
     }
   }, [companions, dispatch, selectedCompanionId]);
 
@@ -73,15 +94,21 @@ export const useAddTaskScreen = (navigation: any) => {
     if (selfId && !formData.assignedTo) {
       updateField('assignedTo', selfId);
     }
-  }, [currentUser?.id, currentUser?.parentId, formData.assignedTo, updateField]);
+  }, [
+    currentUser?.id,
+    currentUser?.parentId,
+    formData.assignedTo,
+    updateField,
+  ]);
 
-  const {validateForm, showErrorAlert, handleBack, sheetHandlers} = useScreenHandlers({
-    hasUnsavedChanges,
-    navigation,
-    formSetup,
-    validateTaskForm,
-    setErrors,
-  });
+  const {validateForm, showErrorAlert, handleBack, sheetHandlers} =
+    useScreenHandlers({
+      hasUnsavedChanges,
+      navigation,
+      formSetup,
+      validateTaskForm,
+      setErrors,
+    });
 
   const selectedCompanion = companions.find(c => c.id === selectedCompanionId);
   const companionType = selectedCompanion?.category || 'dog';

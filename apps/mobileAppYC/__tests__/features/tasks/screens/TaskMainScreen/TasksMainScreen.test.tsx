@@ -591,6 +591,26 @@ describe('TasksMainScreen', () => {
     expect(fetchTasksForCompanion).toHaveBeenCalledWith({companionId: 'c1'});
   });
 
+  it('logs a failed task fetch instead of leaving it unhandled', async () => {
+    const {selectHasHydratedCompanion} = require('@/features/tasks/selectors');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDispatch.mockImplementation(() =>
+      Promise.reject(new Error('tasks failed')),
+    );
+
+    render(<TasksMainScreen />);
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: tasks failed'),
+      ),
+    );
+    mockDispatch.mockReset();
+    warnSpy.mockRestore();
+  });
+
   it('updates selected date when a date item is pressed', async () => {
     const {getAllByText} = render(<TasksMainScreen />);
 

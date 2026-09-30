@@ -243,7 +243,7 @@ export const markInAppExpenseStatus = createAsyncThunk<
   {rejectValue: string}
 >(
   'expenses/markInAppExpenseStatus',
-  async ({expenseId, status}, {rejectWithValue}) => {
+  ({expenseId, status}, {rejectWithValue}) => {
     try {
       // Backend status updates are handled via payment flows; this thunk keeps local UI responsive.
       return {expenseId, status};
