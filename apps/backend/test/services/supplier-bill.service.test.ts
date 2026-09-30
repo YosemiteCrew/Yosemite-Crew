@@ -554,6 +554,57 @@ describe("credits and payments", () => {
     expect(account().balance).toBe(20);
   });
 
+  it("allocates across bills one at a time, in the order given", async () => {
+    const first = await postedBill();
+    const secondDraft = await draft({ externalReference: "BILL-2" });
+    const second = await post(secondDraft.id, 0, "post-2");
+    const { prisma } = jest.requireMock("src/config/prisma");
+    prisma.supplierBill.updateMany.mockClear();
+    prisma.supplierAllocation.create.mockClear();
+
+    await pay({
+      amount: 30,
+      allocations: [
+        { billId: second.id, amount: 20 },
+        { billId: first.id, amount: 10 },
+      ],
+    });
+
+    expect(
+      prisma.supplierAllocation.create.mock.calls.map(
+        ([args]: [{ data: { billId: string } }]) => args.data.billId,
+      ),
+    ).toEqual([second.id, first.id]);
+    // The second bill is claimed only after the first allocation is written.
+    expect(
+      prisma.supplierAllocation.create.mock.invocationCallOrder[0],
+    ).toBeLessThan(prisma.supplierBill.updateMany.mock.invocationCallOrder[1]);
+  });
+
+  it("stops at the first failed claim and rolls the whole payment back", async () => {
+    const first = await postedBill();
+    const secondDraft = await draft({ externalReference: "BILL-2" });
+    const second = await post(secondDraft.id, 0, "post-2");
+    const { prisma } = jest.requireMock("src/config/prisma");
+    prisma.supplierAllocation.create.mockClear();
+    prisma.supplierBill.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expectError(
+      pay({
+        amount: 30,
+        allocations: [
+          { billId: first.id, amount: 10 },
+          { billId: second.id, amount: 20 },
+        ],
+      }),
+      409,
+    );
+
+    expect(prisma.supplierAllocation.create).not.toHaveBeenCalled();
+    expect(store.payments).toHaveLength(0);
+    expect(store.allocations).toHaveLength(0);
+  });
+
   it("rolls a payment back when its bill changed underneath it", async () => {
     const bill = await postedBill();
     const { prisma } = jest.requireMock("src/config/prisma");

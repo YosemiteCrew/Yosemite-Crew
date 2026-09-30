@@ -3693,6 +3693,83 @@ describe("FinancePaymentService", () => {
     expect(result.refunds).toHaveLength(2);
   });
 
+  it("refunds an invoice's payments one at a time and stops at the first failure", async () => {
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "pay_1", amount: 30 },
+      { id: "pay_2", amount: 20 },
+      { id: "pay_3", amount: 10 },
+    ]);
+    let inFlight = 0;
+    let peak = 0;
+    const refundSpy = jest
+      .spyOn(FinancePaymentService, "refundPaymentById")
+      .mockImplementation(async (paymentId: string) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (paymentId === "pay_2") throw new Error("provider refused");
+        return {
+          refund: { id: `refund_${paymentId}`, amountRefunded: 30 },
+          payment: { invoice: { id: "inv_seq", currency: "usd" } },
+        } as never;
+      });
+
+    try {
+      await expect(
+        FinancePaymentService.refundInvoicePayments("inv_seq", "owner request"),
+      ).rejects.toThrow("provider refused");
+      expect(peak).toBe(1);
+      expect(refundSpy.mock.calls.map(([paymentId]) => paymentId)).toEqual([
+        "pay_1",
+        "pay_2",
+      ]);
+    } finally {
+      refundSpy.mockRestore();
+    }
+  });
+
+  it("reports refunds in payment order with the invoice from the last refund", async () => {
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "pay_1", amount: 30 },
+      { id: "pay_2", amount: 20 },
+    ]);
+    const refundSpy = jest
+      .spyOn(FinancePaymentService, "refundPaymentById")
+      .mockImplementation(async (paymentId: string, input) => {
+        // The first refund answers last if the two were started together.
+        await new Promise((resolve) =>
+          setTimeout(resolve, paymentId === "pay_1" ? 5 : 0),
+        );
+        return {
+          refund: {
+            id: `refund_${paymentId}`,
+            amountRefunded: input?.amount ?? 0,
+          },
+          payment: {
+            invoice: {
+              id: "inv_seq",
+              currency: "usd",
+              status: paymentId === "pay_2" ? "REFUNDED" : "PARTIALLY_REFUNDED",
+            },
+          },
+        } as never;
+      });
+
+    try {
+      const result =
+        await FinancePaymentService.refundInvoicePayments("inv_seq");
+      expect(result.refunds.map((refund) => refund.id)).toEqual([
+        "refund_pay_1",
+        "refund_pay_2",
+      ]);
+      expect((result.invoice as { status: string }).status).toBe("REFUNDED");
+      expect(result.totalRefunded).toBe(50);
+    } finally {
+      refundSpy.mockRestore();
+    }
+  });
+
   it("refunds payment-intent and checkout webhook events when invoice lookups succeed", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
@@ -6647,6 +6724,65 @@ describe("cancelOpenCheckoutSessionAttempts", () => {
       "cs_live_1",
       {},
       expect.anything(),
+    );
+  });
+
+  it("expires sessions one at a time and stops before cancelling when one fails", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pa_1",
+        providerCheckoutSessionId: "cs_1",
+        rawProviderPayload: null,
+      },
+      { id: "pa_2", providerCheckoutSessionId: null, rawProviderPayload: null },
+      {
+        id: "pa_3",
+        providerCheckoutSessionId: "cs_3",
+        rawProviderPayload: null,
+      },
+      {
+        id: "pa_4",
+        providerCheckoutSessionId: "cs_4",
+        rawProviderPayload: null,
+      },
+    ]);
+    let inFlight = 0;
+    let peak = 0;
+    (stripeClient.checkout.sessions.expire as jest.Mock).mockImplementation(
+      async (sessionId: string) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (sessionId === "cs_3") {
+          throw Object.assign(new Error("rate limited"), {
+            type: "StripeRateLimitError",
+          });
+        }
+        return { id: sessionId };
+      },
+    );
+
+    await expect(
+      cancelOpenCheckoutSessionAttempts("inv_sequence"),
+    ).rejects.toThrow("rate limited");
+
+    expect(peak).toBe(1);
+    expect(
+      (stripeClient.checkout.sessions.expire as jest.Mock).mock.calls.map(
+        ([sessionId]) => sessionId,
+      ),
+    ).toEqual(["cs_1", "cs_3"]);
+    expect(prisma.paymentAttempt.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ invoiceId: "inv_sequence" }),
+      }),
     );
   });
 });

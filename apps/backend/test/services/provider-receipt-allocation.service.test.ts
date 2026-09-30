@@ -991,3 +991,67 @@ describe("ProviderReceiptService.allocate - the edges of the recovery paths", ()
     });
   });
 });
+
+describe("ProviderReceiptService.postAllocations - order of posting", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedPrisma.payment.findFirst.mockResolvedValue(null);
+    mockedPrisma.providerReceiptAllocation.update.mockResolvedValue({});
+  });
+
+  const rows = [
+    { id: "alloc-1", invoiceId: INVOICE_ID, amount: 60 },
+    { id: "alloc-2", invoiceId: OTHER_INVOICE_ID, amount: 40 },
+    { id: "alloc-3", invoiceId: "invoice-3", amount: 10 },
+  ];
+
+  it("posts each line after the previous one has settled, in order", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    mockedPayments.recordInvoicePayment.mockImplementation(
+      async (invoiceId: string, input: { amount: number }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        return {
+          payment: { id: `payment-${invoiceId}` },
+          appliedAmount: input.amount,
+        };
+      },
+    );
+
+    const posted = await ProviderReceiptService.postAllocations(
+      receipt() as never,
+      rows,
+    );
+
+    expect(peak).toBe(1);
+    expect(posted.map((line) => line.invoiceId)).toEqual([
+      INVOICE_ID,
+      OTHER_INVOICE_ID,
+      "invoice-3",
+    ]);
+  });
+
+  it("leaves a prefix of posted lines when one fails", async () => {
+    mockedPayments.recordInvoicePayment
+      .mockResolvedValueOnce({
+        payment: { id: "payment-1" },
+        appliedAmount: 60,
+      })
+      .mockRejectedValueOnce(new Error("invoice locked"));
+
+    await expect(
+      ProviderReceiptService.postAllocations(receipt() as never, rows),
+    ).rejects.toThrow("invoice locked");
+
+    expect(mockedPayments.recordInvoicePayment).toHaveBeenCalledTimes(2);
+    expect(mockedPrisma.providerReceiptAllocation.update).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(mockedPrisma.providerReceiptAllocation.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "alloc-1" } }),
+    );
+  });
+});
