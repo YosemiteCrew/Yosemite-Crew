@@ -53,6 +53,7 @@ const MARKER_ROUTER_MODULES = [
   "task-schedule.fhir.router",
   "workspace.router",
   "inventory.router",
+  "purchase-order.router",
   "search.router",
   "observationTool.routes",
   "dashboard.router",

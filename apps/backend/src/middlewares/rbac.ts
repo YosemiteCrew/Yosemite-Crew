@@ -355,6 +355,36 @@ export function withInventoryItemOrgPermissions() {
   );
 }
 
+export function withPurchaseOrderOrgPermissions() {
+  return withResourceOrgPermissions(
+    "purchaseOrderId",
+    "Purchase order not found",
+    async (purchaseOrderId) => {
+      const order = await prisma.purchaseOrder.findUnique({
+        where: { id: purchaseOrderId },
+        select: { organisationId: true },
+      });
+      return order?.organisationId ?? null;
+    },
+    true,
+  );
+}
+
+export function withPurchaseOrderDeliveryOrgPermissions() {
+  return withResourceOrgPermissions(
+    "deliveryId",
+    "Delivery not found",
+    async (deliveryId) => {
+      const delivery = await prisma.purchaseOrderDelivery.findUnique({
+        where: { id: deliveryId },
+        select: { purchaseOrder: { select: { organisationId: true } } },
+      });
+      return delivery?.purchaseOrder.organisationId ?? null;
+    },
+    true,
+  );
+}
+
 export function withEncounterOrgPermissions(paramName = "id") {
   return withResourceOrgPermissions(
     paramName,
