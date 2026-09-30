@@ -1,5 +1,4 @@
 import {
-  getClientPaymentTerms,
   listOverdueClientInvoices,
   markClientInvoiceReviewed,
   saveClientPaymentTerms,
@@ -20,8 +19,10 @@ const row = {
   invoiceId: 'invoice-1',
   parentId: 'parent/1',
   dueAt: '2026-09-01T00:00:00.000Z',
+  dueDate: '2026-09-01',
   currency: 'GBP',
   balance: 45,
+  netDays: 14,
   reviewedAt: null,
   reviewedBy: null,
 };
@@ -42,6 +43,17 @@ describe('listOverdueClientInvoices', () => {
     expect(getData).toHaveBeenCalledWith('/v1/finance/organisation/org%2F1/collections/overdue');
   });
 
+  it.each([
+    ['a due date that is not a calendar date', { dueDate: '2026-09-01T00:00:00Z' }],
+    ['a missing due date', { dueDate: undefined }],
+    ['fractional payment terms', { netDays: 1.5 }],
+    ['missing payment terms', { netDays: undefined }],
+    ['a non-finite balance', { balance: Number.POSITIVE_INFINITY }],
+  ])('drops a row with %s', async (_label, override) => {
+    getData.mockResolvedValue({ data: { data: [{ ...row, ...override }], error: null } });
+    await expect(listOverdueClientInvoices('org-1')).resolves.toEqual([]);
+  });
+
   it('rejects missing organisation and returns empty for non-array data', async () => {
     await expect(listOverdueClientInvoices('')).rejects.toThrow('Organisation ID missing');
     getData.mockResolvedValue({ data: { data: {}, error: null } });
@@ -51,25 +63,6 @@ describe('listOverdueClientInvoices', () => {
   it('surfaces a finance envelope error', async () => {
     getData.mockResolvedValue({ data: { error: { message: 'Denied' } } });
     await expect(listOverdueClientInvoices('org-1')).rejects.toThrow('Denied');
-  });
-});
-
-describe('getClientPaymentTerms', () => {
-  it('encodes the client id and unwraps the terms', async () => {
-    getData.mockResolvedValue({
-      data: { data: { netDays: 30, updatedAt: null, updatedBy: null } },
-    });
-    await expect(getClientPaymentTerms('org-1', 'parent/1')).resolves.toMatchObject({
-      netDays: 30,
-    });
-    expect(getData).toHaveBeenCalledWith(
-      '/v1/finance/organisation/org-1/clients/parent%2F1/payment-terms'
-    );
-  });
-
-  it('rejects missing account identifiers', async () => {
-    await expect(getClientPaymentTerms('', 'parent-1')).rejects.toThrow('Client account missing');
-    await expect(getClientPaymentTerms('org-1', '')).rejects.toThrow('Client account missing');
   });
 });
 

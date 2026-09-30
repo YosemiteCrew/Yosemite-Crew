@@ -28613,7 +28613,8 @@ components:
           nullable: true
     OverdueClientInvoice:
       type: object
-      required: [invoiceId, parentId, dueAt, currency, balance, reviewedAt, reviewedBy]
+      required:
+        [invoiceId, parentId, dueAt, dueDate, currency, balance, netDays, reviewedAt, reviewedBy]
       properties:
         invoiceId:
           type: string
@@ -28624,10 +28625,21 @@ components:
         dueAt:
           type: string
           format: date-time
+          description: The last moment of the due date in the practice's time zone.
+        dueDate:
+          type: string
+          format: date
+          description: The due date as the practice's calendar date.
         currency:
           type: string
         balance:
           type: number
+          description: What is still owed on this invoice, in its own currency.
+        netDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+          description: The client's current payment terms in days.
         reviewedAt:
           type: string
           format: date-time

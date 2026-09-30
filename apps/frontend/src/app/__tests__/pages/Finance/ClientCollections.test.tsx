@@ -6,7 +6,6 @@ import ClientCollections from '@/app/features/finance/pages/ClientCollections';
 
 const mockApi = {
   list: jest.fn(),
-  getTerms: jest.fn(),
   saveTerms: jest.fn(),
   review: jest.fn(),
 };
@@ -21,7 +20,6 @@ const mockParents = {
 
 jest.mock('@/app/features/finance/services/clientCollectionsService', () => ({
   listOverdueClientInvoices: (...args: unknown[]) => mockApi.list(...args),
-  getClientPaymentTerms: (...args: unknown[]) => mockApi.getTerms(...args),
   saveClientPaymentTerms: (...args: unknown[]) => mockApi.saveTerms(...args),
   markClientInvoiceReviewed: (...args: unknown[]) => mockApi.review(...args),
 }));
@@ -82,16 +80,17 @@ jest.mock('@/app/lib/money', () => ({
 const overdue = {
   invoiceId: 'invoice-12345678',
   parentId: 'parent-1',
-  dueAt: '2026-09-01T00:00:00.000Z',
+  dueAt: '2026-09-02T03:59:59.999Z',
+  dueDate: '2026-09-01',
   currency: 'EUR',
   balance: 54.25,
+  netDays: 14,
   reviewedAt: null as string | null,
   reviewedBy: null as string | null,
 };
 
 beforeEach(() => {
   mockApi.list.mockReset().mockResolvedValue([overdue]);
-  mockApi.getTerms.mockReset().mockResolvedValue({ netDays: 14, updatedAt: null, updatedBy: null });
   mockApi.saveTerms
     .mockReset()
     .mockResolvedValue({ netDays: 30, updatedAt: null, updatedBy: null });
@@ -112,12 +111,17 @@ describe('ClientCollections', () => {
 
     expect(await screen.findByRole('heading', { name: 'Mara Jones' })).toBeInTheDocument();
     expect(screen.getByText('EUR 54.25')).toBeInTheDocument();
-    expect(mockApi.getTerms).toHaveBeenCalledWith('org-1', 'parent-1');
+    // The practice's calendar date, whatever the viewer's time zone.
+    expect(screen.getByText('Due Sep 1, 2026')).toBeInTheDocument();
+    expect(mockApi.list).toHaveBeenCalledTimes(1);
     const input = screen.getByRole('spinbutton', { name: /Payment due after/ });
+    expect(input).toHaveValue(14);
+    expect(input).toHaveAccessibleDescription('Applies to invoices finalized from now on.');
     await user.clear(input);
     await user.type(input, '30');
     await user.click(screen.getByRole('button', { name: 'Save payment terms for Mara Jones' }));
     await waitFor(() => expect(mockApi.saveTerms).toHaveBeenCalledWith('org-1', 'parent-1', 30));
+    await waitFor(() => expect(input).toHaveValue(30));
   });
 
   it('validates term days before saving and marks the invoice reviewed', async () => {
@@ -151,8 +155,13 @@ describe('ClientCollections', () => {
   });
 
   it('groups invoices by client and uses stored client display names', async () => {
-    const second = { ...overdue, invoiceId: 'invoice-22345678' };
-    const otherClient = { ...overdue, invoiceId: 'invoice-32345678', parentId: 'parent-2' };
+    const second = { ...overdue, invoiceId: 'invoice-22345678', currency: 'KWD', balance: 1.5 };
+    const otherClient = {
+      ...overdue,
+      invoiceId: 'invoice-32345678',
+      parentId: 'parent-2',
+      netDays: 30,
+    };
     const missingClient = { ...overdue, invoiceId: 'invoice-42345678', parentId: 'parent-3' };
     mockApi.list.mockResolvedValueOnce([overdue, second, otherClient, missingClient]);
     mockParents.parentsById = {
@@ -163,7 +172,14 @@ describe('ClientCollections', () => {
     expect(await screen.findByRole('heading', { name: 'Sam Lee' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Client account' })).toBeInTheDocument();
     expect(screen.getByText('2 overdue invoices')).toBeInTheDocument();
-    expect(mockApi.getTerms).toHaveBeenCalledTimes(3);
+    // Each invoice keeps its own currency; nothing is totalled across them.
+    expect(screen.getAllByText('EUR 54.25')).toHaveLength(3);
+    expect(screen.getByText('KWD 1.50')).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole('spinbutton', { name: /Payment due after/ })
+        .map((input) => (input as HTMLInputElement).value)
+    ).toEqual(['14', '30', '14']);
     fireEvent.click(screen.getAllByRole('button', { name: /Mark invoice/ })[0]);
     await waitFor(() => expect(mockApi.review).toHaveBeenCalledWith('org-1', overdue.invoiceId));
     expect(screen.getAllByRole('button', { name: /Mark invoice/ })).toHaveLength(3);

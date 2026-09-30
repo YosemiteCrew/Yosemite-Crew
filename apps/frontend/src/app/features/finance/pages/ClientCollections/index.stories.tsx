@@ -14,18 +14,22 @@ const invoices = [
   {
     invoiceId: '10000000-0000-4000-8000-000000000001',
     parentId: 'parent-story-1',
-    dueAt: '2026-09-05T00:00:00.000Z',
+    dueAt: '2026-09-05T22:59:59.999Z',
+    dueDate: '2026-09-05',
     currency: 'GBP',
     balance: 145.5,
+    netDays: 14,
     reviewedAt: null,
     reviewedBy: null,
   },
   {
     invoiceId: '20000000-0000-4000-8000-000000000002',
     parentId: 'parent-story-2',
-    dueAt: '2026-09-11T00:00:00.000Z',
-    currency: 'GBP',
-    balance: 82,
+    dueAt: '2026-09-11T22:59:59.999Z',
+    dueDate: '2026-09-11',
+    currency: 'KWD',
+    balance: 82.125,
+    netDays: 0,
     reviewedAt: '2026-09-18T00:00:00.000Z',
     reviewedBy: 'staff-story-1',
   },
@@ -44,8 +48,6 @@ const adapter: AxiosAdapter = async (config) => {
   let data: unknown;
   if (url.endsWith('/collections/overdue')) {
     data = { data: invoices, error: null };
-  } else if (url.endsWith('/payment-terms') && config.method === 'get') {
-    data = { data: { netDays: 14, updatedAt: null, updatedBy: null }, error: null };
   } else if (url.endsWith('/payment-terms') && config.method === 'put') {
     data = {
       data: { netDays: 30, updatedAt: '2026-09-20T00:00:00.000Z', updatedBy: 'staff-story-1' },
@@ -119,6 +121,23 @@ export const Queue: Story = {
     await canvas.findByRole('heading', { name: 'Overdue accounts' });
     await expect(await canvas.findByRole('heading', { name: 'Mara Jones' })).toBeVisible();
     await expect(canvas.getByText('£145.50')).toBeVisible();
+    await expect(canvas.getByText('Due Sep 5, 2026')).toBeVisible();
+    // A three-decimal currency keeps its third decimal.
+    await expect(canvas.getByText('KWD 82.125')).toBeVisible();
+    const [maraTerms, samTerms] = canvas.getAllByRole('spinbutton', {
+      name: /Payment due after/,
+    });
+    await expect(maraTerms).toHaveValue(14);
+    await expect(samTerms).toHaveValue(0);
+    await userEvent.clear(maraTerms);
+    await userEvent.type(maraTerms, '30');
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Save payment terms for Mara Jones' })
+    );
+    await expect(
+      await canvas.findByRole('button', { name: 'Save payment terms for Mara Jones' })
+    ).toBeEnabled();
+    await expect(maraTerms).toHaveValue(30);
     await expect(canvas.getByText(/Reviewed/)).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Mark invoice 10000000 reviewed' }));
     await expect(canvas.getAllByText(/Reviewed/)).toHaveLength(2);

@@ -155,13 +155,11 @@ export type ProposalCredit = {
 /**
  * One invoice this proposal would pay down.
  *
- * `dueAt` is `finalizedAt ?? createdAt`. DESIGN CALL, recorded so it can be
- * overridden: `Invoice` has no due-date column, and #3163 asks for
- * oldest-due-date-first. Inventing a due date from payment terms is #3175's
- * work and guessing one here would put a number in front of an operator that
- * no document backs. The date the invoice became a demand for money is the
- * closest fact the schema actually holds, and it orders the same way for every
- * invoice raised under the same terms.
+ * `dueAt` is the invoice's due date under the client's payment terms, set
+ * when it was finalized (#3175), so #3163's oldest-due-date-first order
+ * follows the terms. An invoice that is not finalized has no due date yet and
+ * falls back to `finalizedAt ?? createdAt`, the closest fact the schema holds
+ * about when it became a demand for money.
  */
 export type ProposalDebt = {
   invoiceId: string;
@@ -509,6 +507,7 @@ export const ClientAccountService = {
         status: true,
         totalAmount: true,
         depositCollectedAmount: true,
+        dueAt: true,
         finalizedAt: true,
         createdAt: true,
       },
@@ -582,7 +581,7 @@ export const ClientAccountService = {
     for (const invoice of openInvoices) {
       const debt: ProposalDebt = {
         invoiceId: invoice.id,
-        dueAt: invoice.finalizedAt ?? invoice.createdAt,
+        dueAt: invoice.dueAt ?? invoice.finalizedAt ?? invoice.createdAt,
         balance: summaries.get(invoice.id)?.balance ?? 0,
       };
       const key = currencyKey(invoice.currency);

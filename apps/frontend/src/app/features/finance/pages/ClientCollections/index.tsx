@@ -11,17 +11,26 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import {
-  getClientPaymentTerms,
   listOverdueClientInvoices,
   markClientInvoiceReviewed,
   saveClientPaymentTerms,
 } from '@/app/features/finance/services/clientCollectionsService';
-import type {
-  ClientPaymentTerms,
-  OverdueClientInvoice,
-} from '@/app/features/finance/types/clientCollections';
+import type { OverdueClientInvoice } from '@/app/features/finance/types/clientCollections';
 
 type ClientGroup = { parentId: string; invoices: OverdueClientInvoice[] };
+
+// `dueDate` is already the practice's calendar date, so it is formatted as a
+// date and never shifted into the viewer's time zone.
+const formatDueDate = (dueDate: string) =>
+  new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${dueDate}T00:00:00.000Z`));
+
+const termsByParent = (rows: OverdueClientInvoice[]) =>
+  Object.fromEntries(rows.map((row) => [row.parentId, row.netDays]));
 
 const clientName = (parent: { firstName?: string; lastName?: string; name?: string } | null) => {
   const name = [parent?.firstName, parent?.lastName].filter(Boolean).join(' ').trim();
@@ -34,7 +43,7 @@ const ClientCollections = () => {
   const { can } = usePermissions();
   const canEditBilling = can(PERMISSIONS.BILLING_EDIT_ANY);
   const [invoices, setInvoices] = useState<OverdueClientInvoice[]>([]);
-  const [terms, setTerms] = useState<Record<string, ClientPaymentTerms>>({});
+  const [terms, setTerms] = useState<Record<string, number>>({});
   const [draftDays, setDraftDays] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(Boolean(organisationId));
   const [error, setError] = useState<string | null>(null);
@@ -42,52 +51,36 @@ const ClientCollections = () => {
   const [reviewingInvoice, setReviewingInvoice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadQueue = useCallback(async () => {
-    if (!organisationId) return null;
-    const rows = await listOverdueClientInvoices(organisationId);
-    const parentIds = [...new Set(rows.map((row) => row.parentId))];
-    const entries = await Promise.all(
-      parentIds.map(
-        async (parentId) =>
-          [parentId, await getClientPaymentTerms(organisationId, parentId)] as const
+  const applyRows = useCallback((rows: OverdueClientInvoice[]) => {
+    const loadedTerms = termsByParent(rows);
+    setInvoices(rows);
+    setTerms(loadedTerms);
+    setDraftDays(
+      Object.fromEntries(
+        Object.entries(loadedTerms).map(([parentId, netDays]) => [parentId, String(netDays)])
       )
     );
-    return { rows, entries };
-  }, [organisationId]);
+  }, []);
 
   const reload = useCallback(async () => {
     if (!organisationId) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await loadQueue();
-      if (!result) return;
-      setInvoices(result.rows);
-      setTerms(Object.fromEntries(result.entries));
-      setDraftDays(
-        Object.fromEntries(
-          result.entries.map(([parentId, setting]) => [parentId, String(setting.netDays)])
-        )
-      );
+      applyRows(await listOverdueClientInvoices(organisationId));
     } catch {
       setError('Unable to load overdue accounts. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [loadQueue, organisationId]);
+  }, [applyRows, organisationId]);
 
   useEffect(() => {
+    if (!organisationId) return;
     let active = true;
-    loadQueue()
-      .then((result) => {
-        if (!active || !result) return;
-        setInvoices(result.rows);
-        setTerms(Object.fromEntries(result.entries));
-        setDraftDays(
-          Object.fromEntries(
-            result.entries.map(([parentId, setting]) => [parentId, String(setting.netDays)])
-          )
-        );
+    listOverdueClientInvoices(organisationId)
+      .then((rows) => {
+        if (active) applyRows(rows);
       })
       .catch(() => {
         if (active) setError('Unable to load overdue accounts. Please try again.');
@@ -98,7 +91,7 @@ const ClientCollections = () => {
     return () => {
       active = false;
     };
-  }, [loadQueue]);
+  }, [applyRows, organisationId]);
 
   const groups = useMemo<ClientGroup[]>(() => {
     const byParent = new Map<string, OverdueClientInvoice[]>();
@@ -121,7 +114,7 @@ const ClientCollections = () => {
     setActionError(null);
     try {
       const saved = await saveClientPaymentTerms(organisationId, parentId, netDays);
-      setTerms((current) => ({ ...current, [parentId]: saved }));
+      setTerms((current) => ({ ...current, [parentId]: saved.netDays }));
       setDraftDays((current) => ({ ...current, [parentId]: String(saved.netDays) }));
     } catch {
       setActionError('Unable to save payment terms. Please try again.');
@@ -177,8 +170,8 @@ const ClientCollections = () => {
   let queueContent: React.ReactNode;
   if (error) {
     queueContent = (
-      <section className="rounded-2xl border border-card-border p-6" role="status">
-        <p className="text-body-3 text-text-primary">{error}</p>
+      <section className="rounded-2xl border border-card-border p-6">
+        <output className="block text-body-3 text-text-primary">{error}</output>
         <Secondary
           text="Retry"
           onClick={() => void reload()}
@@ -188,9 +181,7 @@ const ClientCollections = () => {
     );
   } else if (loading) {
     queueContent = (
-      <p className="text-body-3 text-text-secondary" role="status">
-        Loading overdue accounts…
-      </p>
+      <output className="block text-body-3 text-text-secondary">Loading overdue accounts…</output>
     );
   } else if (groups.length === 0) {
     queueContent = (
@@ -230,7 +221,7 @@ const ClientCollections = () => {
                       className="flex flex-col gap-1 text-caption-2 text-text-secondary"
                       htmlFor={`terms-${parentId}`}
                     >
-                      Payment due after
+                      <span>Payment due after</span>
                       <span className="flex items-center gap-2">
                         <input
                           id={`terms-${parentId}`}
@@ -239,7 +230,8 @@ const ClientCollections = () => {
                           max="365"
                           step="1"
                           required
-                          value={draftDays[parentId] ?? String(terms[parentId]?.netDays ?? 0)}
+                          aria-describedby={`terms-hint-${parentId}`}
+                          value={draftDays[parentId] ?? String(terms[parentId] ?? 0)}
                           onChange={(event) =>
                             setDraftDays((current) => ({
                               ...current,
@@ -248,7 +240,7 @@ const ClientCollections = () => {
                           }
                           className="w-20 rounded-xl border border-input-border-default bg-transparent px-3 py-2 text-body-4 text-text-primary focus:border-input-border-active focus:outline-none"
                         />
-                        days
+                        <span>days</span>
                       </span>
                     </label>
                     <Primary
@@ -257,10 +249,16 @@ const ClientCollections = () => {
                       ariaLabel={`Save payment terms for ${clientName(parent)}`}
                       isDisabled={savingParent === parentId}
                     />
+                    <p
+                      id={`terms-hint-${parentId}`}
+                      className="basis-full text-caption-2 text-text-tertiary"
+                    >
+                      Applies to invoices finalized from now on.
+                    </p>
                   </form>
                 ) : (
                   <p className="text-body-4 text-text-secondary">
-                    Payment due after {terms[parentId]?.netDays ?? 0} days
+                    Payment due after {terms[parentId] ?? 0} days
                   </p>
                 )}
               </div>
@@ -275,7 +273,7 @@ const ClientCollections = () => {
                         {formatMoneyPrecise(invoice.balance, invoice.currency)}
                       </span>
                       <span className="text-body-4 text-text-secondary">
-                        Due {formatDisplayDate(invoice.dueAt)}
+                        Due {formatDueDate(invoice.dueDate)}
                       </span>
                       <span className="text-caption-2 text-text-tertiary">
                         Invoice {invoice.invoiceId.slice(0, 8)}

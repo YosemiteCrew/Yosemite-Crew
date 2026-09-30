@@ -4,6 +4,8 @@ import type {
   OverdueClientInvoice,
 } from '@/app/features/finance/types/clientCollections';
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
 const basePath = (organisationId: string) =>
   `/v1/finance/organisation/${encodeURIComponent(organisationId)}`;
 
@@ -32,9 +34,12 @@ export const listOverdueClientInvoices = async (
         item.invoiceId &&
         item.parentId &&
         item.dueAt &&
+        typeof item.dueDate === 'string' &&
+        DATE_ONLY.test(item.dueDate) &&
         item.currency &&
         typeof item.balance === 'number' &&
-        Number.isFinite(item.balance)
+        Number.isFinite(item.balance) &&
+        Number.isInteger(item.netDays)
       );
     })
     .map((row) => ({
@@ -42,17 +47,6 @@ export const listOverdueClientInvoices = async (
       reviewedAt: row.reviewedAt ?? null,
       reviewedBy: row.reviewedBy ?? null,
     }));
-};
-
-export const getClientPaymentTerms = async (
-  organisationId: string,
-  parentId: string
-): Promise<ClientPaymentTerms> => {
-  if (!organisationId || !parentId) throw new Error('Client account missing');
-  const response = await getData<unknown>(
-    `${basePath(organisationId)}/clients/${encodeURIComponent(parentId)}/payment-terms`
-  );
-  return unwrap<ClientPaymentTerms>(response.data);
 };
 
 export const saveClientPaymentTerms = async (

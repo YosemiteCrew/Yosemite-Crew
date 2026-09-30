@@ -31,7 +31,10 @@ import {
   getInvoiceFinancialSummary,
 } from "./finance/payment";
 import { FinanceEventService } from "./finance/events";
-import { calculateInvoiceDueAt } from "./finance/client-collections";
+import {
+  calculateInvoiceDueAt,
+  resolvePracticeTimeZone,
+} from "./finance/client-collections";
 import { markInvoiceTreatmentItemsSettled } from "./finance/settlement";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { randomUUID } from "node:crypto";
@@ -65,34 +68,20 @@ export class InvoiceServiceError extends Error {
 const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL_ADDRESS ?? "support@yosemitecrew.com";
 
-const cancelOpenPaymentAttempts = async (invoiceId: string) => {
-  await prisma.$transaction([
-    prisma.paymentAttempt.updateMany({
-      where: {
-        invoiceId: { equals: invoiceId },
-        status: { equals: "REQUIRES_ACTION" },
-      },
-      data: { status: "CANCELED" },
+/** When a client's invoice finalized now falls due under their payment terms. */
+const resolveInvoiceDueAt = async (
+  organisationId: string,
+  parentId: string,
+  finalizedAt: Date,
+) => {
+  const [terms, timeZone] = await Promise.all([
+    prisma.clientPaymentTerm.findUnique({
+      where: { organisationId_parentId: { organisationId, parentId } },
+      select: { netDays: true },
     }),
-    prisma.paymentAttempt.updateMany({
-      where: {
-        invoiceId: { equals: invoiceId },
-        status: { equals: "REQUIRES_PAYMENT_METHOD" },
-      },
-      data: { status: "CANCELED" },
-    }),
-    prisma.paymentAttempt.updateMany({
-      where: {
-        invoiceId: { equals: invoiceId },
-        status: { equals: "PROCESSING" },
-      },
-      data: { status: "CANCELED" },
-    }),
-    prisma.paymentAttempt.updateMany({
-      where: { invoiceId: { equals: invoiceId }, status: { equals: "FAILED" } },
-      data: { status: "CANCELED" },
-    }),
+    resolvePracticeTimeZone(organisationId),
   ]);
+  return calculateInvoiceDueAt(finalizedAt, terms?.netDays ?? 0, timeZone);
 };
 
 type AppointmentLink = {
@@ -1832,7 +1821,13 @@ export const InvoiceService = {
     // the link the parent holds working, and by then there is no open attempt
     // for the webhook to reconcile the payment against.
     await cancelOpenCheckoutSessionAttempts(doc.id);
-    await cancelOpenPaymentAttempts(doc.id);
+    await prisma.paymentAttempt.updateMany({
+      where: {
+        invoiceId: doc.id,
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
+      },
+      data: { status: "CANCELED" },
+    });
 
     const updated = await prisma.invoice.update({
       where: { id: doc.id },
@@ -1921,7 +1916,13 @@ export const InvoiceService = {
     // wrote CANCELED locally, so the link the client already had kept working
     // and still charged the pre-credit amount (#2598).
     await cancelOpenCheckoutSessionAttempts(invoice.id);
-    await cancelOpenPaymentAttempts(invoice.id);
+    await prisma.paymentAttempt.updateMany({
+      where: {
+        invoiceId: invoice.id,
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
+      },
+      data: { status: "CANCELED" },
+    });
 
     const creditNote = await prisma.creditNote.create({
       data: {
@@ -2452,6 +2453,15 @@ export const InvoiceService = {
         paidAt: wasPaid ? null : undefined,
         visitBillingStage: wasPaid ? "DRAFT" : undefined,
         finalizedAt: wasFinalized || wasPaid ? null : undefined,
+        // Re-opening withdraws the demand for payment, so the due date and any
+        // collections review go with it; finalizing again sets a fresh one.
+        ...(wasFinalized || wasPaid
+          ? {
+              dueAt: null,
+              collectionsReviewedAt: null,
+              collectionsReviewedBy: null,
+            }
+          : {}),
         taxSnapshot: {
           upsert: {
             create: totals.taxSnapshot!,
@@ -2470,7 +2480,10 @@ export const InvoiceService = {
     // stayed live, `createCheckoutSessionForInvoice` kept handing it back, and
     // completing it wrote the old, lower total onto the invoice and marked it
     // settled - underpaying an invoice that had since grown.
-    await cancelOpenPaymentAttempts(invoiceId);
+    await prisma.paymentAttempt.updateMany({
+      where: { invoiceId, status: { notIn: ["SUCCEEDED", "CANCELED"] } },
+      data: { status: "CANCELED" },
+    });
 
     const targets = await resolveAuditTargetsForInvoiceRow(updated);
     await recordInvoiceAuditEvent(targets, {
@@ -2512,23 +2525,19 @@ export const InvoiceService = {
     );
 
     const finalizedAt = new Date();
-    const paymentTerms =
+    const dueAt =
       invoice.organisationId && invoice.parentId
-        ? await prisma.clientPaymentTerm.findUnique({
-            where: {
-              organisationId_parentId: {
-                organisationId: invoice.organisationId,
-                parentId: invoice.parentId,
-              },
-            },
-            select: { netDays: true },
-          })
+        ? await resolveInvoiceDueAt(
+            invoice.organisationId,
+            invoice.parentId,
+            finalizedAt,
+          )
         : null;
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         finalizedAt,
-        dueAt: calculateInvoiceDueAt(finalizedAt, paymentTerms?.netDays ?? 0),
+        dueAt,
         taxProvider: totals.taxSnapshot!.provider,
         subtotal: totals.subtotal,
         discountTotal: totals.discountTotal,
