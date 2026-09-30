@@ -48,7 +48,7 @@ const BookButton = ({ href }: { href: string | null }) => {
     'inline-flex items-center justify-center rounded-full bg-[var(--cta)] px-5 py-2.5 text-[14px] font-semibold text-[var(--cta-text)]';
   if (!href) {
     return (
-      <span aria-disabled="true" className={`${className} opacity-60`}>
+      <span aria-disabled="true" className={`${className} cursor-not-allowed opacity-60`}>
         Book an appointment
       </span>
     );

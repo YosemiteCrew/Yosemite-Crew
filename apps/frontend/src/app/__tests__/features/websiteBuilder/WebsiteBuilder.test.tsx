@@ -116,6 +116,19 @@ describe('WebsiteBuilder', () => {
     expect(getConfigMock).not.toHaveBeenCalled();
   });
 
+  it('warns when the services for the preview cannot be loaded', async () => {
+    getConfigMock.mockResolvedValue(config());
+    loadCatalogMock.mockRejectedValue(new Error('network'));
+    render(<WebsiteBuilder />);
+
+    await waitFor(() =>
+      expect(notifyMock).toHaveBeenCalledWith('warning', {
+        title: 'Could not load your services',
+        text: 'The preview may be missing services. Refresh to try again.',
+      })
+    );
+  });
+
   it('says so when the site cannot be loaded', async () => {
     getConfigMock.mockRejectedValue(new Error('network'));
     render(<WebsiteBuilder />);

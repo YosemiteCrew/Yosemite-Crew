@@ -38,6 +38,133 @@ const statusText = (config: PracticeWebsiteConfig): string => {
   return 'Live. Visitors can see this site.';
 };
 
+const StatusPanel = ({
+  config,
+  canPublish,
+}: {
+  config: PracticeWebsiteConfig;
+  canPublish: boolean;
+}) => (
+  <div className="flex flex-col gap-2 rounded-2xl border border-[var(--hairline)] bg-[var(--inset)] px-4 py-3">
+    <span className="text-[13px] font-semibold text-[var(--ink)]">{statusText(config)}</span>
+    {config.publicUrl && (
+      <a
+        href={config.publicUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[13px] break-all text-[var(--blue-text)] underline!"
+      >
+        {config.publicUrl}
+      </a>
+    )}
+    {!canPublish && (
+      <span className="text-[12.5px] text-[var(--ink-body)]">
+        Your website&apos;s booking button opens your booking page, so turn on online booking before
+        you publish.{' '}
+        <Link href="/public-booking-setup" className="text-[var(--blue-text)] underline!">
+          Set up online booking
+        </Link>
+      </span>
+    )}
+  </div>
+);
+
+const TemplatePicker = ({
+  value,
+  onChange,
+}: {
+  value: WebsiteContent['templateId'];
+  onChange: (templateId: WebsiteContent['templateId']) => void;
+}) => (
+  <fieldset className="flex flex-col gap-2">
+    <legend className={`${LABEL} mb-2`}>Template</legend>
+    {WEBSITE_TEMPLATES.map((template) => {
+      const checked = value === template.id;
+      return (
+        <label
+          key={template.id}
+          className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 ${
+            checked ? 'border-[var(--blue-text)] bg-[var(--blue-soft)]' : 'border-[var(--hairline)]'
+          }`}
+        >
+          <input
+            type="radio"
+            name="template"
+            value={template.id}
+            checked={checked}
+            onChange={() => onChange(template.id)}
+            className="mt-1"
+          />
+          <Icon icon={template.icon} width={18} height={18} aria-hidden="true" />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[13.5px] font-semibold text-[var(--ink)]">{template.name}</span>
+            <span className={HINT}>{template.description}</span>
+          </span>
+        </label>
+      );
+    })}
+  </fieldset>
+);
+
+const CopyFields = ({
+  draft,
+  headlineMissing,
+  onChange,
+}: {
+  draft: WebsiteContent;
+  headlineMissing: boolean;
+  onChange: (patch: Partial<WebsiteContent>) => void;
+}) => (
+  <>
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="website-headline" className={LABEL}>
+        Headline
+      </label>
+      <Input
+        id="website-headline"
+        placeholder="Caring for your pets since 1998"
+        value={draft.headline}
+        maxLength={WEBSITE_COPY_LIMITS.headline}
+        error={headlineMissing}
+        aria-describedby={headlineMissing ? 'website-headline-error' : undefined}
+        onChange={(event) => onChange({ headline: event.target.value })}
+      />
+      {headlineMissing && (
+        <span id="website-headline-error" className="text-[11.5px] text-[var(--danger-text)]">
+          Add a headline for your website.
+        </span>
+      )}
+    </div>
+
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="website-tagline" className={LABEL}>
+        Tagline <span className={HINT}>(optional)</span>
+      </label>
+      <Input
+        id="website-tagline"
+        placeholder="Open late on weekdays"
+        value={draft.tagline ?? ''}
+        maxLength={WEBSITE_COPY_LIMITS.tagline}
+        onChange={(event) => onChange({ tagline: event.target.value })}
+      />
+    </div>
+
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="website-about" className={LABEL}>
+        About your practice <span className={HINT}>(optional)</span>
+      </label>
+      <Textarea
+        id="website-about"
+        rows={6}
+        value={draft.about ?? ''}
+        maxLength={WEBSITE_COPY_LIMITS.about}
+        onChange={(event) => onChange({ about: event.target.value })}
+      />
+      <span className={HINT}>Leave a blank line between paragraphs.</span>
+    </div>
+  </>
+);
+
 /**
  * Where a practice builds its clinic website: pick a template, write the copy,
  * check the preview, and publish.
@@ -68,11 +195,18 @@ const WebsiteBuilder = () => {
       .catch(() => {
         if (active) setView({ status: 'failed' });
       });
-    Promise.resolve(loadOrganisationCatalog(primaryOrgId)).catch(() => undefined);
+    // Without the catalog the preview shows no services, so say why.
+    Promise.resolve(loadOrganisationCatalog(primaryOrgId)).catch(() => {
+      if (!active) return;
+      notify('warning', {
+        title: 'Could not load your services',
+        text: 'The preview may be missing services. Refresh to try again.',
+      });
+    });
     return () => {
       active = false;
     };
-  }, [primaryOrgId, loadOrganisationCatalog]);
+  }, [primaryOrgId, loadOrganisationCatalog, notify]);
 
   // The preview lists what the booking page can offer: active, bookable services.
   const previewPractice = useMemo(
@@ -156,110 +290,16 @@ const WebsiteBuilder = () => {
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-2xl border border-[var(--hairline)] bg-[var(--inset)] px-4 py-3">
-        <span className="text-[13px] font-semibold text-[var(--ink)]">{statusText(config)}</span>
-        {config.publicUrl && (
-          <a
-            href={config.publicUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[13px] break-all text-[var(--blue-text)] underline!"
-          >
-            {config.publicUrl}
-          </a>
-        )}
-        {!canPublish && (
-          <span className="text-[12.5px] text-[var(--ink-body)]">
-            Your website&apos;s booking button opens your booking page, so turn on online booking
-            before you publish.{' '}
-            <Link href="/public-booking-setup" className="text-[var(--blue-text)] underline!">
-              Set up online booking
-            </Link>
-          </span>
-        )}
-      </div>
+      <StatusPanel config={config} canPublish={canPublish} />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <div className="flex flex-col gap-5">
-          <fieldset className="flex flex-col gap-2">
-            <legend className={`${LABEL} mb-2`}>Template</legend>
-            {WEBSITE_TEMPLATES.map((template) => {
-              const checked = draft.templateId === template.id;
-              return (
-                <label
-                  key={template.id}
-                  className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 ${
-                    checked
-                      ? 'border-[var(--blue-text)] bg-[var(--blue-soft)]'
-                      : 'border-[var(--hairline)]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="template"
-                    value={template.id}
-                    checked={checked}
-                    onChange={() => update({ templateId: template.id })}
-                    className="mt-1"
-                  />
-                  <Icon icon={template.icon} width={18} height={18} aria-hidden="true" />
-                  <span className="flex flex-col gap-0.5">
-                    <span className="text-[13.5px] font-semibold text-[var(--ink)]">
-                      {template.name}
-                    </span>
-                    <span className={HINT}>{template.description}</span>
-                  </span>
-                </label>
-              );
-            })}
-          </fieldset>
+          <TemplatePicker
+            value={draft.templateId}
+            onChange={(templateId) => update({ templateId })}
+          />
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="website-headline" className={LABEL}>
-              Headline
-            </label>
-            <Input
-              id="website-headline"
-              placeholder="Caring for your pets since 1998"
-              value={draft.headline}
-              maxLength={WEBSITE_COPY_LIMITS.headline}
-              error={headlineMissing}
-              aria-describedby={headlineMissing ? 'website-headline-error' : undefined}
-              onChange={(event) => update({ headline: event.target.value })}
-            />
-            {headlineMissing && (
-              <span id="website-headline-error" className="text-[11.5px] text-[var(--danger-text)]">
-                Add a headline for your website.
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="website-tagline" className={LABEL}>
-              Tagline <span className={HINT}>(optional)</span>
-            </label>
-            <Input
-              id="website-tagline"
-              placeholder="Open late on weekdays"
-              value={draft.tagline ?? ''}
-              maxLength={WEBSITE_COPY_LIMITS.tagline}
-              onChange={(event) => update({ tagline: event.target.value })}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="website-about" className={LABEL}>
-              About your practice <span className={HINT}>(optional)</span>
-            </label>
-            <Textarea
-              id="website-about"
-              rows={6}
-              value={draft.about ?? ''}
-              maxLength={WEBSITE_COPY_LIMITS.about}
-              onChange={(event) => update({ about: event.target.value })}
-            />
-            <span className={HINT}>Leave a blank line between paragraphs.</span>
-          </div>
+          <CopyFields draft={draft} headlineMissing={headlineMissing} onChange={update} />
 
           <div className="flex flex-wrap gap-2">
             <Primary
