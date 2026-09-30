@@ -149,7 +149,7 @@ const toLinkParent = (
   );
 };
 
-const findActiveOrPendingLink = async (params: {
+const findActiveOrPendingLink = (params: {
   patientId: string;
   organisationId: string;
 }) =>
@@ -166,7 +166,7 @@ const findActiveOrPendingLink = async (params: {
     },
   });
 
-const createLink = async (input: {
+const createLink = (input: {
   patientId: string;
   organisationId?: string | null;
   linkedByParentId?: string | null;
@@ -198,10 +198,7 @@ const createLink = async (input: {
     },
   });
 
-const updateLink = async (
-  id: string,
-  data: Prisma.PatientOrganisationUpdateInput,
-) =>
+const updateLink = (id: string, data: Prisma.PatientOrganisationUpdateInput) =>
   prisma.patientOrganisation.update({
     where: { id },
     data,

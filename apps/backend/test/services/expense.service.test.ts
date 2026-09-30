@@ -44,6 +44,27 @@ describe("ExpenseService", () => {
       ).rejects.toThrow("patientId is required");
     });
 
+    it.each([
+      [{ parentId: "" }, "parentId is required"],
+      [{ category: "" }, "category is required"],
+      [{ expenseName: "" }, "expenseName is required"],
+      [{ amount: -1 }, "amount must be a positive number"],
+      [{ amount: "10" }, "amount must be a positive number"],
+    ])("rejects %p without writing", async (override, message) => {
+      await expect(
+        ExpenseService.createExpense({
+          patientId: "companion-1",
+          parentId: "parent-1",
+          category: "Food",
+          expenseName: "Food",
+          date: new Date(),
+          amount: 10,
+          ...override,
+        } as never),
+      ).rejects.toThrow(message);
+      expect(prisma.externalExpense.create).not.toHaveBeenCalled();
+    });
+
     it("creates an external expense in postgres", async () => {
       (prisma.externalExpense.create as jest.Mock).mockResolvedValue({
         id: "ext-1",

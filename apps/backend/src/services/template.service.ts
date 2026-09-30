@@ -1651,7 +1651,7 @@ export const TemplateService = {
     }
   },
 
-  async submitInstance(
+  submitInstance(
     instanceId: string,
     organisationId: string,
     submittedBy?: string,

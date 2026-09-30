@@ -65,7 +65,7 @@ const assertSession = async (id: string, organisationId: string) => {
 };
 
 export const TelemedicineSessionService = {
-  async schedule(params: CreateTelemedicineSessionParams) {
+  schedule(params: CreateTelemedicineSessionParams) {
     return prisma.telemedicineSession.create({
       data: {
         organisationId: params.organisationId,
@@ -86,7 +86,7 @@ export const TelemedicineSessionService = {
     return assertSession(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     clientId?: string;
     patientId?: string;

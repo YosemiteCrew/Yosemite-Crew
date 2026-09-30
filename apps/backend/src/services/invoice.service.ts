@@ -1126,7 +1126,7 @@ const resolveInvoiceTaxContext = async (
   };
 };
 
-const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
+const cancelUnpaidInvoice = (invoice: PrismaInvoice, reason: string) =>
   prisma.invoice
     .update({
       where: { id: invoice.id },
@@ -2649,7 +2649,7 @@ export const InvoiceService = {
     return this.addItemsToInvoice(invoice.id, items);
   },
 
-  async findOpenInvoiceForAppointment(
+  findOpenInvoiceForAppointment(
     appointmentId: string,
     organisationId?: string,
   ) {

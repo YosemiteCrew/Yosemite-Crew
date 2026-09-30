@@ -21,6 +21,8 @@ import {
   parentHasCompanionFeature,
   requireCompanionPermission,
   requireCompanionPermissionForResource,
+  resolveAdverseEventCompanion,
+  resolveBodyPatient,
   resolveBodyPatientCompanion,
   resolveExpenseCompanion,
   resolveObservationSubmissionCompanion,
@@ -612,4 +614,51 @@ describe("observation-tool resolvers", () => {
       resolveBodyPatientCompanion(reqWith({}, body), "par-1"),
     ).resolves.toEqual({ kind: "deny" });
   });
+});
+
+describe("body resolvers", () => {
+  const reqWithBody = (body?: unknown) => ({ body }) as unknown as Request;
+
+  it("resolveBodyPatient names the companion from the body patientId", async () => {
+    await expect(
+      resolveBodyPatient(reqWithBody({ patientId: "pat-5" }), "par-1"),
+    ).resolves.toEqual({ kind: "patient", patientId: "pat-5" });
+  });
+
+  it.each([undefined, {}, { patientId: "" }, { patientId: 5 }])(
+    "resolveBodyPatient denies a body without a plain patientId (%j)",
+    async (body) => {
+      await expect(
+        resolveBodyPatient(reqWithBody(body), "par-1"),
+      ).resolves.toEqual({ kind: "deny" });
+    },
+  );
+
+  it.each([
+    [{ patient: { patientId: "pat-6" } }, "pat-6"],
+    [{ patient: { companionId: "pat-7" } }, "pat-7"],
+    [{ patient: { patientId: "pat-6", companionId: "pat-7" } }, "pat-6"],
+  ])(
+    "resolveAdverseEventCompanion names the reported companion (%j)",
+    async (body, patientId) => {
+      await expect(
+        resolveAdverseEventCompanion(reqWithBody(body), "par-1"),
+      ).resolves.toEqual({ kind: "patient", patientId });
+    },
+  );
+
+  it.each([
+    undefined,
+    {},
+    { patient: "pat-6" },
+    { patient: { patientId: "" } },
+    { patient: { patientId: ["pat-6"] } },
+  ])(
+    "resolveAdverseEventCompanion denies a report without a plain companion (%j)",
+    async (body) => {
+      await expect(
+        resolveAdverseEventCompanion(reqWithBody(body), "par-1"),
+      ).resolves.toEqual({ kind: "deny" });
+    },
+  );
 });

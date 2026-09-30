@@ -275,7 +275,7 @@ export const InsuranceClaimService = {
     return assertClaim(id, organisationId);
   },
 
-  async list(params: ListInsuranceClaimsParams) {
+  list(params: ListInsuranceClaimsParams) {
     const { organisationId, patientId, status, invoiceId } = params;
     return prisma.insuranceClaim.findMany({
       where: {

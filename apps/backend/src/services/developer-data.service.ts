@@ -241,7 +241,7 @@ export const DeveloperDataService = {
    * on purpose: it makes the query safe on its own terms, so a future route
    * that composes the middleware differently cannot turn this into an IDOR.
    */
-  async getAppointment(
+  getAppointment(
     organisationId: string,
     appointmentId: string,
   ): Promise<unknown> {

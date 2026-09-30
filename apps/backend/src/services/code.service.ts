@@ -21,7 +21,7 @@ export class CodeServiceError extends Error {
   }
 }
 
-const syncCodeEntryToPostgres = async (input: CodeEntryMongo) => {
+const syncCodeEntryToPostgres = (input: CodeEntryMongo) => {
   const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
     if (value === null) return Prisma.JsonNull;
     if (value === undefined) return undefined;
@@ -60,7 +60,7 @@ const syncCodeEntryToPostgres = async (input: CodeEntryMongo) => {
   });
 };
 
-const syncCodeMappingToPostgres = async (input: CodeMappingMongo) => {
+const syncCodeMappingToPostgres = (input: CodeMappingMongo) => {
   return prisma.codeMapping.upsert({
     where: {
       sourceSystem_sourceCode_targetSystem_targetCode: {
@@ -237,7 +237,7 @@ export const CodeService = {
     return filtered.slice(0, safeLimit ?? MAX_CODE_SEARCH_RESULTS);
   },
 
-  async listMappings(params: {
+  listMappings(params: {
     sourceSystem?: CodeSystem;
     sourceCode?: string;
     targetSystem?: CodeSystem;
