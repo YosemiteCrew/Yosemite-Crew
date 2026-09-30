@@ -201,10 +201,10 @@ export const PayableInvoice: Story = {
 
     // The invoice wins over formData. Seeded draft totals are 80/5/6/81, so every row
     // below would read the other set if the useMemo fell through to `formData`.
-    await expect(rowValue(panel, 'Subtotal:')).toBe('€240');
-    await expect(rowValue(panel, 'Discount:')).toBe('€0');
-    await expect(rowValue(panel, 'Tax:')).toBe('€18');
-    await expect(rowValue(panel, 'Estimated total:')).toBe('€258');
+    await expect(rowValue(panel, 'Subtotal:')).toBe('€240.00');
+    await expect(rowValue(panel, 'Discount:')).toBe('€0.00');
+    await expect(rowValue(panel, 'Tax:')).toBe('€18.00');
+    await expect(rowValue(panel, 'Estimated total:')).toBe('€258.00');
     // The org subscription currency, not the '$' fallback.
     await expect(panel.textContent).not.toContain('$');
 
@@ -257,10 +257,10 @@ export const NoInvoiceYet: Story = {
 
     // With no invoice the panel falls back to the bill builder's draft, run through
     // `toNumberSafe` - so these are the strings from formData, formatted as money.
-    await expect(rowValue(panel, 'Subtotal:')).toBe('€80');
-    await expect(rowValue(panel, 'Discount:')).toBe('€5');
-    await expect(rowValue(panel, 'Tax:')).toBe('€6');
-    await expect(rowValue(panel, 'Estimated total:')).toBe('€81');
+    await expect(rowValue(panel, 'Subtotal:')).toBe('€80.00');
+    await expect(rowValue(panel, 'Discount:')).toBe('€5.00');
+    await expect(rowValue(panel, 'Tax:')).toBe('€6.00');
+    await expect(rowValue(panel, 'Estimated total:')).toBe('€81.00');
 
     // Method and status are invoice-only rows and must not render a dash placeholder.
     await expect(within(panel).queryByText('Payment method:')).toBeNull();
@@ -313,7 +313,7 @@ export const PayableIsNotTheLatest: Story = {
        sorted by date would show €258 and a Paid pill, and the money still owed would
        disappear from the tab. The unsettled one has to win. */
     await expect(rowValue(panel, 'Status:')).toBe('Awaiting payment');
-    await expect(rowValue(panel, 'Estimated total:')).toBe('€65');
+    await expect(rowValue(panel, 'Estimated total:')).toBe('€65.00');
     await expect(panel.textContent).not.toContain('€258');
 
     await expect(canvas.getByRole('button', { name: 'Pay in cash' })).toBeEnabled();
@@ -347,7 +347,7 @@ export const SettledInvoice: Story = {
     const panel = payPanel(canvas);
 
     await expect(rowValue(panel, 'Status:')).toBe('Paid');
-    await expect(rowValue(panel, 'Estimated total:')).toBe('€258');
+    await expect(rowValue(panel, 'Estimated total:')).toBe('€258.00');
 
     // The receipt branch short-circuits the action row: one Download pill, and nothing
     // that could take the money a second time.
@@ -459,7 +459,7 @@ export const Phone: Story = {
        rather than reachable. */
     await expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth);
     await expect(canvas.getByAltText('Powered by stripe')).toBeVisible();
-    await expect(rowValue(panel, 'Estimated total:')).toBe('€258');
+    await expect(rowValue(panel, 'Estimated total:')).toBe('€258.00');
   },
   parameters: {
     docs: {

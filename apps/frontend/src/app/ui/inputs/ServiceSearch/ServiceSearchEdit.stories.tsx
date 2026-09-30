@@ -65,7 +65,7 @@ export const DropdownOpen: Story = {
   name: 'Dropdown open',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: /search or create service/i }));
+    await userEvent.click(canvas.getByRole('combobox', { name: /search or create service/i }));
   },
 };
 
@@ -83,7 +83,7 @@ export const AlreadyAdded: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: /search or create service/i }));
+    await userEvent.click(canvas.getByRole('combobox', { name: /search or create service/i }));
   },
 };
 
@@ -95,7 +95,7 @@ export const CreateNew: Story = {
   name: 'No match (create)',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const input = canvas.getByRole('textbox', { name: /search or create service/i });
+    const input = canvas.getByRole('combobox', { name: /search or create service/i });
     await userEvent.click(input);
     await userEvent.type(input, 'feline dental radiographs');
   },

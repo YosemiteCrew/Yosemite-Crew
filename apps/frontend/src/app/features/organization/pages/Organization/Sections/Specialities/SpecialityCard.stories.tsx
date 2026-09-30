@@ -171,7 +171,7 @@ export const NoServices: Story = {
     const canvas = within(canvasElement);
     // The state every speciality starts in: the search, and nothing under it.
     await expect(
-      canvas.getByRole('textbox', { name: 'Search or create service' })
+      canvas.getByRole('combobox', { name: 'Search or create service' })
     ).toBeInTheDocument();
     await expect(serviceNames(canvasElement)).toEqual([]);
     await expect(canvas.queryByLabelText('Description')).not.toBeInTheDocument();
