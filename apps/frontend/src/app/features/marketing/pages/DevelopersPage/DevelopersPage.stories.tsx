@@ -12,6 +12,9 @@ import { GITHUB_REPO_URL } from '@/app/features/marketing/site';
 
 import DevelopersPage from './DevelopersPage';
 
+/** The issue the marketplace section sends readers to while the marketplace is unbuilt. */
+const ROADMAP_ISSUE_URL = `${GITHUB_REPO_URL}/issues/1582`;
+
 /** The six section headings, in the order the page composes them. */
 const SECTION_SPINE = [
   'Read the data plane that exists today.',
@@ -141,17 +144,28 @@ export const Default: Story = {
     const spine = canvas.getAllByRole('heading', { level: 2 }).map((h) => flatten(h));
     await expect(spine).toEqual(SECTION_SPINE);
 
-    // Five links, and the two that open a new tab both carry the full rel pair. A
-    // half-written `rel="noopener"` looks identical on screen and in review.
+    /* Six links, and the three that open a new tab - the two repository links and the
+       capability roadmap issue - all carry the full rel pair. A half-written
+       `rel="noopener"` looks identical on screen and in review. */
     const links = canvas.getAllByRole('link');
-    await expect(links).toHaveLength(5);
-    for (const link of links.filter((l) => l.getAttribute('target') === '_blank')) {
-      await expect(link).toHaveAttribute('href', GITHUB_REPO_URL);
+    await expect(links).toHaveLength(6);
+    const newTab = links.filter((l) => l.getAttribute('target') === '_blank');
+    await expect(newTab.map((link) => link.getAttribute('href'))).toEqual([
+      GITHUB_REPO_URL,
+      ROADMAP_ISSUE_URL,
+      GITHUB_REPO_URL,
+    ]);
+    for (const link of newTab) {
       await expect(link.getAttribute('rel')?.split(/\s+/)).toEqual(
         expect.arrayContaining(['noopener', 'noreferrer'])
       );
     }
     await expect(canvas.getAllByRole('link', { name: /github|repo/i })).toHaveLength(2);
+    /* The marketplace is not built yet, so the section points at the tracking issue
+       rather than at a store. */
+    await expect(
+      canvas.getByRole('link', { name: 'Follow the capability roadmap' })
+    ).toHaveAttribute('href', ROADMAP_ISSUE_URL);
 
     await expect(canvas.getByRole('link', { name: 'Read the docs' })).toHaveAttribute(
       'href',

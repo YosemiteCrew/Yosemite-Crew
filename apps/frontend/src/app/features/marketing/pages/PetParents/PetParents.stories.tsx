@@ -144,11 +144,17 @@ const heroOf = (canvasElement: HTMLElement) =>
 const featureGridOf = (canvasElement: HTMLElement) =>
   canvasElement.querySelector('[data-grid-2-m]') as HTMLElement;
 
-/** The dark migration-story band. Found by the only `--spot` background on the page. */
+/**
+ * The dark migration-story band. Found by the only `var(--spot)` background on the
+ * page. Matched on the whole `var(--spot)` reference, closing parenthesis included:
+ * the band's own copy is inked with `var(--spot-ink-faint)`, so a bare `--spot`
+ * substring matches the label itself (`closest` starts at the element) and hands
+ * back a text node's box with no glow layer inside it.
+ */
 const spotlightOf = (canvasElement: HTMLElement) =>
   within(canvasElement)
     .getByText('Whose history is it, anyway')
-    .closest('div[style*="--spot"]') as HTMLElement;
+    .closest('div[style*="var(--spot)"]') as HTMLElement;
 
 const trackCount = (element: HTMLElement) =>
   getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length;

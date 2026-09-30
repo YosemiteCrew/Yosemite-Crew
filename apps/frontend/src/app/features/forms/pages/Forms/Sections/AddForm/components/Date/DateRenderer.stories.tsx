@@ -68,11 +68,12 @@ const meta = {
           '**`field.id` survives only as the control `name`.** `FormInput` generates its own ' +
           '`useId` for `id`/`htmlFor`, so `inname={field.id}` is the single thread tying this ' +
           'input back to its schema row.\n\n' +
-          '**There is no placeholder, and nothing asks for one.** This input carries no ' +
-          'placeholder attribute: `FormInput` takes no `placeholder` prop, and a native ' +
-          '`<input type="date">` would ignore the attribute anyway. `DateBuilder` used to offer ' +
-          'the author a Placeholder box regardless, and that box is gone. `Empty, awaiting a ' +
-          'date` pins the empty half so a future re-wiring has to be deliberate.\n\n' +
+          "**The schema's placeholder is not forwarded, and nothing asks for one.** A native " +
+          '`<input type="date">` ignores the attribute, and `DateBuilder` no longer offers the ' +
+          'author a Placeholder box. The attribute the input does carry is the label: the ' +
+          'canonical `Input` requires a placeholder and `FormInput` defaults it to `inlabel`. ' +
+          '`Empty, awaiting a date` pins that so a future re-wiring of `field.placeholder` has ' +
+          'to be deliberate.\n\n' +
           "**No story clicks the read-only input.** `FormInput`'s own click handler calls " +
           '`showPicker()` after the guard runs, and `showPicker()` on an immutable control ' +
           'throws `InvalidStateError`. The picker stays shut because the browser refuses it, not ' +
@@ -106,12 +107,15 @@ export const Empty: Story = {
        an easy tidy-up - would look identical and detach the answer from its field. */
     await expect(input).toHaveAttribute('name', 'date_of_birth');
 
-    /* No placeholder reaches the DOM, and none is meant to: FormInput has no
-       placeholder prop and a date input ignores the attribute. DateBuilder stopped
-       collecting one for exactly that reason - this line is what makes a future
-       attempt to forward `field.placeholder` announce itself instead of landing
-       as another control the author fills in for nothing. */
-    await expect(input).not.toHaveAttribute('placeholder');
+    /* The schema's own placeholder never reaches the DOM, and is not meant to: a
+       date input ignores the attribute, and DateBuilder stopped collecting one for
+       exactly that reason. The attribute that IS there is the canonical `Input`'s
+       required placeholder, which FormInput fills with the label when it is given
+       none. Pinning it to the label is what makes a future attempt to forward
+       `field.placeholder` announce itself instead of landing as another control
+       the author fills in for nothing. */
+    await expect(input).toHaveAttribute('placeholder', DOB_LABEL);
+    await expect(input).not.toHaveAttribute('placeholder', DOB.placeholder);
 
     /* Editable means in the tab order. `tabIndex` is left undefined here, and the
        readOnly story asserts the opposite from the same starting point. */

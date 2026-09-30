@@ -73,6 +73,24 @@ const pointerAt = (node: HTMLElement, fx: number, fy: number, target: EventTarge
   );
 };
 
+/**
+ * Repeat a pointer move until the effect it drives has written a style.
+ *
+ * Every pointer effect here attaches its listener in `useEffect`. The dev server
+ * wraps the story render in `act`, which flushes those effects before the play
+ * function starts; the static build CI tests is a production React, which has no
+ * `act`, so the first move can land before anything is listening and be lost. A
+ * single dispatch then fails for a reason that has nothing to do with the
+ * component. The move is re-sent, not merely re-checked, because a missed event
+ * is never replayed.
+ */
+const moveUntilListening = async (move: () => void, written: () => string): Promise<void> => {
+  await waitFor(() => {
+    move();
+    expect(written()).not.toBe('');
+  });
+};
+
 const leave = (node: HTMLElement): void => {
   node.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
 };
@@ -437,7 +455,10 @@ export const PointerDriven: Story = {
     // Below and right of centre. The sign convention is the part worth pinning:
     // rotateY follows the cursor's X and rotateX is INVERTED against its Y, which
     // is what makes the card lean toward the pointer rather than away from it.
-    pointerAt(tilt, 0.75, 0.75);
+    await moveUntilListening(
+      () => pointerAt(tilt, 0.75, 0.75),
+      () => tilt.style.transform
+    );
     const rotate = /rotateX\((-?[\d.]+)deg\) rotateY\((-?[\d.]+)deg\)/.exec(tilt.style.transform);
     await expect(rotate).not.toBeNull();
     const rotateX = Number(rotate?.[1]);
@@ -819,20 +840,21 @@ export const Glows: Story = {
     await expect(bare.parentElement).toBe(scope);
 
     const rect = scope.getBoundingClientRect();
-    globalThis.window.dispatchEvent(
-      new MouseEvent('mousemove', {
-        clientX: rect.left + rect.width * 0.75,
-        clientY: rect.top + rect.height * 0.5,
-      })
-    );
-
     /* Right of centre pulls the layer LEFT - the drift is inverted so the glow
        appears to sit behind the section. Only the depth layer moves; the bare
        glow keeps the centring transform it was given, which is what would break
        silently if HeroGlow ever wrapped both. */
-    await waitFor(() => {
-      expect(layer.style.transform).toContain('translate3d');
-    });
+    await moveUntilListening(
+      () =>
+        globalThis.window.dispatchEvent(
+          new MouseEvent('mousemove', {
+            clientX: rect.left + rect.width * 0.75,
+            clientY: rect.top + rect.height * 0.5,
+          })
+        ),
+      () => layer.style.transform
+    );
+    await expect(layer.style.transform).toContain('translate3d');
     await expect(translateX(layer.style.transform)).toBeLessThan(0);
     await expect(bare.style.transform).toBe('translate(-50%, -50%)');
   },

@@ -77,6 +77,25 @@ const CACHED_STATS = {
   discord: '1,204',
 };
 
+/* `useCloudUsers` owns these and keeps them module-private. The Cloud users tile is
+   seeded the same way the stats are, so "the numbers resolved" resolves every number:
+   the community route handlers do not exist in Storybook and are answered 503 below,
+   which would otherwise leave this one tile on its placeholder in the populated story.
+   The signup is three hours old so `timeAgo` lands on a fixed caption. */
+const CLOUD_USERS_CACHE_KEY = 'yc_cloud_users_v1';
+const CLOUD_USERS_TS_KEY = 'yc_cloud_users_ts_v1';
+const CACHED_CLOUD_USERS = { totalUsers: '8,140' };
+const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+
+/** Every metric tile and the cached string it must reserve, in grid order. */
+const METRIC_VALUES = [
+  ['Cloud users', CACHED_CLOUD_USERS.totalUsers],
+  ['Repository clones', CACHED_STATS.repositoryClones],
+  ['Contributors', CACHED_STATS.contributors],
+  ['Discord members', CACHED_STATS.discord],
+  ['Repo stars', CACHED_STATS.starsFull],
+] as const;
+
 /* --------------------------------------------------------------- environment */
 
 const jsonReply = (body: unknown) =>
@@ -103,19 +122,29 @@ const jsonReply = (body: unknown) =>
  */
 const withHomeData = (releases: RawRelease[] | null, stats: typeof CACHED_STATS | null) => () => {
   const previous = new Map<string, string | null>(
-    [LANES_CACHE_KEY, STATS_CACHE_KEY, STATS_TS_KEY].map((key) => [
-      key,
-      globalThis.sessionStorage.getItem(key),
-    ])
+    [LANES_CACHE_KEY, STATS_CACHE_KEY, STATS_TS_KEY, CLOUD_USERS_CACHE_KEY, CLOUD_USERS_TS_KEY].map(
+      (key) => [key, globalThis.sessionStorage.getItem(key)]
+    )
   );
 
   globalThis.sessionStorage.removeItem(LANES_CACHE_KEY);
   if (stats) {
     globalThis.sessionStorage.setItem(STATS_CACHE_KEY, JSON.stringify(stats));
     globalThis.sessionStorage.setItem(STATS_TS_KEY, String(Date.now()));
+    globalThis.sessionStorage.setItem(
+      CLOUD_USERS_CACHE_KEY,
+      // Stamped when the story mounts, so the caption stays "3h ago" however long the page is open.
+      JSON.stringify({
+        ...CACHED_CLOUD_USERS,
+        latestSignupAt: new Date(Date.now() - THREE_HOURS_MS).toISOString(),
+      })
+    );
+    globalThis.sessionStorage.setItem(CLOUD_USERS_TS_KEY, String(Date.now()));
   } else {
     globalThis.sessionStorage.removeItem(STATS_CACHE_KEY);
     globalThis.sessionStorage.removeItem(STATS_TS_KEY);
+    globalThis.sessionStorage.removeItem(CLOUD_USERS_CACHE_KEY);
+    globalThis.sessionStorage.removeItem(CLOUD_USERS_TS_KEY);
   }
 
   const originalFetch = globalThis.fetch;
@@ -197,7 +226,7 @@ const PRINCIPLES = [
   'Your data answers to your flag.',
 ];
 
-const STAT_LABELS = ['Repository clones', 'Contributors', 'Discord members', 'Repo stars'];
+const STAT_LABELS = METRIC_VALUES.map(([label]) => label);
 
 /** Every link the page owns, plus the five release lanes in the hero. */
 const TOTAL_LINKS = 14;
@@ -250,7 +279,7 @@ const countUpsIn = (scope: HTMLElement): HTMLElement[] =>
 const reservedValue = (countUp: HTMLElement) => countUp.children[0]?.textContent ?? '';
 const shownValue = (countUp: HTMLElement) => countUp.children[1]?.textContent ?? '';
 
-/* Scoped by label rather than by index: all four tiles are the same markup, and an index
+/* Scoped by label rather than by index: all five tiles are the same markup, and an index
    would keep passing after two of them swapped places. */
 const metricCountUp = (canvasElement: HTMLElement, label: string): HTMLElement => {
   const tile = within(canvasElement).getByText(label).parentElement as HTMLElement;
@@ -466,22 +495,20 @@ export const Default: Story = {
     await expect(layers).toHaveLength(3);
     for (const layer of layers) await expect(layer.style.transform).toMatch(/^translate3d\(/);
 
-    /* Five live numbers: the hero clone count and the four metric tiles. Which cached
+    /* Six live numbers: the hero clone count and the five metric tiles. Which cached
        field feeds which tile is the assertion that matters - `stars` ('2.4k') and
        `starsFull` ('2,431') are both in the same payload and both read perfectly well
        under "Repo stars". */
-    await expect(countUpsIn(canvasElement)).toHaveLength(5);
+    await expect(countUpsIn(canvasElement)).toHaveLength(1 + METRIC_VALUES.length);
     await expect(reservedValue(countUpsIn(heroOf(canvasElement))[0])).toBe(
       CACHED_STATS.repositoryClones
     );
-    for (const [label, value] of [
-      ['Repository clones', CACHED_STATS.repositoryClones],
-      ['Contributors', CACHED_STATS.contributors],
-      ['Discord members', CACHED_STATS.discord],
-      ['Repo stars', CACHED_STATS.starsFull],
-    ] as const) {
+    for (const [label, value] of METRIC_VALUES) {
       await expect(reservedValue(metricCountUp(canvasElement, label))).toBe(value);
     }
+    // The Cloud users source line is the only one computed rather than written: it
+    // swaps to the newest signup's age once there is one to report.
+    await expect(metricSource(canvasElement, 'Cloud users')).toBe('live · last signup 3h ago');
     /* The source line is hand-written per tile, so the Discord row is the one that drifts
        into "live via GitHub" on a copy-paste - and then states something false on a
        section whose whole argument is that its numbers are honest. */
@@ -499,12 +526,7 @@ export const Default: Story = {
     await waitFor(async () => {
       await expect(shownValue(clones)).not.toBe(CACHED_STATS.repositoryClones);
     });
-    for (const [label, value] of [
-      ['Repository clones', CACHED_STATS.repositoryClones],
-      ['Contributors', CACHED_STATS.contributors],
-      ['Discord members', CACHED_STATS.discord],
-      ['Repo stars', CACHED_STATS.starsFull],
-    ] as const) {
+    for (const [label, value] of METRIC_VALUES) {
       await waitFor(
         async () => {
           await expect(shownValue(metricCountUp(canvasElement, label))).toBe(value);
@@ -530,8 +552,8 @@ export const Default: Story = {
     docs: {
       description: {
         story:
-          'The everyday page: a seeded stats cache fills the hero clone count and all four ' +
-          'metric tiles, and the releases endpoint returns one release per lane. The feed is ' +
+          'The everyday page: seeded stats and cloud-user caches fill the hero clone count and ' +
+          'all five metric tiles, and the releases endpoint returns one release per lane. The feed is ' +
           'deliberately led by the PIMS tag with the bare-semver desktop tag last, so the lane ' +
           'matched by shape rather than by prefix has to be found at the bottom of the list.',
       },
@@ -564,7 +586,7 @@ export const NothingResolved: Story = {
        collapses the tile. `CountUp` renders non-numeric text verbatim, so this is also the
        branch where its animation must not run at all. */
     const counters = countUpsIn(canvasElement);
-    await expect(counters).toHaveLength(5);
+    await expect(counters).toHaveLength(1 + METRIC_VALUES.length);
     for (const counter of counters) {
       await expect(reservedValue(counter)).toBe(PLACEHOLDER);
       await expect(shownValue(counter)).toBe(PLACEHOLDER);
@@ -582,7 +604,7 @@ export const NothingResolved: Story = {
         story:
           'Both endpoints answer 503 and both session caches are cold, which is also the first ' +
           'paint of a perfectly healthy load and the state every unstubbed story is quietly ' +
-          'in. Five lanes and five numbers, all showing the middle-dot placeholder.',
+          'in. Five lanes and six numbers, all showing the middle-dot placeholder.',
       },
     },
   },

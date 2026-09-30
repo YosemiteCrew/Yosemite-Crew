@@ -190,6 +190,9 @@ const withAboutData =
 const BELIEFS_GRID = 0;
 const STATS_GRID = 1;
 const CORE_TEAM_GRID = 2;
+
+/** The named core team as its cards announce it; the live roster is GitHub's, not this list. */
+const CORE_TEAM = ['Ankit Upadhyay, Founder and contributor, on LinkedIn'];
 const LIVE_GRID = 3;
 
 const gridsOf = (canvasElement: HTMLElement) =>
@@ -356,9 +359,7 @@ export const Default: Story = {
     /* The live roster is appended below the named core team, never a replacement for
        it. Both grids exist independently and both must be populated. A contributor who
        has left the core team can still appear in the live GitHub roster above. */
-    await expect(labelsOf(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID)))).toEqual([
-      'Ankit Upadhyay, Founder and contributor, on LinkedIn',
-    ]);
+    await expect(labelsOf(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID)))).toEqual(CORE_TEAM);
 
     /* Four tracks at laptop width, so three contributors leave the fourth slot empty
        rather than stretching to fill the band, and all three sit on one row at one
@@ -418,10 +419,10 @@ export const LoadingContributors: Story = {
        Lift it out of the ternary and it renders above a four-track grid instead. */
     await expect(live().children).toHaveLength(1);
 
-    /* The null branch guards the live roster and nothing else: the founding pair,
+    /* The null branch guards the live roster and nothing else: the named core team,
        the section heading and its explanatory line all sit outside the ternary and
        must still be on the page while GitHub is unreachable. */
-    await expect(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID))).toHaveLength(2);
+    await expect(labelsOf(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID)))).toEqual(CORE_TEAM);
     await expect(canvas.getByText('Live GitHub contributors')).toBeInTheDocument();
 
     /* The two data sources are independent - the stats come from the session cache,
@@ -464,7 +465,7 @@ export const NoContributorsReturned: Story = {
         'This list loads directly from GitHub, so the roster stays current as the project grows.'
       )
     ).toBeInTheDocument();
-    await expect(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID))).toHaveLength(2);
+    await expect(labelsOf(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID)))).toEqual(CORE_TEAM);
   },
   parameters: {
     docs: {
