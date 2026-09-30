@@ -41,6 +41,7 @@ import {
 } from '@/features/chat/streamChatTheme';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type RouteParams = {
   appointmentId: string;
   vetId: string;
@@ -249,7 +250,7 @@ export const ChatChannelScreen: React.FC = () => {
           onPress: () => {
             setLoading(true);
             setError(null);
-            initChat();
+            runInBackground(initChat());
           },
         },
       ]);
@@ -265,7 +266,7 @@ export const ChatChannelScreen: React.FC = () => {
   ]);
 
   useEffect(() => {
-    initChat();
+    runInBackground(initChat());
 
     // Cleanup function
     return () => {

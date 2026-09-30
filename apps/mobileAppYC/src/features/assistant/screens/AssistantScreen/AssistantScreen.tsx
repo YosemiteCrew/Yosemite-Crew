@@ -36,6 +36,7 @@ import {askAssistant, probeOnDeviceModel} from '@/features/assistant/thunks';
 import {transcriptCleared} from '@/features/assistant/assistantSlice';
 import {resolveHandoffTarget} from '@/features/assistant/services/handoffNavigation';
 import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Navigation = NativeStackNavigationProp<HomeStackParamList, 'Assistant'>;
 
@@ -97,7 +98,7 @@ export const AssistantScreen: React.FC = () => {
   const currencyCode = useResolvedUserCurrency();
 
   useEffect(() => {
-    dispatch(probeOnDeviceModel());
+    runInBackground(dispatch(probeOnDeviceModel()));
   }, [dispatch]);
 
   useEffect(() => {
@@ -109,7 +110,9 @@ export const AssistantScreen: React.FC = () => {
   const handleSubmit = useCallback(
     (text: string) => {
       setDraft('');
-      dispatch(askAssistant({utterance: text, t, currencyCode}));
+      runInBackground(
+        dispatch(askAssistant({utterance: text, t, currencyCode})),
+      );
     },
     [currencyCode, dispatch, t],
   );

@@ -23,6 +23,7 @@ import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
 import {fetchDocuments} from '@/features/documents/documentSlice';
 import {fetchTasksForCompanion} from '@/features/tasks';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type BottomTabBarProps =
   import('@react-navigation/bottom-tabs').BottomTabBarProps;
@@ -70,10 +71,10 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
         return;
       }
       if (routeName === 'Documents') {
-        dispatch(fetchDocuments({companionId}));
+        runInBackground(dispatch(fetchDocuments({companionId})));
       }
       if (routeName === 'Tasks') {
-        dispatch(fetchTasksForCompanion({companionId}));
+        runInBackground(dispatch(fetchTasksForCompanion({companionId})));
       }
     },
     [companionId, dispatch],

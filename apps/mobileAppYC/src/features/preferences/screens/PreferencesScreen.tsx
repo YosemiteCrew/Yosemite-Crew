@@ -33,6 +33,7 @@ import {
 import {enable, disable} from '@/features/appLock/services/appLockKeychain';
 import {getAppLockAvailability} from '@/features/appLock/services/appLockAvailability';
 import {APP_LOCK_TIMEOUT_OPTIONS_MS} from '@/features/appLock/appLockLogic';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Preferences'>;
 
@@ -93,10 +94,12 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
   const appLockTimeoutSheetRef = useRef<GenericSelectBottomSheetRef>(null);
 
   useEffect(() => {
-    getAppLockAvailability().then(({result}) => {
-      setAppLockAvailable(result.available);
-      setAppLockReason(result.available ? null : result.reason);
-    });
+    runInBackground(
+      getAppLockAvailability().then(({result}) => {
+        setAppLockAvailable(result.available);
+        setAppLockReason(result.available ? null : result.reason);
+      }),
+    );
   }, []);
 
   const handleAppLockChange = async (enabled: boolean) => {
@@ -266,7 +269,9 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
         selectedItem={selectedLanguage}
         onSave={item => {
           if (item) {
-            i18n.changeLanguage(item.id);
+            i18n.changeLanguage(item.id).catch(error => {
+              console.warn('[Preferences] Could not change language', error);
+            });
           }
         }}
         mode="select"

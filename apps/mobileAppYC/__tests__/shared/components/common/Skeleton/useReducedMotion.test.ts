@@ -36,6 +36,26 @@ describe('useReducedMotion', () => {
     await waitFor(() => expect(result.current).toBe(true));
   });
 
+  it('keeps animations on without an unhandled rejection when the OS query fails', async () => {
+    const unhandled = jest.fn();
+    process.on('unhandledRejection', unhandled);
+    jest
+      .spyOn(AccessibilityInfo, 'isReduceMotionEnabled')
+      .mockRejectedValue(new Error('native module missing'));
+    jest
+      .spyOn(AccessibilityInfo, 'addEventListener')
+      .mockReturnValue({remove: jest.fn()} as any);
+
+    const {result} = renderHook(() => useReducedMotion());
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    process.off('unhandledRejection', unhandled);
+    expect(result.current).toBe(false);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
   it('subscribes to reduceMotionChanged and updates when the event fires', async () => {
     let listener: ReduceMotionListener | undefined;
     jest

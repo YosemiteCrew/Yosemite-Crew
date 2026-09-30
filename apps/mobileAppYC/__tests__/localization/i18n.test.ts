@@ -62,7 +62,36 @@ describe('i18n configuration', () => {
 
   it('should support interpolation', () => {
     // Assuming there's a translation with interpolation
-    const result = i18n.t('test', {defaultValue: 'Hello {{name}}', name: 'World'});
+    const result = i18n.t('test', {
+      defaultValue: 'Hello {{name}}',
+      name: 'World',
+    });
     expect(result).toContain('World');
+  });
+});
+
+describe('i18n start-up failure', () => {
+  it('logs instead of leaving a rejected start-up promise when initialisation fails', async () => {
+    const failure = new Error('init failed');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const instance: {use: jest.Mock; init: jest.Mock} = {
+      use: jest.fn(() => instance),
+      init: jest.fn(() => Promise.reject(failure)),
+    };
+
+    jest.isolateModules(() => {
+      jest.doMock('i18next', () => ({__esModule: true, default: instance}));
+      require('@/localization/i18n');
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(instance.init).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[i18n] Failed to initialise translations',
+      failure,
+    );
+    warnSpy.mockRestore();
+    jest.dontMock('i18next');
   });
 });

@@ -65,6 +65,7 @@ import {
 } from './onboardingStore';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const handleOnboardingComplete = async () => {
@@ -140,7 +141,7 @@ export const AppNavigator: React.FC = () => {
   loadPendingProfileRef.current = loadPendingProfile;
 
   useEffect(() => {
-    loadPendingProfileRef.current();
+    runInBackground(loadPendingProfileRef.current());
     const subscription = DeviceEventEmitter.addListener(
       PENDING_PROFILE_UPDATED_EVENT,
       () => loadPendingProfileRef.current(),
@@ -212,7 +213,7 @@ export const AppNavigator: React.FC = () => {
       }
     };
 
-    seedPendingProfile();
+    runInBackground(seedPendingProfile());
 
     return () => {
       cancelled = true;
@@ -356,7 +357,7 @@ const AppNavigatorEmergencySheet: React.FC = () => {
   }, [dispatch, primaryHospital]);
 
   React.useEffect(() => {
-    fetchHospitalPhone();
+    runInBackground(fetchHospitalPhone());
   }, [fetchHospitalPhone]);
 
   const tryOpenDialer = React.useCallback(async (url: string) => {
@@ -466,7 +467,7 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
       sheetRef.current?.close();
       return;
     }
-    dispatch(fetchPendingInvites());
+    runInBackground(dispatch(fetchPendingInvites()));
   }, [dispatch, isLoggedIn, isLoading, isProfileComplete, user?.id]);
 
   React.useEffect(() => {
@@ -493,17 +494,19 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
     }
     try {
       await dispatch(acceptCoParentInvite({token: invite.token})).unwrap();
-      dispatch(fetchPendingInvites());
+      runInBackground(dispatch(fetchPendingInvites()));
       if (user?.parentId) {
-        dispatch(
-          fetchParentAccess({
-            parentId: user.parentId,
-            companionIds: invite.companion?.id
-              ? [invite.companion.id]
-              : undefined,
-          }),
+        runInBackground(
+          dispatch(
+            fetchParentAccess({
+              parentId: user.parentId,
+              companionIds: invite.companion?.id
+                ? [invite.companion.id]
+                : undefined,
+            }),
+          ),
         );
-        dispatch(fetchCompanions(user.parentId));
+        runInBackground(dispatch(fetchCompanions(user.parentId)));
       }
     } catch (error) {
       console.error('Failed to accept invite:', error);
@@ -521,7 +524,7 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
     }
     try {
       await dispatch(declineCoParentInvite({token: invite.token})).unwrap();
-      dispatch(fetchPendingInvites());
+      runInBackground(dispatch(fetchPendingInvites()));
     } catch (error) {
       console.error('Failed to decline invite:', error);
       Alert.alert(

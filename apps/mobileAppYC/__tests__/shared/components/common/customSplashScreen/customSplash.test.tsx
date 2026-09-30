@@ -3,6 +3,7 @@ import {act, cleanup, render, screen} from '@testing-library/react-native/pure';
 import * as Reanimated from 'react-native-reanimated';
 jest.unmock('@/shared/components/common/customSplashScreen/customSplash');
 import CustomSplashScreen from '@/shared/components/common/customSplashScreen/customSplash';
+import BootSplash from 'react-native-bootsplash';
 
 // Mock dependencies
 jest.mock('react-native-bootsplash', () => ({
@@ -23,6 +24,7 @@ jest.mock('react-native-linear-gradient', () => {
 describe('CustomSplashScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (BootSplash.hide as jest.Mock).mockResolvedValue(undefined);
     jest.useFakeTimers();
   });
 
@@ -31,6 +33,30 @@ describe('CustomSplashScreen', () => {
     jest.clearAllTimers();
     jest.useRealTimers();
     jest.restoreAllMocks();
+  });
+
+  describe('launch screen', () => {
+    it('hides the native launch screen on mount', () => {
+      render(<CustomSplashScreen onAnimationEnd={jest.fn()} />);
+
+      expect(BootSplash.hide).toHaveBeenCalledWith({fade: false});
+    });
+
+    it('logs instead of failing when the launch screen cannot be hidden', async () => {
+      const failure = new Error('no launch screen');
+      (BootSplash.hide as jest.Mock).mockRejectedValueOnce(failure);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      render(<CustomSplashScreen onAnimationEnd={jest.fn()} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Splash] Could not hide the launch screen',
+        failure,
+      );
+    });
   });
 
   describe('rendering', () => {

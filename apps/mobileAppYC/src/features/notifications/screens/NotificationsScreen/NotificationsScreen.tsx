@@ -41,6 +41,7 @@ import {NotificationFilterPills} from '../../components/NotificationFilterPills/
 // Removed Clear All button for minimal UI
 import type {Notification, NotificationCategory} from '../../types';
 import {useAuth} from '@/features/auth/context/AuthContext';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 const NAVIGATION_TARGETS = {
   task: {
@@ -114,8 +115,12 @@ export const NotificationsScreen: React.FC = () => {
     if (!isLoggedIn) {
       return;
     }
-    dispatch(
-      fetchNotificationsForCompanion({companionId: NOTIFICATIONS_COMPANION_ID}),
+    runInBackground(
+      dispatch(
+        fetchNotificationsForCompanion({
+          companionId: NOTIFICATIONS_COMPANION_ID,
+        }),
+      ),
     );
   }, [dispatch, isLoggedIn]);
 
@@ -255,7 +260,9 @@ export const NotificationsScreen: React.FC = () => {
   const handleNotificationPress = useCallback(
     (notification: Notification) => {
       if (notification.status === 'unread') {
-        dispatch(markNotificationAsRead({notificationId: notification.id}));
+        runInBackground(
+          dispatch(markNotificationAsRead({notificationId: notification.id})),
+        );
       }
 
       const didNavigateByDeepLink = tryNavigateByDeepLink(
@@ -276,7 +283,7 @@ export const NotificationsScreen: React.FC = () => {
   // Handle dismiss: mark as read so item moves to Seen tab
   const handleDismiss = useCallback(
     (notificationId: string) => {
-      dispatch(markNotificationAsRead({notificationId}));
+      runInBackground(dispatch(markNotificationAsRead({notificationId})));
     },
     [dispatch],
   );
@@ -284,7 +291,7 @@ export const NotificationsScreen: React.FC = () => {
   // Handle archive
   const handleArchive = useCallback(
     (notificationId: string) => {
-      dispatch(archiveNotification({notificationId}));
+      runInBackground(dispatch(archiveNotification({notificationId})));
     },
     [dispatch],
   );

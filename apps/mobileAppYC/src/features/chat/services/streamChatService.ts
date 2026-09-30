@@ -256,17 +256,17 @@ export const markChannelAsRead = async (channelId: string): Promise<void> => {
  *
  * @returns Promise<number> - Total unread count
  */
-export const getUnreadCount = async (): Promise<number> => {
+export const getUnreadCount = (): Promise<number> => {
   try {
     const client = getChatClient();
-    if (!client.userID) return 0;
+    if (!client.userID) return Promise.resolve(0);
 
     const unreadCount =
       (client.user as OwnUserResponse | undefined)?.total_unread_count || 0;
-    return unreadCount;
+    return Promise.resolve(unreadCount);
   } catch (error) {
     console.error('[Stream] Failed to get unread count:', error);
-    return 0;
+    return Promise.resolve(0);
   }
 };
 

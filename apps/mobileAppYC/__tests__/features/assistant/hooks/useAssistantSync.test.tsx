@@ -256,10 +256,33 @@ describe('useAssistantSync', () => {
   });
 
   describe('Android launcher shortcuts', () => {
-    const publishShortcuts = jest.fn();
+    const publishShortcuts = jest.fn(() => Promise.resolve(true));
 
     beforeEach(() => {
       publishShortcuts.mockClear();
+    });
+
+    it('logs instead of failing when the launcher shortcuts cannot be published', async () => {
+      setPlatform('android');
+      const failure = new Error('shortcut manager unavailable');
+      publishShortcuts.mockRejectedValueOnce(failure);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockedGetSnapshotModule.mockReturnValue({
+        writeSnapshot: jest.fn(),
+        clearSnapshot: jest.fn(),
+        consumePendingLink: jest.fn(),
+        publishShortcuts,
+      });
+
+      const {store} = makeStore();
+      renderSync(store);
+      await flushMicrotasks();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Assistant] Could not publish launcher shortcuts',
+        failure,
+      );
+      warnSpy.mockRestore();
     });
 
     it('publishes the four catalogue shortcuts with their deep links on Android', async () => {
@@ -479,6 +502,25 @@ describe('useAssistantSync', () => {
 
       expect(mockedConsumePendingLink).toHaveBeenCalledTimes(1);
       expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('logs instead of failing when routing a pending link throws', async () => {
+      const failure = new Error('navigation state not ready');
+      mockedConsumePendingLink.mockResolvedValue('yc://app/assistant');
+      mockNavigate.mockImplementationOnce(() => {
+        throw failure;
+      });
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const {store} = makeStore();
+      renderSync(store);
+      await flushMicrotasks();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Assistant] Could not open the assistant link',
+        failure,
+      );
+      warnSpy.mockRestore();
     });
 
     it('routes the assistant link to the home stack', async () => {

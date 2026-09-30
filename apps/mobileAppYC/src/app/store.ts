@@ -21,25 +21,26 @@ const storageForPersist = isJest
   ? ((): any => {
       const store: Record<string, string> = {};
       return {
-        getItem: async (key: string) => (key in store ? store[key] : null),
-        setItem: async (key: string, value: string) => {
+        getItem: (key: string) =>
+          Promise.resolve(key in store ? store[key] : null),
+        setItem: (key: string, value: string) => {
           store[key] = value;
-          return null;
+          return Promise.resolve(null);
         },
-        removeItem: async (key: string) => {
+        removeItem: (key: string) => {
           delete store[key];
-          return null;
+          return Promise.resolve(null);
         },
-        getAllKeys: async () => Object.keys(store),
-        multiGet: async (keys: string[]) =>
-          keys.map(k => [k, store[k] ?? null]),
-        multiSet: async (entries: [string, string][]) => {
+        getAllKeys: () => Promise.resolve(Object.keys(store)),
+        multiGet: (keys: string[]) =>
+          Promise.resolve(keys.map(k => [k, store[k] ?? null])),
+        multiSet: (entries: [string, string][]) => {
           for (const [k, v] of entries) store[k] = v;
-          return null;
+          return Promise.resolve(null);
         },
-        multiRemove: async (keys: string[]) => {
+        multiRemove: (keys: string[]) => {
           for (const k of keys) delete store[k];
-          return null;
+          return Promise.resolve(null);
         },
       };
     })()
