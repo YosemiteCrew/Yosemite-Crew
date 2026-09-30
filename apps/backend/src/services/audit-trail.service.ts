@@ -6,6 +6,11 @@ import {
 import { Prisma, type AuditTrail } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
+import {
+  encodeKeysetCursor,
+  parseKeysetCursor,
+  splitPage,
+} from "src/services/shared/pagination";
 
 export class AuditTrailServiceError extends Error {
   constructor(
@@ -270,6 +275,55 @@ export const AuditTrailService = {
     });
 
     return buildCursorResponse(entries);
+  },
+
+  async listOrganisationFeed(params: {
+    organisationId: string;
+    limit?: number;
+    cursor?: string;
+  }) {
+    const organisationId = ensureSafeString(
+      params.organisationId,
+      "organisationId",
+    );
+    const cursor = parseKeysetCursor(params.cursor);
+    if (cursor === null) {
+      throw new AuditTrailServiceError("Invalid cursor", 400);
+    }
+
+    const requestedLimit = Number.isFinite(params.limit)
+      ? Math.floor(params.limit!)
+      : 50;
+    const limit = Math.min(Math.max(requestedLimit, 1), 100);
+    const rows = await prisma.auditTrail.findMany({
+      where: {
+        organisationId,
+        ...(cursor
+          ? {
+              OR: [
+                { occurredAt: { lt: cursor.createdAt } },
+                { occurredAt: cursor.createdAt, id: { lt: cursor.id } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        patientId: true,
+        eventType: true,
+        actorType: true,
+        actorName: true,
+        entityType: true,
+        occurredAt: true,
+      },
+      orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+    });
+    const page = splitPage(rows, limit, (row) =>
+      encodeKeysetCursor({ createdAt: row.occurredAt, id: row.id }),
+    );
+
+    return { entries: page.items, nextCursor: page.nextCursor };
   },
 
   async listForAppointment(params: {
