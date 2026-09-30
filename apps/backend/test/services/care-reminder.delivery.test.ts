@@ -295,6 +295,32 @@ describe("CareReminderService.sendScheduledDue", () => {
     send.mockRestore();
   });
 
+  it("sends due reminders one at a time", async () => {
+    mockPrisma.careReminder.findMany.mockResolvedValue([
+      { id: "one", organisationId: "org-1" },
+      { id: "two", organisationId: "org-1" },
+    ]);
+    let finishFirst: (() => void) | undefined;
+    const send = jest
+      .spyOn(CareReminderService, "send")
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishFirst = () => resolve({} as never);
+          }),
+      )
+      .mockResolvedValueOnce({} as never);
+
+    const run = CareReminderService.sendScheduledDue();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(send).toHaveBeenCalledTimes(1);
+
+    finishFirst?.();
+    await expect(run).resolves.toBe(2);
+    expect(send).toHaveBeenCalledTimes(2);
+    send.mockRestore();
+  });
+
   it("only picks send times inside the last week", async () => {
     jest.useFakeTimers({ now: new Date("2026-09-30T12:00:00Z") });
     try {

@@ -32,23 +32,18 @@ const PAGE_SIZE = 100;
 export const careReminderApi = {
   /** Reads every page so the selected companion's reminders cannot be hidden by pagination. */
   async list(accessToken: string): Promise<MobileCareReminder[]> {
-    const reminders: MobileCareReminder[] = [];
-    let cursor: string | undefined;
-    let hasMore = true;
-
-    while (hasMore) {
+    const readFrom = async (cursor?: string): Promise<MobileCareReminder[]> => {
       const {data} = await apiClient.get<CareReminderPage>(ENDPOINT, {
         params: {limit: PAGE_SIZE, cursor},
         headers: withAuthHeaders(accessToken),
       });
-      reminders.push(...(data.reminders ?? []));
-      hasMore = data.hasMore;
-      if (hasMore && (!data.nextCursor || data.nextCursor === cursor)) {
+      const reminders = data.reminders ?? [];
+      if (!data.hasMore) return reminders;
+      if (!data.nextCursor || data.nextCursor === cursor) {
         throw new Error('Care reminder pagination did not advance');
       }
-      cursor = data.nextCursor ?? undefined;
-    }
-
-    return reminders;
+      return [...reminders, ...(await readFrom(data.nextCursor))];
+    };
+    return readFrom();
   },
 };

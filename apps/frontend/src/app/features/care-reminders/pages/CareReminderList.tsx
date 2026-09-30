@@ -74,12 +74,9 @@ const CareReminderList = ({
   }
   if (loading) {
     return (
-      <p
-        role="status"
-        className="rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-surface-card)] p-6 text-sm"
-      >
+      <output className="block rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-surface-card)] p-6 text-sm">
         Loading reminders…
-      </p>
+      </output>
     );
   }
   if (reminders.length === 0) {

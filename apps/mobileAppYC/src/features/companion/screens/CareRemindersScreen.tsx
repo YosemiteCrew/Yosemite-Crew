@@ -13,6 +13,7 @@ import {
 } from '@/features/companion/services/careReminderService';
 import type {HomeStackParamList} from '@/navigation/types';
 import type {Theme} from '@/theme';
+import {companionListScreenStyles} from './companionListScreenStyles';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CareReminders'>;
 type LoadError = 'signIn' | 'loadFailed';
@@ -66,7 +67,7 @@ export const CareRemindersScreen: React.FC<Props> = ({navigation, route}) => {
       }
     };
 
-    load();
+    load().catch(() => undefined);
     return () => {
       active = false;
     };
@@ -171,33 +172,7 @@ const CareRemindersBody: React.FC<{
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    content: {padding: theme.spacing['5'], paddingBottom: theme.spacing['10']},
-    centered: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: theme.spacing['5'],
-    },
-    intro: {
-      ...theme.typography.body,
-      color: theme.colors.inkMuted,
-      marginBottom: theme.spacing['5'],
-    },
-    empty: {...theme.typography.body, color: theme.colors.inkMuted},
-    error: {
-      ...theme.typography.body,
-      color: theme.colors.dangerText,
-      textAlign: 'center',
-    },
-    button: {
-      marginTop: theme.spacing['4'],
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['3'],
-      borderRadius: theme.borderRadius.button,
-      backgroundColor: theme.colors.blueText,
-      alignSelf: 'flex-start',
-    },
-    buttonLabel: {...theme.typography.button, color: theme.colors.white},
+    ...companionListScreenStyles(theme),
     card: {
       padding: theme.spacing['4'],
       marginBottom: theme.spacing['3'],

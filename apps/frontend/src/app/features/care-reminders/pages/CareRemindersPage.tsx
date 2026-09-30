@@ -167,12 +167,9 @@ export const CareRemindersPage = () => {
         </p>
       )}
       {notice && (
-        <p
-          role="status"
-          className="mb-5 rounded-xl border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] p-3 text-sm text-[var(--success-text)]"
-        >
+        <output className="mb-5 block rounded-xl border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] p-3 text-sm text-[var(--success-text)]">
           {notice}
-        </p>
+        </output>
       )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -238,7 +235,7 @@ export const CareRemindersPage = () => {
               </select>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-medium">
-                  Care due date
+                  <span>Care due date</span>
                   <input
                     required
                     type="date"
@@ -248,7 +245,7 @@ export const CareRemindersPage = () => {
                   />
                 </label>
                 <label className="block text-sm font-medium">
-                  Send at (optional)
+                  <span>Send at (optional)</span>
                   <input
                     type="datetime-local"
                     value={sendAt}

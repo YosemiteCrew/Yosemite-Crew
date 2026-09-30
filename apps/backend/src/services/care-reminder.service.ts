@@ -586,16 +586,20 @@ export const CareReminderService = {
       orderBy: { sendAt: "asc" },
       take: 100,
     });
-    for (const reminder of due) {
-      try {
-        await this.send(reminder.id, reminder.organisationId);
-      } catch (error) {
-        logger.error("Scheduled care reminder could not be delivered", {
-          reminderId: reminder.id,
-          error,
-        });
-      }
-    }
+    const sendOne = (reminder: (typeof due)[number]) =>
+      this.send(reminder.id, reminder.organisationId).catch(
+        (error: unknown) => {
+          logger.error("Scheduled care reminder could not be delivered", {
+            reminderId: reminder.id,
+            error,
+          });
+        },
+      );
+    // One at a time, so a full batch never outruns the mail provider's send rate.
+    await due.reduce<Promise<unknown>>(
+      (previous, reminder) => previous.then(() => sendOne(reminder)),
+      Promise.resolve(),
+    );
     return due.length;
   },
 
