@@ -1724,6 +1724,12 @@ describe("FormService", () => {
       expect(prisma.form.findMany).not.toHaveBeenCalled();
     });
 
+    it("getAutoSendForms: rejects a missing organisation id", async () => {
+      await expect(
+        FormService.getAutoSendForms(undefined as unknown as string),
+      ).rejects.toMatchObject({ message: "Invalid orgId", statusCode: 400 });
+    });
+
     it("listFormsForOrganisation: maps forms with resolved names", async () => {
       (prisma.form.findMany as jest.Mock).mockResolvedValue([
         {
