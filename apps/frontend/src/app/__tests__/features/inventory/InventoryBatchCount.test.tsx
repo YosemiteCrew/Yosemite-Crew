@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import InventoryBatchCount from '@/app/features/inventory/components/InventoryBatchCount';
 import type { BatchValues } from '@/app/features/inventory/pages/Inventory/types';
 import {
@@ -134,16 +135,29 @@ describe('InventoryBatchCount', () => {
     expect(screen.getByRole('combobox', { name: 'Batch' })).toHaveValue('');
   });
 
-  it('shows a record error and can cancel the open form', async () => {
+  it('shows the server reason for a refused count and can cancel the open form', async () => {
     const user = userEvent.setup();
-    (recordInventoryBatchCount as jest.Mock).mockRejectedValue(new Error('Network unavailable'));
+    const config = { headers: {} } as InternalAxiosRequestConfig;
+    const response = {
+      data: { error: 'This batch has expired and cannot be counted.' },
+      status: 404,
+      statusText: 'Not Found',
+      headers: {},
+      config,
+    } as AxiosResponse;
+    (recordInventoryBatchCount as jest.Mock).mockRejectedValue(
+      new AxiosError('Request failed with status code 404', 'ERR_BAD_REQUEST', config, {}, response)
+    );
     render(<InventoryBatchCount {...commonProps} />);
 
     await user.click(screen.getByRole('button', { name: 'Start count' }));
     await user.selectOptions(screen.getByRole('combobox', { name: 'Batch' }), 'batch-1');
     await user.type(screen.getByPlaceholderText('Enter the physical count'), '7');
     await user.click(screen.getByRole('button', { name: 'Record count' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Network unavailable');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This batch has expired and cannot be counted.'
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent('status code');
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('combobox', { name: 'Batch' })).not.toBeInTheDocument();
   });
@@ -163,6 +177,53 @@ describe('InventoryBatchCount', () => {
       'The count could not be saved. Try again.'
     );
     expect(screen.getByText('Difference: -1')).toBeInTheDocument();
+  });
+
+  it('shows fallback copy when a refused request carries no readable reason', async () => {
+    const user = userEvent.setup();
+    const config = { headers: {} } as InternalAxiosRequestConfig;
+    (recordInventoryBatchCount as jest.Mock).mockRejectedValue(
+      new AxiosError('Request failed with status code 400', 'ERR_BAD_REQUEST', config, {}, {
+        data: { error: { fieldErrors: {} } },
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {},
+        config,
+      } as AxiosResponse)
+    );
+    render(<InventoryBatchCount {...commonProps} />);
+
+    await user.click(screen.getByRole('button', { name: 'Start count' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Batch' }), 'batch-1');
+    await user.type(screen.getByPlaceholderText('Enter the physical count'), '7');
+    await user.click(screen.getByRole('button', { name: 'Record count' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The count could not be saved. Try again.'
+    );
+  });
+
+  it('leaves expired batches out of the count', async () => {
+    const user = userEvent.setup();
+    render(
+      <InventoryBatchCount
+        {...commonProps}
+        batches={[
+          { ...batch, _id: 'batch-expired', batch: 'LOT-OLD', expiryDate: '2020-01-01' },
+          { ...batch, expiryDate: '2999-12-31' },
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Start count' }));
+    expect(screen.getByRole('option', { name: 'LOT-1' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'LOT-OLD' })).not.toBeInTheDocument();
+  });
+
+  it('hides the count when every batch has expired', () => {
+    const { container } = render(
+      <InventoryBatchCount {...commonProps} batches={[{ ...batch, expiryDate: '2020-01-01' }]} />
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('keeps the count action disabled without permission', () => {

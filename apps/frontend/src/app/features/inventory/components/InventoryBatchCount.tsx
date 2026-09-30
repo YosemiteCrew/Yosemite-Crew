@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { isAxiosError } from 'axios';
 import { BatchValues } from '@/app/features/inventory/pages/Inventory/types';
 import Input, { Textarea } from '@/app/ui/Input';
 import Text from '@/app/ui/Text';
@@ -23,8 +24,22 @@ type InventoryBatchCountProps = {
 const getBatchLabel = (batch: BatchValues, index: number) =>
   batch.batch || batch.serial || `Batch ${index + 1}`;
 
-const getErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : 'The count could not be saved. Try again.';
+const FALLBACK_ERROR = 'The count could not be saved. Try again.';
+
+// The server explains a refusal (stock moved since the count, an expired batch)
+// in `error`; anything else gets plain fallback copy, never a status code.
+const getErrorMessage = (error: unknown) => {
+  const serverMessage = isAxiosError<{ error?: unknown }>(error)
+    ? error.response?.data?.error
+    : undefined;
+  return typeof serverMessage === 'string' && serverMessage ? serverMessage : FALLBACK_ERROR;
+};
+
+const isCountable = (batch: BatchValues) => {
+  if (!batch._id) return false;
+  const expiresAt = Date.parse(batch.expiryDate);
+  return Number.isNaN(expiresAt) || expiresAt > Date.now();
+};
 
 const InventoryBatchCount = ({
   organisationId,
@@ -34,7 +49,7 @@ const InventoryBatchCount = ({
   disabled = false,
   onRefresh,
 }: InventoryBatchCountProps) => {
-  const countableBatches = batches.filter((batch) => Boolean(batch._id));
+  const countableBatches = batches.filter(isCountable);
   const [isOpen, setIsOpen] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState('');
@@ -292,7 +307,7 @@ const InventoryBatchCount = ({
             </div>
           )}
           {error && (
-            <Text role="alert" variant="caption-1" className="text-danger-text">
+            <Text role="alert" variant="caption-1" className="text-text-error">
               {error}
             </Text>
           )}
