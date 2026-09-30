@@ -179,8 +179,10 @@ describe("finance.router", () => {
     expect(handlers).toContain(BillingReviewController.list);
     expect(handlers).toContain(requireWebAuth);
     expect(handlers).toContain(withOrgPermissionsMiddleware);
-    expect(handlers).toContain(permissionGuard("billing:view:any"));
-    expect(handlers).toContain(permissionGuard("appointments:view:any"));
+    // Both are required: the list links into the visit workspace.
+    expect(handlers).toContain(
+      permissionGuard("all:billing:view:any+appointments:view:any"),
+    );
   });
 
   it("puts the reconciliation queue behind web auth, org scope and a permission", () => {
