@@ -262,7 +262,7 @@ export const ErrorSummary: Story = {
     );
     await expect(
       canvas.getByRole('textbox', { name: 'Page or URL where you encountered the barrier' })
-    ).toHaveAttribute('aria-invalid', 'false');
+    ).not.toHaveAttribute('aria-invalid');
   },
   parameters: {
     docs: {
@@ -318,9 +318,8 @@ export const ErrorsClearAsYouType: Story = {
       'Your email address is required.',
       'Please describe the barrier you encountered.',
     ]);
-    await expect(canvas.getByRole('textbox', { name: 'Your name *' })).toHaveAttribute(
-      'aria-invalid',
-      'false'
+    await expect(canvas.getByRole('textbox', { name: 'Your name *' })).not.toHaveAttribute(
+      'aria-invalid'
     );
 
     // Fix the rest and the block unmounts, taking the form's description with it.

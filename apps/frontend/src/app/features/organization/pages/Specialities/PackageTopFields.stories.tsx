@@ -92,11 +92,8 @@ export const NewPackage: Story = {
     await expect(grid.children).toHaveLength(2);
 
     // A blank draft: no field may claim to be invalid before the user saves.
-    await expect(canvas.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'false');
-    await expect(canvas.getByLabelText('Approx. duration')).toHaveAttribute(
-      'aria-invalid',
-      'false'
-    );
+    await expect(canvas.getByLabelText('Name')).not.toHaveAttribute('aria-invalid');
+    await expect(canvas.getByLabelText('Approx. duration')).not.toHaveAttribute('aria-invalid');
     await expect(canvas.queryAllByRole('alert')).toHaveLength(0);
 
     /* An empty count string matches no option, so both triggers must announce the
