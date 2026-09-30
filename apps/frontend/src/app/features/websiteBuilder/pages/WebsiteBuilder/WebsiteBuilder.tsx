@@ -165,24 +165,12 @@ const CopyFields = ({
   </>
 );
 
-/**
- * Where a practice builds its clinic website: pick a template, write the copy,
- * check the preview, and publish.
- *
- * The site's call to action is the practice's booking page, so publishing is
- * offered only once online booking is live. The API enforces the same rule.
- */
-const WebsiteBuilder = () => {
-  const { notify } = useNotify();
-  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const primaryOrg = usePrimaryOrg();
-  const services = useRevampCatalogStore((s) => s.services);
-  const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
+type Notify = ReturnType<typeof useNotify>['notify'];
 
-  // One state for the load, so "ready" always carries both the saved site and
-  // the draft being edited.
-  const [view, setView] = useState<BuilderView>({ status: 'loading' });
-  const [saving, setSaving] = useState(false);
+/** Loads the saved site. One state, so "ready" always carries both the saved site and the draft. */
+const useWebsiteConfig = (primaryOrgId: string | null | undefined) => {
+  const state = useState<BuilderView>({ status: 'loading' });
+  const setView = state[1];
 
   useEffect(() => {
     if (!primaryOrgId) return;
@@ -195,6 +183,23 @@ const WebsiteBuilder = () => {
       .catch(() => {
         if (active) setView({ status: 'failed' });
       });
+    return () => {
+      active = false;
+    };
+  }, [primaryOrgId, setView]);
+
+  return state;
+};
+
+/** The preview lists what the booking page can offer: active, bookable services. */
+const usePreviewPractice = (primaryOrgId: string | null | undefined, notify: Notify) => {
+  const primaryOrg = usePrimaryOrg();
+  const services = useRevampCatalogStore((s) => s.services);
+  const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
+
+  useEffect(() => {
+    if (!primaryOrgId) return;
+    let active = true;
     // Without the catalog the preview shows no services, so say why.
     Promise.resolve(loadOrganisationCatalog(primaryOrgId)).catch(() => {
       if (!active) return;
@@ -208,8 +213,7 @@ const WebsiteBuilder = () => {
     };
   }, [primaryOrgId, loadOrganisationCatalog, notify]);
 
-  // The preview lists what the booking page can offer: active, bookable services.
-  const previewPractice = useMemo(
+  return useMemo(
     () => ({
       name: primaryOrg?.name || 'Your clinic',
       city: null,
@@ -229,6 +233,21 @@ const WebsiteBuilder = () => {
     }),
     [primaryOrg?.name, services]
   );
+};
+
+/**
+ * Where a practice builds its clinic website: pick a template, write the copy,
+ * check the preview, and publish.
+ *
+ * The site's call to action is the practice's booking page, so publishing is
+ * offered only once online booking is live. The API enforces the same rule.
+ */
+const WebsiteBuilder = () => {
+  const { notify } = useNotify();
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const [view, setView] = useWebsiteConfig(primaryOrgId);
+  const previewPractice = usePreviewPractice(primaryOrgId, notify);
+  const [saving, setSaving] = useState(false);
 
   if (view.status === 'failed') {
     return (
