@@ -776,6 +776,66 @@ describe("TaskWorkflowService", () => {
     expect(cancelled.status).toBe("CANCELLED");
   });
 
+  it("cancels a schedule's tasks one at a time and stops at the first failure", async () => {
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-4",
+      organisationId: "org-1",
+      appointmentId: null,
+      caseId: null,
+      encounterId: null,
+      templateId: "template-4",
+      templateVersion: 1,
+      authorId: "creator-1",
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T08:00:00.000Z"),
+      data: {},
+      template: {
+        id: "template-4",
+        kind: "CARE_PATHWAY",
+        ownership: "ORG_TEMPLATE",
+      },
+      taskSchedule: {
+        id: "schedule-4",
+        templateInstanceId: "instance-4",
+        templateId: "template-4",
+        templateVersion: 1,
+        templateKind: "CARE_PATHWAY",
+        organisationId: "org-1",
+        createdBy: "creator-1",
+        status: "ACTIVE",
+        generatedTaskIds: ["task-7", "task-8", "task-9"],
+        materializedSeeds: [{ id: "seed-1" }],
+      },
+    });
+    let inFlight = 0;
+    let peak = 0;
+    mockedTaskService.changeStatus.mockImplementation(
+      async (taskId: string) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (taskId === "task-8") throw new Error("task locked");
+        return { task: { id: taskId } };
+      },
+    );
+
+    await expect(
+      TaskWorkflowService.cancelSchedule(
+        "instance-4",
+        { actorId: "actor-1", canEditAny: true },
+        "org-1",
+      ),
+    ).rejects.toThrow("task locked");
+
+    expect(peak).toBe(1);
+    expect(
+      mockedTaskService.changeStatus.mock.calls.map(([taskId]) => taskId),
+    ).toEqual(["task-7", "task-8"]);
+    expect(mockedPrisma.taskSchedule.update).not.toHaveBeenCalled();
+  });
+
   it("regenerates a schedule by cancelling old tasks and creating new ones", async () => {
     mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
       id: "instance-5",

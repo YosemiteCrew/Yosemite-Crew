@@ -33,8 +33,10 @@ export const mapInSequence = <T, R>(
  * it for independent work, such as reads that do not affect each other.
  *
  * After the first failure no new item starts; tasks already running are
- * allowed to settle before the first error is rethrown, so nothing is still
- * running once the returned promise rejects.
+ * allowed to settle, then the error of the earliest failing item in input
+ * order is rethrown. Every item before it has already been started, so this is
+ * the error a plain loop would have stopped at, and nothing is still running
+ * once the returned promise rejects.
  */
 export const mapWithConcurrency = async <T, R>(
   items: readonly T[],
@@ -43,16 +45,21 @@ export const mapWithConcurrency = async <T, R>(
 ): Promise<R[]> => {
   const results = new Array<R>(items.length);
   let nextIndex = 0;
-  let failure: { error: unknown } | undefined;
+  // Index of the earliest failing item; items.length while nothing failed.
+  let failedIndex = items.length;
+  let failedError: unknown;
 
   const worker = async (): Promise<void> => {
-    if (failure || nextIndex >= items.length) return;
+    if (failedIndex < items.length || nextIndex >= items.length) return;
     const index = nextIndex;
     nextIndex += 1;
     try {
       results[index] = await task(items[index], index);
     } catch (error) {
-      failure ??= { error };
+      if (index < failedIndex) {
+        failedIndex = index;
+        failedError = error;
+      }
       return;
     }
     return worker();
@@ -63,6 +70,6 @@ export const mapWithConcurrency = async <T, R>(
     : DEFAULT_CONCURRENCY;
   const workerCount = Math.min(cap, items.length);
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  if (failure) throw failure.error;
+  if (failedIndex < items.length) throw failedError;
   return results;
 };

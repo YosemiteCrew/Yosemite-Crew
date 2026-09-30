@@ -3,6 +3,7 @@ import { prisma } from "src/config/prisma";
 import Stripe from "stripe";
 import { FinanceEventService } from "./events";
 import { getOrgBillingCurrency } from "src/utils/billing";
+import { mapInSequence } from "src/utils/async-iteration";
 
 const toSubscriptionStatus = (
   value?: string | null,
@@ -299,8 +300,8 @@ const recordSubscriptionInvoiceOutcome = async (
     ),
   );
 
-  for (const eventType of outcome.eventTypes) {
-    await FinanceEventService.recordEvent({
+  await mapInSequence(outcome.eventTypes, (eventType) =>
+    FinanceEventService.recordEvent({
       organisationId: rows[0]?.orgId ?? input.subscriptionId,
       eventType,
       entityType: "SUBSCRIPTION",
@@ -309,8 +310,8 @@ const recordSubscriptionInvoiceOutcome = async (
         invoiceId: input.invoiceId ?? null,
         paymentStatus: outcome.paymentStatus,
       },
-    });
-  }
+    }),
+  );
 };
 
 export const FinanceSubscriptionService = {
@@ -507,7 +508,7 @@ export const FinanceSubscriptionService = {
     });
   },
 
-  async upsertSubscriptionEntitlement(input: SubscriptionEntitlementInput) {
+  upsertSubscriptionEntitlement(input: SubscriptionEntitlementInput) {
     return prisma.subscriptionEntitlement.upsert({
       where: {
         orgId_code: {

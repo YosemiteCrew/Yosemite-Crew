@@ -5,6 +5,7 @@ import {
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { roundMoney } from "src/services/finance/pricing";
+import { mapInSequence } from "src/utils/async-iteration";
 
 type PrismaTransactionClient = Prisma.TransactionClient;
 
@@ -340,7 +341,9 @@ const writePayment = (
       },
     });
 
-    for (const alloc of input.allocations) {
+    // Allocations share the transaction, so each bill is claimed and
+    // allocated in turn.
+    await mapInSequence(input.allocations, async (alloc) => {
       const allocationAmount = roundMoney(alloc.amount, input.currency);
       await claimBillForAllocation(
         tx,
@@ -357,7 +360,7 @@ const writePayment = (
           idempotencyKey: `${input.idempotencyKey}:${alloc.billId}`,
         },
       });
-    }
+    });
 
     // One ledger entry for the money that left, whatever it was allocated to.
     // Any part not allocated to a bill stays on the account as supplier credit.

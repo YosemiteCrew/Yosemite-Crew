@@ -44,6 +44,7 @@ import {
   hasCompanionFeature,
   parentHasCompanionFeature,
 } from "src/middlewares/companion-access";
+import { mapWithConcurrency } from "src/utils/async-iteration";
 
 export class FormServiceError extends Error {
   constructor(
@@ -1113,31 +1114,24 @@ const parentMaySign = (
   );
 };
 
-const buildAppointmentFormItems = async (params: {
+type AppointmentFormItem = {
+  questionnaire?: ReturnType<typeof toFHIRQuestionnaire>;
+  questionnaireResponse?: ReturnType<typeof toFHIRQuestionnaireResponse>;
+  status: "completed" | "pending";
+  canSign?: boolean;
+};
+
+const buildAppointmentFormItems = (params: {
   forms: LeanForm[];
   versionMap: Map<string, VersionAgg>;
   submissionMap: Map<string, SubmissionAgg>;
   includeQuestionnaire: boolean;
   viewerParentId?: string;
-}) => {
-  const items: {
-    questionnaire?: ReturnType<typeof toFHIRQuestionnaire>;
-    questionnaireResponse?: ReturnType<typeof toFHIRQuestionnaireResponse>;
-    status: "completed" | "pending";
-    canSign?: boolean;
-  }[] = [];
-
-  for (const form of params.forms) {
+}): Promise<AppointmentFormItem[]> => {
+  const listed = params.forms.flatMap((form) => {
     const formId = form._id;
     const version = params.versionMap.get(formId);
-    if (!version) continue;
-
-    const questionnaire = params.includeQuestionnaire
-      ? toFHIRQuestionnaire({
-          ...form,
-          _id: formId,
-        })
-      : undefined;
+    if (!version) return [];
 
     const submission = params.submissionMap.get(formId);
     // A parent cannot fill in a practice-only form, so one with nothing they
@@ -1148,27 +1142,41 @@ const buildAppointmentFormItems = async (params: {
       (isInternalForm(form) ||
         ((!submission || submission.hidden) && isPracticeOnlyForm(form)))
     ) {
-      continue;
+      return [];
     }
 
-    const questionnaireResponse = await buildQuestionnaireResponse(
-      submission,
-      version,
-      form.orgId,
-      params.viewerParentId,
-    );
+    return [{ form, formId, version, submission }];
+  });
 
-    items.push({
-      ...(params.includeQuestionnaire ? { questionnaire } : {}),
-      questionnaireResponse,
-      status: questionnaireResponse ? "completed" : "pending",
-      ...(params.viewerParentId
-        ? { canSign: parentMaySign(form, submission, params.viewerParentId) }
-        : {}),
-    });
-  }
+  // Each response is built independently, so a few are built at once; the
+  // items keep the order of the forms.
+  return mapWithConcurrency(
+    listed,
+    async ({ form, formId, version, submission }) => {
+      const questionnaire = params.includeQuestionnaire
+        ? toFHIRQuestionnaire({
+            ...form,
+            _id: formId,
+          })
+        : undefined;
 
-  return items;
+      const questionnaireResponse = await buildQuestionnaireResponse(
+        submission,
+        version,
+        form.orgId,
+        params.viewerParentId,
+      );
+
+      return {
+        ...(params.includeQuestionnaire ? { questionnaire } : {}),
+        questionnaireResponse,
+        status: questionnaireResponse ? "completed" : "pending",
+        ...(params.viewerParentId
+          ? { canSign: parentMaySign(form, submission, params.viewerParentId) }
+          : {}),
+      } satisfies AppointmentFormItem;
+    },
+  );
 };
 
 type AppointmentTemplateInstance = Prisma.TemplateInstanceGetPayload<
@@ -2519,8 +2527,11 @@ export const FormService = {
       });
   },
 
-  async getAutoSendForms(orgId: string, serviceId?: string) {
-    const oid = ensureId(orgId, "orgId");
+  getAutoSendForms(orgId: string, serviceId?: string) {
+    const oid = (orgId ?? "").trim();
+    if (!oid) {
+      return Promise.reject(new FormServiceError("Invalid orgId", 400));
+    }
 
     return prisma.form.findMany({
       where: {

@@ -1269,6 +1269,44 @@ describe("StripeService", () => {
       );
     });
 
+    it("recomputes one organisation at a time and stops at the first failure", async () => {
+      (prisma.organizationBilling.findMany as jest.Mock).mockResolvedValueOnce([
+        { orgId: "org_1" },
+        { orgId: "org_2" },
+        { orgId: "org_3" },
+      ]);
+      let inFlight = 0;
+      let peak = 0;
+      const recompute = async (orgId: string) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (orgId === "org_2") throw new Error("verification failed");
+      };
+      (recomputeOrganizationVerification as jest.Mock)
+        .mockImplementationOnce(recompute)
+        .mockImplementationOnce(recompute)
+        .mockImplementationOnce(recompute);
+
+      await expect(
+        StripeService._handleAccountUpdated({
+          id: "acct_multi",
+          charges_enabled: true,
+          payouts_enabled: true,
+          requirements: {},
+        } as any),
+      ).rejects.toThrow("verification failed");
+
+      expect(peak).toBe(1);
+      expect(
+        (recomputeOrganizationVerification as jest.Mock).mock.calls.map(
+          ([orgId]) => orgId,
+        ),
+      ).toEqual(["org_1", "org_2"]);
+      (recomputeOrganizationVerification as jest.Mock).mockReset();
+    });
+
     it("handles appointment booking payment", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "appt_1",

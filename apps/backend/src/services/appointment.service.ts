@@ -27,6 +27,7 @@ import { CatalogService, CatalogServiceError } from "./catalog.service";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { markFreeLimitReachedAt } from "./shared/org-usage-limit";
 import { WaitlistService } from "./waitlist.service";
+import { mapInSequence } from "src/utils/async-iteration";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -921,8 +922,9 @@ const recordFormAttachmentAudit = async (
 ) => {
   if (!appointment.formIds?.length) return;
 
-  for (const formId of appointment.formIds) {
-    await AuditTrailService.recordSafely({
+  // Audit rows are written in form order.
+  await mapInSequence(appointment.formIds, (formId) =>
+    AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
       patientId: appointment.patient.id,
       eventType: "FORM_ATTACHED",
@@ -932,8 +934,8 @@ const recordFormAttachmentAudit = async (
       metadata: {
         appointmentId,
       },
-    });
-  }
+    }),
+  );
 };
 
 const resolveObservationToolId = (value: unknown) => {
@@ -960,7 +962,7 @@ const maybeCreateObservationToolTask = async (
   });
 };
 
-const ensureOrgUsageCounters = async (orgId: string) =>
+const ensureOrgUsageCounters = (orgId: string) =>
   prisma.organizationUsageCounter.upsert({
     where: { orgId },
     create: { orgId },
@@ -2235,8 +2237,8 @@ export const AppointmentService = {
       },
     });
 
-    for (const formId of newIds) {
-      await AuditTrailService.recordSafely({
+    await mapInSequence(newIds, (formId) =>
+      AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
         patientId: (appointment.patient as { id: string }).id,
         eventType: "FORM_ATTACHED",
@@ -2246,8 +2248,8 @@ export const AppointmentService = {
         metadata: {
           appointmentId: appointment.id,
         },
-      });
-    }
+      }),
+    );
 
     return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
   },

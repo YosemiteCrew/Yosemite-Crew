@@ -25,6 +25,7 @@ import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { isSpeciesCompatible } from "./shared/normalize-tokens";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
+import { mapInSequence } from "src/utils/async-iteration";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -424,47 +425,60 @@ const buildTemplateDefault = (
   source,
 });
 
-const resolveTemplateDefaultsForSelection = async (args: {
+type TemplateDefaultsArgs = {
   tx: TransactionClient;
   organisationId: string;
   selection: CatalogSelection;
-}): Promise<AppointmentTemplateDefault[]> => {
-  const defaults: AppointmentTemplateDefault[] = [];
-  const bindings: CatalogTemplateBinding[] = args.selection.templateBindings
-    ?.length
-    ? args.selection.templateBindings
-    : args.selection.templateKinds.map((templateKind) => ({ templateKind }));
+};
 
-  for (const binding of bindings) {
-    if (binding.templateId) {
-      const resolvedTemplate = (await args.tx.template.findFirst({
-        where: {
-          id: binding.templateId,
-          kind: toLegacyTemplateKind(binding.templateKind),
-        },
-      })) as TemplateRow | null;
+const resolveTemplateDefaultForBinding = async (
+  args: TemplateDefaultsArgs,
+  binding: CatalogTemplateBinding,
+): Promise<AppointmentTemplateDefault | null> => {
+  if (binding.templateId) {
+    const resolvedTemplate = (await args.tx.template.findFirst({
+      where: {
+        id: binding.templateId,
+        kind: toLegacyTemplateKind(binding.templateKind),
+      },
+    })) as TemplateRow | null;
 
-      if (!resolvedTemplate) {
-        throw new AppointmentPrismaServiceError(
-          `Bound template ${binding.templateId} was not found.`,
-          404,
-        );
-      }
-
-      defaults.push(
-        buildTemplateDefault(
-          resolvedTemplate,
-          "CATALOG_BINDING",
-          binding.templateVersion ?? undefined,
-        ),
+    if (!resolvedTemplate) {
+      throw new AppointmentPrismaServiceError(
+        `Bound template ${binding.templateId} was not found.`,
+        404,
       );
-      continue;
     }
 
-    const organisationTemplate =
-      ((await args.tx.template.findFirst({
+    return buildTemplateDefault(
+      resolvedTemplate,
+      "CATALOG_BINDING",
+      binding.templateVersion ?? undefined,
+    );
+  }
+
+  const organisationTemplate =
+    ((await args.tx.template.findFirst({
+      where: {
+        organisationId: args.organisationId,
+        kind: toLegacyTemplateKind(binding.templateKind),
+        status: "PUBLISHED",
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    })) as TemplateRow | null) ??
+    ((await args.tx.template.findFirst({
+      where: {
+        organisationId: args.organisationId,
+        kind: toLegacyTemplateKind(binding.templateKind),
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    })) as TemplateRow | null);
+
+  const libraryTemplate = organisationTemplate
+    ? null
+    : (((await args.tx.template.findFirst({
         where: {
-          organisationId: args.organisationId,
+          ownership: "YC_LIBRARY",
           kind: toLegacyTemplateKind(binding.templateKind),
           status: "PUBLISHED",
         },
@@ -472,46 +486,40 @@ const resolveTemplateDefaultsForSelection = async (args: {
       })) as TemplateRow | null) ??
       ((await args.tx.template.findFirst({
         where: {
-          organisationId: args.organisationId,
+          ownership: "YC_LIBRARY",
           kind: toLegacyTemplateKind(binding.templateKind),
         },
         orderBy: [{ updatedAt: "desc" }],
-      })) as TemplateRow | null);
+      })) as TemplateRow | null));
 
-    const libraryTemplate = organisationTemplate
-      ? null
-      : (((await args.tx.template.findFirst({
-          where: {
-            ownership: "YC_LIBRARY",
-            kind: toLegacyTemplateKind(binding.templateKind),
-            status: "PUBLISHED",
-          },
-          orderBy: [{ updatedAt: "desc" }],
-        })) as TemplateRow | null) ??
-        ((await args.tx.template.findFirst({
-          where: {
-            ownership: "YC_LIBRARY",
-            kind: toLegacyTemplateKind(binding.templateKind),
-          },
-          orderBy: [{ updatedAt: "desc" }],
-        })) as TemplateRow | null));
-
-    const resolvedTemplate = organisationTemplate ?? libraryTemplate;
-    if (!resolvedTemplate) {
-      continue;
-    }
-
-    defaults.push(
-      buildTemplateDefault(
-        resolvedTemplate,
-        resolvedTemplate.ownership === "YC_LIBRARY"
-          ? "LIBRARY_DEFAULT"
-          : "ORGANISATION_DEFAULT",
-      ),
-    );
+  const resolvedTemplate = organisationTemplate ?? libraryTemplate;
+  if (!resolvedTemplate) {
+    return null;
   }
 
-  return defaults;
+  return buildTemplateDefault(
+    resolvedTemplate,
+    resolvedTemplate.ownership === "YC_LIBRARY"
+      ? "LIBRARY_DEFAULT"
+      : "ORGANISATION_DEFAULT",
+  );
+};
+
+const resolveTemplateDefaultsForSelection = async (
+  args: TemplateDefaultsArgs,
+): Promise<AppointmentTemplateDefault[]> => {
+  const bindings: CatalogTemplateBinding[] = args.selection.templateBindings
+    ?.length
+    ? args.selection.templateBindings
+    : args.selection.templateKinds.map((templateKind) => ({ templateKind }));
+
+  // Reads share the transaction client, so bindings resolve one at a time.
+  const defaults = await mapInSequence(bindings, (binding) =>
+    resolveTemplateDefaultForBinding(args, binding),
+  );
+  return defaults.filter(
+    (entry): entry is AppointmentTemplateDefault => entry !== null,
+  );
 };
 
 const attachTemplateDefaults = (

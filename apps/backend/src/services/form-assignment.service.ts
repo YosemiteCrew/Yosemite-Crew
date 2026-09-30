@@ -6,6 +6,7 @@ import {
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import { mapInSequence } from "src/utils/async-iteration";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
 import {
   instanceNeedsClientSignature,
@@ -705,7 +706,9 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
     species,
   };
 
-  for (const kind of ASSIGNABLE_TEMPLATE_KINDS) {
+  // Kinds are handled one at a time so the existence check for each template
+  // sees any request created for an earlier kind.
+  await mapInSequence(ASSIGNABLE_TEMPLATE_KINDS, async (kind) => {
     try {
       const resolved = await TemplateService.resolve({
         ...resolveInput,
@@ -725,7 +728,7 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
       });
 
       if (existing) {
-        continue;
+        return false;
       }
 
       await FormAssignmentService.createForAppointment({
@@ -735,10 +738,12 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
         templateVersion: resolved.templateVersion,
         createdBy: "SYSTEM",
       });
+      return true;
     } catch {
-      continue;
+      // A kind with no linked template, or one that fails, is skipped.
+      return false;
     }
-  }
+  });
 };
 
 export const FormAssignmentService = {

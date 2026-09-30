@@ -6,6 +6,7 @@ import { prisma } from "src/config/prisma";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import logger from "src/utils/logger";
+import { mapInSequence } from "src/utils/async-iteration";
 
 dayjs.extend(utc);
 
@@ -127,7 +128,9 @@ export const VaccineReminderEngine = {
       include: { artifact: { select: { encounterId: true } } },
     });
 
-    for (const immunization of due) {
+    // Reminders go out one at a time; a failure is logged and the rest
+    // continue.
+    await mapInSequence(due, async (immunization) => {
       try {
         await remindForImmunization(immunization);
       } catch (error) {
@@ -136,6 +139,6 @@ export const VaccineReminderEngine = {
           error,
         );
       }
-    }
+    });
   },
 };

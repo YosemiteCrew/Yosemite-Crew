@@ -27,6 +27,7 @@ import {
 import { recomputeOrganizationVerification } from "./organization-verification.service";
 import { Prisma } from "@prisma/client";
 import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
+import { mapInSequence } from "src/utils/async-iteration";
 
 let stripeClient: Stripe | null = null;
 
@@ -910,9 +911,9 @@ export const StripeService = {
       where: { connectAccountId: account.id },
       select: { orgId: true },
     });
-    for (const { orgId } of affected) {
-      await recomputeOrganizationVerification(orgId);
-    }
+    await mapInSequence(affected, ({ orgId }) =>
+      recomputeOrganizationVerification(orgId),
+    );
   },
 
   // ----------------------------
