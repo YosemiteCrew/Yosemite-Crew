@@ -44,8 +44,8 @@ describe('who signs a form', () => {
   });
 });
 
-// Picked on an appointment, a template-backed form is signed on its document;
-// only a pet parent who signs a form or consent is acted on there.
+// Picked on an appointment, a template-backed form keeps its named signer so
+// staff forms and parent forms take their respective signing paths.
 describe('who signs a form picked on an appointment', () => {
   it.each([
     ['a form with a named signer', { requiredSigner: 'VET' }, 'VET'],
@@ -68,8 +68,9 @@ describe('who signs a form picked on an appointment', () => {
     ['a consent that names no one', template('CONSENT', ''), 'CLIENT'],
     ['a consent saved as a form', template('FORM', '', 'Consent form'), 'CLIENT'],
     ['a form the parent signs', template('FORM', 'CLIENT'), 'CLIENT'],
+    ['a form the vet signs', template('FORM', 'VET'), 'VET'],
     ['a form that names no one', template('FORM', ''), ''],
-    ['a consent the vet signs', template('CONSENT', 'VET'), ''],
+    ['a consent the vet signs', template('CONSENT', 'VET'), 'VET'],
     ['a consent with no signature', template('CONSENT', 'NONE'), ''],
     ['a prescription the parent signs', template('PRESCRIPTION', 'CLIENT'), ''],
     ['a SOAP note the vet signs', template('SOAP_NOTE', 'VET'), ''],

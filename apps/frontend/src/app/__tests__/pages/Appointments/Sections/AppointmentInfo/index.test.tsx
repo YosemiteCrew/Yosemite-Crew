@@ -841,8 +841,7 @@ describe('AppointmentInfo modal', () => {
     ).toBeInTheDocument();
   });
 
-  // Staff sign a template-backed form on its document, not from this pane.
-  it('saves a template the vet signs without asking for a signature here', async () => {
+  it('saves a template the vet signs and offers staff signing', async () => {
     formsStoreState.formIds = [...DEFAULT_FORM_IDS, 'tpl-vet'];
 
     render(
@@ -856,8 +855,7 @@ describe('AppointmentInfo modal', () => {
     await waitFor(() =>
       expect(createSubmission).toHaveBeenCalledWith(expect.objectContaining({ formId: 'tpl-vet' }))
     );
-    expect(await screen.findByText('Completed')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'signature-actions' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'signature-actions' })).toBeInTheDocument();
   });
 
   const renderModal = (props: any = {}) =>

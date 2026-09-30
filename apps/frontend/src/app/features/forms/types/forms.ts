@@ -140,10 +140,9 @@ export const namesASigner = (value?: string): value is 'CLIENT' | 'VET' =>
   value === 'CLIENT' || value === 'VET';
 
 /**
- * Who signs a form picked on an appointment. A template-backed form is signed
- * on its document, not from the appointment, so there only the pet parent
- * counts: on a form or consent, which is sent to them to fill in and sign. A
- * consent that names no one is theirs, as the server reads it.
+ * Who signs a form picked on an appointment. Template-backed forms preserve a
+ * named signer so practice forms can start staff signing after they are saved.
+ * A consent that names no one belongs to the pet parent, as the server reads it.
  */
 export const appointmentFormSigner = (form?: {
   requiredSigner?: string;
@@ -155,7 +154,8 @@ export const appointmentFormSigner = (form?: {
   if (!form?.isTemplateBacked) return signer;
   if (form.templateKind !== 'FORM' && form.templateKind !== 'CONSENT') return '';
   const isConsent = form.templateKind === 'CONSENT' || form.category === 'Consent form';
-  return signer === 'CLIENT' || (signer === '' && isConsent) ? 'CLIENT' : '';
+  if (signer === 'CLIENT' || signer === 'VET') return signer;
+  return signer === '' && isConsent ? 'CLIENT' : '';
 };
 
 export type FormsProps = {
