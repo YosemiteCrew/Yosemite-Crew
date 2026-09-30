@@ -2771,6 +2771,80 @@ describe("AppointmentPrismaService", () => {
       );
     });
 
+    it("resolves bindings one at a time and keeps their order", async () => {
+      mockedResolveSelection.mockImplementation(async () => ({
+        productItemId: "product_1",
+        isBookable: true,
+        appointmentKinds: ["OUTPATIENT", "INPATIENT"],
+        templateKinds: ["SOAP_NOTE", "VITAL_RECORD"],
+        templateBindings: [
+          { templateKind: "SOAP_NOTE", templateId: "tmpl_soap" },
+          { templateKind: "VITAL_RECORD", templateId: "tmpl_vitals" },
+        ],
+      }));
+      let inFlight = 0;
+      let peak = 0;
+      const findTemplate = (async (args: any) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        // The first binding answers last if the two were read together.
+        await new Promise((resolve) =>
+          setTimeout(resolve, args.where.id === "tmpl_soap" ? 5 : 0),
+        );
+        inFlight -= 1;
+        return {
+          id: args.where.id,
+          kind: args.where.kind,
+          organisationId: "org_1",
+          ownership: "ORGANISATION",
+          status: "PUBLISHED",
+          latestVersion: 1,
+          publishedVersion: 1,
+          updatedAt: new Date("2026-06-10T09:50:00.000Z"),
+        };
+      }) as any;
+      mockedPrisma.template.findFirst
+        .mockImplementationOnce(findTemplate)
+        .mockImplementationOnce(findTemplate);
+
+      await AppointmentPrismaService.createRequestedFromMobile(
+        { resourceType: "Appointment" } as any,
+        "parent_1",
+      );
+
+      expect(peak).toBe(1);
+      const data = (mockedPrisma.appointment.create.mock.calls[0]?.[0] as any)
+        ?.data;
+      expect(
+        data.appointmentType.templateDefaults.map(
+          (entry: { templateId: string }) => entry.templateId,
+        ),
+      ).toEqual(["tmpl_soap", "tmpl_vitals"]);
+    });
+
+    it("stops at a missing bound template without reading later bindings", async () => {
+      mockedResolveSelection.mockImplementation(async () => ({
+        productItemId: "product_1",
+        isBookable: true,
+        appointmentKinds: ["OUTPATIENT", "INPATIENT"],
+        templateKinds: ["SOAP_NOTE", "VITAL_RECORD"],
+        templateBindings: [
+          { templateKind: "SOAP_NOTE", templateId: "tmpl_missing" },
+          { templateKind: "VITAL_RECORD", templateId: "tmpl_vitals" },
+        ],
+      }));
+      mockedPrisma.template.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.createRequestedFromMobile(
+          { resourceType: "Appointment" } as any,
+          "parent_1",
+        ),
+      ).rejects.toMatchObject({ statusCode: 404 });
+
+      expect(mockedPrisma.template.findFirst).toHaveBeenCalledTimes(1);
+    });
+
     it("emits no template defaults when no template can be resolved", async () => {
       mockedResolveSelection.mockImplementation(async () => ({
         productItemId: "product_1",
