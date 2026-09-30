@@ -2052,6 +2052,58 @@ describe("WorkspaceService", () => {
     expect(result).toBeDefined();
     expect(createRenderedDocumentRecord).toHaveBeenCalled();
   });
+
+  it("renders schedules one at a time and still renders the next after a failure", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-1",
+      organisationId: "org-1",
+      status: "IN_PROGRESS",
+      appointmentKind: "INPATIENT",
+      concern: "Ward stay",
+      encounterId: "enc-1",
+      caseId: "case-1",
+      patient: { id: "patient-1", parent: { id: "parent-1" } },
+    });
+    const schedule = (id: string) => ({
+      id,
+      templateId: `tmpl-${id}`,
+      templateVersion: 1,
+      templateKind: "INPATIENT_SCHEDULE",
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+    });
+    mockedPrisma.taskSchedule.findMany.mockResolvedValue([
+      schedule("sched-1"),
+      schedule("sched-2"),
+    ]);
+    mockedPrisma.renderedDocument.findFirst.mockResolvedValue(null);
+    let inFlight = 0;
+    let peak = 0;
+    (createRenderedDocumentRecord as jest.Mock).mockImplementation(
+      async (input: { source: { sourceId: string } }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (input.source.sourceId === "sched-1") {
+          throw new Error("pdf renderer exploded");
+        }
+        return { id: `rd-${input.source.sourceId}` };
+      },
+    );
+
+    await WorkspaceService.getAppointmentBootstrap(
+      { organisationId: "org-1", appointmentId: "appt-1" },
+      ["appointments:view:any", "tasks:view:any"],
+    );
+
+    expect(peak).toBe(1);
+    expect(
+      (createRenderedDocumentRecord as jest.Mock).mock.calls.map(
+        ([input]) => input.source.sourceId,
+      ),
+    ).toEqual(["sched-1", "sched-2"]);
+  });
 });
 
 describe("dedupeTreatmentItemsByPrescription", () => {

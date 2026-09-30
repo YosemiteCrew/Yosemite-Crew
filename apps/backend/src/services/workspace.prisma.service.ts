@@ -10,6 +10,7 @@ import { InvoiceService, InvoiceServiceError } from "./invoice.service";
 import { documentWhereForOrg } from "./document-scope";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import logger from "src/utils/logger";
+import { mapInSequence } from "src/utils/async-iteration";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import type {
   Case,
@@ -1647,7 +1648,7 @@ const loadDiagnosticPreloads = async (params: {
   return buildDiagnosticPreloadItems(products);
 };
 
-const loadTasks = async (params: {
+const loadTasks = (params: {
   organisationId: string;
   appointmentId?: string;
   companionId?: string;
@@ -1671,7 +1672,7 @@ const loadTasks = async (params: {
     orderBy: { dueAt: "asc" },
   });
 
-const loadSchedules = async (params: {
+const loadSchedules = (params: {
   organisationId: string;
   appointmentId?: string;
   encounterId?: string;
@@ -1708,7 +1709,8 @@ const ensureRenderedTaskSchedules = async (
     templateKind: string;
   }>,
 ) => {
-  for (const schedule of schedules) {
+  // PDF renders are heavy, so schedules are handled one at a time.
+  await mapInSequence(schedules, async (schedule) => {
     // Rendering the schedule PDF is a convenience, but this runs inside the
     // workspace aggregate that every chart read goes through - viewing, signing
     // and discharging all depend on it. A render that throws must therefore not
@@ -1725,7 +1727,7 @@ const ensureRenderedTaskSchedules = async (
       });
 
       if (existing) {
-        continue;
+        return;
       }
 
       await createRenderedDocumentRecord({
@@ -1745,10 +1747,10 @@ const ensureRenderedTaskSchedules = async (
         error,
       );
     }
-  }
+  });
 };
 
-const loadTemplateInstances = async (params: {
+const loadTemplateInstances = (params: {
   organisationId: string;
   appointmentId?: string;
   encounterId?: string;
