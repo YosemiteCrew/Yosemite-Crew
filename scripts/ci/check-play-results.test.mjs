@@ -192,9 +192,20 @@ test('the step summary says when a run was not real', () => {
   assert.match(readFileSync(summary, 'utf8'), /\*\*Not a real run:\*\* only 0 of 3 tests passed/);
 });
 
+const outside = mkdtempSync(join(tmpdir(), 'play-results-outside-'));
+const outsideFile = join(outside, 'elsewhere.json');
+writeFileSync(outsideFile, JSON.stringify(results()));
+
 test('a results path outside the temp directory is refused', () => {
-  assert.equal(run([join(dir, '..', 'elsewhere.json')]), 2);
+  assert.equal(run([outsideFile]), 2);
   assert.match(stderr, /is not a \.json file inside/);
+  assert.equal(run([join('..', outside.split('/').pop(), 'elsewhere.json')]), 2);
+});
+
+test('a symlink inside the temp directory cannot point the read outside it', () => {
+  const link = join(dir, 'link.json');
+  symlinkSync(outsideFile, link);
+  assert.equal(run([link]), 2);
 });
 
 test('a results path that is not JSON is refused', () => {
