@@ -131,8 +131,7 @@ const withoutEncounter = () => {
 const panelFor = (
   canvasElement: HTMLElement,
   key: 'VITALS' | 'OBSERVATION' | 'DENTAL' | 'DERMATOLOGY'
-) =>
-  canvasElement.querySelector(`#record-panel-${key}`) as HTMLElement | null;
+) => canvasElement.querySelector(`#record-panel-${key}`) as HTMLElement | null;
 
 const dermatologyAssessment = {
   id: 'derm-story-1',
@@ -391,7 +390,8 @@ export const DermatologyTab: Story = {
       'aria-selected',
       'true'
     );
-    await expect(within(panel).getByText('Compare with previous visit')).toBeInTheDocument();
+    // The comparison appears once the previous visit's findings have loaded.
+    await expect(await within(panel).findByText('Compare with previous visit')).toBeInTheDocument();
     await expect(
       within(panel).getByRole('group', { name: 'Affected body regions' })
     ).toBeInTheDocument();

@@ -31,15 +31,19 @@ const INVOICE = {
 let createdRequest: string | undefined;
 let finalizedRequest: string | undefined;
 
-type Handler = (config: InternalAxiosRequestConfig) => { status?: number; body?: unknown };
+type Handler = (config: InternalAxiosRequestConfig) => {
+  status?: number;
+  body?: unknown;
+  headers?: Record<string, string>;
+};
 
 const stubApi = (handler: Handler) => {
   const previous = api.defaults.adapter;
   api.defaults.adapter = async (config) => {
-    const { status = 200, body = [] } = handler(config);
+    const { status = 200, body = [], headers = {} } = handler(config);
     if (status >= 400) {
       throw Object.assign(new Error(`Request failed with status ${status}`), {
-        response: { status, data: body, config },
+        response: { status, data: body, headers, config },
         config,
       });
     }
@@ -104,7 +108,9 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const openItemPicker = async () => {
-  const picker = within(document.body).getByRole('button', { name: 'Item' });
+  const picker = await within(document.body).findByRole('button', { name: 'Item' });
+  // The picker stays disabled until the inventory request settles.
+  await waitFor(() => expect(picker).toBeEnabled());
   if ((await picker.getAttribute('aria-expanded')) !== 'true') {
     await userEvent.click(picker);
   }
@@ -143,7 +149,9 @@ export const InventoryUnavailable: Story = {
   beforeEach: () =>
     stubApi((config) =>
       String(config.url ?? '').includes('/v1/inventory/organisation/')
-        ? { status: 503, body: { message: 'Unavailable' } }
+        ? // The client retries a 503 read with backoff; Retry-After: 0 keeps those
+          // retries instant so the story reaches the state after it gives up.
+          { status: 503, body: { message: 'Unavailable' }, headers: { 'retry-after': '0' } }
         : { body: [] }
     ),
   play: async () => {

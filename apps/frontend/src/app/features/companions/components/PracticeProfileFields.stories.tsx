@@ -2,7 +2,7 @@ import { useLayoutEffect, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import type { AxiosAdapter, AxiosResponse } from 'axios';
 import type { Organisation, UserOrganization } from '@yosemite-crew/types';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import api from '@/app/services/axios';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -101,7 +101,11 @@ export const PatientProfile: Story = {
     await expect(await canvas.findByText('Practice fields')).toBeVisible();
     await expect(canvas.getByText('Preferred contact time')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Add field' }));
-    await expect(canvas.getByRole('dialog', { name: 'Manage practice fields' })).toBeVisible();
-    await expect(canvas.getByText(/Saved answers are kept/)).toBeVisible();
+    // The modal portals to document.body, outside the story canvas, and fades in.
+    const dialog = await within(document.body).findByRole('dialog', {
+      name: 'Manage practice fields',
+    });
+    await waitFor(() => expect(dialog).toBeVisible());
+    await expect(within(dialog).getByText(/Saved answers are kept/)).toBeVisible();
   },
 };
