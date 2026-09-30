@@ -32,6 +32,8 @@ type Props = {
   canDispense: boolean;
 };
 
+const BLOCKING_REASON_CODES = new Set<string>(['AUTHORITY_REVOKED', 'AUTHORITY_SUPERSEDED']);
+
 const parseFrequencyPerDay = (frequency?: string): number | null => {
   if (!frequency) return null;
   const f = frequency.toLowerCase();
@@ -459,8 +461,7 @@ const DispensaryDetailModal = ({
         : undefined;
     return Boolean(
       (eligibility?.authorizationId && !eligibility.eligible) ||
-      eligibility?.reasonCodes.includes('AUTHORITY_REVOKED') ||
-      eligibility?.reasonCodes.includes('AUTHORITY_SUPERSEDED')
+      eligibility?.reasonCodes.some((code) => BLOCKING_REASON_CODES.has(code))
     );
   });
 

@@ -228,6 +228,60 @@ describe('Reschedule section', () => {
     expect(rescheduleSeriesMock).not.toHaveBeenCalled();
   });
 
+  it('tells the user when available times cannot be loaded', async () => {
+    const unhandled = jest.fn();
+    process.on('unhandledRejection', unhandled);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    getSlotsMock.mockRejectedValue(new Error('offline'));
+    try {
+      render(
+        <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />
+      );
+
+      expect(
+        await screen.findByText('Could not load available times. Please try again.')
+      ).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalledWith(new Error('offline'));
+    } finally {
+      process.off('unhandledRejection', unhandled);
+      logSpy.mockRestore();
+    }
+  });
+
+  it('clears the load message once times load for the next appointment', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    // The next date has no free times, so nothing else would clear the message.
+    getSlotsMock.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([]);
+    const { rerender } = render(
+      <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />
+    );
+    expect(
+      await screen.findByText('Could not load available times. Please try again.')
+    ).toBeInTheDocument();
+
+    rerender(
+      <Reschedule
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{
+          ...activeAppointment,
+          id: 'a-2',
+          appointmentDate: new Date('2026-01-02T10:00:00Z'),
+        }}
+      />
+    );
+
+    await waitFor(() => expect(getSlotsMock).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Could not load available times. Please try again.')
+      ).not.toBeInTheDocument()
+    );
+    logSpy.mockRestore();
+  });
+
   it('resets state on modal header close', async () => {
     render(
       <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />

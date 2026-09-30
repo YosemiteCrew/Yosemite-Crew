@@ -210,6 +210,67 @@ describe('workspaceAggregateService', () => {
     );
   });
 
+  it('saves rows one at a time in list order and stops at the first failure', async () => {
+    const newRow = (id: string, refId: string): LineItem => ({
+      id,
+      refId,
+      kind: 'SERVICE',
+      name: refId,
+      qty: 1,
+      unitPriceCents: 1000,
+      amountCents: 1000,
+    });
+    let finishFirst!: () => void;
+    (postData as jest.Mock)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishFirst = () => resolve({ data: { id: 'created-a' } });
+          })
+      )
+      .mockRejectedValueOnce(new Error('save failed'));
+
+    const run = persistTreatmentItems('org-1', 'enc-1', [
+      newRow('local-a', 'prod-a'),
+      newRow('local-b', 'prod-b'),
+      newRow('local-c', 'prod-c'),
+    ]);
+    const outcome = run.catch((error: unknown) => error);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The second row waits for the first to finish.
+    expect(postData).toHaveBeenCalledTimes(1);
+    finishFirst();
+
+    await expect(outcome).resolves.toEqual(new Error('save failed'));
+    // The third row is never sent once the second fails.
+    expect((postData as jest.Mock).mock.calls.map(([, body]) => body.productId)).toEqual([
+      'prod-a',
+      'prod-b',
+    ]);
+  });
+
+  it('removes every dropped row and skips backend rows without an id', async () => {
+    (getData as jest.Mock).mockResolvedValueOnce({
+      data: [
+        { servicePackageKind: 'SERVICE', billingStatus: 'UNBILLED' },
+        { id: 'svc-1', servicePackageKind: 'SERVICE', billingStatus: 'UNBILLED' },
+        { id: 'svc-2', servicePackageKind: 'SERVICE', billingStatus: 'UNBILLED' },
+        { id: 'svc-3', servicePackageKind: 'PACKAGE', billingStatus: 'UNBILLED' },
+        { id: 'svc-4', servicePackageKind: 'SERVICE', billingStatus: 'UNBILLED' },
+        { id: 'svc-5', servicePackageKind: 'SERVICE', billingStatus: 'UNBILLED' },
+      ],
+    });
+
+    await persistTreatmentItems('org-1', 'enc-1', []);
+
+    expect((deleteData as jest.Mock).mock.calls.map(([url]) => url)).toEqual(
+      ['svc-1', 'svc-2', 'svc-3', 'svc-4', 'svc-5'].map(
+        (id) => `/v1/workspace/organisations/org-1/treatment-items/${id}`
+      )
+    );
+  });
+
   it('never deletes billed or medication-kind backend rows', async () => {
     (getData as jest.Mock).mockResolvedValueOnce({
       data: [

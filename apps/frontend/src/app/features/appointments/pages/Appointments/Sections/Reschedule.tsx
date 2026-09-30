@@ -63,6 +63,8 @@ type RescheduleAction =
   | { type: 'PATCH'; patch: RescheduleStatePatch }
   | { type: 'SET_FORM_DATA_ERRORS'; errors: RescheduleFormErrors };
 
+const SLOTS_LOAD_ERROR = 'Could not load available times. Please try again.';
+
 const rescheduleReducer = (state: RescheduleState, action: RescheduleAction): RescheduleState => {
   if (action.type === 'RESET') return action.state;
   if (action.type === 'SET_FORM_DATA_ERRORS') return { ...state, formDataErrors: action.errors };
@@ -322,18 +324,21 @@ const useRescheduleForm = (props: RescheduleProp) => {
       return;
     }
     let cancelled = false;
-    (async () => {
-      try {
-        const slots = await getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, selectedDate);
+    getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, selectedDate)
+      .then((slots) => {
         if (cancelled) return;
-        patchState({ timeSlots: slots, selectedSlot: slots.length > 0 ? slots[0] : null });
-      } catch (err) {
+        patchState({
+          timeSlots: slots,
+          selectedSlot: slots.length > 0 ? slots[0] : null,
+          formDataErrors: { slot: undefined },
+        });
+      })
+      .catch((err) => {
         console.log(err);
         if (!cancelled) {
-          patchState({ timeSlots: [] });
+          patchState({ timeSlots: [], formDataErrors: { slot: SLOTS_LOAD_ERROR } });
         }
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };

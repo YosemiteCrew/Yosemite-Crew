@@ -758,7 +758,15 @@ const getNoSlotsMessage = (hasService: boolean, hasSpeciality: boolean): string 
   return 'Select a speciality and service first';
 };
 
-type AppointmentFormContentProps = {
+type AppointmentFormState = {
+  loadingTimeSlots: boolean;
+  loadingSlotScopedOptions: boolean;
+  serviceSelected: boolean;
+  submitted: boolean;
+  loading: boolean;
+};
+
+type AppointmentScheduleFieldsProps = {
   patientLabel: string;
   selectedPatientName?: string;
   selectedPatientPhoto?: string;
@@ -780,13 +788,7 @@ type AppointmentFormContentProps = {
   timeSlots: Slot[];
   selectedSlot: Slot | null;
   onSlotSelect: (slot: SetStateAction<Slot | null>) => void;
-  formState: {
-    loadingTimeSlots: boolean;
-    loadingSlotScopedOptions: boolean;
-    serviceSelected: boolean;
-    submitted: boolean;
-    loading: boolean;
-  };
+  formState: AppointmentFormState;
   noSlotsMessage: string;
   prefillTimeLabel: string | null;
   durationDisplay: string | null;
@@ -794,21 +796,30 @@ type AppointmentFormContentProps = {
   handleVisitTypeSelect: (opt: string | { label: string; value: string }) => void;
   LeadOptions: Array<{ label: string; value: string }>;
   formData: any;
-  formDataErrors: Record<string, string | undefined>;
+  showError: (field: string) => string | undefined;
   handleLeadSelectWithReset: (option: { label: string; value: string }) => void;
   leadEmptyStateMessage?: string;
   supportOptions: Array<{ label: string; value: string }>;
   handleSupportStaffChange: (options: string[]) => void;
+};
+
+type AppointmentServiceFieldsProps = {
   SpecialitiesOptions: Array<{ label: string; value: string }>;
   handleSpecialitySelect: (option: { label: string; value: string }) => void;
   ServicesOptions: Array<{ label: string; value: string }>;
   handleServiceSelect: (option: { label: string; value: string }) => void;
+  formData: any;
   setFormData: Dispatch<SetStateAction<any>>;
   ServiceInfoData: any;
   showError: (field: string) => string | undefined;
-  handleSubmit: () => void;
+  selectedClientName?: string;
+};
+
+type AppointmentFormActionsProps = {
+  formState: AppointmentFormState;
   weeklySeries?: WeeklySeriesFieldProps;
   onCancel: () => void;
+  handleSubmit: () => void;
   /**
    * `modal` (default) is the desktop CenterModal layout: a 2-column field grid
    * with an inline Cancel + Book footer. `sheet` is the phone bottom-sheet
@@ -817,6 +828,12 @@ type AppointmentFormContentProps = {
    */
   variant?: 'modal' | 'sheet';
 };
+
+type AppointmentFormContentProps = AppointmentScheduleFieldsProps &
+  AppointmentServiceFieldsProps &
+  AppointmentFormActionsProps & {
+    formDataErrors: Record<string, string | undefined>;
+  };
 
 export type WeeklySeriesFieldProps = {
   enabled: boolean;
@@ -908,7 +925,7 @@ const AppointmentSeriesFields = ({
   </fieldset>
 );
 
-const AppointmentScheduleFields = ({ props }: { props: AppointmentFormContentProps }) => {
+const AppointmentScheduleFields = (props: AppointmentScheduleFieldsProps) => {
   const {
     patientLabel,
     selectedPatientName,
@@ -1039,7 +1056,7 @@ const AppointmentScheduleFields = ({ props }: { props: AppointmentFormContentPro
   );
 };
 
-const AppointmentServiceFields = ({ props }: { props: AppointmentFormContentProps }) => {
+const AppointmentServiceFields = (props: AppointmentServiceFieldsProps) => {
   const {
     SpecialitiesOptions,
     handleSpecialitySelect,
@@ -1117,7 +1134,7 @@ const AppointmentServiceFields = ({ props }: { props: AppointmentFormContentProp
   );
 };
 
-const AppointmentFormActions = ({ props }: { props: AppointmentFormContentProps }) => {
+const AppointmentFormActions = (props: AppointmentFormActionsProps) => {
   const { formState, weeklySeries, onCancel, handleSubmit, variant = 'modal' } = props;
   if (variant === 'sheet') return null;
   const isPreviewing = weeklySeries?.isPreviewing ?? false;
@@ -1153,8 +1170,8 @@ export const AppointmentFormContent = (props: AppointmentFormContentProps) => (
           : 'grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2'
       }
     >
-      <AppointmentScheduleFields props={props} />
-      <AppointmentServiceFields props={props} />
+      <AppointmentScheduleFields {...props} />
+      <AppointmentServiceFields {...props} />
     </div>
     {props.weeklySeries && (
       <AppointmentSeriesFields series={props.weeklySeries} loading={props.formState.loading} />
@@ -1167,7 +1184,7 @@ export const AppointmentFormContent = (props: AppointmentFormContentProps) => (
         </span>
       </div>
     )}
-    <AppointmentFormActions props={props} />
+    <AppointmentFormActions {...props} />
   </div>
 );
 
