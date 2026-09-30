@@ -296,23 +296,20 @@ const BillingReviewList = ({ organisationId, loadPage }: BillingReviewListProps)
       </header>
 
       {!organisationId && (
-        <p
-          role="status"
-          className="rounded-xl border border-card-border bg-card p-5 text-body-4 text-text-secondary"
-        >
+        <output className="block rounded-xl border border-card-border bg-card p-5 text-body-4 text-text-secondary">
           Select a practice to view completed visits.
-        </p>
+        </output>
       )}
 
       {isLoading && (
-        <div role="status" aria-label="Loading billing review" className="flex flex-col gap-3">
+        <output aria-label="Loading billing review" className="flex flex-col gap-3">
           {[1, 2, 3].map((row) => (
             <div
               key={row}
               className="h-28 animate-pulse rounded-2xl border border-card-border bg-card-hover"
             />
           ))}
-        </div>
+        </output>
       )}
 
       {error && (
