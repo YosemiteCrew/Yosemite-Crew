@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes, Ref, TextareaHTMLAttributes } from 'react';
 import clsx from 'clsx';
-import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
+import { FIELD_CONTROL_HEIGHT, getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 
 export type InputProps = {
   error?: boolean;
@@ -17,7 +17,7 @@ export type TextareaProps = {
 const Input = ({ className, error, ref, ...props }: InputProps) => (
   <input
     ref={ref}
-    className={clsx(getFieldControlClassName(error), 'h-10 px-3', className)}
+    className={clsx(getFieldControlClassName(error), FIELD_CONTROL_HEIGHT, 'px-3', className)}
     aria-invalid={error || undefined}
     {...props}
   />

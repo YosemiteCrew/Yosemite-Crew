@@ -65,6 +65,20 @@ describe('useBilling hooks', () => {
     await waitFor(() => expect(checkStatusMock).toHaveBeenCalledWith('org-1'));
   });
 
+  it('keeps a failed billing status refresh from becoming an unhandled rejection', async () => {
+    const unhandled = jest.fn();
+    process.on('unhandledRejection', unhandled);
+    checkStatusMock.mockRejectedValueOnce(new Error('Request failed with status code 404'));
+    try {
+      renderHook(() => useLoadSubscriptionCounterForPrimaryOrg());
+      await waitFor(() => expect(checkStatusMock).toHaveBeenCalledWith('org-1'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+
   it('returns counter and subscription for primary org', () => {
     expect(renderHook(() => useCounterForPrimaryOrg()).result.current?.orgId).toBe('org-1');
     expect(renderHook(() => useSubscriptionForPrimaryOrg()).result.current?.currency).toBe('EUR');

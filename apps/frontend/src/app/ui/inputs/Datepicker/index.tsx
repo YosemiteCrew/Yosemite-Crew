@@ -4,7 +4,7 @@ import { IoIosWarning } from 'react-icons/io';
 import { IoCalendarOutline } from 'react-icons/io5';
 
 import Field from '@/app/ui/Field';
-import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
+import { FIELD_CONTROL_HEIGHT, getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 
 const INPUT_DATE_FORMAT = 'MMM d, yyyy';
 
@@ -54,7 +54,7 @@ const DateInputButton = ({
         ref={ref}
         type="button"
         onClick={onClick}
-        className={`flex h-10! w-10! items-center justify-center ${getFieldControlClassName()} ${className ?? ''}`}
+        className={`flex h-10! w-10! max-sm:h-11! max-sm:w-11! pointer-coarse:h-11! pointer-coarse:w-11! items-center justify-center ${getFieldControlClassName()} ${className ?? ''}`}
         aria-label="Toggle calendar"
         aria-describedby={errorId}
       >
@@ -69,7 +69,7 @@ const DateInputButton = ({
       type="button"
       onClick={onClick}
       id={inputId}
-      className={`relative flex h-10 items-center justify-between px-3 text-left ${getFieldControlClassName(Boolean(errorId))} ${className ?? ''}`}
+      className={`relative flex ${FIELD_CONTROL_HEIGHT} items-center justify-between px-3 text-left ${getFieldControlClassName(Boolean(errorId))} ${className ?? ''}`}
       aria-label={
         value
           ? `${accessibleLabel}: ${value}, toggle calendar`
