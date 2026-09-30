@@ -152,7 +152,7 @@ export const SurgicalProcedureService = {
     return assertSurgery(id, organisationId);
   },
 
-  async list(params: ListSurgicalProceduresParams) {
+  list(params: ListSurgicalProceduresParams) {
     const { organisationId, patientId, encounterId, outcome } = params;
     return prisma.surgicalProcedure.findMany({
       where: {

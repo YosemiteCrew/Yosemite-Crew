@@ -131,7 +131,7 @@ export const MedicalCertificateService = {
     return assertCertificate(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     clientId?: string;

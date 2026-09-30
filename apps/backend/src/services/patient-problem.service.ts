@@ -132,7 +132,7 @@ export const PatientProblemService = {
     return assertProblem(id, organisationId);
   },
 
-  async list(params: ListPatientProblemsParams) {
+  list(params: ListPatientProblemsParams) {
     const { organisationId, patientId, status } = params;
     return prisma.patientProblem.findMany({
       where: {

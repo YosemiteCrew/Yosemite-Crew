@@ -150,7 +150,7 @@ const assertProtocol = async (id: string, organisationId: string) => {
 };
 
 export const TreatmentProtocolService = {
-  async create(params: CreateProtocolParams) {
+  create(params: CreateProtocolParams) {
     const {
       organisationId,
       name,
@@ -198,7 +198,7 @@ export const TreatmentProtocolService = {
     return assertProtocol(id, organisationId);
   },
 
-  async list(params: ListProtocolsParams) {
+  list(params: ListProtocolsParams) {
     const { organisationId, species, category, isActive } = params;
     return prisma.treatmentProtocol.findMany({
       where: {

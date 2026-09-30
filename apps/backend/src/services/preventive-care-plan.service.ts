@@ -148,7 +148,7 @@ export const PreventiveCarePlanService = {
     return assertPlan(id, organisationId);
   },
 
-  async list(params: ListPreventiveCarePlansParams) {
+  list(params: ListPreventiveCarePlansParams) {
     const { organisationId, patientId, status } = params;
     return prisma.preventiveCarePlan.findMany({
       where: {

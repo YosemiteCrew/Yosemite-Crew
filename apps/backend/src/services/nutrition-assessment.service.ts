@@ -14,11 +14,7 @@ export class NutritionAssessmentError extends Error {
 
 type AppetiteScore = "EXCELLENT" | "GOOD" | "FAIR" | "POOR" | "NONE";
 type FeedingRoute =
-  | "ORAL"
-  | "NASOGASTRIC"
-  | "ESOPHAGOSTOMY"
-  | "GASTROSTOMY"
-  | "IV_PARENTERAL";
+  "ORAL" | "NASOGASTRIC" | "ESOPHAGOSTOMY" | "GASTROSTOMY" | "IV_PARENTERAL";
 
 export interface CreateNutritionParams {
   organisationId: string;
@@ -138,7 +134,7 @@ export const NutritionAssessmentService = {
     return assertAssessment(id, organisationId);
   },
 
-  async list(params: ListNutritionParams) {
+  list(params: ListNutritionParams) {
     const { organisationId, patientId, encounterId, appetiteScore } = params;
     return prisma.nutritionAssessment.findMany({
       where: {

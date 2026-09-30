@@ -169,7 +169,7 @@ export const PhysiotherapyPlanService = {
     return assertPlan(id, organisationId);
   },
 
-  async list(params: ListPhysiotherapyPlansParams) {
+  list(params: ListPhysiotherapyPlansParams) {
     const { organisationId, patientId, encounterId, status } = params;
     return prisma.physiotherapyPlan.findMany({
       where: {
