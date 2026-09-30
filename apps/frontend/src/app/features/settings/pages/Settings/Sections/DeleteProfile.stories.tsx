@@ -54,12 +54,12 @@ type Seed = {
 const seed =
   ({ userId, roles }: Seed) =>
   () => {
-    const orgsById: Record<string, Organisation> = {};
-    const membershipsByOrgId: Record<string, UserOrganization> = {};
-    for (const [orgId, name, role] of roles) {
-      orgsById[orgId] = org(orgId, name);
-      membershipsByOrgId[orgId] = membership(orgId, role);
-    }
+    const orgsById = Object.fromEntries(
+      roles.map(([orgId, name]) => [orgId, org(orgId, name)])
+    ) as Record<string, Organisation>;
+    const membershipsByOrgId = Object.fromEntries(
+      roles.map(([orgId, , role]) => [orgId, membership(orgId, role)])
+    ) as Record<string, UserOrganization>;
 
     useOrgStore.setState({
       orgsById,
