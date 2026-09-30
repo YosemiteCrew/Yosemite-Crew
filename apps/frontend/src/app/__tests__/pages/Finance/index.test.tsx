@@ -175,6 +175,10 @@ describe('Finance page', () => {
       'href',
       '/finance/reports'
     );
+    expect(screen.getByRole('link', { name: 'Review overdue accounts' })).toHaveAttribute(
+      'href',
+      '/finance/collections'
+    );
     expect(invoiceTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [expect.objectContaining({ id: 'inv-1' })],
@@ -192,6 +196,10 @@ describe('Finance page', () => {
     expect(screen.getByRole('link', { name: 'View payment reports' })).toHaveAttribute(
       'href',
       '/finance/reports'
+    );
+    expect(screen.getByRole('link', { name: 'Review overdue accounts' })).toHaveAttribute(
+      'href',
+      '/finance/collections'
     );
     expect(screen.getByRole('link', { name: 'View payment reports' }).parentElement).toHaveClass(
       'flex-wrap'

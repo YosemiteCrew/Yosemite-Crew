@@ -68,6 +68,8 @@ jest.mock("src/config/prisma", () => ({
     organization: { findUnique: jest.fn() },
     parent: { findUnique: jest.fn() },
     paymentAttempt: { updateMany: jest.fn(), findFirst: jest.fn() },
+    clientPaymentTerm: { findUnique: jest.fn() },
+    userProfile: { findFirst: jest.fn() },
     workspaceTreatmentItem: { updateMany: jest.fn() },
   },
 }));
@@ -1921,6 +1923,12 @@ describe("InvoiceService", () => {
   });
 
   it("finalizes tax snapshots and re-opens a finalized-but-unpaid invoice when edited", async () => {
+    (prisma.clientPaymentTerm.findUnique as jest.Mock).mockResolvedValueOnce({
+      netDays: 30,
+    });
+    (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce({
+      personalDetails: { timezone: "America/New_York" },
+    });
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_final",
       appointmentId,
@@ -2010,6 +2018,26 @@ describe("InvoiceService", () => {
           }),
         }),
       }),
+    );
+    expect(prisma.clientPaymentTerm.findUnique).toHaveBeenCalledWith({
+      where: { organisationId_parentId: { organisationId, parentId } },
+      select: { netDays: true },
+    });
+    const { finalizedAt, dueAt } = (prisma.invoice.update as jest.Mock).mock
+      .calls[0][0].data as { finalizedAt: Date; dueAt: Date };
+    // Due by the end of the practice's day 30 calendar days after finalizing.
+    const practiceDay = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+    });
+    const expectedDueDate = new Date(
+      `${practiceDay.format(finalizedAt)}T12:00:00Z`,
+    );
+    expectedDueDate.setUTCDate(expectedDueDate.getUTCDate() + 30);
+    expect(practiceDay.format(dueAt)).toBe(
+      expectedDueDate.toISOString().slice(0, 10),
+    );
+    expect(practiceDay.format(new Date(dueAt.getTime() + 1))).not.toBe(
+      practiceDay.format(dueAt),
     );
     expect(finalized.id).toBe("inv_final");
     expect(prisma.financeEvent.create).toHaveBeenCalledWith(
@@ -2117,7 +2145,12 @@ describe("InvoiceService", () => {
     expect(prisma.invoice.update).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: { id: "inv_final" },
-        data: expect.objectContaining({ finalizedAt: null }),
+        data: expect.objectContaining({
+          finalizedAt: null,
+          dueAt: null,
+          collectionsReviewedAt: null,
+          collectionsReviewedBy: null,
+        }),
       }),
     );
     expect(prisma.paymentAttempt.updateMany).toHaveBeenCalledWith(

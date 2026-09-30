@@ -31,6 +31,10 @@ import {
   getInvoiceFinancialSummary,
 } from "./finance/payment";
 import { FinanceEventService } from "./finance/events";
+import {
+  calculateInvoiceDueAt,
+  resolvePracticeTimeZone,
+} from "./finance/client-collections";
 import { markInvoiceTreatmentItemsSettled } from "./finance/settlement";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { randomUUID } from "node:crypto";
@@ -63,6 +67,22 @@ export class InvoiceServiceError extends Error {
 
 const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL_ADDRESS ?? "support@yosemitecrew.com";
+
+/** When a client's invoice finalized now falls due under their payment terms. */
+const resolveInvoiceDueAt = async (
+  organisationId: string,
+  parentId: string,
+  finalizedAt: Date,
+) => {
+  const [terms, timeZone] = await Promise.all([
+    prisma.clientPaymentTerm.findUnique({
+      where: { organisationId_parentId: { organisationId, parentId } },
+      select: { netDays: true },
+    }),
+    resolvePracticeTimeZone(organisationId),
+  ]);
+  return calculateInvoiceDueAt(finalizedAt, terms?.netDays ?? 0, timeZone);
+};
 
 type AppointmentLink = {
   patientId?: string;
@@ -2433,6 +2453,15 @@ export const InvoiceService = {
         paidAt: wasPaid ? null : undefined,
         visitBillingStage: wasPaid ? "DRAFT" : undefined,
         finalizedAt: wasFinalized || wasPaid ? null : undefined,
+        // Re-opening withdraws the demand for payment, so the due date and any
+        // collections review go with it; finalizing again sets a fresh one.
+        ...(wasFinalized || wasPaid
+          ? {
+              dueAt: null,
+              collectionsReviewedAt: null,
+              collectionsReviewedBy: null,
+            }
+          : {}),
         taxSnapshot: {
           upsert: {
             create: totals.taxSnapshot!,
@@ -2496,10 +2525,19 @@ export const InvoiceService = {
     );
 
     const finalizedAt = new Date();
+    const dueAt =
+      invoice.organisationId && invoice.parentId
+        ? await resolveInvoiceDueAt(
+            invoice.organisationId,
+            invoice.parentId,
+            finalizedAt,
+          )
+        : null;
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         finalizedAt,
+        dueAt,
         taxProvider: totals.taxSnapshot!.provider,
         subtotal: totals.subtotal,
         discountTotal: totals.discountTotal,
