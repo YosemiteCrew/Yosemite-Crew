@@ -11,6 +11,7 @@ jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
 }));
 
 import DeveloperMCPPlayground from '@/app/features/developers/pages/DeveloperMCPPlayground/DeveloperMCPPlayground';
+import { devRoutes } from '@/app/constants/routes';
 
 const TYPED_KEY = 'yc_dev_live_9f3a2b7c1d';
 const PLACEHOLDER = 'YOUR_API_KEY';
@@ -128,5 +129,24 @@ describe('DeveloperMCPPlayground', () => {
       expect(example.textContent?.startsWith('“')).toBe(true);
       expect(example.textContent?.endsWith('”')).toBe(true);
     }
+  });
+
+  // The page and the middleware rule both existed while the developer sidebar had
+  // no link to it, so nothing in the app could open it. A route that no nav entry
+  // points at is unreachable, and only this assertion notices.
+  it('is listed in the developer navigation', () => {
+    const entry = devRoutes.find((route) => route.href === '/developers/mcp');
+
+    expect(entry).toBeDefined();
+    expect(entry?.name).toBe('MCP Playground');
+  });
+
+  // The sidebar only offers a developer route the user is allowed to open, so a
+  // nav entry that needs a permission has to name it or the page stays hidden
+  // from the people who should see it.
+  it('does not hide the page behind a permission the nav does not name', () => {
+    const entry = devRoutes.find((route) => route.href === '/developers/mcp');
+
+    expect(entry?.requiredAnyPermissions).toBeUndefined();
   });
 });
