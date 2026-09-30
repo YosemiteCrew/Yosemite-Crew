@@ -9,7 +9,7 @@ import type { Team } from '../../organization/types/team';
 import type { Task } from '../../tasks/types/task';
 import type { UserProfile } from '../../users/types/profile';
 import { PERMISSIONS } from '../../../lib/permissions';
-import api from '../../../services/axios';
+import api, { API_CLIENT_DEFAULTS } from '../../../services/axios';
 import { useAppointmentStore } from '../../../stores/appointmentStore';
 import { useAuthStore } from '../../../stores/authStore';
 import { useAvailabilityStore } from '../../../stores/availabilityStore';
@@ -242,8 +242,9 @@ const SEEDED_STORES: SnapshotableStore[] = [
  * reached and every call fell through to the preview's offline 404. Replacing
  * the adapter answers whichever transport the client is configured with.
  * Autodocs mounts every story on one page against the one shared instance, so
- * the teardown restores the REAL adapter rather than whatever was installed
- * when this story started - an overlapping story cannot leave its stub behind.
+ * the teardown restores the client's configured adapter rather than whatever
+ * was installed when this story started - an overlapping story cannot leave
+ * its stub behind.
  *
  * The body is `[]`, not `{}`. `ChangeRoom` mounts CLOSED behind the schedule and
  * refetches rooms with `force: true` regardless, and that service calls
@@ -252,7 +253,6 @@ const SEEDED_STORES: SnapshotableStore[] = [
  * the list callers and as "no fields" to the finance normalisers, which only
  * ever look properties up.
  */
-const REAL_ADAPTER = api.defaults.adapter;
 
 const offlineAdapter: AxiosAdapter = async (config) => ({
   data: [],
@@ -317,7 +317,7 @@ const seedDashboard = ({ withOrg = true, revokeAnalytics = false, orgStatus = 'l
   });
 
   return () => {
-    api.defaults.adapter = REAL_ADAPTER;
+    api.defaults.adapter = API_CLIENT_DEFAULTS.adapter;
     for (const [store, state] of snapshots) {
       store.setState(state as never);
     }

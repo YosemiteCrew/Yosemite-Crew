@@ -88,11 +88,12 @@ const expectNotchedLabel = async (labelEl: HTMLElement, shell: HTMLElement) => {
 
   const labelBox = labelEl.getBoundingClientRect();
   const shellBox = shell.getBoundingClientRect();
-  await expect(Math.round(labelBox.top)).toBe(Math.round(shellBox.top));
+  await expect(Math.abs(labelBox.top - shellBox.top)).toBeLessThan(1);
   // Inset from the corner, so the border still turns before the label starts.
   await expect(labelBox.left).toBeGreaterThan(shellBox.left);
   // Above the value row, not beside it inside the box.
-  const content = [...shell.children].find((child) => child !== labelEl) as HTMLElement;
+  const content = [...shell.children].find((child) => child !== labelEl);
+  if (!content) throw new Error(`The "${labelEl.textContent}" shell has no value row`);
   await expect(labelBox.bottom).toBeLessThanOrEqual(content.getBoundingClientRect().top);
 };
 
