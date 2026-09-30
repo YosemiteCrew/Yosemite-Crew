@@ -5,11 +5,14 @@ import type { FormEvent } from 'react';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import CareReminderList, { REMINDER_TYPES } from './CareReminderList';
 import PermissionGate from '@/app/ui/layout/guards/PermissionGate';
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { logger } from '@/app/lib/logger';
+import { buildDateInPreferredTimeZone, buildPreferredTimeZoneDayInstant } from '@/app/lib/timezone';
 import {
   createCareReminders,
   listCareReminders,
@@ -20,12 +23,26 @@ import {
 
 const EMPTY_COMPANION_IDS: string[] = [];
 
+// A date input gives a calendar day and a datetime-local input a wall-clock
+// time. Both are read in the practice's preferred time zone, so the day staff
+// pick is the day the owner sees wherever the browser's own clock is set.
+const calendarDayInstant = (value: string) => {
+  const [year, month, day] = value.split('-').map(Number);
+  return buildPreferredTimeZoneDayInstant(year, month, day);
+};
+
+const wallClockInstant = (value: string) => {
+  const [date, time] = value.split('T');
+  const [hours, minutes] = time.split(':').map(Number);
+  return buildDateInPreferredTimeZone(calendarDayInstant(date), hours * 60 + minutes);
+};
+
 const scheduleButtonLabel = (saving: boolean, count: number) => {
   if (saving) return 'Scheduling…';
   return count === 1 ? 'Schedule 1 reminder' : `Schedule ${count || ''} reminders`;
 };
 
-const CareRemindersPage = () => {
+export const CareRemindersPage = () => {
   const organisationId = useOrgStore((state) => state.primaryOrgId);
   const companionIds = useCompanionStore((state) =>
     organisationId
@@ -88,8 +105,8 @@ const CareRemindersPage = () => {
       await createCareReminders(organisationId, {
         patientIds: selectedIds,
         reminderType,
-        dueDate: new Date(`${dueDate}T00:00:00`).toISOString(),
-        ...(sendAt ? { sendAt: new Date(sendAt).toISOString() } : {}),
+        dueDate: calendarDayInstant(dueDate).toISOString(),
+        ...(sendAt ? { sendAt: wallClockInstant(sendAt).toISOString() } : {}),
       });
       setSelectedIds([]);
       setDueDate('');
@@ -144,7 +161,7 @@ const CareRemindersPage = () => {
       {error && (
         <p
           role="alert"
-          className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+          className="mb-5 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger-text)]"
         >
           {error}
         </p>
@@ -152,7 +169,7 @@ const CareRemindersPage = () => {
       {notice && (
         <p
           role="status"
-          className="mb-5 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800"
+          className="mb-5 rounded-xl border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] p-3 text-sm text-[var(--success-text)]"
         >
           {notice}
         </p>
@@ -280,4 +297,12 @@ const CareRemindersPage = () => {
   );
 };
 
-export default CareRemindersPage;
+const ProtectedCareReminders = () => (
+  <ProtectedRoute>
+    <OrgGuard>
+      <CareRemindersPage />
+    </OrgGuard>
+  </ProtectedRoute>
+);
+
+export default ProtectedCareReminders;

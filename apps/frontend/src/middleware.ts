@@ -21,6 +21,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   // `export const dynamic = 'force-dynamic'`, so each render has a nonce.
   '/book',
   '/book-onboarding',
+  '/care-reminders',
   '/chat',
   '/companions',
   '/controlled-substances',

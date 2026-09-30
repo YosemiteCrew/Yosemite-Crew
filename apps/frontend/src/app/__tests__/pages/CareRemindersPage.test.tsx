@@ -1,5 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import CareRemindersPage from '@/app/features/care-reminders/pages/CareRemindersPage';
+import ProtectedCareReminders, {
+  CareRemindersPage,
+} from '@/app/features/care-reminders/pages/CareRemindersPage';
+import { setPreferredTimeZone } from '@/app/lib/timezone';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import {
   createCareReminders,
@@ -20,6 +23,18 @@ const mockCompanionState = {
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="protected-route">{children}</div>
+  ),
+}));
+jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="org-guard">{children}</div>
+  ),
 }));
 jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, isDisabled }: { text: string; isDisabled?: boolean }) => (
@@ -78,6 +93,21 @@ beforeEach(() => {
   sendMock.mockResolvedValue({ ...reminder, status: 'SENT' });
 });
 
+afterEach(() => {
+  globalThis.localStorage.clear();
+});
+
+it('only renders behind the sign-in and practice guards', async () => {
+  render(<ProtectedCareReminders />);
+
+  const orgGuard = screen.getByTestId('org-guard');
+  expect(screen.getByTestId('protected-route')).toContainElement(orgGuard);
+  expect(
+    await screen.findByRole('heading', { name: 'Care reminders', level: 1 })
+  ).toBeInTheDocument();
+  expect(orgGuard).toContainElement(screen.getByRole('heading', { level: 1 }));
+});
+
 it('reviews recipients and shows persisted channel delivery results', async () => {
   listMock.mockResolvedValueOnce([
     {
@@ -93,20 +123,15 @@ it('reviews recipients and shows persisted channel delivery results', async () =
   expect(screen.getByText('Selected (2): Milo, Luna')).toBeInTheDocument();
 });
 
-it('formats care reminder dates once for the displayed list', async () => {
-  const formatter = jest.spyOn(Intl, 'DateTimeFormat');
+it('shows dates on the calendar day of the preferred time zone', async () => {
+  setPreferredTimeZone('America/Los_Angeles');
   listMock.mockResolvedValueOnce([
-    reminder,
-    { ...reminder, id: 'r2', patientId: 'pet-2', sendAt: '2026-09-30T09:00:00.000Z' },
+    { ...reminder, dueDate: '2026-10-01T19:00:00.000Z', sendAt: '2026-09-30T16:00:00.000Z' },
   ]);
   render(<CareRemindersPage />);
 
-  expect(await screen.findByText('Luna · Annual check-up')).toBeInTheDocument();
-  expect(formatter).toHaveBeenCalledTimes(1);
-  expect(formatter).toHaveBeenCalledWith(
-    'en-US',
-    expect.objectContaining({ timeZone: expect.any(String) })
-  );
+  expect(await screen.findByText(/Due Oct 1, 2026/)).toBeInTheDocument();
+  expect(screen.getByText(/sends Sep 30, 2026, 09:00 AM/)).toBeInTheDocument();
 });
 
 it('filters companion records in one pass', async () => {
@@ -117,20 +142,19 @@ it('filters companion records in one pass', async () => {
   expect(flatMap).toHaveBeenCalledTimes(1);
 });
 
-it('flags an old in-progress send for review instead of implying it is still running', async () => {
+it('says the result is unknown when an earlier send never finished', async () => {
   listMock.mockResolvedValueOnce([
-    {
-      ...reminder,
-      status: 'SENDING',
-      sendingAt: '2026-09-01T10:00:00.000Z',
-    },
+    { ...reminder, lastAttemptAt: '2026-09-01T10:00:00.000Z', lastDelivery: null },
   ]);
   render(<CareRemindersPage />);
 
   expect(
-    await screen.findByText('No result recorded — check delivery before retrying.')
+    await screen.findByText(
+      'The last send did not finish, so its result is unknown. Check with the owner before sending again.'
+    )
   ).toBeInTheDocument();
-  expect(screen.getByText('check delivery')).toBeInTheDocument();
+  expect(screen.getByText('Pending')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Retry send' })).toBeInTheDocument();
 });
 
 it('shows an active send and the scheduled time', async () => {
@@ -145,10 +169,13 @@ it('shows an active send and the scheduled time', async () => {
   render(<CareRemindersPage />);
 
   expect(await screen.findByText('Delivery in progress')).toBeInTheDocument();
+  expect(screen.getByText('Sending')).toBeInTheDocument();
   expect(screen.getByText(/sends Sep/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /send/i })).not.toBeInTheDocument();
 });
 
 it('schedules the reviewed recipient set and refreshes the list', async () => {
+  setPreferredTimeZone('America/Los_Angeles');
   render(<CareRemindersPage />);
   await screen.findByText('Milo · Annual check-up');
   selectRecipients(screen.getByLabelText('Companions'));
@@ -164,7 +191,8 @@ it('schedules the reviewed recipient set and refreshes the list', async () => {
       expect.objectContaining({
         patientIds: ['pet-1', 'pet-2'],
         reminderType: 'ANNUAL_CHECKUP',
-        sendAt: expect.any(String),
+        dueDate: '2026-10-01T19:00:00.000Z',
+        sendAt: '2026-09-30T16:00:00.000Z',
       })
     )
   );
