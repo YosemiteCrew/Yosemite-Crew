@@ -7014,16 +7014,24 @@ model PatientFlag {
   @@map("PatientFlag")
 }
 
+enum InventoryCountResolution {
+  STOCK_ADJUSTED
+  NO_CHANGE
+}
+
 model InventoryCount {
   id              String    @id @default(uuid())
   organisationId  String
   inventoryItemId String
+  inventoryBatchId String?
   countedBy       String?
   countedAt       DateTime
   systemCount     Int
   physicalCount   Int
   discrepancy     Int
   notes           String?
+  resolution      InventoryCountResolution?
+  resolutionNotes String?
   reconciled      Boolean   @default(false)
   reconciledAt    DateTime?
   reconciledBy    String?
@@ -7031,6 +7039,7 @@ model InventoryCount {
   updatedAt       DateTime  @updatedAt
 
   @@index([organisationId, inventoryItemId])
+  @@index([organisationId, inventoryBatchId])
   @@index([organisationId, countedAt])
   @@index([organisationId, reconciled])
   @@map("InventoryCount")

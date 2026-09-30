@@ -14,6 +14,7 @@ import {
 } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 import { useBatchEditor } from '@/app/features/inventory/components/useBatchEditor';
 import { useInventoryInfoActions } from '@/app/features/inventory/components/useInventoryInfoActions';
+import InventoryBatchCount from '@/app/features/inventory/components/InventoryBatchCount';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Datepicker from '@/app/ui/inputs/Datepicker';
@@ -330,6 +331,7 @@ type InventoryInfoProps = {
   stockLocationOptions?: string[];
   initialSection?: InventorySectionKey;
   organisationId?: string;
+  onRefresh?: () => unknown;
 };
 
 const modalSections: { key: InventorySectionKey; name: string }[] = [
@@ -433,6 +435,7 @@ const InventoryInfo = ({
   stockLocationOptions,
   initialSection,
   organisationId,
+  onRefresh,
 }: InventoryInfoProps) => {
   const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
     initialSection ?? modalSections[0].key
@@ -517,14 +520,26 @@ const InventoryInfo = ({
             {activeInventory && (
               <>
                 {activeLabel === 'batch' ? (
-                  <BatchEditor
-                    businessType={businessType}
-                    inventory={activeInventory}
-                    onSave={(vals) => handleSectionSave('batch', vals)}
-                    disableEditing={!canEdit || isUpdating || isHiding}
-                    onEditingChange={setIsSectionEditing}
-                    ref={batchActions}
-                  />
+                  <>
+                    <BatchEditor
+                      businessType={businessType}
+                      inventory={activeInventory}
+                      onSave={(vals) => handleSectionSave('batch', vals)}
+                      disableEditing={!canEdit || isUpdating || isHiding}
+                      onEditingChange={setIsSectionEditing}
+                      ref={batchActions}
+                    />
+                    {canEdit && (
+                      <InventoryBatchCount
+                        organisationId={organisationId}
+                        itemId={activeInventory.id}
+                        itemName={activeInventory.basicInfo.name}
+                        batches={activeInventory.batches ?? []}
+                        disabled={isUpdating || isHiding || inEditMode}
+                        onRefresh={onRefresh}
+                      />
+                    )}
+                  </>
                 ) : (
                   <InfoSection
                     businessType={businessType}
