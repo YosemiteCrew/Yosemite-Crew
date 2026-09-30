@@ -246,11 +246,14 @@ export const MyAppointment: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // The probe has to have settled before the active body appears at all.
+    /* The first render already draws the active body - the probe starts in an effect
+       after it - so the buttons alone do not prove the probe ran. Wait for the probe
+       to be sent and to settle, then read the body it leaves. */
+    await waitFor(() => expect(sessionRequests()).toHaveLength(1));
+    await waitFor(() => expect(canvas.queryByText('Loading chat status…')).not.toBeInTheDocument());
     const open = await canvas.findByRole('button', { name: 'Open Chat' });
     await expect(open).toBeEnabled();
     await expect(canvas.getByRole('button', { name: 'Close Chat Session' })).toBeEnabled();
-    await expect(canvas.queryByText('Loading chat status…')).not.toBeInTheDocument();
 
     /* Exactly one probe, scoped to THIS appointment. The effect keys on
        `activeAppointment?.id` and `isMyAppointment`, so a dependency slip would show up

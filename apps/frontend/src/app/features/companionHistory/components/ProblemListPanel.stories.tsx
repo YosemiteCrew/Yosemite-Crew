@@ -194,6 +194,17 @@ const muteExpectedFailureLogs = () => {
   };
 };
 
+/**
+ * Everything the story rendered, minus the preview's own sr-only story title. The
+ * preview wraps every story in a `<main>` headed by that title, so the canvas is
+ * never empty even when the component returns null.
+ */
+const storyOutput = (canvasElement: HTMLElement): Element[] => {
+  const main = canvasElement.querySelector('main');
+  if (!main) throw new Error('The preview did not wrap the story in its <main>.');
+  return [...main.children].filter((node) => node.id !== 'storybook-story-title');
+};
+
 const problemListPanelMeta = {
   title: 'CompanionHistory/ProblemListPanel',
   component: ProblemListPanel,
@@ -239,7 +250,8 @@ export const Default: ProblemListPanelStory = {
     await expect(
       await canvas.findByRole('heading', { level: 2, name: 'Problem list' })
     ).toBeVisible();
-    await expect(canvas.getByText('Chronic kidney disease')).toBeVisible();
+    // The heading renders before the list arrives, so the first row is awaited.
+    await expect(await canvas.findByText('Chronic kidney disease')).toBeVisible();
     await expect(canvas.getByText('Severe')).toBeVisible();
     await expect(canvas.getByText('Otitis externa (left ear)')).toBeVisible();
     await expect(canvas.getByText('Post-operative wound')).toBeVisible();
@@ -331,6 +343,6 @@ export const NoAccess: ProblemListPanelStory = {
     revoked: ['appointments:view:any'],
   }),
   play: async ({ canvasElement }) => {
-    await waitFor(() => expect(canvasElement).toBeEmptyDOMElement(), { timeout: 10000 });
+    await waitFor(() => expect(storyOutput(canvasElement)).toHaveLength(0), { timeout: 10000 });
   },
 };

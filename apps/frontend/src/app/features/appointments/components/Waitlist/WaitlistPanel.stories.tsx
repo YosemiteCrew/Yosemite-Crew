@@ -125,13 +125,16 @@ const buildAdapter = (fixture: WaitlistFixture): AxiosAdapter => {
     if (method === 'get') {
       if (fixture.kind === 'pending') return new Promise<never>(() => {});
       if (fixture.kind === 'rejects') {
+        /* A 400, not a 5xx: the app client retries a failed read on 429 and 5xx up to
+           three times with backoff (about 4 to 6 seconds in all) before the panel
+           hears of it, which would hold the skeleton past every query timeout here. */
         return Promise.reject(
-          Object.assign(new Error('Request failed with status code 500'), {
+          Object.assign(new Error('Request failed with status code 400'), {
             isAxiosError: true,
             config,
             response: {
-              status: 500,
-              statusText: 'Internal Server Error',
+              status: 400,
+              statusText: 'Bad Request',
               data: {},
               headers: {},
               config,
@@ -273,7 +276,8 @@ export const Default: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole('heading', { level: 3, name: 'Waitlist' })).toBeVisible();
-    await expect(canvas.getByText('Nova')).toBeVisible();
+    // The heading renders before the list arrives, so the first row is awaited.
+    await expect(await canvas.findByText('Nova')).toBeVisible();
     await expect(canvas.getByText('Maria Reyes')).toBeVisible();
     await expect(canvas.getByText('Offered')).toBeVisible();
 
@@ -346,13 +350,21 @@ export const AddingAnEntry: Story = {
     await canvas.findByText('Nova');
 
     await userEvent.click(canvas.getByRole('button', { name: 'Add to waitlist' }));
-    await userEvent.selectOptions(await canvas.findByLabelText('Companion'), 'companion-shadow');
+    // The companion picker is the shared searchable dropdown; its options portal to
+    // document.body and read "<companion> <em dash> <owner>".
+    await userEvent.click(await canvas.findByRole('button', { name: 'Companion' }));
+    await userEvent.click(
+      await within(document.body).findByRole('option', { name: 'Shadow \u2014 Elin Lindqvist' })
+    );
+    await expect(
+      canvas.getByRole('button', { name: /Shadow \u2014 Elin Lindqvist/ })
+    ).toBeInTheDocument();
     await userEvent.type(canvas.getByLabelText('Requested service'), 'Grooming');
     await userEvent.click(canvas.getByRole('button', { name: 'Add to waitlist' }));
 
     // The form closes and the list is refetched, so the new row appears.
     await expect(await canvas.findByText('Shadow')).toBeVisible();
     await expect(canvas.getByText('Elin Lindqvist')).toBeVisible();
-    await expect(canvas.queryByLabelText('Companion')).not.toBeInTheDocument();
+    await expect(canvas.queryByLabelText('Requested service')).not.toBeInTheDocument();
   },
 };

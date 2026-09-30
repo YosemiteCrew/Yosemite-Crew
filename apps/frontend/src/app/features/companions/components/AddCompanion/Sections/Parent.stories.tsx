@@ -282,16 +282,17 @@ export const ValidationErrors: Story = {
       await expect(canvas.getByText(message)).toBeInTheDocument();
     }
 
-    /* Eight fields failed, seven messages are announced. The address field is a
-       `GoogleSearchDropDown`, which renders its error as plain text with no
-       `role="alert"`, no `aria-invalid` and no `aria-describedby` - so a screen
-       reader user is told about every failure except the one that needs a
-       lookup. Asserted as it behaves today: a fix has to change this count, and
-       the story is where that should be noticed. */
-    await expect(canvas.getAllByRole('alert')).toHaveLength(7);
-    await expect(canvas.getByRole('textbox', { name: 'Address' })).not.toHaveAttribute(
-      'aria-invalid',
-      'true'
+    /* Eight fields failed, eight messages are announced. The address field is a
+       `GoogleSearchDropDown` in the canonical field shell, so its error is a
+       `role="alert"` message like the rest, tied to the input by
+       `aria-describedby`, with `aria-invalid` set - a screen reader user is told
+       about every failure, the lookup field included. */
+    await expect(canvas.getAllByRole('alert')).toHaveLength(8);
+    const address = canvas.getByRole('textbox', { name: 'Address' });
+    await expect(address).toHaveAttribute('aria-invalid', 'true');
+    await expect(address).toHaveAttribute(
+      'aria-describedby',
+      canvas.getByText('Address is required').id
     );
 
     // The dial code always resolves to something, so its "required" branch never

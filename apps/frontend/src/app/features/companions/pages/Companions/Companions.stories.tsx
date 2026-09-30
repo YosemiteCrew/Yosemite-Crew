@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, mocked, userEvent, waitFor, within } from 'storybook/test';
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import type { Appointment, Organisation, UserOrganization } from '@yosemite-crew/types';
 
 import api from '@/app/services/axios';
+import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
 import type { UserProfile } from '@/app/features/users/types/profile';
@@ -431,14 +432,16 @@ const prepare =
  * was never set - assigning `undefined` back would leave the string "undefined"
  * behind on some shims, which is not the same as absent.
  */
+/**
+ * The flag is read through `isCompanionRevampEnabled`, which the preview spies.
+ * Assigning to `process.env` from a story reaches the module only under
+ * `storybook dev`: the static build gives every module its own compiled
+ * `process.env`, so the published Storybook would draw the shipped panel under
+ * both names. The spy is answered here instead, and Storybook restores it before
+ * the next story.
+ */
 const withRevampFlag = (enabled: boolean) => () => {
-  const previous = process.env.NEXT_PUBLIC_COMPANION_REVAMP;
-  if (enabled) process.env.NEXT_PUBLIC_COMPANION_REVAMP = 'true';
-  else delete process.env.NEXT_PUBLIC_COMPANION_REVAMP;
-  return () => {
-    if (previous === undefined) delete process.env.NEXT_PUBLIC_COMPANION_REVAMP;
-    else process.env.NEXT_PUBLIC_COMPANION_REVAMP = previous;
-  };
+  mocked(isCompanionRevampEnabled).mockReturnValue(enabled);
 };
 
 const openedDialog = async (): Promise<HTMLElement> =>
@@ -599,7 +602,10 @@ export const GridView: Story = {
        parent in one subline and nothing else. */
     await expect(rowNames(canvasElement)).toHaveLength(8);
     await expect(canvas.queryByText('Patient ID')).not.toBeInTheDocument();
-    await expect(canvas.queryByText('Last visit', { selector: 'span' })).not.toBeInTheDocument();
+    // The only "Last visit" left is the sort chip's own label, not a column header.
+    await expect(canvas.getAllByText('Last visit')).toEqual([
+      within(canvas.getByRole('button', { name: 'Last visit' })).getByText('Last visit'),
+    ]);
     // The pager survives the swap, because it sits outside the view branch.
     await expect(canvas.getByText('Showing 1-8 of 8 companions')).toBeVisible();
   },
@@ -811,7 +817,10 @@ export const AddCompanionDrawer: Story = {
 
     // The legacy flow is a two-step wizard, and the step line is the only thing
     // that says so before the reader commits to it.
-    await expect(within(dialog).getByText('Step 1 of 2 · parent details')).toBeVisible();
+    // Awaited: the panel fades in, and the line reads as invisible until it has.
+    await waitFor(() =>
+      expect(within(dialog).getByText('Step 1 of 2 · parent details')).toBeVisible()
+    );
   },
 };
 

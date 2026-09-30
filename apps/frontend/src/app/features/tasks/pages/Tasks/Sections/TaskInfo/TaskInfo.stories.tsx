@@ -158,23 +158,25 @@ const openDrawer = async (canvasElement: HTMLElement) => {
 };
 
 /**
- * Every read-mode row label, in render order.
+ * The label cell of every read-mode row, in render order.
  *
- * Keyed on the label cell's own class rather than on text, because the labels are
- * not unique in the tree: "Task" is also the drawer's eyebrow, and the accordion
- * headers repeat "Status". `FieldValueRow` is the only thing in here that renders
- * `text-body-4-emphasis`, so this counts rows and nothing else.
+ * Keyed on the row's shape rather than on text, because the labels are not unique
+ * in the tree: "Task" is also the drawer's eyebrow, and the accordion headers
+ * repeat "Status". `FieldValueRow` draws each row as a hairline-topped
+ * `justify-between` pair, label first and value second, and nothing else in the
+ * drawer has that shape, so this counts rows and nothing else.
  */
+const rowLabelCells = (scope: HTMLElement): Element[] => [
+  ...scope.querySelectorAll('.border-t.justify-between > :first-child'),
+];
+
+/** Every read-mode row label, in render order. */
 const rowLabels = (scope: HTMLElement): string[] =>
-  [...scope.querySelectorAll('.text-body-4-emphasis')].map((cell) =>
-    (cell.textContent ?? '').trim()
-  );
+  rowLabelCells(scope).map((cell) => (cell.textContent ?? '').trim());
 
 /** The value rendered beside one row label. */
 const rowValue = (scope: HTMLElement, label: string): string => {
-  const cell = [...scope.querySelectorAll('.text-body-4-emphasis')].find(
-    (node) => (node.textContent ?? '').trim() === label
-  );
+  const cell = rowLabelCells(scope).find((node) => (node.textContent ?? '').trim() === label);
   if (!cell) {
     throw new Error(`No "${label}" row is being rendered in read mode.`);
   }
