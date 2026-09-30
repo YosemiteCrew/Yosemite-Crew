@@ -70,7 +70,7 @@ export const CalendarBlockService = {
     if (to <= from || to.getTime() - from.getTime() > MAX_LIST_RANGE_MS) {
       throw new CalendarBlockError("Invalid date range.", 400);
     }
-    return prisma.calendarBlock.findMany({
+    const blocks = await prisma.calendarBlock.findMany({
       where: {
         organisationId,
         startAt: { lt: to },
@@ -79,6 +79,7 @@ export const CalendarBlockService = {
       select,
       orderBy: { startAt: "asc" },
     });
+    return blocks;
   },
 
   async create(input: {
