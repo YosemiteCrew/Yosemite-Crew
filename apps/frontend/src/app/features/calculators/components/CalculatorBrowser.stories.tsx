@@ -166,7 +166,7 @@ export const PrefilledAndReKeyed: Story = {
     const panel = await openCalculatorMenu(
       canvas.getByRole('button', { name: 'Calculator: Fluid rate' })
     );
-    await userEvent.click(within(panel).getByRole('button', { name: 'Constant rate infusion' }));
+    await userEvent.click(within(panel).getByRole('option', { name: 'Constant rate infusion' }));
 
     await expect(canvas.getByRole('spinbutton', { name: 'Dose (µg/kg/min)' })).toBeInTheDocument();
     /* The result block is gone, because `key={active.key}` remounted the form. A

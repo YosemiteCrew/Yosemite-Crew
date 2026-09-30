@@ -192,7 +192,7 @@ export const OptionsComeFromTheOrg: Story = {
     const options = document.querySelector('[data-portal-dropdown]') as HTMLElement;
     // Both seeded specialities, and only those - the list is the org's, not a
     // constant, so an empty store would render an empty panel here.
-    await expect(within(options).getAllByRole('button')).toHaveLength(2);
+    await expect(within(options).getAllByRole('option')).toHaveLength(2);
     await expect(within(options).getByText('Surgery')).toBeInTheDocument();
     await expect(within(options).getByText('Internal medicine')).toBeInTheDocument();
   },

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import api from '@/app/services/axios';
 import type { UserOrganization } from '@yosemite-crew/types';
 
 import type { Team } from '@/app/features/organization/types/team';
@@ -60,6 +61,12 @@ const createdTask = () =>
 
 const REAL_OPEN = XMLHttpRequest.prototype.open;
 const REAL_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = api.defaults.adapter;
 const openCalls = new WeakMap<XMLHttpRequest, { method: string; url: string }>();
 
 /** Settle an XHR from canned data without ever touching the network. */
@@ -89,7 +96,7 @@ const answer = (request: XMLHttpRequest, url: string, payload: unknown) => {
  * `useTaskForm` fetches the org templates and the YC library on mount and POSTs on
  * Save. Unstubbed, every story would go to the network from the preview iframe, and
  * each rejection is logged with `console.error` by both `taskService` and the axios
- * wrapper. Axios uses the XHR adapter in a browser, so swapping `open`/`send` on the
+ * wrapper. With the instance pointed at the XHR adapter, swapping `open`/`send` on the
  * prototype holds all of it while the hook, the services and the stores stay real.
  *
  * The recorded POST body is what makes the assignee dropdown testable at all:
@@ -100,6 +107,7 @@ const answer = (request: XMLHttpRequest, url: string, payload: unknown) => {
 const installTransport = () => {
   requests.length = 0;
 
+  api.defaults.adapter = 'xhr';
   XMLHttpRequest.prototype.open = function stubbedOpen(
     this: XMLHttpRequest,
     method: string,
@@ -129,6 +137,7 @@ const installTransport = () => {
   return () => {
     XMLHttpRequest.prototype.open = REAL_OPEN;
     XMLHttpRequest.prototype.send = REAL_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 
@@ -172,7 +181,7 @@ const openMenu = () => document.querySelector<HTMLElement>('[data-portal-dropdow
 
 const menuOptions = async () => {
   await waitFor(() => expect(openMenu()).not.toBeNull());
-  return within(openMenu() as HTMLElement).queryAllByRole('button');
+  return within(openMenu() as HTMLElement).queryAllByRole('option');
 };
 
 const meta = {
@@ -315,12 +324,14 @@ export const NoTeamMembers: Story = {
 
     /* The dropdown is rendered unconditionally - `showAssigneeSelect` is a literal, not
        derived from the options - so an org with nobody in it gets a control that opens
-       onto the generic "No options" line. Not "No team members", not a hint about
+       onto the generic "No options available" line. Not "No team members", not a hint about
        inviting anyone: `noOptionsMessage` is never passed here. */
     await userEvent.click(canvas.getByRole('button', { name: 'Assigned to' }));
     await waitFor(() => expect(openMenu()).not.toBeNull());
     await expect(await menuOptions()).toHaveLength(0);
-    await expect(within(openMenu() as HTMLElement).getByText('No options')).toBeInTheDocument();
+    await expect(
+      within(openMenu() as HTMLElement).getByText('No options available')
+    ).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
     await userEvent.type(

@@ -11,7 +11,7 @@ const chooseOption = async (triggerName: string, optionName: string) => {
   await userEvent.click(panel().getByRole('button', { name: triggerName }));
   const listbox = document.querySelector('[data-portal-dropdown]');
   await expect(listbox).toBeInTheDocument();
-  await userEvent.click(within(listbox as HTMLElement).getByRole('button', { name: optionName }));
+  await userEvent.click(within(listbox as HTMLElement).getByRole('option', { name: optionName }));
 };
 
 const textbox = (name: string) => panel().getByRole('textbox', { name });
@@ -530,14 +530,14 @@ export const StockControl: Story = {
        "expected container to be an Element" instead of a useful failure. */
     await waitFor(() => expect(document.querySelector('[data-portal-dropdown]')).not.toBeNull());
     const listbox = document.querySelector('[data-portal-dropdown]') as HTMLElement;
-    await expect(within(listbox).getAllByRole('button')).toHaveLength(3);
+    await expect(within(listbox).getAllByRole('option')).toHaveLength(3);
     await expect(
-      within(listbox).getByRole('button', { name: 'Main pharmacy' })
+      within(listbox).getByRole('option', { name: 'Main pharmacy' })
     ).toBeInTheDocument();
-    await expect(within(listbox).getByRole('button', { name: 'Theatre' })).toBeInTheDocument();
+    await expect(within(listbox).getByRole('option', { name: 'Theatre' })).toBeInTheDocument();
 
     // Choosing an option at least dismisses the portal, which is observable.
-    await userEvent.click(within(listbox).getByRole('button', { name: 'Theatre' }));
+    await userEvent.click(within(listbox).getByRole('option', { name: 'Theatre' }));
     await waitFor(() => expect(document.querySelector('[data-portal-dropdown]')).toBeNull());
   },
   parameters: {

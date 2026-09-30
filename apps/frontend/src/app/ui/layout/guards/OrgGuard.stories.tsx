@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { redirect } from '@storybook/nextjs-vite/navigation.mock';
 import { expect, waitFor, within } from 'storybook/test';
+import api from '@/app/services/axios';
 import type { Organisation, UserOrganization } from '@yosemite-crew/types';
 
 import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
@@ -146,7 +147,7 @@ const SEEDED_STORES: SnapshotableStore[] = [
  * whenever a primary org is set. Left alone it hits the wire, the Storybook
  * offline guard answers 404, and `checkStatus`'s own `catch` logs through
  * `console.error` before rethrowing - a console error the story verifier
- * counts as a failure. Axios picks the XHR adapter in the browser, so swapping
+ * counts as a failure. With the instance pointed at the XHR adapter, swapping
  * `XMLHttpRequest` is the seam that needs no module mocking (same technique
  * `Dashboard.stories.tsx` uses for the same hook).
  */
@@ -181,6 +182,13 @@ type Seed = {
   orgStatus?: 'idle' | 'loading' | 'loaded' | 'error';
 };
 
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While the stand-in above is installed the instance is pointed
+ * at the XHR adapter so the stand-in answers it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = api.defaults.adapter;
+
 const seedOrgGuard = ({
   withOrg = true,
   membership = OWNER_MEMBERSHIP,
@@ -188,6 +196,7 @@ const seedOrgGuard = ({
 }: Seed) => {
   const originalXhr = globalThis.XMLHttpRequest;
   globalThis.XMLHttpRequest = OfflineXhr as unknown as typeof XMLHttpRequest;
+  api.defaults.adapter = 'xhr';
 
   const snapshots = SEEDED_STORES.map((store) => [store, store.getState()] as const);
 
@@ -234,6 +243,7 @@ const seedOrgGuard = ({
 
   return () => {
     globalThis.XMLHttpRequest = originalXhr;
+    api.defaults.adapter = REAL_ADAPTER;
     globalThis.sessionStorage?.clear();
     for (const [store, state] of snapshots) {
       store.setState(state as never);

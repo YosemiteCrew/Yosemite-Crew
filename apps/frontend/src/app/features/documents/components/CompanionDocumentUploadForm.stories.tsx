@@ -167,7 +167,7 @@ export const SubcategoryFollowsCategory: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Category: Health' }));
     await userEvent.click(
-      within(await openPanel()).getByRole('button', { name: 'Hygiene maintenance' })
+      within(await openPanel()).getByRole('option', { name: 'Hygiene maintenance' })
     );
 
     /* The selection moves with the list, in the same `setFormData`. This is the
@@ -181,7 +181,7 @@ export const SubcategoryFollowsCategory: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Sub-category: Bathing' }));
     const options = within(await openPanel())
-      .getAllByRole('button')
+      .getAllByRole('option')
       .map((option) => (option.textContent ?? '').trim());
 
     // The hygiene table in full, and nothing from the health one.

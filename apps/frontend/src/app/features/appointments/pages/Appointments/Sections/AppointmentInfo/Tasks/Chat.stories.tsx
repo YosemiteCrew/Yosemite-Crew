@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { getRouter } from '@storybook/nextjs-vite/navigation.mock';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import api from '@/app/services/axios';
 import type { Appointment } from '@yosemite-crew/types';
 
 import { useAuthStore } from '@/app/stores/authStore';
@@ -55,6 +56,12 @@ const closeRequest = () => requests.find((item) => item.url.includes('/close'));
 
 const REAL_OPEN = XMLHttpRequest.prototype.open;
 const REAL_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = api.defaults.adapter;
 const openCalls = new WeakMap<XMLHttpRequest, { method: string; url: string }>();
 
 /** Settle an XHR from canned data without ever touching the network. */
@@ -82,10 +89,10 @@ const answer = (request: XMLHttpRequest, url: string, reply: Reply) => {
 
 /**
  * Every branch of this panel is decided by a chat API call, so nothing here is
- * reviewable without holding those answers still. Axios uses the XHR adapter in a
- * browser, so swapping `open`/`send` on the prototype intercepts all of it while
- * `chatService`, the component and the auth store stay real. `open` still runs, because
- * axios needs the request in the OPENED state for `setRequestHeader` and
+ * reviewable without holding those answers still. With the instance pointed at the
+ * XHR adapter, swapping `open`/`send` on the prototype intercepts all of it while
+ * `chatService`, the component and the auth store stay real. `open` still runs,
+ * because axios needs the request in the OPENED state for `setRequestHeader` and
  * `withCredentials`; `send` never does, so nothing leaves the page.
  *
  * `sessionAnswers` is a queue because the mount probe and "Open Chat" POST the SAME
@@ -96,6 +103,7 @@ const installTransport = (sessionAnswers: Answer[], closeAnswer: Answer) => {
   requests.length = 0;
   const queue = [...sessionAnswers];
 
+  api.defaults.adapter = 'xhr';
   XMLHttpRequest.prototype.open = function stubbedOpen(
     this: XMLHttpRequest,
     method: string,
@@ -122,6 +130,7 @@ const installTransport = (sessionAnswers: Answer[], closeAnswer: Answer) => {
   return () => {
     XMLHttpRequest.prototype.open = REAL_OPEN;
     XMLHttpRequest.prototype.send = REAL_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 

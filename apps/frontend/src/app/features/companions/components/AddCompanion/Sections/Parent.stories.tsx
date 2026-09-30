@@ -1,6 +1,7 @@
 import React, { createRef, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import api from '@/app/services/axios';
 import { toParentResponseDTO } from '@yosemite-crew/types';
 
 import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
@@ -59,10 +60,10 @@ const HARTMANN_JR: StoredParent = buildParent({
  * Keeping the parent search off the wire
  *
  * `searchParent` is an ESM export, so a story cannot reassign it. It reaches the
- * API through the shared axios instance, which uses the XHR adapter in the
- * browser - so the seam is `XMLHttpRequest.prototype`, the same one ChangeRoom
- * and SoapCodedTermPicker use. Only the parent-search endpoint is answered;
- * anything else is handed to the real transport untouched.
+ * API through the shared axios instance, which these stories point at the XHR
+ * adapter - so the seam is `XMLHttpRequest.prototype`, the same one ChangeRoom and
+ * SoapCodedTermPicker use. Only the parent-search endpoint is answered; anything
+ * else is handed to the real transport untouched.
  *
  * Answering matters even for the "no matches" story: a rejected search is logged
  * by `getData` and again by `searchParent`'s own catch, so an unanswered request
@@ -72,6 +73,12 @@ const HARTMANN_JR: StoredParent = buildParent({
 const SEARCH_PATH = '/fhir/v1/parent/pms/search';
 const REAL_XHR_OPEN = XMLHttpRequest.prototype.open;
 const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = api.defaults.adapter;
 
 type StubbedXhr = XMLHttpRequest & { storyUrl?: string };
 
@@ -91,6 +98,7 @@ const answerWith = (xhr: XMLHttpRequest, body: unknown) => {
 const withParentSearch =
   (matches: StoredParent[] = []) =>
   () => {
+    api.defaults.adapter = 'xhr';
     XMLHttpRequest.prototype.open = function stubbedOpen(
       this: StubbedXhr,
       method: string,
@@ -124,6 +132,7 @@ const withParentSearch =
     return () => {
       XMLHttpRequest.prototype.open = REAL_XHR_OPEN;
       XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+      api.defaults.adapter = REAL_ADAPTER;
     };
   };
 
@@ -377,7 +386,7 @@ export const PhoneIsStoredJoined: Story = {
       if (!found) throw new Error('country code menu did not open');
       return found;
     });
-    await userEvent.click(within(menu).getByRole('button', { name: /\+49 Germany/u }));
+    await userEvent.click(within(menu).getByRole('option', { name: /\+49 Germany/u }));
 
     await expect(canvas.getByRole('button', { name: /^Country code: /u })).toHaveAccessibleName(
       /^Country code: \+49 Germany/u

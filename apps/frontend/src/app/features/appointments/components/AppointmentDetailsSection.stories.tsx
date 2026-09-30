@@ -123,8 +123,8 @@ export const SpecialityPanelOpen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const panel = await openPanel(canvas.getByRole('button', { name: 'Speciality' }));
-    // Options are plain <button>s, not role="option".
-    await expect(within(panel).getAllByRole('button')).toHaveLength(SPECIALITIES.length);
+    // One listbox option per speciality.
+    await expect(within(panel).getAllByRole('option')).toHaveLength(SPECIALITIES.length);
     await expect(within(panel).getByText('Dermatology')).toBeInTheDocument();
   },
   parameters: {
@@ -147,8 +147,13 @@ export const ServicesPanelOpen: Story = {
     const panel = await openPanel(
       canvas.getByRole('button', { name: 'Services / Packages: Senior care package' })
     );
-    await expect(within(panel).getAllByRole('button')).toHaveLength(SERVICES.length);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(SERVICES.length);
     await expect(within(panel).getByText('Senior care package')).toBeInTheDocument();
+    // The chosen row is the one option announced as selected.
+    await expect(within(panel).getAllByRole('option', { selected: true })).toHaveLength(1);
+    await expect(
+      within(panel).getByRole('option', { name: 'Senior care package' })
+    ).toHaveAttribute('aria-selected', 'true');
   },
   parameters: {
     docs: {

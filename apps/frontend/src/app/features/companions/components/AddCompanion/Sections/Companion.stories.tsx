@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import api from '@/app/services/axios';
 import { toCompanionResponseDTO, type Organisation } from '@yosemite-crew/types';
 
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -116,7 +117,7 @@ const BREED_ENTRIES: BreedCodeEntry[] = [
  *
  * `fetchSpeciesCodeEntries`, `fetchBreedCodeEntries` and `getCompanionForParent`
  * are ESM exports, so a story cannot reassign them. They all reach the API
- * through the shared axios instance, which uses the XHR adapter in the browser -
+ * through the shared axios instance, which these stories point at the XHR adapter -
  * so the seam is `XMLHttpRequest.prototype`, the same one ChangeRoom and
  * SoapCodedTermPicker use.
  *
@@ -134,6 +135,12 @@ type ApiReply = {
 
 const REAL_XHR_OPEN = XMLHttpRequest.prototype.open;
 const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = api.defaults.adapter;
 
 type StubbedXhr = XMLHttpRequest & { storyUrl?: string };
 
@@ -151,6 +158,7 @@ const answerWith = (xhr: XMLHttpRequest, body: unknown) => {
 };
 
 const stubTransport = (reply: ApiReply) => {
+  api.defaults.adapter = 'xhr';
   XMLHttpRequest.prototype.open = function stubbedOpen(
     this: StubbedXhr,
     method: string,
@@ -193,6 +201,7 @@ const stubTransport = (reply: ApiReply) => {
   return () => {
     XMLHttpRequest.prototype.open = REAL_XHR_OPEN;
     XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 
@@ -366,7 +375,7 @@ export const BreedsLoaded: Story = {
       return found;
     });
 
-    const options = within(menu).getAllByRole('button');
+    const options = within(menu).getAllByRole('option');
     await expect(options.map((option) => option.textContent)).toEqual([
       'Beagle',
       'Border Collie',
@@ -400,8 +409,8 @@ export const BreedsUnavailable: Story = {
 
     // Still opens, and says so. A menu that renders nothing at all reads as a
     // dead control, and breed is required - the vet has to see why they are stuck.
-    await expect(within(menu).getByText('No options')).toBeInTheDocument();
-    await expect(within(menu).queryAllByRole('button')).toHaveLength(0);
+    await expect(within(menu).getByText('No options available')).toBeInTheDocument();
+    await expect(within(menu).queryAllByRole('option')).toHaveLength(0);
   },
 };
 

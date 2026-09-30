@@ -1,6 +1,7 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import api from '@/app/services/axios';
 import type { Appointment, UserOrganization } from '@yosemite-crew/types';
 
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -78,6 +79,12 @@ const createdTask = () =>
 
 const REAL_OPEN = XMLHttpRequest.prototype.open;
 const REAL_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = api.defaults.adapter;
 const openCalls = new WeakMap<XMLHttpRequest, { method: string; url: string }>();
 
 /** Settle an XHR from canned data without ever touching the network. */
@@ -110,7 +117,7 @@ const answer = (request: XMLHttpRequest, url: string, payload: unknown) => {
  * `taskService` and the axios wrapper - so an unstubbed story is noisy as well as
  * online.
  *
- * Axios uses the XHR adapter in a browser, so replacing `open`/`send` on the prototype
+ * With the instance pointed at the XHR adapter, replacing `open`/`send` on the prototype
  * intercepts all of it while leaving the service modules, the hook and the stores
  * completely real. `open` still runs so the instance is in the OPENED state axios
  * needs for `setRequestHeader` and `withCredentials`; `send` never does, so nothing
@@ -123,6 +130,7 @@ const answer = (request: XMLHttpRequest, url: string, payload: unknown) => {
 const installTransport = () => {
   requests.length = 0;
 
+  api.defaults.adapter = 'xhr';
   XMLHttpRequest.prototype.open = function stubbedOpen(
     this: XMLHttpRequest,
     method: string,
@@ -153,6 +161,7 @@ const installTransport = () => {
   return () => {
     XMLHttpRequest.prototype.open = REAL_OPEN;
     XMLHttpRequest.prototype.send = REAL_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 

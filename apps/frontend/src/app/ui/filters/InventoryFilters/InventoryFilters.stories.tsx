@@ -188,7 +188,7 @@ export const CategoryPanelOpen: Story = {
       return element;
     });
     // 'all' plus the five real categories.
-    await expect(within(panel).getAllByRole('button')).toHaveLength(6);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(6);
     await expect(within(panel).getByText('Vaccines')).toBeInTheDocument();
   },
   parameters: {
