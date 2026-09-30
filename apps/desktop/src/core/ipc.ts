@@ -206,6 +206,8 @@ export const createIpcRegistry = ({ ipcMain, config, localFileRoot, logger }: Ip
         const reason = rejectionReason(event, channel, args);
         if (reason) return { ok: false, error: reason };
 
+        // Handlers may be plain functions: a synchronous throw lands in this
+        // catch exactly like a rejection, so the renderer always gets a result.
         try {
           return await handler(event, args);
         } catch (error) {

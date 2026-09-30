@@ -80,22 +80,33 @@ export const createSyncEngine = (deps: EngineDeps): SyncEngine => {
     return result;
   };
 
+  // Local changes go up before server changes come down, so a pull never
+  // overwrites a row that has not been pushed yet.
+  const syncTable = async (table: string): Promise<SyncResult> => {
+    const pushResult = await pushDirtyRows(table);
+    const since = lastSyncAt[table] ?? 0;
+    const pullResult = await pullChanges(table, since);
+    if (pullResult.errors.length === 0) {
+      lastSyncAt[table] = now();
+    }
+    return {
+      table,
+      pushed: pushResult.pushed,
+      pulled: pullResult.pulled,
+      errors: [...pushResult.errors, ...pullResult.errors].filter(Boolean),
+    };
+  };
+
+  // Tables sync one after another, in the order given.
   const fullSync = async (tables: string[]): Promise<SyncResult[]> => {
     const results: SyncResult[] = [];
-    for (const table of tables) {
-      const pushResult = await pushDirtyRows(table);
-      const since = lastSyncAt[table] ?? 0;
-      const pullResult = await pullChanges(table, since);
-      if (pullResult.errors.length === 0) {
-        lastSyncAt[table] = now();
-      }
-      results.push({
-        table,
-        pushed: pushResult.pushed,
-        pulled: pullResult.pulled,
-        errors: [...pushResult.errors, ...pullResult.errors].filter(Boolean),
-      });
-    }
+    await tables.reduce<Promise<void>>(
+      (previous, table) =>
+        previous.then(async () => {
+          results.push(await syncTable(table));
+        }),
+      Promise.resolve()
+    );
     return results;
   };
 
