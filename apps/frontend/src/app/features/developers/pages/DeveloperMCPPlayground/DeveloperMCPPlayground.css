@@ -1,0 +1,411 @@
+.MCPWrapper {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.MCPHeader {
+  margin-bottom: 24px;
+}
+
+.MCPBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-muted);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 200ms;
+}
+
+.MCPBackLink:hover {
+  color: var(--ink);
+}
+
+.MCPShell {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.MCPIntro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.MCPTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.MCPText {
+  font-size: 14px;
+  color: var(--ink-body);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.MCPText--hint {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.MCPExamples {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.MCPExamples li {
+  font-size: 13px;
+  color: var(--ink-body);
+  background: var(--color-surface-muted);
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-card-border);
+}
+
+.MCPExamples code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.MCPField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.MCPLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.MCPInput {
+  width: 100%;
+  max-width: 480px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  color: var(--ink);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 10px;
+  transition:
+    border-color 200ms,
+    box-shadow 200ms;
+}
+
+.MCPInput:focus {
+  outline: none;
+  border-color: var(--color-input-border-active);
+  box-shadow: 0 0 0 3px var(--glow-b10);
+}
+
+.MCPInput::placeholder {
+  color: var(--ink-faint);
+}
+
+.MCPHint {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.MCPHint a {
+  color: var(--color-text-brand);
+  text-decoration: underline;
+}
+
+.MCPExport {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.MCPExportTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.MCPExportSubtitle {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+.MCPExportNote {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin: 8px 0 0;
+}
+
+.MCPExportTabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-surface-muted);
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--color-card-border);
+}
+
+.MCPExportTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.MCPExportTab:hover {
+  color: var(--ink);
+  background: var(--color-surface-card);
+}
+
+.MCPExportTab.is-active {
+  color: var(--ink);
+  background: var(--color-surface-card);
+  box-shadow: 0 1px 2px var(--sh05);
+}
+
+.MCPExportTab .tab-icon {
+  font-size: 13px;
+}
+
+.MCPExportCopy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 200ms;
+}
+
+.MCPExportCopy:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.MCPExportCopy:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.MCPExportPre {
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  line-height: 1.6;
+  color: var(--spot-ink);
+  background: var(--spot);
+  border: 1px solid var(--color-card-border);
+  border-radius: 10px;
+  overflow-x: auto;
+  max-height: 400px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.MCPTools {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.MCPToolsTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.MCPToolsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.MCPToolCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
+  transition:
+    border-color 200ms,
+    box-shadow 200ms;
+}
+
+.MCPToolCard:hover {
+  border-color: var(--color-grey-border);
+  box-shadow: var(--color-shadow-sm);
+}
+
+.MCPToolHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.MCPToolName {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--color-surface-muted);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.MCPScopeBadge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-brand);
+  background: var(--color-brand-100);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.MCPToolDesc {
+  font-size: 13px;
+  color: var(--ink-body);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.MCPToolParams {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-card-border);
+}
+
+.MCPToolParamsLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.MCPToolParams ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.MCPToolParams li {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.MCPToolParams code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--color-surface-muted);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.MCPNotes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
+}
+
+.MCPNotesTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.MCPNotes ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.MCPNotes li {
+  font-size: 13px;
+  color: var(--ink-body);
+  line-height: 1.6;
+}
+
+.MCPNotes code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--color-surface-card);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.MCPNotes a {
+  color: var(--color-text-brand);
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .MCPWrapper {
+    padding: 16px 12px;
+  }
+
+  .MCPTitle {
+    font-size: 20px;
+  }
+
+  .MCPToolsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .MCPExportTabs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .MCPExportCopy {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
