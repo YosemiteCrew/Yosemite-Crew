@@ -1,21 +1,21 @@
 .MCPWrapper {
   max-width: 960px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  padding: 24px 16px;
 }
 
 .MCPHeader {
-  margin-bottom: var(--space-6);
+  margin-bottom: 24px;
 }
 
 .MCPBackLink {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   color: var(--ink-muted);
   text-decoration: none;
-  font-size: var(--text-body-4);
-  transition: color var(--transition-fast);
+  font-size: 13px;
+  transition: color 200ms;
 }
 
 .MCPBackLink:hover {
@@ -25,31 +25,31 @@
 .MCPShell {
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  gap: 32px;
 }
 
 .MCPIntro {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .MCPTitle {
-  font-size: var(--text-display-2);
+  font-size: 24px;
   font-weight: 600;
   color: var(--ink);
   margin: 0;
 }
 
 .MCPText {
-  font-size: var(--text-body-2);
+  font-size: 14px;
   color: var(--ink-body);
   line-height: 1.6;
   margin: 0;
 }
 
 .MCPText--hint {
-  font-size: var(--text-body-3);
+  font-size: 13px;
   color: var(--ink-muted);
 }
 
@@ -59,32 +59,32 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .MCPExamples li {
-  font-size: var(--text-body-3);
+  font-size: 13px;
   color: var(--ink-body);
-  background: var(--surface-subtle);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  background: var(--color-surface-muted);
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-card-border);
 }
 
 .MCPExamples code {
-  font-family: var(--font-mono);
-  font-size: var(--text-body-3);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
   color: var(--ink);
 }
 
 .MCPField {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .MCPLabel {
-  font-size: var(--text-body-3);
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink);
 }
@@ -92,22 +92,22 @@
 .MCPInput {
   width: 100%;
   max-width: 480px;
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--text-body-2);
-  font-family: var(--font-mono);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 10px;
   transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    border-color 200ms,
+    box-shadow 200ms;
 }
 
 .MCPInput:focus {
   outline: none;
-  border-color: var(--focus-ring);
-  box-shadow: 0 0 0 3px var(--focus-ring-opacity);
+  border-color: var(--color-input-border-active);
+  box-shadow: 0 0 0 3px var(--glow-b10);
 }
 
 .MCPInput::placeholder {
@@ -115,95 +115,95 @@
 }
 
 .MCPHint {
-  font-size: var(--text-caption-1);
+  font-size: 12px;
   color: var(--ink-muted);
 }
 
 .MCPHint a {
-  color: var(--link);
+  color: var(--color-text-brand);
   text-decoration: underline;
 }
 
 .MCPExport {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .MCPExportTitle {
-  font-size: var(--text-heading-4);
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
   margin: 0;
 }
 
 .MCPExportSubtitle {
-  font-size: var(--text-body-3);
+  font-size: 13px;
   color: var(--ink-muted);
   margin: 0;
 }
 
 .MCPExportNote {
-  font-size: var(--text-body-3);
+  font-size: 13px;
   color: var(--ink-muted);
-  margin: var(--space-2) 0 0;
+  margin: 8px 0 0;
 }
 
 .MCPExportTabs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  background: var(--surface-subtle);
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  gap: 8px;
+  background: var(--color-surface-muted);
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--color-card-border);
 }
 
 .MCPExportTab {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-body-3);
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink-muted);
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 200ms;
 }
 
 .MCPExportTab:hover {
   color: var(--ink);
-  background: var(--surface);
+  background: var(--color-surface-card);
 }
 
 .MCPExportTab.is-active {
   color: var(--ink);
-  background: var(--surface);
+  background: var(--color-surface-card);
   box-shadow: 0 1px 2px var(--sh05);
 }
 
 .MCPExportTab .tab-icon {
-  font-size: var(--text-body-4);
+  font-size: 13px;
 }
 
 .MCPExportCopy {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 4px;
   margin-left: auto;
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-body-3);
+  padding: 8px 12px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--ink);
-  background: var(--brand);
-  border: none;
-  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 8px;
   cursor: pointer;
-  transition: opacity var(--transition-fast);
+  transition: opacity 200ms;
 }
 
 .MCPExportCopy:hover:not(:disabled) {
@@ -217,14 +217,14 @@
 
 .MCPExportPre {
   margin: 0;
-  padding: var(--space-4);
-  font-size: var(--text-body-3);
-  font-family: var(--font-mono);
+  padding: 16px;
+  font-size: 13px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   line-height: 1.6;
-  color: var(--ink);
-  background: var(--surface-inverted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  color: var(--spot-ink);
+  background: var(--spot);
+  border: 1px solid var(--color-card-border);
+  border-radius: 10px;
   overflow-x: auto;
   max-height: 400px;
   white-space: pre-wrap;
@@ -234,11 +234,11 @@
 .MCPTools {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .MCPToolsTitle {
-  font-size: var(--text-heading-4);
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
   margin: 0;
@@ -247,54 +247,54 @@
 .MCPToolsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .MCPToolCard {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
   transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    border-color 200ms,
+    box-shadow 200ms;
 }
 
 .MCPToolCard:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
+  border-color: var(--color-grey-border);
+  box-shadow: var(--color-shadow-sm);
 }
 
 .MCPToolHead {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .MCPToolName {
-  font-family: var(--font-mono);
-  font-size: var(--text-body-2);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 14px;
   color: var(--ink);
-  background: var(--surface-subtle);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  padding: 4px 8px;
+  border-radius: 8px;
 }
 
 .MCPScopeBadge {
-  font-size: var(--text-caption-1);
+  font-size: 12px;
   font-weight: 600;
-  color: var(--brand-text);
-  background: var(--brand-subtle);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
+  color: var(--color-text-brand);
+  background: var(--color-brand-100);
+  padding: 4px 8px;
+  border-radius: 999px;
 }
 
 .MCPToolDesc {
-  font-size: var(--text-body-3);
+  font-size: 13px;
   color: var(--ink-body);
   line-height: 1.6;
   margin: 0;
@@ -303,13 +303,13 @@
 .MCPToolParams {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border-subtle);
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-card-border);
 }
 
 .MCPToolParamsLabel {
-  font-size: var(--text-caption-1);
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink-muted);
   text-transform: uppercase;
@@ -322,35 +322,35 @@
   margin: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .MCPToolParams li {
-  font-size: var(--text-caption-1);
+  font-size: 12px;
   color: var(--ink-muted);
 }
 
 .MCPToolParams code {
-  font-family: var(--font-mono);
-  font-size: var(--text-caption-1);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
   color: var(--ink);
-  background: var(--surface-subtle);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  padding: 4px 8px;
+  border-radius: 8px;
 }
 
 .MCPNotes {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
 }
 
 .MCPNotesTitle {
-  font-size: var(--text-heading-4);
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
   margin: 0;
@@ -362,36 +362,36 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .MCPNotes li {
-  font-size: var(--text-body-3);
+  font-size: 13px;
   color: var(--ink-body);
   line-height: 1.6;
 }
 
 .MCPNotes code {
-  font-family: var(--font-mono);
-  font-size: var(--text-body-3);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
   color: var(--ink);
-  background: var(--surface);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+  padding: 4px 8px;
+  border-radius: 8px;
 }
 
 .MCPNotes a {
-  color: var(--link);
+  color: var(--color-text-brand);
   text-decoration: underline;
 }
 
 @media (max-width: 640px) {
   .MCPWrapper {
-    padding: var(--space-4) var(--space-3);
+    padding: 16px 12px;
   }
 
   .MCPTitle {
-    font-size: var(--text-heading-3);
+    font-size: 20px;
   }
 
   .MCPToolsGrid {

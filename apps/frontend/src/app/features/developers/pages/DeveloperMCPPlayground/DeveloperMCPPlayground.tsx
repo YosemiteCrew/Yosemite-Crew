@@ -37,53 +37,88 @@ const MCP_PACKAGE = '@yosemitecrew/mcp-server';
 // writes a live key into a file on disk or a chat window.
 const API_KEY_PLACEHOLDER = 'YOUR_API_KEY';
 
-const CLAUDE_CONFIG = {
+const API_BASE_ENV_VAR = 'YC_API_BASE_URL';
+const API_KEY_ENV_VAR = 'YC_API_KEY';
+
+// The server needs to be told which host to call. Left out, it falls back to a
+// machine on the reader's own computer and the first request never arrives, so
+// every configuration here carries the portal's address — the same one the
+// playground sends.
+const apiBase = (): string => {
+  let base = process.env.NEXT_PUBLIC_BASE_URL ?? '';
+  while (base.endsWith('/')) base = base.slice(0, -1);
+  return base;
+};
+
+const serverEnv = (): Record<string, string> => {
+  const base = apiBase();
+  return base
+    ? { [API_KEY_ENV_VAR]: API_KEY_PLACEHOLDER, [API_BASE_ENV_VAR]: base }
+    : { [API_KEY_ENV_VAR]: API_KEY_PLACEHOLDER };
+};
+
+const claudeConfig = () => ({
   mcpServers: {
     'yosemite-crew': {
       command: 'npx',
       args: ['-y', MCP_PACKAGE],
-      env: { YC_API_KEY: API_KEY_PLACEHOLDER },
+      env: serverEnv(),
     },
   },
-};
+});
 
-const VSCODE_CONFIG = {
+const vscodeConfig = () => ({
   mcp: {
     servers: {
       'yosemite-crew': {
         command: 'npx',
         args: ['-y', MCP_PACKAGE],
-        env: { YC_API_KEY: API_KEY_PLACEHOLDER },
+        env: serverEnv(),
       },
     },
   },
-};
+});
 
-// Docker already forwards the variable from the host environment, so this one
-// needs no placeholder: an env block here would override the forwarded value.
-const DOCKER_CONFIG = {
+// Docker already forwards the variables from the host environment, so this one
+// needs no placeholder: an env block here would override the forwarded values.
+const dockerConfig = () => ({
   mcpServers: {
     'yosemite-crew': {
       command: 'docker',
-      args: ['run', '-i', '--rm', '-e', 'YC_API_KEY', 'ghcr.io/yosemitecrew/mcp-server:latest'],
+      args: [
+        'run',
+        '-i',
+        '--rm',
+        '-e',
+        API_KEY_ENV_VAR,
+        ...(apiBase() ? ['-e', API_BASE_ENV_VAR] : []),
+        'ghcr.io/yosemitecrew/mcp-server:latest',
+      ],
     },
   },
-};
+});
 
-const NPX_COMMAND = `YC_API_KEY=${API_KEY_PLACEHOLDER} npx -y ${MCP_PACKAGE}`;
+const npxCommand = () => {
+  const base = apiBase();
+  return [
+    `${API_KEY_ENV_VAR}=${API_KEY_PLACEHOLDER}`,
+    ...(base ? [`${API_BASE_ENV_VAR}=${base}`] : []),
+    `npx -y ${MCP_PACKAGE}`,
+  ].join(' ');
+};
 
 const getConfigForTab = (tab: ExportTab) => {
   switch (tab) {
     case 'claude':
-      return JSON.stringify(CLAUDE_CONFIG, null, 2);
+      return JSON.stringify(claudeConfig(), null, 2);
     case 'vscode':
-      return JSON.stringify(VSCODE_CONFIG, null, 2);
+      return JSON.stringify(vscodeConfig(), null, 2);
     case 'cursor':
-      return JSON.stringify(CLAUDE_CONFIG, null, 2);
+      return JSON.stringify(claudeConfig(), null, 2);
     case 'docker':
-      return JSON.stringify(DOCKER_CONFIG, null, 2);
+      return JSON.stringify(dockerConfig(), null, 2);
     case 'npx':
-      return NPX_COMMAND;
+      return npxCommand();
     default:
       return '';
   }

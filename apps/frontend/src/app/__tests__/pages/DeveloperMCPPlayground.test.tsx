@@ -99,6 +99,57 @@ describe('DeveloperMCPPlayground', () => {
     expect(configPanel().textContent).toContain('YC_API_KEY');
   });
 
+  // Left out of a configuration, the server falls back to a machine on the
+  // reader's own computer, so a pasted configuration with no host in it cannot
+  // work however carefully the key is filled in.
+  it.each(['npx', 'Claude Desktop', 'VS Code'])(
+    'tells the server which host to call on the %s tab',
+    async (label) => {
+      const previous = process.env.NEXT_PUBLIC_BASE_URL;
+      process.env.NEXT_PUBLIC_BASE_URL = 'https://portal.example.test/';
+      try {
+        const user = userEvent.setup();
+        render(<DeveloperMCPPlayground />);
+
+        await typeTheKey(user);
+        await selectTab(user, label);
+
+        expect(configPanel()).toHaveTextContent('https://portal.example.test');
+        // A trailing slash would make the server resolve the path wrongly, so
+        // the address is trimmed on the way out.
+        expect(configPanel().textContent).not.toContain('example.test/');
+        // Still no key: the address is not a place to put one.
+        expect(configPanel().textContent).not.toContain(TYPED_KEY);
+        expect(configPanel().textContent).not.toContain('yc_dev_live');
+      } finally {
+        if (previous === undefined) delete process.env.NEXT_PUBLIC_BASE_URL;
+        else process.env.NEXT_PUBLIC_BASE_URL = previous;
+      }
+    }
+  );
+
+  // Docker carries the host across by name rather than by value, so the command
+  // names the variable and the reader's own environment supplies it.
+  it('forwards the host variable by name on the Docker tab', async () => {
+    const previous = process.env.NEXT_PUBLIC_BASE_URL;
+    process.env.NEXT_PUBLIC_BASE_URL = 'https://portal.example.test/';
+    try {
+      const user = userEvent.setup();
+      render(<DeveloperMCPPlayground />);
+
+      await typeTheKey(user);
+      await selectTab(user, 'Docker');
+
+      expect(configPanel().textContent).toContain('"-e"');
+      expect(configPanel().textContent).toContain('"YC_API_BASE_URL"');
+      expect(configPanel().textContent).not.toContain('portal.example.test');
+      expect(configPanel().textContent).not.toContain(TYPED_KEY);
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_BASE_URL;
+      else process.env.NEXT_PUBLIC_BASE_URL = previous;
+    }
+  });
+
   it('renders the example questions with real quotation marks', () => {
     render(<DeveloperMCPPlayground />);
 
