@@ -20,7 +20,7 @@ type CodeSyncStateInput = {
 };
 
 export const CodeSyncService = {
-  async get(system: CodeSystem, kind: CodeSyncKind) {
+  get(system: CodeSystem, kind: CodeSyncKind) {
     return prisma.codeSyncState.findUnique({
       where: {
         system_kind: {
@@ -31,7 +31,7 @@ export const CodeSyncService = {
     });
   },
 
-  async upsert(input: CodeSyncStateInput): Promise<CodeSyncStateRecord> {
+  upsert(input: CodeSyncStateInput): Promise<CodeSyncStateRecord> {
     return prisma.codeSyncState.upsert({
       where: {
         system_kind: {

@@ -121,23 +121,31 @@ const toUnifiedExpenseFromInvoice = async (invoice: {
 });
 
 export const ExpenseService = {
-  async createExpense(
-    input: ExternalExpenseInput,
-  ): Promise<PrismaExternalExpense> {
+  createExpense(input: ExternalExpenseInput): Promise<PrismaExternalExpense> {
     if (!input.patientId) {
-      throw new ExternalExpenseServiceError("patientId is required");
+      return Promise.reject(
+        new ExternalExpenseServiceError("patientId is required"),
+      );
     }
     if (!input.parentId) {
-      throw new ExternalExpenseServiceError("parentId is required");
+      return Promise.reject(
+        new ExternalExpenseServiceError("parentId is required"),
+      );
     }
     if (!input.category) {
-      throw new ExternalExpenseServiceError("category is required");
+      return Promise.reject(
+        new ExternalExpenseServiceError("category is required"),
+      );
     }
     if (!input.expenseName) {
-      throw new ExternalExpenseServiceError("expenseName is required");
+      return Promise.reject(
+        new ExternalExpenseServiceError("expenseName is required"),
+      );
     }
     if (typeof input.amount !== "number" || input.amount < 0) {
-      throw new ExternalExpenseServiceError("amount must be a positive number");
+      return Promise.reject(
+        new ExternalExpenseServiceError("amount must be a positive number"),
+      );
     }
 
     return prisma.externalExpense.create({

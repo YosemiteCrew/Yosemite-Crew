@@ -193,6 +193,16 @@ describe("ContactService", () => {
       phone: " 1234567890 ",
     };
 
+    it("should require a type without writing", async () => {
+      await expect(
+        ContactService.createWebRequest({
+          ...baseWebInput,
+          type: undefined as never,
+        }),
+      ).rejects.toThrow("type is required");
+      expect(prisma.contactRequest.create).not.toHaveBeenCalled();
+    });
+
     it("should require message, fullName, and email", async () => {
       await expect(
         ContactService.createWebRequest({ ...baseWebInput, message: "" }),
