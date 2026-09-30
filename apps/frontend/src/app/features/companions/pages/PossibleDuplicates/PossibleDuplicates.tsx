@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { IoArrowBackOutline, IoCheckmarkCircleOutline, IoRefreshOutline } from 'react-icons/io5';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { formatDisplayDate } from '@/app/lib/date';
@@ -9,132 +8,12 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { useOrgStore } from '@/app/stores/orgStore';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
-import {
-  dismissPossibleDuplicate,
-  loadPossibleDuplicates,
-  type PossibleDuplicate,
-} from '@/app/features/companions/services/patientDuplicateReviewService';
+import type { PossibleDuplicate } from '@/app/features/companions/services/patientDuplicateReviewService';
+import { duplicatePairId, useDuplicateReview } from './useDuplicateReview';
 
 const dateLabel = (value: string) => {
   const date = formatDisplayDate(value);
   return date ? `Born ${date}` : 'Date of birth not available';
-};
-
-type ReviewError = { organisationId: string; message: string };
-
-const useDuplicateReview = (organisationId: string | null) => {
-  const [matches, setMatches] = useState<PossibleDuplicate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<ReviewError | null>(null);
-  const [dismissError, setDismissError] = useState<ReviewError | null>(null);
-  const [loadedOrganisationId, setLoadedOrganisationId] = useState<string | null>(null);
-  const [busyDismissal, setBusyDismissal] = useState<{
-    organisationId: string;
-    pairId: string;
-    requestId: number;
-  } | null>(null);
-  const latestLoadRequest = useRef(0);
-  const latestDismissRequest = useRef(0);
-  const currentLoadError = loadError?.organisationId === organisationId ? loadError.message : null;
-  const currentDismissError =
-    dismissError?.organisationId === organisationId ? dismissError.message : null;
-  const busyPair = busyDismissal?.organisationId === organisationId ? busyDismissal.pairId : null;
-  const isLoading = Boolean(organisationId && (loading || loadedOrganisationId !== organisationId));
-  const visibleError = organisationId
-    ? (currentDismissError ?? currentLoadError)
-    : 'Choose a clinic to review patient records.';
-
-  const refresh = useCallback(async () => {
-    const requestId = ++latestLoadRequest.current;
-    if (!organisationId) {
-      setMatches([]);
-      setLoadError(null);
-      setDismissError(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setLoadError(null);
-    setDismissError(null);
-    try {
-      const result = await loadPossibleDuplicates(organisationId);
-      if (requestId !== latestLoadRequest.current) return;
-      setMatches(result);
-      setLoadedOrganisationId(organisationId);
-    } catch {
-      if (requestId !== latestLoadRequest.current) return;
-      setMatches([]);
-      setLoadError({ organisationId, message: 'Possible matches could not be loaded. Try again.' });
-      setLoadedOrganisationId(organisationId);
-    } finally {
-      if (requestId === latestLoadRequest.current) setLoading(false);
-    }
-  }, [organisationId]);
-
-  useEffect(() => {
-    const requestId = ++latestLoadRequest.current;
-    latestDismissRequest.current += 1;
-    if (!organisationId) {
-      return;
-    }
-    let active = true;
-    loadPossibleDuplicates(organisationId)
-      .then((result) => {
-        if (!active || requestId !== latestLoadRequest.current) return;
-        setMatches(result);
-        setLoadError(null);
-        setLoadedOrganisationId(organisationId);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!active || requestId !== latestLoadRequest.current) return;
-        setMatches([]);
-        setLoadError({
-          organisationId,
-          message: 'Possible matches could not be loaded. Try again.',
-        });
-        setLoadedOrganisationId(organisationId);
-        setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [organisationId]);
-
-  const dismiss = async (match: PossibleDuplicate) => {
-    if (!organisationId || busyPair) return;
-    const requestId = ++latestDismissRequest.current;
-    const pairId = [match.patientA.id, match.patientB.id].sort().join(':');
-    setBusyDismissal({ organisationId, pairId, requestId });
-    setDismissError(null);
-    try {
-      await dismissPossibleDuplicate(organisationId, match.patientA.id, match.patientB.id);
-      if (requestId !== latestDismissRequest.current) return;
-      setMatches((current) =>
-        current.filter((item) => [item.patientA.id, item.patientB.id].sort().join(':') !== pairId)
-      );
-    } catch {
-      if (requestId === latestDismissRequest.current) {
-        setDismissError({
-          organisationId,
-          message: 'This match could not be dismissed. Try again.',
-        });
-      }
-    } finally {
-      setBusyDismissal((current) => (current?.requestId === requestId ? null : current));
-    }
-  };
-
-  return {
-    matches,
-    loading,
-    refresh,
-    dismiss,
-    busyPair,
-    currentLoadError,
-    visibleError,
-    isLoading,
-  };
 };
 
 type ReviewQueueProps = {
@@ -147,7 +26,7 @@ type ReviewQueueProps = {
 const ReviewQueue = ({ matches, canDismiss, busyPair, onDismiss }: ReviewQueueProps) => (
   <ul className="space-y-3" aria-label="Possible duplicate patient pairs">
     {matches.map((match) => {
-      const pairId = [match.patientA.id, match.patientB.id].sort().join(':');
+      const pairId = duplicatePairId(match);
       const matchingLabel =
         match.matchingOn === 'microchip' ? 'Same microchip' : 'Same name and birth date';
       return (
@@ -211,14 +90,14 @@ const ReviewContent = ({
 }: ReviewContentProps) => {
   if (isLoading) {
     return (
-      <div role="status" aria-label="Loading possible duplicate patients" className="space-y-3">
+      <output aria-label="Loading possible duplicate patients" className="block space-y-3">
         {[0, 1, 2].map((item) => (
           <div
             key={item}
             className="h-28 animate-pulse rounded-2xl border border-[var(--hairline)] bg-[var(--field-bg)] motion-reduce:animate-none"
           />
         ))}
-      </div>
+      </output>
     );
   }
   if (!hasOrganisation || currentLoadError) return null;
