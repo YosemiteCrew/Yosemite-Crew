@@ -7,6 +7,7 @@ import type {
   ExtensionContext,
   RegisteredExtension,
 } from './types';
+import { logger } from '@/app/lib/logger';
 
 class ExtensionRegistry {
   private extensions: Map<ExtensionPointId, RegisteredExtension[]> = new Map();
@@ -14,7 +15,7 @@ class ExtensionRegistry {
 
   registerPlugin(manifest: PluginManifest): void {
     if (this.plugins.has(manifest.id)) {
-      console.warn(`Plugin ${manifest.id} is already registered`);
+      logger.warn(`Plugin ${manifest.id} is already registered`);
       return;
     }
 
