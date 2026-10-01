@@ -9,7 +9,10 @@ import {
   OrgDocumentServiceError,
   OrganizationDocumentService,
 } from "../../../src/services/organisation-document.service";
-import { generatePresignedUrl } from "../../../src/middlewares/upload";
+import {
+  generatePresignedUrl,
+  handleFileUpload,
+} from "../../../src/middlewares/upload";
 import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/services/organisation-document.service", () => {
@@ -36,6 +39,13 @@ jest.mock("../../../src/services/organisation-document.service", () => {
 
 jest.mock("../../../src/middlewares/upload", () => ({
   generatePresignedUrl: jest.fn(),
+  handleFileUpload: jest.fn(),
+  isValidPdfUpload: jest.fn(
+    (file: { mimetype: string; size: number; data: Buffer }) =>
+      file.mimetype === "application/pdf" &&
+      file.size <= 20 * 1024 * 1024 &&
+      file.data.subarray(0, 5).toString("ascii") === "%PDF-",
+  ),
   getURLForKey: jest.fn((key: string) => `https://cdn.example/${key}`),
 }));
 
@@ -72,6 +82,7 @@ const mockedService = OrganizationDocumentService as unknown as {
 };
 
 const mockedGeneratePresignedUrl = generatePresignedUrl as unknown as AsyncMock;
+const mockedHandleFileUpload = handleFileUpload as unknown as AsyncMock;
 const mockedLogger = logger as unknown as { error: jest.Mock };
 
 const createResponse = () => {
@@ -869,6 +880,36 @@ describe("OrganizationDocumentController.uploadFile", () => {
     expect(res.json).toHaveBeenCalledWith({
       uploadUrl: "https://s3.example/put",
       s3Key: "org/org-1/policy.pdf",
+    });
+  });
+
+  it("uploads a validated PDF on the server for an organisation", async () => {
+    const file = {
+      name: "policy.pdf",
+      mimetype: "application/pdf",
+      size: 10,
+      data: Buffer.from("%PDF-1.7"),
+    };
+    mockedHandleFileUpload.mockResolvedValueOnce({
+      key: "orgs/orgId=org-1/policy.pdf",
+    });
+    const req = {
+      body: {},
+      files: { file },
+      params: { orgId: "org-1" },
+    } as unknown as Request;
+    const res = createResponse();
+
+    await OrganizationDocumentController.uploadFile(req, res);
+
+    expect(mockedHandleFileUpload).toHaveBeenCalledWith(
+      file,
+      "orgs/orgId=org-1",
+    );
+    expect(mockedGeneratePresignedUrl).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      s3Key: "orgs/orgId=org-1/policy.pdf",
     });
   });
 

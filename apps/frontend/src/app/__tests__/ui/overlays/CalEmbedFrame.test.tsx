@@ -67,6 +67,16 @@ describe('CalEmbedFrame', () => {
     expect(cal).not.toHaveBeenCalled();
   });
 
+  it('shows an accessible error when the Cal API fails to load', async () => {
+    mockedGetCalApi.mockRejectedValue(new Error('unavailable'));
+
+    render(<CalEmbedFrame calLink="yosemitecrew/demo" title="Book a demo" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The calendar could not be loaded. Please try again later.'
+    );
+  });
+
   it('cleans up a mounted Cal embed on unmount', async () => {
     const cal = jest.fn((action: string, payload?: { elementOrSelector?: HTMLElement }) => {
       if (action === 'inline' && payload?.elementOrSelector) {

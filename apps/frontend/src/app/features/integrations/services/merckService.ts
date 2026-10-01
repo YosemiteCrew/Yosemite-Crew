@@ -361,11 +361,11 @@ class ApiMerckGateway implements MerckGateway {
     return res.data;
   }
 
-  async getStatus(
+  getStatus(
     organisationId: string,
     integrations: OrgIntegration[]
   ): Promise<OrgIntegration | null> {
-    return resolveMerckIntegration(organisationId, integrations);
+    return Promise.resolve(resolveMerckIntegration(organisationId, integrations));
   }
 }
 

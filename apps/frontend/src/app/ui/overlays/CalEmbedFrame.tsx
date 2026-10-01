@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getCalApi } from '@calcom/embed-react';
 import { getCalEmbedUrl } from '@/app/ui/overlays/calEmbedUtils';
 
@@ -22,6 +22,7 @@ const CalEmbedFrame = ({
   className = 'flex-1 w-full border-0',
 }: CalEmbedFrameProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [failedCalLink, setFailedCalLink] = useState<string | null>(null);
 
   useEffect(() => {
     const container = containerRef.current as HTMLDivElement;
@@ -44,7 +45,9 @@ const CalEmbedFrame = ({
       });
     };
 
-    mountCalendar();
+    void mountCalendar().catch(() => {
+      if (!cancelled) setFailedCalLink(calLink);
+    });
 
     return () => {
       cancelled = true;
@@ -53,14 +56,21 @@ const CalEmbedFrame = ({
   }, [calLink]);
 
   return (
-    <div
-      ref={containerRef}
-      aria-label={title}
-      data-cal-embed-frame="true"
-      data-cal-embed-src={getCalEmbedUrl(calLink)}
-      className={className}
-      style={{ pointerEvents: 'auto' }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        aria-label={title}
+        data-cal-embed-frame="true"
+        data-cal-embed-src={getCalEmbedUrl(calLink)}
+        className={className}
+        style={{ pointerEvents: 'auto' }}
+      />
+      {failedCalLink === calLink && (
+        <p role="alert" className="text-body-4 text-danger-600">
+          The calendar could not be loaded. Please try again later.
+        </p>
+      )}
+    </>
   );
 };
 

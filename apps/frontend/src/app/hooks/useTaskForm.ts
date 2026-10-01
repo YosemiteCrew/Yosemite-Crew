@@ -107,7 +107,7 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
         console.log('Error loading task templates:', orgResult.reason);
       }
     };
-    load();
+    void load();
 
     return () => {
       active = false;

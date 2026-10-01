@@ -1,13 +1,11 @@
 import React, { useRef } from 'react';
-import axios from 'axios';
 import { IoCloudUploadOutline, IoDocumentTextOutline, IoTrashOutline } from 'react-icons/io5';
 
 import './UploadImage.css';
 
 const allowedTypes = new Set(['application/pdf']);
 
-type SignedUrlResult = {
-  uploadUrl: string;
+type UploadResult = {
   s3Key: string;
 };
 
@@ -16,15 +14,8 @@ type PdfDocUploaderProps = {
   onChange: (url: string, mimeType?: string, size?: number) => void;
   file: File | null;
   setFile: React.Dispatch<React.SetStateAction<File | null>>;
-  getSignedUrl: (file: File) => Promise<SignedUrlResult>;
+  uploadFile: (file: File) => Promise<UploadResult>;
   error?: string;
-};
-
-const uploadPdfToS3 = async (uploadUrl: string, file: File) => {
-  await axios.put(uploadUrl, file, {
-    headers: { 'Content-Type': file?.type },
-    withCredentials: false,
-  });
 };
 
 const validatePdfFile = (f: File) => {
@@ -38,7 +29,7 @@ const PdfDocUploader = ({
   placeholder,
   file,
   setFile,
-  getSignedUrl,
+  uploadFile,
 }: Readonly<PdfDocUploaderProps>) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,9 +39,8 @@ const PdfDocUploader = ({
     if (!picked || !validatePdfFile(picked)) return;
     setFile(picked);
     try {
-      const signed = await getSignedUrl(picked);
-      await uploadPdfToS3(signed.uploadUrl, picked);
-      onChange(signed.s3Key, picked.type, picked.size);
+      const uploaded = await uploadFile(picked);
+      onChange(uploaded.s3Key, picked.type, picked.size);
     } catch (err: any) {
       console.log(err);
     }
@@ -58,7 +48,7 @@ const PdfDocUploader = ({
 
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    handleFiles(e.dataTransfer.files);
+    void handleFiles(e.dataTransfer.files);
   };
 
   const handleRemove = () => {
@@ -89,7 +79,7 @@ const PdfDocUploader = ({
             accept=".pdf"
             style={{ display: 'none' }}
             aria-label={placeholder}
-            onChange={(e) => handleFiles(e.target.files)}
+            onChange={(e) => void handleFiles(e.target.files)}
           />
         </div>
       </button>
