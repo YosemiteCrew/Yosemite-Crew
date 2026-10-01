@@ -1442,7 +1442,7 @@ const applyBatchDraws = async (
  * wait is included in the sum instead of overwritten. Two statements on
  * purpose: the sum must be read after the lock is granted.
  */
-const lockItemAndSumOnHand = async (
+const lockItemAndRecomputeStock = async (
   tx: Prisma.TransactionClient,
   itemId: string,
   organisationId: string,
@@ -1456,8 +1456,7 @@ const lockItemAndSumOnHand = async (
   if (!lockedItem) {
     throw new InventoryServiceError("Inventory item not found", 404);
   }
-  const { onHand } = await recomputeStockFromBatches(itemId, tx);
-  return onHand;
+  return recomputeStockFromBatches(itemId, tx);
 };
 
 const consumeBatchStockInTransaction = async (
@@ -1500,7 +1499,11 @@ const consumeBatchStockInTransaction = async (
 
   // Reservations are tracked on the item (see allocateStock), not on batches,
   // so consumption must not recompute `allocated` from the batch rows.
-  const onHand = await lockItemAndSumOnHand(tx, itemId, organisationId);
+  const { onHand } = await lockItemAndRecomputeStock(
+    tx,
+    itemId,
+    organisationId,
+  );
   const updated = await tx.inventoryItem.update({
     where: { id: itemId },
     data: { onHand },
@@ -2092,34 +2095,41 @@ export const InventoryService = {
       "organisationId",
     );
 
-    const item = await prisma.inventoryItem.findFirst({
-      where: { id: itemId, organisationId: safeOrganisationId },
-    });
-    if (!item) {
-      throw new InventoryServiceError("Inventory item not found", 404);
-    }
+    const batch = await prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.findFirst({
+        where: { id: itemId, organisationId: safeOrganisationId },
+      });
+      if (!item) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
 
-    const batch = await prisma.inventoryBatch.create({
-      data: {
+      const created = await tx.inventoryBatch.create({
+        data: {
+          itemId,
+          organisationId: item.organisationId,
+          batchNumber: batchInput.batchNumber ?? undefined,
+          lotNumber: batchInput.lotNumber ?? undefined,
+          regulatoryTrackingId: batchInput.regulatoryTrackingId ?? undefined,
+          expiryWarningBefore: batchInput.expiryWarningBefore ?? undefined,
+          barcode: batchInput.barcode ?? undefined,
+          manufactureDate: batchInput.manufactureDate ?? undefined,
+          expiryDate: batchInput.expiryDate ?? undefined,
+          minShelfLifeAlertDate: batchInput.minShelfLifeAlertDate ?? undefined,
+          quantity: batchInput.quantity,
+          allocated: batchInput.allocated ?? 0,
+        },
+      });
+
+      const { onHand } = await lockItemAndRecomputeStock(
+        tx,
         itemId,
-        organisationId: item.organisationId,
-        batchNumber: batchInput.batchNumber ?? undefined,
-        lotNumber: batchInput.lotNumber ?? undefined,
-        regulatoryTrackingId: batchInput.regulatoryTrackingId ?? undefined,
-        expiryWarningBefore: batchInput.expiryWarningBefore ?? undefined,
-        barcode: batchInput.barcode ?? undefined,
-        manufactureDate: batchInput.manufactureDate ?? undefined,
-        expiryDate: batchInput.expiryDate ?? undefined,
-        minShelfLifeAlertDate: batchInput.minShelfLifeAlertDate ?? undefined,
-        quantity: batchInput.quantity,
-        allocated: batchInput.allocated ?? 0,
-      },
-    });
-
-    const { onHand } = await recomputeStockFromBatches(itemId);
-    await prisma.inventoryItem.update({
-      where: { id: itemId },
-      data: { onHand },
+        safeOrganisationId,
+      );
+      await tx.inventoryItem.update({
+        where: { id: itemId },
+        data: { onHand },
+      });
+      return created;
     });
 
     return {
@@ -2139,13 +2149,6 @@ export const InventoryService = {
       "organisationId",
     );
 
-    const batch = await prisma.inventoryBatch.findFirst({
-      where: { id: batchId, organisationId: safeOrganisationId },
-    });
-    if (!batch) {
-      throw new InventoryServiceError("Batch not found", 404);
-    }
-
     const data: Prisma.InventoryBatchUpdateInput = {};
     if (input.batchNumber !== undefined)
       data.batchNumber = input.batchNumber ?? null;
@@ -2164,15 +2167,29 @@ export const InventoryService = {
     if (input.quantity !== undefined) data.quantity = input.quantity;
     if (input.allocated !== undefined) data.allocated = input.allocated;
 
-    const updated = await prisma.inventoryBatch.update({
-      where: { id: batchId, organisationId: safeOrganisationId },
-      data,
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const batch = await tx.inventoryBatch.findFirst({
+        where: { id: batchId, organisationId: safeOrganisationId },
+      });
+      if (!batch) {
+        throw new InventoryServiceError("Batch not found", 404);
+      }
 
-    const { onHand } = await recomputeStockFromBatches(updated.itemId);
-    await prisma.inventoryItem.update({
-      where: { id: updated.itemId },
-      data: { onHand },
+      const changed = await tx.inventoryBatch.update({
+        where: { id: batchId, organisationId: safeOrganisationId },
+        data,
+      });
+
+      const { onHand } = await lockItemAndRecomputeStock(
+        tx,
+        changed.itemId,
+        safeOrganisationId,
+      );
+      await tx.inventoryItem.update({
+        where: { id: changed.itemId },
+        data: { onHand },
+      });
+      return changed;
     });
 
     return {
@@ -2188,19 +2205,25 @@ export const InventoryService = {
       "organisationId",
     );
 
-    const batch = await prisma.inventoryBatch.findFirst({
-      where: { id: batchId, organisationId: safeOrganisationId },
-    });
-    if (!batch) return;
+    await prisma.$transaction(async (tx) => {
+      const batch = await tx.inventoryBatch.findFirst({
+        where: { id: batchId, organisationId: safeOrganisationId },
+      });
+      if (!batch) return;
 
-    await prisma.inventoryBatch.delete({
-      where: { id: batchId, organisationId: safeOrganisationId },
-    });
+      await tx.inventoryBatch.delete({
+        where: { id: batchId, organisationId: safeOrganisationId },
+      });
 
-    const { onHand, allocated } = await recomputeStockFromBatches(batch.itemId);
-    await prisma.inventoryItem.update({
-      where: { id: batch.itemId },
-      data: { onHand, allocated },
+      const { onHand, allocated } = await lockItemAndRecomputeStock(
+        tx,
+        batch.itemId,
+        safeOrganisationId,
+      );
+      await tx.inventoryItem.update({
+        where: { id: batch.itemId },
+        data: { onHand, allocated },
+      });
     });
   },
 
@@ -2383,7 +2406,7 @@ export const InventoryAdjustmentService = {
         );
       }
 
-      const onHand = await lockItemAndSumOnHand(
+      const { onHand } = await lockItemAndRecomputeStock(
         tx,
         item.id,
         safeOrganisationId,

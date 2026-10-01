@@ -2530,6 +2530,16 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         where: { id: "item-1" },
         data: { onHand: 11 },
       });
+      const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+      const [batchWriteOrder] = mockOf(prisma.inventoryBatch.create).mock
+        .invocationCallOrder;
+      const [sumOrder] = mockOf(prisma.inventoryBatch.findMany).mock
+        .invocationCallOrder;
+      const [itemWriteOrder] = mockOf(prisma.inventoryItem.update).mock
+        .invocationCallOrder;
+      expect(batchWriteOrder).toBeLessThan(lockOrder);
+      expect(lockOrder).toBeLessThan(sumOrder);
+      expect(sumOrder).toBeLessThan(itemWriteOrder);
     });
 
     it("clears every optional batch field when explicitly nulled", async () => {
@@ -2565,6 +2575,16 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         minShelfLifeAlertDate: null,
         allocated: 2,
       });
+      const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+      const [batchWriteOrder] = mockOf(prisma.inventoryBatch.update).mock
+        .invocationCallOrder;
+      const [sumOrder] = mockOf(prisma.inventoryBatch.findMany).mock
+        .invocationCallOrder;
+      const [itemWriteOrder] = mockOf(prisma.inventoryItem.update).mock
+        .invocationCallOrder;
+      expect(batchWriteOrder).toBeLessThan(lockOrder);
+      expect(lockOrder).toBeLessThan(sumOrder);
+      expect(sumOrder).toBeLessThan(itemWriteOrder);
     });
 
     it("recomputes onHand and allocated after a delete", async () => {
@@ -2581,6 +2601,16 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         where: { id: "item-9" },
         data: { onHand: 2, allocated: 1 },
       });
+      const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+      const [batchWriteOrder] = mockOf(prisma.inventoryBatch.delete).mock
+        .invocationCallOrder;
+      const [sumOrder] = mockOf(prisma.inventoryBatch.findMany).mock
+        .invocationCallOrder;
+      const [itemWriteOrder] = mockOf(prisma.inventoryItem.update).mock
+        .invocationCallOrder;
+      expect(batchWriteOrder).toBeLessThan(lockOrder);
+      expect(lockOrder).toBeLessThan(sumOrder);
+      expect(sumOrder).toBeLessThan(itemWriteOrder);
     });
   });
 
