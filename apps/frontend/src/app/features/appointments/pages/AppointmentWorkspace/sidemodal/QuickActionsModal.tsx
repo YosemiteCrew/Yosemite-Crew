@@ -17,7 +17,10 @@ import type { SideAction } from '@/app/features/appointments/types/workspace';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
 import { useExtensionPoint } from '@/app/features/plugins';
-import type { AppointmentWorkspaceSideModalPanelExtension } from '@/app/features/plugins/types';
+import type {
+  AppointmentWorkspaceSideModalPanelExtension,
+  ExtensionContext,
+} from '@/app/features/plugins/types';
 
 // Panels are heavy (vitals forms, document packets, the calculator registry) and
 // only one is ever mounted, so each ships as its own chunk and is fetched when
@@ -141,18 +144,6 @@ const NavButton = ({
   );
 };
 
-/**
- * Quick-actions side modal — reuses the shared right-docked `Modal` drawer (same
- * size/styling as the Organization/Tasks side modals) with a top row of round
- * icon tabs (Record / Tasks / Documents / Chat / Activity / MSD). The active tab
- * routes to its panel below.
- */
-type PluginNavItem = {
-  key: string;
-  label: string;
-  icon: IconType;
-};
-
 const QuickActionsModal = ({
   appointment,
   appointmentId,
@@ -172,17 +163,15 @@ const QuickActionsModal = ({
     [appointmentId, organisationId]
   );
 
-  const { extensions: pluginPanelExtensions } =
-    useExtensionPoint<AppointmentWorkspaceSideModalPanelExtension>(
-      'appointment.workspace.sideModal.panels',
-      context
-    );
+  const { extensions: pluginPanelExtensions } = useExtensionPoint<
+    React.ComponentProps<AppointmentWorkspaceSideModalPanelExtension['component']>
+  >('appointment.workspace.sideModal.panels', context);
 
   const pluginNavItems = useMemo<PluginNavItem[]>(
     () =>
       pluginPanelExtensions.map((ext) => ({
-        key: ext.id,
-        label: ext.extension.component.displayName || ext.id,
+        key: `${ext.pluginId}:${ext.extension.id}`,
+        label: ext.extension.component.displayName || ext.extension.id,
         icon: ext.extension.component.icon || IoPulseOutline,
       })),
     [pluginPanelExtensions]
@@ -299,9 +288,9 @@ const QuickActionsModal = ({
           {isPluginAction && (
             <>
               {pluginPanelExtensions.map((ext) =>
-                activeAction === ext.id ? (
+                activeAction === `${ext.pluginId}:${ext.extension.id}` ? (
                   <ext.extension.component
-                    key={ext.id}
+                    key={`${ext.pluginId}:${ext.extension.id}`}
                     appointmentId={appointmentId}
                     organisationId={organisationId}
                     onClose={onClose}

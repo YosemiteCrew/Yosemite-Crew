@@ -1,13 +1,28 @@
 'use client';
 
-import React, { createContext, useContext, useMemo, ReactNode, useEffect, useState } from 'react';
-import type { PluginManifest, ExtensionContext } from './types';
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  ReactNode,
+  useEffect,
+  useSyncExternalStore,
+} from 'react';
+import type {
+  ExtensionContext,
+  ExtensionPointId,
+  PluginManifest,
+  RegisteredExtension,
+} from './types';
 import { extensionRegistry, registerPlugin, unregisterPlugin } from './registry';
 
 interface PluginProviderProps {
-  children: ReactNode;
-  initialPlugins?: PluginManifest[];
+  readonly children: ReactNode;
+  readonly initialPlugins?: PluginManifest[];
 }
+
+const EMPTY_PLUGINS: PluginManifest[] = [];
+const EMPTY_EXTENSIONS: never[] = [];
 
 const PluginContext = createContext<{
   registerPlugin: (manifest: PluginManifest) => void;
@@ -16,7 +31,7 @@ const PluginContext = createContext<{
   hasPlugin: (pluginId: string) => boolean;
 } | null>(null);
 
-export function PluginProvider({ children, initialPlugins = [] }: PluginProviderProps) {
+export function PluginProvider({ children, initialPlugins = EMPTY_PLUGINS }: PluginProviderProps) {
   useEffect(() => {
     for (const plugin of initialPlugins) {
       registerPlugin(plugin);
@@ -50,30 +65,26 @@ export function usePluginRegistry() {
 }
 
 export function useExtensionPoint<T = Record<string, unknown>>(
-  extensionPointId: string,
+  extensionPointId: ExtensionPointId,
   context: ExtensionContext
 ): {
-  extensions: Array<{ id: string; component: React.ComponentType<T>; pluginId: string }>;
+  extensions: RegisteredExtension<T>[];
 } {
-  const [extensions, setExtensions] = useState<
-    Array<{ id: string; component: React.ComponentType<T>; pluginId: string }>
-  >([]);
-
-  useEffect(() => {
-    let mounted = true;
+  const version = useSyncExternalStore(
+    extensionRegistry.subscribe,
+    extensionRegistry.getVersion,
+    extensionRegistry.getServerVersion
+  );
+  const snapshot = useMemo(() => {
     try {
-      const ext = extensionRegistry.getExtensionComponents<T>(extensionPointId as any, context);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (mounted) setExtensions(ext);
+      return {
+        version,
+        extensions: extensionRegistry.getExtensions<T>(extensionPointId, context),
+      };
     } catch {
-      // Extension registry not available (e.g., in tests without PluginProvider)
-
-      if (mounted) setExtensions([]);
+      return { version, extensions: EMPTY_EXTENSIONS };
     }
-    return () => {
-      mounted = false;
-    };
-  }, [extensionPointId, context]);
+  }, [context, extensionPointId, version]);
 
-  return { extensions };
+  return { extensions: snapshot.extensions };
 }

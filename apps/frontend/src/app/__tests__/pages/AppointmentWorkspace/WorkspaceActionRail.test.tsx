@@ -4,8 +4,10 @@ import '@testing-library/jest-dom';
 import WorkspaceActionRail from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceActionRail';
 
 describe('WorkspaceActionRail', () => {
+  const extensionContext = { appointmentId: 'appointment-1', organisationId: 'org-1' };
+
   it('renders every quick-action launcher', () => {
-    render(<WorkspaceActionRail activeAction={null} onSelect={jest.fn()} />);
+    render(<WorkspaceActionRail {...extensionContext} activeAction={null} onSelect={jest.fn()} />);
     [
       'Record vitals',
       'Tasks',
@@ -18,7 +20,9 @@ describe('WorkspaceActionRail', () => {
   });
 
   it('marks the active action as pressed and leaves the others unpressed', () => {
-    render(<WorkspaceActionRail activeAction="DOCUMENTS" onSelect={jest.fn()} />);
+    render(
+      <WorkspaceActionRail {...extensionContext} activeAction="DOCUMENTS" onSelect={jest.fn()} />
+    );
     expect(screen.getByRole('button', { name: 'Documents' })).toHaveAttribute(
       'aria-pressed',
       'true'
@@ -31,7 +35,7 @@ describe('WorkspaceActionRail', () => {
 
   it('opens the matching panel when an icon is clicked', () => {
     const onSelect = jest.fn();
-    render(<WorkspaceActionRail activeAction={null} onSelect={onSelect} />);
+    render(<WorkspaceActionRail {...extensionContext} activeAction={null} onSelect={onSelect} />);
     fireEvent.click(screen.getByRole('button', { name: 'Calculators' }));
     expect(onSelect).toHaveBeenCalledWith('CALCULATORS');
     fireEvent.click(screen.getByRole('button', { name: 'Chat' }));

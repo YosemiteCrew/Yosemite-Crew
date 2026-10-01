@@ -10,8 +10,26 @@ import type {
 import { logger } from '@/app/lib/logger';
 
 class ExtensionRegistry {
-  private extensions: Map<ExtensionPointId, RegisteredExtension[]> = new Map();
-  private plugins: Map<string, PluginManifest> = new Map();
+  private readonly extensions: Map<ExtensionPointId, RegisteredExtension[]> = new Map();
+  private readonly plugins: Map<string, PluginManifest> = new Map();
+  private version = 0;
+  private listeners = new Set<() => void>();
+
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  getVersion = () => this.version;
+
+  getServerVersion = () => this.version;
+
+  private notifyChange(): void {
+    this.version += 1;
+    this.listeners.forEach((listener) => listener());
+  }
 
   registerPlugin(manifest: PluginManifest): void {
     if (this.plugins.has(manifest.id)) {
@@ -24,6 +42,7 @@ class ExtensionRegistry {
     for (const extension of manifest.extensions) {
       this.registerExtension(manifest.id, manifest.name, extension);
     }
+    this.notifyChange();
   }
 
   unregisterPlugin(pluginId: string): void {
@@ -35,6 +54,7 @@ class ExtensionRegistry {
     }
 
     this.plugins.delete(pluginId);
+    this.notifyChange();
   }
 
   private registerExtension(
@@ -89,7 +109,7 @@ class ExtensionRegistry {
     extensionPointId: ExtensionPointId,
     context: ExtensionContext
   ): Array<{ id: string; component: React.ComponentType<T>; pluginId: string }> {
-    return this.getExtensions(extensionPointId, context).map((reg) => ({
+    return this.getExtensions<T>(extensionPointId, context).map((reg) => ({
       id: reg.extension.id,
       component: reg.extension.component,
       pluginId: reg.pluginId,
@@ -111,6 +131,7 @@ class ExtensionRegistry {
   clear(): void {
     this.extensions.clear();
     this.plugins.clear();
+    this.notifyChange();
   }
 }
 

@@ -1882,7 +1882,12 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         <section aria-label="Workspace step content" className="min-h-50 min-w-0 flex-1">
           {stepContent}
         </section>
-        <WorkspaceActionRail activeAction={activeSideAction} onSelect={setActiveSideAction} />
+        <WorkspaceActionRail
+          activeAction={activeSideAction}
+          onSelect={setActiveSideAction}
+          appointmentId={appointmentId}
+          organisationId={appointment.organisationId}
+        />
       </div>
 
       {sharedModals}

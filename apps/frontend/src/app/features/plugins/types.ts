@@ -37,7 +37,7 @@ export interface PluginManifest {
   version: string;
   description?: string;
   author?: string;
-  extensions: PluginExtension[];
+  extensions: PluginExtension<any>[];
   permissions?: string[];
 }
 

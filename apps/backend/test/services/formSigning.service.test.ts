@@ -2136,6 +2136,7 @@ describe("FormSigningService.startSigning - a template-backed submission", () =>
       }
     },
   );
+
   it("refuses practice staff on a template instance that requires client signature", async () => {
     mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce(null);
     mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({

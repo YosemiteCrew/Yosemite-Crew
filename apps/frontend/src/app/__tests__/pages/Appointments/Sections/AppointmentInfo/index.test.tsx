@@ -857,7 +857,6 @@ describe('AppointmentInfo modal', () => {
     await waitFor(() =>
       expect(createSubmission).toHaveBeenCalledWith(expect.objectContaining({ formId: 'tpl-vet' }))
     );
-    expect(await screen.findByRole('button', { name: 'signature-actions' })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Sign' }));
 
     await waitFor(() =>

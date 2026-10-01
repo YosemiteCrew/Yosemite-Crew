@@ -108,10 +108,9 @@ const Forms = () => {
     [primaryOrgId]
   );
 
-  const { extensions: formsListActionExtensions } = useExtensionPoint<FormsListActionExtension>(
-    'forms.list.actions',
-    formsListContext
-  );
+  const { extensions: formsListActionExtensions } = useExtensionPoint<
+    React.ComponentProps<FormsListActionExtension['component']>
+  >('forms.list.actions', formsListContext);
 
   const orgSpecialities = useMemo(
     () => (primaryOrgId ? specialities.filter((s) => s.organisationId === primaryOrgId) : []),
@@ -326,10 +325,10 @@ const Forms = () => {
             <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-[var(--hairline)]">
               {formsListActionExtensions.map((ext) => (
                 <ext.extension.component
-                  key={ext.id}
+                  key={`${ext.pluginId}:${ext.extension.id}`}
                   organisationId={primaryOrgId ?? ''}
-                  onAction={(forms) => {
-                    logger.debug('Plugin action triggered', ext.id, forms);
+                  onAction={(_forms) => {
+                    logger.debug('Plugin action triggered', ext.extension.id);
                   }}
                 />
               ))}

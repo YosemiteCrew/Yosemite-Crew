@@ -11,7 +11,10 @@ import {
 } from 'react-icons/io5';
 import type { SideAction } from '@/app/features/appointments/types/workspace';
 import { useExtensionPoint } from '@/app/features/plugins';
-import type { AppointmentWorkspaceActionRailItemExtension } from '@/app/features/plugins/types';
+import type {
+  AppointmentWorkspaceActionRailItemExtension,
+  ExtensionContext,
+} from '@/app/features/plugins/types';
 
 type WorkspaceActionRailProps = {
   activeAction: SideAction | null;
@@ -44,22 +47,20 @@ const WorkspaceActionRail = ({
   appointmentId,
   organisationId,
 }: WorkspaceActionRailProps) => {
-  const context = useMemo(
+  const context = useMemo<ExtensionContext>(
     () => ({ type: 'appointment', appointmentId, organisationId }),
     [appointmentId, organisationId]
   );
 
-  const { extensions: pluginExtensions } =
-    useExtensionPoint<AppointmentWorkspaceActionRailItemExtension>(
-      'appointment.workspace.actionRail.items',
-      context
-    );
+  const { extensions: pluginExtensions } = useExtensionPoint<
+    React.ComponentProps<AppointmentWorkspaceActionRailItemExtension['component']>
+  >('appointment.workspace.actionRail.items', context);
 
   const pluginRailItems = useMemo<RailItem[]>(
     () =>
       pluginExtensions.map((ext) => ({
-        key: ext.id,
-        label: ext.extension.component.displayName || ext.id,
+        key: `${ext.pluginId}:${ext.extension.id}`,
+        label: ext.extension.component.displayName || ext.extension.id,
         icon: ext.extension.component.icon || IoPulseOutline,
       })),
     [pluginExtensions]
