@@ -107,6 +107,7 @@ describe('DeveloperPlayground', () => {
 
   it('does not send without a key', () => {
     render(<DeveloperPlayground baseUrl={BASE} />);
+    expect(screen.getByLabelText('API key')).toHaveAttribute('placeholder', 'yc_live_…');
     run();
     expect(screen.getByText('Paste an API key from the API keys page.')).toBeInTheDocument();
     expect(screen.getByLabelText('API key')).toHaveAttribute('aria-invalid', 'true');
