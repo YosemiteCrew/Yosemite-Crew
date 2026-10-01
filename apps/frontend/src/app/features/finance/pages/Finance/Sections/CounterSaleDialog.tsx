@@ -87,6 +87,244 @@ const getSubmitAriaLabel = (createdInvoice: Invoice | null) => {
   return 'Create counter sale';
 };
 
+type CounterSaleLineEditorProps = {
+  line: CartLine;
+  index: number;
+  item: InventoryApiItem | undefined;
+  items: InventoryApiItem[];
+  currency: string | undefined;
+  saving: boolean;
+  loadingInventory: boolean;
+  canRemove: boolean;
+  onUpdate: (key: number, patch: Partial<CartLine>) => void;
+  onRemove: (key: number) => void;
+};
+
+const CounterSaleLineEditor = ({
+  line,
+  index,
+  item,
+  items,
+  currency,
+  saving,
+  loadingInventory,
+  canRemove,
+  onUpdate,
+  onRemove,
+}: CounterSaleLineEditorProps) => (
+  <div className="grid grid-cols-[minmax(0,1fr)_5.5rem] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem_auto]">
+    <div className="min-w-0">
+      <Dropdown
+        placeholder={index === 0 ? 'Item' : `Item ${index + 1}`}
+        value={line.inventoryItemId}
+        onChange={(inventoryItemId: string) => onUpdate(line.key, { inventoryItemId })}
+        options={items.map((option) => ({
+          value: option._id,
+          label: `${option.name} · ${formatMoneyPrecise(option.sellingPrice ?? 0, option.currency ?? currency)} · ${getAvailable(option)} available`,
+        }))}
+        search
+        disabled={loadingInventory || saving || items.length === 0}
+        emptyLabel="Choose an item"
+      />
+    </div>
+    <div>
+      <label
+        className="mb-1 block text-caption-2 font-bold text-text-tertiary"
+        htmlFor={`counter-sale-quantity-${line.key}`}
+      >
+        Qty
+      </label>
+      <input
+        id={`counter-sale-quantity-${line.key}`}
+        className={inputClass}
+        type="number"
+        min={1}
+        max={item ? getAvailable(item) : undefined}
+        step={1}
+        inputMode="numeric"
+        value={line.quantity}
+        disabled={saving}
+        onChange={(event) => onUpdate(line.key, { quantity: event.target.value })}
+      />
+    </div>
+    <Secondary
+      text="Remove"
+      size="compact"
+      isDisabled={saving || !canRemove}
+      onClick={() => onRemove(line.key)}
+      ariaLabel={`Remove item ${index + 1}`}
+      className="col-span-full justify-self-end sm:col-span-1"
+    />
+    {item ? (
+      <p className="col-span-full -mt-1 text-caption-2 text-text-secondary">
+        {formatMoneyPrecise(item.sellingPrice ?? 0, item.currency ?? currency)} each ·{' '}
+        {getAvailable(item)} available
+      </p>
+    ) : null}
+  </div>
+);
+
+type CounterSaleDialogContentProps = {
+  open: boolean;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  currency: string | undefined;
+  loadingInventory: boolean;
+  inventoryError: string | null;
+  onRetryInventory: () => void;
+  lines: CartLine[];
+  saleableItems: InventoryApiItem[];
+  itemsById: Map<string, InventoryApiItem>;
+  subtotal: number;
+  saving: boolean;
+  createdInvoice: Invoice | null;
+  receiptReady: boolean;
+  error: string | null;
+  canSubmit: boolean;
+  onUpdateLine: (key: number, patch: Partial<CartLine>) => void;
+  onAddLine: () => void;
+  onRemoveLine: (key: number) => void;
+  onOpenInvoice: () => void;
+  onSubmit: () => void;
+};
+
+const CounterSaleDialogContent = ({
+  open,
+  setOpen,
+  currency,
+  loadingInventory,
+  inventoryError,
+  onRetryInventory,
+  lines,
+  saleableItems,
+  itemsById,
+  subtotal,
+  saving,
+  createdInvoice,
+  receiptReady,
+  error,
+  canSubmit,
+  onUpdateLine,
+  onAddLine,
+  onRemoveLine,
+  onOpenInvoice,
+  onSubmit,
+}: CounterSaleDialogContentProps) => (
+  <CenterModal
+    showModal={open}
+    setShowModal={setOpen}
+    ariaLabel="Create a counter sale"
+    containerClassName="sm:w-[min(680px,92vw)]! max-h-[90vh] overflow-y-auto"
+  >
+    <div className="flex flex-col gap-4 p-6!">
+      <div>
+        <h2 className="text-heading-4 text-text-primary">Counter sale</h2>
+        <p className="mt-1 text-body-4 text-text-secondary">
+          Create an invoice and update stock without linking an appointment.
+        </p>
+      </div>
+
+      {createdInvoice ? (
+        <output className="text-body-4 text-text-secondary">
+          {getSavedSaleMessage(receiptReady, saving)}
+        </output>
+      ) : null}
+      {!createdInvoice && loadingInventory ? (
+        <output className="text-body-4 text-text-secondary">Loading inventory…</output>
+      ) : null}
+      {!createdInvoice && inventoryError ? (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 text-body-4 text-text-error"
+        >
+          <span>{inventoryError}</span>
+          <Secondary
+            text="Retry"
+            size="compact"
+            onClick={onRetryInventory}
+            ariaLabel="Retry loading inventory"
+          />
+        </div>
+      ) : null}
+      {!createdInvoice && !loadingInventory && !inventoryError && saleableItems.length === 0 ? (
+        <p className="rounded-xl border border-card-border bg-card-hover p-4 text-body-4 text-text-secondary">
+          No active, priced items are available for counter sale.
+        </p>
+      ) : null}
+
+      {!createdInvoice &&
+        lines.map((line, index) => (
+          <CounterSaleLineEditor
+            key={line.key}
+            line={line}
+            index={index}
+            item={itemsById.get(line.inventoryItemId)}
+            items={saleableItems}
+            currency={currency}
+            saving={saving}
+            loadingInventory={loadingInventory}
+            canRemove={lines.length > 1}
+            onUpdate={onUpdateLine}
+            onRemove={onRemoveLine}
+          />
+        ))}
+
+      {!createdInvoice && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-card-border pt-3">
+          <Secondary
+            text="Add item"
+            size="compact"
+            isDisabled={saving || saleableItems.length === 0}
+            onClick={onAddLine}
+          />
+          <div className="text-right">
+            <p className="text-caption-2 text-text-secondary">Subtotal before tax</p>
+            <p className="text-body-2 text-text-primary">
+              {formatMoneyPrecise(subtotal, currency)}
+            </p>
+          </div>
+        </div>
+      )}
+      {!createdInvoice && (
+        <p className="text-caption-2 text-text-tertiary">
+          The invoice will show the final tax and total.
+        </p>
+      )}
+
+      {error ? (
+        <p role="alert" className="text-body-4 text-text-error">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="flex items-center justify-end gap-2">
+        {createdInvoice ? (
+          <Secondary
+            text="Open invoice"
+            isDisabled={saving}
+            onClick={onOpenInvoice}
+            ariaLabel="Open saved counter-sale invoice"
+          />
+        ) : (
+          <Secondary
+            text="Cancel"
+            isDisabled={saving}
+            onClick={() => setOpen(false)}
+            ariaLabel="Cancel counter sale"
+          />
+        )}
+        {!receiptReady && (
+          <Primary
+            text={getSubmitLabel(saving, createdInvoice)}
+            isDisabled={saving || (!createdInvoice && !canSubmit)}
+            onClick={onSubmit}
+            ariaLabel={getSubmitAriaLabel(createdInvoice)}
+          />
+        )}
+      </div>
+    </div>
+  </CenterModal>
+);
+
 const CounterSaleDialog = ({
   open,
   setOpen,
@@ -170,7 +408,7 @@ const CounterSaleDialog = ({
   };
 
   const submit = async () => {
-    if ((!canSubmit && !createdInvoice) || (!createdInvoice && !organisationId)) return;
+    if (!canSubmit && !createdInvoice) return;
     setSaving(true);
     setError(null);
     let invoice = createdInvoice;
@@ -202,176 +440,39 @@ const CounterSaleDialog = ({
     }
   };
 
+  const retryInventory = () => {
+    setInventoryError(null);
+    setLoadedOrganisationId(null);
+  };
+  const openInvoice = () => {
+    if (!createdInvoice) return;
+    onCreated(createdInvoice);
+    setOpen(false);
+  };
+
   return (
-    <CenterModal
-      showModal={open}
-      setShowModal={setOpenUnlessSaving}
-      ariaLabel="Create a counter sale"
-      containerClassName="sm:w-[min(680px,92vw)]! max-h-[90vh] overflow-y-auto"
-    >
-      <div className="flex flex-col gap-4 p-6!">
-        <div>
-          <h2 className="text-heading-4 text-text-primary">Counter sale</h2>
-          <p className="mt-1 text-body-4 text-text-secondary">
-            Create an invoice and update stock without linking an appointment.
-          </p>
-        </div>
-
-        {createdInvoice ? (
-          <output className="text-body-4 text-text-secondary">
-            {getSavedSaleMessage(receiptReady, saving)}
-          </output>
-        ) : null}
-        {!createdInvoice && loadingInventory ? (
-          <output className="text-body-4 text-text-secondary">Loading inventory…</output>
-        ) : null}
-        {!createdInvoice && inventoryError ? (
-          <div
-            role="alert"
-            className="flex items-center justify-between gap-3 text-body-4 text-text-error"
-          >
-            <span>{inventoryError}</span>
-            <Secondary
-              text="Retry"
-              size="compact"
-              onClick={() => {
-                setInventoryError(null);
-                setLoadedOrganisationId(null);
-              }}
-              ariaLabel="Retry loading inventory"
-            />
-          </div>
-        ) : null}
-        {!createdInvoice && !loadingInventory && !inventoryError && saleableItems.length === 0 ? (
-          <p className="rounded-xl border border-card-border bg-card-hover p-4 text-body-4 text-text-secondary">
-            No active, priced items are available for counter sale.
-          </p>
-        ) : null}
-
-        {!createdInvoice &&
-          lines.map((line, index) => {
-            const selectedItem = itemsById.get(line.inventoryItemId);
-            const options = saleableItems.map((item) => ({
-              value: item._id,
-              label: `${item.name} · ${formatMoneyPrecise(item.sellingPrice ?? 0, item.currency ?? currency)} · ${getAvailable(item)} available`,
-            }));
-            return (
-              <div
-                key={line.key}
-                className="grid grid-cols-[minmax(0,1fr)_5.5rem] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem_auto]"
-              >
-                <div className="min-w-0">
-                  <Dropdown
-                    placeholder={index === 0 ? 'Item' : `Item ${index + 1}`}
-                    value={line.inventoryItemId}
-                    onChange={(inventoryItemId: string) =>
-                      updateLine(line.key, { inventoryItemId })
-                    }
-                    options={options}
-                    search
-                    disabled={loadingInventory || saving || saleableItems.length === 0}
-                    emptyLabel="Choose an item"
-                  />
-                </div>
-                <div>
-                  <label
-                    className="mb-1 block text-caption-2 font-bold text-text-tertiary"
-                    htmlFor={`counter-sale-quantity-${line.key}`}
-                  >
-                    Qty
-                  </label>
-                  <input
-                    id={`counter-sale-quantity-${line.key}`}
-                    className={inputClass}
-                    type="number"
-                    min={1}
-                    max={selectedItem ? getAvailable(selectedItem) : undefined}
-                    step={1}
-                    inputMode="numeric"
-                    value={line.quantity}
-                    disabled={saving}
-                    onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
-                  />
-                </div>
-                <Secondary
-                  text="Remove"
-                  size="compact"
-                  isDisabled={saving || lines.length === 1}
-                  onClick={() => removeLine(line.key)}
-                  ariaLabel={`Remove item ${index + 1}`}
-                  className="col-span-full justify-self-end sm:col-span-1"
-                />
-                {selectedItem ? (
-                  <p className="col-span-full -mt-1 text-caption-2 text-text-secondary">
-                    {formatMoneyPrecise(
-                      selectedItem.sellingPrice ?? 0,
-                      selectedItem.currency ?? currency
-                    )}{' '}
-                    each · {getAvailable(selectedItem)} available
-                  </p>
-                ) : null}
-              </div>
-            );
-          })}
-
-        {!createdInvoice && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-card-border pt-3">
-            <Secondary
-              text="Add item"
-              size="compact"
-              isDisabled={saving || saleableItems.length === 0}
-              onClick={addLine}
-            />
-            <div className="text-right">
-              <p className="text-caption-2 text-text-secondary">Subtotal before tax</p>
-              <p className="text-body-2 text-text-primary">
-                {formatMoneyPrecise(subtotal, currency)}
-              </p>
-            </div>
-          </div>
-        )}
-        {!createdInvoice && (
-          <p className="text-caption-2 text-text-tertiary">
-            The invoice will show the final tax and total.
-          </p>
-        )}
-
-        {error ? (
-          <p role="alert" className="text-body-4 text-text-error">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="flex items-center justify-end gap-2">
-          {createdInvoice ? (
-            <Secondary
-              text="Open invoice"
-              isDisabled={saving}
-              onClick={() => {
-                onCreated(createdInvoice);
-                setOpen(false);
-              }}
-              ariaLabel="Open saved counter-sale invoice"
-            />
-          ) : (
-            <Secondary
-              text="Cancel"
-              isDisabled={saving}
-              onClick={() => setOpenUnlessSaving(false)}
-              ariaLabel="Cancel counter sale"
-            />
-          )}
-          {!receiptReady && (
-            <Primary
-              text={getSubmitLabel(saving, createdInvoice)}
-              isDisabled={saving || (!createdInvoice && !canSubmit)}
-              onClick={submit}
-              ariaLabel={getSubmitAriaLabel(createdInvoice)}
-            />
-          )}
-        </div>
-      </div>
-    </CenterModal>
+    <CounterSaleDialogContent
+      open={open}
+      setOpen={setOpenUnlessSaving}
+      currency={currency}
+      loadingInventory={loadingInventory}
+      inventoryError={inventoryError}
+      onRetryInventory={retryInventory}
+      lines={lines}
+      saleableItems={saleableItems}
+      itemsById={itemsById}
+      subtotal={subtotal}
+      saving={saving}
+      createdInvoice={createdInvoice}
+      receiptReady={receiptReady}
+      error={error}
+      canSubmit={canSubmit}
+      onUpdateLine={updateLine}
+      onAddLine={addLine}
+      onRemoveLine={removeLine}
+      onOpenInvoice={openInvoice}
+      onSubmit={submit}
+    />
   );
 };
 
