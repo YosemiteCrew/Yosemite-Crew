@@ -170,9 +170,8 @@ const statusLine = (canvasElement: HTMLElement): HTMLElement =>
 const startEnrolment = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement);
   const setUp = await canvas.findByRole('button', { name: 'Set up authenticator app' });
-  /* The button renders before `GET /v1/auth/mfa/status` lands and stays
-     aria-disabled (with pointer-events off) until it does, so a click fired at
-     first paint would be refused rather than start enrolment. */
+  /* The button remains unavailable until its prerequisite status has loaded,
+     so wait until it becomes interactive before starting enrolment. */
   await waitFor(() => expect(setUp).not.toHaveAttribute('aria-disabled', 'true'));
   await userEvent.click(setUp);
   await waitFor(() =>
