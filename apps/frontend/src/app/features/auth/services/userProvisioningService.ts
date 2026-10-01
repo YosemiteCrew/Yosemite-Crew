@@ -43,9 +43,7 @@ export const provisionBackendUser = (): Promise<boolean> => {
   return retries
     .reduce<Promise<boolean | undefined>>(
       (result, attempt) =>
-        result.then((previousResult) =>
-          previousResult === undefined ? provisionAttempt(body, attempt) : previousResult
-        ),
+        result.then((previousResult) => previousResult ?? provisionAttempt(body, attempt)),
       provisionAttempt(body, 0)
     )
     .then(Boolean);
