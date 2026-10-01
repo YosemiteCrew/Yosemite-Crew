@@ -267,6 +267,31 @@ describe('createSyncDaemon', () => {
       expect(transport.send.mock.calls.map(([m]) => m.entityId)).toEqual(['p1', 'p2', 'p3']);
     });
 
+    it('does not send the same queued mutation from overlapping flush triggers', async () => {
+      queue.size.mockReturnValue(1);
+      queue.peek.mockReturnValue([dummyMutation]);
+      let releaseSend: (value: { ok: boolean }) => void = () => {};
+      transport.send.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseSend = resolve;
+          })
+      );
+      daemon.start();
+      onlineCb();
+      await drain();
+      expect(transport.send).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(30_000);
+      onlineCb();
+      await drain();
+
+      expect(transport.send).toHaveBeenCalledTimes(1);
+      releaseSend({ ok: true });
+      await drain();
+      expect(queue.pop).toHaveBeenCalledTimes(1);
+    });
+
     it('logs debug on success', async () => {
       queue.size.mockReturnValue(1);
       queue.peek.mockReturnValue([dummyMutation]);
