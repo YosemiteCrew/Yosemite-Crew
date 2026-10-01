@@ -109,7 +109,7 @@ const integrationFilters = [
 type IntegrationFilterKey = (typeof integrationFilters)[number]['key'];
 
 // Total number of integration cards the page ships, surfaced beside the title.
-const TOTAL_INTEGRATIONS = 6;
+const TOTAL_INTEGRATIONS = 60;
 
 type ValidateState = 'idle' | 'valid' | 'invalid';
 
@@ -954,10 +954,73 @@ const INTEGRATION_ICON_CLASS =
 const INTEGRATION_ICON_STYLES = {
   idexx: { background: 'var(--spot)', color: 'var(--spot-ink)' },
   merck: { background: 'var(--blue-soft)', color: 'var(--blue-text)' },
+  laika: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+  vetnox: { background: 'var(--avatar-teal-bg)', color: 'var(--avatar-teal-ink)' },
+  clinicalKey: { background: 'var(--avatar-indigo-bg)', color: 'var(--avatar-indigo-ink)' },
+  drugInteractionChecker: { background: 'var(--avatar-red-bg)', color: 'var(--avatar-red-ink)' },
+  dosageCalculator: { background: 'var(--avatar-orange-bg)', color: 'var(--avatar-orange-ink)' },
+  protocolLibrary: { background: 'var(--avatar-purple-bg)', color: 'var(--avatar-purple-ink)' },
   vetnio: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+  talkato: { background: 'var(--avatar-cyan-bg)', color: 'var(--avatar-cyan-ink)' },
+  scribeVet: { background: 'var(--avatar-lime-bg)', color: 'var(--avatar-lime-ink)' },
+  dischargeBuilder: { background: 'var(--avatar-pink-bg)', color: 'var(--avatar-pink-ink)' },
+  templateEngine: { background: 'var(--avatar-violet-bg)', color: 'var(--avatar-violet-ink)' },
+  voiceCommands: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+  digitalIntake: { background: 'var(--avatar-blue-bg)', color: 'var(--avatar-blue-ink)' },
+  patientMonitor: { background: 'var(--avatar-rose-bg)', color: 'var(--avatar-rose-ink)' },
+  followupAutomation: {
+    background: 'var(--avatar-emerald-bg)',
+    color: 'var(--avatar-emerald-ink)',
+  },
+  carePlanManager: { background: 'var(--avatar-sky-bg)', color: 'var(--avatar-sky-ink)' },
+  wellnessTracker: { background: 'var(--avatar-fuchsia-bg)', color: 'var(--avatar-fuchsia-ink)' },
+  behaviorLogger: { background: 'var(--avatar-slate-bg)', color: 'var(--avatar-slate-ink)' },
+  websiteBuilder: { background: 'var(--avatar-indigo-bg)', color: 'var(--avatar-indigo-ink)' },
+  clientPortal: { background: 'var(--avatar-teal-bg)', color: 'var(--avatar-teal-ink)' },
+  onlineBooking: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+  petProfile: { background: 'var(--avatar-cyan-bg)', color: 'var(--avatar-cyan-ink)' },
+  telehealthPortal: { background: 'var(--avatar-purple-bg)', color: 'var(--avatar-purple-ink)' },
+  reviewManager: { background: 'var(--avatar-pink-bg)', color: 'var(--avatar-pink-ink)' },
+  smsAutomation: { background: 'var(--avatar-lime-bg)', color: 'var(--avatar-lime-ink)' },
+  emailCampaigns: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+  appointmentReminders: {
+    background: 'var(--avatar-orange-bg)',
+    color: 'var(--avatar-orange-ink)',
+  },
+  clientMessaging: { background: 'var(--avatar-red-bg)', color: 'var(--avatar-red-ink)' },
+  callIntegration: { background: 'var(--avatar-violet-bg)', color: 'var(--avatar-violet-ink)' },
+  whatsappBusiness: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
   quickBooks: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+  xero: { background: 'var(--avatar-teal-bg)', color: 'var(--avatar-teal-ink)' },
+  inventorySync: { background: 'var(--avatar-blue-bg)', color: 'var(--avatar-blue-ink)' },
+  payrollProvider: { background: 'var(--avatar-purple-bg)', color: 'var(--avatar-purple-ink)' },
+  expenseTracker: { background: 'var(--avatar-pink-bg)', color: 'var(--avatar-pink-ink)' },
+  billingAutomation: { background: 'var(--avatar-cyan-bg)', color: 'var(--avatar-cyan-ink)' },
   radAnalyzer: { background: 'var(--avatar-violet-bg)', color: 'var(--avatar-violet-ink)' },
-  laika: { background: 'var(--inset)', color: 'var(--ink-muted)' },
+  antech: { background: 'var(--avatar-emerald-bg)', color: 'var(--avatar-emerald-ink)' },
+  heska: { background: 'var(--avatar-rose-bg)', color: 'var(--avatar-rose-ink)' },
+  vetscan: { background: 'var(--avatar-sky-bg)', color: 'var(--avatar-sky-ink)' },
+  monitorSync: { background: 'var(--avatar-fuchsia-bg)', color: 'var(--avatar-fuchsia-ink)' },
+  businessIntelligence: {
+    background: 'var(--avatar-indigo-bg)',
+    color: 'var(--avatar-indigo-ink)',
+  },
+  benchmarking: { background: 'var(--avatar-teal-bg)', color: 'var(--avatar-teal-ink)' },
+  dataExport: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+  revenueAnalytics: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+  clinicalAnalytics: { background: 'var(--avatar-cyan-bg)', color: 'var(--avatar-cyan-ink)' },
+  complianceReporter: { background: 'var(--avatar-purple-bg)', color: 'var(--avatar-purple-ink)' },
+  plumbVeterinary: { background: 'var(--avatar-pink-bg)', color: 'var(--avatar-pink-ink)' },
+  formBuilder: { background: 'var(--avatar-lime-bg)', color: 'var(--avatar-lime-ink)' },
+  templateManager: { background: 'var(--avatar-orange-bg)', color: 'var(--avatar-orange-ink)' },
+  configSync: { background: 'var(--avatar-red-bg)', color: 'var(--avatar-red-ink)' },
+  protocolSync: { background: 'var(--avatar-violet-bg)', color: 'var(--avatar-violet-ink)' },
+  pharmacyIntegration: { background: 'var(--avatar-teal-bg)', color: 'var(--avatar-teal-ink)' },
+  petInsurance: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+  referralNetwork: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+  loyaltyProgram: { background: 'var(--avatar-cyan-bg)', color: 'var(--avatar-cyan-ink)' },
+  eCommerce: { background: 'var(--avatar-purple-bg)', color: 'var(--avatar-purple-ink)' },
+  supplyChain: { background: 'var(--avatar-pink-bg)', color: 'var(--avatar-pink-ink)' },
 } satisfies Record<string, React.CSSProperties>;
 
 // 32px circular icon buttons that close the card's action row.
@@ -1211,6 +1274,1394 @@ const LaikaIntegrationCard = ({
   );
 };
 
+const VetnoxIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.vetnox}>
+          VX
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Vetnox
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Clinical decision support for veterinary practitioners — real-time guidance on diagnostics,
+        treatment planning, and evidence-based protocols.
+      </div>
+    </div>
+  );
+};
+
+const ClinicalKeyIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.clinicalKey}>
+          CK
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Clinical Key
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Evidence-based clinical reference for veterinary medicine — peer-reviewed content, drug
+        monographs, and procedure videos.
+      </div>
+    </div>
+  );
+};
+
+const DrugInteractionCheckerIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span
+          className={INTEGRATION_ICON_CLASS}
+          style={INTEGRATION_ICON_STYLES.drugInteractionChecker}
+        >
+          DI
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Drug Interaction Checker
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Real-time drug interaction alerts and contraindication warnings for veterinary
+        prescriptions.
+      </div>
+    </div>
+  );
+};
+
+const DosageCalculatorIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.dosageCalculator}>
+          DC
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Dosage Calculator
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Weight-based dosage calculations for veterinary medications with species-specific
+        adjustments.
+      </div>
+    </div>
+  );
+};
+
+const ProtocolLibraryIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.protocolLibrary}>
+          PL
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Protocol Library
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Standardized treatment protocols and clinical pathways for common veterinary conditions.
+      </div>
+    </div>
+  );
+};
+const TalkatoIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.talkato}>
+          TK
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Talkato
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Voice dictation for clinical notes — hands-free documentation during examinations and
+        procedures.
+      </div>
+    </div>
+  );
+};
+
+const ScribeVetIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.scribeVet}>
+          SV
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Scribe Vet
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Automated SOAP note generation from recorded consultations — structured clinical
+        documentation in seconds.
+      </div>
+    </div>
+  );
+};
+
+const DischargeBuilderIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.dischargeBuilder}>
+          DB
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Discharge Builder
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Client discharge summary generator — create clear, personalized after-visit instructions
+        automatically.
+      </div>
+    </div>
+  );
+};
+
+const TemplateEngineIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.templateEngine}>
+          TE
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Template Engine
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Dynamic clinical template system — customizable forms, checklists, and documentation
+        templates.
+      </div>
+    </div>
+  );
+};
+
+const VoiceCommandsIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.voiceCommands}>
+          VC
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Voice Commands
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Hands-free workflow control — navigate the PIMS, dictate notes, and trigger actions by
+        voice.
+      </div>
+    </div>
+  );
+};
+
+const DigitalIntakeIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.digitalIntake}>
+          DI
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Digital Intake
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Paperless patient intake forms — customizable questionnaires, consent forms, and history
+        collection before the visit.
+      </div>
+    </div>
+  );
+};
+
+const PatientMonitorIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.patientMonitor}>
+          PM
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Patient Monitor
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Remote patient monitoring — track vitals, symptoms, and recovery progress between visits.
+      </div>
+    </div>
+  );
+};
+
+const FollowupAutomationIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.followupAutomation}>
+          FA
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Follow-up Automation
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Automated post-visit follow-ups — check-in surveys, medication adherence, and recheck
+        reminders.
+      </div>
+    </div>
+  );
+};
+
+const CarePlanManagerIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.carePlanManager}>
+          CP
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Care Plan Manager
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Longitudinal care plan tracking — chronic disease management, wellness plans, and progress
+        monitoring.
+      </div>
+    </div>
+  );
+};
+
+const WellnessTrackerIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.wellnessTracker}>
+          WT
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Wellness Tracker
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Preventive care scheduling — vaccination reminders, parasite prevention, and wellness exam
+        tracking.
+      </div>
+    </div>
+  );
+};
+
+const BehaviorLoggerIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.behaviorLogger}>
+          BL
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Behavior Logger
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Behavioral health tracking — log incidents, triggers, and progress for behavioral cases.
+      </div>
+    </div>
+  );
+};
+
+const WebsiteBuilderIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.websiteBuilder}>
+          WB
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Website Builder
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Clinic website with booking built in — pick a template, connect services, and go live in an
+        afternoon.
+      </div>
+    </div>
+  );
+};
+
+const ClientPortalIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.clientPortal}>
+          CP
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Client Portal
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Pet parent self-service portal — view records, request refills, message the clinic, and
+        manage appointments.
+      </div>
+    </div>
+  );
+};
+
+const OnlineBookingIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.onlineBooking}>
+          OB
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Online Booking
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Real-time appointment booking — pet owners book directly into your calendar with
+        availability rules.
+      </div>
+    </div>
+  );
+};
+
+const PetProfileIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.petProfile}>
+          PP
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Pet Profile
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Digital pet health records — unified timeline of visits, vaccinations, medications, and lab
+        results.
+      </div>
+    </div>
+  );
+};
+
+const TelehealthPortalIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.telehealthPortal}>
+          TH
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Telehealth Portal
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Video consultation platform — secure virtual visits with integrated notes and prescribing.
+      </div>
+    </div>
+  );
+};
+
+const ReviewManagerIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.reviewManager}>
+          RM
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Review Manager
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Online reputation management — monitor, respond to, and showcase client reviews across
+        platforms.
+      </div>
+    </div>
+  );
+};
+
+const SmsAutomationIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.smsAutomation}>
+          SA
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          SMS Automation
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Two-way SMS messaging — appointment confirmations, reminders, and client communication via
+        text.
+      </div>
+    </div>
+  );
+};
+
+const EmailCampaignsIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.emailCampaigns}>
+          EC
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Email Campaigns
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Automated email marketing — newsletters, promotions, and educational content for pet
+        parents.
+      </div>
+    </div>
+  );
+};
+
+const AppointmentRemindersIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span
+          className={INTEGRATION_ICON_CLASS}
+          style={INTEGRATION_ICON_STYLES.appointmentReminders}
+        >
+          AR
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Appointment Reminders
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Multi-channel reminders — SMS, email, and push notifications to reduce no-shows.
+      </div>
+    </div>
+  );
+};
+
+const ClientMessagingIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.clientMessaging}>
+          CM
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Client Messaging
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Secure client chat — HIPAA-compliant messaging between clinic staff and pet parents.
+      </div>
+    </div>
+  );
+};
+
+const CallIntegrationIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.callIntegration}>
+          CI
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Call Integration
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Phone system integration — click-to-dial, call logging, and voicemail transcription.
+      </div>
+    </div>
+  );
+};
+
+const WhatsAppBusinessIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.whatsappBusiness}>
+          WB
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          WhatsApp Business
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        WhatsApp Business API — communicate with clients on their preferred messaging platform.
+      </div>
+    </div>
+  );
+};
+const XeroIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.xero}>
+          XR
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Xero
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Cloud accounting integration — sync invoices, payments, and financial data with Xero.
+      </div>
+    </div>
+  );
+};
+
+const InventorySyncIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.inventorySync}>
+          IS
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Inventory Sync
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Inventory management — automated reordering, usage tracking, and multi-location stock
+        control.
+      </div>
+    </div>
+  );
+};
+
+const PayrollProviderIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.payrollProvider}>
+          PP
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Payroll Provider
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Payroll processing — automated payroll, tax filing, and benefits administration for
+        veterinary teams.
+      </div>
+    </div>
+  );
+};
+
+const ExpenseTrackerIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.expenseTracker}>
+          ET
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Expense Tracker
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Expense management — receipt capture, categorization, and reimbursement workflows.
+      </div>
+    </div>
+  );
+};
+
+const BillingAutomationIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.billingAutomation}>
+          BA
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Billing Automation
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Automated invoice generation — recurring billing, payment plans, and collections management.
+      </div>
+    </div>
+  );
+};
+
+const AntechIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.antech}>
+          AN
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Antech
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Reference lab integration — order diagnostics and receive digital results from Antech
+        Diagnostics.
+      </div>
+    </div>
+  );
+};
+
+const HeskaIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.heska}>
+          HK
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Heska
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Point-of-care analyzers — in-clinic blood chemistry, hematology, and immunology results.
+      </div>
+    </div>
+  );
+};
+
+const VetScanIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.vetscan}>
+          VS
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          VetScan
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Diagnostic analyzer sync — automatic result import from Abaxis VetScan analyzers.
+      </div>
+    </div>
+  );
+};
+
+const MonitorSyncIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.monitorSync}>
+          MS
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Monitor Sync
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Theatre vital monitors — stream anesthesia and recovery vitals directly into the patient
+        record.
+      </div>
+    </div>
+  );
+};
+
+const BusinessIntelligenceIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span
+          className={INTEGRATION_ICON_CLASS}
+          style={INTEGRATION_ICON_STYLES.businessIntelligence}
+        >
+          BI
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Business Intelligence
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Practice analytics dashboard — KPIs, trends, and benchmarks for clinical and operational
+        performance.
+      </div>
+    </div>
+  );
+};
+
+const BenchmarkingIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.benchmarking}>
+          BM
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Benchmarking
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Industry performance comparison — anonymized peer benchmarks for revenue, efficiency, and
+        quality.
+      </div>
+    </div>
+  );
+};
+
+const DataExportIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.dataExport}>
+          DE
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Data Export
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Controlled data export — secure, audited data extraction for research, reporting, and
+        compliance.
+      </div>
+    </div>
+  );
+};
+
+const RevenueAnalyticsIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.revenueAnalytics}>
+          RA
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Revenue Analytics
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Financial performance tracking — revenue by service, provider, and payer with forecasting.
+      </div>
+    </div>
+  );
+};
+
+const ClinicalAnalyticsIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.clinicalAnalytics}>
+          CA
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Clinical Analytics
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Clinical outcome analytics — treatment efficacy, complication rates, and quality metrics.
+      </div>
+    </div>
+  );
+};
+
+const ComplianceReporterIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.complianceReporter}>
+          CR
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Compliance Reporter
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Regulatory compliance reports — automated DEA, state board, and accreditation reporting.
+      </div>
+    </div>
+  );
+};
+
+const PlumbVeterinaryIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.plumbVeterinary}>
+          PV
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Plumb\u0027s Veterinary
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Drug formulary reference — comprehensive veterinary drug information, dosages, and
+        interactions.
+      </div>
+    </div>
+  );
+};
+
+const FormBuilderIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.formBuilder}>
+          FB
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Form Builder
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Custom form creation — drag-and-drop forms for intake, consent, checklists, and surveys.
+      </div>
+    </div>
+  );
+};
+
+const TemplateManagerIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.templateManager}>
+          TM
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Template Manager
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Document template system — standardized letters, certificates, and clinical documents.
+      </div>
+    </div>
+  );
+};
+
+const ConfigSyncIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.configSync}>
+          CS
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Config Sync
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Multi-clinic config sync — synchronize settings, protocols, and templates across locations.
+      </div>
+    </div>
+  );
+};
+
+const ProtocolSyncIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.protocolSync}>
+          PS
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Protocol Sync
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Clinical protocol distribution — version-controlled protocols deployed to all clinic sites.
+      </div>
+    </div>
+  );
+};
+
+const PharmacyIntegrationIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span
+          className={INTEGRATION_ICON_CLASS}
+          style={INTEGRATION_ICON_STYLES.pharmacyIntegration}
+        >
+          PI
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Pharmacy Integration
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Online pharmacy ordering — prescription fulfillment, home delivery, and refill management.
+      </div>
+    </div>
+  );
+};
+
+const PetInsuranceIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.petInsurance}>
+          PI2
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Pet Insurance
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Insurance claim submission — direct billing, pre-authorization, and claims tracking.
+      </div>
+    </div>
+  );
+};
+
+const ReferralNetworkIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.referralNetwork}>
+          RN
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Referral Network
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Specialist referral management — send referrals, track status, and receive reports.
+      </div>
+    </div>
+  );
+};
+
+const LoyaltyProgramIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.loyaltyProgram}>
+          LP
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Loyalty Program
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Client loyalty rewards — points, rewards, and retention programs for pet parents.
+      </div>
+    </div>
+  );
+};
+
+const ECommerceIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.eCommerce}>
+          EC
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          E-Commerce
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Product sales integration — online store for medications, food, and supplies with PIMS sync.
+      </div>
+    </div>
+  );
+};
+
+const SupplyChainIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.supplyChain}>
+          SC
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Supply Chain
+        </div>
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Vendor ordering automation — purchase orders, receiving, and inventory reconciliation.
+      </div>
+    </div>
+  );
+};
+
 const IntegrationCards = ({
   s,
   idexxCardButtonLabel,
@@ -1230,6 +2681,60 @@ const IntegrationCards = ({
       <VetnioIntegrationCard activeFilter={s.activeFilter} />
       <QuickBooksIntegrationCard activeFilter={s.activeFilter} />
       <LaikaIntegrationCard activeFilter={s.activeFilter} />
+      <VetnoxIntegrationCard activeFilter={s.activeFilter} />
+      <ClinicalKeyIntegrationCard activeFilter={s.activeFilter} />
+      <DrugInteractionCheckerIntegrationCard activeFilter={s.activeFilter} />
+      <DosageCalculatorIntegrationCard activeFilter={s.activeFilter} />
+      <ProtocolLibraryIntegrationCard activeFilter={s.activeFilter} />
+      <TalkatoIntegrationCard activeFilter={s.activeFilter} />
+      <ScribeVetIntegrationCard activeFilter={s.activeFilter} />
+      <DischargeBuilderIntegrationCard activeFilter={s.activeFilter} />
+      <TemplateEngineIntegrationCard activeFilter={s.activeFilter} />
+      <VoiceCommandsIntegrationCard activeFilter={s.activeFilter} />
+      <DigitalIntakeIntegrationCard activeFilter={s.activeFilter} />
+      <PatientMonitorIntegrationCard activeFilter={s.activeFilter} />
+      <FollowupAutomationIntegrationCard activeFilter={s.activeFilter} />
+      <CarePlanManagerIntegrationCard activeFilter={s.activeFilter} />
+      <WellnessTrackerIntegrationCard activeFilter={s.activeFilter} />
+      <BehaviorLoggerIntegrationCard activeFilter={s.activeFilter} />
+      <WebsiteBuilderIntegrationCard activeFilter={s.activeFilter} />
+      <ClientPortalIntegrationCard activeFilter={s.activeFilter} />
+      <OnlineBookingIntegrationCard activeFilter={s.activeFilter} />
+      <PetProfileIntegrationCard activeFilter={s.activeFilter} />
+      <TelehealthPortalIntegrationCard activeFilter={s.activeFilter} />
+      <ReviewManagerIntegrationCard activeFilter={s.activeFilter} />
+      <SmsAutomationIntegrationCard activeFilter={s.activeFilter} />
+      <EmailCampaignsIntegrationCard activeFilter={s.activeFilter} />
+      <AppointmentRemindersIntegrationCard activeFilter={s.activeFilter} />
+      <ClientMessagingIntegrationCard activeFilter={s.activeFilter} />
+      <CallIntegrationIntegrationCard activeFilter={s.activeFilter} />
+      <WhatsAppBusinessIntegrationCard activeFilter={s.activeFilter} />
+      <XeroIntegrationCard activeFilter={s.activeFilter} />
+      <InventorySyncIntegrationCard activeFilter={s.activeFilter} />
+      <PayrollProviderIntegrationCard activeFilter={s.activeFilter} />
+      <ExpenseTrackerIntegrationCard activeFilter={s.activeFilter} />
+      <BillingAutomationIntegrationCard activeFilter={s.activeFilter} />
+      <AntechIntegrationCard activeFilter={s.activeFilter} />
+      <HeskaIntegrationCard activeFilter={s.activeFilter} />
+      <VetScanIntegrationCard activeFilter={s.activeFilter} />
+      <MonitorSyncIntegrationCard activeFilter={s.activeFilter} />
+      <BusinessIntelligenceIntegrationCard activeFilter={s.activeFilter} />
+      <BenchmarkingIntegrationCard activeFilter={s.activeFilter} />
+      <DataExportIntegrationCard activeFilter={s.activeFilter} />
+      <RevenueAnalyticsIntegrationCard activeFilter={s.activeFilter} />
+      <ClinicalAnalyticsIntegrationCard activeFilter={s.activeFilter} />
+      <ComplianceReporterIntegrationCard activeFilter={s.activeFilter} />
+      <PlumbVeterinaryIntegrationCard activeFilter={s.activeFilter} />
+      <FormBuilderIntegrationCard activeFilter={s.activeFilter} />
+      <TemplateManagerIntegrationCard activeFilter={s.activeFilter} />
+      <ConfigSyncIntegrationCard activeFilter={s.activeFilter} />
+      <ProtocolSyncIntegrationCard activeFilter={s.activeFilter} />
+      <PharmacyIntegrationIntegrationCard activeFilter={s.activeFilter} />
+      <PetInsuranceIntegrationCard activeFilter={s.activeFilter} />
+      <ReferralNetworkIntegrationCard activeFilter={s.activeFilter} />
+      <LoyaltyProgramIntegrationCard activeFilter={s.activeFilter} />
+      <ECommerceIntegrationCard activeFilter={s.activeFilter} />
+      <SupplyChainIntegrationCard activeFilter={s.activeFilter} />
     </div>
   );
 };
