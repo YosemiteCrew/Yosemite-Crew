@@ -274,11 +274,16 @@ export const ValidationErrors: Story = {
        wiring it through would silently double this message. */
     await expect(canvas.getAllByText('File is required')).toHaveLength(1);
 
-    /* Only the `FormInput` error is announced. The two dropdown messages and the
-       file message are plain text with no alert role, so a screen reader user
-       hears one of four problems. Pinned rather than fixed here, because it is a
-       gap in the shared inputs rather than in this form. */
-    await expect(canvas.getAllByRole('alert')).toHaveLength(1);
+    /* Three of the four are announced. The `FormInput` error and the two dropdown
+       messages - the dropdowns now sit in the canonical `Field` shell - are
+       `role="alert"`; the file message is still this form's own plain warning row,
+       so a screen reader user hears three of four problems. Pinned rather than
+       fixed here, because stories do not change component source. */
+    await expect(canvas.getAllByRole('alert').map((node) => node.textContent?.trim())).toEqual([
+      'Category is required',
+      'Sub-category is required',
+      'Title is required',
+    ]);
     await expect(canvas.getByLabelText('Title')).toHaveAttribute('aria-invalid', 'true');
 
     // Errors do not lock the form: Save stays live so a corrected draft can go

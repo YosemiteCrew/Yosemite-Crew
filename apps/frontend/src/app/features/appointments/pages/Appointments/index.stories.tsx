@@ -351,12 +351,17 @@ export const Default: Story = {
   name: 'Three appointments booked',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    /* The title carries a live count - "Appointments (3)" - so it is matched on
-       its stem rather than in full. */
+    /* The title carries a live count, so it is matched in full: "Appointments (3)".
+       A bare /^Appointments/ stem also matches the preview's own sr-only story title
+       ("Appointments/Appointments - ..."), which is an h1 inside the canvas too. */
     await expect(
-      await canvas.findByRole('heading', { level: 1, name: /^Appointments/ })
+      await canvas.findByRole('heading', { level: 1, name: 'Appointments (3)' })
     ).toBeVisible();
-    await expect(canvas.getAllByRole('button', { name: /^Actions for / })).toHaveLength(3);
+    /* The count lands before the lazily loaded list view does, so the rows are
+       awaited, with room for the view's chunk to arrive. */
+    await expect(
+      await canvas.findAllByRole('button', { name: /^Actions for / }, { timeout: 5000 })
+    ).toHaveLength(3);
     await expect(canvas.getByRole('button', { name: 'New appointment' })).toBeEnabled();
   },
 };
@@ -367,10 +372,13 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      await canvas.findByRole('heading', { level: 1, name: /^Appointments/ })
+      await canvas.findByRole('heading', { level: 1, name: 'Appointments (0)' })
     ).toBeVisible();
-    // The table and the card list both render their own copy of the same empty state.
-    await expect(canvas.getAllByText('No appointments yet')).toHaveLength(2);
+    // The table and the card list both render their own copy of the same empty state,
+    // once the lazily loaded list view has arrived.
+    await expect(
+      await canvas.findAllByText('No appointments yet', {}, { timeout: 5000 })
+    ).toHaveLength(2);
     await expect(canvas.queryByRole('button', { name: /^Actions for / })).not.toBeInTheDocument();
   },
 };

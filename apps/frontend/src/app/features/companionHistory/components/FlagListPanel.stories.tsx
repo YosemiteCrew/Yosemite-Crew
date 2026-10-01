@@ -11,7 +11,8 @@ import type {
 } from '@/app/features/companionHistory/services/patientFlagService';
 import FlagListPanel from './FlagListPanel';
 
-const ORG_ID = 'org-storybook-flag-panel';
+/** UUID-shaped: the service refuses an organisation id that is not a UUID or ObjectId. */
+const ORG_ID = '7d3b9e1f-2c4a-4b5d-9e6f-1a2b3c4d5e6f';
 const COMPANION_ID = 'companion-bramble';
 
 const membership = (revoked: string[] = []) => ({
@@ -41,14 +42,15 @@ const flag = (
 
 const FLAGS: PatientFlag[] = [
   flag({
-    id: 'flag-aggression',
+    // UUIDs: the service refuses a flag id that is not one before resolving it.
+    id: '3e8a1f2b-6c4d-4a5e-8f9a-0b1c2d3e4f01',
     title: 'Bites when startled',
     flagType: 'AGGRESSION',
     severity: 'HIGH',
     description: 'Approach from the front and speak before touching.',
   }),
   flag({
-    id: 'flag-escape',
+    id: '3e8a1f2b-6c4d-4a5e-8f9a-0b1c2d3e4f02',
     title: 'Jumps low fences',
     flagType: 'ESCAPE_RISK',
     severity: 'CRITICAL',
@@ -122,7 +124,7 @@ const buildAdapter = (fixture: FlagFixture): AxiosAdapter => {
         description?: string;
       };
       const created: PatientFlag = {
-        id: `flag-new-${flags.length + 1}`,
+        id: `3e8a1f2b-6c4d-4a5e-8f9a-0b1c2d3e4f${String(flags.length + 1).padStart(2, '0')}`,
         organisationId: ORG_ID,
         patientId: body.patientId,
         flagType: body.flagType,
@@ -230,7 +232,8 @@ export const Default: Story = {
     await expect(
       await canvas.findByRole('heading', { level: 2, name: 'Patient flags' })
     ).toBeVisible();
-    await expect(canvas.getByText('2 active')).toBeVisible();
+    // The heading renders before the list arrives, so the count is awaited.
+    await expect(await canvas.findByText('2 active')).toBeVisible();
     await expect(canvas.getByText('Bites when startled')).toBeVisible();
     await expect(canvas.getByText('Jumps low fences')).toBeVisible();
 
@@ -306,12 +309,21 @@ export const AddingAFlag: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Add flag' }));
     await userEvent.type(await canvas.findByLabelText('Flag title'), 'Needs sedation for X-rays');
-    await userEvent.selectOptions(canvas.getByLabelText('Flag type'), 'SPECIAL_HANDLING');
-    await userEvent.selectOptions(canvas.getByLabelText('Severity'), 'HIGH');
+    // Type and severity are the shared themed dropdown; its options portal to
+    // document.body, and the trigger names the choice once it is made. Both picks
+    // differ from the form's defaults (Special handling, Medium).
+    await userEvent.click(canvas.getByRole('button', { name: /^Flag type/ }));
+    await userEvent.click(await within(document.body).findByRole('option', { name: 'Anxiety' }));
+    await userEvent.click(canvas.getByRole('button', { name: /^Severity/ }));
+    await userEvent.click(await within(document.body).findByRole('option', { name: 'High' }));
+    await expect(canvas.getByRole('button', { name: 'Flag type: Anxiety' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Severity: High' })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Save flag' }));
 
     // The form closes and the list is reloaded, so the new flag joins the seeded ones.
-    await expect(await canvas.findByText('Needs sedation for X-rays')).toBeVisible();
+    const created = await canvas.findByText('Needs sedation for X-rays');
+    await expect(created).toBeVisible();
+    await expect(created.closest('li')).toHaveTextContent('Anxiety');
     await expect(canvas.getByText('3 active')).toBeVisible();
     await expect(canvas.queryByLabelText('Flag title')).not.toBeInTheDocument();
   },

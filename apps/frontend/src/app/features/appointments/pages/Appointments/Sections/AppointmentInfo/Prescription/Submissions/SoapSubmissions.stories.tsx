@@ -158,8 +158,13 @@ const seedForms = () => {
 const cardsIn = (root: HTMLElement) =>
   Array.from(root.querySelectorAll<HTMLElement>('div.border.rounded-xl.p-4'));
 
-/** The accordion body. Absent, not hidden, while the accordion is closed. */
-const bodyIn = (root: HTMLElement) => root.querySelector<HTMLElement>('div.border-x.border-b');
+/**
+ * The accordion body: the block after the header row that holds the toggle.
+ * Absent, not hidden, while the accordion is closed, so this reads `null` then.
+ */
+const bodyIn = (root: HTMLElement) =>
+  (within(root).getByRole('button', { name: TITLE }).parentElement?.nextElementSibling ??
+    null) as HTMLElement | null;
 
 /**
  * Resolves a design token to the same `rgb()` string `getComputedStyle` reports

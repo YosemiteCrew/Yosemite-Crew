@@ -115,12 +115,13 @@ export const TeamMemberSelected: Story = {
 
     await userEvent.click(trigger);
     const listbox = await findListbox(canvasElement);
-    const selected = within(listbox).getByRole('option', { name: 'Dr. Ravi Patel' });
+    // A staff row's accessible name starts with its initials avatar ("DR"), so
+    // the names are matched on how they end.
+    const selected = within(listbox).getByRole('option', { name: /Dr\. Ravi Patel$/ });
     await expect(selected).toHaveAttribute('aria-selected', 'true');
-    await expect(within(listbox).getByRole('option', { name: 'Dr. Elena Marsh' })).toHaveAttribute(
-      'aria-selected',
-      'false'
-    );
+    await expect(
+      within(listbox).getByRole('option', { name: /Dr\. Elena Marsh$/ })
+    ).toHaveAttribute('aria-selected', 'false');
   },
 };
 
@@ -143,9 +144,9 @@ export const Searching: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Assign to' }));
     const listbox = await findListbox(canvasElement);
-    await userEvent.type(canvas.getByLabelText('Search staff or pet parents'), 'ra');
+    await userEvent.type(canvas.getByLabelText('Search staff or pet parents'), 'v');
 
-    // "Ravi" and "Marta" both match; "Elena", "Tom" and "Sky" fall out of both groups.
+    // "Ravi" and "Alvarez" both match; "Elena", "Tom" and "Sky" fall out of both groups.
     await waitFor(() => {
       expect(within(listbox).getByText('Dr. Ravi Patel')).toBeInTheDocument();
       expect(within(listbox).getByText('Marta Alvarez')).toBeInTheDocument();

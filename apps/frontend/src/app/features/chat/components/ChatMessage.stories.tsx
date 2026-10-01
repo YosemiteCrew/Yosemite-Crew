@@ -654,7 +654,8 @@ export const SharedRecord: Story = {
 
     // The whole card came through, not just its title: header row plus value row, with
     // the deep link live inside the thread.
-    const card = canvas.getByText('Invoice INV-2043').closest('div.rounded-2xl') as HTMLElement;
+    // The card draws on the shared `yc-card-surface`, so that class is its root.
+    const card = canvas.getByText('Invoice INV-2043').closest('div.yc-card-surface') as HTMLElement;
     await expect(card.children).toHaveLength(2);
     await expect(canvas.getByText('€248.50')).toBeInTheDocument();
     await expect(canvas.getByRole('link', { name: 'View in Finance' })).toHaveAttribute(

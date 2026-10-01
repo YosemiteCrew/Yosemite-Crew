@@ -304,22 +304,30 @@ const slotpickerParts = (dialog: HTMLElement) => {
 };
 
 /**
- * Waits for the date strip to stop moving. Slotpicker smooth-scrolls the selected
- * day into the centre, and LabelDropdown dismisses itself on any scroll outside
- * its own panel - so opening the Lead picker mid-animation closes it a frame
- * later and the play function reads a real option list as empty.
+ * Waits for every scroll the day pick set off to finish. Slotpicker smooth-scrolls
+ * the selected day into the centre of the strip, and 80ms after the click it also
+ * smooth-scrolls the slot list into view inside the dialog. LabelDropdown dismisses
+ * itself on any scroll outside its own panel, so opening the Lead picker while
+ * either is still moving closes it a frame later and the play function reads a
+ * real option list as empty. Watching one scroller's position is not enough: a
+ * check that runs before an animation starts reads it as settled. So this waits
+ * for a quiet period with no scroll event anywhere on the page, which also covers
+ * the 80ms timer.
  */
-const settleDateStrip = async (strip: HTMLElement) => {
-  let previous = Number.NaN;
-  await waitFor(
-    () => {
-      const current = strip.scrollLeft;
-      const settled = current === previous;
-      previous = current;
-      expect(settled).toBe(true);
-    },
-    { interval: 100 }
-  );
+const settleScrolling = async (quietMs = 300) => {
+  let lastScrollAt = performance.now();
+  const onScroll = () => {
+    lastScrollAt = performance.now();
+  };
+  globalThis.addEventListener('scroll', onScroll, true);
+  try {
+    await waitFor(() => expect(performance.now() - lastScrollAt).toBeGreaterThanOrEqual(quietMs), {
+      timeout: 5000,
+      interval: 50,
+    });
+  } finally {
+    globalThis.removeEventListener('scroll', onScroll, true);
+  }
 };
 
 /**
@@ -403,7 +411,8 @@ export const Drawer: Story = {
     /* Companion first, already open and titled by the shared name formatter -
        companion, a middle dot, the owner's LAST name. Not "Poppy (Hartmann)" and
        not the first name: every other companion surface uses this exact form. */
-    const companionSection = panel.getByRole('button', { name: 'Poppy · Hartmann' });
+    // The sections render a beat after the header, so the first one is awaited.
+    const companionSection = await panel.findByRole('button', { name: 'Poppy · Hartmann' });
     await expect(companionSection).toHaveAttribute('aria-expanded', 'true');
 
     /* Four read-only rows, and the species one prints the RAW enum. The
@@ -596,7 +605,7 @@ export const SlotAndLead: Story = {
 
     /* Three windows came back, so three chips - and `getNextSelectedSlot` selects
        the first of them, because the day click cleared the previous selection. */
-    const { strip, slotList } = slotpickerParts(dialog);
+    const { slotList } = slotpickerParts(dialog);
     await waitFor(() => expect(slotList.querySelectorAll('button')).toHaveLength(3));
     await expect(panel.queryByText('No slot available')).not.toBeInTheDocument();
 
@@ -611,12 +620,19 @@ export const SlotAndLead: Story = {
     await expect(time).toHaveAttribute('readonly');
     await expect(panel.getByLabelText('Date')).toHaveAttribute('readonly');
 
-    await settleDateStrip(strip);
+    /* At the runner's 1280x800 the slot list pushes the Lead field below the
+       dialog body's fold. Opening a dropdown focuses its search input, and the
+       browser scrolling that input into view counts as an outside scroll that
+       closes the panel again - so the field is brought into view first, the way a
+       reader would scroll to it, and the page left to settle. */
+    const lead = within(dialog).getByRole('button', { name: 'Lead' });
+    lead.scrollIntoView({ block: 'center' });
+    await settleScrolling();
 
     /* Only the vets free on the SELECTED window. Dr. Marsh is free at 09:30 and
        is correctly absent - offering her would let the desk book a vet the slots
        API says is busy at 09:00. */
-    const leadPanel = await openPanel(within(dialog).getByRole('button', { name: 'Lead' }));
+    const leadPanel = await openPanel(lead);
     await expect(
       within(leadPanel)
         .getAllByRole('option')

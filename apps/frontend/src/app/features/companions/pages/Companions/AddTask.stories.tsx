@@ -63,7 +63,7 @@ const Triggered = () => {
         onClick={() => setOpen(true)}
         className="rounded-full bg-primary-600 px-5 py-2 text-[14px] font-semibold text-white"
       >
-        Add task
+        New task
       </button>
       <AddTask showModal={open} setShowModal={setOpen} activeCompanion={ACTIVE_COMPANION} />
     </div>
@@ -80,7 +80,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The "Add task" drawer from a companion record. It is a `Modal` gated on `showModal` ' +
+          'The "New task" drawer from a companion record. It is a `Modal` gated on `showModal` ' +
           'and had never been drawn, so neither had the eleven-control `TaskFormFields` stack it ' +
           'wraps: category, priority, task name, instructions, due date, time, reminder and ' +
           'repeat, plus the end date that only exists once the task repeats.\n\n' +
@@ -113,7 +113,7 @@ export const Drawer: Story = {
     await expect(dialog).not.toBeNull();
     const panel = within(dialog as HTMLElement);
 
-    await expect(panel.getByText('Add task')).toBeInTheDocument();
+    await expect(panel.getByRole('heading', { name: 'New task' })).toBeInTheDocument();
 
     /* The whole field stack, in the single-column order `TaskFormFields` uses
        when neither `twoColumn` nor `assigneeChips` is set. Asserting the SET
@@ -224,7 +224,7 @@ export const OpensFromTrigger: Story = {
        whether the drawer is open or shut, because it portals to document.body. */
     await expect(openDialog()).toBeNull();
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Add task' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'New task' }));
 
     await waitFor(() => expect(openDialog()).not.toBeNull());
 
@@ -232,7 +232,7 @@ export const OpensFromTrigger: Story = {
        one - `resetForm` runs on every close, so what a second open shows is the
        part of this transition worth pinning. */
     const panel = within(openDialog() as HTMLElement);
-    await expect(panel.getByText('Add task')).toBeInTheDocument();
+    await expect(panel.getByRole('heading', { name: 'New task' })).toBeInTheDocument();
     await expect(panel.getByRole('textbox', { name: 'Task' })).toHaveValue('');
     await expect(panel.getByRole('textbox', { name: 'Instructions (optional)' })).toHaveValue('');
     await expect(panel.getByRole('button', { name: 'Save' })).toBeEnabled();
