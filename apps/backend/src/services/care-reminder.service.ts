@@ -608,37 +608,40 @@ export const CareReminderService = {
       },
       data: { status: "PENDING", sendingAt: null, lastDelivery: Prisma.DbNull },
     });
-    const due = await prisma.careReminder.findMany({
-      where: {
-        status: "PENDING",
-        // A send time further back than the window is left for staff to send by
-        // hand, so old rows or a long worker outage never release a burst of
-        // stale reminders to owners.
-        sendAt: {
-          lte: new Date(now),
-          gte: new Date(now - SCHEDULED_SEND_WINDOW_MS),
+    const due: Array<{ id: string; organisationId: string }> =
+      await prisma.careReminder.findMany({
+        where: {
+          status: "PENDING",
+          // A send time further back than the window is left for staff to send by
+          // hand, so old rows or a long worker outage never release a burst of
+          // stale reminders to owners.
+          sendAt: {
+            lte: new Date(now),
+            gte: new Date(now - SCHEDULED_SEND_WINDOW_MS),
+          },
+          lastAttemptAt: null,
         },
-        lastAttemptAt: null,
-      },
-      select: { id: true, organisationId: true },
-      orderBy: { sendAt: "asc" },
-      take: 100,
-    });
-    const sendOne = (reminder: (typeof due)[number]) =>
-      this.send(reminder.id, reminder.organisationId).catch(
-        (error: unknown) => {
-          logger.error("Scheduled care reminder could not be delivered", {
-            reminderId: reminder.id,
-            error,
-          });
-        },
-      );
+        select: { id: true, organisationId: true },
+        orderBy: { sendAt: "asc" },
+        take: 100,
+      });
+    const sendOne = async (reminder: (typeof due)[number]): Promise<void> => {
+      try {
+        await this.send(reminder.id, reminder.organisationId);
+      } catch (error: unknown) {
+        logger.error("Scheduled care reminder could not be delivered", {
+          reminderId: reminder.id,
+          error,
+        });
+      }
+    };
     // One at a time, so a full batch never outruns the mail provider's send rate.
-    await due.reduce<Promise<unknown>>(
-      (previous, reminder) => previous.then(() => sendOne(reminder)),
-      Promise.resolve(),
-    );
-    return due.length;
+    return due
+      .reduce<Promise<void>>(
+        (previous, reminder) => previous.then(() => sendOne(reminder)),
+        Promise.resolve(),
+      )
+      .then(() => due.length);
   },
 
   async markResponded(
