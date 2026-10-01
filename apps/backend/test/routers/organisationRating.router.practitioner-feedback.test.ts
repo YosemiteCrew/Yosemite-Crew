@@ -2,6 +2,7 @@ import type { Router } from "express";
 
 const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const PractitionerFeedbackController = {
+  getForParent: jest.fn(),
   getForAppointment: jest.fn(),
   rateAppointment: jest.fn(),
 };
@@ -29,6 +30,7 @@ const findRoute = (path: string, method: "get" | "post" | "put") =>
   )?.route;
 
 describe("practitioner feedback routes", () => {
+  const batchLookupPath = "/practitioner-feedback/batch";
   const lookupPath = "/practitioner-feedback";
   const savePath = "/appointment/:appointmentId/practitioner-feedback";
 
@@ -39,6 +41,12 @@ describe("practitioner feedback routes", () => {
       requireMobileAuth,
       PractitionerFeedbackController.getForAppointment,
     ]);
+  });
+
+  it("requires mobile authentication before batch loading feedback", () => {
+    expect(
+      findRoute(batchLookupPath, "post")?.stack.map((layer) => layer.handle),
+    ).toEqual([requireMobileAuth, PractitionerFeedbackController.getForParent]);
   });
 
   it("requires mobile authentication before saving feedback", () => {

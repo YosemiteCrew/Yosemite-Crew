@@ -1661,6 +1661,49 @@ export const appointmentApi = {
     };
   },
 
+  async getPractitionerFeedbackForParent({
+    accessToken,
+  }: {
+    accessToken: string;
+  }): Promise<
+    Record<
+      string,
+      {
+        isRated: boolean;
+        rating: number | null;
+        review: string | null;
+        practitionerName: string | null;
+      }
+    >
+  > {
+    const url = buildUrl('/v1/organisation-rating/practitioner-feedback/batch');
+    const {data} = await apiClient.post(
+      url,
+      {},
+      {headers: withAuthHeaders(accessToken)},
+    );
+    const feedbackByAppointment = (data.feedbackByAppointment ?? {}) as Record<
+      string,
+      {
+        isRated?: boolean;
+        rating?: number | null;
+        review?: string | null;
+        practitionerName?: string | null;
+      }
+    >;
+    return Object.fromEntries(
+      Object.entries(feedbackByAppointment).map(([appointmentId, feedback]) => [
+        appointmentId,
+        {
+          isRated: Boolean(feedback.isRated),
+          rating: feedback.rating ?? null,
+          review: feedback.review ?? null,
+          practitionerName: feedback.practitionerName ?? null,
+        },
+      ]),
+    );
+  },
+
   async getOrganisationRatingStatus({
     organisationId,
     accessToken,

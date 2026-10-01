@@ -88,6 +88,72 @@ const validateFeedback = (rating: number, review?: string) => {
 };
 
 export const PractitionerFeedbackService = {
+  async getForParent(parentId: string) {
+    if (!parentId.trim()) {
+      throw new PractitionerFeedbackServiceError("Invalid parent", 400);
+    }
+
+    const appointments =
+      await AppointmentPrismaService.getAppointmentsForParent(parentId);
+    const completedAppointments = appointments.flatMap((row) => {
+      const appointment = fromFHIRAppointment(row);
+      const lead = appointment.lead;
+      const practitionerName = lead?.name.trim();
+      if (
+        appointment.status !== "COMPLETED" ||
+        !appointment.id ||
+        !lead?.id.trim() ||
+        !practitionerName
+      ) {
+        return [];
+      }
+
+      return [{ appointmentId: appointment.id, practitionerName }];
+    });
+
+    if (!completedAppointments.length) return {};
+
+    const savedFeedback = await prisma.organisationRating.findMany({
+      where: {
+        userId: parentId,
+        appointmentId: {
+          in: completedAppointments.map(({ appointmentId }) => appointmentId),
+        },
+      },
+      select: {
+        appointmentId: true,
+        rating: true,
+        review: true,
+        practitionerName: true,
+      },
+    });
+    const feedbackByAppointmentId = new Map(
+      savedFeedback.map((feedback) => [feedback.appointmentId, feedback]),
+    );
+
+    return Object.fromEntries(
+      completedAppointments.map(({ appointmentId, practitionerName }) => {
+        const feedback = feedbackByAppointmentId.get(appointmentId);
+        return [
+          appointmentId,
+          feedback
+            ? {
+                isRated: true,
+                rating: feedback.rating,
+                review: feedback.review,
+                practitionerName: feedback.practitionerName,
+              }
+            : {
+                isRated: false,
+                rating: null,
+                review: null,
+                practitionerName,
+              },
+        ];
+      }),
+    );
+  },
+
   async getForAppointment(appointmentId: string, parentId: string) {
     const target = await getCompletedAppointmentTarget(appointmentId, parentId);
     const feedback = await prisma.organisationRating.findUnique({
