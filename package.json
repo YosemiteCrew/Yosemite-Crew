@@ -182,7 +182,9 @@
       "react-native@0.81.6": "patches/react-native@0.81.6.patch",
       "body-parser@1.20.6": "patches/body-parser@1.20.6.patch",
       "body-parser@2.3.0": "patches/body-parser@2.3.0.patch",
-      "metro@0.83.7": "patches/metro@0.83.7.patch"
+      "metro@0.83.7": "patches/metro@0.83.7.patch",
+      "pdfkit@0.20.2": "patches/pdfkit@0.20.2.patch",
+      "pkijs@3.4.0": "patches/pkijs@3.4.0.patch"
     }
   }
 }

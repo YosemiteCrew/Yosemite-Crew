@@ -147,6 +147,12 @@ patchedDependencies:
   metro@0.83.7:
     hash: 7npt7igwfxcqdh3sogdu57amsu
     path: patches/metro@0.83.7.patch
+  pdfkit@0.20.2:
+    hash: 4ycu5mjsz4d2syteqw2fmrkinu
+    path: patches/pdfkit@0.20.2.patch
+  pkijs@3.4.0:
+    hash: qj55ritupy57lyya6xkelgvly4
+    path: patches/pkijs@3.4.0.patch
   react-native@0.81.6:
     hash: m4qqoly5dlwssem2g7gghw2o44
     path: patches/react-native@0.81.6.patch
@@ -1162,7 +1168,7 @@ importers:
         version: 1.17.1
       pdfkit:
         specifier: ^0.20.1
-        version: 0.20.2
+        version: 0.20.2(patch_hash=4ycu5mjsz4d2syteqw2fmrkinu)
       validator:
         specifier: 13.15.35
         version: 13.15.35
@@ -11442,7 +11448,7 @@ packages:
       json5: 2.2.3
       lazy-val: 1.0.5
       minimatch: 10.2.5
-      pkijs: 3.4.0
+      pkijs: 3.4.0(patch_hash=qj55ritupy57lyya6xkelgvly4)
       plist: 3.1.0
       proper-lockfile: 4.1.2
       resedit: 1.7.2
@@ -20991,7 +20997,7 @@ packages:
       pako: 1.0.11
       tslib: 1.14.1
 
-  /pdfkit@0.20.2:
+  /pdfkit@0.20.2(patch_hash=4ycu5mjsz4d2syteqw2fmrkinu):
     resolution: {integrity: sha512-Q/w03ICAQyXfHNfTsg1udp0ADerdBN0s7a6XSPL7J7Ro6ABnafoBOCDBstIO9U02mvzHEV8HrvFIw5iV5ejIRA==}
     dependencies:
       '@noble/ciphers': 1.3.0
@@ -21001,6 +21007,7 @@ packages:
       linebreak: 1.1.0
       png-js: 2.0.0
     dev: false
+    patched: true
 
   /pe-library@0.4.1:
     resolution: {integrity: sha512-eRWB5LBz7PpDu4PUlwT0PhnQfTQJlDDdPa35urV4Osrm0t0AqQFGn+UIkU3klZvwJ8KPO3VbBFsXquA6p6kqZw==}
@@ -21057,7 +21064,7 @@ packages:
       find-up: 3.0.0
     dev: true
 
-  /pkijs@3.4.0:
+  /pkijs@3.4.0(patch_hash=qj55ritupy57lyya6xkelgvly4):
     resolution: {integrity: sha512-emEcLuomt2j03vxD54giVB4SxTjnsqkU692xZOZXHDVoYyypEm+b3jpiTcc+Cf+myooc+/Ly0z01jqeNHVgJGw==}
     engines: {node: '>=16.0.0'}
     dependencies:
@@ -21068,6 +21075,7 @@ packages:
       pvutils: 1.1.5
       tslib: 2.8.1
     dev: true
+    patched: true
 
   /playwright-core@1.62.1:
     resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
