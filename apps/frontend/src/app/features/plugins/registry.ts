@@ -13,7 +13,7 @@ class ExtensionRegistry {
   private readonly extensions: Map<ExtensionPointId, RegisteredExtension[]> = new Map();
   private readonly plugins: Map<string, PluginManifest> = new Map();
   private version = 0;
-  private listeners = new Set<() => void>();
+  private readonly listeners = new Set<() => void>();
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
