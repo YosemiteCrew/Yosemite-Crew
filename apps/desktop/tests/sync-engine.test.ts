@@ -137,6 +137,39 @@ describe('createSyncEngine', () => {
     expect(results[1]!.table).toBe('appointments');
   });
 
+  test('fullSync continues with later tables after a push error', async () => {
+    const store = await createOfflineStore({ db, SQL, now: () => 1000 });
+    store.registerTable(patientSchema);
+    store.registerTable({ name: 'appointments', columns: [{ name: 'reason', type: 'TEXT' }] });
+    store.insert('patients', { id: 'p1', name: 'Buddy', species: 'Canine' });
+    store.insert('appointments', { id: 'a1', reason: 'Checkup' });
+
+    const calls: string[] = [];
+    const transport: SyncTransport = {
+      fetchChanges: jest.fn(async (table: string) => {
+        calls.push(`pull:${table}`);
+        return [];
+      }),
+      upsertRows: jest.fn(async (table: string) => {
+        calls.push(`push:${table}`);
+        return table === 'patients' ? { success: false, errors: ['conflict'] } : { success: true };
+      }),
+    };
+
+    const results = await createSyncEngine({ store, transport }).fullSync([
+      'patients',
+      'appointments',
+    ]);
+
+    expect(calls).toEqual([
+      'push:patients',
+      'pull:patients',
+      'push:appointments',
+      'pull:appointments',
+    ]);
+    expect(results.map((result) => result.errors)).toEqual([['conflict'], []]);
+  });
+
   test('fullSync finishes one table (push, then pull) before starting the next', async () => {
     const store = await createOfflineStore({ db, SQL, now: () => 1000 });
     store.registerTable(patientSchema);
