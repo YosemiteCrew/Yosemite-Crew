@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, within } from 'storybook/test';
 import GenericTable from './GenericTable';
 import type { Column } from './GenericTable';
 
@@ -61,24 +62,34 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/* `itemNoun` is required (a5e6eddb0): it names the records in the footer and the
+   empty state, so a table cannot fall back to a generic "No records yet". */
 export const Default: Story = {
-  args: { data: DATA.slice(0, 5), columns: COLUMNS },
+  args: { data: DATA.slice(0, 5), columns: COLUMNS, itemNoun: 'team members' },
 };
 
 export const WithPagination: Story = {
   name: 'With pagination (25 rows, page 10)',
-  args: { data: DATA, columns: COLUMNS, pagination: true, pageSize: 10 },
+  args: { data: DATA, columns: COLUMNS, pagination: true, pageSize: 10, itemNoun: 'team members' },
 };
 
 export const EmptyState: Story = {
   name: 'Empty state',
-  args: { data: [], columns: COLUMNS },
+  args: { data: [], columns: COLUMNS, itemNoun: 'team members' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Both lines of the empty state are derived from the noun.
+    await expect(canvas.getByText('No team members yet')).toBeInTheDocument();
+    await expect(
+      canvas.getByText('Team members appear here as soon as there are any.')
+    ).toBeInTheDocument();
+  },
   parameters: {
     docs: {
       description: {
         story:
-          'Empty data renders a placeholder row whose copy is derived from `itemNoun`, so each ' +
-          'table names its own records. With no noun it falls back to "No records yet".',
+          'Empty data renders a placeholder row whose copy is derived from the required ' +
+          '`itemNoun`, so each table names its own records.',
       },
     },
   },

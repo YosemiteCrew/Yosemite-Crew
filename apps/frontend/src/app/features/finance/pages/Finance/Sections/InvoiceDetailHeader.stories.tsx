@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import type { Appointment, Invoice } from '@yosemite-crew/types';
 
 import InvoiceDetailHeader from './InvoiceDetailHeader';
@@ -305,7 +305,14 @@ export const Phone: Story = {
        column `min-w-0` and the actions `shrink-0`, so the whole deficit came out of
        the invoice number, which rendered at width 0: present, 26px tall, showing
        nothing. `getByRole` could not see that - the text node is complete when the
-       paint is gone - so this measures the box instead. */
+       paint is gone - so this measures the box instead.
+
+       `useIsPhone` is false on the first render and flips after mount, so the play
+       first waits for the phone tree - the PDF link moved out of the header row -
+       rather than measuring the desktop row in the frame before the swap. */
+    await waitFor(() =>
+      expect(headerRow(canvas.getByRole('link', { name: /Download invoice/ }))).toBeNull()
+    );
     const heading = canvas.getByRole('heading', { name: '#INV-2026-0142' });
     await expect(heading.scrollWidth).toBeLessThanOrEqual(heading.clientWidth + 1);
     // Not vacuous: a heading that never rendered would also report 0 <= 1.

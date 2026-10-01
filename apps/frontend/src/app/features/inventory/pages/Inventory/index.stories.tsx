@@ -460,19 +460,29 @@ const inventoryMeta = {
 export default inventoryMeta;
 type InventoryStory = StoryObj<typeof inventoryMeta>;
 
+/**
+ * The page title with its count, e.g. "Inventory (3)". Anchored on the count
+ * because a bare `/^Inventory/` also matches the preview's sr-only story title
+ * ("Inventory/Inventory - ..."), which is another <h1> inside the canvas.
+ */
+const inventoryTitle = (count: number) => new RegExp(String.raw`^Inventory\s?\(${count}\)`);
+
 export const Default: InventoryStory = {
   name: 'Catalog with mixed stock health',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // The count lives in its own <span> next to the title, not in one text node
-    // with it - "3" is checked below via the subtitle counts and the visible rows.
+    // The count lives in its own <span> next to the title, so it is matched through
+    // the heading's accessible name rather than one text node.
     await expect(
-      await canvas.findByRole('heading', { level: 1, name: /^Inventory/ })
+      await canvas.findByRole('heading', { level: 1, name: inventoryTitle(3) })
     ).toBeVisible();
     // One low-stock row and one expired batch, counted the same way the alert panel counts them.
     await expect(canvas.getByText('1 item below reorder point · 1 expired batch')).toBeVisible();
 
-    await expect(canvas.getByRole('button', { name: 'View Amoxicillin 250mg' })).toBeVisible();
+    // The catalog table is a `next/dynamic` chunk, so its first row gets time to arrive.
+    await expect(
+      await canvas.findByRole('button', { name: 'View Amoxicillin 250mg' }, { timeout: 5000 })
+    ).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'Restock Surgical gauze pads' })).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'New product' })).toBeEnabled();
 
@@ -490,7 +500,7 @@ export const EmptyCatalog: InventoryStory = {
   beforeEach: prepare({ items: [] }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole('heading', { level: 1, name: /^Inventory/ });
+    await canvas.findByRole('heading', { level: 1, name: inventoryTitle(0) });
     await expect(canvas.getByText('0 items below reorder point · 0 expired batches')).toBeVisible();
     // The empty state renders once for the table layout and once for the card
     // layout (CSS picks one per breakpoint), so it is asserted as "at least one".
@@ -504,7 +514,7 @@ export const LoadingCatalog: InventoryStory = {
   beforeEach: prepare({ items: [], inventoryStatus: 'loading' }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole('heading', { level: 1, name: /^Inventory/ });
+    await canvas.findByRole('heading', { level: 1, name: inventoryTitle(0) });
     await expect(canvas.getByText('Loading inventory…')).toBeVisible();
     await expect(canvas.queryByRole('button', { name: /^View / })).not.toBeInTheDocument();
   },
@@ -528,7 +538,7 @@ export const Dispensary: InventoryStory = {
   name: 'Switching to the Dispensary queue',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole('heading', { level: 1, name: /^Inventory/ });
+    await canvas.findByRole('heading', { level: 1, name: inventoryTitle(3) });
 
     await userEvent.click(canvas.getByRole('button', { name: 'Dispensary' }));
 

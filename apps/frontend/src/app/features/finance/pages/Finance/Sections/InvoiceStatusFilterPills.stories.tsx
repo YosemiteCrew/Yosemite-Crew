@@ -9,7 +9,7 @@ import InvoiceStatusFilterPills from './InvoiceStatusFilterPills';
 /**
  * Resolve a CSS custom property to the colour it actually computes to here, by
  * painting it onto a throwaway probe. Comparing computed colours rather than
- * class names is the only way to catch a pill that silently stopped applying its
+ * class names is the only way to catch a chip that silently stopped applying its
  * token set - the markup is identical either way.
  */
 const resolveToken = (host: HTMLElement, token: string): string => {
@@ -32,14 +32,20 @@ const group = (canvasElement: HTMLElement): HTMLElement =>
 const pill = (canvasElement: HTMLElement, name: string): HTMLElement =>
   within(group(canvasElement)).getByRole('button', { name });
 
-/** The badge inside a pill button - the element that actually carries the colour. */
-const badge = (button: HTMLElement): HTMLElement =>
-  button.querySelector('.yc-status-pill') as HTMLElement;
+/**
+ * The three colours a chip is drawn in, resolved against the live theme. Each
+ * chip is a single `FilterChip` button (fa40ef533): the button itself carries
+ * the fill, ring and ink, with no status badge nested inside it.
+ */
+const chipColours = (chip: HTMLElement) => {
+  const style = getComputedStyle(chip);
+  return { bg: style.backgroundColor, border: style.borderColor, ink: style.color };
+};
 
 /**
- * Two options that exercise the token fallback chain, which the real
- * `InvoiceStatusFilters` never does because every entry there is built from a
- * complete `--color-pill-*` triple.
+ * Hand-built options, one bare and one carrying a pill tint. `StatusOption`
+ * lets an option ship its own bg/text/border tokens; the filter row ignores
+ * them, so both must draw exactly like every other chip.
  */
 const FALLBACK_OPTIONS: StatusOption[] = [
   { name: 'All', key: 'all' },
@@ -75,19 +81,17 @@ const meta = {
     docs: {
       description: {
         component:
-          "The finance list's status filter, as inline segmented pills rather than the shared " +
+          "The finance list's status filter, as a row of filter chips rather than the shared " +
           '"All statuses" dropdown. Both the desktop header row and the phone list mount this same ' +
           'component.\n\n' +
-          'Colour carries the entire state, and it is computed in three different ways depending on ' +
-          'the pill:\n\n' +
-          '- **Inactive** - transparent fill, a `--hairline` ring and 600 `--ink-muted`, whatever ' +
-          "the option's own tokens say. Everything unselected looks identical.\n" +
-          '- **Active "All"** - a deliberate special case keyed off `option.key === "all"`: ' +
-          '`--inset` fill, `--divider` ring, 700 `--ink`. Without it, All would paint itself in the ' +
-          'neutral pill tokens and read as just another status rather than as "no filter".\n' +
-          "- **Any other active status** - the option's own bg/text/border tokens, untouched.\n\n" +
-          'A group, not a radio set: each pill is a `button` with `aria-pressed`, so the pressed ' +
-          'state is announced even though nothing but the fill distinguishes it visually.\n\n' +
+          'Each option is a shared `FilterChip`, sentence case, in one of two states whatever the ' +
+          "option's own colour tokens say:\n\n" +
+          '- **Inactive** - transparent fill, a `--hairline` ring and 600 `--ink-muted`.\n' +
+          '- **Active** - the solid `--chip-selected-*` pill, 700 weight. "All" is not a special ' +
+          'case, and a status is not painted in its invoice colour: the row reads as a set of ' +
+          'filters rather than a row of statuses.\n\n' +
+          'A group, not a radio set: each chip is a `button` with `aria-pressed`, so the pressed ' +
+          'state is announced as well as drawn.\n\n' +
           'One geometry throughout: 32px tall, the design system’s `--control-h-sm`. There used to ' +
           'be a `size` prop for a bigger tap target; it stopped having any effect when the badge ' +
           'geometry moved into the shared `StatusPill` primitive, so it has been removed rather ' +
@@ -119,103 +123,96 @@ export const AllSelected: Story = {
     await expect(all).toHaveAttribute('aria-pressed', 'true');
     await expect(paid).toHaveAttribute('aria-pressed', 'false');
 
-    const inset = resolveToken(canvasElement, '--inset');
-    const divider = resolveToken(canvasElement, '--divider');
-    const ink = resolveToken(canvasElement, '--ink');
+    const selectedBg = resolveToken(canvasElement, '--chip-selected-bg');
+    const selectedBorder = resolveToken(canvasElement, '--chip-selected-border');
+    const selectedInk = resolveToken(canvasElement, '--chip-selected-ink');
     const hairline = resolveToken(canvasElement, '--hairline');
     const inkMuted = resolveToken(canvasElement, '--ink-muted');
 
-    /* The "all" special case, asserted against --inset rather than against "not
-       transparent". All's own tokens are the neutral pill set, so dropping the
-       `key === 'all'` branch would still paint it - just in --color-pill-neutral-bg,
-       a different, lighter fill that makes "no filter" look like a status. Polled:
-       these colours are inherited through the theme's transition. */
-    const allBadge = badge(all);
-    const paidBadge = badge(paid);
+    /* The active chip is the solid selected pill, asserted against the three
+       --chip-selected tokens rather than against "not transparent", so a chip that
+       fell back to a pill tint would fail. Polled: the chip carries
+       `transition-colors`, so a single read can catch an interpolated value. */
     await waitFor(() => {
-      expect(getComputedStyle(allBadge).backgroundColor).toBe(inset);
-      expect(getComputedStyle(allBadge).borderColor).toBe(divider);
-      expect(getComputedStyle(allBadge).color).toBe(ink);
+      expect(chipColours(all)).toEqual({
+        bg: selectedBg,
+        border: selectedBorder,
+        ink: selectedInk,
+      });
     });
-    await expect(getComputedStyle(allBadge).fontWeight).toBe('700');
+    await expect(getComputedStyle(all).fontWeight).toBe('700');
 
-    /* Every unselected pill is flattened to the same outline regardless of its own
-       colour, which is why the rail does not read as seven coloured chips. 600 against
-       the active 700 is the weight half of that. */
+    /* Every unselected chip is the same outline, which is why the rail does not read
+       as seven coloured statuses. 600 against the active 700 is the weight half. */
     await waitFor(() => {
-      expect(getComputedStyle(paidBadge).backgroundColor).toBe(TRANSPARENT);
-      expect(getComputedStyle(paidBadge).borderColor).toBe(hairline);
-      expect(getComputedStyle(paidBadge).color).toBe(inkMuted);
+      expect(chipColours(paid)).toEqual({ bg: TRANSPARENT, border: hairline, ink: inkMuted });
     });
-    await expect(getComputedStyle(paidBadge).fontWeight).toBe('600');
+    await expect(getComputedStyle(paid).fontWeight).toBe('600');
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The resting state. "All" is the only pill the component styles by name, and it is the ' +
-          'one state where the fill comes from the surface tokens (`--inset` / `--divider`) instead ' +
-          'of the pill palette.',
+          'The resting state: "All" pressed and drawn as the solid selected chip, every other ' +
+          'status an identical hairline outline.',
       },
     },
   },
 };
 
 export const StatusSelected: Story = {
-  name: 'A coloured status selected',
+  name: 'A status selected',
   args: { activeStatus: 'paid' },
   play: async ({ canvasElement }) => {
-    const paidBadge = badge(pill(canvasElement, 'Paid'));
-    const allBadge = badge(pill(canvasElement, 'All'));
+    const paid = pill(canvasElement, 'Paid');
+    const all = pill(canvasElement, 'All');
 
+    const selectedBg = resolveToken(canvasElement, '--chip-selected-bg');
+    const selectedInk = resolveToken(canvasElement, '--chip-selected-ink');
     const successBg = resolveToken(canvasElement, '--color-pill-success-bg');
-    const successText = resolveToken(canvasElement, '--color-pill-success-text');
-    const inset = resolveToken(canvasElement, '--inset');
 
-    /* Selecting anything other than All takes the OTHER branch: no inline style at
-       all, so the option's own token triple reaches the badge untouched. Asserting it
-       is not --inset is the half that matters - a `key === 'all'` check written as a
-       truthiness test would paint every active pill with the flat inset treatment and
-       lose the status colour entirely. */
+    /* A filter is a chip, not a status pill: Paid pressed draws in the same selected
+       colours as any other chip, not in the green its invoices wear in the list. The
+       `not.toBe(successBg)` half is the one that matters - a row painting each active
+       chip in its status colour would read as a row of statuses again. */
+    await expect(paid).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => {
-      expect(getComputedStyle(paidBadge).backgroundColor).toBe(successBg);
-      expect(getComputedStyle(paidBadge).color).toBe(successText);
+      expect(getComputedStyle(paid).backgroundColor).toBe(selectedBg);
+      expect(getComputedStyle(paid).color).toBe(selectedInk);
     });
-    await expect(getComputedStyle(paidBadge).backgroundColor).not.toBe(inset);
+    await expect(getComputedStyle(paid).backgroundColor).not.toBe(successBg);
 
-    // And All is now just another outline, with no memory of its special case.
+    // And All is now just another outline.
     await waitFor(() => {
-      expect(getComputedStyle(allBadge).backgroundColor).toBe(TRANSPARENT);
+      expect(getComputedStyle(all).backgroundColor).toBe(TRANSPARENT);
     });
-    await expect(pill(canvasElement, 'All')).toHaveAttribute('aria-pressed', 'false');
+    await expect(all).toHaveAttribute('aria-pressed', 'false');
   },
   parameters: {
     docs: {
       description: {
         story:
-          'Filtering to Paid. The green here is the invoice status colour used everywhere else in ' +
-          'finance, not a selection colour, so the rail doubles as a legend for the list below it.',
+          'Filtering to Paid. The chip takes the selected fill, not the green the Paid status wears ' +
+          'in the list, so the toolbar reads as filters rather than as another row of statuses.',
       },
     },
   },
 };
 
 export const TokenFallbacks: Story = {
-  name: 'Options with missing colour tokens',
+  name: 'Options carrying their own colour tokens',
   args: { options: FALLBACK_OPTIONS, activeStatus: 'untokened' },
   render: (args) => <ControlledPills {...args} />,
   play: async ({ args, canvasElement }) => {
     const untokened = pill(canvasElement, 'Untokened');
-    const neutralBg = resolveToken(canvasElement, '--color-pill-neutral-bg');
-    const neutralBorder = resolveToken(canvasElement, '--color-pill-neutral-border');
+    const selectedBg = resolveToken(canvasElement, '--chip-selected-bg');
+    const selectedBorder = resolveToken(canvasElement, '--chip-selected-border');
 
-    /* `StatusOption` makes bg/text/border optional, so an option table can ship an
-       entry with none of them. Active, that option falls back to the neutral pill set
-       rather than to an unstyled transparent badge that would look inactive while
-       being pressed. */
+    /* An option with no colour tokens at all still draws as the solid selected chip
+       when pressed, rather than as a transparent outline that would look inactive. */
     await waitFor(() => {
-      expect(getComputedStyle(badge(untokened)).backgroundColor).toBe(neutralBg);
-      expect(getComputedStyle(badge(untokened)).borderColor).toBe(neutralBorder);
+      expect(getComputedStyle(untokened).backgroundColor).toBe(selectedBg);
+      expect(getComputedStyle(untokened).borderColor).toBe(selectedBorder);
     });
 
     await userEvent.click(pill(canvasElement, 'Tinted'));
@@ -235,23 +232,22 @@ export const TokenFallbacks: Story = {
         .filter((button) => button.getAttribute('aria-pressed') === 'true')
     ).toHaveLength(1);
 
-    /* Second fallback rung: a bg with no border reuses the bg, so a tinted pill gets a
-       tinted ring. Falling through to the neutral border instead would hang a grey
-       outline on a coloured fill. */
+    /* The option's own tint is ignored: pressed, it is drawn exactly like the bare
+       option was, so a hand-built option table cannot reintroduce status colours. */
     const infoBg = resolveToken(canvasElement, '--color-pill-info-bg');
     await waitFor(() => {
-      expect(getComputedStyle(badge(tinted)).backgroundColor).toBe(infoBg);
-      expect(getComputedStyle(badge(tinted)).borderColor).toBe(infoBg);
+      expect(getComputedStyle(tinted).backgroundColor).toBe(selectedBg);
+      expect(getComputedStyle(tinted).borderColor).toBe(selectedBorder);
     });
+    await expect(getComputedStyle(tinted).backgroundColor).not.toBe(infoBg);
   },
   parameters: {
     docs: {
       description: {
         story:
-          'Three options built by hand instead of from the `--color-pill-*` triples: one with no ' +
-          'colour at all, one with a fill but no border. Both fallbacks are only visible while the ' +
-          'option is selected, because an unselected pill is overridden to a transparent outline ' +
-          'whatever its tokens say.',
+          'Three options built by hand instead of from `InvoiceStatusFilters`: one with no colour ' +
+          'at all, one carrying a pill tint. The row ignores both, so pressed they draw as the same ' +
+          'selected chip and unpressed as the same outline.',
       },
     },
   },
@@ -286,14 +282,10 @@ export const Geometry: Story = {
       1
     );
 
-    /* The badge inside the chip must not resize either. Geometry moved into the
-       shared StatusPill so one status reads at one size everywhere; wiring a size
-       back into the pill would reintroduce the two-sizes-of-the-same-badge bug
-       that move fixed. */
-    await expect(badge(paid).getBoundingClientRect().height).toBeCloseTo(
-      badge(all).getBoundingClientRect().height,
-      1
-    );
+    /* A chip, not a status pill wrapped in a button: no badge is nested inside, and
+       the label is sentence case rather than the pill's ALL-CAPS. */
+    await expect(paid.querySelector('.yc-status-pill')).toBeNull();
+    await expect(getComputedStyle(paid).textTransform).toBe('none');
   },
   parameters: {
     docs: {
