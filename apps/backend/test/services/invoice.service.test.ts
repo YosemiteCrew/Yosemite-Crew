@@ -295,6 +295,16 @@ describe("InvoiceService", () => {
           occurredAt: saleInvoice.createdAt,
         }),
       });
+      expect(prisma.inventoryBatch.findMany).toHaveBeenCalledWith({
+        where: {
+          itemId: { in: ["item_1"] },
+          OR: [{ expiryDate: null }, { expiryDate: { gt: expect.any(Date) } }],
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { id: "asc" },
+        ],
+      });
       expect(prisma.invoice.create).not.toHaveBeenCalled();
       expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
       expect(prisma.financeEvent.create).not.toHaveBeenCalled();

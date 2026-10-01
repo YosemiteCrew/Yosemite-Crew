@@ -2878,10 +2878,40 @@ describe("Inventory service guards, helpers, and branch paths", () => {
           "org-1",
         ),
       ).rejects.toMatchObject({
-        message: "Failed to consume full requested quantity",
-        statusCode: 500,
+        message: "Insufficient non-expired stock",
+        statusCode: 409,
       });
       expect(prisma.inventoryBatch.update).not.toHaveBeenCalled();
+    });
+
+    it("only draws usable batches in FEFO order", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "usable", quantity: 2 }),
+      ]);
+
+      await expect(
+        InventoryService.consumeStock(
+          { itemId: "item-1", quantity: 3, reason: "COUNTER_SALE" },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Insufficient non-expired stock",
+        statusCode: 409,
+      });
+      expect(mockOf(prisma.inventoryBatch.findMany).mock.calls[0][0]).toEqual({
+        where: {
+          itemId: "item-1",
+          OR: [{ expiryDate: null }, { expiryDate: { gt: expect.any(Date) } }],
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { id: "asc" },
+        ],
+      });
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
     });
 
     it("skips empty batches, drains the rest in FIFO order, and stops early", async () => {
@@ -3406,8 +3436,55 @@ describe("Inventory service guards, helpers, and branch paths", () => {
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(mockOf(prisma.inventoryBatch.findMany).mock.calls[0][0]).toEqual({
-        where: { itemId: "item-1" },
-        orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+        where: {
+          itemId: "item-1",
+          OR: [{ expiryDate: null }, { expiryDate: { gt: expect.any(Date) } }],
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { id: "asc" },
+        ],
+      });
+    });
+
+    it("uses expired batches only for an explicit write-off", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "expired", quantity: 2 }),
+      ]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 3 }),
+      );
+
+      await InventoryAdjustmentService.adjustStock({
+        itemId: "item-1",
+        newOnHand: 3,
+        reason: "EXPIRED_STOCK_WRITE_OFF",
+        userId: "user-1",
+        organisationId: "org-1",
+      });
+
+      expect(mockOf(prisma.inventoryBatch.findMany).mock.calls[0][0]).toEqual({
+        where: {
+          itemId: "item-1",
+          expiryDate: { lte: expect.any(Date) },
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { id: "asc" },
+        ],
+      });
+      expect(prisma.inventoryStockMovement.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            batchId: "expired",
+            change: -2,
+            reason: "EXPIRED_STOCK_WRITE_OFF",
+            userId: "user-1",
+          }),
+        ],
       });
     });
 

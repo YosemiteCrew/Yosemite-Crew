@@ -1349,6 +1349,7 @@ const setInventoryItemStatus = async (
 const planFifoConsumption = (
   batches: ReadonlyArray<{ quantity?: number | null }>,
   quantity: number,
+  shortage: { message: string; statusCode: number },
 ): Array<{ index: number; newQuantity: number }> => {
   let remaining = quantity;
   const plan: Array<{ index: number; newQuantity: number }> = [];
@@ -1365,10 +1366,7 @@ const planFifoConsumption = (
   }
 
   if (remaining > 0) {
-    throw new InventoryServiceError(
-      "Failed to consume full requested quantity",
-      500,
-    );
+    throw new InventoryServiceError(shortage.message, shortage.statusCode);
   }
 
   return plan;
@@ -1380,12 +1378,15 @@ const planBatchDraws = (
   itemId: string,
   batches: ReadonlyArray<{ id: string; quantity?: number | null }>,
   quantity: number,
+  shortage: { message: string; statusCode: number },
 ): BatchDraw[] =>
-  planFifoConsumption(batches, quantity).map(({ index, newQuantity }) => ({
-    itemId,
-    batchId: batches[index].id,
-    quantity: (batches[index].quantity ?? 0) - newQuantity,
-  }));
+  planFifoConsumption(batches, quantity, shortage).map(
+    ({ index, newQuantity }) => ({
+      itemId,
+      batchId: batches[index].id,
+      quantity: (batches[index].quantity ?? 0) - newQuantity,
+    }),
+  );
 
 /**
  * Draws every planned batch in ONE conditional UPDATE and logs the movements in
@@ -1467,12 +1468,18 @@ const consumeBatchStockInTransaction = async (
   stockSource: ConsumeStockSource,
 ): Promise<InventoryItemLike> => {
   const batches = await tx.inventoryBatch.findMany({
-    where: { itemId },
-    orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+    where: {
+      itemId,
+      OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+    },
+    orderBy: [{ expiryDate: { sort: "asc", nulls: "last" } }, { id: "asc" }],
   });
   await applyBatchDraws(
     tx,
-    planBatchDraws(itemId, batches, input.quantity),
+    planBatchDraws(itemId, batches, input.quantity, {
+      message: "Insufficient non-expired stock",
+      statusCode: 409,
+    }),
     input,
   );
 
@@ -1537,8 +1544,11 @@ export const consumeNormalStockLinesInTransaction = async (
   }
   const itemIds = lines.map(({ item }) => item.id);
   const batches = await tx.inventoryBatch.findMany({
-    where: { itemId: { in: itemIds } },
-    orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+    where: {
+      itemId: { in: itemIds },
+      OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+    },
+    orderBy: [{ expiryDate: { sort: "asc", nulls: "last" } }, { id: "asc" }],
   });
   await applyBatchDraws(
     tx,
@@ -1547,6 +1557,10 @@ export const consumeNormalStockLinesInTransaction = async (
         item.id,
         batches.filter((batch) => batch.itemId === item.id),
         quantity,
+        {
+          message: "Insufficient non-expired stock",
+          statusCode: 409,
+        },
       ),
     ),
     movement,
@@ -2376,16 +2390,28 @@ export const InventoryAdjustmentService = {
           tx,
         );
       } else if (delta < 0) {
+        const expiredWriteOff = input.reason === "EXPIRED_STOCK_WRITE_OFF";
         const batches = await tx.inventoryBatch.findMany({
-          where: { itemId: item.id },
-          orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+          where: {
+            itemId: item.id,
+            ...(expiredWriteOff
+              ? { expiryDate: { lte: new Date() } }
+              : {
+                  OR: [
+                    { expiryDate: null },
+                    { expiryDate: { gt: new Date() } },
+                  ],
+                }),
+          },
+          orderBy: [
+            { expiryDate: { sort: "asc", nulls: "last" } },
+            { id: "asc" },
+          ],
         });
 
         /*
-         * Planned before the first write, so a short draw-down is refused
-         * with nothing consumed. `planFifoConsumption` answers 500 for the
-         * same shortfall, so the total is checked here to keep this path's
-         * 400 - the caller asked for more than exists, which is their error.
+         * Check the requested reduction before writing any batches, so an
+         * adjustment that exceeds available stock fails without partial draws.
          */
         const shortfall =
           Math.abs(delta) -
@@ -2401,7 +2427,12 @@ export const InventoryAdjustmentService = {
         // the read above refuses the adjustment instead of going negative.
         await applyBatchDraws(
           tx,
-          planBatchDraws(item.id, batches, Math.abs(delta)),
+          planBatchDraws(item.id, batches, Math.abs(delta), {
+            message: expiredWriteOff
+              ? "Insufficient expired stock for write-off"
+              : "Insufficient non-expired stock for adjustment",
+            statusCode: 409,
+          }),
           { reason: input.reason, userId: input.userId },
         );
       }
