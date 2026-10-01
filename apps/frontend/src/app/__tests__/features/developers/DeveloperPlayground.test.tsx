@@ -21,7 +21,7 @@ import DeveloperPlayground from '@/app/features/developers/pages/DeveloperPlaygr
 import PlaygroundPage from '@/app/(routes)/(app)/developers/(portal)/playground/page';
 
 const BASE = 'https://api.example.test';
-const KEY = 'synthetic-playground-key';
+const KEY = 'yc_live_EXAMPLE0000EXAMPLE0000EXAMPLE0000';
 
 type FakeResponse = { status: number; body: string; headers?: Record<string, string> };
 
