@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import PassportClient from './PassportClient';
 
+// no-story: this route only unwraps the shared identifier; PassportClient owns the interactive content.
 export const metadata: Metadata = {
   title: 'Pet Passport',
   // A publicly shared health record must not be indexed.
