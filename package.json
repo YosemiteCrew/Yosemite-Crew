@@ -96,6 +96,8 @@
       "ip-address@10": "10.7.1",
       "@grpc/grpc-js@1.9.15": "1.9.16",
       "@grpc/grpc-js@1.14.3": "1.14.4",
+      "@grpc/grpc-js@1.9": "1.14.5",
+      "@grpc/grpc-js@1.14": "1.14.5",
       "axios@1.15.2": "1.20.0",
       "body-parser@1": "1.20.6",
       "body-parser@2": "2.3.0",
@@ -160,7 +162,7 @@
       "websocket-driver": "0.7.5",
       "react-native>jest-environment-node": "^30.4.1",
       "engine.io": "6.6.10",
-      "dompurify": "3.4.15",
+      "dompurify": "3.4.16",
       "sharp": "0.35.4",
       "adm-zip": "0.6.1",
       "http-proxy-middleware": "2.0.10",
@@ -173,15 +175,16 @@
       "decode-uri-component": "0.5.0",
       "cosmiconfig>typescript": "5.9.3",
       "cosmiconfig-typescript-loader>typescript": "5.9.3",
-      "@noble/hashes@1": "1.8.0",
+      "@noble/hashes@1": "2.4.0",
       "image-size": "2.0.3"
     },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch",
       "body-parser@1.20.6": "patches/body-parser@1.20.6.patch",
       "body-parser@2.3.0": "patches/body-parser@2.3.0.patch",
-      "@noble/hashes@1.8.0": "patches/@noble__hashes@1.8.0.patch",
-      "metro@0.83.7": "patches/metro@0.83.7.patch"
+      "metro@0.83.7": "patches/metro@0.83.7.patch",
+      "pdfkit@0.20.2": "patches/pdfkit@0.20.2.patch",
+      "pkijs@3.4.0": "patches/pkijs@3.4.0.patch"
     }
   }
 }
