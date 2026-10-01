@@ -288,9 +288,7 @@ const syncUnitsForGroup = async (
   const createdUnits: RoomUnit[] = [];
   const surplusUnits = currentUnits.slice(desiredCount);
 
-  for (const unit of surplusUnits) {
-    await updateUnit({ ...unit, isActive: false });
-  }
+  await Promise.all(surplusUnits.map((unit) => updateUnit({ ...unit, isActive: false })));
 
   const missingCount = desiredCount - currentUnits.length;
   // A previously-deactivated unit under this same group can occupy the exact
