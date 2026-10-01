@@ -86,11 +86,17 @@ export const Default: Story = {
   name: 'A row per claim',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('Petsure')).toBeInTheDocument();
-    await expect(canvas.getByText('PS-2291')).toBeInTheDocument();
-    // Both decimals survive: 1240.6 must not print as "£1,241".
-    await expect(canvas.getByText('£1,240.60')).toBeInTheDocument();
-    await expect(canvas.getByText('£1,100.00')).toBeInTheDocument();
+    /* The insurer stacks over its policy number in one cell. All three fixture
+       claims share policy PS-2291, so the number is read inside Petsure's own cell
+       rather than from the whole table. */
+    const insurer = canvas.getByText('Petsure');
+    await expect(insurer.nextElementSibling).toHaveTextContent('PS-2291');
+    await expect(canvas.getAllByText('PS-2291')).toHaveLength(3);
+    /* Both decimals survive: 1240.6 must not print as "£1,241". The Agria claim was
+       approved in full, so the figure is its Submitted AND its Approved cell. */
+    const agria = within(canvas.getByText('Agria').closest('tr') as HTMLElement);
+    await expect(agria.getAllByText('£1,240.60')).toHaveLength(2);
+    await expect(agria.getByText('£1,100.00')).toBeInTheDocument();
     // A draft claim has no claim number and no settled amounts yet - all dashes.
     await expect(canvas.getAllByText('-').length).toBeGreaterThanOrEqual(2);
     await expect(canvas.getByText('Partially approved')).toBeInTheDocument();

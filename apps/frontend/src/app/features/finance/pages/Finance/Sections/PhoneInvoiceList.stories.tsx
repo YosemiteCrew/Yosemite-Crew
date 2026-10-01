@@ -80,9 +80,9 @@ const invoice = (over: Partial<Invoice> & Pick<Invoice, 'id' | 'status'>): Invoi
  * Three invoices chosen to cover every branch the card has: both border treatments
  * and all three footnotes.
  *
- * `formatMoney` runs at `maximumFractionDigits: 0`, so every figure is a whole number
- * on purpose - a 92.65 total would print as "$93" and make the assertions read as
- * though the arithmetic were wrong.
+ * Every figure on this screen, the KPI tiles included, prints to the penny (#2648), so
+ * a total of 114 reads "$114.00". The figures are whole numbers only to keep the
+ * arithmetic easy to check by eye.
  */
 const PAID = invoice({
   id: 'a1b2c3d4e5f60718293a4b5c',
@@ -196,7 +196,7 @@ const meta = {
           '**Three-line invoice cards.** Number and date, then avatar + identity + amount, then ' +
           'an optional footnote. Unpaid rows carry a 3px `--warn` left border, and "unpaid" here ' +
           'means outstanding **and** no deposit - a part-paid invoice loses the border and gains ' +
-          'a "Deposit $50 applied" footnote instead, which is the distinction the stories pin ' +
+          'a "Deposit $50.00 applied" footnote instead, which is the distinction the stories pin ' +
           'down.\n\n' +
           'The identity line is worth reading closely: it composes as ' +
           '`{owner first name} / {companion} · {owner surname} · {service}`, so a single line ' +
@@ -252,9 +252,9 @@ export const List: Story = {
        written by hand: $114 collected (one PAID invoice inside the trailing week) and
        $490 outstanding (240 owed in full, plus 250 still owed on the part-paid one -
        the settled invoice contributes nothing). */
-    await expect(tiles.children[0]).toHaveTextContent('$114');
+    await expect(tiles.children[0]).toHaveTextContent('$114.00');
     await expect(tiles.children[1]).toHaveTextContent('Outstanding');
-    await expect(tiles.children[1]).toHaveTextContent('$490');
+    await expect(tiles.children[1]).toHaveTextContent('$490.00');
 
     /* Outstanding is tinted and Collected is not, and that is the entire visual
        difference between the two tiles. Resolved BEFORE the poll, never inside it -
@@ -265,8 +265,8 @@ export const List: Story = {
     const ink = resolveToken(canvasElement, '--ink');
     // Scoped to the tiles: "$114" is printed twice on this screen, once here and once
     // on the paid invoice's card, and an unscoped query would find both and throw.
-    const outstandingFigure = within(tiles).getByText('$490');
-    const collectedFigure = within(tiles).getByText('$114');
+    const outstandingFigure = within(tiles).getByText('$490.00');
+    const collectedFigure = within(tiles).getByText('$114.00');
     await waitFor(() => {
       expect(getComputedStyle(outstandingFigure).color).toBe(warnInk);
       expect(getComputedStyle(collectedFigure).color).toBe(ink);
@@ -290,20 +290,20 @@ export const List: Story = {
        twice. Asserted verbatim because that is the string a reviewer should look at
        and decide about, not a fragment that would pass on half of it. */
     await expect(paid.getByText('Sky / Kizie · Doe · Dental consultation')).toBeInTheDocument();
-    await expect(paid.getByText('$114')).toBeInTheDocument();
+    await expect(paid.getByText('$114.00')).toBeInTheDocument();
     // Footnote branch 1: settled, so the payment method stands in for a balance.
     await expect(paid.getByText('Online payment')).toBeInTheDocument();
 
     const unpaid = within(card(canvasElement, '#INV-2026-0163'));
     await expect(unpaid.getByText('Aria / Milo · Blake · Vaccination')).toBeInTheDocument();
-    await expect(unpaid.getByText('$240')).toBeInTheDocument();
+    await expect(unpaid.getByText('$240.00')).toBeInTheDocument();
     // Footnote branch 2: nothing collected and nothing settled, so no footnote at all.
     await expect(unpaid.queryByText('Online payment')).not.toBeInTheDocument();
 
     const partPaid = within(card(canvasElement, '#INV-2026-0171'));
     // Footnote branch 3: a deposit outranks both other cases.
-    await expect(partPaid.getByText('Deposit $50 applied')).toBeInTheDocument();
-    await expect(partPaid.getByText('$300')).toBeInTheDocument();
+    await expect(partPaid.getByText('Deposit $50.00 applied')).toBeInTheDocument();
+    await expect(partPaid.getByText('$300.00')).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -364,12 +364,10 @@ export const FilteredToUnpaid: Story = {
     const group = rail(canvasElement);
     const pills = within(group).getAllByRole('button');
 
-    /* The active pill is the ONLY one painted: `getStatusPillStyle` returns a
-       transparent background for everything unselected, and lets the option's own
-       token set through for the selected one. So the rail's whole state is carried by
-       one background colour, with no ring, weight change or underline to back it up.
-       Read after the transition rather than in the same frame - these pills carry
-       `transition-opacity` and the badge inside them `transition-colors`. */
+    /* The active chip is the ONLY one filled: every unselected `FilterChip` is a
+       transparent outline, and the selected one takes the solid --chip-selected fill.
+       Read after the transition rather than in the same frame - the chips carry
+       `transition-colors`. */
     const active = within(group).getByRole('button', { name: 'Awaiting payment' });
     const inactive = within(group).getByRole('button', { name: 'Paid' });
     await expect(active).toHaveAttribute('aria-pressed', 'true');
@@ -378,11 +376,10 @@ export const FilteredToUnpaid: Story = {
       1
     );
 
-    const activeBadge = active.querySelector('.yc-status-pill') as HTMLElement;
-    const inactiveBadge = inactive.querySelector('.yc-status-pill') as HTMLElement;
+    const selectedBg = resolveToken(canvasElement, '--chip-selected-bg');
     await waitFor(() => {
-      expect(getComputedStyle(inactiveBadge).backgroundColor).toBe('rgba(0, 0, 0, 0)');
-      expect(getComputedStyle(activeBadge).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+      expect(getComputedStyle(inactive).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+      expect(getComputedStyle(active).backgroundColor).toBe(selectedBg);
     });
 
     // The list is filtered by the PAGE, not here - this component renders whatever
@@ -458,7 +455,7 @@ export const Empty: Story = {
        computed from ALL invoices rather than the filtered ones, so "$490 outstanding"
        above an empty list is correct rather than contradictory - and the rail is the
        only way back out of a filter that matched nothing. */
-    await expect(canvas.getByText('$490')).toBeInTheDocument();
+    await expect(canvas.getByText('$490.00')).toBeInTheDocument();
     await expect(within(rail(canvasElement)).getAllByRole('button')).toHaveLength(7);
 
     // The empty state is an <output>, announced politely, so a filter change that
@@ -505,7 +502,7 @@ export const UnlinkedInvoice: Story = {
 
     // Everything else still renders: number, date, status and amount are all read off
     // the invoice itself rather than the appointment.
-    await expect(row.getByText('$42')).toBeInTheDocument();
+    await expect(row.getByText('$42.00')).toBeInTheDocument();
     await expect(row.getByText('Pending')).toBeInTheDocument();
     /* The avatar falls back to the species default rather than disappearing, which is
        why the amount still sits at the same distance from the left edge. Queried as a

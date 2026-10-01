@@ -348,10 +348,12 @@ export const Default: Story = {
   name: 'Claims loaded',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    /* The count is a span inside the title, so the heading is matched by its full
+       accessible name - which also keeps it apart from the preview's sr-only story
+       title, another <h1> in the canvas. */
     await expect(
-      await canvas.findByRole('heading', { level: 1, name: /Insurance claims/ })
+      await canvas.findByRole('heading', { level: 1, name: 'Insurance claims (2)' })
     ).toBeVisible();
-    await expect(canvas.getByText('(2)')).toBeVisible();
     await expect(canvas.getByText('Petsure')).toBeVisible();
     await expect(canvas.getByText('Bought By Many')).toBeVisible();
   },
