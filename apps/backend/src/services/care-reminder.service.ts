@@ -634,9 +634,10 @@ export const CareReminderService = {
         },
       );
     // One at a time, so a full batch never outruns the mail provider's send rate.
-    for (const reminder of due) {
-      await sendOne(reminder);
-    }
+    await due.reduce<Promise<unknown>>(
+      (previous, reminder) => previous.then(() => sendOne(reminder)),
+      Promise.resolve(),
+    );
     return due.length;
   },
 
