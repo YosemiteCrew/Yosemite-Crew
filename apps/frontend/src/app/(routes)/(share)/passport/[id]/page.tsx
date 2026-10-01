@@ -1,16 +1,5 @@
 import type { Metadata } from 'next';
-import { Newsreader } from 'next/font/google';
 import PassportClient from './PassportClient';
-
-// Serif display face for the warm-bone passport surfaces (matches the design).
-// no-story: async server component that only unwraps a route param; real content is PassportClient, already storied
-const newsreader = Newsreader({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  style: ['normal', 'italic'],
-  variable: '--font-newsreader',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Pet Passport',
@@ -22,11 +11,7 @@ type PassportPageProps = { params: Promise<{ id: string }> };
 
 const PassportPage = async ({ params }: PassportPageProps) => {
   const { id } = await params;
-  return (
-    <div className={newsreader.variable}>
-      <PassportClient id={id} />
-    </div>
-  );
+  return <PassportClient id={id} />;
 };
 
 export default PassportPage;
