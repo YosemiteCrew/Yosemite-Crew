@@ -34,23 +34,30 @@ export function useMicrophoneCapture(): MicrophoneCapture {
 
   const startCapture = useCallback(async (onStopped: (chunks: Blob[]) => void) => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    onStoppedRef.current = onStopped;
-    if (!liveRef.current) {
-      // The panel went away while the browser was still asking for the
-      // microphone. Release it rather than opening a recorder nobody can stop.
+    try {
+      onStoppedRef.current = onStopped;
+      if (!liveRef.current) {
+        // The panel went away while the browser was still asking for the
+        // microphone. Release it rather than opening a recorder nobody can stop.
+        stream.getTracks().forEach((track) => track.stop());
+        return false;
+      }
+      const recorder = new MediaRecorder(stream, { mimeType: getMediaRecorderType() });
+      chunksRef.current = [];
+      stopRequestedRef.current = false;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => onStoppedRef.current?.(chunksRef.current);
+      recorderRef.current = recorder;
+      recorder.start(50);
+      return true;
+    } catch (error) {
+      recorderRef.current = null;
+      onStoppedRef.current = null;
       stream.getTracks().forEach((track) => track.stop());
-      return false;
+      throw error;
     }
-    const recorder = new MediaRecorder(stream, { mimeType: getMediaRecorderType() });
-    chunksRef.current = [];
-    stopRequestedRef.current = false;
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunksRef.current.push(event.data);
-    };
-    recorder.onstop = () => onStoppedRef.current?.(chunksRef.current);
-    recorderRef.current = recorder;
-    recorder.start(50);
-    return true;
   }, []);
 
   const requestStop = useCallback(() => {

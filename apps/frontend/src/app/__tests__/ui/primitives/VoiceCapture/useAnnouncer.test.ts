@@ -20,12 +20,12 @@ describe('useAnnouncer', () => {
   });
 
   it('replaces the message so repeated announcements are re-read', () => {
-    const region = document.createElement('div');
+    const region = document.createElement('output');
     document.body.appendChild(region);
     const { result } = renderHook(() => useAnnouncer(), {
       // Bind the hook's ref to a real element the way the panel does.
     });
-    (result.current.liveRegionRef as { current: HTMLDivElement | null }).current = region;
+    (result.current.liveRegionRef as { current: HTMLOutputElement | null }).current = region;
 
     result.current.announce('Recording started');
     jest.runAllTimers();
@@ -39,9 +39,9 @@ describe('useAnnouncer', () => {
   });
 
   it('cancels a pending announcement when the panel goes away', () => {
-    const region = document.createElement('div');
+    const region = document.createElement('output');
     const { result, unmount } = renderHook(() => useAnnouncer());
-    (result.current.liveRegionRef as { current: HTMLDivElement | null }).current = region;
+    (result.current.liveRegionRef as { current: HTMLOutputElement | null }).current = region;
 
     result.current.announce('Recording started');
     unmount();

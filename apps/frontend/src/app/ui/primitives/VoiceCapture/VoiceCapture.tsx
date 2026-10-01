@@ -25,12 +25,12 @@ import { useVoiceRecordingSession, type VoiceCaptureState } from './useVoiceReco
 export type { VoiceCaptureState };
 
 export interface VoiceCaptureProps {
-  onTranscript?: (transcript: string) => void;
-  onCorrection?: (original: string, corrected: string) => void;
-  onStop?: () => void;
-  placeholder?: string;
-  transcriber?: SpeechTranscriptionAdapter;
-  className?: string;
+  readonly onTranscript?: (transcript: string) => void;
+  readonly onCorrection?: (original: string, corrected: string) => void;
+  readonly onStop?: () => void;
+  readonly placeholder?: string;
+  readonly transcriber?: SpeechTranscriptionAdapter;
+  readonly className?: string;
 }
 
 const STATE_LABELS: Record<VoiceCaptureState, string> = {
@@ -131,11 +131,8 @@ const VoiceCaptureControls = ({
       </div>
 
       {(showPlaybackRow || (state === 'idle' && isPlaying)) && (
-        <div
-          className="flex shrink-0 items-center gap-2"
-          role="group"
-          aria-label="Playback controls"
-        >
+        <fieldset className="m-0 flex shrink-0 items-center gap-2 border-0 p-0">
+          <legend className="sr-only">Playback controls</legend>
           <button
             type="button"
             aria-label={isPlaying ? 'Pause playback' : 'Play recording'}
@@ -165,7 +162,7 @@ const VoiceCaptureControls = ({
           >
             <IoCloseOutline className="h-5 w-5" />
           </button>
-        </div>
+        </fieldset>
       )}
     </div>
   );
@@ -264,15 +261,19 @@ export function VoiceCapture({
   const { state, text, errorMessage } = session;
 
   return (
-    <div
+    <section
       className={clsx(
         'relative flex flex-col gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-4',
         className
       )}
-      role="region"
       aria-label="Voice capture"
     >
-      <div ref={liveRegionRef} role="status" aria-atomic="true" className="sr-only" />
+      <output
+        ref={liveRegionRef}
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      />
 
       <VoiceCaptureControls
         state={state}
@@ -316,7 +317,7 @@ export function VoiceCapture({
         onRetry={session.retry}
         onConfirm={session.confirm}
       />
-    </div>
+    </section>
   );
 }
 

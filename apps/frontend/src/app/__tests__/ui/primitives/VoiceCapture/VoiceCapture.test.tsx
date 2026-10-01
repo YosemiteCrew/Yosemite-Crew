@@ -159,6 +159,20 @@ describe('VoiceCapture', () => {
     expect(onCorrection).not.toHaveBeenCalled();
   });
 
+  it('uses native landmarks for the capture area and playback controls', async () => {
+    const user = userEvent.setup();
+    const transcriber = makeSupportedTranscriber();
+    const { container } = render(<VoiceCapture transcriber={transcriber} />);
+
+    expect(screen.getByRole('region', { name: 'Voice capture' })).toBeInTheDocument();
+    expect(container.querySelector('output')).toBeInTheDocument();
+
+    await startListening(user);
+    await stopRecordingFor(user);
+
+    expect(screen.getByRole('group', { name: 'Playback controls' })).toBeInTheDocument();
+  });
+
   it('starts listening on mic press, streams captions, and lands in the review state', async () => {
     const user = userEvent.setup();
     const transcriber = makeSupportedTranscriber();
@@ -420,6 +434,37 @@ describe('VoiceCapture', () => {
       errorSpy.mockRestore();
     }
   });
+
+  it.each(['construction', 'start'] as const)(
+    'releases the microphone when recorder %s fails',
+    async (failureStage) => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const user = userEvent.setup();
+        const transcriber = makeSupportedTranscriber();
+        const recorder = global.MediaRecorder as unknown as jest.Mock;
+        recorder.mockImplementationOnce(() => {
+          if (failureStage === 'construction') {
+            throw new DOMException('unsupported', 'NotSupportedError');
+          }
+          const instance = createMediaRecorder();
+          instance.start.mockImplementationOnce(() => {
+            throw new DOMException('unsupported', 'NotSupportedError');
+          });
+          return instance;
+        });
+        render(<VoiceCapture transcriber={transcriber} />);
+
+        await user.click(screen.getByLabelText('Start voice recording'));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Voice capture failed');
+        expect(mockTrack.stop).toHaveBeenCalledTimes(1);
+        expect(transcriber.startCalls).toBe(0);
+      } finally {
+        errorSpy.mockRestore();
+      }
+    }
+  );
 
   it('drops the mimeType hint when the browser lacks supported encoders', async () => {
     const user = userEvent.setup();
