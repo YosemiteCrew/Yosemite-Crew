@@ -6,6 +6,7 @@ import { OrganizationService } from "./organization.service";
 import { UserOrganizationService } from "./user-organization.service";
 import { DeveloperBillingService } from "./developer-billing.service";
 import { prisma } from "src/config/prisma";
+import { mapInSequence } from "../utils/async-iteration";
 import {
   practitionerReferenceFilter,
   resolveCanonicalUserId,
@@ -271,9 +272,9 @@ export const UserService = {
     // Sequential, and via the service rather than a raw delete: deleteById releases the
     // organisation's member slot and re-syncs Stripe seats, so a direct delete here would
     // leave usersActiveCount and the billed seat count overstated.
-    for (const mapping of mappings) {
-      await UserOrganizationService.deleteById(mapping.id);
-    }
+    await mapInSequence(mappings, (mapping) =>
+      UserOrganizationService.deleteById(mapping.id),
+    );
 
     // The developer's API keys, subscription and usage counters are keyed on
     // the user, not on an organisation, so removing organisation memberships
@@ -310,9 +311,9 @@ export const UserService = {
       return false;
     }
 
-    for (const organizationId of ownerOrganizationIds) {
-      await OrganizationService.deleteById(organizationId);
-    }
+    await mapInSequence([...ownerOrganizationIds], (organizationId) =>
+      OrganizationService.deleteById(organizationId),
+    );
 
     return true;
   },

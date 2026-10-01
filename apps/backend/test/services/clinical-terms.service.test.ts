@@ -168,6 +168,69 @@ describe("ClinicalTermsService", () => {
     });
   });
 
+  describe("importConcepts ordering", () => {
+    const concept = (ycCode: string, codes: string[]) => ({
+      ycCode,
+      label: ycCode,
+      domain: "Diagnosis",
+      active: true,
+      source: "VeNom",
+      designations: [],
+      codes: codes.map((code) => ({
+        system: "urn:venom",
+        code,
+        display: code,
+        equivalence: "equivalent",
+      })),
+      species: [],
+    });
+
+    it("writes each term and then its codings, one at a time", async () => {
+      const writes: string[] = [];
+      (CodeService.upsertEntry as jest.Mock).mockImplementation(
+        async (entry: { code: string }) => {
+          writes.push(`entry:${entry.code}`);
+        },
+      );
+      (CodeService.upsertMapping as jest.Mock).mockImplementation(
+        async (mapping: { targetCode: string }) => {
+          writes.push(`mapping:${mapping.targetCode}`);
+        },
+      );
+
+      const result = await ClinicalTermsService.importConcepts([
+        concept("YC-1", ["a", "b"]),
+        concept("YC-2", ["c"]),
+      ] as never);
+
+      expect(writes).toEqual([
+        "entry:YC-1",
+        "mapping:a",
+        "mapping:b",
+        "entry:YC-2",
+        "mapping:c",
+      ]);
+      expect(result).toEqual({ entriesUpserted: 2, mappingsUpserted: 3 });
+    });
+
+    it("stops at the first failed write", async () => {
+      (CodeService.upsertEntry as jest.Mock).mockResolvedValue(undefined);
+      (CodeService.upsertMapping as jest.Mock).mockRejectedValueOnce(
+        new Error("write failed"),
+      );
+
+      await expect(
+        ClinicalTermsService.importConcepts([
+          concept("YC-1", ["a", "b"]),
+          concept("YC-2", ["c"]),
+        ] as never),
+      ).rejects.toThrow("write failed");
+
+      expect(CodeService.upsertMapping).toHaveBeenCalledTimes(1);
+      expect(CodeService.upsertEntry).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("equivalence", () => {
     const concept = (equivalence: string) => ({
       ycCode: "YC-9",

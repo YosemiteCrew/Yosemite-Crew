@@ -9,6 +9,7 @@ import {
 } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
+import { mapInSequence } from "src/utils/async-iteration";
 import { NotificationService } from "./notification.service";
 import { cleanupCachedCells, refreshCell } from "./parasite-risk.service";
 import { PARASITE_ALERT_LABELS } from "src/utils/parasiteLabels";
@@ -257,6 +258,23 @@ async function processSubscription(
 }
 
 /**
+ * Refresh one cell and alert its followers in turn. Resolves to the number of
+ * alerts sent, or null when the cell could not be refreshed.
+ */
+async function refreshCellAndAlertFollowers(
+  rows: SubscriptionRow[],
+  notifiableParentIds: ReadonlySet<string>,
+): Promise<number | null> {
+  const reading = await refreshCellForFollowers(rows);
+  if (reading === null) return null;
+
+  const sent = await mapInSequence(rows, (row) =>
+    processSubscription(row, reading, notifiableParentIds),
+  );
+  return sent.filter(Boolean).length;
+}
+
+/**
  * Refresh every followed cell once, then alert the parents who follow it.
  *
  * Cells are deduplicated first so that a hundred users in the same city cost
@@ -287,20 +305,18 @@ export async function refreshFollowedCells(): Promise<RefreshSummary> {
     alertsSent: 0,
   };
 
-  for (const rows of groupByCell(subscriptions).values()) {
-    const reading = await refreshCellForFollowers(rows);
-
-    if (reading === null) {
+  // Cells and their followers are handled one at a time, in the same order as
+  // before, so weather requests and notifications are not sent in bursts.
+  const outcomes = await mapInSequence(
+    [...groupByCell(subscriptions).values()],
+    (rows) => refreshCellAndAlertFollowers(rows, notifiableParentIds),
+  );
+  for (const outcome of outcomes) {
+    if (outcome === null) {
       summary.cellsFailed += 1;
-      continue;
-    }
-
-    summary.cellsRefreshed += 1;
-
-    for (const row of rows) {
-      if (await processSubscription(row, reading, notifiableParentIds)) {
-        summary.alertsSent += 1;
-      }
+    } else {
+      summary.cellsRefreshed += 1;
+      summary.alertsSent += outcome;
     }
   }
 

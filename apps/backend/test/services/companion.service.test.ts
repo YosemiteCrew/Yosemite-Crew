@@ -277,6 +277,54 @@ describe("CompanionService", () => {
     );
   });
 
+  it("creates default tasks one at a time in library order", async () => {
+    const { TaskLibraryService } =
+      await import("../../src/services/taskLibrary.service");
+    const { TaskService } = await import("../../src/services/task.service");
+    const createFromLibrary = TaskService.createFromLibrary as jest.Mock;
+    createFromLibrary.mockReset();
+    let releaseFirst!: (value: unknown) => void;
+    createFromLibrary
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce({});
+
+    mockedPrisma.parentPatient.findFirst.mockResolvedValueOnce(null);
+    mockedPrisma.codeEntry.findFirst.mockResolvedValueOnce({ id: "species-1" });
+    mockedPrisma.patient.create.mockResolvedValueOnce(createdPatient);
+    (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValueOnce({
+      id: "parent-1",
+    });
+    (ParentCompanionService.linkParent as jest.Mock).mockResolvedValueOnce({
+      parentId: "parent-1",
+      role: "PRIMARY",
+      status: "ACTIVE",
+      permissions: {},
+    });
+    (TaskLibraryService.listForSpecies as jest.Mock).mockResolvedValueOnce([
+      { id: "task-lib-1", schema: null },
+      { id: "task-lib-2", schema: null },
+    ]);
+
+    await CompanionService.create(companionPayload, {
+      parentId: "parent-1",
+      organisationId: "org-1",
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(createFromLibrary).toHaveBeenCalledTimes(1);
+
+    releaseFirst({});
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(
+      createFromLibrary.mock.calls.map(([input]) => input.libraryTaskId),
+    ).toEqual(["task-lib-1", "task-lib-2"]);
+  });
+
   it("strips line breaks from an invalid species code before logging it", async () => {
     const logger = (await import("src/utils/logger")).default;
     (logger.warn as jest.Mock).mockClear();

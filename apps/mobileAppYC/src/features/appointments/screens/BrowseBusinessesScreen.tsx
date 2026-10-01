@@ -42,6 +42,7 @@ import {useLocationPermission} from '../hooks/useLocationPermission';
 import {useClinicMapDiscovery} from '../hooks/useClinicMapDiscovery';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 type Fallbacks = Record<
@@ -152,7 +153,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
   }, [selectedCompanion, targetCompanionId]);
 
   const handlePmsSelection = useCallback(
-    async (selection: ResolvedBusinessSelection) => {
+    (selection: ResolvedBusinessSelection) => {
       const payload = mapSelectionToVetBusiness(selection);
       dispatch(upsertBusiness(payload));
       pinAndSelectClinicRef.current(payload);
@@ -162,7 +163,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
   );
 
   const handleNonPmsSelection = useCallback(
-    async (selection: ResolvedBusinessSelection) => {
+    (selection: ResolvedBusinessSelection) => {
       if (!ensureCompanion() || !targetCompanionId || !selectedCompanion)
         return;
       navigation
@@ -233,11 +234,13 @@ export const BrowseBusinessesScreen: React.FC = () => {
       const query = trimmed
         ? {serviceName: trimmed, ...coords}
         : (coords ?? {});
-      dispatch(
-        fetchBusinesses(
-          shouldSkipLocationLookup
-            ? {...query, skipLocationLookup: true}
-            : query,
+      runInBackground(
+        dispatch(
+          fetchBusinesses(
+            shouldSkipLocationLookup
+              ? {...query, skipLocationLookup: true}
+              : query,
+          ),
         ),
       );
     },
@@ -312,7 +315,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
   useEffect(() => {
     reduxBusinesses.forEach(biz => {
       if (needsPhotoFetch(biz) || needsContactFetch(biz)) {
-        requestBusinessDetails(biz);
+        runInBackground(requestBusinessDetails(biz));
       }
     });
   }, [reduxBusinesses, requestBusinessDetails]);

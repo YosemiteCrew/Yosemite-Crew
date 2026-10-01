@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
+import { mapInSequence, mapWithConcurrency } from "../utils/async-iteration";
 import {
   ControlledSubstanceLogService,
   QUANTITY_TOLERANCE,
@@ -16,6 +17,7 @@ import {
   resolveDrugUnit,
   resolveItemDeaSchedule,
 } from "./controlled-substance-dispense";
+import { PrescriptionFillAuthorisationService } from "./prescription-fill-authorisation.service";
 
 export class InventoryConsumptionServiceError extends Error {
   constructor(
@@ -1085,32 +1087,40 @@ const requireInventoryItemForAdjustment = async (
 const finalizeInventoryAdjustment = async (
   tx: Prisma.TransactionClient,
   params: InventoryConsumptionApplyParams,
-  item: { allocated: number | null },
   allocatedDirection: 1 | -1,
   action: InventoryConsumptionAction,
 ) => {
-  const onHand = await updateInventoryItemOnHand(
+  const locked = await lockItemAndSumOnHand(
     tx,
     params.organisationId,
     params.inventoryItemId,
   );
-  const allocated =
-    params.stockSource === "ALLOCATED"
-      ? Math.max(
-          0,
-          (item.allocated ?? 0) + allocatedDirection * params.quantity,
-        )
-      : (item.allocated ?? 0);
+  const onHand = locked.onHand;
+  // Checked again under the item lock: the check before the batches moved read
+  // an unlocked item, so a concurrent dispense could have taken the same
+  // unreserved units. Throwing here rolls back the whole dispense.
+  if (
+    allocatedDirection === -1 &&
+    params.stockSource !== "ALLOCATED" &&
+    onHand < locked.allocated
+  ) {
+    throw new InventoryConsumptionServiceError("Insufficient stock", 400);
+  }
+  const allocated = Math.max(
+    0,
+    locked.allocated + allocatedDirection * params.quantity,
+  );
   await tx.inventoryItem.update({
     where: { id: params.inventoryItemId },
     data:
       params.stockSource === "ALLOCATED" ? { onHand, allocated } : { onHand },
   });
 
-  return createInventoryConsumptionAppliedEvent(
+  const event = await createInventoryConsumptionAppliedEvent(
     tx,
     toConsumptionEventParams({ ...params, action }),
   );
+  return { event, onHand };
 };
 
 // #3142: controlled stock must never move without a controlled substance
@@ -1160,13 +1170,17 @@ const recordControlledSubstanceDispense = async (
     args.item.stockUnitType,
     args.item.unitOfMeasure,
   );
+  // The running balance is worked out up front; the register rows are then
+  // written in draw order on the transaction client.
   let balance = args.openingOnHand;
-
-  for (const draw of args.draws) {
+  const entries = args.draws.map((draw) => {
     const balanceBefore = balance;
     balance -= draw.quantity;
+    return { draw, balanceBefore, balanceAfter: balance };
+  });
 
-    await ControlledSubstanceLogService.create(
+  await mapInSequence(entries, ({ draw, balanceBefore, balanceAfter }) =>
+    ControlledSubstanceLogService.create(
       {
         organisationId: args.organisationId,
         loggedAt: new Date(),
@@ -1177,13 +1191,13 @@ const recordControlledSubstanceDispense = async (
         amountDrawn: draw.quantity,
         amountAdministered: draw.quantity,
         balanceBefore,
-        balanceAfter: balance,
+        balanceAfter,
         sourceEventId: args.eventId,
         inventoryBatchId: draw.batchId,
       },
       tx,
-    );
-  }
+    ),
+  );
 };
 
 // The release path restores stock, so it never refuses: an item that lost its
@@ -1213,8 +1227,8 @@ const reverseControlledSubstanceDispense = async (
   });
   if (!consumeEvent) return;
 
-  for (const restore of args.restored) {
-    await ControlledSubstanceLogService.reverseDispenseEntry(tx, {
+  await mapInSequence(args.restored, (restore) =>
+    ControlledSubstanceLogService.reverseDispenseEntry(tx, {
       organisationId: args.params.organisationId,
       sourceEventId: consumeEvent.id,
       inventoryBatchId: restore.batchId,
@@ -1223,8 +1237,8 @@ const reverseControlledSubstanceDispense = async (
       ...(args.params.movementReason
         ? { reason: args.params.movementReason }
         : {}),
-    });
-  }
+    }),
+  );
 };
 
 // Movements carry no batch when the consumption did not draw from one, so the
@@ -1255,6 +1269,31 @@ const outstandingByBatch = (
   return outstanding;
 };
 
+type PlannedRestore = { batchId: string | null; quantity: number };
+
+// Puts one planned restore back: the batch quantity first, then its movement.
+const restoreReleasedStock = async (
+  tx: Prisma.TransactionClient,
+  params: InventoryConsumptionApplyParams,
+  restore: PlannedRestore,
+) => {
+  if (restore.batchId) {
+    await tx.inventoryBatch.update({
+      where: { id: restore.batchId },
+      data: { quantity: { increment: restore.quantity } },
+    });
+  }
+  return tx.inventoryStockMovement.create({
+    data: {
+      itemId: params.inventoryItemId,
+      batchId: restore.batchId ?? undefined,
+      change: restore.quantity,
+      reason: params.movementReason ?? "PRESCRIPTION_RELEASE",
+      referenceId: params.sourceId,
+    },
+  });
+};
+
 const applyInventoryRelease = async (
   tx: Prisma.TransactionClient,
   params: InventoryConsumptionApplyParams,
@@ -1272,7 +1311,7 @@ const applyInventoryRelease = async (
   const releaseLockKey = `inventory-release:${params.inventoryItemId}`;
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${releaseLockKey}))`;
 
-  const item = await requireInventoryItemForAdjustment(tx, params);
+  await requireInventoryItemForAdjustment(tx, params);
 
   // Both signs, because the positives are what bounds this release.
   const movements = await tx.inventoryStockMovement.findMany({
@@ -1321,6 +1360,8 @@ const applyInventoryRelease = async (
   // recording one reversal for what it actually put back in that lot.
   const restoredByBatch = new Map<string, number>();
 
+  // Plan every restore first, then write them in movement order.
+  const restores: PlannedRestore[] = [];
   let remainingRelease = params.quantity;
   for (const movement of consumptions) {
     if (remainingRelease <= QUANTITY_TOLERANCE) break;
@@ -1341,28 +1382,19 @@ const applyInventoryRelease = async (
 
     remainingRelease -= restore;
     outstanding.set(key, batchOutstanding - restore);
+    restores.push({ batchId: movement.batchId ?? null, quantity: restore });
 
     if (movement.batchId) {
-      await tx.inventoryBatch.update({
-        where: { id: movement.batchId },
-        data: { quantity: { increment: restore } },
-      });
       restoredByBatch.set(
         movement.batchId,
         (restoredByBatch.get(movement.batchId) ?? 0) + restore,
       );
     }
-
-    await tx.inventoryStockMovement.create({
-      data: {
-        itemId: params.inventoryItemId,
-        batchId: movement.batchId ?? undefined,
-        change: restore,
-        reason: params.movementReason ?? "PRESCRIPTION_RELEASE",
-        referenceId: params.sourceId,
-      },
-    });
   }
+
+  await mapInSequence(restores, (restore) =>
+    restoreReleasedStock(tx, params, restore),
+  );
 
   // A backstop the guard above should keep unreachable: the loop can restore
   // exactly `totalOutstanding`, and nothing larger got past that check. Left in
@@ -1375,13 +1407,7 @@ const applyInventoryRelease = async (
     );
   }
 
-  const event = await finalizeInventoryAdjustment(
-    tx,
-    params,
-    item,
-    1,
-    "RELEASE",
-  );
+  const { event } = await finalizeInventoryAdjustment(tx, params, 1, "RELEASE");
 
   // Deliberately not gated on `item.controlledItem`. That flag is re-read here
   // at release time and is an ordinary editable boolean, so unticking it after
@@ -1402,6 +1428,9 @@ const applyInventoryRelease = async (
 
   return event;
 };
+
+const STOCK_CHANGED_MESSAGE =
+  "Stock for this item changed while the dispense was being recorded. Try again.";
 
 const applyInventoryConsumption = async (
   tx: Prisma.TransactionClient,
@@ -1425,7 +1454,6 @@ const applyInventoryConsumption = async (
   // Refused before any stock moves, so a controlled item with no schedule
   // fails the dispense outright rather than half-applying it.
   const deaSchedule = requireDispenseDeaSchedule(item);
-  const openingOnHand = item.onHand ?? 0;
   const draws: {
     batchId: string;
     quantity: number;
@@ -1450,22 +1478,6 @@ const applyInventoryConsumption = async (
 
     const consume = Math.min(available, remaining);
     remaining -= consume;
-
-    await tx.inventoryBatch.update({
-      where: { id: batch.id },
-      data: { quantity: { decrement: consume } },
-    });
-
-    await tx.inventoryStockMovement.create({
-      data: {
-        itemId: params.inventoryItemId,
-        batchId: batch.id,
-        change: -consume,
-        reason: params.movementReason ?? "MANUAL_ADJUSTMENT",
-        referenceId: params.sourceId,
-      },
-    });
-
     draws.push({
       batchId: batch.id,
       quantity: consume,
@@ -1480,10 +1492,45 @@ const applyInventoryConsumption = async (
     );
   }
 
-  const event = await finalizeInventoryAdjustment(
+  // One conditional write for every batch drawn from: a row is only written if
+  // it still holds what this draw needs. A concurrent dispense or count that
+  // took from it since matches no row, and the whole dispense is refused
+  // rather than taking the batch below zero.
+  const claimed = await tx.$executeRaw`
+    UPDATE "InventoryBatch" AS b
+    SET "quantity" = b."quantity" - v."quantity", "updatedAt" = NOW()
+    FROM (VALUES ${Prisma.join(
+      draws.map(
+        ({ batchId, quantity }) =>
+          Prisma.sql`(${batchId}::text, ${quantity}::int)`,
+      ),
+    )}) AS v("id", "quantity")
+    WHERE b."id" = v."id"
+      AND b."organisationId" = ${params.organisationId}
+      AND b."quantity" >= v."quantity"
+  `;
+  if (claimed !== draws.length) {
+    throw new InventoryConsumptionServiceError(STOCK_CHANGED_MESSAGE, 409);
+  }
+
+  // Increasing timestamps in draw order, as one insert per draw used to give:
+  // a release walks these newest first, so it keeps restoring the last batch
+  // drawn before the first.
+  const drawnAt = Date.now();
+  await tx.inventoryStockMovement.createMany({
+    data: draws.map(({ batchId, quantity }, index) => ({
+      itemId: params.inventoryItemId,
+      batchId,
+      change: -quantity,
+      reason: params.movementReason ?? "MANUAL_ADJUSTMENT",
+      referenceId: params.sourceId,
+      createdAt: new Date(drawnAt + index),
+    })),
+  });
+
+  const { event, onHand } = await finalizeInventoryAdjustment(
     tx,
     params,
-    item,
     -1,
     "CONSUME",
   );
@@ -1494,7 +1541,9 @@ const applyInventoryConsumption = async (
       item,
       deaSchedule,
       eventId: event.id,
-      openingOnHand,
+      // From the stock read under the item lock, not the unlocked read above,
+      // so two concurrent dispenses cannot both start from the same balance.
+      openingOnHand: onHand + params.quantity,
       draws,
     });
   }
@@ -1614,11 +1663,27 @@ const resolveInventoryItemIdByBatch = async (
   return batch ?? null;
 };
 
-const updateInventoryItemOnHand = async (
+/**
+ * Locks the item row, then sums its batches. The batch rows this transaction
+ * wrote are already locked, so this keeps the batch-then-item order the count
+ * path uses, and a change to another batch of this item that commits while we
+ * wait is included in the sum instead of overwritten. Two statements on
+ * purpose: the sum must be read after the lock is granted.
+ */
+const lockItemAndSumOnHand = async (
   tx: Prisma.TransactionClient,
   organisationId: string,
   inventoryItemId: string,
 ) => {
+  const [lockedItem] = await tx.$queryRaw<{ allocated: number }[]>`
+    SELECT "allocated" FROM "InventoryItem"
+    WHERE "id" = ${inventoryItemId}
+      AND "organisationId" = ${organisationId}
+    FOR UPDATE
+  `;
+  if (!lockedItem) {
+    throw new InventoryConsumptionServiceError("Inventory item not found", 404);
+  }
   const batchesAfter = await tx.inventoryBatch.findMany({
     where: { itemId: inventoryItemId, organisationId },
   });
@@ -1627,12 +1692,7 @@ const updateInventoryItemOnHand = async (
     0,
   );
 
-  await tx.inventoryItem.update({
-    where: { id: inventoryItemId },
-    data: { onHand },
-  });
-
-  return onHand;
+  return { onHand, allocated: lockedItem.allocated };
 };
 
 const createInventoryConsumptionEvent = (
@@ -1668,8 +1728,6 @@ const consumeResolvedLines = async (
       400,
     );
   }
-  if (!resolvedLines.length) return [];
-
   const action = request.action ?? "CONSUME";
   const idempotencyBase = buildIdempotencyKey({
     ...request,
@@ -1678,8 +1736,7 @@ const consumeResolvedLines = async (
     action,
   });
 
-  const events = [];
-  for (const line of resolvedLines) {
+  return mapInSequence(resolvedLines, (line) => {
     const quantity = ensureQuantity(line.quantity);
     const inventoryItemId = asNonEmptyString(line.inventoryItemId);
     if (!inventoryItemId) {
@@ -1688,7 +1745,7 @@ const consumeResolvedLines = async (
         400,
       );
     }
-    const event = await consumeInventoryItem(tx, {
+    return consumeInventoryItem(tx, {
       organisationId,
       inventoryItemId,
       quantity,
@@ -1702,9 +1759,7 @@ const consumeResolvedLines = async (
       movementReason: options?.movementReason,
       stockSource: options?.stockSource,
     });
-    events.push(event);
-  }
-  return events;
+  });
 };
 
 const normalizePrescriptionLines = (medications: unknown) => {
@@ -1899,9 +1954,9 @@ const runPrescriptionInventoryActionInTx = async (
   });
 };
 
-const runPrescriptionInventoryAction = async (
+const runPrescriptionInventoryAction = (
   params: PrescriptionInventoryActionParams,
-) =>
+): Promise<Awaited<ReturnType<typeof runPrescriptionInventoryActionInTx>>> =>
   prisma.$transaction((tx) => runPrescriptionInventoryActionInTx(tx, params));
 
 const buildVoidDispenseActionParams = (params: {
@@ -2176,14 +2231,16 @@ const hydrateDispenseRequest = async (
 };
 
 export const InventoryConsumptionService = {
-  async upsertRule(input: InventoryConsumptionRuleInput) {
+  upsertRule(input: InventoryConsumptionRuleInput) {
     const organisationId = asNonEmptyString(input.organisationId);
     const sourceKey = asNonEmptyString(input.sourceKey);
     const inventoryItemId = asNonEmptyString(input.inventoryItemId);
     if (!organisationId || !sourceKey || !inventoryItemId) {
-      throw new InventoryConsumptionServiceError(
-        "organisationId, sourceKey, and inventoryItemId are required",
-        400,
+      return Promise.reject(
+        new InventoryConsumptionServiceError(
+          "organisationId, sourceKey, and inventoryItemId are required",
+          400,
+        ),
       );
     }
 
@@ -2213,12 +2270,11 @@ export const InventoryConsumptionService = {
     });
   },
 
-  async listRules(organisationId: string) {
+  listRules(organisationId: string) {
     const safeOrganisationId = asNonEmptyString(organisationId);
     if (!safeOrganisationId) {
-      throw new InventoryConsumptionServiceError(
-        "organisationId is required",
-        400,
+      return Promise.reject(
+        new InventoryConsumptionServiceError("organisationId is required", 400),
       );
     }
 
@@ -2289,7 +2345,7 @@ export const InventoryConsumptionService = {
     return hydrateDispenseRequest(prisma, request);
   },
 
-  async createPrescriptionDispenseRequest(
+  createPrescriptionDispenseRequest(
     params: PrescriptionDispenseRequestCreateParams,
   ) {
     return prisma.$transaction((tx) =>
@@ -2353,7 +2409,7 @@ export const InventoryConsumptionService = {
     });
   },
 
-  async approvePrescriptionDispenseRequest(params: {
+  approvePrescriptionDispenseRequest(params: {
     organisationId: string;
     prescriptionId: string;
     medications: unknown;
@@ -2363,9 +2419,11 @@ export const InventoryConsumptionService = {
     const organisationId = asNonEmptyString(params.organisationId);
     const prescriptionId = asNonEmptyString(params.prescriptionId);
     if (!organisationId || !prescriptionId) {
-      throw new InventoryConsumptionServiceError(
-        "organisationId and prescriptionId are required",
-        400,
+      return Promise.reject(
+        new InventoryConsumptionServiceError(
+          "organisationId and prescriptionId are required",
+          400,
+        ),
       );
     }
 
@@ -2398,6 +2456,33 @@ export const InventoryConsumptionService = {
       const metadata = request.metadata ?? params.metadata;
       const stockSource =
         resolveDispenseStockSourceFromMetadata(metadata) ?? "NORMAL";
+
+      // Each line that names a prescription item spends one authorised fill,
+      // in this transaction and before any stock moves, so a refused fill
+      // leaves the stock untouched. Chained rather than run together: one
+      // transaction client runs one query at a time, and each fill takes its
+      // item's lock in line order.
+      const fills = (Array.isArray(medications) ? medications : []).flatMap(
+        (medication) => {
+          const line = toRecord(medication);
+          const itemId = asNonEmptyString(line.prescriptionItemId);
+          const quantity = resolveDispenseTotalUnits(line);
+          return itemId && quantity !== undefined ? [{ itemId, quantity }] : [];
+        },
+      );
+      await fills.reduce<Promise<unknown>>(
+        (previous, fill) =>
+          previous.then(() =>
+            PrescriptionFillAuthorisationService.recordDispensedFillInTx(tx, {
+              organisationId,
+              itemId: fill.itemId,
+              dispenseRequestId: request.id,
+              quantity: fill.quantity,
+              dispensedBy: params.reviewedBy,
+            }),
+          ),
+        Promise.resolve(),
+      );
 
       const inventoryEvents = await consumePrescriptionMedications(tx, {
         organisationId,
@@ -2540,9 +2625,9 @@ export const InventoryConsumptionService = {
     });
   },
 
-  async consume(request: InventoryConsumptionRequest) {
+  consume(request: InventoryConsumptionRequest) {
     if (!Array.isArray(request.lines) || request.lines.length === 0) {
-      return [];
+      return Promise.resolve([]);
     }
 
     return prisma.$transaction(async (tx) => {
@@ -2566,8 +2651,7 @@ export const InventoryConsumptionService = {
         action,
       });
 
-      const events = [];
-      for (const line of request.lines) {
+      return mapInSequence(request.lines, async (line) => {
         const quantity = ensureQuantity(line.quantity);
         const inventoryItemId = asNonEmptyString(line.inventoryItemId);
         const inventoryItemSku = asNonEmptyString(line.inventoryItemSku);
@@ -2588,7 +2672,7 @@ export const InventoryConsumptionService = {
           );
         }
 
-        const event = await consumeInventoryItem(tx, {
+        return consumeInventoryItem(tx, {
           organisationId,
           inventoryItemId: resolvedInventoryItemId,
           quantity,
@@ -2601,9 +2685,7 @@ export const InventoryConsumptionService = {
           batchId: line.batchId,
           stockSource,
         });
-        events.push(event);
-      }
-      return events;
+      });
     });
   },
 
@@ -2744,36 +2826,47 @@ export const InventoryConsumptionService = {
       );
     }
 
-    const lines: InventoryConsumptionLineInput[] = [];
-    for (const item of product.package.items) {
-      const sourceId = item.childProductItemId ?? item.inventoryItemId;
-      if (!sourceId) {
-        throw new InventoryConsumptionServiceError(
-          "Package component is missing a source reference",
-          400,
-        );
-      }
-      const rule = await resolveInventoryItemFromRule(
-        prisma,
-        organisationId,
-        "PACKAGE",
-        sourceId,
-      );
-      if (!rule) {
-        throw new InventoryConsumptionServiceError(
-          `Missing inventory mapping for package component ${sourceId}.`,
-          400,
-        );
-      }
-      lines.push({
-        sourceLineKey: sourceId,
-        inventoryItemId: rule.inventoryItemId,
-        quantity: Math.max(
-          1,
-          Math.round(quantity * item.quantity * rule.quantityMultiplier),
-        ),
-      });
-    }
+    // Component rules are looked up together, then checked in package order so
+    // the first broken component is still the one reported.
+    const components = product.package.items.map((item) => ({
+      item,
+      sourceId: item.childProductItemId ?? item.inventoryItemId,
+    }));
+    const rules = await mapWithConcurrency(components, ({ sourceId }) =>
+      sourceId
+        ? resolveInventoryItemFromRule(
+            prisma,
+            organisationId,
+            "PACKAGE",
+            sourceId,
+          )
+        : Promise.resolve(null),
+    );
+    const lines = components.map<InventoryConsumptionLineInput>(
+      ({ item, sourceId }, index) => {
+        if (!sourceId) {
+          throw new InventoryConsumptionServiceError(
+            "Package component is missing a source reference",
+            400,
+          );
+        }
+        const rule = rules[index];
+        if (!rule) {
+          throw new InventoryConsumptionServiceError(
+            `Missing inventory mapping for package component ${sourceId}.`,
+            400,
+          );
+        }
+        return {
+          sourceLineKey: sourceId,
+          inventoryItemId: rule.inventoryItemId,
+          quantity: Math.max(
+            1,
+            Math.round(quantity * item.quantity * rule.quantityMultiplier),
+          ),
+        };
+      },
+    );
 
     return this.consume({
       organisationId,

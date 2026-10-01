@@ -17,6 +17,7 @@ jest.mock("src/config/prisma", () => ({
       createMany: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      updateMany: jest.fn(),
       update: jest.fn(),
     },
     patient: { findUnique: jest.fn() },
@@ -49,6 +50,7 @@ const pm = prisma as unknown as {
     createMany: jest.Mock;
     findFirst: jest.Mock;
     findMany: jest.Mock;
+    updateMany: jest.Mock;
     update: jest.Mock;
   };
   patient: { findUnique: jest.Mock };
@@ -108,6 +110,7 @@ beforeEach(() => {
     (args: { data: Record<string, unknown> }) =>
       Promise.resolve(makeReminder({ ...args.data })),
   );
+  pm.careReminder.updateMany.mockResolvedValue({ count: 1 });
   pm.careReminder.findMany.mockResolvedValue([makeReminder()]);
   pm.patient.findUnique.mockResolvedValue({ name: "Buddy" });
   pm.parentPatient.findFirst.mockResolvedValue({ parentId: "parent-1" });
@@ -416,18 +419,21 @@ describe("CareReminderService.send", () => {
     );
   });
 
-  it("stays PENDING and answers 502 when every channel tried fails", async () => {
-    // A vaccination reminder shown as sent is one nobody follows up, and only
-    // a PENDING reminder can be sent again.
+  it("stays PENDING and persists the failed result when every channel tried fails", async () => {
     (NotificationService.sendToUser as jest.Mock).mockRejectedValue(
       new Error("FCM down"),
     );
     (sendEmail as jest.Mock).mockRejectedValue(new Error("SES down"));
-    await expect(
-      CareReminderService.send("reminder-1", "org-1"),
-    ).rejects.toMatchObject({ statusCode: 502 });
-    expect(pm.careReminder.update).not.toHaveBeenCalled();
-    expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "PENDING",
+        lastDelivery: { push: "failed", email: "failed" },
+      }),
+    );
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "CARE_REMINDER_DELIVERY_ATTEMPT" }),
+    );
   });
 
   it("counts a push that failed on every device as failed, not delivered", async () => {
@@ -439,10 +445,13 @@ describe("CareReminderService.send", () => {
       linkedUserId: "user-1",
       email: null,
     });
-    await expect(
-      CareReminderService.send("reminder-1", "org-1"),
-    ).rejects.toMatchObject({ statusCode: 502 });
-    expect(pm.careReminder.update).not.toHaveBeenCalled();
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "PENDING",
+        lastDelivery: { push: "failed", email: "unreachable" },
+      }),
+    );
   });
 
   it("does not treat an owner with no registered device as a failure", async () => {
@@ -475,7 +484,7 @@ describe("CareReminderService.send", () => {
     );
   });
 
-  it("stays PENDING and answers 502 when the push throws and there is no email", async () => {
+  it("stays PENDING and records a failed push when there is no email", async () => {
     (NotificationService.sendToUser as jest.Mock).mockRejectedValue(
       new Error("device lookup failed"),
     );
@@ -483,13 +492,16 @@ describe("CareReminderService.send", () => {
       linkedUserId: "user-1",
       email: null,
     });
-    await expect(
-      CareReminderService.send("reminder-1", "org-1"),
-    ).rejects.toMatchObject({ statusCode: 502 });
-    expect(pm.careReminder.update).not.toHaveBeenCalled();
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "PENDING",
+        lastDelivery: { push: "failed", email: "unreachable" },
+      }),
+    );
   });
 
-  it("keeps a retry PENDING when an earlier attempt reached a device that is gone now", async () => {
+  it("records a failed retry when an earlier push device is gone and there is no email", async () => {
     // FCM rejected the owner's only token, sendToDevice deleted it, and the
     // attempt answered 502. The retry finds no device, but the in-app row the
     // first attempt wrote says it did reach one, so this is the same failure,
@@ -500,21 +512,30 @@ describe("CareReminderService.send", () => {
       linkedUserId: "user-1",
       email: null,
     });
-    await expect(
-      CareReminderService.send("reminder-1", "org-1"),
-    ).rejects.toMatchObject({ statusCode: 502 });
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "PENDING",
+        lastDelivery: { push: "failed", email: "unreachable" },
+      }),
+    );
     expect(pm.notification.findFirst).toHaveBeenCalledWith({
       where: { id: "reminder-1", userId: "user-1" },
       select: { id: true },
     });
-    expect(pm.careReminder.update).not.toHaveBeenCalled();
+    expect(pm.careReminder.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: "SENDING" }),
+        data: expect.objectContaining({ status: "PENDING" }),
+      }),
+    );
   });
 
   it("writes SENT only while the reminder is still PENDING in this practice", async () => {
     await CareReminderService.send("reminder-1", "org-1");
     expect(pm.careReminder.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "reminder-1", organisationId: "org-1", status: "PENDING" },
+        where: { id: "reminder-1", organisationId: "org-1", status: "SENDING" },
       }),
     );
   });
@@ -552,7 +573,12 @@ describe("CareReminderService.send", () => {
   it("still transitions to SENT when no parent found", async () => {
     pm.parentPatient.findFirst.mockResolvedValue(null);
     const result = await CareReminderService.send("reminder-1", "org-1");
-    expect(result.status).toBe("SENT");
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "PENDING",
+        lastDelivery: { push: "unreachable", email: "unreachable" },
+      }),
+    );
   });
 
   it("rejects sending a non-PENDING reminder", async () => {

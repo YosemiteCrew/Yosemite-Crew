@@ -392,3 +392,99 @@ describe("TaskRecurrenceEngine end-to-end MONTHLY wiring", () => {
     expect(created.data.dueAt.toISOString()).toBe("2026-03-31T09:00:00.000Z");
   });
 });
+
+describe("TaskRecurrenceEngine generation order", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prismaMock.task.findFirst.mockResolvedValue(null);
+    prismaMock.task.create.mockResolvedValue({});
+    jest.useFakeTimers({ doNotFake: ["setImmediate"] });
+    // The 30-day horizon then ends at 2026-04-14T00:00Z.
+    jest.setSystemTime(new Date("2026-03-15T00:00:00Z"));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const dailyFrom = (id: string, dueAt: string, endDate?: string) => ({
+    ...master("unused"),
+    id,
+    recurrence: {
+      isMaster: true,
+      type: "DAILY",
+      cronExpression: null,
+      ...(endDate ? { endDate: new Date(endDate) } : {}),
+    },
+    dueAt: new Date(dueAt),
+    timezone: "UTC",
+  });
+
+  const createdDueDates = () =>
+    prismaMock.task.create.mock.calls.map(([args]) =>
+      (args as { data: { dueAt: Date } }).data.dueAt.toISOString().slice(0, 10),
+    );
+
+  it("walks occurrences in order, skipping ones that already exist", async () => {
+    prismaMock.task.findMany.mockResolvedValue([
+      dailyFrom("task-a", "2026-04-09T00:00:00Z", "2026-04-12T12:00:00Z"),
+    ]);
+    prismaMock.task.findFirst
+      .mockResolvedValueOnce(null) // latest child
+      .mockResolvedValueOnce(null) // 04-10
+      .mockResolvedValueOnce({ id: "existing" }) // 04-11
+      .mockResolvedValueOnce(null); // 04-12
+
+    await TaskRecurrenceEngine.run();
+
+    expect(createdDueDates()).toEqual(["2026-04-10", "2026-04-12"]);
+    expect(prismaMock.task.findFirst).toHaveBeenCalledTimes(4);
+  });
+
+  it("stops after fifty children in one run", async () => {
+    prismaMock.task.findMany.mockResolvedValue([
+      dailyFrom("task-a", "2025-12-01T00:00:00Z"),
+    ]);
+
+    await TaskRecurrenceEngine.run();
+
+    const dates = createdDueDates();
+    expect(dates).toHaveLength(50);
+    expect(dates[0]).toBe("2025-12-02");
+    expect(dates[49]).toBe("2026-01-20");
+  });
+
+  it("finishes one master's series before starting the next", async () => {
+    prismaMock.task.findMany.mockResolvedValue([
+      dailyFrom("task-a", "2026-04-09T00:00:00Z", "2026-04-11T12:00:00Z"),
+      dailyFrom("task-b", "2026-04-09T00:00:00Z", "2026-04-11T12:00:00Z"),
+    ]);
+    let inFlight = 0;
+    let peak = 0;
+    const createdFor: string[] = [];
+    prismaMock.task.create.mockImplementation(
+      async (args: {
+        data: { recurrence: { masterTaskId: string }; dueAt: Date };
+      }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        createdFor.push(
+          `${args.data.recurrence.masterTaskId}:${args.data.dueAt.toISOString().slice(0, 10)}`,
+        );
+        inFlight -= 1;
+        return {};
+      },
+    );
+
+    await TaskRecurrenceEngine.run();
+
+    expect(peak).toBe(1);
+    expect(createdFor).toEqual([
+      "task-a:2026-04-10",
+      "task-a:2026-04-11",
+      "task-b:2026-04-10",
+      "task-b:2026-04-11",
+    ]);
+  });
+});

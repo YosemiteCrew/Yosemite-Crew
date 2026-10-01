@@ -819,7 +819,7 @@ describe("AppointmentService", () => {
         legacyServiceId: null,
         isBookable: true,
         appointmentKinds: ["OUTPATIENT"],
-        finalAmount: 317.5,
+        finalAmount: 317.125,
         billingItems: [
           {
             productItemId: "prod_bundle",
@@ -908,8 +908,8 @@ describe("AppointmentService", () => {
             {
               description: "Dental Bundle",
               quantity: 1,
-              unitPrice: 317.5,
-              total: 317.5,
+              unitPrice: 317.125,
+              total: 317.125,
             },
           ],
         }),
@@ -1514,6 +1514,43 @@ describe("AppointmentService", () => {
 
       expect(prisma.appointment.update).toHaveBeenCalled();
       expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+    });
+
+    it("attachFormsToAppointment audits new forms one at a time, in order", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ formIds: [] }),
+      );
+      (prisma.form.findMany as jest.Mock).mockResolvedValue([
+        { id: "form_1" },
+        { id: "form_2" },
+      ]);
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ formIds: ["form_1", "form_2"] }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+      const audited: string[] = [];
+      let inFlight = 0;
+      let peak = 0;
+      const recordAudit = async (input: { entityId: string }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) =>
+          setTimeout(resolve, input.entityId === "form_1" ? 5 : 0),
+        );
+        audited.push(input.entityId);
+        inFlight -= 1;
+      };
+      (AuditTrailService.recordSafely as jest.Mock)
+        .mockImplementationOnce(recordAudit as any)
+        .mockImplementationOnce(recordAudit as any);
+
+      await AppointmentService.attachFormsToAppointment("org_1", "appt_1", [
+        "form_1",
+        "form_2",
+      ]);
+
+      expect(peak).toBe(1);
+      expect(audited).toEqual(["form_1", "form_2"]);
     });
 
     it("checkInAppointmentParent uses prisma path", async () => {

@@ -75,6 +75,7 @@ import {
 } from '@/shared/services/uploadService';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 // Props
 export type EditParentScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -237,7 +238,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         }
 
         if (Object.keys(remotePatch).length > 0) {
-          dispatch(updateUserProfile(remotePatch));
+          runInBackground(dispatch(updateUserProfile(remotePatch)));
         }
       } catch (error) {
         console.error('[EditParent] Failed to sync parent profile', error);
@@ -264,8 +265,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         address: mergedAddress,
       };
 
-      dispatch(updateUserProfile(patch));
-      syncParentProfile(nextUser);
+      runInBackground(dispatch(updateUserProfile(patch)));
+      runInBackground(syncParentProfile(nextUser));
     },
     [dispatch, safeUser, syncParentProfile],
   );

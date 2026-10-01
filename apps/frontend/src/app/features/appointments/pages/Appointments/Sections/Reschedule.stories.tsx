@@ -178,32 +178,43 @@ const dialogQueries = async () => {
   return within(openDialog() as HTMLElement);
 };
 
-const menuOptionLabels = async () => {
-  await waitFor(() => expect(openMenu()).not.toBeNull());
-  return within(openMenu() as HTMLElement)
-    .getAllByRole('button')
-    .map((option) => option.textContent);
-};
+/** Reads the open menu's options in one pass, so the panel is found and read together. */
+const menuOptionLabels = async () =>
+  waitFor(
+    () => {
+      const menu = openMenu();
+      expect(menu).not.toBeNull();
+      return within(menu as HTMLElement)
+        .getAllByRole('option')
+        .map((option) => option.textContent);
+    },
+    { timeout: 3000 }
+  );
 
 /**
- * Waits for the date strip to stop moving. Slotpicker smooth-scrolls the selected
- * day into the centre on mount, and LabelDropdown dismisses itself on any scroll
- * outside its own panel - so opening the lead picker mid-animation closes it a
- * frame later and the play function reads a real option list as empty.
+ * Waits for the date strip to finish its scroll. Slotpicker smooth-scrolls the
+ * selected day into the centre on mount, and LabelDropdown dismisses itself on any
+ * scroll outside its own panel - so opening the lead picker mid-animation closes it
+ * a frame later and the play function reads a real option list as empty. Two equal
+ * readings are not enough on a slow runner (the animation may not have started
+ * yet), so this waits for the strip to reach the centred position itself.
  */
 const settleDateStrip = async (dialog: HTMLElement) => {
   const scrollLeftButton = dialog.querySelector('[aria-label="Scroll dates left"]');
   const strip = scrollLeftButton?.nextElementSibling as HTMLElement | null;
   expect(strip).not.toBeNull();
-  let previous = Number.NaN;
+  const stripEl = strip as HTMLElement;
   await waitFor(
     () => {
-      const current = (strip as HTMLElement).scrollLeft;
-      const settled = current === previous;
-      previous = current;
-      expect(settled).toBe(true);
+      const day = stripEl.querySelector<HTMLElement>('button[aria-pressed="true"]');
+      expect(day).not.toBeNull();
+      const selectedDay = day as HTMLElement;
+      const centred =
+        selectedDay.offsetLeft - stripEl.offsetWidth / 2 + selectedDay.offsetWidth / 2;
+      const target = Math.max(0, Math.min(centred, stripEl.scrollWidth - stripEl.clientWidth));
+      expect(Math.abs(stripEl.scrollLeft - target)).toBeLessThanOrEqual(1);
     },
-    { interval: 100 }
+    { interval: 100, timeout: 3000 }
   );
 };
 
@@ -299,7 +310,8 @@ export const Default: Story = {
     // Both fields are display-only; the day strip and the chips are the controls.
     await expect(time).toHaveAttribute('readonly');
     await expect(panel.getByLabelText('Date')).toHaveAttribute('readonly');
-    await expect(time).toHaveAttribute('aria-invalid', 'false');
+    // The shared Input only sets aria-invalid when there is an error; absent reads as valid.
+    await expect(time).not.toHaveAttribute('aria-invalid');
 
     await settleDateStrip(dialog);
     const lead = panel.getByRole('button', { name: 'Lead: Dr. Weber' });
@@ -389,7 +401,7 @@ export const LeadMustBeChosen: Story = {
     await userEvent.click(lead);
     expect(await menuOptionLabels()).toEqual(['Dr. Weber', 'Dr. Osei']);
     await userEvent.click(
-      within(openMenu() as HTMLElement).getByRole('button', { name: 'Dr. Osei' })
+      within(openMenu() as HTMLElement).getByRole('option', { name: 'Dr. Osei' })
     );
 
     await waitFor(() =>
@@ -522,9 +534,21 @@ export const Phone: Story = {
     await expect(Math.round(date.width)).toBe(Math.round(time.width));
     await expect(date.right).toBeLessThanOrEqual(time.left + 1);
 
-    // Design's 44px field height, off the border box - the computed height reads
-    // 41 because these carry a 1.5px border and that value is the content box.
-    await expect(Math.round(date.height)).toBe(44);
+    /* Date and Time are read-outs (read-only, out of the tab order, clicks
+       ignored), so they keep the 40px field height on a phone; the day strip and
+       slot chips are the controls that set them. Measured off the border box. */
+    for (const label of ['Date', 'Time']) {
+      const field = panel.getByLabelText(label);
+      await expect(field).toHaveAttribute('readonly');
+      await expect(field).toHaveAttribute('tabindex', '-1');
+    }
+    await expect(Math.round(date.height)).toBe(40);
+    await expect(Math.round(time.height)).toBe(40);
+
+    /* The Lead picker is a control a finger taps, so on a phone it clears the
+       44px touch-target minimum. */
+    const leadTrigger = panel.getByRole('button', { name: /^Lead/ }).getBoundingClientRect();
+    await expect(Math.round(leadTrigger.height)).toBeGreaterThanOrEqual(44);
     await expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
   },
 };

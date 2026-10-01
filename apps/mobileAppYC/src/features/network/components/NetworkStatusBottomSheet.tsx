@@ -43,7 +43,9 @@ export const NetworkStatusBottomSheet = ({
   }, []);
 
   const handleRetry = useCallback(() => {
-    NetInfo.refresh();
+    NetInfo.refresh().catch(error => {
+      console.warn('[Network] Could not refresh the connection status', error);
+    });
   }, []);
 
   React.useImperativeHandle(ref, () => ({

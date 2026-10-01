@@ -25,6 +25,8 @@ jest.mock("../../src/config/prisma", () => ({
     inventoryItem: {
       findUnique: jest.fn(),
     },
+    purchaseOrder: { findUnique: jest.fn() },
+    purchaseOrderDelivery: { findUnique: jest.fn() },
     encounter: {
       findUnique: jest.fn(),
     },
@@ -56,6 +58,8 @@ import {
   withOrgPermissions,
   withPaymentIntentOrgPermissions,
   withPaymentOrgPermissions,
+  withPurchaseOrderDeliveryOrgPermissions,
+  withPurchaseOrderOrgPermissions,
   withRenderedDocumentOrgPermissions,
   withRoomUnitGroupOrgPermissions,
   withRoomUnitOrgPermissions,
@@ -410,6 +414,81 @@ describe("rbac middleware", () => {
       }),
     );
     expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("derives purchase-order and delivery access from the owning tenant", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    (prisma.purchaseOrder.findUnique as jest.Mock).mockResolvedValue({
+      organisationId: "org_order",
+    } as never);
+    (prisma.purchaseOrderDelivery.findUnique as jest.Mock).mockResolvedValue({
+      purchaseOrder: { organisationId: "org_delivery" },
+    } as never);
+    const orderReq = {
+      userId: "user_1",
+      params: { purchaseOrderId: "po_1", organisationId: "attacker_org" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const deliveryReq = {
+      userId: "user_1",
+      params: { deliveryId: "delivery_1", organisationId: "attacker_org" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+
+    await withPurchaseOrderOrgPermissions()(orderReq, mockRes(), next());
+    await withPurchaseOrderDeliveryOrgPermissions()(
+      deliveryReq,
+      mockRes(),
+      next(),
+    );
+
+    expect(orderReq.params.organisationId).toBe("org_order");
+    expect(deliveryReq.params.organisationId).toBe("org_delivery");
+  });
+
+  it("answers 404 for another organisation's purchase order or delivery", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    (prisma.purchaseOrder.findUnique as jest.Mock).mockResolvedValue({
+      organisationId: "org_other",
+    } as never);
+    (prisma.purchaseOrderDelivery.findUnique as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    const orderRes = mockRes();
+    const orderNext = next();
+    await withPurchaseOrderOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { purchaseOrderId: "po_1" },
+        headers: {},
+      } as unknown as Request,
+      orderRes,
+      orderNext,
+    );
+    const deliveryRes = mockRes();
+    await withPurchaseOrderDeliveryOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { deliveryId: "delivery_1" },
+        headers: {},
+      } as unknown as Request,
+      deliveryRes,
+      next(),
+    );
+
+    expect(orderNext).not.toHaveBeenCalled();
+    expect(orderRes.status).toHaveBeenCalledWith(404);
+    expect(orderRes.json).toHaveBeenCalledWith({
+      message: "Purchase order not found",
+    });
+    expect(deliveryRes.status).toHaveBeenCalledWith(404);
+    expect(deliveryRes.json).toHaveBeenCalledWith({
+      message: "Delivery not found",
+    });
   });
 
   it("resolves org id from the x-org-id header", async () => {

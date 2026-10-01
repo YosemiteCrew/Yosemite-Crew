@@ -1,6 +1,7 @@
 'use client';
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -211,7 +212,15 @@ const Companions = () => {
             {terminologyText('Every patient linked to the clinic, with their parents')}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
+          {permissions.can(PERMISSIONS.COMPANIONS_VIEW_ANY) && (
+            <Link
+              href="/companions/possible-duplicates"
+              className="inline-flex min-h-10 items-center rounded-xl border border-[var(--hairline)] bg-[var(--screen)] px-3 text-sm font-medium text-[var(--ink-muted)] transition-colors hover:bg-[var(--field-bg)] hover:text-[var(--ink)]"
+            >
+              Review possible duplicates
+            </Link>
+          )}
           <span className="hidden items-center rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] p-[3px] md:flex">
             <button
               type="button"

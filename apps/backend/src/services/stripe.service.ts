@@ -27,6 +27,7 @@ import {
 import { recomputeOrganizationVerification } from "./organization-verification.service";
 import { Prisma } from "@prisma/client";
 import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
+import { mapInSequence } from "src/utils/async-iteration";
 
 let stripeClient: Stripe | null = null;
 
@@ -96,12 +97,12 @@ const isUniqueConstraintViolation = (error: unknown): boolean =>
 // not expanded and the Charge itself when it was, so the blind `as string` cast
 // this path used to carry would have handed an object to charges.retrieve. An
 // already-expanded charge needs no round trip; only an id does.
-const retrieveBookingCharge = async (
+const retrieveBookingCharge = (
   pi: Stripe.PaymentIntent,
   connectedAccountId?: string,
 ): Promise<Stripe.Charge | null> => {
   if (typeof pi.latest_charge !== "string") {
-    return pi.latest_charge ?? null;
+    return Promise.resolve(pi.latest_charge ?? null);
   }
 
   return getStripeClient().charges.retrieve(pi.latest_charge, undefined, {
@@ -910,9 +911,9 @@ export const StripeService = {
       where: { connectAccountId: account.id },
       select: { orgId: true },
     });
-    for (const { orgId } of affected) {
-      await recomputeOrganizationVerification(orgId);
-    }
+    await mapInSequence(affected, ({ orgId }) =>
+      recomputeOrganizationVerification(orgId),
+    );
   },
 
   // ----------------------------

@@ -109,7 +109,7 @@ export const PatientFlagService = {
     return assertFlag(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     flagType?: PatientFlagType;

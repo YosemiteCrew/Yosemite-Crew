@@ -134,7 +134,7 @@ export const PatientConsentService = {
     return assertConsent(id, organisationId);
   },
 
-  async list(params: ListConsentsParams) {
+  list(params: ListConsentsParams) {
     const { organisationId, patientId, status, consentType } = params;
     return prisma.patientConsent.findMany({
       where: {

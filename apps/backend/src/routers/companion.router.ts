@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { CompanionController } from "../controllers/app/companion.controller";
+import { PatientDuplicateReviewController } from "../controllers/app/patient-duplicate-review.controller";
 import { requireMobileAuth, requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { requireCompanionPermission } from "src/middlewares/companion-access";
+import { PracticeProfileFieldsController } from "src/controllers/app/practice-profile-fields.controller";
 
 const router = Router();
 
@@ -50,6 +52,22 @@ router.get(
   CompanionController.searchCompanionByName,
 );
 
+router.get(
+  "/org/:organisationId/possible-duplicates",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  PatientDuplicateReviewController.list,
+);
+
+router.post(
+  "/org/:organisationId/possible-duplicates/:patientAId/:patientBId/dismiss",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:edit:any"),
+  PatientDuplicateReviewController.dismiss,
+);
+
 // Create companion in organisation
 router.post(
   "/org/:orgId",
@@ -66,6 +84,35 @@ router.get(
   withOrgPermissions(),
   requirePermission("companions:view:any"),
   CompanionController.getCompanionByIdPMS,
+);
+
+router.get(
+  "/org/profile-fields/:entityType/:entityId",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  PracticeProfileFieldsController.list,
+);
+router.post(
+  "/org/profile-fields/:entityType",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:edit:any"),
+  PracticeProfileFieldsController.create,
+);
+router.delete(
+  "/org/profile-fields/fields/:fieldId",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:edit:any"),
+  PracticeProfileFieldsController.deactivate,
+);
+router.put(
+  "/org/profile-fields/:entityType/:entityId/values",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:edit:any"),
+  PracticeProfileFieldsController.saveValues,
 );
 
 // Update companion (PMS)

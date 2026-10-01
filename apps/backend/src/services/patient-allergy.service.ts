@@ -132,7 +132,7 @@ export const PatientAllergyService = {
     return assertAllergy(id, organisationId);
   },
 
-  async list(params: ListPatientAllergiesParams) {
+  list(params: ListPatientAllergiesParams) {
     const { organisationId, patientId, status, allergyType } = params;
     return prisma.patientAllergy.findMany({
       where: {

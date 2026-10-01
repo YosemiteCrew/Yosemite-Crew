@@ -1,6 +1,6 @@
 import type { CreditNote } from '@yosemite-crew/types';
 import { postData } from '@/app/services/axios';
-import { formatMoneyPrecise } from '@/app/lib/money';
+import { formatMoneyPrecise, roundMoney } from '@/app/lib/money';
 
 /**
  * Credit notes live on the invoice router, which is mounted at `/fhir/v1/invoice`
@@ -78,17 +78,6 @@ export const voidCreditNote = async (
 };
 
 /**
- * Round to cents exactly the way the backend's `roundMoney` does
- * (`apps/backend/src/services/finance/pricing.ts`).
- *
- * Not cosmetic. Without it the raw subtraction leaves float dust - a total of
- * 10.01 against an issued 0.05 gives 9.959999999999999 - which the UI displays
- * as "9.96" while rejecting an entered 9.96 as over the cap, refusing the exact
- * figure it just advertised. The server, which rounds, would have accepted it.
- */
-const roundMoney = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
-
-/**
  * What is still creditable on an invoice.
  *
  * Mirrors the cap in `InvoiceService.issueCreditNote`: the total minus every
@@ -98,14 +87,16 @@ const roundMoney = (value: number): number => Math.round((value + Number.EPSILON
  */
 export const remainingCreditable = (
   totalAmount: number,
-  creditNotes: readonly CreditNote[] | undefined
+  creditNotes: readonly CreditNote[] | undefined,
+  currency?: string
 ): number => {
   const issued = roundMoney(
     (creditNotes ?? [])
       .filter((note) => note.status === 'ISSUED')
-      .reduce((sum, note) => sum + note.amount, 0)
+      .reduce((sum, note) => sum + note.amount, 0),
+    currency
   );
-  return Math.max(0, roundMoney(totalAmount - issued));
+  return Math.max(0, roundMoney(totalAmount - issued, currency));
 };
 
 /**

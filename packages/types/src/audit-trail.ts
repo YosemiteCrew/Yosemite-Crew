@@ -1,12 +1,7 @@
 export type AuditActorType = 'PMS_USER' | 'PARENT' | 'SYSTEM';
 
 export type AuditEntityType =
-  | 'PATIENT_ORGANISATION'
-  | 'APPOINTMENT'
-  | 'INVOICE'
-  | 'DOCUMENT'
-  | 'FORM'
-  | 'TASK';
+  'PATIENT_ORGANISATION' | 'APPOINTMENT' | 'INVOICE' | 'DOCUMENT' | 'FORM' | 'TASK';
 
 export type AuditEventType =
   | 'PATIENT_ORG_LINK_CREATED'
@@ -36,7 +31,11 @@ export type AuditEventType =
   | 'FORM_SUBMITTED'
   | 'TASK_CREATED'
   | 'TASK_REASSIGNED'
-  | 'TASK_STATUS_CHANGED';
+  | 'TASK_STATUS_CHANGED'
+  | 'CARE_REMINDER_SENT'
+  | 'CARE_REMINDER_DELIVERY_ATTEMPT'
+  | 'CARE_REMINDER_RESPONDED'
+  | 'CARE_REMINDER_CANCELLED';
 
 export interface AuditTrailEntry {
   id: string;

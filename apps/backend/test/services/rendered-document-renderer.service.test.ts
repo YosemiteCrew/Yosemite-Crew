@@ -1544,6 +1544,86 @@ describe("rendered-document-renderer service", () => {
       expect(result.pdf).toEqual(Buffer.from("combined-pdf"));
     });
 
+    it("reads the sections together and keeps them in the order given", async () => {
+      mockedPrisma.organization.findUnique.mockResolvedValueOnce(
+        baseOrganization,
+      );
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
+        patient: { name: "Milo", parent: { id: "CL-2", name: "Owner" } },
+        lead: { name: "Dr. Vet" },
+      });
+      let inFlight = 0;
+      let peak = 0;
+      const slowRead =
+        <T>(value: T, delayMs: number) =>
+        async () => {
+          inFlight += 1;
+          peak = Math.max(peak, inFlight);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          inFlight -= 1;
+          return value;
+        };
+      // The first document answers last.
+      mockedPrisma.soapNote.findUnique.mockImplementationOnce(
+        slowRead(
+          {
+            id: "soap-order",
+            subjective: {},
+            objective: {},
+            assessment: {},
+            plan: {},
+            diagnoses: [],
+            metadata: {},
+            artifact: unsignedArtifact({ id: "art-soap-o", kind: "SOAP_NOTE" }),
+          },
+          10,
+        ) as never,
+      );
+      mockedPrisma.prescription.findUnique.mockImplementationOnce(
+        slowRead(
+          {
+            id: "rx-order",
+            items: [],
+            medications: [],
+            instructions: [],
+            notes: {},
+            metadata: {},
+            artifact: unsignedArtifact({
+              id: "art-rx-o",
+              kind: "PRESCRIPTION",
+            }),
+          },
+          0,
+        ) as never,
+      );
+
+      await renderCombinedClinicalPacketPdf({
+        organisationId: "org-1",
+        documents: [
+          {
+            documentId: "doc-soap-o",
+            sourceId: "soap-order",
+            kind: "SOAP_NOTE",
+            title: "SOAP Note",
+          },
+          {
+            documentId: "doc-rx-o",
+            sourceId: "rx-order",
+            kind: "PRESCRIPTION",
+            title: "Prescription",
+          },
+        ],
+      });
+
+      expect(peak).toBe(2);
+      const [packet] = mockedGenerateCombinedClinicalPdfWithMetadata.mock
+        .calls[0] as [{ sections: Array<{ documentType: string }> }];
+      expect(packet.sections.map((section) => section.documentType)).toEqual([
+        "SOAP_NOTE",
+        "PRESCRIPTION",
+      ]);
+    });
+
     it("leaves unitName undefined when the appointment room has no unit", async () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,

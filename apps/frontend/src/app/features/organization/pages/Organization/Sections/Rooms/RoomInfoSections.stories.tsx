@@ -302,7 +302,7 @@ export const RoomTypeDropdownOpen: Story = {
     const panel = document.querySelector('[data-portal-dropdown]') as HTMLElement;
     // Assert all thirteen room types rendered. An empty panel would satisfy the
     // trigger's aria-expanded just as well.
-    await expect(within(panel).getAllByRole('button')).toHaveLength(13);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(13);
     await expect(within(panel).getByText('Boarding')).toBeInTheDocument();
   },
   parameters: {

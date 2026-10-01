@@ -1714,6 +1714,22 @@ describe("FormService", () => {
       );
     });
 
+    it("getAutoSendForms: rejects a blank organisation id without querying", async () => {
+      const pending = FormService.getAutoSendForms("   ");
+
+      await expect(pending).rejects.toMatchObject({
+        message: "Invalid orgId",
+        statusCode: 400,
+      });
+      expect(prisma.form.findMany).not.toHaveBeenCalled();
+    });
+
+    it("getAutoSendForms: rejects a missing organisation id", async () => {
+      await expect(
+        FormService.getAutoSendForms(undefined as unknown as string),
+      ).rejects.toMatchObject({ message: "Invalid orgId", statusCode: 400 });
+    });
+
     it("listFormsForOrganisation: maps forms with resolved names", async () => {
       (prisma.form.findMany as jest.Mock).mockResolvedValue([
         {
@@ -2497,6 +2513,7 @@ describe("FormService", () => {
         authorId: string | null,
         createdAt: string,
         templateVersion = 2,
+        updatedAt = createdAt,
       ) => ({
         id,
         templateId: "template-1",
@@ -2504,6 +2521,7 @@ describe("FormService", () => {
         authorId,
         status: "COMPLETED",
         createdAt: new Date(createdAt),
+        updatedAt: new Date(updatedAt),
       });
       const listItems = async (
         viewerParentId: string | undefined,
@@ -2717,6 +2735,26 @@ describe("FormService", () => {
 
           expect(items[1]).toMatchObject({
             questionnaireResponse: { id: "practice-latest" },
+          });
+        });
+
+        it("lists an older draft the practice completed after withdrawal", async () => {
+          const items = await listItems(
+            undefined,
+            [withdrawn],
+            [
+              answer(
+                "older-draft",
+                "vet-1",
+                "2026-09-17T12:00:00.000Z",
+                2,
+                "2026-09-20T12:00:00.000Z",
+              ),
+            ],
+          );
+
+          expect(items[1]).toMatchObject({
+            questionnaireResponse: { id: "older-draft" },
           });
         });
 

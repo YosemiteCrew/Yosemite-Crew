@@ -924,6 +924,39 @@ describe("FormService appointment forms for a pet parent", () => {
     });
   });
 
+  it("builds the signed copies together and keeps the forms in their listed order", async () => {
+    useTables({ links: [link()], submissions: [practiceNote, ownConsent] });
+    const practiceView = { requesterOrgId: ORG };
+    const listedOrder = [...(await readForms(practiceView)).keys()];
+    expect(listedOrder.length).toBeGreaterThan(1);
+
+    let inFlight = 0;
+    let peak = 0;
+    (DocumensoService.downloadSignedDocument as jest.Mock).mockImplementation(
+      async ({ documentId }: { documentId: number }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        // The first listed form's copy answers last.
+        await new Promise((resolve) =>
+          setTimeout(resolve, documentId === 77 ? 10 : 0),
+        );
+        inFlight -= 1;
+        return { downloadUrl: `https://signed.example/${documentId}` };
+      },
+    );
+
+    const forms = await readForms(practiceView);
+
+    expect(peak).toBe(2);
+    expect([...forms.keys()]).toEqual(listedOrder);
+    expect(responseOf(forms, FORM)?.signing).toMatchObject({
+      pdf: { url: "https://signed.example/77" },
+    });
+    expect(responseOf(forms, SOAP_FORM)?.signing).toMatchObject({
+      pdf: { url: "https://signed.example/88" },
+    });
+  });
+
   it("lists a practice form the caller signed only as answered once they may not read it", async () => {
     useTables({
       links: [coParent({ appointments: true })],

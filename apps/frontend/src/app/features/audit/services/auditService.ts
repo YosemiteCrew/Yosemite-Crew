@@ -1,4 +1,4 @@
-import { AuditTrail } from '@/app/features/audit/types/audit';
+import type { AuditTrail, OrganisationAuditEntry } from '@/app/features/audit/types/audit';
 import { http } from '@/app/services/http';
 import { logger } from '@/app/lib/logger';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -69,4 +69,17 @@ export const getCompanionAuditTrail = async (companionId: string): Promise<Audit
       throw err;
     }
   });
+};
+
+export const getOrganisationAuditTrail = async (
+  params: {
+    cursor?: string;
+    limit?: number;
+  } = {}
+): Promise<{ entries: OrganisationAuditEntry[]; nextCursor: string | null }> => {
+  const res = await http.post<{ entries: OrganisationAuditEntry[]; nextCursor: string | null }>(
+    '/v1/audit-trail/organisation',
+    params
+  );
+  return res.data;
 };

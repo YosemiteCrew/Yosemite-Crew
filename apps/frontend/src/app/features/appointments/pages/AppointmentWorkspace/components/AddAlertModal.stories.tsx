@@ -116,7 +116,7 @@ export const CriticalPreview: Story = {
     const listbox = document.querySelector('[data-portal-dropdown]');
     await expect(listbox).toBeInTheDocument();
     await expect((listbox as HTMLElement).querySelectorAll('button')).toHaveLength(4);
-    await userEvent.click(within(listbox as HTMLElement).getByRole('button', { name: 'Critical' }));
+    await userEvent.click(within(listbox as HTMLElement).getByRole('option', { name: 'Critical' }));
 
     await expect(panel.getByRole('button', { name: 'Severity: Critical' })).toBeInTheDocument();
     await expect(panel.getByText('Aggressive on lead')).toBeInTheDocument();

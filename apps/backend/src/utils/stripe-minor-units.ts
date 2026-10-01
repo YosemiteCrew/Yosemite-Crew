@@ -1,11 +1,12 @@
+import { toLedgerMinorUnits } from "../services/finance/currency";
+
 // The integer amount Stripe accepts for a currency, which is not the same
 // question as how a human reads that amount. Display formatting is CLDR's
 // answer and lives in the frontend's own money helper; this is Stripe's answer
 // and belongs nowhere near it. The two look like duplicates and are not, so
 // this module is named after the API it serves rather than after "money".
 //
-// Kept free of imports on purpose. The pure pricing modules that need it must
-// not gain a database dependency to convert a number.
+// Uses the pure currency arithmetic helper, which has no database dependency.
 
 // Currencies Stripe accepts as a whole number of major units, so the amount is
 // submitted unscaled. https://docs.stripe.com/currencies#zero-decimal
@@ -94,9 +95,7 @@ export const toStripeMinorUnits = (
     throw new UnsupportedStripeCurrencyError(code);
   }
 
-  return ZERO_DECIMAL_CURRENCIES.has(code)
-    ? Math.round(amount)
-    : Math.round(amount * 100);
+  return toLedgerMinorUnits(amount, ZERO_DECIMAL_CURRENCIES.has(code) ? 0 : 2);
 };
 
 /** Convert an amount returned by Stripe to its major currency unit. */

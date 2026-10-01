@@ -16,6 +16,7 @@ import {
 } from '@/features/appointments/utils/checkInUtils';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 export interface CheckInHandlerConfig {
   appointment: {
     id: string;
@@ -122,10 +123,12 @@ export const useCheckInHandler = () => {
           fetchAppointmentById({appointmentId: appointment.id}),
         ).unwrap();
         if (appointment.companionId) {
-          dispatch(
-            fetchAppointmentsForCompanion({
-              companionId: appointment.companionId,
-            }),
+          runInBackground(
+            dispatch(
+              fetchAppointmentsForCompanion({
+                companionId: appointment.companionId,
+              }),
+            ),
           );
         }
         if (Platform.OS === 'android') {

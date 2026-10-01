@@ -58,7 +58,7 @@ export const readActorNameFromEventPayload = (
 };
 
 export const FinanceEventService = {
-  async recordEvent(input: FinanceEventInput) {
+  recordEvent(input: FinanceEventInput) {
     return prisma.financeEvent.create({
       data: {
         organisationId: input.organisationId ?? undefined,

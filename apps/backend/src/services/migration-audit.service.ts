@@ -11,6 +11,7 @@ import {
   MigrationAuditJobs,
 } from "src/queues/migration-audit.queue";
 import logger from "src/utils/logger";
+import { mapWithConcurrency } from "../utils/async-iteration";
 import {
   planMigrationAudit,
   MIGRATION_AUDIT_LIMITS,
@@ -173,15 +174,20 @@ export async function runMigrationAudit(auditRunId: string): Promise<void> {
       Record<MigrationAuditSectionName, MigrationAuditFileInput>
     > = {};
 
-    for (const role of Object.keys(sourceFiles) as MigrationAuditFileRole[]) {
-      const key = sourceFiles[role];
-      if (!key) continue;
-      const content = await readObjectBounded(
-        key,
-        MIGRATION_AUDIT_LIMITS.maxFileBytes,
+    const files = (Object.keys(sourceFiles) as MigrationAuditFileRole[])
+      .map((role) => ({ role, key: sourceFiles[role] }))
+      .filter((file): file is { role: MigrationAuditFileRole; key: string } =>
+        Boolean(file.key),
       );
-      planInput[ROLE_TO_SECTION[role]] = { fileName: `${role}.csv`, content };
-    }
+    const contents = await mapWithConcurrency(files, ({ key }) =>
+      readObjectBounded(key, MIGRATION_AUDIT_LIMITS.maxFileBytes),
+    );
+    files.forEach(({ role }, index) => {
+      planInput[ROLE_TO_SECTION[role]] = {
+        fileName: `${role}.csv`,
+        content: contents[index],
+      };
+    });
 
     const plan = planMigrationAudit({
       owners: planInput.OWNERS,

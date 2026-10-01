@@ -13,7 +13,8 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
+import type {RouteProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import RatingStars from '@/shared/components/common/RatingStars/RatingStars';
@@ -24,15 +25,15 @@ import {
   getFreshStoredTokens,
   isTokenExpired,
 } from '@/features/auth/sessionManager';
-import {
-  fetchBusinessDetails,
-  fetchGooglePlacesImage,
-} from '@/features/linkedBusinesses';
+import {fetchBusinessFallbackPhoto} from '@/features/appointments/utils/businessFallbackPhoto';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 import i18next from 'i18next';
+import {describeRequestError} from '@/shared/utils/safeErrorLog';
+import {runInBackground} from '@/shared/utils/runInBackground';
+
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const formatVisitDate = (value?: string | null): string => {
@@ -45,16 +46,25 @@ const formatVisitDate = (value?: string | null): string => {
 };
 
 export const ReviewScreen: React.FC = () => {
+  const {params} = useRoute<RouteProp<AppointmentStackParamList, 'Review'>>();
+  return <ReviewForm key={params.appointmentId} {...params} />;
+};
+
+const ReviewForm: React.FC<AppointmentStackParamList['Review']> = ({
+  appointmentId,
+  isEditing,
+  existingRating,
+  existingReview,
+  practitionerName,
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [review, setReview] = useState('');
-  const [rating, setRating] = useState(4);
+  const [review, setReview] = useState(existingReview ?? '');
+  const [rating, setRating] = useState(existingRating ?? 4);
   const [submitting, setSubmitting] = useState(false);
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
-  const appointmentId = (navigation.getState() as any)?.routes?.slice(-1)[0]
-    ?.params?.appointmentId;
   const apt = useSelector((s: RootState) =>
     s.appointments.items.find(a => a.id === appointmentId),
   );
@@ -67,7 +77,7 @@ export const ReviewScreen: React.FC = () => {
 
   useEffect(() => {
     if (!business && apt?.businessId) {
-      dispatch(fetchBusinesses(undefined));
+      runInBackground(dispatch(fetchBusinesses(undefined)));
     }
   }, [apt?.businessId, business, dispatch]);
 
@@ -93,24 +103,15 @@ export const ReviewScreen: React.FC = () => {
     const isDummy = isDummyPhoto(businessPhoto);
     if (businessPhoto && !isDummy) return;
 
-    dispatch(fetchBusinessDetails(googlePlacesId))
-      .unwrap()
-      .then(res => {
-        if (res.photoUrl) setFallbackPhoto(res.photoUrl);
-      })
-      .catch(() => {
-        dispatch(fetchGooglePlacesImage(googlePlacesId))
-          .unwrap()
-          .then(img => {
-            if (img.photoUrl) setFallbackPhoto(img.photoUrl);
-          })
-          .catch(() => {});
-      });
+    runInBackground(
+      fetchBusinessFallbackPhoto(dispatch, googlePlacesId).then(photo => {
+        if (photo) setFallbackPhoto(photo);
+      }),
+    );
   }, [businessPhoto, dispatch, googlePlacesId]);
 
   const handleSubmit = async () => {
-    const organisationId = business?.id ?? apt?.businessId;
-    if (!organisationId) {
+    if (!appointmentId || !apt?.employeeId) {
       navigation.goBack();
       return;
     }
@@ -123,15 +124,18 @@ export const ReviewScreen: React.FC = () => {
       ) {
         throw new Error('Session expired. Please sign in again.');
       }
-      await appointmentApi.rateOrganisation({
-        organisationId,
+      await appointmentApi.savePractitionerFeedback({
+        appointmentId,
         rating,
         review,
         accessToken: tokens.accessToken,
       });
       navigation.goBack();
     } catch (error) {
-      console.warn('[Review] Failed to submit rating', error);
+      console.warn(
+        '[Review] Failed to submit feedback',
+        describeRequestError(error),
+      );
       const message =
         error instanceof Error
           ? error.message
@@ -152,9 +156,12 @@ export const ReviewScreen: React.FC = () => {
     .trim()
     .charAt(0)
     .toUpperCase();
-  const visitTitle = subjectName
-    ? `How was ${subjectName}'s visit?`
-    : 'How was your visit?';
+  const visitTitle = i18next.t('appointments.practitionerFeedbackTitle', {
+    name:
+      practitionerName ??
+      apt?.employeeName ??
+      i18next.t('appointments.yourVeterinarian'),
+  });
   const metaLine = [apt?.type, apt?.employeeName, formatVisitDate(apt?.date)]
     .filter(Boolean)
     .join('  ·  ');
@@ -163,7 +170,7 @@ export const ReviewScreen: React.FC = () => {
     <LiquidGlassHeaderScreen
       header={
         <Header
-          title="Review"
+          title={i18next.t('appointments.feedbackTitle')}
           showBackButton
           onBack={() => navigation.goBack()}
           glass={false}
@@ -202,8 +209,9 @@ export const ReviewScreen: React.FC = () => {
             <TextInput
               value={review}
               onChangeText={setReview}
+              maxLength={1000}
               multiline={false}
-              placeholder="Your review"
+              placeholder={i18next.t('appointments.reviewPlaceholder')}
               placeholderTextColor={theme.colors.inkFaint}
               style={styles.input}
               textAlignVertical="top"
@@ -214,7 +222,16 @@ export const ReviewScreen: React.FC = () => {
 
           <View style={styles.buttonContainer}>
             <LiquidGlassButton
-              title="Submit feedback"
+              title={i18next.t(
+                isEditing
+                  ? 'appointments.updateFeedback'
+                  : 'appointments.submitFeedback',
+                {
+                  defaultValue: isEditing
+                    ? 'Update feedback'
+                    : 'Submit feedback',
+                },
+              )}
               onPress={handleSubmit}
               height={54}
               borderRadius={theme.borderRadius.button}

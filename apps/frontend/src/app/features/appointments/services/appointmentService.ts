@@ -18,7 +18,8 @@ import {
   Slot,
 } from '@/app/features/appointments/types/appointments';
 import { formatDateLocal } from '@/app/lib/date';
-import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
+import { getDateKeyInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
+import type { AppointmentSeriesOccurrence } from '@/app/features/appointments/lib/appointmentSeries';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import {
   canTransitionAppointmentStatus,
@@ -195,6 +196,113 @@ export const createAppointment = async (appointment: Appointment) => {
     console.error('Failed to create appointment:', err);
     throw err;
   }
+};
+
+export type WeeklySeriesPreview = Array<{
+  index: number;
+  startTime: string;
+  endTime: string;
+  hasConflict: boolean;
+}>;
+
+export const previewWeeklyAppointmentSeries = async (
+  leadId: string,
+  occurrences: AppointmentSeriesOccurrence[]
+): Promise<WeeklySeriesPreview> => {
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) throw new Error('No organisation selected. Cannot preview a series.');
+  const res = await postData<{ data: WeeklySeriesPreview }>(
+    '/fhir/v1/appointment/pms/series/preview',
+    {
+      leadId,
+      timeZone: getPreferredTimeZone(),
+      occurrences: occurrences.map(({ startTime, endTime }) => ({
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+      })),
+    }
+  );
+  return res.data.data;
+};
+
+export const createWeeklyAppointmentSeries = async (
+  appointment: Appointment,
+  occurrences: AppointmentSeriesOccurrence[]
+): Promise<Appointment[]> => {
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) throw new Error('No organisation selected. Cannot create a series.');
+  const payload: Appointment = { ...appointment, organisationId: primaryOrgId };
+  const res = await postData<{ data: AppointmentResponseDTO[] }>(
+    '/fhir/v1/appointment/pms/series',
+    {
+      appointment: toAppointmentResponseDTO(withCanonicalPatient(payload)),
+      timeZone: getPreferredTimeZone(),
+      occurrences: occurrences.map(({ startTime, endTime }) => ({
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+      })),
+    }
+  );
+  return res.data.data.map((dto) => fromAppointmentRequestDTO(dto));
+};
+
+export type AppointmentSeriesReschedulePreview = Array<{
+  appointmentId: string;
+  recurrenceSeriesIndex: number;
+  startTime: string;
+  endTime: string;
+  hasConflict: boolean;
+}>;
+
+const getAppointmentOrganisationId = (appointment: Appointment) => {
+  const { primaryOrgId } = useOrgStore.getState();
+  const organisationId = primaryOrgId ?? appointment.organisationId;
+  if (!organisationId) throw new Error('No organisation selected.');
+  if (!appointment.id) throw new Error('Appointment ID missing.');
+  return { organisationId, appointmentId: appointment.id };
+};
+
+export const previewAppointmentSeriesReschedule = async (
+  appointment: Appointment
+): Promise<AppointmentSeriesReschedulePreview> => {
+  const { organisationId, appointmentId } = getAppointmentOrganisationId(appointment);
+  const fhirAppointment = toAppointmentResponseDTO(
+    withCanonicalPatient({ ...appointment, organisationId })
+  );
+  const res = await postData<{ data: AppointmentSeriesReschedulePreview }>(
+    `/fhir/v1/appointment/pms/${organisationId}/${appointmentId}/series/reschedule-preview`,
+    fhirAppointment
+  );
+  return res.data.data;
+};
+
+export const rescheduleAppointmentSeries = async (
+  appointment: Appointment
+): Promise<Appointment[]> => {
+  const { organisationId, appointmentId } = getAppointmentOrganisationId(appointment);
+  const fhirAppointment = toAppointmentResponseDTO(
+    withCanonicalPatient({ ...appointment, organisationId })
+  );
+  const res = await patchData<{ data: AppointmentResponseDTO[] }>(
+    `/fhir/v1/appointment/pms/${organisationId}/${appointmentId}?scope=following`,
+    fhirAppointment
+  );
+  const updated = res.data.data.map((dto) => fromAppointmentRequestDTO(dto));
+  updated.forEach((item) => useAppointmentStore.getState().upsertAppointment(item));
+  return updated;
+};
+
+export const cancelAppointmentSeriesFromPms = async (
+  appointment: Appointment
+): Promise<Appointment[]> => {
+  const { organisationId, appointmentId } = getAppointmentOrganisationId(appointment);
+  const res = await patchData<{ data: AppointmentResponseDTO[] }>(
+    `/fhir/v1/appointment/pms/${organisationId}/${appointmentId}/cancel`,
+    { scope: 'following' }
+  );
+  const updated = res.data.data.map((dto) => fromAppointmentRequestDTO(dto));
+  updated.forEach((item) => useAppointmentStore.getState().upsertAppointment(item));
+  return updated;
 };
 
 export const updateAppointment = async (payload: Appointment) => {

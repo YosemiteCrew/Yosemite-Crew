@@ -422,7 +422,8 @@ export const Phone: Story = {
   },
   // 360px for real, not just as a viewport global: the card only lives inside a
   // modal, and a story that relied on the panel width alone would measure the
-  // full canvas and pass at any width.
+  // full canvas and pass at any width. Full-bleed so the 360px column fits the
+  // 375px viewport; the padded canvas adds a 16px gutter that is not the card's.
   decorators: [
     (Story) => (
       <div style={{ width: 360 }}>
@@ -444,6 +445,7 @@ export const Phone: Story = {
     );
   },
   parameters: {
+    layout: 'fullscreen',
     docs: {
       description: {
         story:

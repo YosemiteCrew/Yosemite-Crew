@@ -150,7 +150,7 @@ PODS:
   - libwebp/sharpyuv (1.5.0)
   - libwebp/webp (1.5.0):
     - libwebp/sharpyuv
-  - LiquidGlass (0.8.1):
+  - LiquidGlass (0.8.2):
     - boost
     - DoubleConversion
     - fast_float
@@ -284,7 +284,6 @@ PODS:
     - React-RCTText (= 0.81.6)
     - React-RCTVibration (= 0.81.6)
   - React-callinvoker (0.81.6)
-  - React-Codegen (0.1.0)
   - React-Core (0.81.6):
     - boost
     - DoubleConversion
@@ -1986,7 +1985,7 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - SocketRocket
-  - react-native-blob-util (0.24.11):
+  - react-native-blob-util (0.25.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -2202,9 +2201,9 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-maps (1.29.2):
-    - react-native-maps/Maps (= 1.29.2)
-  - react-native-maps/Generated (1.29.2):
+  - react-native-maps (1.29.8):
+    - react-native-maps/Maps (= 1.29.8)
+  - react-native-maps/Generated (1.29.8):
     - boost
     - DoubleConversion
     - fast_float
@@ -2232,7 +2231,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-maps/Google (1.29.2):
+  - react-native-maps/Google (1.29.8):
     - boost
     - DoubleConversion
     - fast_float
@@ -2264,7 +2263,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-maps/Maps (1.29.2):
+  - react-native-maps/Maps (1.29.8):
     - boost
     - DoubleConversion
     - fast_float
@@ -2349,7 +2348,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context (5.9.1):
+  - react-native-safe-area-context (5.10.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -2367,8 +2366,8 @@ PODS:
     - React-graphics
     - React-ImageManager
     - React-jsi
-    - react-native-safe-area-context/common (= 5.9.1)
-    - react-native-safe-area-context/fabric (= 5.9.1)
+    - react-native-safe-area-context/common (= 5.10.0)
+    - react-native-safe-area-context/fabric (= 5.10.0)
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -2379,7 +2378,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context/common (5.9.1):
+  - react-native-safe-area-context/common (5.10.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -2407,7 +2406,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context/fabric (5.9.1):
+  - react-native-safe-area-context/fabric (5.10.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -2436,7 +2435,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-video (6.19.2):
+  - react-native-video (6.19.3):
     - boost
     - DoubleConversion
     - fast_float
@@ -2454,7 +2453,7 @@ PODS:
     - React-graphics
     - React-ImageManager
     - React-jsi
-    - react-native-video/Video (= 6.19.2)
+    - react-native-video/Video (= 6.19.3)
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -2465,7 +2464,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-video/Fabric (6.19.2):
+  - react-native-video/Fabric (6.19.3):
     - boost
     - DoubleConversion
     - fast_float
@@ -2493,7 +2492,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-video/Video (6.19.2):
+  - react-native-video/Video (6.19.3):
     - boost
     - DoubleConversion
     - fast_float
@@ -3030,7 +3029,7 @@ PODS:
   - RecaptchaInterop (101.0.0)
   - RNAppleAuthentication (2.5.1):
     - React-Core
-  - RNBootSplash (7.3.2):
+  - RNBootSplash (7.3.3):
     - boost
     - DoubleConversion
     - fast_float
@@ -3270,7 +3269,7 @@ PODS:
     - Yoga
   - RNFS (2.20.0):
     - React-Core
-  - RNGestureHandler (2.32.0):
+  - RNGestureHandler (2.33.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3355,7 +3354,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNLocalize (3.7.0):
+  - RNLocalize (3.7.2):
     - boost
     - DoubleConversion
     - fast_float
@@ -3388,7 +3387,7 @@ PODS:
     - RNNotifee/NotifeeCore (= 9.1.8)
   - RNNotifee/NotifeeCore (9.1.8):
     - React-Core
-  - RNPermissions (5.6.1):
+  - RNPermissions (5.6.2):
     - boost
     - DoubleConversion
     - fast_float
@@ -3809,7 +3808,7 @@ PODS:
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
   - SocketRocket (0.7.1)
-  - stream-chat-react-native (8.14.1):
+  - stream-chat-react-native (9.7.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3820,7 +3819,6 @@ PODS:
     - RCT-Folly/Fabric
     - RCTRequired
     - RCTTypeSafety
-    - React-Codegen
     - React-Core
     - React-debug
     - React-Fabric
@@ -3964,6 +3962,63 @@ PODS:
   - StripeUICore (25.9.0):
     - StripeCore (= 25.9.0)
   - SwiftUIIntrospect (1.3.0)
+  - Teleport (0.5.4):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Teleport/common (= 0.5.4)
+    - Yoga
+  - Teleport/common (0.5.4):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -4099,6 +4154,7 @@ DEPENDENCIES:
   - SocketRocket (~> 0.7.1)
   - stream-chat-react-native (from `../node_modules/stream-chat-react-native`)
   - "stripe-react-native (from `../node_modules/@stripe/stripe-react-native`)"
+  - Teleport (from `../node_modules/react-native-teleport`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -4134,7 +4190,6 @@ SPEC REPOS:
     - nanopb
     - PromisesObjC
     - PromisesSwift
-    - React-Codegen
     - RecaptchaInterop
     - SDWebImage
     - SDWebImageAVIFCoder
@@ -4382,6 +4437,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/stream-chat-react-native"
   stripe-react-native:
     :path: "../node_modules/@stripe/stripe-react-native"
+  Teleport:
+    :path: "../node_modules/react-native-teleport"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -4422,7 +4479,7 @@ SPEC CHECKSUMS:
   libavif: 84bbb62fb232c3018d6f1bab79beea87e35de7b7
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
-  LiquidGlass: a550e4e959d15eec5194c96f77c7aab8ef0bf799
+  LiquidGlass: ef8027f064bb732124ba4b1db0450768cea817eb
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   NitroModules: ab089a25876d6510138cc21fbf2e36e872f7d607
   NitroSound: 30de1f5bacf99badd64d781f336813362ef0b920
@@ -4434,7 +4491,6 @@ SPEC CHECKSUMS:
   RCTTypeSafety: 62c8105cf08af634c93d38ea1e8ec8a57b7abc2c
   React: 348d1689d8686d034c5b7667dc45de86c6319dd1
   React-callinvoker: 1a0dab02dd4e762c79b9188906b74d5be79932e9
-  React-Codegen: 4b8b4817cea7a54b83851d4c1f91f79aa73de30a
   React-Core: 6c34155c0a7e99425e47e7254b3b133d151164e2
   React-CoreModules: 964a5c79d7c9642429b73f95f507bf501a09b84c
   React-cxxreact: 419fc610834ad814a3193accf71653eb85472a7f
@@ -4462,7 +4518,7 @@ SPEC CHECKSUMS:
   React-logger: 6aa0606d9b8746a0df076bf77cc9940a6405452b
   React-Mapbuffer: 8f8bba0802f49d7926602c5c276f2a2083a5ac55
   React-microtasksnativemodule: 1e4d3178ba5d5000b351b902c603fb0c9d60649e
-  react-native-blob-util: 77b4ce21d45cfbaf50225292ee4e335908fbc2fd
+  react-native-blob-util: bb5ce8d5d090d1ec34075d67de0bfa6b850ae3f1
   react-native-blur: 6af83e7e3c4c1446a188d9b2c493600fc4beb173
   react-native-bottom-tabs: 06b42b859c694efc650c3057d6d20b485eb3797d
   react-native-document-picker: a7929a36c2db933505f6aa5108819c40e5ab29c4
@@ -4470,11 +4526,11 @@ SPEC CHECKSUMS:
   react-native-geolocation: 95e48fe2687e5a8280103085372fa62c2297c5d6
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
   react-native-image-picker: 0314366753615115fa55c3cc937ac44cb7e75702
-  react-native-maps: 3bde9b7b6098564254684dd7d3750480da7799d7
+  react-native-maps: 89c43e44db67791ee055ff9e068c82b5ab5caca5
   react-native-netinfo: a0be8c77f8420a60ddf07eb87be1a36f02a1bd65
   react-native-pdf: 292d5d7cd7d79d95540e94f8e4c08cfce6c9eb18
-  react-native-safe-area-context: 6cf08f4151132f9cf2adb948dc6c4ac387f8d30f
-  react-native-video: f8e9788554c53a1852166cd119d6e7c324b16dfe
+  react-native-safe-area-context: 0ade8b4166102f76fbd42b64255f606cd37489d5
+  react-native-video: 61841250a61ed594812b0bd4ce3f03549d574efc
   React-NativeModulesApple: 183f9bd5b20a51a8b016e90be78ed6c1538da4a7
   React-oscompat: d5e3366fbd6c7150e17c1bda85eab583a6fa9fce
   React-perflogger: 2e4ca29b2bc69c80ef5133de127f5a3c2357c583
@@ -4507,7 +4563,7 @@ SPEC CHECKSUMS:
   ReactCommon: 8fafefb37d562f9e4bbbc9081ca4501f178a97ec
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RNAppleAuthentication: a89c9804592b38ed4ab11f0aee68d05ba12ad432
-  RNBootSplash: 83bc1fef5ff2e9fd3ed0f20a472dd87d8a9ef898
+  RNBootSplash: 3dc4244311157a75dfb85a1432a3c393abd0a9a2
   RNCalendarEvents: f90f73666b6bcbb3cc8a491ffbb5e48c0db3de37
   RNCAsyncStorage: 29f0230e1a25f36c20b05f65e2eb8958d6526e82
   RNCClipboard: 4b58c780f63676367640f23c8e114e9bd0cf86ac
@@ -4518,12 +4574,12 @@ SPEC CHECKSUMS:
   RNFBApp: 4749952428360944ee37913fafc796810b5133b3
   RNFBMessaging: 20ed9e31881b2add8ebbf13b15daa519e5cae00a
   RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
-  RNGestureHandler: 23ba02687de64120ae049908ac9d4e2f8ae6468a
+  RNGestureHandler: 4259cc6916ac7a017d8100524fac339ff723e932
   RNGoogleSignin: d9f48baa77625abc7a60c1322b763e787f449848
   RNKeychain: a2c134ab796272c3d605e035ab727591000b30f3
-  RNLocalize: 1aedbc2c15073861a364174919d23c31c5924b16
+  RNLocalize: dca71791d6f3b66d1c0c419d2b94ec9100ac5c8d
   RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
-  RNPermissions: 7e57f048cc7a436afb12e81604ae3ef4795bbc3a
+  RNPermissions: 47bec584cfdf69712a61a374cd3fb2c9b644e78d
   RNReactNativeHapticFeedback: be4f1b4bf0398c30b59b76ed92ecb0a2ff3a69c6
   RNReanimated: 1286f07b78fe9c339d870eb34dbba22389030e44
   RNScreens: 7f643ee0fd1407dc5085c7795460bd93da113b8f
@@ -4536,7 +4592,7 @@ SPEC CHECKSUMS:
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
-  stream-chat-react-native: 87628b782339fe06e41e18f03be7d6e09a22aa80
+  stream-chat-react-native: 32c6759bbcc1e3f7716f4bee34dd8caab85cd41a
   Stripe: 604acd978f3ec2921098f477ccaa229e12690373
   stripe-react-native: 9fc51ba203ef5d66c89efb3df4ab8aeadaec4e56
   StripeApplePay: 9dabe2d3d897419a7a7663dc3338ff4bc51b9f54
@@ -4548,6 +4604,7 @@ SPEC CHECKSUMS:
   StripePaymentsUI: e2f00f9be6fea280d6188b805fdb5199a96e1151
   StripeUICore: bfe8754c2d78eeb0fc4ce147316a7e5129b58423
   SwiftUIIntrospect: fee9aa07293ee280373a591e1824e8ddc869ba5d
+  Teleport: d1abc92da835c4a3d3355c3055b40e045f55fd17
   Yoga: 3196a843cc5f4bc433f1a41cf17cdf804a01a529
 
 PODFILE CHECKSUM: f12f172da38614929f4c61240f57049b9fd3565a

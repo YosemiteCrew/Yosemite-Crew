@@ -518,4 +518,20 @@ export const getBrowserLocalDateForPreferredCalendarDay = (value: Date): Date =>
 export const buildPreferredTimeZoneDayInstant = (year: number, month: number, day: number): Date =>
   zonedWallClockToInstant(year, month, day, 12, 0, getPreferredTimeZone());
 
+// The value a datetime-local input shows for `value` in the preferred time zone.
+export const toDateTimeInputInPreferredTimeZone = (value: Date): string => {
+  const { year, month, day, hour, minute } = getDatePartsInPreferredTimeZone(value);
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+};
+
+// The instant a datetime-local value (YYYY-MM-DDTHH:mm) names in the preferred time zone, or
+// null when it is not a complete date and time.
+export const fromDateTimeInputInPreferredTimeZone = (value: string): Date | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [year, month, day, hour, minute] = match.slice(1).map(Number);
+  return zonedWallClockToInstant(year, month, day, hour, minute, getPreferredTimeZone());
+};
+
 export { TIMEZONE_STORAGE_KEY, DEFAULT_TIMEZONE };

@@ -56,6 +56,7 @@ import {AvatarGroup} from '@/shared/components/common/AvatarGroup/AvatarGroup';
 import {Badge, type BadgeTone} from '@/shared/components/common/Badge/Badge';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import i18n from '@/localization/i18n';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type InvoicePriceComponent = NonNullable<
@@ -574,7 +575,9 @@ const RefundSection = ({
               effectiveInvoice?.refundReceiptUrl ??
               effectiveInvoice?.downloadUrl;
             if (url) {
-              Linking.openURL(url);
+              Linking.openURL(url).catch(error => {
+                console.warn('[Payments] Could not open the receipt', error);
+              });
             }
           }}
           height={48}
@@ -952,7 +955,7 @@ const useFetchAppointmentById = ({
 }) => {
   useReactEffect(() => {
     if (!apt && appointmentId) {
-      dispatch(fetchAppointmentById({appointmentId}));
+      runInBackground(dispatch(fetchAppointmentById({appointmentId})));
     }
   }, [apt, appointmentId, dispatch]);
 };
@@ -989,7 +992,7 @@ const useBusinessPhoto = ({
         // Swallow errors; UI can continue without extra photo
       }
     };
-    fetchPhoto();
+    runInBackground(fetchPhoto());
   }, [dispatch, googlePlacesId, setFallbackPhoto]);
 };
 

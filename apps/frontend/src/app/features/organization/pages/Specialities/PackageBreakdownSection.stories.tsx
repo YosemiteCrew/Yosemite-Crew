@@ -162,7 +162,7 @@ export const SearchResults: Story = {
   args: { searchQuery: 'pre', filteredSearch: RESULTS },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const option = canvas.getByRole('button', { name: /Pre-anaesthetic bloods/ });
+    const option = canvas.getByRole('option', { name: /Pre-anaesthetic bloods/ });
 
     /* `LAB` is shown as "Diagnostics". The store, the payload and the table all
        say LAB, so a missing mapping surfaces as a raw enum in the one place a

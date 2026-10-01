@@ -209,6 +209,24 @@ describe('Companions page', () => {
     expect(screen.getByRole('heading', { level: 1, name: /Companions/ })).toBeInTheDocument();
   });
 
+  it('links to the possible duplicate review for staff who can view patients', () => {
+    render(<ProtectedCompanions />);
+
+    expect(screen.getByRole('link', { name: 'Review possible duplicates' })).toHaveAttribute(
+      'href',
+      '/companions/possible-duplicates'
+    );
+  });
+
+  it('hides the possible duplicate review link without view permission', () => {
+    usePermissionsMock.mockReturnValue({
+      can: jest.fn((permission: string) => permission !== 'companions:view:any'),
+    });
+    render(<ProtectedCompanions />);
+
+    expect(screen.queryByRole('link', { name: 'Review possible duplicates' })).toBeNull();
+  });
+
   it('renders filtered companions and opens add modal', () => {
     render(<ProtectedCompanions />);
 

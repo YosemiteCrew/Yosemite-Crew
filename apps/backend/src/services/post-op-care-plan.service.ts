@@ -141,7 +141,7 @@ export const PostOpCarePlanService = {
     return assertPlan(id, organisationId);
   },
 
-  async list(params: ListPostOpCarePlansParams) {
+  list(params: ListPostOpCarePlansParams) {
     const { organisationId, patientId, encounterId, status } = params;
     return prisma.postOpCarePlan.findMany({
       where: {

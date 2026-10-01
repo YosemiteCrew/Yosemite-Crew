@@ -12,6 +12,7 @@ import {
   type MobileAllergy,
   type MobileProblem,
 } from '@/features/companion/services/medicalRecordService';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 /** `signIn` has no retry: a retry cannot fix a missing session. */
 export type MedicalRecordsLoadError = 'signIn' | 'loadFailed';
@@ -61,7 +62,7 @@ export const useMedicalRecords = (
         if (active) setLoadedKey(requestKey);
       }
     };
-    load();
+    runInBackground(load());
     return () => {
       active = false;
     };

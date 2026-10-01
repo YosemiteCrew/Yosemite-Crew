@@ -24,6 +24,21 @@ describe('Input', () => {
     expect(input).toHaveClass('h-10', 'rounded-xl', 'bg-[var(--field-bg)]');
   });
 
+  test('grows to a 44px touch target on phones and touch screens only', () => {
+    render(<Input aria-label="Work email" placeholder="name@clinic.com" />);
+
+    const input = screen.getByRole('textbox', { name: 'Work email' });
+    // 40px at desktop density, 44px below `sm` and wherever the pointer is coarse.
+    expect(input).toHaveClass('h-10', 'max-sm:h-11', 'pointer-coarse:h-11');
+  });
+
+  test('keeps a read-only input at the desktop field height on touch screens', () => {
+    render(<Input aria-label="Date" placeholder="Date" readOnly value="30 Sep 2026" />);
+
+    const input = screen.getByRole('textbox', { name: 'Date' });
+    expect(input).toHaveClass('max-sm:read-only:h-10', 'pointer-coarse:read-only:h-10');
+  });
+
   test('exposes error and disabled states', () => {
     render(<Input aria-label="Room" error disabled placeholder="Enter a room" />);
 

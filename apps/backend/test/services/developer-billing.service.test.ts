@@ -242,6 +242,78 @@ describe("DeveloperBillingService", () => {
       });
     });
 
+    it("cancels provider subscriptions one at a time and stops the sweep at a failure", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: "sub_c",
+        stripeCustomerId: "cus_1",
+      });
+      const stripe = getStripeInstance();
+      stripe.subscriptions.list.mockResolvedValueOnce({
+        data: [
+          { id: "sub_a", status: "active" },
+          { id: "sub_b", status: "active" },
+          { id: "sub_c", status: "active" },
+        ],
+        has_more: true,
+      });
+      let inFlight = 0;
+      let peak = 0;
+      stripe.subscriptions.cancel.mockImplementation(async (id: string) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (id === "sub_b") throw new Error("stripe busy");
+        return { id };
+      });
+
+      await DeveloperBillingService.cancelForOwner("user-1");
+
+      expect(peak).toBe(1);
+      // sub_c is never reached by the sweep, so the recorded-subscription
+      // fallback cancels it; the next page is never requested.
+      expect(
+        stripe.subscriptions.cancel.mock.calls.map(([id]: [string]) => id),
+      ).toEqual(["sub_a", "sub_b", "sub_c"]);
+      expect(stripe.subscriptions.list).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(logger.error)).toHaveBeenCalledWith(
+        expect.stringContaining("reconcile developer subscriptions"),
+        expect.objectContaining({ stripeCustomerId: "cus_1" }),
+      );
+      expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
+    });
+
+    it("expires open checkout sessions one at a time and stops at a failure", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: null,
+        stripeCustomerId: "cus_1",
+      });
+      const stripe = getStripeInstance();
+      stripe.checkout.sessions.list.mockResolvedValueOnce({
+        data: [{ id: "cs_1" }, { id: "cs_2" }, { id: "cs_3" }],
+        has_more: true,
+      });
+      let inFlight = 0;
+      let peak = 0;
+      stripe.checkout.sessions.expire.mockImplementation(async (id: string) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (id === "cs_2") throw new Error("already completed");
+        return { id };
+      });
+
+      await DeveloperBillingService.cancelForOwner("user-1");
+
+      expect(peak).toBe(1);
+      expect(
+        stripe.checkout.sessions.expire.mock.calls.map(([id]: [string]) => id),
+      ).toEqual(["cs_1", "cs_2"]);
+      expect(stripe.checkout.sessions.list).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
+    });
+
     it("still deletes the row when expiring sessions fails", async () => {
       mockPrisma.developerSubscription.findUnique.mockResolvedValue({
         stripeSubscriptionId: null,

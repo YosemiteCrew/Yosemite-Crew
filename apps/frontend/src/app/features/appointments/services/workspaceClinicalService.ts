@@ -4,7 +4,7 @@ import {
   parseSoapCodedProblems,
   SOAP_DIAGNOSES_EXTENSION_URL,
 } from '@yosemite-crew/types';
-import { postData, getData, patchData, deleteData } from '@/app/services/axios';
+import { postData, getData, patchData, putData, deleteData } from '@/app/services/axios';
 import type {
   AppointmentEncounter,
   ObservationRecord,
@@ -85,6 +85,94 @@ type ObservationToolTaskPreview = {
   summary?: string;
   answersPreview?: Record<string, unknown>;
   evaluationAppointmentId?: string;
+};
+
+export type DentalToothFinding = {
+  tooth: string;
+  condition?:
+    | 'NORMAL'
+    | 'FRACTURE'
+    | 'MISSING'
+    | 'EXTRACTED'
+    | 'SUPERNUMERARY'
+    | 'PERSISTENT_DECIDUOUS'
+    | 'GINGIVITIS'
+    | 'PERIODONTITIS'
+    | 'TOOTH_RESORPTION'
+    | 'NEOPLASIA'
+    | 'OTHER';
+  mobilityGrade?: 'GRADE_0' | 'GRADE_1' | 'GRADE_2' | 'GRADE_3';
+  calculus?: number;
+  periodontalDepth?: number;
+  notes?: string;
+};
+
+export type DentalExaminationRecord = {
+  id: string;
+  organisationId: string;
+  patientId: string;
+  encounterId?: string | null;
+  examinedAt: string | Date;
+  examinedBy?: string | null;
+  overallGrade: 'GRADE_0' | 'GRADE_1' | 'GRADE_2' | 'GRADE_3' | 'GRADE_4';
+  findings: DentalToothFinding[];
+  calculusScore?: number | null;
+  plaqueScore?: number | null;
+  gingivalScore?: number | null;
+  procedures: string[];
+  notes?: string | null;
+};
+
+export type DentalExaminationInput = {
+  organisationId: string;
+  patientId: string;
+  encounterId?: string;
+  examinedAt: string;
+  overallGrade: DentalExaminationRecord['overallGrade'];
+  findings: DentalToothFinding[];
+  calculusScore?: number;
+  plaqueScore?: number;
+  gingivalScore?: number;
+  procedures?: string[];
+  notes?: string;
+};
+
+export type DentalExaminationUpdate = Omit<
+  DentalExaminationInput,
+  | 'organisationId'
+  | 'patientId'
+  | 'encounterId'
+  | 'examinedAt'
+  | 'calculusScore'
+  | 'plaqueScore'
+  | 'gingivalScore'
+  | 'notes'
+> & {
+  calculusScore?: number | null;
+  plaqueScore?: number | null;
+  gingivalScore?: number | null;
+  notes?: string | null;
+};
+
+export type DermatologyAssessmentRecord = {
+  id: string;
+  patientId: string;
+  encounterId?: string | null;
+  assessedAt: string | Date;
+  assessedBy?: string | null;
+  affectedRegions: string[];
+  primaryLesions: string[];
+  secondaryLesions: string[];
+};
+
+export type DermatologyAssessmentInput = {
+  organisationId: string;
+  patientId: string;
+  encounterId?: string;
+  assessedAt: string;
+  affectedRegions?: string[];
+  primaryLesions?: string[];
+  secondaryLesions?: string[];
 };
 
 type ObservationSubmissionListFilters = {
@@ -830,6 +918,28 @@ export const createPmsObservationSubmission = async (
   return submissionToObservationRecord(res.data, 0);
 };
 
+export const listDermatologyAssessments = async (
+  organisationId: string,
+  patientId: string
+): Promise<DermatologyAssessmentRecord[]> => {
+  const res = await getData<DermatologyAssessmentRecord[]>(
+    `/v1/pms/organisation/${organisationId}/dermatology-assessments`,
+    { patientId }
+  );
+  return res.data ?? [];
+};
+
+export const createDermatologyAssessment = async (
+  input: DermatologyAssessmentInput
+): Promise<DermatologyAssessmentRecord> => {
+  const { organisationId, ...body } = input;
+  const res = await postData<DermatologyAssessmentRecord>(
+    `/v1/pms/organisation/${organisationId}/dermatology-assessments`,
+    body
+  );
+  return res.data;
+};
+
 export const listPmsObservationSubmissions = async (
   filters: ObservationSubmissionListFilters = {}
 ) => {
@@ -838,6 +948,40 @@ export const listPmsObservationSubmissions = async (
     observationSubmissionQuery(filters)
   );
   return res.data ?? [];
+};
+
+export const listDentalExaminations = async (
+  organisationId: string,
+  patientId: string
+): Promise<DentalExaminationRecord[]> => {
+  const res = await getData<DentalExaminationRecord[]>(
+    `/v1/pms/organisation/${organisationId}/dental-examinations`,
+    { patientId }
+  );
+  return res.data ?? [];
+};
+
+export const createDentalExamination = async (
+  input: DentalExaminationInput
+): Promise<DentalExaminationRecord> => {
+  const { organisationId, ...body } = input;
+  const res = await postData<DentalExaminationRecord>(
+    `/v1/pms/organisation/${organisationId}/dental-examinations`,
+    body
+  );
+  return res.data;
+};
+
+export const updateDentalExamination = async (
+  organisationId: string,
+  examId: string,
+  input: DentalExaminationUpdate
+): Promise<DentalExaminationRecord> => {
+  const res = await putData<DentalExaminationRecord>(
+    `/v1/pms/organisation/${organisationId}/dental-examinations/${examId}`,
+    input
+  );
+  return res.data;
 };
 
 export const getPmsObservationSubmission = async (submissionId: string) => {
@@ -883,7 +1027,7 @@ export const listPmsObservationTaskPreviewsForAppointment = async (appointmentId
 export const savePrescriptionArtifact = async (
   context: ClinicalContext,
   prescription: PrescriptionItem | Omit<PrescriptionItem, 'id'>
-) => {
+): Promise<MedicationRequest & { prescriptionItemId?: string }> => {
   // The backend persists prescription lines into TYPED columns (medication, strength, dosage,
   // route, frequency, duration, quantity, refill, instructions, inventoryItemId/Sku, batch…) and
   // stashes anything else in a per-item `metadata` JSON column. So the flat fields below survive as
@@ -965,7 +1109,24 @@ export const savePrescriptionArtifact = async (
         ifMatchConfig(prescriptionVersion)
       )
     : await postData<MedicationRequest>(endpoint, body);
-  return res.data;
+  const savedPrescription = clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(
+    res.data,
+    context
+  );
+  const savedLine = Array.isArray(savedPrescription.medications)
+    ? savedPrescription.medications[0]
+    : undefined;
+  const savedLineRecord =
+    typeof savedLine === 'object' && savedLine !== null && !Array.isArray(savedLine)
+      ? (savedLine as Record<string, unknown>)
+      : undefined;
+  return {
+    ...res.data,
+    prescriptionItemId:
+      typeof savedLineRecord?.prescriptionItemId === 'string'
+        ? savedLineRecord.prescriptionItemId
+        : undefined,
+  };
 };
 
 const prescriptionFromMedicationRequest = (
@@ -1013,6 +1174,7 @@ const prescriptionFromMedicationRequest = (
   const finalized = resource.status === 'active';
   return {
     id: resource.id ?? `rx-${index + 1}`,
+    prescriptionItemId: str('prescriptionItemId'),
     artifactVersion: artifactVersionFromMeta(resource),
     finalized,
     medicineName:

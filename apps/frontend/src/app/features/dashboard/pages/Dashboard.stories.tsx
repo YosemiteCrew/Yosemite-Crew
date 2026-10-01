@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, waitFor, within } from 'storybook/test';
 import type { Appointment, Organisation, UserOrganization } from '@yosemite-crew/types';
+import type { AxiosAdapter } from 'axios';
 
 import type { ApiDayAvailability } from '../../appointments/components/Availability/utils';
 import type { BillingCounter, BillingSubscription } from '../../billing/types/billing';
@@ -8,6 +9,7 @@ import type { Team } from '../../organization/types/team';
 import type { Task } from '../../tasks/types/task';
 import type { UserProfile } from '../../users/types/profile';
 import { PERMISSIONS } from '../../../lib/permissions';
+import api, { API_CLIENT_DEFAULTS } from '../../../services/axios';
 import { useAppointmentStore } from '../../../stores/appointmentStore';
 import { useAuthStore } from '../../../stores/authStore';
 import { useAvailabilityStore } from '../../../stores/availabilityStore';
@@ -233,8 +235,16 @@ const SEEDED_STORES: SnapshotableStore[] = [
  * fetches unconditionally, and every Stat card asks `useDashboardAnalytics` for
  * seven series. Left alone those fail, and `getData` logs each failure through
  * `logger.error`, which is a console error the story verifier counts as a
- * failure. Axios picks the XHR adapter in the browser, so swapping
- * `XMLHttpRequest` is the seam that needs no module mocking.
+ * failure.
+ *
+ * The stub is the app client's adapter, not a browser primitive. The client
+ * sends through axios's fetch adapter, so a swapped `XMLHttpRequest` is never
+ * reached and every call fell through to the preview's offline 404. Replacing
+ * the adapter answers whichever transport the client is configured with.
+ * Autodocs mounts every story on one page against the one shared instance, so
+ * the teardown restores the client's configured adapter rather than whatever
+ * was installed when this story started - an overlapping story cannot leave
+ * its stub behind.
  *
  * The body is `[]`, not `{}`. `ChangeRoom` mounts CLOSED behind the schedule and
  * refetches rooms with `force: true` regardless, and that service calls
@@ -243,25 +253,14 @@ const SEEDED_STORES: SnapshotableStore[] = [
  * the list callers and as "no fields" to the finance normalisers, which only
  * ever look properties up.
  */
-class OfflineXhr {
-  status = 200;
-  statusText = 'OK';
-  responseText = '[]';
-  response = '[]';
-  responseURL = '';
-  readyState = 4;
-  timeout = 0;
-  withCredentials = false;
-  responseType = '';
-  onloadend: (() => void) | null = null;
-  open = () => undefined;
-  setRequestHeader = () => undefined;
-  getAllResponseHeaders = () => 'content-type: application/json\r\n';
-  abort = () => undefined;
-  send = () => {
-    setTimeout(() => this.onloadend?.(), 0);
-  };
-}
+
+const offlineAdapter: AxiosAdapter = async (config) => ({
+  data: [],
+  status: 200,
+  statusText: 'OK',
+  headers: { 'content-type': 'application/json' },
+  config,
+});
 
 type Seed = {
   /** false renders the page with no organisation resolved at all. */
@@ -273,8 +272,7 @@ type Seed = {
 };
 
 const seedDashboard = ({ withOrg = true, revokeAnalytics = false, orgStatus = 'loaded' }: Seed) => {
-  const original = globalThis.XMLHttpRequest;
-  globalThis.XMLHttpRequest = OfflineXhr as unknown as typeof XMLHttpRequest;
+  api.defaults.adapter = offlineAdapter;
 
   const snapshots = SEEDED_STORES.map((store) => [store, store.getState()] as const);
 
@@ -319,7 +317,7 @@ const seedDashboard = ({ withOrg = true, revokeAnalytics = false, orgStatus = 'l
   });
 
   return () => {
-    globalThis.XMLHttpRequest = original;
+    api.defaults.adapter = API_CLIENT_DEFAULTS.adapter;
     for (const [store, state] of snapshots) {
       store.setState(state as never);
     }

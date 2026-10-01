@@ -1,5 +1,6 @@
 import React, {useEffect} from 'react';
 import {SectionList, View, Text, StyleSheet, Image} from 'react-native';
+import i18next from 'i18next';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
@@ -50,10 +51,11 @@ import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 import {
-  useFetchOrgRatingIfNeeded,
-  type OrgRatingState,
-} from '@/features/appointments/hooks/useOrganisationRating';
+  useFetchPractitionerFeedbackIfNeeded,
+  type PractitionerFeedbackState,
+} from '@/features/appointments/hooks/usePractitionerFeedback';
 import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/appointmentStatus';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter =
@@ -112,8 +114,8 @@ export const MyAppointmentsScreen: React.FC = () => {
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>(
     {},
   );
-  const [orgRatings, setOrgRatings] = React.useState<
-    Record<string, OrgRatingState>
+  const [practitionerFeedback, setPractitionerFeedback] = React.useState<
+    Record<string, PractitionerFeedbackState>
   >({});
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
   const lastFetchedCompanionIdRef = React.useRef<string | null>(null);
@@ -135,7 +137,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       if (!companionId) return;
       if (lastFetchedCompanionIdRef.current === companionId) return;
       lastFetchedCompanionIdRef.current = companionId;
-      dispatch(fetchAppointmentsForCompanion({companionId}));
+      runInBackground(dispatch(fetchAppointmentsForCompanion({companionId})));
     },
     [dispatch],
   );
@@ -283,18 +285,26 @@ export const MyAppointmentsScreen: React.FC = () => {
     [handleCheckInUtil, canUseAppointments, getCoordinatesFromUtility],
   );
 
-  const fetchOrgRatingIfNeeded = useFetchOrgRatingIfNeeded({
-    orgRatings,
-    setOrgRatings,
-    logTag: 'Appointments',
-  });
+  const fetchPractitionerFeedbackIfNeeded =
+    useFetchPractitionerFeedbackIfNeeded({
+      feedbackByAppointment: practitionerFeedback,
+      setFeedbackByAppointment: setPractitionerFeedback,
+    });
 
   React.useEffect(() => {
-    const targets = filteredPast.filter(apt => apt.status === 'COMPLETED');
+    const targets = filteredPast.filter(
+      apt => apt.status === 'COMPLETED' && apt.employeeId,
+    );
     targets.forEach(apt => {
-      fetchOrgRatingIfNeeded(apt.businessId);
+      runInBackground(fetchPractitionerFeedbackIfNeeded(apt.id));
     });
-  }, [fetchOrgRatingIfNeeded, filteredPast]);
+  }, [fetchPractitionerFeedbackIfNeeded, filteredPast]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setPractitionerFeedback({});
+    }, []),
+  );
 
   const renderEmptyCard = (title: string, subtitle: string) => (
     <LiquidGlassCard
@@ -521,9 +531,11 @@ export const MyAppointmentsScreen: React.FC = () => {
           }
           onGetDirections={() => {
             if (googlePlacesId) {
-              openMapsToPlaceId(googlePlacesId, businessAddress);
+              runInBackground(
+                openMapsToPlaceId(googlePlacesId, businessAddress),
+              );
             } else if (businessAddress) {
-              openMapsToAddress(businessAddress);
+              runInBackground(openMapsToAddress(businessAddress));
             }
           }}
           canChat={canUseChat}
@@ -540,7 +552,7 @@ export const MyAppointmentsScreen: React.FC = () => {
           checkInDisabled={resolvedCheckInDisabled}
           onCheckIn={() => {
             if (!resolvedCheckInDisabled) {
-              handleCheckIn(item);
+              runInBackground(handleCheckIn(item));
             }
           }}
           footer={footer}
@@ -634,7 +646,10 @@ export const MyAppointmentsScreen: React.FC = () => {
         onAvatarError={handleAvatarError}
         navigation={navigation}
         styles={styles}
-        orgRating={orgRatings[item.businessId]}
+        practitionerFeedback={practitionerFeedback[item.id]}
+        onRetryPractitionerFeedback={() =>
+          fetchPractitionerFeedbackIfNeeded(item.id, true)
+        }
         secondaryColor={theme.colors.cta}
         theme={theme}
       />
@@ -730,7 +745,8 @@ type PastAppointmentCardProps = {
   onAvatarError: (googlePlacesId: string | null, businessId: string) => void;
   navigation: Nav;
   styles: ReturnType<typeof createStyles>;
-  orgRating?: OrgRatingState;
+  practitionerFeedback?: PractitionerFeedbackState;
+  onRetryPractitionerFeedback: () => void;
   secondaryColor: string;
   theme: Theme;
 };
@@ -747,7 +763,8 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
   onAvatarError,
   navigation,
   styles,
-  orgRating,
+  practitionerFeedback,
+  onRetryPractitionerFeedback,
   secondaryColor,
   theme,
 }) => {
@@ -760,27 +777,76 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
 
   let ratingContent: React.ReactNode = null;
 
-  if (item.status === 'COMPLETED') {
-    if (!orgRating || orgRating.loading) {
+  if (item.status === 'COMPLETED' && item.employeeId) {
+    if (!practitionerFeedback || practitionerFeedback.loading) {
       ratingContent = (
-        <Text style={styles.ratingLoadingText}>Checking review status...</Text>
+        <Text style={styles.ratingLoadingText}>
+          {i18next.t('appointments.feedbackLoading')}
+        </Text>
       );
-    } else if (orgRating.isRated) {
+    } else if (practitionerFeedback.loadError) {
       ratingContent = (
-        <View style={styles.ratingRow}>
-          <Image source={Images.starSolid} style={styles.ratingIcon} />
-          <Text style={styles.ratingValueText}>
-            {orgRating.rating ?? '-'}
-            /5
+        <View>
+          <Text style={styles.ratingLoadingText}>
+            {i18next.t('appointments.feedbackLoadFailed')}
           </Text>
+          <LiquidGlassButton
+            title={i18next.t('appointments.retryFeedback')}
+            onPress={onRetryPractitionerFeedback}
+            height={theme.spacing['12']}
+            borderRadius={theme.borderRadius.button}
+            tintColor={secondaryColor}
+            shadowIntensity="medium"
+            textStyle={styles.reviewButtonText}
+          />
+        </View>
+      );
+    } else if (practitionerFeedback.isRated) {
+      ratingContent = (
+        <View>
+          <View style={styles.ratingRow}>
+            <Image source={Images.starSolid} style={styles.ratingIcon} />
+            <Text style={styles.ratingValueText}>
+              {practitionerFeedback.rating ?? '-'}
+              /5
+            </Text>
+          </View>
+          {practitionerFeedback.review?.trim() ? (
+            <Text numberOfLines={2} style={styles.reviewExcerpt}>
+              {practitionerFeedback.review.trim()}
+            </Text>
+          ) : null}
+          <LiquidGlassButton
+            title={i18next.t('appointments.editFeedback', {
+              defaultValue: 'Edit feedback',
+            })}
+            onPress={() =>
+              navigation.navigate('Review', {
+                appointmentId: item.id,
+                isEditing: true,
+                existingRating: practitionerFeedback.rating,
+                existingReview: practitionerFeedback.review,
+                practitionerName:
+                  practitionerFeedback.practitionerName ?? cardTitle,
+              })
+            }
+            height={theme.spacing['12']}
+            borderRadius={theme.borderRadius.button}
+            tintColor={secondaryColor}
+            shadowIntensity="medium"
+            textStyle={styles.reviewButtonText}
+          />
         </View>
       );
     } else {
       ratingContent = (
         <LiquidGlassButton
-          title="Review"
+          title={i18next.t('appointments.reviewVeterinarian')}
           onPress={() =>
-            navigation.navigate('Review', {appointmentId: item.id})
+            navigation.navigate('Review', {
+              appointmentId: item.id,
+              practitionerName: cardTitle,
+            })
           }
           height={theme.spacing['12']}
           borderRadius={theme.borderRadius.button}
@@ -796,7 +862,7 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
     <View style={styles.cardWrapper}>
       <AppointmentCard
         key={`${item.id}-${String(avatarSource || '')}`}
-        doctorName={cardTitle}
+        doctorName={practitionerFeedback?.practitionerName ?? cardTitle}
         specialization={cardSubtitle}
         hospital={businessName}
         dateTime={dateTimeLabel}
@@ -906,6 +972,12 @@ const createStyles = (theme: Theme) =>
     ratingValueText: {
       ...theme.typography.body14,
       color: theme.colors.inkBody,
+    },
+    reviewExcerpt: {
+      ...theme.typography.body12,
+      color: theme.colors.inkMuted,
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['2'],
     },
     ratingLoadingText: {
       ...theme.typography.body12,

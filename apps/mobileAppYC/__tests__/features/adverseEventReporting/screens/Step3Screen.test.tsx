@@ -1,5 +1,10 @@
 import React from 'react';
-import {render, fireEvent, within} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  within,
+  waitFor,
+} from '@testing-library/react-native';
 import {Step3Screen} from '../../../../src/features/adverseEventReporting/screens/Step3Screen';
 import {useSelector} from 'react-redux';
 import {useAdverseEventReport} from '../../../../src/features/adverseEventReporting/state/AdverseEventReportContext';
@@ -152,6 +157,23 @@ describe('Step3Screen', () => {
       type: 'linkedBusinesses/fetch',
       args: {companionId: 'pet-1', category: 'hospital'},
     });
+  });
+
+  it('logs a failed hospital load instead of leaving it unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDispatch.mockImplementationOnce(() =>
+      Promise.reject(new Error('hospitals failed')),
+    );
+
+    setup(null);
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: hospitals failed'),
+      ),
+    );
+    warnSpy.mockRestore();
   });
 
   it('loads nothing before a companion is chosen', () => {

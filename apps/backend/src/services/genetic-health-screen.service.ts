@@ -144,7 +144,7 @@ export const GeneticHealthScreenService = {
     return assertRecord(id, organisationId);
   },
 
-  async list(params: ListGeneticScreenParams) {
+  list(params: ListGeneticScreenParams) {
     const { organisationId, patientId, encounterId } = params;
     return prisma.geneticHealthScreen.findMany({
       where: {

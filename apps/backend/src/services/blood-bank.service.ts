@@ -224,7 +224,7 @@ export const BloodBankService = {
     return donor;
   },
 
-  async listDonors(params: ListDonorsParams) {
+  listDonors(params: ListDonorsParams) {
     const { organisationId, bloodType, isActive } = params;
     return prisma.bloodBankDonor.findMany({
       where: {
@@ -321,7 +321,7 @@ export const BloodBankService = {
     return assertDonation(id, organisationId);
   },
 
-  async listDonations(params: ListDonationsParams) {
+  listDonations(params: ListDonationsParams) {
     const { organisationId, donorId, status } = params;
     return prisma.bloodDonationCollection.findMany({
       where: {

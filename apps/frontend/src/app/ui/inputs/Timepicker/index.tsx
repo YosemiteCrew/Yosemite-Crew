@@ -3,7 +3,7 @@ import ReactDatePicker from 'react-datepicker';
 import { IoTimeOutline } from 'react-icons/io5';
 
 import Field from '@/app/ui/Field';
-import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
+import { FIELD_CONTROL_HEIGHT, getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 
 type TimepickerProps = {
   value: string;
@@ -42,7 +42,7 @@ const TimeInputButton = ({
       type="button"
       onClick={onClick}
       id={inputId}
-      className={`relative flex h-10 items-center justify-between px-3 text-left ${getFieldControlClassName(Boolean(error))} ${className ?? ''}`}
+      className={`relative flex ${FIELD_CONTROL_HEIGHT} items-center justify-between px-3 text-left ${getFieldControlClassName(Boolean(error))} ${className ?? ''}`}
       aria-label={value ? `${label}: ${value}` : label}
       aria-haspopup="dialog"
       aria-describedby={error && errorId ? errorId : undefined}

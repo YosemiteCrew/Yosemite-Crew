@@ -19,7 +19,11 @@ import Multitenancy from 'supertokens-node/recipe/multitenancy';
 import { SMTPService as PasswordlessSMTPService } from 'supertokens-node/recipe/passwordless/emaildelivery';
 import { getAuthHooks } from '../hooks.js';
 import type { AuthProfile, LoginMethod } from '../types.js';
-import { isValidTurnstileToken, verifyTurnstileToken } from '../turnstile.js';
+import {
+  allowedTurnstileHostnames,
+  isValidTurnstileToken,
+  verifyTurnstileToken,
+} from '../turnstile.js';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -416,7 +420,9 @@ export function getSuperTokensConfig(): TypeInput {
   // and NEXT_PUBLIC_TURNSTILE_SITE_KEY on the frontend arms it, on both sides,
   // in one deliberate step rather than as a side effect of a build flag.
   const turnstileRequired = Boolean(turnstileSecret);
-  const turnstileHostname = new URL(requireEnv('AUTH_WEBSITE_DOMAIN')).hostname;
+  const turnstileHostnames = allowedTurnstileHostnames(
+    new URL(requireEnv('AUTH_WEBSITE_DOMAIN')).hostname
+  );
 
   const firstFactors = [
     MultiFactorAuth.FactorIds.EMAILPASSWORD,
@@ -485,7 +491,7 @@ export function getSuperTokensConfig(): TypeInput {
                           !(await verifyTurnstileToken({
                             token,
                             secret: turnstileSecret,
-                            hostname: turnstileHostname,
+                            hostnames: turnstileHostnames,
                             action: TURNSTILE_ACTION,
                             remoteIp,
                           }))

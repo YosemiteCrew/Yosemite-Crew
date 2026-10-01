@@ -801,6 +801,41 @@ describe('TaskViewScreen', () => {
     );
   });
 
+  it('logs failed completion and calendar requests instead of leaving them unhandled', async () => {
+    const warnSpy = console.warn as jest.Mock;
+    mockDispatch.mockImplementation((action: {type?: string}) =>
+      action?.type === 'tasks/markStatus'
+        ? Promise.reject(new Error('complete failed'))
+        : undefined,
+    );
+    const {getByTestId, unmount} = render(<TaskViewScreen />);
+    fireEvent.press(getByTestId('btn-Mark complete'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('Error: complete failed'),
+    );
+    unmount();
+    mockDispatch.mockReset();
+
+    mockRouteParams = {taskId: 'task-calendar-event', source: 'tasks'};
+    const {
+      openCalendarEvent,
+    } = require('@/features/tasks/services/calendarSyncService');
+    openCalendarEvent.mockRejectedValueOnce(new Error('calendar failed'));
+    const calendarView = render(<TaskViewScreen />);
+    fireEvent.press(calendarView.getByTestId('touchable-Calendar provider'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('Error: calendar failed'),
+    );
+  });
+
   it('does not open calendar events without a calendar event id', () => {
     mockRouteParams = {taskId: 'task-icloud', source: 'tasks'};
     const {getByTestId} = render(<TaskViewScreen />);

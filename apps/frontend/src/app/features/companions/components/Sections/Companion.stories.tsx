@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import { toCompanionResponseDTO, type Organisation } from '@yosemite-crew/types';
 
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -89,7 +90,7 @@ const BREED_ENTRIES: BreedCodeEntry[] = [
  *
  * `fetchSpeciesCodeEntries`, `fetchBreedCodeEntries` and `updateCompanion` are
  * ESM exports, so a story cannot reassign them. All three reach the API through
- * the shared axios instance, which uses the XHR adapter in the browser - so the
+ * the shared axios instance, which these stories point at the XHR adapter - so the
  * seam is `XMLHttpRequest.prototype`, the same one the AddCompanion section and
  * ChangeRoom use.
  *
@@ -108,6 +109,12 @@ type ApiReply = {
 
 const REAL_XHR_OPEN = XMLHttpRequest.prototype.open;
 const REAL_XHR_SEND = XMLHttpRequest.prototype.send;
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While this stub is installed the instance is pointed at the
+ * XHR adapter so the canned replies here answer it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
 
 type StubbedXhr = XMLHttpRequest & { storyUrl?: string };
 
@@ -125,6 +132,7 @@ const answerWith = (xhr: XMLHttpRequest, body: unknown) => {
 };
 
 const stubTransport = (reply: ApiReply) => {
+  api.defaults.adapter = 'xhr';
   XMLHttpRequest.prototype.open = function stubbedOpen(
     this: StubbedXhr,
     method: string,
@@ -151,7 +159,9 @@ const stubTransport = (reply: ApiReply) => {
       setTimeout(() => answerWith(this, payload), 0);
       return;
     }
-    if (url.includes('/fhir/v1/companion/org/')) {
+    // The practice profile fields share the prefix and are left to the offline
+    // guard: their loader's catch keeps the section's own fields on screen.
+    if (url.includes('/fhir/v1/companion/org/') && !url.includes('/profile-fields/')) {
       /* Round-tripped through the real serialiser rather than hand-written FHIR,
          so the fixture cannot drift from what `fromCompanionRequestDTO` demands
          when `updateCompanion` parses the reply back. */
@@ -167,6 +177,7 @@ const stubTransport = (reply: ApiReply) => {
   return () => {
     XMLHttpRequest.prototype.open = REAL_XHR_OPEN;
     XMLHttpRequest.prototype.send = REAL_XHR_SEND;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 
@@ -420,7 +431,7 @@ export const Editing: Story = {
     // The de-duplicated menu: four entries in, three out, Beagle once.
     const menu = await openMenu(canvasElement, 'Breed: Beagle');
     const options = within(menu)
-      .getAllByRole('button')
+      .getAllByRole('option')
       .map((option) => option.textContent);
     await expect(options).toEqual(['Beagle', 'Border Collie', 'Whippet']);
     await userEvent.keyboard('{Escape}');
@@ -520,7 +531,7 @@ export const BreedVocabularyEmpty: Story = {
       expect(panels.length).toBeGreaterThan(0);
       return panels[panels.length - 1] as HTMLElement;
     });
-    await expect(within(menu).getByText('No options')).toBeVisible();
+    await expect(within(menu).getByText('No options available')).toBeVisible();
   },
 };
 
@@ -538,11 +549,11 @@ export const StatusEditor: Story = {
        so; opening the menu is the only way to see it. */
     const menu = await openMenu(canvasElement, 'Companion status: Active');
     const options = within(menu)
-      .getAllByRole('button')
+      .getAllByRole('option')
       .map((option) => option.textContent);
     await expect(options).toEqual(['Active', 'Archived']);
 
-    await userEvent.click(within(menu).getByRole('button', { name: 'Archived' }));
+    await userEvent.click(within(menu).getByRole('option', { name: 'Archived' }));
     await waitFor(() =>
       expect(canvas.getByRole('button', { name: 'Companion status: Archived' })).toBeInTheDocument()
     );
@@ -556,7 +567,7 @@ export const StatusEditor: Story = {
     // Round two, this time through the write. The PUT is answered by the stub.
     await userEvent.click(canvas.getByRole('button', { name: 'Edit Status' }));
     const reopened = await openMenu(canvasElement, 'Companion status: Active');
-    await userEvent.click(within(reopened).getByRole('button', { name: 'Archived' }));
+    await userEvent.click(within(reopened).getByRole('option', { name: 'Archived' }));
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
 
     /* A successful write closes the editor and leaves the new status on the

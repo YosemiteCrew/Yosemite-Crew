@@ -1387,6 +1387,105 @@ describe("TaskService", () => {
       expect(txUpdate).toHaveBeenCalledTimes(2);
     });
 
+    it("updates series rows one at a time in order and stops at the first failure", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(seriesTask() as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        seriesTask(),
+        seriesTask({
+          id: "task-2",
+          dueAt: new Date("2026-02-02T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+        seriesTask({
+          id: "task-3",
+          dueAt: new Date("2026-02-03T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+      ] as never);
+      let inFlight = 0;
+      let peak = 0;
+      const txUpdate = jest.fn(async (args: { where: { id: string } }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (args.where.id === "task-2") throw new Error("row locked");
+        return seriesTask({ id: args.where.id, name: "renamed" });
+      });
+      mockedPrisma.$transaction.mockImplementationOnce(
+        async (cb: (tx: unknown) => Promise<unknown>) =>
+          cb({ task: { update: txUpdate } }),
+      );
+
+      await expect(
+        TaskService.updateTask(
+          "task-1",
+          { name: "renamed" },
+          "actor-1",
+          "ALL",
+          "org-1",
+        ),
+      ).rejects.toThrow("row locked");
+
+      expect(peak).toBe(1);
+      expect(txUpdate.mock.calls.map(([args]) => args.where.id)).toEqual([
+        "task-1",
+        "task-2",
+      ]);
+    });
+
+    it("re-parents future rows one at a time, in series order", async () => {
+      const occurrence = seriesTask({
+        id: "task-2",
+        dueAt: new Date("2026-02-02T09:00:00.000Z"),
+        recurrence: { type: "DAILY", masterTaskId: "task-1" },
+      });
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(occurrence as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        seriesTask({ recurrence: { type: "DAILY", isMaster: true } }),
+        occurrence,
+        seriesTask({
+          id: "task-3",
+          dueAt: new Date("2026-02-03T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+        seriesTask({
+          id: "task-4",
+          dueAt: new Date("2026-02-04T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+      ] as never);
+      let inFlight = 0;
+      let peak = 0;
+      const txUpdate = jest.fn(async (args: { where: { id: string } }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        return seriesTask({ id: args.where.id, name: "renamed" });
+      });
+      mockedPrisma.$transaction.mockImplementationOnce(
+        async (cb: (tx: unknown) => Promise<unknown>) =>
+          cb({ task: { update: txUpdate } }),
+      );
+
+      await TaskService.updateTask(
+        "task-2",
+        { name: "renamed" },
+        "actor-1",
+        "THIS_AND_FOLLOWING",
+        "org-1",
+      );
+
+      expect(peak).toBe(1);
+      expect(txUpdate.mock.calls.map(([args]) => args.where.id)).toEqual([
+        "task-2",
+        "task-1",
+        "task-3",
+        "task-4",
+      ]);
+    });
+
     it("splits the series on THIS_AND_FOLLOWING, capping the master and re-parenting future rows", async () => {
       const occurrenceDueAt = new Date("2026-02-02T09:00:00.000Z");
       const occurrence = seriesTask({

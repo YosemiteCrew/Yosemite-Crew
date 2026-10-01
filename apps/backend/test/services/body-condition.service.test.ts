@@ -115,6 +115,29 @@ describe("BodyConditionService.list", () => {
   });
 });
 
+describe("BodyConditionService.trend", () => {
+  it("returns the oldest records first, capped at the default limit", async () => {
+    mockFindMany.mockResolvedValue([baseRecord]);
+    const result = await BodyConditionService.trend("pat-1", "org-1");
+    expect(result).toEqual([baseRecord]);
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { patientId: "pat-1", organisationId: "org-1" },
+        orderBy: { recordedAt: "asc" },
+        take: 20,
+      }),
+    );
+  });
+
+  it("honours an explicit limit", async () => {
+    mockFindMany.mockResolvedValue([]);
+    await BodyConditionService.trend("pat-1", "org-1", 5);
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 5 }),
+    );
+  });
+});
+
 describe("BodyConditionService.delete", () => {
   it("deletes record when found", async () => {
     mockFindFirst.mockResolvedValue(baseRecord);

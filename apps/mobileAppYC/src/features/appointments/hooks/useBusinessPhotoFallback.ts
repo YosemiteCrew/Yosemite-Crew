@@ -6,6 +6,7 @@ import {
   fetchGooglePlacesImage,
 } from '@/features/linkedBusinesses';
 import {useLazyRef} from '@/shared/hooks/useLazyRef';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 /**
  * Hook for managing business photo fallback fetching
@@ -58,7 +59,7 @@ export const useBusinessPhotoFallback = () => {
   const handleAvatarError = useCallback(
     (googlePlacesId: string | null, businessId: string) => {
       if (!googlePlacesId) return;
-      requestBusinessPhoto(googlePlacesId, businessId);
+      runInBackground(requestBusinessPhoto(googlePlacesId, businessId));
     },
     [requestBusinessPhoto],
   );

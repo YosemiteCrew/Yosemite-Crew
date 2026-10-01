@@ -43,6 +43,7 @@ import {
 } from "src/utils/ap-url-guard";
 import { ApDeliveryQueue } from "src/queues/ap-delivery.queue";
 import { apAuthorityBase } from "src/services/ap-authority";
+import { mapWithConcurrency } from "../utils/async-iteration";
 
 // ─── Actor management ─────────────────────────────────────────────────────────
 
@@ -93,17 +94,15 @@ export async function getOrCreateActor(orgId: string): Promise<APActor> {
   });
 }
 
-export async function getActorByOrgId(orgId: string): Promise<APActor | null> {
+export function getActorByOrgId(orgId: string): Promise<APActor | null> {
   return prisma.aPActor.findUnique({ where: { organisationId: orgId } });
 }
 
-export async function getActorByUri(uri: string): Promise<APActor | null> {
+export function getActorByUri(uri: string): Promise<APActor | null> {
   return prisma.aPActor.findUnique({ where: { uri } });
 }
 
-export async function getActorByUsername(
-  username: string,
-): Promise<APActor | null> {
+export function getActorByUsername(username: string): Promise<APActor | null> {
   return prisma.aPActor.findUnique({ where: { preferredUsername: username } });
 }
 
@@ -352,13 +351,13 @@ async function fanOutToFollowers(actor: APActor, activity: unknown) {
     ...new Set(followers.map((f) => f.sharedInboxUri ?? f.remoteInboxUri)),
   ];
 
-  for (const inboxUrl of inboxes) {
-    await ApDeliveryQueue.add("deliver", {
+  await mapWithConcurrency(inboxes, (inboxUrl) =>
+    ApDeliveryQueue.add("deliver", {
       actorId: actor.id,
       inboxUri: inboxUrl,
       activity,
-    });
-  }
+    }),
+  );
 }
 
 // ─── Follow / Unfollow ────────────────────────────────────────────────────────

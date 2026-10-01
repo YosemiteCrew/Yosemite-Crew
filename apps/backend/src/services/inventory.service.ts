@@ -2,6 +2,7 @@
 import dayjs from "dayjs";
 import { prisma } from "src/config/prisma";
 import { getOrgBillingCurrency } from "src/utils/billing";
+import { mapInSequence, mapWithConcurrency } from "../utils/async-iteration";
 import {
   InventoryItemType,
   InventoryBatch as PrismaInventoryBatch,
@@ -165,7 +166,7 @@ const sanitizeStatusList = (value: unknown): InventoryStatus[] | undefined => {
 
 const sanitizeStockStatus = (
   value: unknown,
-): InventoryStockStatus | InventoryStockStatus[] | undefined => {
+): InventoryStockStatus[] | undefined => {
   const allowed = new Set<InventoryStockStatus>([
     "In stock",
     "Low stock",
@@ -174,16 +175,12 @@ const sanitizeStockStatus = (
     "Expired",
     "Inactive",
   ]);
-  if (Array.isArray(value)) {
-    const filtered = value.filter(
-      (entry): entry is InventoryStockStatus =>
-        typeof entry === "string" && allowed.has(entry as InventoryStockStatus),
-    );
-    return filtered.length ? filtered : undefined;
-  }
-  return typeof value === "string" && allowed.has(value as InventoryStockStatus)
-    ? (value as InventoryStockStatus)
-    : undefined;
+  const values = Array.isArray(value) ? value : [value];
+  const filtered = values.filter(
+    (entry): entry is InventoryStockStatus =>
+      typeof entry === "string" && allowed.has(entry as InventoryStockStatus),
+  );
+  return filtered.length ? filtered : undefined;
 };
 
 const sanitizePositiveNumber = (value: unknown): number | undefined => {
@@ -248,22 +245,6 @@ type InventorySortableRow = {
   createdAt?: Date | string | null;
 };
 
-const resolveInventorySortValue = (
-  row: InventorySortableRow,
-  field: ListInventoryFilter["sortBy"] | undefined,
-) => {
-  if (field === "stock") {
-    return row.currentStock ?? row.onHand ?? 0;
-  }
-  if (field === "expiryDate") {
-    return row.nearestExpiryDate;
-  }
-  if (field === "createdAt") {
-    return row.createdAt;
-  }
-  return row.name;
-};
-
 const compareInventorySortValues = (
   leftValue: Date | number | string | null | undefined,
   rightValue: Date | number | string | null | undefined,
@@ -290,9 +271,28 @@ const sortInventoryRows = <T extends InventorySortableRow>(
   const direction = sortOrder === "desc" ? -1 : 1;
   const field = sortBy ?? "name";
   return [...rows].sort((left, right) => {
-    const leftValue = resolveInventorySortValue(left, field);
-    const rightValue = resolveInventorySortValue(right, field);
-    return compareInventorySortValues(leftValue, rightValue, direction);
+    if (field === "stock") {
+      return compareInventorySortValues(
+        left.currentStock ?? left.onHand ?? 0,
+        right.currentStock ?? right.onHand ?? 0,
+        direction,
+      );
+    }
+    if (field === "expiryDate") {
+      return compareInventorySortValues(
+        left.nearestExpiryDate,
+        right.nearestExpiryDate,
+        direction,
+      );
+    }
+    if (field === "createdAt") {
+      return compareInventorySortValues(
+        left.createdAt,
+        right.createdAt,
+        direction,
+      );
+    }
+    return compareInventorySortValues(left.name, right.name, direction);
   });
 };
 
@@ -459,6 +459,7 @@ export interface ConsumeStockInput {
   quantity: number;
   reason:
     | "APPOINTMENT_USAGE"
+    | "COUNTER_SALE"
     | "MANUAL_ADJUSTMENT"
     | "GROOMING_USAGE"
     | "BOARDING_USAGE"
@@ -814,18 +815,22 @@ const getInventoryTurnoverByItemFromPostgres = async (params: {
     }),
   );
 
-  const beginningByItem = new Map<string, number>();
-  for (const item of items) {
-    const batchesAtStart = await prisma.inventoryBatch.aggregate({
+  const batchesAtStart = await mapWithConcurrency(items, (item) =>
+    prisma.inventoryBatch.aggregate({
       where: {
         organisationId: params.organisationId,
         itemId: item.id,
         createdAt: { lte: params.from },
       },
       _sum: { quantity: true },
-    });
-    beginningByItem.set(item.id, batchesAtStart._sum.quantity ?? 0);
-  }
+    }),
+  );
+  const beginningByItem = new Map<string, number>(
+    items.map((item, index) => [
+      item.id,
+      batchesAtStart[index]._sum.quantity ?? 0,
+    ]),
+  );
 
   return buildInventoryTurnoverResults(
     buildInventoryTurnoverSources(items, purchasesByItem, beginningByItem),
@@ -1369,6 +1374,201 @@ const planFifoConsumption = (
   return plan;
 };
 
+type BatchDraw = { itemId: string; batchId: string; quantity: number };
+
+const planBatchDraws = (
+  itemId: string,
+  batches: ReadonlyArray<{ id: string; quantity?: number | null }>,
+  quantity: number,
+): BatchDraw[] =>
+  planFifoConsumption(batches, quantity).map(({ index, newQuantity }) => ({
+    itemId,
+    batchId: batches[index].id,
+    quantity: (batches[index].quantity ?? 0) - newQuantity,
+  }));
+
+/**
+ * Draws every planned batch in ONE conditional UPDATE and logs the movements in
+ * one insert. Each row is only written if it still holds the quantity planned
+ * from it, so a draw that raced another consumption matches fewer rows than it
+ * planned and the whole transaction is refused rather than taking a batch
+ * below zero.
+ */
+const applyBatchDraws = async (
+  tx: Prisma.TransactionClient,
+  draws: BatchDraw[],
+  movement: Pick<StockMovementInput, "reason" | "referenceId" | "userId">,
+) => {
+  if (
+    draws.some(
+      ({ quantity }) => !Number.isSafeInteger(quantity) || quantity <= 0,
+    )
+  ) {
+    throw new InventoryServiceError("quantity must be a positive integer", 400);
+  }
+  const values = Prisma.join(
+    draws.map(
+      ({ batchId, quantity }) =>
+        Prisma.sql`(${batchId}::text, ${quantity}::int)`,
+    ),
+  );
+  const claimed = await tx.$executeRaw`
+    UPDATE "InventoryBatch" AS b
+    SET "quantity" = b."quantity" - v."quantity", "updatedAt" = NOW()
+    FROM (VALUES ${values}) AS v("id", "quantity")
+    WHERE b."id" = v."id" AND b."quantity" >= v."quantity"
+  `;
+  if (claimed !== draws.length) {
+    throw new InventoryServiceError("Insufficient stock", 400);
+  }
+  const createdAt = new Date();
+  await tx.inventoryStockMovement.createMany({
+    data: draws.map(({ itemId, batchId, quantity }) => ({
+      itemId,
+      batchId,
+      change: -quantity,
+      reason: movement.reason,
+      referenceId: movement.referenceId,
+      userId: movement.userId,
+      createdAt,
+    })),
+  });
+};
+
+/**
+ * Locks the item row, then sums its batches. Callers write the batch rows they
+ * change first, so this keeps the batch-then-item order the dispense and count
+ * paths use, and a change to another batch of this item that commits while we
+ * wait is included in the sum instead of overwritten. Two statements on
+ * purpose: the sum must be read after the lock is granted.
+ */
+const lockItemAndSumOnHand = async (
+  tx: Prisma.TransactionClient,
+  itemId: string,
+  organisationId: string,
+) => {
+  const [lockedItem] = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "InventoryItem"
+    WHERE "id" = ${itemId}
+      AND "organisationId" = ${organisationId}
+    FOR UPDATE
+  `;
+  if (!lockedItem) {
+    throw new InventoryServiceError("Inventory item not found", 404);
+  }
+  const { onHand } = await recomputeStockFromBatches(itemId, tx);
+  return onHand;
+};
+
+const consumeBatchStockInTransaction = async (
+  tx: Prisma.TransactionClient,
+  input: ConsumeStockInput,
+  itemId: string,
+  organisationId: string,
+  stockSource: ConsumeStockSource,
+): Promise<InventoryItemLike> => {
+  const batches = await tx.inventoryBatch.findMany({
+    where: { itemId },
+    orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+  });
+  await applyBatchDraws(
+    tx,
+    planBatchDraws(itemId, batches, input.quantity),
+    input,
+  );
+
+  if (stockSource === "ALLOCATED") {
+    // Drawn after the batches, never before: writing the item row first took
+    // the item lock ahead of the batch locks, the opposite of every other
+    // stock path, and deadlocked with a concurrent consumption of the same
+    // batch. Conditional decrement rather than a computed literal: the row is
+    // only written if the reservation still covers the draw at write time, so
+    // two concurrent draw-downs on the same reservation cannot both succeed
+    // the way a read-then-write pair would. A `null` allocated matches no row
+    // here, which is correct - there is no reservation to draw down.
+    const claimed = await tx.$executeRaw`
+      UPDATE "InventoryItem"
+      SET "allocated" = "allocated" - ${input.quantity}, "updatedAt" = NOW()
+      WHERE "id" = ${itemId}
+        AND "organisationId" = ${organisationId}
+        AND "allocated" >= ${input.quantity}
+    `;
+    if (claimed !== 1) {
+      throw new InventoryServiceError("Insufficient allocated stock", 400);
+    }
+  }
+
+  // Reservations are tracked on the item (see allocateStock), not on batches,
+  // so consumption must not recompute `allocated` from the batch rows.
+  const onHand = await lockItemAndSumOnHand(tx, itemId, organisationId);
+  const updated = await tx.inventoryItem.update({
+    where: { id: itemId },
+    data: { onHand },
+  });
+  return { ...updated, _id: toMongoId(updated.id) };
+};
+
+/**
+ * Consumes unreserved stock for several items of one organisation inside the
+ * caller's transaction, e.g. the lines of a counter sale. `lines` carries the
+ * item rows the caller already read, org-scoped, in this transaction.
+ */
+export const consumeNormalStockLinesInTransaction = async (
+  tx: Prisma.TransactionClient,
+  lines: ReadonlyArray<{
+    item: Pick<PrismaInventoryItem, "id" | "onHand" | "allocated">;
+    quantity: number;
+  }>,
+  movement: Pick<ConsumeStockInput, "reason" | "referenceId">,
+) => {
+  for (const { item, quantity } of lines) {
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+      throw new InventoryServiceError(
+        "quantity must be a positive integer",
+        400,
+      );
+    }
+    if ((item.onHand ?? 0) - (item.allocated ?? 0) < quantity) {
+      throw new InventoryServiceError("Insufficient stock", 400);
+    }
+  }
+  const itemIds = lines.map(({ item }) => item.id);
+  const batches = await tx.inventoryBatch.findMany({
+    where: { itemId: { in: itemIds } },
+    orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+  });
+  await applyBatchDraws(
+    tx,
+    lines.flatMap(({ item, quantity }) =>
+      planBatchDraws(
+        item.id,
+        batches.filter((batch) => batch.itemId === item.id),
+        quantity,
+      ),
+    ),
+    movement,
+  );
+  // Lock the items (batch-then-item, in id order) before the recompute. The
+  // UPDATE below cannot do this itself: when it has to wait for an item row
+  // another transaction holds, READ COMMITTED re-runs its SUM with the
+  // snapshot taken before that wait, so a batch the other transaction changed
+  // or added would be left out of the total it writes.
+  await tx.$queryRaw`
+    SELECT "id" FROM "InventoryItem"
+    WHERE "id" IN (${Prisma.join(itemIds)})
+    ORDER BY "id"
+    FOR UPDATE
+  `;
+  await tx.$executeRaw`
+    UPDATE "InventoryItem" AS i
+    SET "onHand" = COALESCE(
+      (SELECT SUM(b."quantity") FROM "InventoryBatch" AS b WHERE b."itemId" = i."id"),
+      0
+    ), "updatedAt" = NOW()
+    WHERE i."id" IN (${Prisma.join(itemIds)})
+  `;
+};
+
 const buildInventoryListItem = (
   item: InventoryItemLike,
   itemBatches: InventoryBatchLike[],
@@ -1473,7 +1673,8 @@ const mongoOrEntryToPrisma = (
   entry: Record<string, unknown>,
 ): Prisma.InventoryItemWhereInput => {
   const key = Object.keys(entry)[0];
-  const value = entry[key] as { $regex?: string; $options?: string } | RegExp;
+  const value = entry[key] as
+    { $regex?: string; $options?: string } | RegExp | null;
   let pattern = "";
   if (value instanceof RegExp) {
     pattern = value.source;
@@ -1518,13 +1719,10 @@ const buildListItemsWhere = (
 
 const matchesStockStatusFilter = (
   stockStatus: string,
-  filterValue: InventoryStockStatus | InventoryStockStatus[] | undefined,
+  filterValue: InventoryStockStatus[] | undefined,
 ) => {
   if (filterValue === undefined) return true;
-  if (Array.isArray(filterValue)) {
-    return filterValue.includes(stockStatus as InventoryStockStatus);
-  }
-  return stockStatus === filterValue;
+  return filterValue.includes(stockStatus as InventoryStockStatus);
 };
 
 export const InventoryService = {
@@ -1967,12 +2165,12 @@ export const InventoryService = {
     if (input.allocated !== undefined) data.allocated = input.allocated;
 
     const updated = await prisma.inventoryBatch.update({
-      where: { id: batchId },
+      where: { id: batchId, organisationId: safeOrganisationId },
       data,
     });
 
     const { onHand } = await recomputeStockFromBatches(updated.itemId);
-    await prisma.inventoryItem.updateMany({
+    await prisma.inventoryItem.update({
       where: { id: updated.itemId },
       data: { onHand },
     });
@@ -1995,12 +2193,12 @@ export const InventoryService = {
     });
     if (!batch) return;
 
-    await prisma.inventoryBatch.deleteMany({
+    await prisma.inventoryBatch.delete({
       where: { id: batchId, organisationId: safeOrganisationId },
     });
 
     const { onHand, allocated } = await recomputeStockFromBatches(batch.itemId);
-    await prisma.inventoryItem.updateMany({
+    await prisma.inventoryItem.update({
       where: { id: batch.itemId },
       data: { onHand, allocated },
     });
@@ -2018,7 +2216,7 @@ export const InventoryService = {
       organisationId,
       "organisationId",
     );
-    if (input.quantity <= 0) {
+    if (!Number.isSafeInteger(input.quantity) || input.quantity <= 0) {
       throw new InventoryServiceError("quantity must be > 0", 400);
     }
     const stockSource = resolveConsumeStockSource(input.stockSource);
@@ -2045,63 +2243,16 @@ export const InventoryService = {
         throw new InventoryServiceError("Insufficient stock", 400);
       }
 
-      if (stockSource === "ALLOCATED") {
-        // Conditional decrement rather than a computed literal: the row is only
-        // written if the reservation still covers the draw at write time, so two
-        // concurrent draw-downs on the same reservation cannot both succeed the
-        // way a read-then-write pair would. A `null` allocated matches no row
-        // here, which is correct - there is no reservation to draw down.
-        const claimed = await tx.inventoryItem.updateMany({
-          where: {
-            id: safeItemId,
-            organisationId: safeOrganisationId,
-            allocated: { gte: input.quantity },
-          },
-          data: { allocated: { decrement: input.quantity } },
-        });
-        if (claimed.count !== 1) {
-          throw new InventoryServiceError("Insufficient allocated stock", 400);
-        }
-      }
-
-      const batches = await tx.inventoryBatch.findMany({
-        where: { itemId: safeItemId },
-        orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
-      });
-
-      const plan = planFifoConsumption(batches, input.quantity);
-      for (const { index, newQuantity } of plan) {
-        const batch = batches[index];
-        const consumed = (batch.quantity ?? 0) - newQuantity;
-        await tx.inventoryBatch.update({
-          where: { id: batch.id },
-          data: { quantity: { decrement: consumed } },
-        });
-        await logMovement(
-          {
-            itemId: safeItemId,
-            batchId: batch.id,
-            change: -consumed,
-            reason: input.reason,
-            referenceId: input.referenceId,
-          },
-          tx,
-        );
-      }
-
-      // Reservations are tracked on the item (see allocateStock), not on batches,
-      // so consumption must not recompute `allocated` from the batch rows.
-      const { onHand } = await recomputeStockFromBatches(safeItemId, tx);
-      return tx.inventoryItem.update({
-        where: { id: safeItemId },
-        data: { onHand },
-      });
+      return consumeBatchStockInTransaction(
+        tx,
+        input,
+        safeItemId,
+        safeOrganisationId,
+        stockSource,
+      );
     });
 
-    return {
-      ...updated,
-      _id: toMongoId(updated.id),
-    };
+    return updated;
   },
 
   // ─────────────────────────────────────────────
@@ -2119,12 +2270,10 @@ export const InventoryService = {
       "organisationId",
     );
 
-    const results: InventoryItemLike[] = [];
-    for (const itemInput of input.items) {
-      results.push(await this.consumeStock(itemInput, safeOrganisationId));
-    }
-
-    return results;
+    // One item after another: each draw-down moves stock and writes movements.
+    return mapInSequence(input.items, (itemInput) =>
+      this.consumeStock(itemInput, safeOrganisationId),
+    );
   },
 
   getInventoryTurnoverByItem(params: {
@@ -2225,29 +2374,20 @@ export const InventoryAdjustmentService = {
           );
         }
 
-        const plan = planFifoConsumption(batches, Math.abs(delta));
-        for (const { index, newQuantity } of plan) {
-          const batch = batches[index];
-          const consume = (batch.quantity ?? 0) - newQuantity;
-          await tx.inventoryBatch.update({
-            where: { id: batch.id },
-            data: { quantity: { decrement: consume } },
-          });
-
-          await logMovement(
-            {
-              itemId: safeItemId,
-              batchId: batch.id,
-              change: -consume,
-              reason: input.reason,
-              userId: input.userId,
-            },
-            tx,
-          );
-        }
+        // Conditional draws: a batch a concurrent consumption drained after
+        // the read above refuses the adjustment instead of going negative.
+        await applyBatchDraws(
+          tx,
+          planBatchDraws(item.id, batches, Math.abs(delta)),
+          { reason: input.reason, userId: input.userId },
+        );
       }
 
-      const { onHand } = await recomputeStockFromBatches(item.id, tx);
+      const onHand = await lockItemAndSumOnHand(
+        tx,
+        item.id,
+        safeOrganisationId,
+      );
       return tx.inventoryItem.update({
         where: { id: item.id },
         data: { onHand },
@@ -2401,7 +2541,7 @@ export const InventoryVendorService = {
       throw new InventoryServiceError("Vendor not found", 404);
     }
     const updated = await prisma.inventoryVendor.update({
-      where: { id: vendorId },
+      where: { id: vendorId, organisationId: safeOrganisationId },
       data: {
         name: updates.name ?? undefined,
         brand: updates.brand ?? undefined,
@@ -2445,7 +2585,11 @@ export const InventoryVendorService = {
       organisationId,
       "organisationId",
     );
-    await prisma.inventoryVendor.deleteMany({
+    const vendor = await prisma.inventoryVendor.findFirst({
+      where: { id: vendorId, organisationId: safeOrganisationId },
+    });
+    if (!vendor) return;
+    await prisma.inventoryVendor.delete({
       where: { id: vendorId, organisationId: safeOrganisationId },
     });
   },
@@ -2492,9 +2636,11 @@ export const InventoryMetaFieldService = {
 
   async deleteField(fieldId: string) {
     ensureObjectId(fieldId);
-    await prisma.inventoryMetaField.deleteMany({
+    const field = await prisma.inventoryMetaField.findUnique({
       where: { id: fieldId },
     });
+    if (!field) return;
+    await prisma.inventoryMetaField.delete({ where: { id: fieldId } });
   },
 
   listFields(businessType: string) {

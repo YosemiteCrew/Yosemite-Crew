@@ -18,6 +18,7 @@ jest.mock('next/link', () => {
 });
 
 import DeveloperPlayground from '@/app/features/developers/pages/DeveloperPlayground/DeveloperPlayground';
+import PlaygroundPage from '@/app/(routes)/(app)/developers/(portal)/playground/page';
 
 const BASE = 'https://api.example.test';
 const KEY = 'synthetic-playground-key';
@@ -47,6 +48,25 @@ const chooseOperation = (id: string) =>
 const run = () => fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
 describe('DeveloperPlayground', () => {
+  it('opens the guided example in the connection export', async () => {
+    const page = await PlaygroundPage({
+      searchParams: Promise.resolve({ operation: 'listAppointments', export: 'mcp' }),
+    });
+    expect(page.props.initialOperationId).toBe('listAppointments');
+    expect(page.props.initialExportTab).toBe('mcp');
+    render(
+      <DeveloperPlayground
+        baseUrl={BASE}
+        initialOperationId={page.props.initialOperationId}
+        initialExportTab={page.props.initialExportTab}
+      />
+    );
+
+    expect(screen.getByLabelText('Operation')).toHaveValue('listAppointments');
+    expect(screen.getByRole('tab', { name: 'MCP' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('"name": "list_appointments"');
+  });
+
   it('runs an operation with the key as a bearer token and no session cookie', async () => {
     fetchMock.mockResolvedValue(
       respond({

@@ -226,7 +226,7 @@ export const ProfileImagePicker = ({
       cameraType: 'front',
     };
 
-    launchCamera(options, handleResponse);
+    await launchCamera(options, handleResponse);
   }, [handlePermission, handleResponse]);
 
   const openGallery = useCallback(async () => {
@@ -245,7 +245,7 @@ export const ProfileImagePicker = ({
       selectionLimit: 1, // 1 for single selection, 0 for unlimited (iOS 14+, Android 13+)
     };
 
-    launchImageLibrary(options, handleResponse);
+    await launchImageLibrary(options, handleResponse);
   }, [handlePermission, handleResponse]);
 
   const triggerPicker = useCallback(() => {

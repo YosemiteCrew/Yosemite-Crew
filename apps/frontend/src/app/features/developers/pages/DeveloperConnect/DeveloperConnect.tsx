@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
+import clsx from 'clsx';
 import type { IconType } from 'react-icons';
 import {
-  IoArrowForward,
   IoCheckmarkCircle,
   IoChevronForward,
   IoCodeSlashOutline,
@@ -12,9 +11,8 @@ import {
   IoGitNetworkOutline,
   IoTerminalOutline,
 } from 'react-icons/io5';
+import { Button, Card } from '@/app/ui';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
-
-import './DeveloperConnect.css';
 
 type ToolChoice = {
   id: string;
@@ -55,6 +53,8 @@ const TOOL_CHOICES: ToolChoice[] = [
   },
 ];
 
+const TOOL_SETUP_HREF = '/developers/playground?operation=listAppointments&export=mcp';
+
 const DeveloperConnect = () => {
   const [selectedToolId, setSelectedToolId] = useState(TOOL_CHOICES[0].id);
   const [activeStep, setActiveStep] = useState(2);
@@ -65,33 +65,51 @@ const DeveloperConnect = () => {
     setActiveStep(2);
   };
 
+  const stepButtonClass =
+    'flex w-full items-start gap-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text';
+  const stepNumberClass =
+    'inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-card-border bg-inset text-caption-2 font-bold text-text-primary';
+  const stepLabelClass = 'flex flex-col gap-1';
+  const stepTitleClass = 'text-caption-1 font-bold text-text-primary';
+  const stepDetailClass = 'text-caption-2 text-text-tertiary';
+  const stepBodyClass = 'mb-2 ml-10 rounded-r-xl border-l-2 border-blue-text bg-inset p-4';
+
   return (
     <DevRouteGuard>
-      <main className="DevConnect OperationsWrapper">
-        <header className="DevConnectHeader">
-          <span className="DevConnectEyebrow">Guided setup</span>
-          <h1>Connect a coding tool</h1>
-          <p>
+      <div className="OperationsWrapper flex flex-col gap-5 text-text-secondary">
+        <header className="max-w-3xl">
+          <span className="mb-1 block text-caption-2 font-bold uppercase tracking-wider text-blue-text">
+            Guided setup
+          </span>
+          <h1 className="text-page-title text-text-primary">Connect a coding tool</h1>
+          <p className="mt-2 max-w-2xl text-body-3 text-text-secondary">
             Follow one path from this signed-in developer account to a first read-only practice
             request.
           </p>
         </header>
 
-        <div className="DevConnectLayout">
-          <section
-            className="DevConnectChooser yc-card-surface"
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(260px,0.78fr)_minmax(420px,1.45fr)]">
+          <Card
+            variant="bordered"
+            className="p-4 sm:p-5"
+            role="region"
             aria-labelledby="tool-choice-title"
           >
-            <div className="DevConnectSectionHead">
-              <span className="DevConnectStepNumber" aria-hidden="true">
+            <div className="flex items-start gap-3">
+              <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-card-border bg-inset text-caption-2 font-bold text-text-primary">
                 1
               </span>
               <div>
-                <h2 id="tool-choice-title">Choose your setup</h2>
-                <p>The steps adapt to where your coding assistant runs.</p>
+                <h2 id="tool-choice-title" className="text-body-2 font-bold text-text-primary">
+                  Choose your setup
+                </h2>
+                <p className="mt-1 text-caption-1 text-text-tertiary">
+                  The steps adapt to where your coding assistant runs.
+                </p>
               </div>
             </div>
-            <div className="DevConnectTools">
+
+            <div className="mt-4 flex flex-col gap-2 max-lg:grid max-lg:grid-cols-2 max-sm:grid-cols-1">
               {TOOL_CHOICES.map((tool) => {
                 const selected = tool.id === selectedTool.id;
                 const ToolIcon = tool.icon;
@@ -99,16 +117,23 @@ const DeveloperConnect = () => {
                   <button
                     key={tool.id}
                     type="button"
-                    className={`DevConnectTool${selected ? ' is-selected' : ''}`}
+                    className={clsx(
+                      'flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text',
+                      selected
+                        ? 'border-blue-text bg-[var(--nav-active-bg)] text-blue-text'
+                        : 'border-card-border bg-card-bg text-text-secondary hover:border-blue-text'
+                    )}
                     aria-pressed={selected}
                     onClick={() => chooseTool(tool.id)}
                   >
-                    <span className="DevConnectToolIcon" aria-hidden="true">
-                      <ToolIcon size={18} />
+                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-inset text-blue-text">
+                      <ToolIcon size={18} aria-hidden="true" />
                     </span>
-                    <span className="DevConnectToolCopy">
-                      <strong>{tool.title}</strong>
-                      <span>{tool.description}</span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <strong className="text-caption-1 font-bold text-text-primary">
+                        {tool.title}
+                      </strong>
+                      <span className="text-caption-2 text-text-tertiary">{tool.description}</span>
                     </span>
                     {selected ? (
                       <IoCheckmarkCircle size={18} aria-hidden="true" />
@@ -119,134 +144,202 @@ const DeveloperConnect = () => {
                 );
               })}
             </div>
-          </section>
+          </Card>
 
-          <section className="DevConnectJourney yc-card-surface" aria-labelledby="journey-title">
-            <div className="DevConnectJourneyIntro">
+          <Card
+            variant="bordered"
+            className="p-4 sm:p-5"
+            role="region"
+            aria-labelledby="journey-title"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-card-border pb-4 max-sm:flex-col">
               <div>
-                <span className="DevConnectEyebrow">{selectedTool.title}</span>
-                <h2 id="journey-title">Your connection journey</h2>
+                <span className="mb-1 block text-caption-2 font-bold uppercase tracking-wider text-blue-text">
+                  {selectedTool.title}
+                </span>
+                <h2 id="journey-title" className="text-body-2 font-bold text-text-primary">
+                  Your connection journey
+                </h2>
               </div>
-              <span className="DevConnectTime">About 5 minutes</span>
+              <span className="shrink-0 rounded-full bg-inset px-3 py-1 text-caption-2 font-bold text-text-tertiary">
+                About 5 minutes
+              </span>
             </div>
 
-            <ol className="DevConnectSteps">
-              <li className={activeStep === 2 ? 'is-active' : ''}>
+            <ol className="pt-2">
+              <li
+                className={clsx(
+                  'border-l border-card-border pl-4',
+                  activeStep === 2 && 'border-blue-text'
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => setActiveStep(2)}
                   aria-current={activeStep === 2 ? 'step' : undefined}
+                  className={stepButtonClass}
                 >
-                  <span className="DevConnectStepNumber">2</span>
-                  <span className="DevConnectStepLabel">
-                    <strong>Confirm sign-in and create access</strong>
-                    <span>This guide uses the developer account you are signed in with.</span>
+                  <span
+                    className={clsx(
+                      stepNumberClass,
+                      activeStep === 2 && 'border-blue-text bg-blue-strong text-white'
+                    )}
+                  >
+                    2
+                  </span>
+                  <span className={stepLabelClass}>
+                    <strong className={stepTitleClass}>Confirm sign-in and create access</strong>
+                    <span className={stepDetailClass}>
+                      This guide uses the developer account you are signed in with.
+                    </span>
                   </span>
                 </button>
                 {activeStep === 2 && (
-                  <div className="DevConnectStepBody">
-                    <p>Create a test API key and copy it when shown.</p>
-                    <Link href="/developers/api-keys" className="DevConnectPrimaryLink">
-                      Create an API key
-                      <IoArrowForward size={15} aria-hidden="true" />
-                    </Link>
-                    <button
-                      type="button"
-                      className="DevConnectTextButton"
-                      onClick={() => setActiveStep(3)}
-                    >
-                      I have a key
-                    </button>
+                  <div className={stepBodyClass}>
+                    <p className="mb-3 text-caption-1 text-text-secondary">
+                      Create a test key for the guided appointment example. The form opens with the
+                      settings needed for this call.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        href="/developers/api-keys?setup=appointment-test"
+                        text="Create a test key"
+                      />
+                      <Button
+                        variant="secondary"
+                        text="I have a key"
+                        onClick={() => setActiveStep(3)}
+                      />
+                    </div>
                   </div>
                 )}
               </li>
 
-              <li className={activeStep === 3 ? 'is-active' : ''}>
+              <li
+                className={clsx(
+                  'border-l border-card-border pl-4',
+                  activeStep === 3 && 'border-blue-text'
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => setActiveStep(3)}
                   aria-current={activeStep === 3 ? 'step' : undefined}
+                  className={stepButtonClass}
                 >
-                  <span className="DevConnectStepNumber">3</span>
-                  <span className="DevConnectStepLabel">
-                    <strong>Add Yosemite Crew to your tool</strong>
-                    <span>Open {selectedTool.setupLabel} and add a local MCP server.</span>
+                  <span
+                    className={clsx(
+                      stepNumberClass,
+                      activeStep === 3 && 'border-blue-text bg-blue-strong text-white'
+                    )}
+                  >
+                    3
+                  </span>
+                  <span className={stepLabelClass}>
+                    <strong className={stepTitleClass}>Add Yosemite Crew to your tool</strong>
+                    <span className={stepDetailClass}>
+                      Open {selectedTool.setupLabel} and add a local tool connection.
+                    </span>
                   </span>
                 </button>
                 {activeStep === 3 && (
-                  <div className="DevConnectStepBody">
-                    <p>
-                      Open the setup guide for the connection details, then add them to your tool.
+                  <div className={stepBodyClass}>
+                    <p className="mb-3 text-caption-1 text-text-secondary">
+                      Copy a ready-to-use connection and sample call from the setup export.
                     </p>
-                    <Link href="/developers/documentation" className="DevConnectSecondaryLink">
-                      Open setup guide
-                      <IoArrowForward size={15} aria-hidden="true" />
-                    </Link>
-                    <button
-                      type="button"
-                      className="DevConnectPrimaryButton"
-                      onClick={() => setActiveStep(4)}
-                    >
-                      Connection added
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button href={TOOL_SETUP_HREF} text="Open connection setup" />
+                      <Button
+                        variant="secondary"
+                        text="Connection added"
+                        onClick={() => setActiveStep(4)}
+                      />
+                    </div>
                   </div>
                 )}
               </li>
 
-              <li className={activeStep === 4 ? 'is-active' : ''}>
+              <li
+                className={clsx(
+                  'border-l border-card-border pl-4',
+                  activeStep === 4 && 'border-blue-text'
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => setActiveStep(4)}
                   aria-current={activeStep === 4 ? 'step' : undefined}
+                  className={stepButtonClass}
                 >
-                  <span className="DevConnectStepNumber">4</span>
-                  <span className="DevConnectStepLabel">
-                    <strong>Choose a practice</strong>
-                    <span>Discover the practices this account can read.</span>
+                  <span
+                    className={clsx(
+                      stepNumberClass,
+                      activeStep === 4 && 'border-blue-text bg-blue-strong text-white'
+                    )}
+                  >
+                    4
+                  </span>
+                  <span className={stepLabelClass}>
+                    <strong className={stepTitleClass}>Choose a practice</strong>
+                    <span className={stepDetailClass}>
+                      Discover the practices this account can read.
+                    </span>
                   </span>
                 </button>
                 {activeStep === 4 && (
-                  <div className="DevConnectStepBody">
-                    <p>
+                  <div className={stepBodyClass}>
+                    <p className="mb-3 text-caption-1 text-text-secondary">
                       Ask your tool: “List the practices available to me.” Then choose one result.
                     </p>
-                    <button
-                      type="button"
-                      className="DevConnectPrimaryButton"
+                    <Button
+                      variant="secondary"
+                      text="Practice chosen"
                       onClick={() => setActiveStep(5)}
-                    >
-                      Practice chosen
-                    </button>
+                    />
                   </div>
                 )}
               </li>
 
-              <li className={activeStep === 5 ? 'is-active' : ''}>
+              <li
+                className={clsx(
+                  'border-l border-transparent pl-4',
+                  activeStep === 5 && 'border-blue-text'
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => setActiveStep(5)}
                   aria-current={activeStep === 5 ? 'step' : undefined}
+                  className={stepButtonClass}
                 >
-                  <span className="DevConnectStepNumber">5</span>
-                  <span className="DevConnectStepLabel">
-                    <strong>Make a first test call</strong>
-                    <span>Read upcoming appointments from the practice you chose.</span>
+                  <span
+                    className={clsx(
+                      stepNumberClass,
+                      activeStep === 5 && 'border-blue-text bg-blue-strong text-white'
+                    )}
+                  >
+                    5
+                  </span>
+                  <span className={stepLabelClass}>
+                    <strong className={stepTitleClass}>Make a first test call</strong>
+                    <span className={stepDetailClass}>
+                      Read upcoming appointments from the practice you chose.
+                    </span>
                   </span>
                 </button>
                 {activeStep === 5 && (
-                  <div className="DevConnectStepBody">
-                    <p>Ask your tool: “List the upcoming appointments for this practice.”</p>
-                    <Link href="/developers/playground" className="DevConnectPrimaryLink">
-                      Verify in API playground
-                      <IoArrowForward size={15} aria-hidden="true" />
-                    </Link>
+                  <div className={stepBodyClass}>
+                    <p className="mb-3 text-caption-1 text-text-secondary">
+                      Ask your tool: “List the upcoming appointments for this practice.”
+                    </p>
+                    <Button href={TOOL_SETUP_HREF} text="Verify in API playground" />
                   </div>
                 )}
               </li>
             </ol>
-          </section>
+          </Card>
         </div>
-      </main>
+      </div>
     </DevRouteGuard>
   );
 };

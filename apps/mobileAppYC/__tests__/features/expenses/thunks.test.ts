@@ -519,8 +519,8 @@ describe('expenses thunks', () => {
       const action = markInAppExpenseStatus(payload);
       const result = await action(mockDispatch, mockGetState, undefined);
 
-      // Assert that the function was called and returned a result (satisfies usage)
-      expect(result.type).toBeDefined();
+      expect(result.type).toBe(markInAppExpenseStatus.fulfilled.type);
+      expect(result.payload).toEqual(payload);
     });
   });
 

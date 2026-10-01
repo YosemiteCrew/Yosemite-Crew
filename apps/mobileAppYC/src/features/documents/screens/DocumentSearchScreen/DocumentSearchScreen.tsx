@@ -32,6 +32,7 @@ import {formatLabel} from '@/shared/utils/helpers';
 import {parseISODate} from '@/shared/utils/dateHelpers';
 import {createAllCommonStyles} from '@/shared/utils/screenStyles';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type DocumentSearchNavigationProp =
   NativeStackNavigationProp<DocumentStackParamList>;
@@ -98,11 +99,13 @@ export const DocumentSearchScreen: React.FC = () => {
 
   useReactEffect(() => {
     if (lastQueryRef.current && selectedCompanionId) {
-      dispatch(
-        searchDocuments({
-          companionId: selectedCompanionId,
-          query: lastQueryRef.current,
-        }),
+      runInBackground(
+        dispatch(
+          searchDocuments({
+            companionId: selectedCompanionId,
+            query: lastQueryRef.current,
+          }),
+        ),
       );
     }
   }, [dispatch, selectedCompanionId]);
@@ -117,8 +120,10 @@ export const DocumentSearchScreen: React.FC = () => {
       return;
     }
     lastQueryRef.current = trimmed;
-    dispatch(
-      searchDocuments({companionId: selectedCompanionId, query: trimmed}),
+    runInBackground(
+      dispatch(
+        searchDocuments({companionId: selectedCompanionId, query: trimmed}),
+      ),
     );
   }, [query, selectedCompanionId, dispatch, searchResults.length]);
 

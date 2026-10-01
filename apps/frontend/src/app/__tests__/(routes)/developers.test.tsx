@@ -145,8 +145,8 @@ describe('developer routes', () => {
     expect(screen.getByTestId('dev-website-builder')).toBeInTheDocument();
   });
 
-  test('api keys route renders api keys component', () => {
-    render(<DevApiKeysRoute />);
+  test('api keys route renders api keys component', async () => {
+    render(await DevApiKeysRoute({}));
     expect(screen.getByTestId('dev-api-keys')).toBeInTheDocument();
   });
 });

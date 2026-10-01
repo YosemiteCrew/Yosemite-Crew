@@ -45,6 +45,7 @@ import {
   TaskSaveOptionsBottomSheet,
   type TaskSaveOptionsBottomSheetRef,
 } from '@/features/tasks/components/TaskSaveOptionsBottomSheet/TaskSaveOptionsBottomSheet';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'EditTask'>;
 type Route = RouteProp<TaskStackParamList, 'EditTask'>;
@@ -169,8 +170,13 @@ export const EditTaskScreen: React.FC = () => {
       );
       if (eventId) {
         dispatch(setTaskCalendarEventId({taskId: updated.id, eventId}));
-        dispatch(
-          updateTask({taskId: updated.id, updates: {calendarEventId: eventId}}),
+        runInBackground(
+          dispatch(
+            updateTask({
+              taskId: updated.id,
+              updates: {calendarEventId: eventId},
+            }),
+          ),
         );
       }
     } else if (task.calendarEventId) {

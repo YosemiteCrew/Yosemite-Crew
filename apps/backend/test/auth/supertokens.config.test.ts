@@ -322,6 +322,48 @@ describe("@yosemite-crew/auth supertokens config", () => {
       expect(originalSignUpPOST).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ["https://yosemitecrew.com", "www.yosemitecrew.com", "OK"],
+      ["https://www.yosemitecrew.com", "yosemitecrew.com", "OK"],
+      [
+        "https://dev.yosemitecrew.com",
+        "www.yosemitecrew.com",
+        "SIGN_UP_NOT_ALLOWED",
+      ],
+      [
+        "https://yosemitecrew.com",
+        "yosemitecrew.com.evil.com",
+        "SIGN_UP_NOT_ALLOWED",
+      ],
+    ])(
+      "with the site at %s, a token from %s answers %s",
+      async (domain, tokenHost, status) => {
+        process.env.AUTH_WEBSITE_DOMAIN = domain;
+        globalThis.fetch = jest.fn(async () => ({
+          ok: true,
+          json: async () => ({
+            success: true,
+            action: "business_signup",
+            hostname: tokenHost,
+          }),
+        })) as unknown as typeof fetch;
+        const config = configureProtectedSignup();
+        const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+        const signUpPOST = config.override.apis(
+          recipeProxy({
+            signUpPOST: originalSignUpPOST,
+          }),
+        ).signUpPOST;
+
+        await expect(signUpPOST(signUpInput())).resolves.toMatchObject({
+          status,
+        });
+        expect(originalSignUpPOST).toHaveBeenCalledTimes(
+          status === "OK" ? 1 : 0,
+        );
+      },
+    );
+
     it("refuses signup when the bot token is missing", async () => {
       successfulVerification();
       const config = configureProtectedSignup();

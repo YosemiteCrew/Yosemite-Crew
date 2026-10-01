@@ -36,6 +36,13 @@ jest.mock("src/config/prisma", () => ({
     $transaction: jest.fn(),
     appointment: {
       updateMany: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    encounter: {
+      findFirst: jest.fn(),
+    },
+    case: {
+      findFirst: jest.fn(),
     },
     workspaceTreatmentItem: {
       findFirst: jest.fn(),
@@ -114,6 +121,13 @@ describe("ClinicalArtifactService", () => {
     $transaction: jest.Mock;
     appointment: {
       updateMany: jest.Mock;
+      findFirst: jest.Mock;
+    };
+    encounter: {
+      findFirst: jest.Mock;
+    };
+    case: {
+      findFirst: jest.Mock;
     };
     workspaceTreatmentItem: {
       findFirst: jest.Mock;
@@ -468,6 +482,114 @@ describe("ClinicalArtifactService", () => {
     updatedAt: D1,
     artifact: artifactRow({ kind: "PRESCRIPTION" }),
     ...overrides,
+  });
+
+  describe("binding a new artifact to its patient", () => {
+    // Stops the create after its arguments are captured: only the patient the
+    // artifact is written with is under test here.
+    const createdWith = async (
+      input: Partial<
+        Parameters<typeof ClinicalArtifactService.createSoapNote>[0]
+      >,
+    ) => {
+      mockedPrisma.clinicalArtifact.create.mockRejectedValueOnce(
+        new Error("stop after create"),
+      );
+      await expect(
+        ClinicalArtifactService.createSoapNote({ organisationId, ...input }),
+      ).rejects.toThrow("stop after create");
+      return mockedPrisma.clinicalArtifact.create.mock.calls[0][0].data;
+    };
+
+    it("takes the patient from the encounter, scoped to the organisation", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValueOnce({
+        patientId: "patient-enc",
+      });
+
+      const data = await createdWith({
+        encounterId: "enc-1",
+        caseId: "case-1",
+        appointmentId: "appt-1",
+      });
+
+      expect(data.patientId).toBe("patient-enc");
+      expect(mockedPrisma.encounter.findFirst).toHaveBeenCalledWith({
+        where: { id: "enc-1", organisationId },
+        select: { patientId: true },
+      });
+      expect(mockedPrisma.case.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.appointment.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("binds nothing when the named encounter is not in the organisation", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValueOnce(null);
+      mockedPrisma.case.findFirst.mockResolvedValueOnce({ patientId: "other" });
+
+      const data = await createdWith({
+        encounterId: "enc-x",
+        caseId: "case-1",
+      });
+
+      expect(data.patientId).toBeNull();
+      expect(mockedPrisma.case.findFirst).not.toHaveBeenCalled();
+      // clearAllMocks keeps an unconsumed Once value; drop it so it cannot
+      // answer a later test's case lookup.
+      mockedPrisma.case.findFirst.mockReset();
+    });
+
+    it("takes the patient from the case when there is no encounter", async () => {
+      mockedPrisma.case.findFirst.mockResolvedValueOnce({
+        patientId: "patient-case",
+      });
+
+      const data = await createdWith({
+        caseId: "case-1",
+        appointmentId: "appt-1",
+      });
+
+      expect(data.patientId).toBe("patient-case");
+      expect(mockedPrisma.case.findFirst).toHaveBeenCalledWith({
+        where: { id: "case-1", organisationId },
+        select: { patientId: true },
+      });
+      expect(mockedPrisma.appointment.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("takes the patient booked on the appointment when that is the only link", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+        patient: { id: "patient-appt", name: "Biscuit" },
+      });
+
+      const data = await createdWith({ appointmentId: "appt-1" });
+
+      expect(data.patientId).toBe("patient-appt");
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt-1", organisationId },
+        select: { patient: true },
+      });
+    });
+
+    it.each([
+      ["no appointment in the organisation", null],
+      ["no patient on it", { patient: null }],
+      ["a patient without an id", { patient: { name: "Biscuit" } }],
+      ["a blank patient id", { patient: { id: "" } }],
+    ])("binds nothing for an appointment with %s", async (_label, row) => {
+      mockedPrisma.appointment.findFirst.mockResolvedValueOnce(row);
+
+      const data = await createdWith({ appointmentId: "appt-1" });
+
+      expect(data.patientId).toBeNull();
+    });
+
+    it("binds nothing and looks nothing up when the artifact has no link", async () => {
+      const data = await createdWith({});
+
+      expect(data.patientId).toBeNull();
+      expect(mockedPrisma.encounter.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.case.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.appointment.findFirst).not.toHaveBeenCalled();
+    });
   });
 
   it("creates a dispense request when a prescription is signed", async () => {
@@ -3963,6 +4085,7 @@ describe("ClinicalArtifactService", () => {
 
       expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
         data: {
+          patientId: null,
           organisationId,
           appointmentId: "appt-1",
           caseId: "case-1",
@@ -4012,6 +4135,7 @@ describe("ClinicalArtifactService", () => {
 
       expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
         data: {
+          patientId: null,
           organisationId,
           appointmentId: undefined,
           caseId: undefined,
@@ -4215,6 +4339,7 @@ describe("ClinicalArtifactService", () => {
 
       expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
         data: {
+          patientId: null,
           organisationId,
           appointmentId: undefined,
           caseId: undefined,
@@ -4396,6 +4521,7 @@ describe("ClinicalArtifactService", () => {
 
       expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
         data: {
+          patientId: null,
           organisationId,
           appointmentId: "appt-1",
           caseId: "case-1",
@@ -4444,6 +4570,7 @@ describe("ClinicalArtifactService", () => {
 
       expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
         data: {
+          patientId: null,
           organisationId,
           appointmentId: undefined,
           caseId: undefined,
@@ -5102,7 +5229,16 @@ describe("ClinicalArtifactService", () => {
       mockedPrisma.prescription.update.mockResolvedValueOnce({
         id: "prescription-1",
         artifactId,
-        items: [],
+        items: [
+          {
+            id: "prescription-line-1",
+            sourceLineKey: "client-line-1",
+            medication: "Amoxicillin 500mg",
+            inventoryItemId: "item-1",
+            quantity: "2",
+            sortOrder: 0,
+          },
+        ],
         medications: [{ medication: "Amoxicillin" }],
         instructions: { text: "new" },
         notes: { text: "new note" },
@@ -5140,7 +5276,10 @@ describe("ClinicalArtifactService", () => {
       });
       expect(result.artifact.status).toBe("IN_PROGRESS");
       expect(result.prescription.medications).toEqual([
-        { medication: "Amoxicillin" },
+        expect.objectContaining({
+          medication: "Amoxicillin 500mg",
+          prescriptionItemId: "prescription-line-1",
+        }),
       ]);
       expect(
         InventoryConsumptionService.createPrescriptionDispenseRequestInTx,
@@ -5326,6 +5465,7 @@ describe("ClinicalArtifactService", () => {
       expect(mockedPrisma.prescription.findFirst).toHaveBeenCalledTimes(1);
       expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
         data: {
+          patientId: null,
           organisationId,
           appointmentId: "appt-1",
           caseId: "case-1",
@@ -5980,7 +6120,16 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
       {
         id: "prescription-1",
         artifactId: "artifact-1",
-        items: [],
+        items: [
+          {
+            id: "prescription-line-1",
+            sourceLineKey: "client-line-1",
+            medication: "Amoxicillin 500mg",
+            inventoryItemId: "item-1",
+            quantity: "2",
+            sortOrder: 0,
+          },
+        ],
         medications: [{ inventoryItemId: "item-1", quantity: 2 }],
         instructions: null,
         notes: null,
@@ -6018,6 +6167,7 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
       Record<string, unknown>
     >;
     expect(meds[0].medication).toBe("Amoxicillin 500mg");
+    expect(meds[0].prescriptionItemId).toBe("prescription-line-1");
     // Scoped to the prescribing organisation: `inventoryItemId` reaches the
     // medication JSON from a client FHIR extension, so an unscoped lookup
     // hydrated another tenant's item name, strength and controlled flag.

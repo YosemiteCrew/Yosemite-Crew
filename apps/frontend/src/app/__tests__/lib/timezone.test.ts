@@ -5,6 +5,8 @@ import {
   buildPreferredTimeZoneDayInstant,
   formatDateInPreferredTimeZone,
   formatUtcClockTimeLabel,
+  fromDateTimeInputInPreferredTimeZone,
+  toDateTimeInputInPreferredTimeZone,
   getBrowserLocalDateForPreferredCalendarDay,
   getDateKeyInPreferredTimeZone,
   getDatePartsInPreferredTimeZone,
@@ -150,6 +152,25 @@ describe('timezone utils', () => {
     const instant = buildPreferredTimeZoneDayInstant(2026, 7, 7);
     expect(getDateKeyInPreferredTimeZone(instant)).toBe('2026-07-07');
     expect(getDatePartsInPreferredTimeZone(instant).hour).toBe(12);
+  });
+
+  it('round-trips datetime-local values in the preferred zone across daylight saving', () => {
+    setPreferredTimeZone('America/New_York');
+    // 8 March 2026: clocks go from 02:00 EST to 03:00 EDT.
+    expect(fromDateTimeInputInPreferredTimeZone('2026-03-07T09:30')).toEqual(
+      new Date('2026-03-07T14:30:00.000Z')
+    );
+    expect(fromDateTimeInputInPreferredTimeZone('2026-03-08T09:30')).toEqual(
+      new Date('2026-03-08T13:30:00.000Z')
+    );
+    expect(toDateTimeInputInPreferredTimeZone(new Date('2026-03-08T13:30:00.000Z'))).toBe(
+      '2026-03-08T09:30'
+    );
+    expect(toDateTimeInputInPreferredTimeZone(new Date('2026-11-01T06:05:00.000Z'))).toBe(
+      '2026-11-01T01:05'
+    );
+    expect(fromDateTimeInputInPreferredTimeZone('')).toBeNull();
+    expect(fromDateTimeInputInPreferredTimeZone('2026-03-08')).toBeNull();
   });
 
   it('getStartOfDayInPreferredTimeZone returns local midnight of the same calendar day', () => {

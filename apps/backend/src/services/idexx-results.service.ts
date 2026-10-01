@@ -2,6 +2,7 @@ import { Prisma, type LabOrderStatus } from "@prisma/client";
 import { IdexxResultsClient } from "src/integrations/idexx/idexx-results.client";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
+import { mapInSequence } from "../utils/async-iteration";
 import { uploadBufferAsFile } from "src/middlewares/upload";
 import { DocumentService } from "src/services/document.service";
 import { TaskService } from "src/services/task.service";
@@ -508,7 +509,7 @@ export const IdexxResultsService = {
       }
 
       const unapplicable: UnapplicableResult[] = [];
-      for (const result of results as IdexxResult[]) {
+      await mapInSequence(results as IdexxResult[], async (result) => {
         const { context, quarantineReason } = await processIdexxResult(
           client,
           result,
@@ -516,7 +517,7 @@ export const IdexxResultsService = {
         if (quarantineReason) {
           unapplicable.push({ result, context, reason: quarantineReason });
         }
-      }
+      });
 
       // Confirming tells IDEXX the batch was consumed and stops it being re-sent, so the
       // transition we skipped must be held somewhere we control BEFORE the batch is

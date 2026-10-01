@@ -20,7 +20,7 @@ import {
   Text,
 } from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
-import {MessageInput, useChannelContext} from 'stream-chat-react-native';
+import {MessageComposer, useChannelContext} from 'stream-chat-react-native';
 import Sound from 'react-native-nitro-sound';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {
@@ -36,6 +36,7 @@ import {ALLOWED_FILE_TYPES} from '@/features/documents/constants';
 import {normalizeMimeType} from '@/shared/utils/mime';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 // Request audio recording permission (Android)
 const requestAudioPermission = async () => {
   if (Platform.OS === 'android') {
@@ -305,19 +306,19 @@ export const EnhancedMessageInput: React.FC = () => {
         {
           text: 'Photo from Gallery',
           onPress: () => {
-            pickImageFromGallery();
+            runInBackground(pickImageFromGallery());
           },
         },
         {
           text: 'Take Photo',
           onPress: () => {
-            takePhoto();
+            runInBackground(takePhoto());
           },
         },
         {
           text: 'Send File',
           onPress: () => {
-            pickDocument();
+            runInBackground(pickDocument());
           },
         },
         {
@@ -457,7 +458,7 @@ const ComposerBar: React.FC<ComposerBarProps> = ({
     </View>
 
     {/* Default Stream Message Input */}
-    <MessageInput />
+    <MessageComposer />
   </View>
 );
 

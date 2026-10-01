@@ -10,8 +10,8 @@ import { InvoiceService, InvoiceServiceError } from "./invoice.service";
 import { documentWhereForOrg } from "./document-scope";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import logger from "src/utils/logger";
+import { mapInSequence } from "src/utils/async-iteration";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
-import { roundMoney } from "./finance/pricing";
 import type {
   Case,
   Encounter,
@@ -1012,14 +1012,14 @@ const buildInvoiceLineFromTreatmentItem = (row: TreatmentItemRow) => {
   const snapshotUnitPrice = readNumber(priceSnapshot.unitPrice);
   let unitPrice = 0;
   if (grossAmount != null) {
-    unitPrice = roundMoney(grossAmount / quantity);
+    unitPrice = grossAmount / quantity;
   } else if (snapshotUnitPrice != null) {
     unitPrice = snapshotUnitPrice;
   } else if (finalAmount != null) {
-    unitPrice = roundMoney(finalAmount / quantity);
+    unitPrice = finalAmount / quantity;
   }
   const discountPercent = readNumber(priceSnapshot.discountPercent);
-  const total = finalAmount ?? roundMoney(unitPrice * quantity);
+  const total = finalAmount ?? unitPrice * quantity;
   const name = readText(
     priceSnapshot.name,
     productSnapshot.name,
@@ -1648,7 +1648,7 @@ const loadDiagnosticPreloads = async (params: {
   return buildDiagnosticPreloadItems(products);
 };
 
-const loadTasks = async (params: {
+const loadTasks = (params: {
   organisationId: string;
   appointmentId?: string;
   companionId?: string;
@@ -1672,7 +1672,7 @@ const loadTasks = async (params: {
     orderBy: { dueAt: "asc" },
   });
 
-const loadSchedules = async (params: {
+const loadSchedules = (params: {
   organisationId: string;
   appointmentId?: string;
   encounterId?: string;
@@ -1709,7 +1709,8 @@ const ensureRenderedTaskSchedules = async (
     templateKind: string;
   }>,
 ) => {
-  for (const schedule of schedules) {
+  // PDF renders are heavy, so schedules are handled one at a time.
+  await mapInSequence(schedules, async (schedule) => {
     // Rendering the schedule PDF is a convenience, but this runs inside the
     // workspace aggregate that every chart read goes through - viewing, signing
     // and discharging all depend on it. A render that throws must therefore not
@@ -1726,7 +1727,7 @@ const ensureRenderedTaskSchedules = async (
       });
 
       if (existing) {
-        continue;
+        return;
       }
 
       await createRenderedDocumentRecord({
@@ -1746,10 +1747,10 @@ const ensureRenderedTaskSchedules = async (
         error,
       );
     }
-  }
+  });
 };
 
-const loadTemplateInstances = async (params: {
+const loadTemplateInstances = (params: {
   organisationId: string;
   appointmentId?: string;
   encounterId?: string;

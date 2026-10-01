@@ -1,9 +1,11 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
+import { mapInSequence, mapWithConcurrency } from "./async-iteration";
 
 dayjs.extend(utc);
 
 const DAY_MINUTES = 24 * 60;
+const VET_READ_CONCURRENCY = 2;
 const UTC_CLOCK_TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?([+-])(\d{1,2}):(\d{2})$/;
 
@@ -297,9 +299,9 @@ export const buildBookableWindowsForVets = async <
     };
   }
 
-  const allSlots: Array<TSlot & { vetIds: string[] }> = [];
-
-  for (const vetId of params.vetIds) {
+  const loadVetWindows = (
+    vetId: string,
+  ): Promise<BookableWindowResult<TSlot>> => {
     const cacheKey = [
       params.organisationId,
       vetId,
@@ -323,17 +325,24 @@ export const buildBookableWindowsForVets = async <
       params.slotCache.set(cacheKey, resultPromise);
     }
 
-    const result = await resultPromise;
+    return resultPromise;
+  };
 
-    if (result?.windows?.length) {
-      for (const slot of result.windows) {
-        allSlots.push({
-          ...slot,
-          vetIds: [vetId],
-        });
-      }
-    }
-  }
+  // Each vet's slots are read independently, two at a time: a single vet read
+  // can issue two queries of its own. The cache entry is set before a read is
+  // awaited, so a repeated vet still shares one read.
+  const results = await mapWithConcurrency(
+    params.vetIds,
+    loadVetWindows,
+    VET_READ_CONCURRENCY,
+  );
+  const allSlots: Array<TSlot & { vetIds: string[] }> = params.vetIds.flatMap(
+    (vetId, index) =>
+      (results[index]?.windows ?? []).map((slot) => ({
+        ...slot,
+        vetIds: [vetId],
+      })),
+  );
 
   const slotMap = new Map<string, TSlot & { vetIds: string[] }>();
 
@@ -468,11 +477,17 @@ export const buildCalendarPrefillMatches = async <
     slotCache?: Map<string, Promise<BookableWindowResult<TSlot>>>,
   ) => Promise<BookableWindowSet<TSlot>>;
 }): Promise<CalendarPrefillSlotMatch[]> => {
-  const matches: CalendarPrefillSlotMatch[] = [];
   const leadId = params.leadId?.trim();
 
-  for (const context of params.contexts) {
-    for (const utcDateShift of params.utcDateShifts) {
+  const lookups = params.contexts.flatMap((context) =>
+    params.utcDateShifts.map((utcDateShift) => ({ context, utcDateShift })),
+  );
+
+  // Each lookup already reads its vets in parallel, so the lookups run one at
+  // a time to keep the total number of reads bounded; repeats hit the cache.
+  const matchesPerLookup = await mapInSequence(
+    lookups,
+    async ({ context, utcDateShift }) => {
       const referenceDate = dayjs(params.inputDate)
         .utc()
         .add(utcDateShift, "day")
@@ -484,19 +499,18 @@ export const buildCalendarPrefillMatches = async <
         params.slotCache,
       );
 
-      matches.push(
-        ...collectCalendarPrefillSlotMatches({
-          matchId: context.matchId,
-          windows: result.windows,
-          timezone: params.timezone,
-          referenceDate,
-          utcDateShift,
-          minuteOfDay: params.minuteOfDay,
-          leadId,
-        }),
-      );
-    }
-  }
+      return collectCalendarPrefillSlotMatches({
+        matchId: context.matchId,
+        windows: result.windows,
+        timezone: params.timezone,
+        referenceDate,
+        utcDateShift,
+        minuteOfDay: params.minuteOfDay,
+        leadId,
+      });
+    },
+  );
+  const matches: CalendarPrefillSlotMatch[] = matchesPerLookup.flat();
 
   return matches.sort(compareCalendarPrefillMatches);
 };

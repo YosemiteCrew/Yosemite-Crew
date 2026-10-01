@@ -3,6 +3,7 @@ import {
   amendPrescriptionArtifact,
   amendSoapNote,
   amendVitalRecord,
+  createDentalExamination,
   finalizeDischargeSummary,
   finalizePrescriptionArtifact,
   finalizeSoapNote,
@@ -18,6 +19,7 @@ import {
   linkPmsObservationSubmissionToAppointment,
   listDischargeSummariesForEncounter,
   listPmsObservationSubmissions,
+  listDentalExaminations,
   listPmsObservationTaskPreviewsForAppointment,
   listPrescriptionsForEncounter,
   listSoapNotesForEncounter,
@@ -25,6 +27,8 @@ import {
   listVitalRecordsForAppointment,
   listVitalRecordsForEncounter,
   createPmsObservationSubmission,
+  createDermatologyAssessment,
+  listDermatologyAssessments,
   deletePrescriptionArtifact,
   generatePrescriptionLabels,
   getRenderedDocument,
@@ -40,17 +44,20 @@ import {
   savePrescriptionArtifact,
   saveSoapNote,
   saveVitalRecord,
+  updateDentalExamination,
 } from '@/app/features/appointments/services/workspaceClinicalService';
 
 const postDataMock = jest.fn();
 const getDataMock = jest.fn();
 const patchDataMock = jest.fn();
+const putDataMock = jest.fn();
 const deleteDataMock = jest.fn();
 
 jest.mock('@/app/services/axios', () => ({
   deleteData: (...args: unknown[]) => deleteDataMock(...args),
   getData: (...args: unknown[]) => getDataMock(...args),
   patchData: (...args: unknown[]) => patchDataMock(...args),
+  putData: (...args: unknown[]) => putDataMock(...args),
   postData: (...args: unknown[]) => postDataMock(...args),
 }));
 
@@ -65,7 +72,36 @@ describe('workspaceClinicalService', () => {
     postDataMock.mockReset();
     getDataMock.mockReset();
     patchDataMock.mockReset();
+    putDataMock.mockReset();
     deleteDataMock.mockReset();
+  });
+
+  it('lists dermatology findings within the organisation and patient scope', async () => {
+    getDataMock.mockResolvedValueOnce({ data: [{ id: 'derm-1' }] });
+    await expect(listDermatologyAssessments('org-1', 'patient-1')).resolves.toEqual([
+      { id: 'derm-1' },
+    ]);
+    expect(getDataMock).toHaveBeenCalledWith('/v1/pms/organisation/org-1/dermatology-assessments', {
+      patientId: 'patient-1',
+    });
+  });
+
+  it('creates dermatology findings without overriding the authenticated clinician', async () => {
+    const assessment = { id: 'derm-1', patientId: 'patient-1' };
+    postDataMock.mockResolvedValueOnce({ data: assessment });
+    await expect(
+      createDermatologyAssessment({
+        organisationId: 'org-1',
+        patientId: 'patient-1',
+        assessedAt: '2026-09-27T10:00:00.000Z',
+        affectedRegions: ['Paws'],
+      })
+    ).resolves.toEqual(assessment);
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/pms/organisation/org-1/dermatology-assessments',
+      expect.objectContaining({ patientId: 'patient-1', affectedRegions: ['Paws'] })
+    );
+    expect(postDataMock.mock.calls[0][1]).not.toHaveProperty('organisationId');
   });
 
   it.each([409, 412, 428])('uses the draft-preserving conflict message for HTTP %s', (status) => {
@@ -81,6 +117,55 @@ describe('workspaceClinicalService', () => {
         'Fallback mutation error'
       )
     ).toBe('Fallback mutation error');
+  });
+
+  it('lists dental examinations scoped to one patient', async () => {
+    const records = [{ id: 'exam-1', patientId: 'patient-1' }];
+    getDataMock.mockResolvedValueOnce({ data: records });
+
+    await expect(listDentalExaminations('org-1', 'patient-1')).resolves.toEqual(records);
+    expect(getDataMock).toHaveBeenCalledWith('/v1/pms/organisation/org-1/dental-examinations', {
+      patientId: 'patient-1',
+    });
+  });
+
+  it('creates a dental examination without sending organisationId in the body', async () => {
+    const input = {
+      organisationId: 'org-1',
+      patientId: 'patient-1',
+      encounterId: 'enc-1',
+      examinedAt: '2026-09-27T10:00:00.000Z',
+      overallGrade: 'GRADE_1' as const,
+      findings: [{ tooth: '104', condition: 'FRACTURE' as const }],
+    };
+    const record = { ...input, id: 'exam-1' };
+    postDataMock.mockResolvedValueOnce({ data: record });
+
+    await expect(createDentalExamination(input)).resolves.toEqual(record);
+    expect(postDataMock).toHaveBeenCalledWith('/v1/pms/organisation/org-1/dental-examinations', {
+      patientId: 'patient-1',
+      encounterId: 'enc-1',
+      examinedAt: '2026-09-27T10:00:00.000Z',
+      overallGrade: 'GRADE_1',
+      findings: [{ tooth: '104', condition: 'FRACTURE' }],
+    });
+  });
+
+  it('updates an existing dental examination with the visit findings', async () => {
+    const input = {
+      overallGrade: 'GRADE_2' as const,
+      findings: [{ tooth: '204' }],
+      plaqueScore: null,
+      notes: null,
+    };
+    const record = { id: 'exam-1', patientId: 'patient-1', ...input };
+    putDataMock.mockResolvedValueOnce({ data: record });
+
+    await expect(updateDentalExamination('org-1', 'exam-1', input)).resolves.toEqual(record);
+    expect(putDataMock).toHaveBeenCalledWith(
+      '/v1/pms/organisation/org-1/dental-examinations/exam-1',
+      input
+    );
   });
 
   it('lists SOAP notes from the clinical artifact FHIR endpoint', async () => {

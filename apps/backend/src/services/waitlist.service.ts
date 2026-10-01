@@ -9,6 +9,7 @@ import {
   AppointmentPrismaServiceError,
 } from "./appointment.prisma.service";
 import { fromAppointmentRequestDTO } from "@yosemite-crew/types";
+import { mapInSequence } from "src/utils/async-iteration";
 
 export class WaitlistError extends Error {
   constructor(
@@ -133,7 +134,7 @@ export const WaitlistService = {
     return assertEntry(id, organisationId);
   },
 
-  async list(params: ListWaitlistParams) {
+  list(params: ListWaitlistParams) {
     const { organisationId, status, patientId, appointmentType } = params;
     return prisma.waitlistEntry.findMany({
       where: {
@@ -327,7 +328,8 @@ export const WaitlistService = {
       take: 5,
     });
 
-    for (const entry of waiting) {
+    // Offers go out first come, first served, one entry at a time.
+    await mapInSequence(waiting, async (entry) => {
       await prisma.waitlistEntry.update({
         where: { id: entry.id },
         data: { status: "OFFERED", offeredAt: new Date() },
@@ -343,7 +345,7 @@ export const WaitlistService = {
         metadata: { triggeredBy: appointmentId },
       });
       void notifyOwnerOfSlot(entry.patientId);
-    }
+    });
 
     return { notified: waiting.length };
   },

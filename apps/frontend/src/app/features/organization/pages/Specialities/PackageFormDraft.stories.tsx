@@ -382,11 +382,11 @@ export const AddsFromCatalogueAndSaves: Story = {
     /* Three active services match, and the archived fourth does not. The list is
        built from the store before the request comes back, so this is what the
        user sees while the network is still out. */
-    const options = await canvas.findAllByRole('button', { name: /^Dental / });
+    const options = await canvas.findAllByRole('option', { name: /^Dental / });
     await expect(options).toHaveLength(3);
-    await expect(canvas.queryByRole('button', { name: /Dental sealant/ })).toBeNull();
+    await expect(canvas.queryByRole('option', { name: /Dental sealant/ })).toBeNull();
 
-    await userEvent.click(canvas.getByRole('button', { name: /^Dental consultation/ }));
+    await userEvent.click(canvas.getByRole('option', { name: /^Dental consultation/ }));
 
     // The row lands in the editable table and the query resets, so the next
     // search starts clean rather than re-offering what was just added.
@@ -430,7 +430,7 @@ export const RefusesASecondBookable: Story = {
     await expect(canvas.getAllByRole('row')).toHaveLength(EDIT_PACKAGE.breakdown.length + 3);
 
     await userEvent.type(search, 'scale');
-    await userEvent.click(await canvas.findByRole('button', { name: /^Dental scale and polish/ }));
+    await userEvent.click(await canvas.findByRole('option', { name: /^Dental scale and polish/ }));
 
     /* The breakdown already holds a bookable consultation, so this one is
        dropped and a warning toast is raised instead. The query still clears,

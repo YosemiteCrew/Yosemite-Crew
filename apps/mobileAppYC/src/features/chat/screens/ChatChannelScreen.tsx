@@ -10,9 +10,10 @@ import {StyleSheet, View, Text, Alert} from 'react-native';
 import {
   Channel,
   MessageList,
+  MessageComposer,
   Chat,
   OverlayProvider,
-  MessageInput,
+  WithComponents,
   useMessageComposer,
 } from 'stream-chat-react-native';
 import type {Channel as StreamChannel} from 'stream-chat';
@@ -40,6 +41,7 @@ import {
 } from '@/features/chat/streamChatTheme';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type RouteParams = {
   appointmentId: string;
   vetId: string;
@@ -73,7 +75,7 @@ const PrefilledMessageInput: React.FC<{initialMessage?: string}> = ({
       applied.current = true;
     }
   }, [composer, initialMessage]);
-  return <MessageInput />;
+  return <MessageComposer />;
 };
 
 const ChatChannelHeader: React.FC<{
@@ -248,7 +250,7 @@ export const ChatChannelScreen: React.FC = () => {
           onPress: () => {
             setLoading(true);
             setError(null);
-            initChat();
+            runInBackground(initChat());
           },
         },
       ]);
@@ -264,7 +266,7 @@ export const ChatChannelScreen: React.FC = () => {
   ]);
 
   useEffect(() => {
-    initChat();
+    runInBackground(initChat());
 
     // Cleanup function
     return () => {
@@ -381,24 +383,26 @@ export const ChatChannelScreen: React.FC = () => {
           <View style={styles.chatWrapper}>
             <OverlayProvider>
               <Chat client={client} style={chatTheme}>
-                <Channel
-                  channel={channel}
-                  Attachment={CustomAttachment}
-                  EmptyStateIndicator={renderEmptyState}
-                  TypingIndicator={renderTypingIndicator}
-                  myMessageTheme={myMessageTheme}>
-                  <MessageList
-                    onThreadSelect={threadMessage => {
-                      if (threadMessage?.id) {
-                        console.log(
-                          '[Chat] Thread selected:',
-                          threadMessage.id,
-                        );
-                      }
-                    }}
-                  />
-                  <PrefilledMessageInput initialMessage={initialMessage} />
-                </Channel>
+                <WithComponents
+                  overrides={{
+                    Attachment: CustomAttachment,
+                    EmptyStateIndicator: renderEmptyState,
+                    TypingIndicator: renderTypingIndicator,
+                  }}>
+                  <Channel channel={channel} myMessageTheme={myMessageTheme}>
+                    <MessageList
+                      onThreadSelect={threadMessage => {
+                        if (threadMessage?.id) {
+                          console.log(
+                            '[Chat] Thread selected:',
+                            threadMessage.id,
+                          );
+                        }
+                      }}
+                    />
+                    <PrefilledMessageInput initialMessage={initialMessage} />
+                  </Channel>
+                </WithComponents>
               </Chat>
             </OverlayProvider>
           </View>

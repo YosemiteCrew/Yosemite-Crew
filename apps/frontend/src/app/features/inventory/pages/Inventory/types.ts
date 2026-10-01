@@ -696,6 +696,7 @@ export type InventoryErrors = {
 export type DispensaryStatus = 'PENDING' | 'DISPENSED' | 'NOT_DISPENSED';
 
 export interface DispensaryItem {
+  prescriptionItemId?: string;
   name: string;
   quantity: number;
   priceCents: number;

@@ -194,7 +194,7 @@ export const MARService = {
     return assertMAREntry(id, organisationId);
   },
 
-  async list(params: ListMAREntriesParams) {
+  list(params: ListMAREntriesParams) {
     const { organisationId, patientId, encounterId, status, from, to } = params;
     return prisma.mAREntry.findMany({
       where: {

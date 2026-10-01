@@ -243,7 +243,7 @@ export const ErrorsOnlyRecomputeOnSave: Story = {
     // `handleSave` REPLACES the error object rather than merging into it, so the
     // cleared field must lose its message rather than keep it from the last press.
     await waitFor(() => expect(panel.queryByText('Name is required')).not.toBeInTheDocument());
-    await expect(panel.getByLabelText('Document title')).toHaveAttribute('aria-invalid', 'false');
+    await expect(panel.getByLabelText('Document title')).not.toHaveAttribute('aria-invalid');
 
     /* What is left is the file error alone - and with the title's alert gone,
        the drawer is now refusing to save while announcing nothing at all. */
@@ -273,8 +273,8 @@ export const FilledIn: Story = {
     await userEvent.click(panel.getByRole('button', { name: 'Type: Cancellation policy' }));
     await waitFor(() => expect(listbox()).not.toBeNull());
     // All five `OrgDocumentCategoryOptions`, by label rather than raw enum.
-    await expect(within(listbox()).getAllByRole('button')).toHaveLength(5);
-    await userEvent.click(within(listbox()).getByRole('button', { name: 'Fire safety' }));
+    await expect(within(listbox()).getAllByRole('option')).toHaveLength(5);
+    await userEvent.click(within(listbox()).getByRole('option', { name: 'Fire safety' }));
 
     /* The choice lands in the trigger's accessible name, so it is announced
        rather than only being a swapped label inside a closed control. The

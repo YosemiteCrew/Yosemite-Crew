@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import api, { API_CLIENT_DEFAULTS } from '@/app/services/axios';
 import type { Organisation, Speciality } from '@yosemite-crew/types';
 
 import type { BillingCounter, BillingSubscription } from '@/app/features/billing/types/billing';
@@ -83,7 +84,7 @@ const seed =
  * Offline transport for the one story that actually sends.
  *
  * `sendInvite` POSTs through the shared axios instance and the counter refetch
- * behind it GETs twice more. Axios picks the XHR adapter in the browser, so
+ * behind it GETs twice more. With the instance pointed at the XHR adapter,
  * replacing `XMLHttpRequest` is the only seam that does not mean mocking a
  * module - and this Storybook has no request-mocking layer. Everything answers
  * `200 {}`, which the finance normalisers accept unchanged, so the success path
@@ -109,11 +110,20 @@ class OfflineXhr {
   };
 }
 
+/**
+ * The app's axios instance uses the fetch adapter, which never reaches
+ * `XMLHttpRequest`. While the stand-in above is installed the instance is pointed
+ * at the XHR adapter so the stand-in answers it; cleanup restores the fetch one.
+ */
+const REAL_ADAPTER = API_CLIENT_DEFAULTS.adapter;
+
 const withOfflineApi = () => {
   const original = globalThis.XMLHttpRequest;
   globalThis.XMLHttpRequest = OfflineXhr as unknown as typeof XMLHttpRequest;
+  api.defaults.adapter = 'xhr';
   return () => {
     globalThis.XMLHttpRequest = original;
+    api.defaults.adapter = REAL_ADAPTER;
   };
 };
 
@@ -183,13 +193,13 @@ const dismissDropdown = async (dialogEl: HTMLElement) => {
 
 const pickSpeciality = async (dialogEl: HTMLElement, label: string) => {
   await userEvent.click(within(dialogEl).getByRole('button', { name: 'Speciality' }));
-  await userEvent.click(within(await openDropdownPanel()).getByRole('button', { name: label }));
+  await userEvent.click(within(await openDropdownPanel()).getByRole('option', { name: label }));
   await dismissDropdown(dialogEl);
 };
 
 const pickRole = async (dialogEl: HTMLElement, label: string) => {
   await userEvent.click(within(dialogEl).getByRole('button', { name: 'Role' }));
-  await userEvent.click(within(await openDropdownPanel()).getByRole('button', { name: label }));
+  await userEvent.click(within(await openDropdownPanel()).getByRole('option', { name: label }));
   // A single-select closes itself on pick, unlike the speciality panel above.
   await waitFor(() => expect(dropdownPanels()).toHaveLength(0));
 };
@@ -297,7 +307,7 @@ export const Drawer: Story = {
 
     // Empty form: nothing typed, neither dropdown answered, no errors raised yet.
     await expect(panel.getByLabelText('Email')).toHaveValue('');
-    await expect(panel.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'false');
+    await expect(panel.getByLabelText('Email')).not.toHaveAttribute('aria-invalid');
     await expect(panel.getByRole('button', { name: 'Speciality' })).toHaveAttribute(
       'aria-expanded',
       'false'
@@ -348,19 +358,18 @@ export const OptionsComeFromTheOrg: Story = {
     const specialityPanel = within(await openDropdownPanel());
     // Both seeded specialities and only those: the list is this organisation's,
     // so an empty speciality store renders an empty panel rather than a default.
-    await expect(specialityPanel.getAllByRole('button')).toHaveLength(2);
-    await expect(specialityPanel.getByRole('button', { name: 'Cardiology' })).toBeInTheDocument();
-    await expect(specialityPanel.getByRole('button', { name: 'Dentistry' })).toBeInTheDocument();
-    // Multi-select, so each option announces its own state - the one dropdown in
-    // this drawer that does have an ARIA contract.
-    await expect(specialityPanel.getByRole('button', { name: 'Cardiology' })).toHaveAttribute(
-      'aria-pressed',
+    await expect(specialityPanel.getAllByRole('option')).toHaveLength(2);
+    await expect(specialityPanel.getByRole('option', { name: 'Cardiology' })).toBeInTheDocument();
+    await expect(specialityPanel.getByRole('option', { name: 'Dentistry' })).toBeInTheDocument();
+    // Multi-select, so each option announces its own selected state.
+    await expect(specialityPanel.getByRole('option', { name: 'Cardiology' })).toHaveAttribute(
+      'aria-selected',
       'false'
     );
 
-    await userEvent.click(specialityPanel.getByRole('button', { name: 'Cardiology' }));
-    await expect(specialityPanel.getByRole('button', { name: 'Cardiology' })).toHaveAttribute(
-      'aria-pressed',
+    await userEvent.click(specialityPanel.getByRole('option', { name: 'Cardiology' }));
+    await expect(specialityPanel.getByRole('option', { name: 'Cardiology' })).toHaveAttribute(
+      'aria-selected',
       'true'
     );
     await dismissDropdown(dialogEl);
@@ -374,10 +383,10 @@ export const OptionsComeFromTheOrg: Story = {
        drops Owner - an organisation cannot invite a second owner - and nothing
        on screen says so. Counted, because losing the slice would add a seventh
        row that looks entirely reasonable. */
-    await expect(rolePanel.getAllByRole('button')).toHaveLength(6);
-    await expect(rolePanel.queryByRole('button', { name: 'Owner' })).not.toBeInTheDocument();
-    await expect(rolePanel.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
-    await expect(rolePanel.getByRole('button', { name: 'Receptionist' })).toBeInTheDocument();
+    await expect(rolePanel.getAllByRole('option')).toHaveLength(6);
+    await expect(rolePanel.queryByRole('option', { name: 'Owner' })).not.toBeInTheDocument();
+    await expect(rolePanel.getByRole('option', { name: 'Admin' })).toBeInTheDocument();
+    await expect(rolePanel.getByRole('option', { name: 'Receptionist' })).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -470,7 +479,7 @@ export const InvalidEmail: Story = {
        outlive the value that caused it. */
     await userEvent.type(panel.getByLabelText('Email'), 'sunrisevet.example');
     await waitFor(() => expect(panel.queryAllByRole('alert')).toHaveLength(0));
-    await expect(panel.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'false');
+    await expect(panel.getByLabelText('Email')).not.toHaveAttribute('aria-invalid');
   },
   parameters: {
     docs: {

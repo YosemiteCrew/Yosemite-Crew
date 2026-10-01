@@ -50,6 +50,7 @@ import {
   MOBILE_CONFIG_BEHAVIOR,
   PRODUCTION_API_BASE_URL,
 } from '@/config/variables';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 let appStateListenerRegistered = false;
 
@@ -59,7 +60,7 @@ const ensureAppStateListener = (dispatch: AppDispatch) => {
   }
 
   registerAppStateListener(() => {
-    dispatch(refreshSession());
+    runInBackground(dispatch(refreshSession()));
   });
 
   appStateListenerRegistered = true;
@@ -89,7 +90,7 @@ const applyRecoverOutcome = async (
       markAuthRefreshed(now);
 
       scheduleSessionRefresh(normalizedTokens.expiresAt, () => {
-        dispatch(refreshSession());
+        runInBackground(dispatch(refreshSession()));
       });
       return 'authenticated';
     }
@@ -97,7 +98,7 @@ const applyRecoverOutcome = async (
       dispatch(setUnauthenticated());
       markAuthRefreshed();
       scheduleSessionRefresh(undefined, () => {
-        dispatch(refreshSession());
+        runInBackground(dispatch(refreshSession()));
       });
       return 'pendingProfile';
     }
@@ -178,7 +179,7 @@ export const establishSession = createAsyncThunk<
 
   markAuthRefreshed(now);
   scheduleSessionRefresh(normalizedTokens.expiresAt, () => {
-    dispatch(refreshSession());
+    runInBackground(dispatch(refreshSession()));
   });
 });
 
@@ -293,7 +294,7 @@ export const logout = createAsyncThunk<
 
 export const clearAuthError = createAsyncThunk(
   'auth/clearError',
-  async (_, {dispatch}) => {
+  (_, {dispatch}) => {
     dispatch(setAuthError(null));
   },
 );

@@ -4,6 +4,7 @@ import {
   DeveloperBillingService,
   DeveloperBillingServiceError,
 } from "./developer-billing.service";
+import { mapInSequence } from "src/utils/async-iteration";
 
 const FREE_TIER_LIMIT = 1_000;
 const DELIVERY_BATCH_SIZE = 100;
@@ -58,6 +59,84 @@ const scheduleRetry = async (
       failureCode: code,
     },
   });
+};
+
+type MeterDeliveryOutcome = "delivered" | "retrying";
+
+const deliverMeterEvent = async (
+  event: MeterEventRow,
+  customerIdsByOwner: Map<string, string | null>,
+  now: Date,
+): Promise<MeterDeliveryOutcome> => {
+  const customerId =
+    event.stripeCustomerId ?? customerIdsByOwner.get(event.ownerUserId) ?? null;
+
+  if (!customerId) {
+    await scheduleRetry(event, "missing_stripe_customer", now);
+    return "retrying";
+  }
+
+  try {
+    await DeveloperBillingService.reportUsage(customerId, 1, event.id);
+    await prisma.$transaction([
+      prisma.developerMeterEvent.update({
+        where: { id: event.id },
+        data: {
+          stripeCustomerId: customerId,
+          deliveredAt: now,
+          lastAttemptAt: now,
+          failureCode: null,
+        },
+      }),
+      prisma.developerApiUsage.update({
+        where: {
+          ownerUserId_billingPeriod: {
+            ownerUserId: event.ownerUserId,
+            billingPeriod: event.billingPeriod,
+          },
+        },
+        data: { lastReportedAt: now },
+      }),
+    ]);
+    return "delivered";
+  } catch (error) {
+    await scheduleRetry(event, failureCode(error), now);
+    return "retrying";
+  }
+};
+
+/** Delivers the next batch of due meter events, oldest first, one at a time. */
+const deliverNextMeterBatch = async (
+  now: Date,
+): Promise<MeterDeliveryOutcome[]> => {
+  const events: MeterEventRow[] = await prisma.developerMeterEvent.findMany({
+    where: { ...PENDING, nextAttemptAt: { lte: now } },
+    orderBy: [{ nextAttemptAt: "asc" }, { id: "asc" }],
+    take: DELIVERY_BATCH_SIZE,
+  });
+  const ownerUserIds = [
+    ...new Set(
+      events
+        .filter((event) => !event.stripeCustomerId)
+        .map((event) => event.ownerUserId),
+    ),
+  ];
+  const subscriptions = ownerUserIds.length
+    ? await prisma.developerSubscription.findMany({
+        where: { ownerUserId: { in: ownerUserIds } },
+        select: { ownerUserId: true, stripeCustomerId: true },
+      })
+    : [];
+  const customerIdsByOwner = new Map(
+    subscriptions.map((subscription) => [
+      subscription.ownerUserId,
+      subscription.stripeCustomerId,
+    ]),
+  );
+
+  return mapInSequence(events, (event) =>
+    deliverMeterEvent(event, customerIdsByOwner, now),
+  );
 };
 
 export const DeveloperUsageService = {
@@ -119,75 +198,17 @@ export const DeveloperUsageService = {
     const deadline = Date.now() + DELIVERY_DRAIN_BUDGET_MS;
     let delivered = 0;
     let retrying = 0;
-    let events: MeterEventRow[];
 
-    do {
-      events = await prisma.developerMeterEvent.findMany({
-        where: { ...PENDING, nextAttemptAt: { lte: now } },
-        orderBy: [{ nextAttemptAt: "asc" }, { id: "asc" }],
-        take: DELIVERY_BATCH_SIZE,
-      });
-      const ownerUserIds = [
-        ...new Set(
-          events
-            .filter((event) => !event.stripeCustomerId)
-            .map((event) => event.ownerUserId),
-        ),
-      ];
-      const subscriptions = ownerUserIds.length
-        ? await prisma.developerSubscription.findMany({
-            where: { ownerUserId: { in: ownerUserIds } },
-            select: { ownerUserId: true, stripeCustomerId: true },
-          })
-        : [];
-      const customerIdsByOwner = new Map(
-        subscriptions.map((subscription) => [
-          subscription.ownerUserId,
-          subscription.stripeCustomerId,
-        ]),
-      );
-
-      for (const event of events) {
-        const customerId =
-          event.stripeCustomerId ??
-          customerIdsByOwner.get(event.ownerUserId) ??
-          null;
-
-        if (!customerId) {
-          await scheduleRetry(event, "missing_stripe_customer", now);
-          retrying += 1;
-          continue;
-        }
-
-        try {
-          await DeveloperBillingService.reportUsage(customerId, 1, event.id);
-          await prisma.$transaction([
-            prisma.developerMeterEvent.update({
-              where: { id: event.id },
-              data: {
-                stripeCustomerId: customerId,
-                deliveredAt: now,
-                lastAttemptAt: now,
-                failureCode: null,
-              },
-            }),
-            prisma.developerApiUsage.update({
-              where: {
-                ownerUserId_billingPeriod: {
-                  ownerUserId: event.ownerUserId,
-                  billingPeriod: event.billingPeriod,
-                },
-              },
-              data: { lastReportedAt: now },
-            }),
-          ]);
-          delivered += 1;
-        } catch (error) {
-          await scheduleRetry(event, failureCode(error), now);
-          retrying += 1;
-        }
+    // Drain one batch at a time until a short batch or the time budget ends it.
+    const drainBatch = async (): Promise<void> => {
+      const outcomes = await deliverNextMeterBatch(now);
+      delivered += outcomes.filter((outcome) => outcome === "delivered").length;
+      retrying += outcomes.filter((outcome) => outcome === "retrying").length;
+      if (outcomes.length === DELIVERY_BATCH_SIZE && Date.now() < deadline) {
+        await drainBatch();
       }
-    } while (events.length === DELIVERY_BATCH_SIZE && Date.now() < deadline);
+    };
+    await drainBatch();
 
     const pending = await prisma.developerMeterEvent.count({ where: PENDING });
     const oldest = pending

@@ -14,6 +14,7 @@ import {
   prescriptionApi,
   type MobilePrescription,
 } from '@/features/companion/services/prescriptionService';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 /** `signIn` has no retry: a retry cannot fix a missing session. */
 export type PrescriptionsLoadError = 'signIn' | 'loadFailed';
@@ -93,7 +94,7 @@ export const usePrescriptions = (
   }, [companionId]);
 
   useEffect(() => {
-    reload();
+    runInBackground(reload());
   }, [reload]);
 
   return {prescriptions, loading, error, reload, ...refill};

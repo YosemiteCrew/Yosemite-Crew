@@ -5,6 +5,7 @@ import {
   type TaskWorkflowSeed,
 } from "./task-workflow-materializer";
 import { TaskService, type TaskAudience } from "./task.service";
+import { mapInSequence } from "src/utils/async-iteration";
 
 export class TaskWorkflowServiceError extends Error {
   constructor(
@@ -187,7 +188,7 @@ const buildWorkflowScheduleData = (params: {
   };
 };
 
-const persistWorkflowSchedule = async (params: {
+const persistWorkflowSchedule = (params: {
   client: Prisma.TransactionClient;
   instance: TemplateInstanceWorkflowPayload;
   context: AppointmentContext;
@@ -223,9 +224,9 @@ const cancelExistingWorkflowTasks = async (
   const activeSchedule = existingSchedule as NonNullable<
     typeof existingSchedule
   >;
-  for (const taskId of toTaskIdList(activeSchedule.generatedTaskIds)) {
-    await TaskService.changeStatus(taskId, "CANCELLED", submittedBy);
-  }
+  await mapInSequence(toTaskIdList(activeSchedule.generatedTaskIds), (taskId) =>
+    TaskService.changeStatus(taskId, "CANCELLED", submittedBy),
+  );
 };
 
 const materializeWorkflowTasks = async (params: {
@@ -234,17 +235,15 @@ const materializeWorkflowTasks = async (params: {
   notify?: boolean;
 }) => {
   const { client, seeds, notify } = params;
-  const generatedTaskIds: string[] = [];
-  let skippedSeeds = 0;
-
-  for (const seed of seeds) {
-    const task = await TaskService.createFromWorkflowSeed(seed, {
+  // Seeds are created in order on the shared transaction client.
+  const tasks = await mapInSequence(seeds, (seed) =>
+    TaskService.createFromWorkflowSeed(seed, {
       client,
       notify,
-    });
-    if (task) generatedTaskIds.push(task.id);
-    else skippedSeeds += 1;
-  }
+    }),
+  );
+  const generatedTaskIds = tasks.flatMap((task) => (task ? [task.id] : []));
+  const skippedSeeds = tasks.length - generatedTaskIds.length;
 
   return { generatedTaskIds, skippedSeeds };
 };
@@ -720,9 +719,9 @@ export const TaskWorkflowService = {
     const generatedTaskIds = toTaskIdList(
       instance.taskSchedule.generatedTaskIds,
     );
-    for (const taskId of generatedTaskIds) {
-      await TaskService.changeStatus(taskId, "CANCELLED", actor.actorId.trim());
-    }
+    await mapInSequence(generatedTaskIds, (taskId) =>
+      TaskService.changeStatus(taskId, "CANCELLED", actor.actorId.trim()),
+    );
 
     const updated = await client.taskSchedule.update({
       where: { templateInstanceId: instance.id },

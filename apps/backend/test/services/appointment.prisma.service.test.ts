@@ -100,8 +100,13 @@ jest.mock("../../src/config/prisma", () => ({
     },
     occupancy: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       deleteMany: jest.fn(),
+    },
+    calendarBlock: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     invoice: {
       findMany: jest.fn(),
@@ -224,6 +229,10 @@ const makeRow = (overrides: Record<string, unknown> = {}): any => ({
   caseId: null,
   encounterId: null,
   productItemId: null,
+  recurrenceSeriesId: null,
+  recurrenceSeriesIndex: null,
+  recurrenceSeriesTotal: null,
+  recurrenceTimeZone: null,
   organisationId: "org_1",
   appointmentDate: baseDomain.appointmentDate,
   startTime: baseDomain.startTime,
@@ -257,8 +266,11 @@ describe("AppointmentPrismaService", () => {
       callback(mockedPrisma),
     );
     mockedPrisma.occupancy.findFirst.mockResolvedValue(null);
+    mockedPrisma.occupancy.findMany.mockResolvedValue([]);
     mockedPrisma.occupancy.create.mockResolvedValue({} as any);
     mockedPrisma.occupancy.deleteMany.mockResolvedValue({ count: 1 } as any);
+    mockedPrisma.calendarBlock.findFirst.mockResolvedValue(null);
+    mockedPrisma.calendarBlock.findMany.mockResolvedValue([]);
     mockedPrisma.roomUnit.findUnique.mockResolvedValue(null);
     mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue(null);
     mockedPrisma.organization.findUnique.mockResolvedValue({
@@ -294,6 +306,656 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.admission.upsert.mockResolvedValue({} as any);
     mockedPrisma.template.findFirst.mockResolvedValue(null);
     mockedPrisma.invoice.findMany.mockResolvedValue([]);
+  });
+
+  describe("previewWeeklyAppointmentSeries", () => {
+    const occurrences = [
+      {
+        startTime: new Date("2026-06-10T11:00:00.000Z"),
+        endTime: new Date("2026-06-10T11:30:00.000Z"),
+      },
+      {
+        startTime: new Date("2026-06-17T11:00:00.000Z"),
+        endTime: new Date("2026-06-17T11:30:00.000Z"),
+      },
+    ];
+
+    it("flags only dates overlapping the selected lead's existing occupancy", async () => {
+      mockedPrisma.occupancy.findMany.mockResolvedValue([
+        {
+          startTime: new Date("2026-06-10T11:15:00.000Z"),
+          endTime: new Date("2026-06-10T11:45:00.000Z"),
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.previewWeeklyAppointmentSeries(
+          "org_1",
+          "vet_1",
+          occurrences,
+          "Europe/Madrid",
+        ),
+      ).resolves.toEqual([
+        { index: 1, ...occurrences[0], hasConflict: true },
+        { index: 2, ...occurrences[1], hasConflict: false },
+      ]);
+      expect(mockedPrisma.occupancy.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org_1",
+          userId: "vet_1",
+          startTime: { lt: occurrences[1].endTime },
+          endTime: { gt: occurrences[0].startTime },
+        },
+        select: { startTime: true, endTime: true },
+      });
+    });
+
+    it("rejects a sequence that is not spaced one week apart", async () => {
+      await expect(
+        AppointmentPrismaService.previewWeeklyAppointmentSeries(
+          "org_1",
+          "vet_1",
+          [
+            occurrences[0],
+            {
+              startTime: new Date("2026-06-16T11:00:00.000Z"),
+              endTime: new Date("2026-06-16T11:30:00.000Z"),
+            },
+          ],
+          "Europe/Madrid",
+        ),
+      ).rejects.toMatchObject({
+        message:
+          "Appointments in a weekly series must be one week apart at the same time.",
+        statusCode: 400,
+      });
+      expect(mockedPrisma.occupancy.findMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid recurrence time zone", async () => {
+      await expect(
+        AppointmentPrismaService.previewWeeklyAppointmentSeries(
+          "org_1",
+          "vet_1",
+          occurrences,
+          "Mars/Olympus_Mons",
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(mockedPrisma.occupancy.findMany).not.toHaveBeenCalled();
+    });
+
+    const weekly = (starts: string[], minutes = 30) =>
+      starts.map((start) => ({
+        startTime: new Date(start),
+        endTime: new Date(new Date(start).getTime() + minutes * 60_000),
+      }));
+    const preview = (series: ReturnType<typeof weekly>, timeZone: string) =>
+      AppointmentPrismaService.previewWeeklyAppointmentSeries(
+        "org_1",
+        "vet_1",
+        series,
+        timeZone,
+      );
+
+    it("keeps the local time when the clocks change between two dates", async () => {
+      // 10:00 in Madrid is 09:00Z before 29 March 2026 and 08:00Z after it.
+      await expect(
+        preview(
+          weekly(["2026-03-22T09:00:00.000Z", "2026-03-29T08:00:00.000Z"]),
+          "Europe/Madrid",
+        ),
+      ).resolves.toHaveLength(2);
+      await expect(
+        preview(
+          weekly(["2026-03-22T09:00:00.000Z", "2026-03-29T09:00:00.000Z"]),
+          "Europe/Madrid",
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      // Autumn: 10:00 in Madrid is 08:00Z before 25 October 2026 and 09:00Z after.
+      await expect(
+        preview(
+          weekly(["2026-10-18T08:00:00.000Z", "2026-10-25T09:00:00.000Z"]),
+          "Europe/Madrid",
+        ),
+      ).resolves.toHaveLength(2);
+    });
+
+    it("accepts a time the clocks skip only within an hour of it", async () => {
+      // 02:30 does not exist in Madrid on 29 March 2026.
+      const first = "2026-03-22T01:30:00.000Z";
+      await expect(
+        preview(weekly([first, "2026-03-29T00:30:00.000Z"]), "Europe/Madrid"),
+      ).resolves.toHaveLength(2);
+      await expect(
+        preview(weekly([first, "2026-03-29T01:30:00.000Z"]), "Europe/Madrid"),
+      ).resolves.toHaveLength(2);
+      await expect(
+        preview(weekly([first, "2026-03-29T03:00:00.000Z"]), "Europe/Madrid"),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      // Outside a skipped hour, a thirty-minute drift is refused.
+      await expect(
+        preview(
+          weekly(["2026-06-10T11:00:00.000Z", "2026-06-17T11:30:00.000Z"]),
+          "Europe/Madrid",
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    it("crosses month ends and a leap day one week at a time", async () => {
+      await expect(
+        preview(
+          weekly([
+            "2028-02-22T10:00:00.000Z",
+            "2028-02-29T10:00:00.000Z",
+            "2028-03-07T10:00:00.000Z",
+          ]),
+          "UTC",
+        ),
+      ).resolves.toHaveLength(3);
+      await expect(
+        preview(
+          weekly(["2026-01-31T10:00:00.000Z", "2026-02-07T10:00:00.000Z"]),
+          "UTC",
+        ),
+      ).resolves.toHaveLength(2);
+    });
+
+    it("refuses a single date, more than 52 dates, or mixed durations", async () => {
+      const starts = Array.from({ length: 53 }, (_, index) =>
+        new Date(Date.UTC(2026, 0, 5 + index * 7, 10, 0, 0, 0)).toISOString(),
+      );
+      await expect(preview(weekly(starts), "UTC")).rejects.toMatchObject({
+        message: "Choose between 2 and 52 appointments.",
+        statusCode: 400,
+      });
+      await expect(
+        preview(weekly(starts.slice(0, 52)), "UTC"),
+      ).resolves.toHaveLength(52);
+      await expect(
+        preview(weekly(starts.slice(0, 1)), "UTC"),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      const mixed = weekly(starts.slice(0, 2));
+      mixed[1].endTime = new Date(mixed[1].endTime.getTime() + 60_000);
+      await expect(preview(mixed, "UTC")).rejects.toMatchObject({
+        message: "Every appointment in the series must have the same duration.",
+      });
+      await expect(
+        preview(weekly(starts.slice(0, 2), 0), "UTC"),
+      ).rejects.toMatchObject({
+        message: "The appointment end must be after its start.",
+      });
+    });
+
+    it("books nothing when any date in the series is taken", async () => {
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+      } as any);
+      mockedPrisma.appointment.create.mockImplementation(
+        async ({ data }: any) => makeRow({ ...data, id: "series-new" }),
+      );
+      mockedPrisma.occupancy.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "occ_taken" } as any);
+
+      await expect(
+        AppointmentPrismaService.createWeeklyAppointmentSeriesFromPms(
+          { resourceType: "Appointment" } as any,
+          weekly(["2026-06-10T10:00:00.000Z", "2026-06-17T10:00:00.000Z"]),
+          "Europe/Madrid",
+          undefined,
+          "staff_1",
+        ),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.occupancy.findFirst).toHaveBeenCalledTimes(2);
+      expect(mockedPrisma.occupancy.findFirst).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            startTime: { lt: new Date("2026-06-17T10:30:00.000Z") },
+            endTime: { gt: new Date("2026-06-17T10:00:00.000Z") },
+          }),
+        }),
+      );
+      expect(
+        mockedInvoiceService.bootstrapForAppointment,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("refuses a series that names one visit record", async () => {
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        encounterId: "enc_1",
+      });
+
+      await expect(
+        AppointmentPrismaService.createWeeklyAppointmentSeriesFromPms(
+          { resourceType: "Appointment" } as any,
+          weekly(["2026-06-10T10:00:00.000Z", "2026-06-17T10:00:00.000Z"]),
+          "Europe/Madrid",
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
+    });
+
+    it("creates all appointments with shared series metadata and invoices", async () => {
+      const seriesOccurrences = [
+        {
+          startTime: new Date("2026-06-10T10:00:00.000Z"),
+          endTime: new Date("2026-06-10T10:30:00.000Z"),
+        },
+        {
+          startTime: new Date("2026-06-17T10:00:00.000Z"),
+          endTime: new Date("2026-06-17T10:30:00.000Z"),
+        },
+      ];
+      const rows: any[] = [];
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+      } as any);
+      mockedPrisma.appointment.create.mockImplementation(
+        async ({ data }: any) => {
+          const row = makeRow({
+            ...data,
+            id: `series-${rows.length + 1}`,
+            status: "UPCOMING",
+          });
+          rows.push(row);
+          return row;
+        },
+      );
+      mockedPrisma.appointment.findFirst.mockImplementation(
+        async ({ where }: any) =>
+          rows.find(
+            (row) =>
+              row.id === where.id &&
+              row.organisationId === where.organisationId,
+          ),
+      );
+      mockedInvoiceService.bootstrapForAppointment.mockResolvedValue(
+        {} as never,
+      );
+
+      const result =
+        await AppointmentPrismaService.createWeeklyAppointmentSeriesFromPms(
+          { resourceType: "Appointment" } as any,
+          seriesOccurrences,
+          "Europe/Madrid",
+          undefined,
+          "staff_1",
+        );
+
+      const seriesId = rows[0].recurrenceSeriesId;
+      expect(result).toHaveLength(2);
+      expect(
+        rows.map((row) => [
+          row.recurrenceSeriesId,
+          row.recurrenceSeriesIndex,
+          row.recurrenceSeriesTotal,
+          row.recurrenceTimeZone,
+        ]),
+      ).toEqual([
+        [seriesId, 1, 2, "Europe/Madrid"],
+        [seriesId, 2, 2, "Europe/Madrid"],
+      ]);
+      expect(
+        mockedInvoiceService.bootstrapForAppointment,
+      ).toHaveBeenNthCalledWith(1, "series-1", "PAYMENT_LINK", "org_1");
+      expect(
+        mockedInvoiceService.bootstrapForAppointment,
+      ).toHaveBeenNthCalledWith(2, "series-2", "PAYMENT_LINK", "org_1");
+      // Each date is booked, and its lead's time held, before the next is tried.
+      expect(
+        mockedPrisma.occupancy.create.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mockedPrisma.appointment.create.mock.invocationCallOrder[1],
+      );
+      expect(
+        mockedInvoiceService.bootstrapForAppointment.mock
+          .invocationCallOrder[1],
+      ).toBeGreaterThan(
+        mockedPrisma.appointment.findFirst.mock.invocationCallOrder[0],
+      );
+      expect(mockedPrisma.calendarBlock.findMany).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.calendarBlock.findFirst).not.toHaveBeenCalled();
+      expect(mockedCompanionOrgService.linkByPmsUser).toHaveBeenCalledWith({
+        pmsUserId: "staff_1",
+        patientId: "comp_1",
+        organisationId: "org_1",
+        organisationType: "HOSPITAL",
+      });
+    });
+  });
+
+  describe("weekly appointment series management", () => {
+    const selected = makeRow({
+      id: "series-1",
+      status: "UPCOMING",
+      lead: { id: "vet_1", name: "Dr Vet" },
+      startTime: new Date("2026-03-22T08:00:00.000Z"),
+      endTime: new Date("2026-03-22T08:30:00.000Z"),
+      recurrenceSeriesId: "series-id",
+      recurrenceSeriesIndex: 1,
+      recurrenceSeriesTotal: 3,
+      recurrenceTimeZone: "Europe/Madrid",
+    });
+    const following = makeRow({
+      ...selected,
+      id: "series-2",
+      startTime: new Date("2026-03-29T07:00:00.000Z"),
+      endTime: new Date("2026-03-29T07:30:00.000Z"),
+      recurrenceSeriesIndex: 2,
+    });
+    const request = { resourceType: "Appointment" } as any;
+
+    beforeEach(() => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(selected);
+      mockedPrisma.appointment.findMany.mockResolvedValue([
+        selected,
+        following,
+      ]);
+      mockedPrisma.appointment.update.mockImplementation(
+        async ({ where, data }: any) => {
+          const row = [selected, following].find(
+            (item) => item.id === where.id,
+          );
+          return { ...row, ...data };
+        },
+      );
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        startTime: new Date("2026-03-22T09:00:00.000Z"),
+        endTime: new Date("2026-03-22T09:30:00.000Z"),
+        durationMinutes: 30,
+        lead: { id: "vet_1", name: "Dr Vet" },
+      });
+    });
+
+    it("previews following occurrences at the same local time across DST", async () => {
+      mockedPrisma.occupancy.findMany.mockResolvedValue([
+        {
+          startTime: new Date("2026-03-29T08:00:00.000Z"),
+          endTime: new Date("2026-03-29T08:30:00.000Z"),
+          userId: "vet_1",
+          sourceType: "APPOINTMENT",
+          referenceId: "series-2",
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.previewAppointmentSeriesReschedule(
+          "series-1",
+          "org_1",
+          request,
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          appointmentId: "series-1",
+          startTime: new Date("2026-03-22T09:00:00.000Z"),
+          hasConflict: false,
+        }),
+        expect.objectContaining({
+          appointmentId: "series-2",
+          startTime: new Date("2026-03-29T08:00:00.000Z"),
+          hasConflict: false,
+        }),
+      ]);
+
+      mockedPrisma.occupancy.findMany.mockResolvedValue([
+        {
+          startTime: new Date("2026-03-29T08:00:00.000Z"),
+          endTime: new Date("2026-03-29T08:30:00.000Z"),
+          userId: "vet_1",
+          sourceType: "APPOINTMENT",
+          referenceId: "series-2",
+        },
+        {
+          startTime: new Date("2026-03-29T08:10:00.000Z"),
+          endTime: new Date("2026-03-29T08:40:00.000Z"),
+          userId: "vet_1",
+          sourceType: "APPOINTMENT",
+          referenceId: "other-appointment",
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.previewAppointmentSeriesReschedule(
+          "series-1",
+          "org_1",
+          request,
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          appointmentId: "series-1",
+          startTime: new Date("2026-03-22T09:00:00.000Z"),
+          hasConflict: false,
+        }),
+        expect.objectContaining({
+          appointmentId: "series-2",
+          startTime: new Date("2026-03-29T08:00:00.000Z"),
+          hasConflict: true,
+        }),
+      ]);
+    });
+
+    it("flags following occurrences that move onto a blocked vet", async () => {
+      mockedPrisma.calendarBlock.findMany.mockResolvedValue([
+        {
+          targetId: "vet_1",
+          startAt: new Date("2026-03-29T07:45:00.000Z"),
+          endAt: new Date("2026-03-29T08:15:00.000Z"),
+        },
+        {
+          targetId: "vet_2",
+          startAt: new Date("2026-03-22T09:00:00.000Z"),
+          endAt: new Date("2026-03-22T09:30:00.000Z"),
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.previewAppointmentSeriesReschedule(
+          "series-1",
+          "org_1",
+          request,
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          appointmentId: "series-1",
+          hasConflict: false,
+        }),
+        expect.objectContaining({
+          appointmentId: "series-2",
+          hasConflict: true,
+        }),
+      ]);
+    });
+
+    it("refuses a series move onto a blocked vet", async () => {
+      mockedPrisma.calendarBlock.findMany.mockResolvedValue([
+        {
+          targetType: "STAFF",
+          targetId: "vet_1",
+          startAt: new Date("2026-03-29T08:00:00.000Z"),
+          endAt: new Date("2026-03-29T08:30:00.000Z"),
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.rescheduleAppointmentSeriesFromPms(
+          "series-1",
+          "org_1",
+          request,
+        ),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.calendarBlock.findMany).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.calendarBlock.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("reschedules all following occurrences atomically in local time", async () => {
+      await AppointmentPrismaService.rescheduleAppointmentSeriesFromPms(
+        "series-1",
+        "org_1",
+        request,
+      );
+
+      expect(mockedPrisma.occupancy.deleteMany).toHaveBeenNthCalledWith(1, {
+        where: {
+          organisationId: "org_1",
+          sourceType: "APPOINTMENT",
+          referenceId: "series-1",
+        },
+      });
+      expect(mockedPrisma.occupancy.deleteMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          organisationId: "org_1",
+          sourceType: "APPOINTMENT",
+          referenceId: "series-2",
+        },
+      });
+      expect(mockedPrisma.appointment.update).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          where: { id: "series-2" },
+          data: expect.objectContaining({
+            startTime: new Date("2026-03-29T08:00:00.000Z"),
+            endTime: new Date("2026-03-29T08:30:00.000Z"),
+            timeSlot: "10:00",
+          }),
+        }),
+      );
+      expect(mockedPrisma.calendarBlock.findMany).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.calendarBlock.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("keeps each later appointment with its own lead when the change names none", async () => {
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        startTime: new Date("2026-03-22T09:00:00.000Z"),
+        endTime: new Date("2026-03-22T09:30:00.000Z"),
+        durationMinutes: 30,
+        lead: undefined,
+      });
+      mockedPrisma.appointment.findMany.mockResolvedValue([
+        selected,
+        { ...following, lead: { id: "vet_2", name: "Dr Other" } },
+      ]);
+      mockedPrisma.occupancy.findMany.mockResolvedValue([
+        {
+          userId: "vet_1",
+          startTime: new Date("2026-03-29T08:00:00.000Z"),
+          endTime: new Date("2026-03-29T08:30:00.000Z"),
+          sourceType: "APPOINTMENT",
+          referenceId: "elsewhere",
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.previewAppointmentSeriesReschedule(
+          "series-1",
+          "org_1",
+          request,
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({ appointmentId: "series-1" }),
+        expect.objectContaining({
+          appointmentId: "series-2",
+          hasConflict: false,
+        }),
+      ]);
+      expect(mockedPrisma.occupancy.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: { in: ["vet_1", "vet_2"] },
+          }),
+        }),
+      );
+
+      await AppointmentPrismaService.rescheduleAppointmentSeriesFromPms(
+        "series-1",
+        "org_1",
+        request,
+      );
+      expect(mockedPrisma.occupancy.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: "vet_2",
+          referenceId: "series-2",
+          startTime: new Date("2026-03-29T08:00:00.000Z"),
+        }),
+      });
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "series-2" },
+          data: expect.not.objectContaining({ lead: expect.anything() }),
+        }),
+      );
+    });
+
+    it("previews nothing against the calendar when no appointment has a lead", async () => {
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        startTime: new Date("2026-03-22T09:00:00.000Z"),
+        endTime: new Date("2026-03-22T09:30:00.000Z"),
+        lead: undefined,
+      });
+      mockedPrisma.appointment.findMany.mockResolvedValue([
+        { ...selected, lead: null },
+      ]);
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
+        ...selected,
+        lead: null,
+      });
+
+      await expect(
+        AppointmentPrismaService.previewAppointmentSeriesReschedule(
+          "series-1",
+          "org_1",
+          request,
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          appointmentId: "series-1",
+          hasConflict: false,
+        }),
+      ]);
+      expect(mockedPrisma.occupancy.findMany).not.toHaveBeenCalled();
+    });
+
+    it("cancels only active occurrences from the selected one forward", async () => {
+      mockedPrisma.appointment.findMany.mockResolvedValue([
+        selected,
+        following,
+        makeRow({
+          ...selected,
+          id: "series-3",
+          status: "COMPLETED",
+          recurrenceSeriesIndex: 3,
+        }),
+      ]);
+
+      await AppointmentPrismaService.cancelAppointmentSeriesFromPms(
+        "series-1",
+        "org_1",
+      );
+
+      expect(mockedPrisma.appointment.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org_1",
+          recurrenceSeriesId: "series-id",
+          recurrenceSeriesIndex: { gte: 1 },
+          status: { not: "CANCELLED" },
+        },
+        orderBy: { recurrenceSeriesIndex: "asc" },
+      });
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledTimes(2);
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "series-2" },
+          data: expect.objectContaining({ status: "CANCELLED" }),
+        }),
+      );
+    });
   });
 
   it("creates a requested appointment with product validation", async () => {
@@ -2118,6 +2780,80 @@ describe("AppointmentPrismaService", () => {
       expect((result as any).templateDefaults[0].source).toBe(
         "LIBRARY_DEFAULT",
       );
+    });
+
+    it("resolves bindings one at a time and keeps their order", async () => {
+      mockedResolveSelection.mockImplementation(async () => ({
+        productItemId: "product_1",
+        isBookable: true,
+        appointmentKinds: ["OUTPATIENT", "INPATIENT"],
+        templateKinds: ["SOAP_NOTE", "VITAL_RECORD"],
+        templateBindings: [
+          { templateKind: "SOAP_NOTE", templateId: "tmpl_soap" },
+          { templateKind: "VITAL_RECORD", templateId: "tmpl_vitals" },
+        ],
+      }));
+      let inFlight = 0;
+      let peak = 0;
+      const findTemplate = (async (args: any) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        // The first binding answers last if the two were read together.
+        await new Promise((resolve) =>
+          setTimeout(resolve, args.where.id === "tmpl_soap" ? 5 : 0),
+        );
+        inFlight -= 1;
+        return {
+          id: args.where.id,
+          kind: args.where.kind,
+          organisationId: "org_1",
+          ownership: "ORGANISATION",
+          status: "PUBLISHED",
+          latestVersion: 1,
+          publishedVersion: 1,
+          updatedAt: new Date("2026-06-10T09:50:00.000Z"),
+        };
+      }) as any;
+      mockedPrisma.template.findFirst
+        .mockImplementationOnce(findTemplate)
+        .mockImplementationOnce(findTemplate);
+
+      await AppointmentPrismaService.createRequestedFromMobile(
+        { resourceType: "Appointment" } as any,
+        "parent_1",
+      );
+
+      expect(peak).toBe(1);
+      const data = (mockedPrisma.appointment.create.mock.calls[0]?.[0] as any)
+        ?.data;
+      expect(
+        data.appointmentType.templateDefaults.map(
+          (entry: { templateId: string }) => entry.templateId,
+        ),
+      ).toEqual(["tmpl_soap", "tmpl_vitals"]);
+    });
+
+    it("stops at a missing bound template without reading later bindings", async () => {
+      mockedResolveSelection.mockImplementation(async () => ({
+        productItemId: "product_1",
+        isBookable: true,
+        appointmentKinds: ["OUTPATIENT", "INPATIENT"],
+        templateKinds: ["SOAP_NOTE", "VITAL_RECORD"],
+        templateBindings: [
+          { templateKind: "SOAP_NOTE", templateId: "tmpl_missing" },
+          { templateKind: "VITAL_RECORD", templateId: "tmpl_vitals" },
+        ],
+      }));
+      mockedPrisma.template.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.createRequestedFromMobile(
+          { resourceType: "Appointment" } as any,
+          "parent_1",
+        ),
+      ).rejects.toMatchObject({ statusCode: 404 });
+
+      expect(mockedPrisma.template.findFirst).toHaveBeenCalledTimes(1);
     });
 
     it("emits no template defaults when no template can be resolved", async () => {
@@ -5203,6 +5939,181 @@ describe("AppointmentPrismaService", () => {
       // The DTO conversion (toResponse) queries payment state, which this
       // discarded-return method has no caller that needs - it must not run.
       expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("calendar blocks", () => {
+    const createFromPms = () =>
+      AppointmentPrismaService.createAppointmentFromPms(
+        { resourceType: "Appointment" } as any,
+        true,
+        "PAYMENT_LINK",
+        "staff_1",
+      );
+
+    beforeEach(() => {
+      mockedPrisma.appointment.create.mockResolvedValue(
+        makeRow({ status: "UPCOMING" }),
+      );
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+      } as any);
+    });
+
+    it("refuses a booking that lands on a blocked vet", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "STAFF",
+      });
+
+      await expect(createFromPms()).rejects.toMatchObject({
+        statusCode: 409,
+        message: "The selected vet is blocked for this time.",
+      });
+      expect(mockedPrisma.calendarBlock.findFirst).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org_1",
+          OR: [
+            { targetType: "STAFF", targetId: "lead_1" },
+            { targetType: "ROOM", targetId: "room_1" },
+          ],
+          startAt: { lt: baseDomain.endTime },
+          endAt: { gt: baseDomain.startTime },
+        },
+        select: { targetType: true },
+      });
+      expect(mockedPrisma.occupancy.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a booking that lands on a blocked room", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "ROOM",
+      });
+
+      await expect(createFromPms()).rejects.toMatchObject({
+        statusCode: 409,
+        message: "The selected room is blocked for this time.",
+      });
+    });
+
+    it("keeps an existing booking editable after a block is added over it", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "STAFF",
+      });
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        patient: baseDomain.patient,
+        status: "UPCOMING",
+        concern: "Limping",
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({ status: "UPCOMING", appointmentKind: "OUTPATIENT" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "UPCOMING" }),
+      );
+
+      await AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+        resourceType: "Appointment",
+      } as any);
+
+      expect(mockedPrisma.calendarBlock.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.occupancy.create).toHaveBeenCalled();
+    });
+
+    it("checks blocks again when an edit moves the booking", async () => {
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "STAFF",
+      });
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        patient: baseDomain.patient,
+        status: "UPCOMING",
+        startTime: new Date("2026-06-10T11:00:00.000Z"),
+        endTime: new Date("2026-06-10T11:30:00.000Z"),
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({ status: "UPCOMING", appointmentKind: "OUTPATIENT" }),
+      );
+
+      await expect(
+        AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+          resourceType: "Appointment",
+        } as any),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.calendarBlock.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { targetType: "STAFF", targetId: "lead_1" },
+              { targetType: "ROOM", targetId: "room_1" },
+            ],
+          }),
+        }),
+      );
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses moving an appointment into a blocked room", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(makeRow());
+      mockedPrisma.calendarBlock.findFirst.mockResolvedValue({
+        targetType: "ROOM",
+      });
+
+      await expect(
+        AppointmentPrismaService.updateAppointmentRoom("appt_1", "org_1", {
+          id: "room_2",
+          name: "Room 2",
+        }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.calendarBlock.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [{ targetType: "ROOM", targetId: "room_2" }],
+          }),
+        }),
+      );
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("flags series dates that fall on a blocked vet", async () => {
+      mockedPrisma.calendarBlock.findMany.mockResolvedValue([
+        {
+          targetId: "vet_1",
+          startAt: new Date("2026-06-17T09:00:00.000Z"),
+          endAt: new Date("2026-06-17T17:00:00.000Z"),
+        },
+      ]);
+
+      await expect(
+        AppointmentPrismaService.previewWeeklyAppointmentSeries(
+          "org_1",
+          "vet_1",
+          [
+            {
+              startTime: new Date("2026-06-10T11:00:00.000Z"),
+              endTime: new Date("2026-06-10T11:30:00.000Z"),
+            },
+            {
+              startTime: new Date("2026-06-17T11:00:00.000Z"),
+              endTime: new Date("2026-06-17T11:30:00.000Z"),
+            },
+          ],
+          "Europe/Madrid",
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({ index: 1, hasConflict: false }),
+        expect.objectContaining({ index: 2, hasConflict: true }),
+      ]);
+      expect(mockedPrisma.calendarBlock.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org_1",
+          targetType: "STAFF",
+          targetId: { in: ["vet_1"] },
+          startAt: { lt: new Date("2026-06-17T11:30:00.000Z") },
+          endAt: { gt: new Date("2026-06-10T11:00:00.000Z") },
+        },
+        select: { targetId: true, startAt: true, endAt: true },
+      });
     });
   });
 

@@ -135,7 +135,7 @@ export const QolAssessmentService = {
     return assertRecord(id, organisationId);
   },
 
-  async list(params: ListQolParams) {
+  list(params: ListQolParams) {
     const { organisationId, patientId, encounterId, ownerAssessed } = params;
     return prisma.qualityOfLifeAssessment.findMany({
       where: {
@@ -149,7 +149,7 @@ export const QolAssessmentService = {
     });
   },
 
-  async trend(patientId: string, organisationId: string, limit = 20) {
+  trend(patientId: string, organisationId: string, limit = 20) {
     return prisma.qualityOfLifeAssessment.findMany({
       where: { patientId, organisationId },
       select: qolSelect,

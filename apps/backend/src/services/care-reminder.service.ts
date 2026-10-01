@@ -11,6 +11,7 @@ import {
 } from "./care-reminder-opt-out.service";
 import logger from "src/utils/logger";
 import { Prisma } from "@prisma/client";
+import { z } from "zod";
 import {
   assertPatientOrgMembership,
   assertPatientsOrgMembership,
@@ -30,6 +31,11 @@ export class CareReminderError extends Error {
   }
 }
 
+const ReminderScopeSchema = z.object({
+  id: z.string().min(1),
+  organisationId: z.string().min(1),
+});
+
 type ReminderType =
   | "VACCINATION_BOOSTER"
   | "ANNUAL_CHECKUP"
@@ -39,7 +45,12 @@ type ReminderType =
   | "CUSTOM";
 
 type ReminderStatus =
-  "PENDING" | "SENT" | "RESPONDED" | "EXPIRED" | "CANCELLED";
+  "PENDING" | "SENDING" | "SENT" | "RESPONDED" | "EXPIRED" | "CANCELLED";
+
+type DeliverySummary = { push: ChannelOutcome; email: ChannelOutcome };
+
+const STALE_SEND_CLAIM_MS = 15 * 60 * 1000;
+const SCHEDULED_SEND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface CreateCareReminderParams {
   organisationId: string;
@@ -80,6 +91,9 @@ const reminderSelect = {
   dueDate: true,
   sendAt: true,
   status: true,
+  sendingAt: true,
+  lastAttemptAt: true,
+  lastDelivery: true,
   sentAt: true,
   respondedAt: true,
   appointmentId: true,
@@ -104,11 +118,9 @@ const assertReminder = async (id: string, organisationId: string) => {
  * Everything that can refuse the send, resolved before any channel is delivered.
  *
  * Kept separate from delivery for two reasons: it is the only part that can
- * legally block the send, and doing it first means an operational failure cannot
- * leave one channel delivered and the other not. Both failures throw rather than
- * returning quietly, because `send` marks the reminder SENT on return and only a
- * PENDING reminder can be sent again, so a transient problem would otherwise
- * consume a reminder that was never delivered.
+ * legally block delivery, and doing it first means a preference/configuration
+ * failure cannot leave one channel delivered and the other not. Those failures
+ * are recorded as an unsuccessful attempt and remain available for manual retry.
  */
 const resolveDeliveryPlan = async (
   reminder: Awaited<ReturnType<typeof assertReminder>>,
@@ -365,7 +377,7 @@ export const CareReminderService = {
     return assertReminder(id, organisationId);
   },
 
-  async list(params: ListCareRemindersParams) {
+  list(params: ListCareRemindersParams) {
     const {
       organisationId,
       patientId,
@@ -395,6 +407,12 @@ export const CareReminderService = {
   },
 
   async send(id: string, organisationId: string, sentBy?: string) {
+    const scope = ReminderScopeSchema.safeParse({ id, organisationId });
+    if (!scope.success) {
+      throw new CareReminderError("Invalid reminder scope.", 400);
+    }
+    id = scope.data.id;
+    organisationId = scope.data.organisationId;
     const reminder = await assertReminder(id, organisationId);
     if (reminder.status !== "PENDING") {
       throw new CareReminderError(
@@ -403,56 +421,88 @@ export const CareReminderService = {
       );
     }
 
-    const patient = await prisma.patient.findUnique({
-      where: { id: reminder.patientId },
-      select: { name: true },
-    });
-    const patientName = patient?.name ?? "your pet";
-
-    const link = await prisma.parentPatient.findFirst({
-      where: {
-        patientId: reminder.patientId,
-        role: "PRIMARY",
-        status: "ACTIVE",
+    const attemptAt = new Date();
+    const claim = await prisma.careReminder.updateMany({
+      where: { id, organisationId, status: "PENDING" },
+      data: {
+        status: "SENDING",
+        sendingAt: attemptAt,
+        lastAttemptAt: attemptAt,
       },
-      select: { parentId: true },
     });
-    let ownerUserId: string | null = null;
-    let ownerEmail: string | null = null;
-    if (link) {
-      const parent = await prisma.parent.findUnique({
-        where: { id: link.parentId },
-        select: { linkedUserId: true, email: true },
-      });
-      ownerUserId = parent?.linkedUserId ?? null;
-      ownerEmail = parent?.email ?? null;
-    }
-
-    const delivery = await dispatchNotification(
-      reminder,
-      patientName,
-      ownerUserId,
-      ownerEmail,
-    );
-    const outcomes = new Set([delivery.push, delivery.email]);
-    // Every channel that was tried failed. Marking it SENT would show the
-    // clinic a reminder nobody received, and only a PENDING reminder can be
-    // sent again, so it stays PENDING for a retry.
-    if (outcomes.has("failed") && !outcomes.has("delivered")) {
+    if (claim.count !== 1) {
       throw new CareReminderError(
-        "The reminder could not be delivered. It is still pending, so it can be sent again.",
-        502,
+        "This reminder is already being sent or has changed.",
+        409,
       );
     }
 
-    // Only a reminder still PENDING becomes SENT. Delivery takes seconds, and a
-    // cancel (or a second send) that lands in between must not be overwritten.
-    // P2025 is that case: the row was read moments ago in this request, so no
-    // match means its status moved, not that the id is wrong.
+    let delivery: DeliverySummary;
+    try {
+      const patient = await prisma.patient.findUnique({
+        where: { id: reminder.patientId },
+        select: { name: true },
+      });
+      const patientName = patient?.name ?? "your pet";
+      const link = await prisma.parentPatient.findFirst({
+        where: {
+          patientId: reminder.patientId,
+          role: "PRIMARY",
+          status: "ACTIVE",
+        },
+        select: { parentId: true },
+      });
+      let ownerUserId: string | null = null;
+      let ownerEmail: string | null = null;
+      if (link) {
+        const parent = await prisma.parent.findUnique({
+          where: { id: link.parentId },
+          select: { linkedUserId: true, email: true },
+        });
+        ownerUserId = parent?.linkedUserId ?? null;
+        ownerEmail = parent?.email ?? null;
+      }
+      delivery = await dispatchNotification(
+        reminder,
+        patientName,
+        ownerUserId,
+        ownerEmail,
+      );
+    } catch (error) {
+      const failed: DeliverySummary = { push: "failed", email: "failed" };
+      await prisma.careReminder.updateMany({
+        where: { id, organisationId, status: "SENDING" },
+        data: {
+          status: "PENDING",
+          sendingAt: null,
+          lastDelivery: failed,
+        },
+      });
+      await AuditTrailService.recordSafely({
+        organisationId,
+        patientId: reminder.patientId,
+        eventType: "CARE_REMINDER_DELIVERY_ATTEMPT",
+        actorType: sentBy ? "PMS_USER" : "SYSTEM",
+        actorId: sentBy ?? null,
+        entityType: "COMPANION",
+        entityId: id,
+        metadata: { reminderType: reminder.reminderType, delivery: failed },
+      });
+      throw error;
+    }
+
+    const delivered =
+      delivery.push === "delivered" || delivery.email === "delivered";
+
     const updated = await prisma.careReminder
       .update({
-        where: { id, organisationId, status: "PENDING" },
-        data: { status: "SENT", sentAt: new Date() },
+        where: { id, organisationId, status: "SENDING" },
+        data: {
+          status: delivered ? "SENT" : "PENDING",
+          sentAt: delivered ? new Date() : null,
+          sendingAt: null,
+          lastDelivery: delivery,
+        },
         select: reminderSelect,
       })
       .catch((err: unknown) => {
@@ -465,12 +515,11 @@ export const CareReminderService = {
         throw err;
       });
 
-    // Recorded either way: what reached the owner is true whatever the status.
     await AuditTrailService.recordSafely({
       organisationId,
       patientId: reminder.patientId,
-      eventType: "CARE_REMINDER_SENT",
-      actorType: "PMS_USER",
+      eventType: "CARE_REMINDER_DELIVERY_ATTEMPT",
+      actorType: sentBy ? "PMS_USER" : "SYSTEM",
       actorId: sentBy ?? null,
       entityType: "COMPANION",
       entityId: id,
@@ -481,6 +530,24 @@ export const CareReminderService = {
       },
     });
 
+    // Preserve the existing sent event for consumers that use it as a delivered signal.
+    if (delivered) {
+      await AuditTrailService.recordSafely({
+        organisationId,
+        patientId: reminder.patientId,
+        eventType: "CARE_REMINDER_SENT",
+        actorType: sentBy ? "PMS_USER" : "SYSTEM",
+        actorId: sentBy ?? null,
+        entityType: "COMPANION",
+        entityId: id,
+        metadata: {
+          reminderType: reminder.reminderType,
+          dueDate: reminder.dueDate,
+          delivery,
+        },
+      });
+    }
+
     if (!updated) {
       throw new CareReminderError(
         "The reminder was cancelled or changed while it was being sent, so its status was not updated.",
@@ -489,6 +556,51 @@ export const CareReminderService = {
     }
 
     return updated;
+  },
+
+  async sendScheduledDue() {
+    const now = Date.now();
+    // A claim this old belongs to a send that never finished (a restart mid-send).
+    // It goes back to PENDING without a result so staff can see it and decide;
+    // lastAttemptAt stays set, so the scheduler below never resends it on its own.
+    await prisma.careReminder.updateMany({
+      where: {
+        status: "SENDING",
+        sendingAt: { lt: new Date(now - STALE_SEND_CLAIM_MS) },
+      },
+      data: { status: "PENDING", sendingAt: null, lastDelivery: Prisma.DbNull },
+    });
+    const due = await prisma.careReminder.findMany({
+      where: {
+        status: "PENDING",
+        // A send time further back than the window is left for staff to send by
+        // hand, so old rows or a long worker outage never release a burst of
+        // stale reminders to owners.
+        sendAt: {
+          lte: new Date(now),
+          gte: new Date(now - SCHEDULED_SEND_WINDOW_MS),
+        },
+        lastAttemptAt: null,
+      },
+      select: { id: true, organisationId: true },
+      orderBy: { sendAt: "asc" },
+      take: 100,
+    });
+    const sendOne = (reminder: (typeof due)[number]) =>
+      this.send(reminder.id, reminder.organisationId).catch(
+        (error: unknown) => {
+          logger.error("Scheduled care reminder could not be delivered", {
+            reminderId: reminder.id,
+            error,
+          });
+        },
+      );
+    // One at a time, so a full batch never outruns the mail provider's send rate.
+    await due.reduce<Promise<unknown>>(
+      (previous, reminder) => previous.then(() => sendOne(reminder)),
+      Promise.resolve(),
+    );
+    return due.length;
   },
 
   async markResponded(
@@ -531,6 +643,12 @@ export const CareReminderService = {
 
   async cancel(id: string, organisationId: string, cancelledBy?: string) {
     const reminder = await assertReminder(id, organisationId);
+    if (reminder.status === "SENDING") {
+      throw new CareReminderError(
+        "Cannot cancel a reminder while delivery is in progress.",
+        409,
+      );
+    }
     if (reminder.status === "CANCELLED") {
       throw new CareReminderError("Reminder is already cancelled.", 409);
     }

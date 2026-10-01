@@ -2,23 +2,17 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import MedicationAdministrationPanel from '@/app/features/appointments/pages/AppointmentWorkspace/components/MedicationAdministrationPanel';
 import {
-  administerMedication,
   createMedicationAdministration,
-  holdMedication,
   listMedicationAdministrations,
-  missMedication,
-  refuseMedication,
+  recordMedicationOutcome,
 } from '@/app/features/appointments/services/medicationAdministrationService';
 import type { MedicationAdministrationEntry } from '@/app/features/appointments/services/medicationAdministrationService';
 import type { PrescriptionItem } from '@/app/features/appointments/types/workspace';
 
 jest.mock('@/app/features/appointments/services/medicationAdministrationService', () => ({
-  administerMedication: jest.fn(),
   createMedicationAdministration: jest.fn(),
-  holdMedication: jest.fn(),
   listMedicationAdministrations: jest.fn(),
-  missMedication: jest.fn(),
-  refuseMedication: jest.fn(),
+  recordMedicationOutcome: jest.fn(),
 }));
 
 const listMock = listMedicationAdministrations as jest.MockedFunction<
@@ -27,10 +21,7 @@ const listMock = listMedicationAdministrations as jest.MockedFunction<
 const createMock = createMedicationAdministration as jest.MockedFunction<
   typeof createMedicationAdministration
 >;
-const administerMock = administerMedication as jest.MockedFunction<typeof administerMedication>;
-const holdMock = holdMedication as jest.MockedFunction<typeof holdMedication>;
-const missMock = missMedication as jest.MockedFunction<typeof missMedication>;
-const refuseMock = refuseMedication as jest.MockedFunction<typeof refuseMedication>;
+const outcomeMock = recordMedicationOutcome as jest.MockedFunction<typeof recordMedicationOutcome>;
 
 const prescription: PrescriptionItem = {
   id: 'rx-line-1',
@@ -83,7 +74,7 @@ beforeEach(() => {
 describe('MedicationAdministrationPanel', () => {
   it('loads scheduled doses and records a dose as given once', async () => {
     listMock.mockResolvedValueOnce([scheduledEntry]);
-    administerMock.mockResolvedValueOnce({
+    outcomeMock.mockResolvedValueOnce({
       ...scheduledEntry,
       status: 'GIVEN',
       administeredAt: '2026-09-27T10:05:00.000Z',
@@ -97,7 +88,7 @@ describe('MedicationAdministrationPanel', () => {
     expect(await screen.findByText('Given')).toBeInTheDocument();
     expect(screen.getByText(/Recorded as given/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Record given' })).not.toBeInTheDocument();
-    expect(administerMock).toHaveBeenCalledWith('org-1', 'mar-1');
+    expect(outcomeMock).toHaveBeenCalledWith('org-1', 'mar-1', 'GIVEN');
   });
 
   it('preserves other scheduled doses when one outcome is recorded', async () => {
@@ -105,7 +96,7 @@ describe('MedicationAdministrationPanel', () => {
       scheduledEntry,
       { ...scheduledEntry, id: 'mar-2', medicationName: 'Gabapentin' },
     ]);
-    administerMock.mockResolvedValueOnce({ ...scheduledEntry, status: 'GIVEN' });
+    outcomeMock.mockResolvedValueOnce({ ...scheduledEntry, status: 'GIVEN' });
     renderPanel();
 
     await userEvent.click((await screen.findAllByRole('button', { name: 'Record given' }))[0]);
@@ -113,6 +104,7 @@ describe('MedicationAdministrationPanel', () => {
     expect(await screen.findByText('Given')).toBeInTheDocument();
     expect(screen.getByText('Gabapentin')).toBeInTheDocument();
     expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(outcomeMock).toHaveBeenCalledWith('org-1', 'mar-1', 'GIVEN');
   });
 
   it('orders the history by scheduled time', async () => {
@@ -128,21 +120,21 @@ describe('MedicationAdministrationPanel', () => {
   });
 
   it.each([
-    ['Hold', holdMock, 'HELD'],
-    ['Mark missed', missMock, 'MISSED'],
-    ['Record refused', refuseMock, 'REFUSED'],
+    ['Hold', 'HELD', 'Held'],
+    ['Mark missed', 'MISSED', 'Missed'],
+    ['Record refused', 'REFUSED', 'Refused'],
   ] as const)(
     'records the %s outcome and removes the available actions',
-    async (label, action, status) => {
+    async (buttonLabel, outcome, statusLabel) => {
       listMock.mockResolvedValueOnce([scheduledEntry]);
-      action.mockResolvedValueOnce({ ...scheduledEntry, status });
+      outcomeMock.mockResolvedValueOnce({ ...scheduledEntry, status: outcome });
       renderPanel();
 
-      await userEvent.click(await screen.findByRole('button', { name: label }));
+      await userEvent.click(await screen.findByRole('button', { name: buttonLabel }));
 
-      const outcomeLabel = { HELD: 'Held', MISSED: 'Missed', REFUSED: 'Refused' }[status];
-      expect(await screen.findByText(outcomeLabel)).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument();
+      expect(await screen.findByText(statusLabel)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: buttonLabel })).not.toBeInTheDocument();
+      expect(outcomeMock).toHaveBeenCalledWith('org-1', 'mar-1', outcome);
     }
   );
 
@@ -298,7 +290,7 @@ describe('MedicationAdministrationPanel', () => {
     listMock
       .mockResolvedValueOnce([scheduledEntry])
       .mockResolvedValueOnce([{ ...scheduledEntry, status: 'GIVEN' }]);
-    administerMock.mockRejectedValueOnce(new Error('conflict'));
+    outcomeMock.mockRejectedValueOnce(new Error('conflict'));
     renderPanel();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Record given' }));

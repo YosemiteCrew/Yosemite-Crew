@@ -134,7 +134,7 @@ export const PainAssessmentService = {
     return assertAssessment(id, organisationId);
   },
 
-  async list(params: ListPainAssessmentsParams) {
+  list(params: ListPainAssessmentsParams) {
     const { organisationId, patientId, encounterId, from, to } = params;
     return prisma.painAssessment.findMany({
       where: {

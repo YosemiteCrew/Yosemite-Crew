@@ -106,7 +106,7 @@ export const ValidationErrors: Story = {
     await userEvent.click(canvas.getByRole('button', { name: SUBMIT_LABEL }));
     await canvas.findByText('Passport number is required.');
     await expect(canvas.getAllByRole('alert')).toHaveLength(1);
-    await expect(canvas.getByLabelText('Issuing country')).toHaveAttribute('aria-invalid', 'false');
+    await expect(canvas.getByLabelText('Issuing country')).not.toHaveAttribute('aria-invalid');
     // The click must not reach the API at all: a half-formed issuance answered
     // with a 400 is a round trip the form already knows the outcome of.
     await expect(args.onSubmit).not.toHaveBeenCalled();
@@ -131,7 +131,7 @@ export const ErrorClearsOnCorrection: Story = {
     });
     // The wiring, not just the text: a stale `aria-describedby` would keep
     // pointing a screen reader at a message that is no longer on screen.
-    await expect(number).toHaveAttribute('aria-invalid', 'false');
+    await expect(number).not.toHaveAttribute('aria-invalid');
     await expect(number).not.toHaveAttribute('aria-describedby');
   },
 };

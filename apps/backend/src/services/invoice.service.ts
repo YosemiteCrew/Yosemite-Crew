@@ -19,7 +19,7 @@ import {
   roundMoney,
   type InvoiceDiscountInput as PricingInvoiceDiscountInput,
 } from "./finance/pricing";
-import { isLedgerCurrencySupported } from "./finance/currency";
+import { isLedgerCurrencySupported, sameCurrency } from "./finance/currency";
 import { FinanceDiscountSettingsService } from "./finance/discount-settings";
 import {
   DEFAULT_TAX_BEHAVIOR,
@@ -31,11 +31,19 @@ import {
   getInvoiceFinancialSummary,
 } from "./finance/payment";
 import { FinanceEventService } from "./finance/events";
+import {
+  calculateInvoiceDueAt,
+  resolvePracticeTimeZone,
+} from "./finance/client-collections";
 import { markInvoiceTreatmentItemsSettled } from "./finance/settlement";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { randomUUID } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
+import {
+  consumeNormalStockLinesInTransaction,
+  InventoryServiceError,
+} from "./inventory.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { AuditTrailService } from "./audit-trail.service";
@@ -59,6 +67,22 @@ export class InvoiceServiceError extends Error {
 
 const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL_ADDRESS ?? "support@yosemitecrew.com";
+
+/** When a client's invoice finalized now falls due under their payment terms. */
+const resolveInvoiceDueAt = async (
+  organisationId: string,
+  parentId: string,
+  finalizedAt: Date,
+) => {
+  const [terms, timeZone] = await Promise.all([
+    prisma.clientPaymentTerm.findUnique({
+      where: { organisationId_parentId: { organisationId, parentId } },
+      select: { netDays: true },
+    }),
+    resolvePracticeTimeZone(organisationId),
+  ]);
+  return calculateInvoiceDueAt(finalizedAt, terms?.netDays ?? 0, timeZone);
+};
 
 type AppointmentLink = {
   patientId?: string;
@@ -151,6 +175,20 @@ type CreateInvoiceInput = {
     "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC";
 };
 
+type CounterSaleInput = {
+  organisationId: string;
+  items: Array<{ inventoryItemId: string; quantity: number }>;
+};
+
+type InvoiceNormalizationInput = Pick<
+  CreateInvoiceInput,
+  | "items"
+  | "notes"
+  | "invoiceDiscount"
+  | "paymentCollectionMethod"
+  | "organisationId"
+> & { appointmentId?: string | null };
+
 type IssueCreditNoteInput = {
   amount: number;
   reason?: string;
@@ -164,23 +202,23 @@ const resolveBillingCollectionMode = (
     ? "PAY_AT_VISIT_END"
     : "PREPAY_AT_BOOKING";
 
-const resolveInvoiceDepositTargetAmount = (depositTargetAmount: number) => {
-  if (depositTargetAmount < 0) {
-    throw new InvoiceServiceError(
-      "Deposit target amount must be greater than or equal to zero",
-      400,
-    );
-  }
-
-  return roundMoney(depositTargetAmount);
-};
+const resolveInvoiceDepositTargetAmount = (
+  depositTargetAmount: number,
+  currency: string,
+) =>
+  roundMoney(
+    depositTargetAmount,
+    isLedgerCurrencySupported(currency) ? currency : undefined,
+  );
 
 const resolveInvoiceDepositCollectedAmount = (
   invoice: Pick<PrismaInvoice, "depositCollectedAmount">,
   depositTargetAmount: number,
+  currency: string,
 ) =>
   roundMoney(
     Math.min(invoice.depositCollectedAmount ?? 0, depositTargetAmount),
+    isLedgerCurrencySupported(currency) ? currency : undefined,
   );
 
 const findInvoiceByIdOrThrow = async (invoiceId: string) => {
@@ -471,7 +509,7 @@ const mergeInvoiceLineItems = (
 
 type SettlementInvoice = Pick<
   PrismaInvoice,
-  "id" | "items" | "totalAmount" | "depositCollectedAmount"
+  "id" | "items" | "totalAmount" | "depositCollectedAmount" | "currency"
 >;
 
 type SettlementCreditNote = { id: string; amount: number };
@@ -488,26 +526,29 @@ const computeInvoiceFinancialDetails = (
   payments: PrismaPaymentWithRefunds[],
   creditNotes: SettlementCreditNote[],
 ) => {
+  const currency = isLedgerCurrencySupported(invoice.currency)
+    ? invoice.currency
+    : undefined;
   const buildLineAllocations = (
     amount: number,
     lines: InvoiceSettlementLineAllocation[],
     key: "cashApplied" | "creditApplied",
   ) => {
-    let remaining = roundMoney(amount);
+    let remaining = roundMoney(amount, currency);
     for (const line of lines) {
       if (remaining <= 0) {
         break;
       }
 
-      const available = roundMoney(Math.max(0, line.remaining));
+      const available = roundMoney(Math.max(0, line.remaining), currency);
       if (available <= 0) {
         continue;
       }
 
-      const applied = roundMoney(Math.min(available, remaining));
-      line[key] = roundMoney(line[key] + applied);
-      line.remaining = roundMoney(line.remaining - applied);
-      remaining = roundMoney(remaining - applied);
+      const applied = roundMoney(Math.min(available, remaining), currency);
+      line[key] = roundMoney(line[key] + applied, currency);
+      line.remaining = roundMoney(line.remaining - applied, currency);
+      remaining = roundMoney(remaining - applied, currency);
     }
 
     return remaining;
@@ -517,7 +558,10 @@ const computeInvoiceFinancialDetails = (
     invoice.items,
   )
     ? (invoice.items as InvoiceItem[]).map((item, index) => {
-        const total = roundMoney(item.total ?? item.quantity * item.unitPrice);
+        const total = roundMoney(
+          item.total ?? item.quantity * item.unitPrice,
+          currency,
+        );
         return {
           id: item.id ?? undefined,
           name: item.name || `Item ${index + 1}`,
@@ -531,14 +575,23 @@ const computeInvoiceFinancialDetails = (
     : [];
 
   const actualCashPaid = roundMoney(
-    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
+    payments.reduce(
+      (sum, payment) => sum + getNetPaymentAmount(payment, currency),
+      0,
+    ),
+    currency,
   );
-  const depositRecordedAmount = roundMoney(invoice.depositCollectedAmount ?? 0);
+  const depositRecordedAmount = roundMoney(
+    invoice.depositCollectedAmount ?? 0,
+    currency,
+  );
   const credited = roundMoney(
     creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
+    currency,
   );
   const effectivePaid = roundMoney(
     Math.max(actualCashPaid, depositRecordedAmount),
+    currency,
   );
 
   buildLineAllocations(effectivePaid, itemAllocations, "cashApplied");
@@ -546,6 +599,7 @@ const computeInvoiceFinancialDetails = (
 
   const balance = roundMoney(
     Math.max(0, invoice.totalAmount - effectivePaid - credited),
+    currency,
   );
 
   const receipts = payments
@@ -568,7 +622,7 @@ const computeInvoiceFinancialDetails = (
     payments: payments.map((payment) => toPaymentRecord(payment)),
     receipts,
     settlementSummary: {
-      invoiceTotal: roundMoney(invoice.totalAmount),
+      invoiceTotal: roundMoney(invoice.totalAmount, currency),
       cashPaid: actualCashPaid,
       depositRecordedAmount,
       credited,
@@ -698,6 +752,13 @@ const resolveInvoiceTotals = async (
     taxContext,
     skipTaxCalculation,
   } = options;
+  // Only currencies the ledger registry can price exactly are handed over.
+  // An org billing in one of the codes it refuses keeps the two decimals it
+  // is priced at today rather than losing invoicing the day this ships;
+  // giving those codes a decided minor unit is what removes this guard.
+  const ledgerCurrency = isLedgerCurrencySupported(currency)
+    ? currency
+    : undefined;
   const pricing = calculateInvoicePricing({
     lines: items.map((item) => ({
       quantity: item.quantity,
@@ -708,11 +769,7 @@ const resolveInvoiceTotals = async (
     })),
     taxRatePercent: taxPercent,
     invoiceDiscount,
-    // Only currencies the ledger registry can price exactly are handed over.
-    // An org billing in one of the codes it refuses keeps the two decimals it
-    // is priced at today rather than losing invoicing the day this ships;
-    // giving those codes a decided minor unit is what removes this guard.
-    currency: isLedgerCurrencySupported(currency) ? currency : undefined,
+    currency: ledgerCurrency,
   });
 
   if (skipTaxCalculation) {
@@ -726,6 +783,7 @@ const resolveInvoiceTotals = async (
         pricing.subtotal -
           pricing.lineDiscountTotal -
           pricing.invoiceDiscountTotal,
+        ledgerCurrency,
       ),
       taxSnapshot: null,
     };
@@ -770,6 +828,7 @@ const resolveInvoiceTotals = async (
         : (taxPercent ?? 0),
     totalAmount: roundMoney(
       pricing.totalAmount - pricing.taxTotal + taxSnapshot.taxAmount,
+      ledgerCurrency,
     ),
     taxSnapshot,
   };
@@ -1067,7 +1126,7 @@ const resolveInvoiceTaxContext = async (
   };
 };
 
-const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
+const cancelUnpaidInvoice = (invoice: PrismaInvoice, reason: string) =>
   prisma.invoice
     .update({
       where: { id: invoice.id },
@@ -1110,6 +1169,7 @@ const closeOpenInvoiceForCancellation = async (
     invoice.id,
     invoice.totalAmount,
     invoice.depositCollectedAmount ?? 0,
+    invoice.currency,
   );
 
   if (summary.paid > 0) {
@@ -1148,6 +1208,7 @@ const generateCreditNoteNumber = (invoiceId: string) =>
  */
 const assertOverallDiscountWithinOrgCap = async (
   organisationId: string,
+  currency: string,
   totals: {
     subtotal: number;
     discountTotal: number;
@@ -1166,7 +1227,10 @@ const assertOverallDiscountWithinOrgCap = async (
     return;
   }
 
-  const baseAmount = roundMoney(totals.subtotal - totals.discountTotal);
+  const baseAmount = roundMoney(
+    totals.subtotal - totals.discountTotal,
+    isLedgerCurrencySupported(currency) ? currency : undefined,
+  );
   const appliedPercent = calculateInvoiceDiscountPercentOfBase(
     totals.invoiceDiscountTotal,
     baseAmount,
@@ -1181,9 +1245,9 @@ const assertOverallDiscountWithinOrgCap = async (
 };
 
 const normalizeCreateInput = async (
-  input: CreateInvoiceInput,
-  patientId: string,
-  parentId: string,
+  input: InvoiceNormalizationInput,
+  patientId: string | null,
+  parentId: string | null,
   currency: string,
   taxBehavior: PrismaTaxBehavior = DEFAULT_TAX_BEHAVIOR,
   taxContext?: {
@@ -1206,7 +1270,7 @@ const normalizeCreateInput = async (
     items,
     totals,
     data: {
-      appointmentId: input.appointmentId,
+      appointmentId: input.appointmentId ?? null,
       parentId,
       organisationId: input.organisationId,
       patientId,
@@ -1365,6 +1429,130 @@ const computeInvoiceTaxTotals = async (
 };
 
 export const InvoiceService = {
+  async createCounterSale(input: CounterSaleInput) {
+    if (!input.items.length) {
+      throw new InvoiceServiceError("At least one item is required", 400);
+    }
+    const quantities = new Map<string, number>();
+    for (const line of input.items) {
+      const inventoryItemId = line.inventoryItemId.trim();
+      if (
+        !inventoryItemId ||
+        !Number.isSafeInteger(line.quantity) ||
+        line.quantity <= 0
+      ) {
+        throw new InvoiceServiceError("Invalid sale item", 400);
+      }
+      const quantity = (quantities.get(inventoryItemId) ?? 0) + line.quantity;
+      if (!Number.isSafeInteger(quantity)) {
+        throw new InvoiceServiceError("Invalid sale quantity", 400);
+      }
+      quantities.set(inventoryItemId, quantity);
+    }
+
+    const currency = await resolveOrganisationCurrency(input.organisationId);
+    const createdInvoice = await prisma.$transaction(async (tx) => {
+      const inventoryItems = await tx.inventoryItem.findMany({
+        where: {
+          id: { in: [...quantities.keys()] },
+          organisationId: input.organisationId,
+        },
+      });
+      const itemsById = new Map(inventoryItems.map((item) => [item.id, item]));
+
+      const saleLines = [...quantities].map(([inventoryItemId, quantity]) => {
+        const item = itemsById.get(inventoryItemId);
+        if (!item) {
+          throw new InvoiceServiceError("Inventory item not found", 404);
+        }
+        if (item.status !== "ACTIVE") {
+          throw new InvoiceServiceError(
+            `${item.name} is not available for sale`,
+            409,
+          );
+        }
+        if (item.controlledItem || item.prescriptionRequired) {
+          throw new InvoiceServiceError(
+            `${item.name} cannot be sold over the counter`,
+            409,
+          );
+        }
+        if (
+          item.sellingPrice == null ||
+          !Number.isFinite(item.sellingPrice) ||
+          item.sellingPrice < 0
+        ) {
+          throw new InvoiceServiceError(
+            `${item.name} has no valid sale price`,
+            409,
+          );
+        }
+        if (item.currency && !sameCurrency(item.currency, currency)) {
+          throw new InvoiceServiceError(
+            `${item.name} uses a different currency`,
+            409,
+          );
+        }
+        return { item, quantity, unitPrice: item.sellingPrice };
+      });
+      const items = saleLines.map(({ item, quantity, unitPrice }) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description ?? item.name,
+        quantity,
+        unitPrice,
+      }));
+      const { data, taxSnapshot } = await normalizeCreateInput(
+        {
+          organisationId: input.organisationId,
+          items,
+          paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+        },
+        null,
+        null,
+        currency,
+        DEFAULT_TAX_BEHAVIOR,
+        undefined,
+        { skipTaxCalculation: true },
+      );
+      const invoice = await tx.invoice.create({
+        data: {
+          ...data,
+          ...(taxSnapshot ? { taxSnapshot: { create: taxSnapshot } } : {}),
+        },
+      });
+
+      try {
+        await consumeNormalStockLinesInTransaction(tx, saleLines, {
+          reason: "COUNTER_SALE",
+          referenceId: invoice.id,
+        });
+      } catch (error) {
+        if (error instanceof InventoryServiceError) {
+          throw new InvoiceServiceError(error.message, error.statusCode);
+        }
+        throw error;
+      }
+      await tx.financeEvent.create({
+        data: {
+          organisationId: invoice.organisationId ?? undefined,
+          eventType: "INVOICE_CREATED",
+          entityType: "INVOICE",
+          entityId: invoice.id,
+          payload: {
+            status: invoice.status,
+            totalAmount: invoice.totalAmount,
+            currency: invoice.currency,
+          },
+          occurredAt: invoice.createdAt,
+        },
+      });
+      return invoice;
+    });
+
+    return toInvoiceRecord(createdInvoice);
+  },
+
   async createDraftForAppointment(input: CreateInvoiceInput) {
     await assertAppointmentInOrganisation(
       input.appointmentId,
@@ -1408,7 +1596,11 @@ export const InvoiceService = {
       { skipTaxCalculation: true },
     );
 
-    await assertOverallDiscountWithinOrgCap(appointment.organisationId, totals);
+    await assertOverallDiscountWithinOrgCap(
+      appointment.organisationId,
+      currency,
+      totals,
+    );
 
     const createdInvoice = await prisma.invoice
       .create({
@@ -1577,6 +1769,7 @@ export const InvoiceService = {
       doc.id,
       doc.totalAmount,
       doc.depositCollectedAmount ?? 0,
+      doc.currency,
     );
     if (summary.balance <= 0) {
       const settled = await recordInvoicePaidState(
@@ -1689,16 +1882,21 @@ export const InvoiceService = {
       throw new InvoiceServiceError("Invoice cannot accept credit notes.", 409);
     }
 
+    const ledgerCurrency = isLedgerCurrencySupported(invoice.currency)
+      ? invoice.currency
+      : undefined;
     const issuedCreditTotal = roundMoney(
       (invoice.creditNotes ?? []).reduce(
         (sum, creditNote) => sum + creditNote.amount,
         0,
       ),
+      ledgerCurrency,
     );
     const remainingCreditable = roundMoney(
       Math.max(0, invoice.totalAmount - issuedCreditTotal),
+      ledgerCurrency,
     );
-    const creditAmount = roundMoney(input.amount);
+    const creditAmount = roundMoney(input.amount, ledgerCurrency);
 
     if (creditAmount > remainingCreditable) {
       throw new InvoiceServiceError(
@@ -1926,6 +2124,7 @@ export const InvoiceService = {
       readyInvoice.id,
       readyInvoice.totalAmount,
       readyInvoice.depositCollectedAmount ?? 0,
+      readyInvoice.currency,
     );
     if (summary.paid > 0 || summary.credited > 0) {
       throw new InvoiceServiceError(
@@ -1958,8 +2157,17 @@ export const InvoiceService = {
     invoiceId: string,
     depositTargetAmount: number,
   ) {
-    const targetAmount = resolveInvoiceDepositTargetAmount(depositTargetAmount);
+    if (depositTargetAmount < 0) {
+      throw new InvoiceServiceError(
+        "Deposit target amount must be greater than or equal to zero",
+        400,
+      );
+    }
     const invoice = await findInvoiceByIdOrThrow(invoiceId);
+    const targetAmount = resolveInvoiceDepositTargetAmount(
+      depositTargetAmount,
+      invoice.currency,
+    );
 
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
@@ -1969,6 +2177,7 @@ export const InvoiceService = {
         depositCollectedAmount: resolveInvoiceDepositCollectedAmount(
           invoice,
           targetAmount,
+          invoice.currency,
         ),
       },
     });
@@ -2244,6 +2453,15 @@ export const InvoiceService = {
         paidAt: wasPaid ? null : undefined,
         visitBillingStage: wasPaid ? "DRAFT" : undefined,
         finalizedAt: wasFinalized || wasPaid ? null : undefined,
+        // Re-opening withdraws the demand for payment, so the due date and any
+        // collections review go with it; finalizing again sets a fresh one.
+        ...(wasFinalized || wasPaid
+          ? {
+              dueAt: null,
+              collectionsReviewedAt: null,
+              collectionsReviewedBy: null,
+            }
+          : {}),
         taxSnapshot: {
           upsert: {
             create: totals.taxSnapshot!,
@@ -2307,10 +2525,19 @@ export const InvoiceService = {
     );
 
     const finalizedAt = new Date();
+    const dueAt =
+      invoice.organisationId && invoice.parentId
+        ? await resolveInvoiceDueAt(
+            invoice.organisationId,
+            invoice.parentId,
+            finalizedAt,
+          )
+        : null;
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         finalizedAt,
+        dueAt,
         taxProvider: totals.taxSnapshot!.provider,
         subtotal: totals.subtotal,
         discountTotal: totals.discountTotal,
@@ -2422,7 +2649,7 @@ export const InvoiceService = {
     return this.addItemsToInvoice(invoice.id, items);
   },
 
-  async findOpenInvoiceForAppointment(
+  findOpenInvoiceForAppointment(
     appointmentId: string,
     organisationId?: string,
   ) {
@@ -2584,6 +2811,7 @@ export const InvoiceService = {
         invoice.id,
         invoice.totalAmount,
         invoice.depositCollectedAmount ?? 0,
+        invoice.currency,
       );
       const parent = await prisma.parent.findUnique({
         where: { id: invoice.parentId },

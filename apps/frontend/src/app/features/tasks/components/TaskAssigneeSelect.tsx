@@ -5,7 +5,7 @@ import { IoChevronDown } from 'react-icons/io5';
 import { useDropdown } from '@/app/hooks/useDropdown';
 import { useListboxKeyboardNav } from '@/app/ui/inputs/Dropdown/useDropdownKeyboardNav';
 import { useDropdownPositioning } from '@/app/ui/inputs/Dropdown/useDropdownPositioning';
-import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
+import { FIELD_CONTROL_HEIGHT, getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 import { Option } from '@/app/features/companions/types/companion';
 import { TaskAudience } from '@/app/features/tasks/constants/taskTaxonomy';
 
@@ -52,7 +52,7 @@ const matchesQuery = (option: Option, query: string): boolean =>
   option.label.toLowerCase().includes(query);
 
 const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
-  const base = `relative flex h-10 w-full cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(hasErrorState)}`;
+  const base = `relative flex ${FIELD_CONTROL_HEIGHT} w-full cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(hasErrorState)}`;
   if (open) return `${base} border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)] z-20`;
   return base;
 };

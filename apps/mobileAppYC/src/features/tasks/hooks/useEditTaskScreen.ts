@@ -8,6 +8,7 @@ import {useTaskFormSetup} from './useTaskFormSetup';
 import {useTaskFormHelpers} from './useTaskFormHelpers';
 import {useScreenHandlers} from './useScreenHandlers';
 import {fetchCoParents} from '@/features/coParent/thunks';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 export const useEditTaskScreen = (taskId: string, navigation: any) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -36,12 +37,14 @@ export const useEditTaskScreen = (taskId: string, navigation: any) => {
       const companion = companions?.find(
         (c: {id: string}) => c.id === task.companionId,
       );
-      dispatch(
-        fetchCoParents({
-          companionId: task.companionId,
-          companionName: companion?.name,
-          companionImage: companion?.profileImage ?? undefined,
-        }),
+      runInBackground(
+        dispatch(
+          fetchCoParents({
+            companionId: task.companionId,
+            companionName: companion?.name,
+            companionImage: companion?.profileImage ?? undefined,
+          }),
+        ),
       );
     }
   }, [companions, dispatch, task?.companionId]);

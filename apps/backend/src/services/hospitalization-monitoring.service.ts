@@ -148,7 +148,7 @@ export const HospitalizationMonitoringService = {
     return assertObs(id, organisationId);
   },
 
-  async list(params: ListObsParams) {
+  list(params: ListObsParams) {
     const { organisationId, patientId, admissionId, encounterId, from, to } =
       params;
     return prisma.hospitalizationMonitoring.findMany({

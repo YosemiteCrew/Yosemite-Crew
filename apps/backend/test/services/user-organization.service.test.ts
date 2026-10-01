@@ -1507,6 +1507,32 @@ describe("UserOrganizationService", () => {
         expect.objectContaining({ where: { id: "in-sync" } }),
       );
     });
+
+    it("rewrites drifted rows one at a time and stops at the first failure", async () => {
+      const drifted = (id: string) => ({
+        id,
+        roleCode: "OWNER",
+        extraPermissions: [],
+        revokedPermissions: [],
+        effectivePermissions: [],
+      });
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
+        drifted("first"),
+        drifted("second"),
+      ]);
+      (prisma.userOrganization.update as jest.Mock).mockRejectedValueOnce(
+        new Error("write failed"),
+      );
+
+      await expect(
+        UserOrganizationService.recomputeAllEffectivePermissions(),
+      ).rejects.toThrow("write failed");
+
+      expect(prisma.userOrganization.update).toHaveBeenCalledTimes(1);
+      expect(prisma.userOrganization.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "first" } }),
+      );
+    });
   });
 
   describe("listByUserId billing visibility", () => {
@@ -1732,6 +1758,46 @@ describe("UserOrganizationService", () => {
     });
   });
 
+  describe("listByUserId ordering", () => {
+    it("reads organisations together and keeps the memberships in their stored order", async () => {
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
+        {
+          ...prismaMapping,
+          id: "slow",
+          organizationReference: "Organization/slow",
+        },
+        {
+          ...prismaMapping,
+          id: "fast",
+          organizationReference: "Organization/fast",
+        },
+      ]);
+      let releaseSlow!: (value: unknown) => void;
+      (prisma.organization.findFirst as jest.Mock).mockImplementation(
+        ({ where }: { where: { OR: Array<{ id?: string }> } }) =>
+          where.OR[0].id === "slow"
+            ? new Promise((resolve) => {
+                releaseSlow = resolve;
+              })
+            : Promise.resolve(sparseOrganization({ id: "fast" })),
+      );
+
+      const pending = UserOrganizationService.listByUserId(userId);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // The second lookup does not wait for the first to answer.
+      expect(prisma.organization.findFirst).toHaveBeenCalledTimes(2);
+
+      releaseSlow(sparseOrganization({ id: "slow" }));
+      const results = await pending;
+
+      expect(results.map((entry) => entry.mapping._id)).toEqual([
+        "slow",
+        "fast",
+      ]);
+    });
+  });
+
   describe("listByOrganisationId", () => {
     it("returns an empty roster when the organisation has no mappings", async () => {
       (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([]);
@@ -1782,6 +1848,8 @@ describe("UserOrganizationService", () => {
       expect(anonymous.count).toBe(0);
       expect(firstNameOnly.name).toBe("Jane");
       expect(firstNameOnly.profileUrl).toBeUndefined();
+      // Today's appointment count does not depend on the member.
+      expect(prisma.occupancy.count).toHaveBeenCalledTimes(1);
       expect(prisma.userOrganization.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -1791,6 +1859,42 @@ describe("UserOrganizationService", () => {
           },
         }),
       );
+    });
+
+    it("loads members one at a time in their stored order", async () => {
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
+        { ...prismaMapping, id: "first" },
+        { ...prismaMapping, id: "second" },
+      ]);
+      let releaseFirst!: (value: unknown) => void;
+      (prisma.user.findFirst as jest.Mock)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+        )
+        .mockResolvedValueOnce({ firstName: "Second", lastName: null });
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.occupancy.count as jest.Mock).mockResolvedValue(0);
+      (AvailabilityService.getCurrentStatus as jest.Mock).mockResolvedValue(
+        "OFF_DUTY",
+      );
+      (
+        AvailabilityService.getWeeklyWorkingHours as jest.Mock
+      ).mockResolvedValue(0);
+
+      const pending = UserOrganizationService.listByOrganisationId(orgId);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // The next member waits for the one being loaded.
+      expect(prisma.user.findFirst).toHaveBeenCalledTimes(1);
+
+      releaseFirst({ firstName: "First", lastName: null });
+      const roster = await pending;
+
+      expect(prisma.user.findFirst).toHaveBeenCalledTimes(2);
+      expect(roster.map((entry) => entry.name)).toEqual(["First", "Second"]);
     });
   });
 });

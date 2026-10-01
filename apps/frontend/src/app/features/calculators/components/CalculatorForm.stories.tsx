@@ -214,9 +214,8 @@ export const RangeError: Story = {
     const alerts = await canvas.findAllByRole('alert');
     await expect(alerts).toHaveLength(1);
     await expect(alerts[0]).toHaveTextContent('Dehydration must be between 0 and 15.');
-    await expect(canvas.getByRole('spinbutton', { name: 'Weight (kg)' })).toHaveAttribute(
-      'aria-invalid',
-      'false'
+    await expect(canvas.getByRole('spinbutton', { name: 'Weight (kg)' })).not.toHaveAttribute(
+      'aria-invalid'
     );
   },
   parameters: {

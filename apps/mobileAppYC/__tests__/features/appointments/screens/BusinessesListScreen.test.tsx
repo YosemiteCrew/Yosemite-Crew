@@ -1,6 +1,11 @@
 import React from 'react';
 import * as Redux from 'react-redux';
-import {render, fireEvent, screen} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import {mockTheme} from '../../../setup/mockTheme';
 import {BusinessesListScreen} from '@/features/appointments/screens/BusinessesListScreen';
 
@@ -126,6 +131,23 @@ describe('BusinessesListScreen', () => {
     expect(mockFetchBusinesses).toHaveBeenCalledWith({
       serviceName: undefined,
     });
+  });
+
+  it('logs a failed business fetch instead of leaving it unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDispatch.mockImplementationOnce(() =>
+      Promise.reject(new Error('fetch failed')),
+    );
+
+    render(<BusinessesListScreen />);
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: fetch failed'),
+      ),
+    );
+    warnSpy.mockRestore();
   });
 
   it('does not fetch businesses when some are already loaded', () => {

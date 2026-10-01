@@ -27,14 +27,18 @@ const CreateKeyForm = ({
   creating,
   onCreate,
   onCancel,
+  initialEnvironment = 'live',
+  initialScopes = [],
 }: {
   creating: boolean;
   onCreate: (input: NewApiKeyInput) => void;
   onCancel: () => void;
+  initialEnvironment?: ApiKeyEnvironment;
+  initialScopes?: string[];
 }) => {
   const [name, setName] = useState('');
-  const [environment, setEnvironment] = useState<ApiKeyEnvironment>('live');
-  const [scopesInput, setScopesInput] = useState('');
+  const [environment, setEnvironment] = useState<ApiKeyEnvironment>(initialEnvironment);
+  const [scopesInput, setScopesInput] = useState(() => initialScopes.join(', '));
 
   const handleSubmit = (event: React.SubmitEvent) => {
     event.preventDefault();

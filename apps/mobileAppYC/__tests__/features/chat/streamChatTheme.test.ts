@@ -7,36 +7,46 @@ import {mockTheme} from '../../setup/mockTheme';
 describe('streamChatTheme', () => {
   it('puts incoming bubbles on the secondary surface and outgoing on the CTA', () => {
     const t = createStreamChatTheme(mockTheme as never);
-    const content = t.messageSimple?.content;
-    expect(content?.receiverMessageBackgroundColor).toBe(
-      mockTheme.colors.screen2,
-    );
-    expect(content?.senderMessageBackgroundColor).toBe(mockTheme.colors.cta);
+    expect(t.semantics?.chatBgIncoming).toBe(mockTheme.colors.screen2);
+    expect(t.semantics?.chatBgOutgoing).toBe(mockTheme.colors.cta);
   });
 
   it('uses asymmetric bubble radii', () => {
-    const content = createStreamChatTheme(mockTheme as never).messageSimple
-      ?.content;
-    expect(content?.container?.borderRadiusL).toBe(18);
-    expect(content?.container?.borderRadiusS).toBe(6);
+    const content = createStreamChatTheme(mockTheme as never).messageItemView
+      ?.content?.container;
+    expect(content?.borderTopLeftRadius).toBe(18);
+    expect(content?.borderTopRightRadius).toBe(18);
+    expect(content?.borderBottomLeftRadius).toBe(6);
   });
 
   it('styles the input row and the dark send button', () => {
-    const input = createStreamChatTheme(mockTheme as never).messageInput;
+    const input = createStreamChatTheme(mockTheme as never).messageComposer;
     expect(input?.container?.backgroundColor).toBe(mockTheme.colors.screen);
     expect(input?.sendButton?.backgroundColor).toBe(mockTheme.colors.cta);
     expect(input?.inputBox?.color).toBe(mockTheme.colors.inkBody);
   });
 
   it('colours receiver message text with body ink', () => {
-    const md = createStreamChatTheme(mockTheme as never).messageSimple?.content
-      ?.markdown as {text?: {color?: string}};
-    expect(md?.text?.color).toBe(mockTheme.colors.inkBody);
+    const semantics = createStreamChatTheme(mockTheme as never).semantics;
+    expect(semantics?.chatTextIncoming).toBe(mockTheme.colors.inkBody);
   });
 
-  it('overrides only the sender message text colour for readability on the CTA', () => {
-    const md = createMyMessageTheme(mockTheme as never).messageSimple?.content
-      ?.markdown as {text?: {color?: string}};
-    expect(md?.text?.color).toBe(mockTheme.colors.ctaText);
+  it('pairs the CTA outgoing bubble with CTA text in the global theme', () => {
+    const semantics = createStreamChatTheme(mockTheme as never).semantics;
+    expect(semantics?.chatTextOutgoing).toBe(mockTheme.colors.ctaText);
+  });
+
+  it('keeps the CTA bubble and its text colour on the sender message theme', () => {
+    // Stream swaps in its default semantics before merging this theme, so the
+    // outgoing bubble colour has to be repeated here.
+    const themeOverride = createMyMessageTheme(mockTheme as never);
+    expect(themeOverride.semantics?.chatBgOutgoing).toBe(mockTheme.colors.cta);
+    expect(themeOverride.semantics?.chatTextOutgoing).toBe(
+      mockTheme.colors.ctaText,
+    );
+    expect(
+      themeOverride.messageItemView?.content?.container
+        ?.borderBottomRightRadius,
+    ).toBe(6);
   });
 });

@@ -499,6 +499,39 @@ describe("DocumentService.deleteForParent", () => {
       where: { id: { equals: DOCUMENT } },
     });
   });
+
+  it("removes stored files one at a time and keeps the record when one fails", async () => {
+    const first = key(COMPANION, "first.pdf");
+    const second = key(COMPANION, "second.pdf");
+    const third = key(COMPANION, "third.pdf");
+    tables.documents = [
+      documentRow({
+        attachments: [
+          { key: first, mimeType: "application/pdf" },
+          { key: second, mimeType: "application/pdf" },
+          { key: third, mimeType: "application/pdf" },
+        ],
+      }),
+    ];
+    let inFlight = 0;
+    let peak = 0;
+    s3Delete.mockImplementation(async (fileKey: string) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setImmediate(resolve));
+      inFlight -= 1;
+      if (fileKey === second) throw new Error("storage unavailable");
+    });
+
+    await expect(
+      DocumentService.deleteForParent(DOCUMENT, PARENT),
+    ).rejects.toThrow("storage unavailable");
+
+    expect(peak).toBe(1);
+    expect(s3Delete.mock.calls).toEqual([[first], [second]]);
+    expect(db.document.deleteMany).not.toHaveBeenCalled();
+    s3Delete.mockReset();
+  });
 });
 
 describe("DocumentService.update from the PMS", () => {

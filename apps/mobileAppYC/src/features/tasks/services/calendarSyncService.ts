@@ -44,7 +44,9 @@ const ensureCalendarPermission = async (): Promise<boolean> => {
         {
           text: 'Open settings',
           onPress: () => {
-            Linking.openSettings?.();
+            Linking.openSettings?.().catch(error => {
+              console.warn('[CalendarSync] Could not open settings', error);
+            });
           },
         },
       ],

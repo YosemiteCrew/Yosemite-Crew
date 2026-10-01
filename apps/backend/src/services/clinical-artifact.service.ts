@@ -328,6 +328,7 @@ const prescriptionItemRowsToCreate = (items: PrescriptionItemInput[]) =>
 
 const prescriptionItemRowsToJson = (items: PrescriptionItemModel[]) =>
   items.map((item) => ({
+    prescriptionItemId: item.id,
     sourceLineKey: item.sourceLineKey ?? undefined,
     medication: item.medication,
     strength: item.strength,
@@ -1550,7 +1551,51 @@ const advanceCheckedInAppointment = async (
   });
 };
 
-const createArtifactForKindInTx = (
+/**
+ * The animal a new artifact is about, from the most specific link the writer
+ * supplied (#2704). Each lookup is scoped to the writer's organisation, so an id
+ * naming another practice's record binds nothing. An encounter that is named
+ * but not found binds nothing either, rather than falling through to a case or
+ * appointment that might name a different animal. Null when no link resolves;
+ * such an artifact reaches the owner only through its encounter, as before.
+ */
+const resolveArtifactPatientIdInTx = async (
+  txPrisma: ClinicalPrisma,
+  organisationId: string,
+  input: Pick<
+    ClinicalArtifactBaseInput,
+    "appointmentId" | "caseId" | "encounterId"
+  >,
+): Promise<string | null> => {
+  if (input.encounterId) {
+    const encounter = await txPrisma.encounter.findFirst({
+      where: { id: String(input.encounterId), organisationId },
+      select: { patientId: true },
+    });
+    return encounter?.patientId ?? null;
+  }
+
+  if (input.caseId) {
+    const clinicalCase = await txPrisma.case.findFirst({
+      where: { id: String(input.caseId), organisationId },
+      select: { patientId: true },
+    });
+    return clinicalCase?.patientId ?? null;
+  }
+
+  if (input.appointmentId) {
+    const appointment = await txPrisma.appointment.findFirst({
+      where: { id: String(input.appointmentId), organisationId },
+      select: { patient: true },
+    });
+    const patientId = (appointment?.patient as { id?: unknown } | null)?.id;
+    return typeof patientId === "string" && patientId ? patientId : null;
+  }
+
+  return null;
+};
+
+const createArtifactForKindInTx = async (
   txPrisma: ClinicalPrisma,
   organisationId: string,
   kind: ClinicalArtifactKind,
@@ -1562,6 +1607,11 @@ const createArtifactForKindInTx = (
       appointmentId: input.appointmentId ?? undefined,
       caseId: input.caseId ?? undefined,
       encounterId: input.encounterId ?? undefined,
+      patientId: await resolveArtifactPatientIdInTx(
+        txPrisma,
+        organisationId,
+        input,
+      ),
       kind,
       status: input.status ?? "DRAFT",
       templateId: input.templateId ?? undefined,

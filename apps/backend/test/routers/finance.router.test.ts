@@ -56,11 +56,15 @@ const withPaymentIntentOrgPermissions = jest.fn(
 const requirePermission = jest.fn((permission: string) =>
   permissionGuard(permission),
 );
+const requireAllPermissions = jest.fn((permissions: string[]) =>
+  permissionGuard(`all:${permissions.join("+")}`),
+);
 
 const FinanceController = {
   webhook: jest.fn(),
   getDiscountSettings: jest.fn(),
   listProviderReceipts: jest.fn(),
+  getPaymentActivityReport: jest.fn(),
   auditProviderReceipts: jest.fn(),
   allocateProviderReceipt: jest.fn(),
   getClientAccountCredit: jest.fn(),
@@ -69,6 +73,7 @@ const FinanceController = {
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
+  createCounterSale: jest.fn(),
   addInvoiceItems: jest.fn(),
   getInvoiceById: jest.fn(),
   retrievePaymentIntent: jest.fn(),
@@ -102,6 +107,14 @@ const FinanceController = {
   markAppointmentReadyForBilling: jest.fn(),
   reverseAppointmentReadyForBilling: jest.fn(),
 };
+const BillingReviewController = { list: jest.fn() };
+
+const ClientCollectionsController = {
+  getPaymentTerms: jest.fn(),
+  setPaymentTerms: jest.fn(),
+  listOverdue: jest.fn(),
+  markReviewed: jest.fn(),
+};
 
 const rateLimit = jest.fn(() => financeAppointmentLimiter);
 
@@ -119,10 +132,18 @@ jest.mock("../../src/middlewares/rbac", () => ({
   withPaymentOrgPermissions,
   withPaymentIntentOrgPermissions,
   requirePermission,
+  requireAllPermissions,
 }));
 
 jest.mock("../../src/controllers/app/finance.controller", () => ({
   FinanceController,
+}));
+jest.mock("../../src/controllers/app/billing-review.controller", () => ({
+  BillingReviewController,
+}));
+
+jest.mock("../../src/controllers/app/client-collections.controller", () => ({
+  ClientCollectionsController,
 }));
 
 const financeRouter = jest.requireActual("../../src/routers/finance.router")
@@ -148,6 +169,22 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("finance.router", () => {
+  it("puts billing review behind web auth, org scope and billing READ permission", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/completed-visits/billing-review",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(BillingReviewController.list);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    // Both are required: the list links into the visit workspace.
+    expect(handlers).toContain(
+      permissionGuard("all:billing:view:any+appointments:view:any"),
+    );
+  });
+
   it("puts the reconciliation queue behind web auth, org scope and a permission", () => {
     // Read-only, so the permission is the billing VIEW one. The route carries
     // unattributed captures, which have no organisation of their own - the org
@@ -163,6 +200,19 @@ describe("finance.router", () => {
     expect(handlers).toContain(withOrgPermissionsMiddleware);
     expect(handlers).toContain(permissionGuard("billing:view:any"));
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
+  });
+
+  it("protects payment activity reports with web auth, org scope and billing view", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/reports/payment-activity",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.getPaymentActivityReport);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:view:any"));
   });
 
   it("puts allocating a capture behind the billing EDIT permission", () => {
@@ -246,6 +296,62 @@ describe("finance.router", () => {
     expect(handlers).not.toContain(permissionGuard("billing:view:any"));
   });
 
+  it("protects client payment terms with billing read and edit permissions", () => {
+    const readRoute = findRoute(
+      "/organisation/:organisationId/clients/:parentId/payment-terms",
+      "get",
+    );
+    const writeRoute = findRoute(
+      "/organisation/:organisationId/clients/:parentId/payment-terms",
+      "put",
+    );
+
+    expect(readRoute?.stack.map((layer) => layer.handle)).toEqual(
+      expect.arrayContaining([
+        requireWebAuth,
+        withOrgPermissionsMiddleware,
+        permissionGuard("billing:view:any"),
+        ClientCollectionsController.getPaymentTerms,
+      ]),
+    );
+    expect(writeRoute?.stack.map((layer) => layer.handle)).toEqual(
+      expect.arrayContaining([
+        requireWebAuth,
+        withOrgPermissionsMiddleware,
+        permissionGuard("billing:edit:any"),
+        ClientCollectionsController.setPaymentTerms,
+      ]),
+    );
+  });
+
+  it("limits overdue account review to authorized billing staff", () => {
+    const readRoute = findRoute(
+      "/organisation/:organisationId/collections/overdue",
+      "get",
+    );
+    const reviewRoute = findRoute(
+      "/organisation/:organisationId/collections/overdue/:invoiceId/review",
+      "post",
+    );
+
+    expect(readRoute?.stack.map((layer) => layer.handle)).toEqual(
+      expect.arrayContaining([
+        requireWebAuth,
+        withOrgPermissionsMiddleware,
+        permissionGuard("billing:view:any"),
+        ClientCollectionsController.listOverdue,
+      ]),
+    );
+    expect(reviewRoute?.stack.map((layer) => layer.handle)).toEqual(
+      expect.arrayContaining([
+        requireWebAuth,
+        withOrgPermissionsMiddleware,
+        permissionGuard("billing:edit:any"),
+        ClientCollectionsController.markReviewed,
+      ]),
+    );
+  });
+
   it("mounts exactly one write route on a client's account credit", () => {
     /*
      * This prefix was read-only until the confirming call landed, and the test
@@ -298,6 +404,7 @@ describe("finance.router", () => {
     const refundRoute = findRoute("/payments/:paymentId/refunds", "post");
     const listInvoicesRoute = findRoute("/invoices", "get");
     const createInvoiceRoute = findRoute("/invoices", "post");
+    const createCounterSaleRoute = findRoute("/counter-sales", "post");
     const mobileParentRoute = findRoute(
       "/mobile/parents/:parentId/invoices",
       "get",
@@ -352,6 +459,18 @@ describe("finance.router", () => {
     expect(createInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
       FinanceController.createInvoice,
     );
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(requireWebAuth);
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(withOrgPermissionsMiddleware);
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(permissionGuard("all:billing:edit:any+inventory:edit:any"));
+    expect(
+      createCounterSaleRoute?.stack.map((layer) => layer.handle),
+    ).toContain(FinanceController.createCounterSale);
     expect(mobileParentRoute?.stack.map((layer) => layer.handle)).toContain(
       requireMobileAuth,
     );

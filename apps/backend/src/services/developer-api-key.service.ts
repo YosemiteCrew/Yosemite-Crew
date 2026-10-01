@@ -182,25 +182,29 @@ export const DeveloperApiKeyService = {
     };
   },
 
-  async list(ownerUserId: string) {
-    const ownerId = requireNonEmpty(ownerUserId, "ownerUserId");
-    return prisma.developerApiKey.findMany({
-      where: { ownerUserId: ownerId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        prefix: true,
-        last4: true,
-        scopes: true,
-        environment: true,
-        status: true,
-        lastUsedAt: true,
-        expiresAt: true,
-        revokedAt: true,
-        createdAt: true,
-      },
-    });
+  list(ownerUserId: string) {
+    // Read in the chain so an invalid owner id arrives as a rejected promise.
+    return Promise.resolve(ownerUserId)
+      .then((value) => requireNonEmpty(value, "ownerUserId"))
+      .then((ownerId) =>
+        prisma.developerApiKey.findMany({
+          where: { ownerUserId: ownerId },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            name: true,
+            prefix: true,
+            last4: true,
+            scopes: true,
+            environment: true,
+            status: true,
+            lastUsedAt: true,
+            expiresAt: true,
+            revokedAt: true,
+            createdAt: true,
+          },
+        }),
+      );
   },
 
   async revoke(input: { ownerUserId: string; keyId: string }): Promise<void> {

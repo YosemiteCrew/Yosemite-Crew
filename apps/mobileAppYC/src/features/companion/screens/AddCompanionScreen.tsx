@@ -66,6 +66,7 @@ import {
   fetchSpeciesCodeEntries,
   type SpeciesCodeEntry,
 } from '@/features/companion/services/codeEntriesService';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type AddCompanionScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -298,7 +299,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    const loadSpeciesCodes = async () => {
       try {
         const tokens = await getFreshStoredTokens();
         if (!tokens?.accessToken) {
@@ -334,7 +335,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       } catch (error) {
         console.warn('[Companion] Unable to load species code entries', error);
       }
-    })();
+    };
+    runInBackground(loadSpeciesCodes());
 
     return () => {
       mounted = false;

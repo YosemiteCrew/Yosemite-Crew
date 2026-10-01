@@ -438,6 +438,58 @@ describe("UserService", () => {
     expect(result).toBe(true);
   });
 
+  it("removes memberships one at a time and stops at the first failure", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
+    mockPrisma.userOrganization.findMany.mockResolvedValue([
+      {
+        id: "mapping-1",
+        roleCode: "MEMBER",
+        organizationReference: "Organization/org-1",
+      },
+      {
+        id: "mapping-2",
+        roleCode: "MEMBER",
+        organizationReference: "Organization/org-2",
+      },
+    ]);
+    mockUserOrganizationDeleteById.mockRejectedValueOnce(
+      new Error("seat release failed"),
+    );
+
+    await expect(UserService.deleteById("user-123")).rejects.toThrow(
+      "seat release failed",
+    );
+
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledTimes(1);
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledWith("mapping-1");
+    expect(mockPrisma.user.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("deletes owned organisations in order, one at a time", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
+    mockPrisma.userOrganization.findMany.mockResolvedValue([
+      {
+        id: "mapping-1",
+        roleCode: "OWNER",
+        organizationReference: "Organization/org-1",
+      },
+      {
+        id: "mapping-2",
+        roleCode: "OWNER",
+        organizationReference: "Organization/org-2",
+      },
+    ]);
+    mockPrisma.user.updateMany.mockResolvedValue({ count: 1 });
+    mockOrganizationDeleteById.mockRejectedValueOnce(new Error("org busy"));
+
+    await expect(UserService.deleteById("user-123")).rejects.toThrow(
+      "org busy",
+    );
+
+    expect(mockOrganizationDeleteById).toHaveBeenCalledTimes(1);
+    expect(mockOrganizationDeleteById).toHaveBeenCalledWith("org-1");
+  });
+
   it("releases seats through UserOrganizationService rather than deleting mappings directly", async () => {
     mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
     mockPrisma.userOrganization.findMany.mockResolvedValue([

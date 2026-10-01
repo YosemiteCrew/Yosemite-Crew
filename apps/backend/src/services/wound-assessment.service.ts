@@ -24,17 +24,10 @@ type WoundType =
   | "OTHER";
 
 type WoundHealingStage =
-  | "HAEMOSTASIS"
-  | "INFLAMMATION"
-  | "PROLIFERATION"
-  | "MATURATION";
+  "HAEMOSTASIS" | "INFLAMMATION" | "PROLIFERATION" | "MATURATION";
 
 type WoundHealingStatus =
-  | "HEALING"
-  | "STATIC"
-  | "DETERIORATING"
-  | "HEALED"
-  | "COMPLICATED";
+  "HEALING" | "STATIC" | "DETERIORATING" | "HEALED" | "COMPLICATED";
 
 export interface RecordWoundAssessmentParams {
   organisationId: string;
@@ -163,7 +156,7 @@ export const WoundAssessmentService = {
     return assertAssessment(id, organisationId);
   },
 
-  async list(params: ListWoundAssessmentsParams) {
+  list(params: ListWoundAssessmentsParams) {
     const {
       organisationId,
       patientId,

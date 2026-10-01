@@ -113,7 +113,7 @@ export const DropdownOpen: Story = {
   name: 'Dropdown open',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: /search or create specialty/i }));
+    await userEvent.click(canvas.getByRole('combobox', { name: /search or create specialty/i }));
   },
 };
 
@@ -129,7 +129,7 @@ export const ExcludesCurrent: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: /search or create specialty/i }));
+    await userEvent.click(canvas.getByRole('combobox', { name: /search or create specialty/i }));
   },
 };
 

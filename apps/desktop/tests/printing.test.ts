@@ -67,7 +67,7 @@ describe('createPrintService', () => {
 });
 
 describe('createLabelPrintService', () => {
-  test('printLabels returns results for each label', async () => {
+  test('printLabels returns results for each label', () => {
     const svc = createLabelPrintService();
     const labels: LabelSpec[] = [
       {
@@ -88,7 +88,7 @@ describe('createLabelPrintService', () => {
       },
     ];
 
-    const results = await svc.printLabels(labels);
+    const results = svc.printLabels(labels);
     expect(results).toHaveLength(2);
     expect(results[0]!.success).toBe(true);
     expect(results[0]!.label.type).toBe('cage-card');

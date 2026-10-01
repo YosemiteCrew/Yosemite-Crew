@@ -46,6 +46,7 @@ import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection'
 import {getTaskCardMeta} from '@/features/tasks/utils/taskCardHelpers';
 import {useTaskNavigationActions} from '@/features/tasks/hooks/useTaskNavigationActions';
 import {formatDateToISODate, isToday} from '@/shared/utils/dateHelpers';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksMain'>;
 type Route = RouteProp<TaskStackParamList, 'TasksMain'>;
@@ -266,7 +267,9 @@ export const TasksMainScreen: React.FC = () => {
     if (!selectedCompanionId) {
       return;
     }
-    dispatch(fetchTasksForCompanion({companionId: selectedCompanionId}));
+    runInBackground(
+      dispatch(fetchTasksForCompanion({companionId: selectedCompanionId})),
+    );
   }, [dispatch, selectedCompanionId]);
 
   useFocusEffect(

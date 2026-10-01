@@ -77,10 +77,9 @@ const meta = {
           'mode is live here: each row sets `text-text-secondary!` and flips to ' +
           '`text-text-primary!` on hover and while active, over a `bg-card-hover` wash, and none ' +
           'of those three inks had ever been composited against that fill.\n\n' +
-          'The rows are plain `<button>`s carrying `aria-pressed`, not `role="option"`, and the ' +
-          'panel is a `<div>` with no listbox role of its own - so anything looking for a real ' +
-          'listbox finds nothing. The stories assert against the buttons, which is what is ' +
-          'actually there.\n\n' +
+          'The panel is a `listbox` and each row is an `option` carrying `aria-selected`, so a ' +
+          'screen reader announces the option set and which of them are chosen. The stories ' +
+          'count and read the options through those roles.\n\n' +
           'Two structural details only the open panel shows. The trigger swaps its border to ' +
           '`border-[var(--blue)]! border-b-0! rounded-t-[12px]!` while open, so the trigger and ' +
           'the panel are meant to read as one welded shape - but the panel is positioned from a ' +
@@ -124,7 +123,7 @@ export const Open: Story = {
     // Assert the panel has its rows. Checking only that the trigger flipped
     // aria-expanded passes on an empty panel, which is how a real regression
     // stayed invisible.
-    await expect(within(panel).getAllByRole('button')).toHaveLength(6);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(6);
     await expect(within(panel).getByText('Dental scale and polish')).toBeInTheDocument();
     // Two rows carry a badge pill beside the label.
     await expect(within(panel).getByText('Package')).toBeInTheDocument();
@@ -147,9 +146,9 @@ export const WithSelection: Story = {
   args: { value: ['vacc-core', 'nail-clip'] },
   play: async ({ canvasElement }) => {
     const panel = await openPanel(canvasElement, 'Services: Vaccination - core, Nail clip');
-    // The check mark is the only mark of selection, and it rides on aria-pressed.
-    await expect(within(panel).getAllByRole('button', { pressed: true })).toHaveLength(2);
-    await expect(within(panel).getAllByRole('button', { pressed: false })).toHaveLength(4);
+    // The check mark is the only visible mark of selection, and it rides on aria-selected.
+    await expect(within(panel).getAllByRole('option', { selected: true })).toHaveLength(2);
+    await expect(within(panel).getAllByRole('option', { selected: false })).toHaveLength(4);
   },
   parameters: {
     docs: {
@@ -169,10 +168,10 @@ export const Searching: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const panel = await openPanel(canvasElement, 'Services');
-    await expect(within(panel).getAllByRole('button')).toHaveLength(6);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(6);
     // The search field is the input the open trigger swaps in; it is focused on open.
     await userEvent.type(canvas.getByLabelText('Search Services'), 'den');
-    await waitFor(() => expect(within(panel).getAllByRole('button')).toHaveLength(1));
+    await waitFor(() => expect(within(panel).getAllByRole('option')).toHaveLength(1));
     await expect(within(panel).getByText('Dental scale and polish')).toBeInTheDocument();
   },
   parameters: {
@@ -194,7 +193,7 @@ export const NoMatches: Story = {
     const panel = await openPanel(canvasElement, 'Services');
     await userEvent.type(canvas.getByLabelText('Search Services'), 'zzz');
     expect(await within(panel).findByText('No matches found')).toBeInTheDocument();
-    await expect(within(panel).queryAllByRole('button')).toHaveLength(0);
+    await expect(within(panel).queryAllByRole('option')).toHaveLength(0);
   },
   parameters: {
     docs: {
@@ -233,7 +232,7 @@ export const NotSearchable: Story = {
   args: { searchable: false, value: ['consult-30'] },
   play: async ({ canvasElement }) => {
     const panel = await openPanel(canvasElement, 'Services: Consultation - 30 min');
-    await expect(within(panel).getAllByRole('button')).toHaveLength(6);
+    await expect(within(panel).getAllByRole('option')).toHaveLength(6);
     // Without the search branch the trigger keeps its value span while open.
     await expect(within(canvasElement).queryByLabelText('Search Services')).not.toBeInTheDocument();
   },

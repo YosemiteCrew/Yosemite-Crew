@@ -73,6 +73,7 @@ import {
   uploadFileToPresignedUrl,
 } from '@/shared/services/uploadService';
 import {useTranslation} from 'react-i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 // Removed direct provider-specific signout; use global logout from AuthContext
 
@@ -390,7 +391,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       }
     };
 
-    fetchLocation();
+    runInBackground(fetchLocation());
 
     return () => {
       isMounted = false;
@@ -763,7 +764,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   // Ensure hardware back behaves same as header back
   useReactEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      handleGoBack();
+      runInBackground(handleGoBack());
       return true;
     });
     return () => sub.remove();

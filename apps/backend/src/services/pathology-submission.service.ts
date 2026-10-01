@@ -163,7 +163,7 @@ export const PathologySubmissionService = {
     return assertSubmission(id, organisationId);
   },
 
-  async list(params: ListPathologySubmissionsParams) {
+  list(params: ListPathologySubmissionsParams) {
     const { organisationId, patientId, encounterId, status, pathologyType } =
       params;
     return prisma.pathologySubmission.findMany({

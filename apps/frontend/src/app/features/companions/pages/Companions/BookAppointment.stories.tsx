@@ -286,7 +286,7 @@ const expand = async (dialog: HTMLElement, title: string) => {
 const chooseFromDropdown = async (dialog: HTMLElement, placeholder: string, option: string) => {
   const trigger = within(dialog).getByRole('button', { name: placeholder });
   const panel = await openPanel(trigger);
-  await userEvent.click(within(panel).getByRole('button', { name: option }));
+  await userEvent.click(within(panel).getByRole('option', { name: option }));
   await waitFor(() =>
     expect(
       within(dialog).getByRole('button', { name: `${placeholder}: ${option}` })
@@ -619,10 +619,10 @@ export const SlotAndLead: Story = {
     const leadPanel = await openPanel(within(dialog).getByRole('button', { name: 'Lead' }));
     await expect(
       within(leadPanel)
-        .getAllByRole('button')
+        .getAllByRole('option')
         .map((option) => option.textContent)
     ).toEqual(['Dr. Weber', 'Dr. Osei']);
-    await userEvent.click(within(leadPanel).getByRole('button', { name: 'Dr. Osei' }));
+    await userEvent.click(within(leadPanel).getByRole('option', { name: 'Dr. Osei' }));
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Lead: Dr. Osei' })).toBeVisible()
     );

@@ -108,7 +108,7 @@ export const BodyConditionService = {
     return assertRecord(id, organisationId);
   },
 
-  async list(params: ListBodyConditionParams) {
+  list(params: ListBodyConditionParams) {
     const { organisationId, patientId, encounterId, bcsScale, from, to } =
       params;
     return prisma.bodyConditionRecord.findMany({
@@ -131,7 +131,7 @@ export const BodyConditionService = {
     });
   },
 
-  async trend(patientId: string, organisationId: string, limit = 20) {
+  trend(patientId: string, organisationId: string, limit = 20) {
     return prisma.bodyConditionRecord.findMany({
       where: { patientId, organisationId },
       select: recordSelect,

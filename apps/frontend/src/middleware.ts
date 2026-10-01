@@ -13,6 +13,7 @@ const NONCE_HEADER = 'x-nonce';
 // `export const dynamic = 'force-dynamic'`, so they carry a per-request nonce too.
 const STRICT_CSP_PATH_PREFIXES = [
   '/appointments',
+  '/audit-trail',
   // The public booking page. It is under (routes)/(book), NOT (routes)/(public),
   // precisely so it can be here: it collects a name, an email address, a phone
   // number and an animal's details from a signed-out visitor, and inheriting the
@@ -21,6 +22,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   // `export const dynamic = 'force-dynamic'`, so each render has a nonce.
   '/book',
   '/book-onboarding',
+  '/care-reminders',
   '/chat',
   '/companions',
   '/controlled-substances',
@@ -33,6 +35,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/developers/form-draft-import',
   '/developers/home',
   '/developers/integrations',
+  '/developers/mcp',
   '/developers/playground',
   '/developers/plugins',
   '/developers/settings',

@@ -128,7 +128,7 @@ export const SurgicalChecklistService = {
     return assertChecklist(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     encounterId?: string;

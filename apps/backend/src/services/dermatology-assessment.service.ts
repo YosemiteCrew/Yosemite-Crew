@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 
 export class DermatologyAssessmentError extends Error {
   constructor(
@@ -93,10 +94,40 @@ const assertAssessment = async (id: string, organisationId: string) => {
   return record;
 };
 
+/**
+ * Findings are recorded against one visit, so an encounter id from the body
+ * must be an encounter of this organisation for this same companion. Same
+ * uniform 404 as the companion check so it cannot probe which ids exist.
+ */
+const assertEncounterForPatient = async (
+  encounterId: string,
+  patientId: string,
+  organisationId: string,
+) => {
+  const encounter = await prisma.encounter.findFirst({
+    where: { id: encounterId, organisationId, patientId },
+    select: { id: true },
+  });
+  if (!encounter) {
+    throw new DermatologyAssessmentError("Encounter not found.", 404);
+  }
+};
+
 export const DermatologyAssessmentService = {
   async create(params: CreateDermatologyParams) {
     const { organisationId, patientId, assessedBy, lesionMap, ...rest } =
       params;
+
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new DermatologyAssessmentError("Companion not found.", 404);
+    });
+    if (rest.encounterId) {
+      await assertEncounterForPatient(
+        rest.encounterId,
+        patientId,
+        organisationId,
+      );
+    }
 
     const assessment = await prisma.dermatologyAssessment.create({
       data: {
@@ -145,6 +176,11 @@ export const DermatologyAssessmentService = {
 
   async list(params: ListDermatologyParams) {
     const { organisationId, patientId, encounterId } = params;
+    if (patientId) {
+      await assertPatientOrgMembership(patientId, organisationId, () => {
+        throw new DermatologyAssessmentError("Companion not found.", 404);
+      });
+    }
     return prisma.dermatologyAssessment.findMany({
       where: {
         organisationId,

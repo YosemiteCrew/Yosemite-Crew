@@ -26,6 +26,7 @@ jest.mock('@/shared/services/apiClient', () => ({
   default: {
     get: jest.fn(),
     post: jest.fn(),
+    put: jest.fn(),
     patch: jest.fn(),
     defaults: {headers: {common: {}}},
   },
@@ -59,6 +60,7 @@ describe('appointmentsService', () => {
     const client = getApiClient();
     client.get.mockResolvedValue({data: {}});
     client.post.mockResolvedValue({data: {}});
+    client.put.mockResolvedValue({data: {}});
     client.patch.mockResolvedValue({data: {}});
   });
 
@@ -1469,6 +1471,79 @@ describe('appointmentsService', () => {
         accessToken: mockToken,
       });
       expect(result).toBe('ok');
+    });
+
+    it('saves veterinarian feedback with the appointment-scoped update route', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.put.mockResolvedValue({data: {message: 'Feedback saved.'}});
+
+      await appointmentApi.savePractitionerFeedback({
+        appointmentId: 'appointment/1',
+        rating: 5,
+        review: 'Very kind',
+        accessToken: mockToken,
+      });
+
+      expect(client.put).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/v1/organisation-rating/appointment/appointment%2F1/practitioner-feedback',
+        ),
+        {rating: 5, review: 'Very kind'},
+        {headers: {Authorization: `Bearer ${mockToken}`}},
+      );
+    });
+
+    it('normalizes veterinarian feedback responses', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.post.mockResolvedValue({
+        data: {
+          feedback: {
+            isRated: true,
+            rating: 4,
+            review: 'Clear explanations',
+            practitionerName: 'Dr Chen',
+          },
+        },
+      });
+
+      await expect(
+        appointmentApi.getPractitionerFeedback({
+          appointmentId: 'appointment-1',
+          accessToken: mockToken,
+        }),
+      ).resolves.toEqual({
+        isRated: true,
+        rating: 4,
+        review: 'Clear explanations',
+        practitionerName: 'Dr Chen',
+      });
+      expect(client.post).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/v1/organisation-rating/practitioner-feedback',
+        ),
+        {appointmentId: 'appointment-1'},
+        {headers: {Authorization: `Bearer ${mockToken}`}},
+      );
+    });
+
+    it('returns empty defaults when no feedback is present', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.post.mockResolvedValue({data: {}});
+
+      await expect(
+        appointmentApi.getPractitionerFeedback({
+          appointmentId: 'appointment-1',
+          accessToken: mockToken,
+        }),
+      ).resolves.toEqual({
+        isRated: false,
+        rating: null,
+        review: null,
+        practitionerName: null,
+      });
     });
 
     it('getOrganisationRatingStatus returns status', async () => {

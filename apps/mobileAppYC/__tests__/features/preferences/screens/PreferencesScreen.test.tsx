@@ -32,7 +32,10 @@ const mockAppState = {
 
 // i18n — the screen reads `i18n.language` and calls `i18n.changeLanguage`,
 // and translates its copy via `t()`.
-const mockI18n = {language: 'en', changeLanguage: jest.fn()};
+const mockI18n = {
+  language: 'en',
+  changeLanguage: jest.fn(() => Promise.resolve()),
+};
 const PREFERENCES_TRANSLATIONS: Record<string, string> = {
   'preferences.title': 'Preferences',
   'preferences.distance': 'Distance',
@@ -443,6 +446,27 @@ describe('PreferencesScreen', () => {
     });
 
     expect(mockI18n.changeLanguage).toHaveBeenCalledWith('es');
+  });
+
+  it('logs instead of failing when the language cannot be changed', async () => {
+    const failure = new Error('missing resources');
+    mockI18n.changeLanguage.mockRejectedValueOnce(failure);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const {getByTestId} = renderScreen();
+
+    await act(async () => {
+      getByTestId('mock-language-sheet').props.onSave({
+        id: 'es',
+        label: 'Español',
+      });
+      await Promise.resolve();
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Preferences] Could not change language',
+      failure,
+    );
+    warnSpy.mockRestore();
   });
 
   it('ignores an empty selection from the language sheet', () => {

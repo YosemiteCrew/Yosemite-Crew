@@ -23,6 +23,12 @@ export const appRoutes: RouteItem[] = [
     requiredAnyPermissions: [PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.APPOINTMENTS_VIEW_OWN],
   },
   {
+    name: 'Care reminders',
+    href: '/care-reminders',
+    verify: true,
+    requiredAnyPermissions: [PERMISSIONS.APPOINTMENTS_VIEW_ANY],
+  },
+  {
     name: 'Tasks',
     href: '/tasks',
     verify: true,
@@ -33,6 +39,12 @@ export const appRoutes: RouteItem[] = [
     href: '/chat',
     verify: true,
     requiredAnyPermissions: [PERMISSIONS.COMMUNICATION_VIEW_ANY],
+  },
+  {
+    name: 'Audit log',
+    href: '/audit-trail',
+    verify: true,
+    requiredAnyPermissions: [PERMISSIONS.AUDIT_VIEW_ANY],
   },
   {
     name: 'Finance',
@@ -94,6 +106,7 @@ export const devRoutes: RouteItem[] = [
   { name: 'Plugins', href: '/developers/plugins' },
   { name: 'Documentation', href: '/developers/documentation' },
   { name: 'API Playground', href: '/developers/playground' },
+  { name: 'MCP Playground', href: '/developers/mcp' },
 ];
 
 export const headerAppRoutes: RouteItem[] = [

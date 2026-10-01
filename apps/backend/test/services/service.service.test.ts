@@ -191,6 +191,34 @@ describe("ServiceService", () => {
     });
   });
 
+  describe("createMany ordering", () => {
+    it("creates one service at a time and stops at the first failure", async () => {
+      const valid = {
+        organisationId: validIdStr,
+        name: "Bulk Service",
+        durationMinutes: 30,
+        cost: 100,
+        serviceType: "STANDARD",
+        isActive: true,
+      };
+      let failFirst!: (error: Error) => void;
+      (prisma.service.create as jest.Mock).mockReset().mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          failFirst = reject;
+        }),
+      );
+
+      const pending = ServiceService.createMany([valid, valid] as any);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.service.create).toHaveBeenCalledTimes(1);
+
+      failFirst(new Error("insert failed"));
+      await expect(pending).rejects.toThrow("insert failed");
+      expect(prisma.service.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("getById", () => {
     it("should return null if document not found", async () => {
       (prisma.service.findFirst as jest.Mock).mockResolvedValue(null);

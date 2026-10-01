@@ -341,6 +341,67 @@ describe('VisitPreparationDraftCard', () => {
     );
   });
 
+  it('logs voice work that fails instead of leaving it unhandled', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (visitVoice.isVisitVoiceAvailable as jest.Mock).mockRejectedValueOnce(
+      new Error('voice probe failed'),
+    );
+    (visitVoice.isVisitReadBackAvailable as jest.Mock).mockRejectedValueOnce(
+      new Error('read-back probe failed'),
+    );
+    const {unmount} = renderCard();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('Error: voice probe failed'),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('Error: read-back probe failed'),
+    );
+    expect(screen.queryByTestId('visit-voice-observations')).toBeNull();
+    unmount();
+
+    (visitVoice.captureVisitVoice as jest.Mock).mockRejectedValueOnce(
+      new Error('capture crashed'),
+    );
+    const dictation = renderCard();
+    await waitFor(() =>
+      expect(screen.getByTestId('visit-voice-observations')).toBeTruthy(),
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('visit-voice-observations'));
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('Error: capture crashed'),
+    );
+    dictation.unmount();
+
+    (visitVoice.readVisitText as jest.Mock).mockRejectedValueOnce(
+      new Error('read-back crashed'),
+    );
+    renderCard();
+    await waitFor(() =>
+      expect(screen.getByTestId('visit-voice-observations')).toBeTruthy(),
+    );
+    fireEvent.changeText(
+      screen.getByTestId('visit-observations-input'),
+      'Low appetite',
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('button-Read selected notes aloud'));
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('Error: read-back crashed'),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('keeps dictation and read-back mutually exclusive', async () => {
     let finishCapture: ((result: {status: 'ok'; text: string}) => void) | null =
       null;

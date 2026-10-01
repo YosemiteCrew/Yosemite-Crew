@@ -89,11 +89,9 @@ const meta = {
           '`formDataErrors` is local state that starts `{}` and is populated only by `validate()`. ' +
           'Nothing sets it from outside - the parent reaches it through an imperative handle - so ' +
           'there is no prop, no arg and no control that can draw this. Every error variant of ' +
-          'every field in this step was therefore undrawn, across two accordions and four ' +
-          'different input primitives, each of which renders its error differently: `FormInput` ' +
-          'gives a `role="alert"` row wired to the field with `aria-describedby`, while ' +
-          '`LabelDropdown` and `MultiSelectDropdown` render an un-roled warning row and tint the ' +
-          'trigger border.\n\n' +
+          'every field in this step was therefore undrawn, across two accordions and three ' +
+          'different input primitives. All of them now render their error through the shared ' +
+          '`Field` wrapper: a `role="alert"` row wired to its control with `aria-describedby`.\n\n' +
           'The six are not independent. `requiredSigner` only errors when it is `undefined` - an ' +
           'empty string is a real answer - and `services` is skipped entirely for the `Custom` ' +
           'category. So a blank **Custom** template produces five errors and a blank ' +
@@ -124,10 +122,9 @@ export const Blank: Story = {
     // `aria-invalid` is written from the same map the messages come from.
     const name = canvas.getByRole('textbox', { name: 'Form name' });
     await expect(name).toHaveValue('');
-    await expect(name).toHaveAttribute('aria-invalid', 'false');
-    await expect(canvas.getByRole('textbox', { name: 'Description' })).toHaveAttribute(
-      'aria-invalid',
-      'false'
+    await expect(name).not.toHaveAttribute('aria-invalid');
+    await expect(canvas.getByRole('textbox', { name: 'Description' })).not.toHaveAttribute(
+      'aria-invalid'
     );
     await expect(canvas.queryAllByRole('alert')).toHaveLength(0);
     await expect(canvas.getByRole('button', { name: 'Next' })).toBeInTheDocument();
@@ -178,20 +175,31 @@ export const AllErrors: Story = {
       expect(await canvas.findByText(message)).toBeInTheDocument();
     }
 
-    /* Only the two `FormInput` fields announce themselves. The dropdown errors
-       are plain rows with no role and no `aria-describedby`, which is the real
-       accessibility gap this state exposes - four of the six messages are
-       invisible to a screen reader. */
+    /* Every message announces itself. The dropdowns used to print plain rows
+       with no role and no `aria-describedby`, so four of the six were invisible
+       to a screen reader; since the canonical `Field` wrapper each one is an
+       alert, in the order the fields sit on the step. */
     const alerts = canvas.getAllByRole('alert');
-    await expect(alerts).toHaveLength(2);
     await expect(alerts.map((node) => node.textContent?.trim())).toEqual([
       'Form name is required',
       'Description is required',
+      'Category is required',
+      'Signed by is required',
+      'Services / Packages is required for this form category',
+      'Select at least one species',
     ]);
 
+    /* And each alert is tied to its own control: a message nobody points at is
+       read once when it appears and never again while the field is revisited. */
     const name = canvas.getByRole('textbox', { name: 'Form name' });
     await expect(name).toHaveAttribute('aria-invalid', 'true');
     await expect(name).toHaveAttribute('aria-describedby', alerts[0].id);
+    for (const alert of alerts) {
+      await expect(alert.id).not.toBe('');
+      await expect(canvasElement.querySelectorAll(`[aria-describedby="${alert.id}"]`)).toHaveLength(
+        1
+      );
+    }
   },
   parameters: {
     docs: {
@@ -223,7 +231,7 @@ export const ErrorsClearPerField: Story = {
     for (const message of ALL_ERRORS.slice(1)) {
       await expect(canvas.getByText(message)).toBeInTheDocument();
     }
-    await expect(canvas.getAllByRole('alert')).toHaveLength(1);
+    await expect(canvas.getAllByRole('alert')).toHaveLength(ALL_ERRORS.length - 1);
   },
   parameters: {
     docs: {

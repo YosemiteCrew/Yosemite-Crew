@@ -108,11 +108,11 @@ export const SpecialityAndService: Story = {
     const canvas = within(canvasElement);
 
     const specialityPanel = await openSelect(canvasElement, 'Speciality');
-    await expect(within(specialityPanel).getAllByRole('button')).toHaveLength(
+    await expect(within(specialityPanel).getAllByRole('option')).toHaveLength(
       SpecialityOptions.length
     );
     await userEvent.click(
-      within(specialityPanel).getByRole('button', { name: 'Internal medicine' })
+      within(specialityPanel).getByRole('option', { name: 'Internal medicine' })
     );
     // The trigger re-labels itself with the pick. That aria-label is the only
     // announcement of the chosen value - the value span itself carries no label -
@@ -128,10 +128,10 @@ export const SpecialityAndService: Story = {
     // string[] - and the field looks perfectly healthy until the panel is open.
     await expect(
       within(servicePanel)
-        .getAllByRole('button')
+        .getAllByRole('option')
         .map((option) => option.textContent)
     ).toEqual(SpecialityOptions);
-    await userEvent.click(within(servicePanel).getByRole('button', { name: 'Surgery' }));
+    await userEvent.click(within(servicePanel).getByRole('option', { name: 'Surgery' }));
     await waitFor(() =>
       expect(canvas.getByRole('button', { name: 'Service: Surgery' })).toBeVisible()
     );
@@ -146,7 +146,7 @@ export const StaffDetails: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Staff details' }));
 
     const leadPanel = await openSelect(canvasElement, 'Lead');
-    await userEvent.click(within(leadPanel).getByRole('button', { name: LeadOptions[0] }));
+    await userEvent.click(within(leadPanel).getByRole('option', { name: LeadOptions[0] }));
     await waitFor(() =>
       expect(canvas.getByRole('button', { name: `Lead: ${LeadOptions[0]}` })).toBeVisible()
     );
@@ -155,14 +155,14 @@ export const StaffDetails: Story = {
     // than closing on the first one the way Lead does.
     await userEvent.click(canvas.getByRole('button', { name: 'Support' }));
     const supportPanel = await findMultiSelectPanel();
-    await expect(within(supportPanel).getAllByRole('button')).toHaveLength(SupportOptions.length);
-    await userEvent.click(within(supportPanel).getByRole('button', { name: SupportOptions[0] }));
-    await userEvent.click(within(supportPanel).getByRole('button', { name: SupportOptions[2] }));
+    await expect(within(supportPanel).getAllByRole('option')).toHaveLength(SupportOptions.length);
+    await userEvent.click(within(supportPanel).getByRole('option', { name: SupportOptions[0] }));
+    await userEvent.click(within(supportPanel).getByRole('option', { name: SupportOptions[2] }));
 
-    // Selection rides entirely on aria-pressed plus a 14px check glyph; there is no
-    // fill or weight change, so the pressed state is the only durable contract.
+    // Selection rides entirely on aria-selected plus a 14px check glyph; there is no
+    // fill or weight change, so the selected state is the only durable contract.
     await waitFor(() =>
-      expect(within(supportPanel).getAllByRole('button', { pressed: true })).toHaveLength(2)
+      expect(within(supportPanel).getAllByRole('option', { selected: true })).toHaveLength(2)
     );
     await expect(
       canvas.getByRole('button', {

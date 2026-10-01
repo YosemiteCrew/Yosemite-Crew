@@ -1040,6 +1040,40 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.queryByTestId('visit-draft-review')).toBeNull();
     });
 
+    it.each(['REQUESTED', 'AWAITING_PAYMENT', 'PAYMENT_FAILED'])(
+      'hides visit preparation for chat-ineligible status %s',
+      status => {
+        const state = clone(defaultState);
+        state.appointments.items[0].status = status;
+
+        renderScreen(state);
+
+        expect(screen.queryByTestId('visit-draft-review')).toBeNull();
+      },
+    );
+
+    it.each(['UNPAID', 'FAILED'])(
+      'hides visit preparation while payment is %s on an upcoming visit',
+      paymentStatus => {
+        const state = clone(defaultState);
+        state.appointments.items[0].paymentStatus = paymentStatus;
+
+        renderScreen(state);
+
+        expect(screen.queryByTestId('visit-draft-review')).toBeNull();
+      },
+    );
+
+    it('hides visit preparation when no practice recipient is assigned', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].employeeId = null;
+      state.appointments.items[0].employeeName = null;
+
+      renderScreen(state);
+
+      expect(screen.queryByTestId('visit-draft-review')).toBeNull();
+    });
+
     it('shows a loading state and fetches when the appointment is missing', () => {
       const state = clone(defaultState);
       state.appointments.items = [];
@@ -1737,6 +1771,35 @@ describe('ViewAppointmentScreen', () => {
       expect(mockOpenPayment).toHaveBeenCalledWith(mockExpense1);
     });
 
+    it('logs when opening the payment screen fails', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockSelectExpenses.mockReturnValue([mockExpense1, mockExpense2]);
+      mockOpenPayment
+        .mockRejectedValueOnce(new Error('pay failed'))
+        .mockRejectedValueOnce(new Error('view failed'));
+
+      render(
+        <Provider store={createTestStore(invoiceState)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      fireEvent.press(screen.getByTestId('pay-invoice-Consultation'));
+      fireEvent.press(screen.getByTestId('view-invoice-Consultation'));
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: pay failed'),
+        );
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: view failed'),
+        );
+      });
+      warnSpy.mockRestore();
+    });
+
     it('opens invoice from list when processing payment is false', () => {
       mockSelectExpenses.mockReturnValue([mockExpense1, mockExpense2]);
 
@@ -1911,6 +1974,30 @@ describe('ViewAppointmentScreen', () => {
         );
       });
       consoleSpy.mockRestore();
+    });
+
+    it('still goes back and logs when the list refresh after cancelling fails', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockDispatch.mockImplementation((action: any) =>
+        action?.type === 'FETCH_COMP'
+          ? Promise.reject(new Error('refresh failed'))
+          : {unwrap: mockUnwrap},
+      );
+
+      renderScreen();
+      fireEvent.press(screen.getByTestId('btn-Cancel Appointment'));
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('confirm-cancel'));
+      });
+
+      await waitFor(() => {
+        expect(mockGoBack).toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: refresh failed'),
+        );
+      });
+      warnSpy.mockRestore();
     });
 
     it('cancels an appointment that has no companion id', async () => {
