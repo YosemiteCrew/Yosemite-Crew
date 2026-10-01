@@ -367,12 +367,20 @@ const FollowersCard = () => {
   const { notify } = useNotify();
   const [followers, setFollowers] = useState<APFollower[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const data = await listFollowers();
-    if (data) setFollowers(data);
-    setLoading(false);
-  }, []);
+    try {
+      const data = await listFollowers();
+      if (data) setFollowers(data);
+      setLoadError(null);
+    } catch {
+      setLoadError('Could not load followers. Please try again.');
+      notify('error', { title: 'Followers unavailable', text: 'Could not load followers.' });
+    } finally {
+      setLoading(false);
+    }
+  }, [notify]);
 
   useEffect(() => {
     // The loader is declared inside the effect so the hooks lint can see that
@@ -381,7 +389,7 @@ const FollowersCard = () => {
     const run = async () => {
       await load();
     };
-    run();
+    void run();
   }, [load]);
 
   const handleApprove = async (uri: string) => {
@@ -401,7 +409,12 @@ const FollowersCard = () => {
   return (
     <SectionCard title="Followers">
       {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
-      {renderState === 'empty' && <div className={TEXT_MUTED}>No followers yet.</div>}
+      {loadError && (
+        <div role="alert" className={TEXT_MUTED}>
+          {loadError}
+        </div>
+      )}
+      {!loadError && renderState === 'empty' && <div className={TEXT_MUTED}>No followers yet.</div>}
       {renderState === 'ready' && (
         <div className="flex flex-col gap-3">
           {followers.map((f) => (
@@ -443,14 +456,22 @@ const FollowingCard = () => {
   const { notify } = useNotify();
   const [following, setFollowing] = useState<APFollowing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actorUri, setActorUri] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    const data = await listFollowing();
-    if (data) setFollowing(data);
-    setLoading(false);
-  }, []);
+    try {
+      const data = await listFollowing();
+      if (data) setFollowing(data);
+      setLoadError(null);
+    } catch {
+      setLoadError('Could not load followed clinics. Please try again.');
+      notify('error', { title: 'Following unavailable', text: 'Could not load followed clinics.' });
+    } finally {
+      setLoading(false);
+    }
+  }, [notify]);
 
   useEffect(() => {
     // The loader is declared inside the effect so the hooks lint can see that
@@ -459,7 +480,7 @@ const FollowingCard = () => {
     const run = async () => {
       await load();
     };
-    run();
+    void run();
   }, [load]);
 
   const handleFollow = async () => {
@@ -504,7 +525,12 @@ const FollowingCard = () => {
         />
       </div>
       {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
-      {renderState === 'empty' && (
+      {loadError && (
+        <div role="alert" className={TEXT_MUTED}>
+          {loadError}
+        </div>
+      )}
+      {!loadError && renderState === 'empty' && (
         <div className={TEXT_MUTED}>Not following any instances yet.</div>
       )}
       {renderState === 'ready' && (
@@ -576,16 +602,23 @@ const ReferralInboxCard = () => {
   const { notify } = useNotify();
   const [inbound, setInbound] = useState<APReferral[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
-    listInboundReferrals().then((data) => {
-      if (data) setInbound(data);
-      setLoading(false);
-    });
-  }, []);
+    return listInboundReferrals()
+      .then((data) => {
+        if (data) setInbound(data);
+        setLoadError(null);
+      })
+      .catch(() => {
+        setLoadError('Could not load inbound referrals. Please try again.');
+        notify('error', { title: 'Referrals unavailable', text: 'Could not load referrals.' });
+      })
+      .finally(() => setLoading(false));
+  }, [notify]);
 
   useEffect(() => {
-    reload();
+    void reload();
   }, [reload]);
 
   const handleRespond = useCallback(
@@ -596,7 +629,7 @@ const ReferralInboxCard = () => {
           title: 'Referral updated',
           text: `Referral ${action === 'accept' ? 'accepted' : 'declined'}.`,
         });
-        reload();
+        await reload();
       } catch {
         notify('error', { title: 'Action failed', text: `Could not ${action} referral.` });
       }
@@ -609,7 +642,14 @@ const ReferralInboxCard = () => {
   return (
     <SectionCard title="Inbound referrals">
       {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
-      {renderState === 'empty' && <div className={TEXT_MUTED}>No inbound referrals yet.</div>}
+      {loadError && (
+        <div role="alert" className={TEXT_MUTED}>
+          {loadError}
+        </div>
+      )}
+      {!loadError && renderState === 'empty' && (
+        <div className={TEXT_MUTED}>No inbound referrals yet.</div>
+      )}
       {renderState === 'ready' && (
         <div className="flex flex-col">
           {inbound.map((r) => (
@@ -669,14 +709,18 @@ const ReferralField = ({
 const useReferralForm = (notify: ReturnType<typeof useNotify>['notify']) => {
   const [outbound, setOutbound] = useState<APReferral[]>([]);
   const [loadingOutbound, setLoadingOutbound] = useState(true);
+  const [outboundLoadError, setOutboundLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<SendReferralPayload>(EMPTY_REFERRAL);
 
   useEffect(() => {
-    listOutboundReferrals().then((data) => {
-      if (data) setOutbound(data);
-      setLoadingOutbound(false);
-    });
+    void listOutboundReferrals()
+      .then((data) => {
+        if (data) setOutbound(data);
+        setOutboundLoadError(null);
+      })
+      .catch(() => setOutboundLoadError('Could not load sent referrals. Please try again.'))
+      .finally(() => setLoadingOutbound(false));
   }, []);
 
   const update = (key: keyof SendReferralPayload, value: unknown) =>
@@ -698,8 +742,13 @@ const useReferralForm = (notify: ReturnType<typeof useNotify>['notify']) => {
       await sendReferral(form);
       notify('success', { title: 'Referral sent', text: 'Referral queued for delivery.' });
       setForm(EMPTY_REFERRAL);
-      const data = await listOutboundReferrals();
-      if (data) setOutbound(data);
+      try {
+        const data = await listOutboundReferrals();
+        if (data) setOutbound(data);
+        setOutboundLoadError(null);
+      } catch {
+        setOutboundLoadError('Referral sent, but the sent list could not be refreshed.');
+      }
     } catch {
       notify('error', { title: 'Failed', text: 'Could not send referral.' });
     } finally {
@@ -716,6 +765,7 @@ const useReferralForm = (notify: ReturnType<typeof useNotify>['notify']) => {
     handleSubmit,
     outbound,
     loadingOutbound,
+    outboundLoadError,
   };
 };
 
@@ -810,6 +860,7 @@ const SendReferralCard = () => {
     handleSubmit,
     outbound,
     loadingOutbound,
+    outboundLoadError,
   } = useReferralForm(notify);
 
   return (
@@ -824,6 +875,11 @@ const SendReferralCard = () => {
         />
       </div>
       {!loadingOutbound && outbound.length > 0 && <SentReferralsList outbound={outbound} />}
+      {outboundLoadError && (
+        <div role="alert" className={TEXT_MUTED}>
+          {outboundLoadError}
+        </div>
+      )}
     </SectionCard>
   );
 };
@@ -919,7 +975,7 @@ const FederationSection = () => {
     const run = async () => {
       await loadActor();
     };
-    run();
+    void run();
   }, [loadActor]);
 
   if (loading) {

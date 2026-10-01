@@ -103,7 +103,7 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
                 : 'The credit note no longer reduces this invoice.',
           });
         })
-        .catch((err: unknown) => {
+        .catch(async (err: unknown) => {
           if (displayedInvoiceId.current !== requestInvoiceId) return;
           const message = getCreditNoteErrorMessage(
             err,
@@ -120,10 +120,12 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
           // be confirmed.
           setError(`${message} Check the ledger below before retrying.`);
           notify('error', { title: 'Credit note not confirmed', text: message });
-          getFinanceInvoiceById(requestInvoiceId).catch(() => {
+          try {
+            await getFinanceInvoiceById(requestInvoiceId);
+          } catch {
             // The re-read is a best effort; the message above already tells the
             // user not to trust the ledger blindly.
-          });
+          }
         })
         .finally(() => {
           if (displayedInvoiceId.current !== requestInvoiceId) return;

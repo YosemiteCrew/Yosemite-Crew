@@ -355,7 +355,9 @@ const useAddCompanionCentralModalContent = ({
         return;
       }
       parentSearchTimeoutRef.current = globalThis.setTimeout(() => {
-        fetchParentResults(trimmed).then(setParentResults);
+        void fetchParentResults(trimmed)
+          .then(setParentResults)
+          .catch(() => setParentResults([]));
       }, 300);
     },
     [clearParentSearchTimeout, setParentResults]

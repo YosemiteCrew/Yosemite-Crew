@@ -146,7 +146,7 @@ const NetworkDirectory = () => {
     const run = async () => {
       await load();
     };
-    run();
+    void run();
   }, [load]);
 
   const handleFollow = useCallback(

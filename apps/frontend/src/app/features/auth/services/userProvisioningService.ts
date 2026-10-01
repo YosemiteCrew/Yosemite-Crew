@@ -17,7 +17,7 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  * aborting the whole signup flow. Returns false on persistent transient
  * failure; rethrows auth-loss errors.
  */
-export const provisionBackendUser = async (): Promise<boolean> => {
+export const provisionBackendUser = (): Promise<boolean> => {
   const { pendingSignUp } = useAuthStore.getState();
   const body = pendingSignUp
     ? {
@@ -26,17 +26,17 @@ export const provisionBackendUser = async (): Promise<boolean> => {
         role: pendingSignUp.role,
       }
     : undefined;
-  for (let attempt = 0; attempt < PROVISION_MAX_ATTEMPTS; attempt++) {
+  const attemptProvisioning = async (attempt: number): Promise<boolean> => {
     try {
       await postData('/fhir/v1/user', body);
       return true;
     } catch (error) {
       if (isAuthRedirectError(error)) throw error;
       logger.warn(`Backend user provisioning attempt ${attempt + 1} failed`, error);
-      if (attempt < PROVISION_MAX_ATTEMPTS - 1) {
-        await delay(PROVISION_RETRY_BASE_MS * 2 ** attempt);
-      }
+      if (attempt >= PROVISION_MAX_ATTEMPTS - 1) return false;
+      await delay(PROVISION_RETRY_BASE_MS * 2 ** attempt);
+      return attemptProvisioning(attempt + 1);
     }
-  }
-  return false;
+  };
+  return attemptProvisioning(0);
 };

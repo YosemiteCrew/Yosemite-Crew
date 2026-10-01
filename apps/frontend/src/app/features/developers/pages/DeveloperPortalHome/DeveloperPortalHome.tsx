@@ -95,7 +95,7 @@ const DeveloperPortalHome = () => {
     const run = async () => {
       await loadStatus();
     };
-    run();
+    void run();
   }, [loadStatus]);
 
   if (isPhone) {
