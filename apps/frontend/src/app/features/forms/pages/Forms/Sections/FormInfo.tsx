@@ -26,6 +26,7 @@ import { Icon } from '@/app/ui/icons/Icon';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 import { useExtensionPoint } from '@/app/features/plugins';
+import { logger } from '@/app/lib/logger';
 import type {
   FormDetailTabExtension,
   FormDetailActionExtension,
@@ -222,7 +223,7 @@ const FormInfo = ({
       }
       setShowModal(false);
     } catch (err: any) {
-      console.error('Failed to publish form', err);
+      logger.error('Failed to publish form', err);
       showActionError(err?.response?.data?.message || err?.message || 'Unable to publish form');
     } finally {
       setPublishLoading(false);
@@ -241,7 +242,7 @@ const FormInfo = ({
       }
       setShowModal(false);
     } catch (err: any) {
-      console.error('Failed to unpublish form', err);
+      logger.error('Failed to unpublish form', err);
       showActionError(err?.response?.data?.message || err?.message || 'Unable to unpublish form');
     } finally {
       setUnpublishLoading(false);
@@ -260,7 +261,7 @@ const FormInfo = ({
       }
       setShowModal(false);
     } catch (err: any) {
-      console.error('Failed to archive form', err);
+      logger.error('Failed to archive form', err);
       showActionError(err?.response?.data?.message || err?.message || 'Unable to archive form');
     } finally {
       setArchiveLoading(false);

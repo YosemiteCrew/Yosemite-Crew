@@ -24,6 +24,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { useExtensionPoint } from '@/app/features/plugins';
+import { logger } from '@/app/lib/logger';
 import type { FormsListActionExtension } from '@/app/features/plugins/types';
 
 const AddForm = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/AddForm'));
@@ -207,7 +208,7 @@ const Forms = () => {
           await loadForms();
         }
       } catch (err) {
-        console.error('Failed to load forms', err);
+        logger.error('Failed to load forms', err);
       }
     })();
   }, [list.length]);
@@ -328,7 +329,7 @@ const Forms = () => {
                   key={ext.id}
                   organisationId={primaryOrgId ?? ''}
                   onAction={(forms) => {
-                    console.log('Plugin action triggered', ext.id, forms);
+                    logger.debug('Plugin action triggered', ext.id, forms);
                   }}
                 />
               ))}
