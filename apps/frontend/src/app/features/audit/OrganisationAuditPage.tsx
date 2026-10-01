@@ -93,8 +93,8 @@ const useOrganisationAuditFeed = (
     generation.current += 1;
     const requestGeneration = generation.current;
     if (!organisationId) return;
-    void Promise.resolve().then(() => {
-      if (requestGeneration === generation.current) void load();
+    queueMicrotask(() => {
+      if (requestGeneration === generation.current) load();
     });
     return () => {
       generation.current += 1;
