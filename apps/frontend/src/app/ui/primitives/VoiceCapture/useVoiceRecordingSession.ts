@@ -8,23 +8,14 @@ import {
   type ChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import type { SpeechTranscriptionAdapter, SpeechTranscriptionEvents } from './speechTranscription';
+import type { SpeechTranscriptionAdapter } from './speechTranscription';
+import { createTranscriptHandlers } from './transcriptEvents';
 import type { Announce } from './useAnnouncer';
+import { useMicrophoneCapture } from './useMicrophoneCapture';
+import { useTranscriptReview } from './useTranscriptReview';
+import { NO_SPEECH_MESSAGE, type VoiceCaptureState } from './voiceCaptureTypes';
 
-export type VoiceCaptureState = 'idle' | 'listening' | 'processing' | 'correcting' | 'unsupported';
-
-export const NO_SPEECH_MESSAGE =
-  'No speech was heard. Record again, or type the message in the composer.';
-
-const getMediaRecorderType = (): string | undefined => {
-  if (typeof MediaRecorder === 'undefined') return undefined;
-  return MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-    ? 'audio/webm;codecs=opus'
-    : undefined;
-};
-
-const joinTranscript = (previous: string, next: string): string =>
-  previous && next ? `${previous} ${next}` : previous || next;
+export type { VoiceCaptureState } from './voiceCaptureTypes';
 
 export interface VoiceRecordingSession {
   state: VoiceCaptureState;
@@ -48,6 +39,11 @@ interface UseVoiceRecordingSessionOptions {
   onCorrection?: (original: string, corrected: string) => void;
 }
 
+/**
+ * Coordinates the recorder and the speech engine. A take is only ready for
+ * review once the recorder has flushed and the engine has reported its last
+ * phrase, so the tail of the audio is never dropped.
+ */
 export function useVoiceRecordingSession({
   transcriber,
   announce,
@@ -60,14 +56,12 @@ export function useVoiceRecordingSession({
   const [state, setState] = useState<VoiceCaptureState>(() =>
     transcriber.isSupported() ? 'idle' : 'unsupported'
   );
-  const [text, setText] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const chunksRef = useRef<Blob[]>([]);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mic = useMicrophoneCapture();
+
   const finalTranscriptRef = useRef('');
   const finalizeGuardRef = useRef(false);
-  const stopRequestedRef = useRef(false);
   const recorderSettledRef = useRef(false);
   const engineStartedRef = useRef(false);
   const engineEndedRef = useRef(false);
@@ -79,115 +73,61 @@ export function useVoiceRecordingSession({
     outerStateRef.current = state;
   });
 
-  const releaseMicrophone = useCallback(() => {
-    const stream = mediaRecorderRef.current?.stream;
-    stream?.getTracks().forEach((track) => track.stop());
-  }, []);
-
-  const resetSessionFlags = useCallback(() => {
+  const resetTake = useCallback(() => {
     finalTranscriptRef.current = '';
     finalizeGuardRef.current = false;
-    stopRequestedRef.current = false;
     recorderSettledRef.current = false;
     engineStartedRef.current = false;
     engineEndedRef.current = false;
     engineLiveRef.current = false;
-    chunksRef.current = [];
   }, []);
 
-  const finalizeToCorrecting = useCallback(() => {
+  const returnToIdle = useCallback(() => {
+    mic.releaseMicrophone();
+    resetTake();
+    setErrorMessage(null);
+    setState('idle');
+  }, [mic, resetTake]);
+
+  const review = useTranscriptReview({
+    announce,
+    spokenRef: finalTranscriptRef,
+    onReleaseAudio,
+    onReset: returnToIdle,
+    onTranscript,
+    onCorrection,
+  });
+
+  const finalize = useCallback(() => {
     if (unmountedRef.current || finalizeGuardRef.current) return;
     if (!recorderSettledRef.current) return;
     if (!engineEndedRef.current && engineStartedRef.current) return;
     finalizeGuardRef.current = true;
     const spoken = finalTranscriptRef.current;
-    setText(spoken);
+    review.setSpokenText(spoken);
     setErrorMessage(spoken.trim() ? null : NO_SPEECH_MESSAGE);
     setState('correcting');
     announce('Recording complete. Review the transcript.');
     onStop?.();
-  }, [announce, onStop]);
+  }, [announce, onStop, review]);
 
-  const handleRecordingStopped = useCallback(() => {
-    recorderSettledRef.current = true;
-    onRecordingReady(chunksRef.current);
-    releaseMicrophone();
-    finalizeToCorrecting();
-  }, [finalizeToCorrecting, onRecordingReady, releaseMicrophone]);
-
-  const requestRecorderStop = useCallback(() => {
-    if (stopRequestedRef.current) return;
-    stopRequestedRef.current = true;
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop();
-    } else {
-      handleRecordingStopped();
-    }
-  }, [handleRecordingStopped]);
+  const handleRecorderStopped = useCallback(
+    (chunks: Blob[]) => {
+      recorderSettledRef.current = true;
+      onRecordingReady(chunks);
+      mic.releaseMicrophone();
+      finalize();
+    },
+    [finalize, mic, onRecordingReady]
+  );
 
   const stopRecording = useCallback(() => {
     finalizeGuardRef.current = false;
     setState('processing');
     announce('Recording stopped. Processing…');
-    requestRecorderStop();
+    mic.requestStop();
     transcriber.stop();
-  }, [transcriber, announce, requestRecorderStop]);
-
-  const buildTranscriptHandlers = useCallback(
-    (): SpeechTranscriptionEvents => ({
-      onStart: () => {
-        engineStartedRef.current = true;
-      },
-      onInterim: (interim: string) => {
-        if (outerStateRef.current === 'listening') {
-          setText(joinTranscript(finalTranscriptRef.current, interim));
-        }
-      },
-      onFinal: (finalText: string) => {
-        if (!engineLiveRef.current) return;
-        finalTranscriptRef.current = joinTranscript(finalTranscriptRef.current, finalText);
-        if (outerStateRef.current === 'listening') {
-          setText(finalTranscriptRef.current);
-        }
-      },
-      onError: (error) => {
-        if (outerStateRef.current === 'listening') {
-          setErrorMessage(error.message);
-          announce(error.message);
-        }
-      },
-      onEnd: () => {
-        engineLiveRef.current = false;
-        engineEndedRef.current = true;
-        if (outerStateRef.current === 'listening') {
-          setState('processing');
-          requestRecorderStop();
-        }
-        finalizeToCorrecting();
-      },
-    }),
-    [announce, finalizeToCorrecting, requestRecorderStop]
-  );
-
-  const openRecorder = useCallback(async (): Promise<boolean> => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    if (unmountedRef.current) {
-      // The panel went away while the browser was still asking for the
-      // microphone. Release it rather than opening a recorder nobody can stop.
-      stream.getTracks().forEach((track) => track.stop());
-      return false;
-    }
-    const recorder = new MediaRecorder(stream, { mimeType: getMediaRecorderType() });
-    chunksRef.current = [];
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunksRef.current.push(event.data);
-    };
-    recorder.onstop = () => handleRecordingStopped();
-    mediaRecorderRef.current = recorder;
-    recorder.start(50);
-    return true;
-  }, [handleRecordingStopped]);
+  }, [announce, mic, transcriber]);
 
   const describeStartFailure = (error: unknown): string =>
     error instanceof DOMException && error.name === 'NotAllowedError'
@@ -196,17 +136,31 @@ export function useVoiceRecordingSession({
 
   const startRecording = useCallback(async () => {
     setErrorMessage(null);
-    setText('');
     onReleaseAudio();
-    resetSessionFlags();
+    resetTake();
+    review.clearText();
     engineLiveRef.current = true;
     try {
-      const opened = await openRecorder();
+      const opened = await mic.startCapture(handleRecorderStopped);
       if (!opened) return;
       setState('listening');
       outerStateRef.current = 'listening';
       announce('Recording started. Speak now.');
-      transcriber.start(buildTranscriptHandlers());
+      transcriber.start(
+        createTranscriptHandlers({
+          phaseRef: outerStateRef,
+          engineStartedRef,
+          engineEndedRef,
+          engineLiveRef,
+          finalTranscriptRef,
+          setText: review.setSpokenText,
+          setPhase: setState,
+          setErrorMessage,
+          announce,
+          requestStop: mic.requestStop,
+          finalize,
+        })
+      );
     } catch (error) {
       console.error('Failed to start recording:', error);
       engineLiveRef.current = false;
@@ -217,10 +171,12 @@ export function useVoiceRecordingSession({
     }
   }, [
     announce,
-    buildTranscriptHandlers,
+    finalize,
+    handleRecorderStopped,
+    mic,
     onReleaseAudio,
-    openRecorder,
-    resetSessionFlags,
+    resetTake,
+    review,
     transcriber,
   ]);
 
@@ -232,65 +188,20 @@ export function useVoiceRecordingSession({
     void startRecording();
   }, [startRecording, stopRecording]);
 
-  const discard = useCallback(() => {
-    onReleaseAudio();
-    releaseMicrophone();
-    resetSessionFlags();
-    setText('');
-    setErrorMessage(null);
-    setState('idle');
-    announce('Voice capture cleared');
-  }, [announce, onReleaseAudio, releaseMicrophone, resetSessionFlags]);
-
-  const confirm = useCallback(() => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const original = finalTranscriptRef.current;
-    if (original && text !== original) {
-      onCorrection?.(original, text);
-    }
-    onTranscript?.(trimmed);
-    onReleaseAudio();
-    resetSessionFlags();
-    setText('');
-    setErrorMessage(null);
-    setState('idle');
-    announce('Transcript confirmed');
-  }, [announce, onCorrection, onReleaseAudio, onTranscript, resetSessionFlags, text]);
-
   const retry = useCallback(() => {
     void startRecording();
   }, [startRecording]);
-
-  const handleTranscriptChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
-    setText(event.target.value);
-  }, []);
-
-  const handleTranscriptKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        confirm();
-      } else if (event.key === 'Escape') {
-        discard();
-      }
-    },
-    [confirm, discard]
-  );
 
   useEffect(() => {
     unmountedRef.current = false;
     return () => {
       unmountedRef.current = true;
       engineLiveRef.current = false;
-      const recorder = mediaRecorderRef.current;
-      if (recorder && recorder.state !== 'inactive') {
-        recorder.stop();
-      }
-      releaseMicrophone();
+      mic.stopRecorder();
+      mic.releaseMicrophone();
       transcriber.abort();
     };
-  }, [releaseMicrophone, transcriber]);
+  }, [mic, transcriber]);
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -310,13 +221,13 @@ export function useVoiceRecordingSession({
 
   return {
     state,
-    text,
+    text: review.text,
     errorMessage,
     toggleRecording,
     retry,
-    confirm,
-    discard,
-    handleTranscriptChange,
-    handleTranscriptKeyDown,
+    confirm: review.confirm,
+    discard: review.clear,
+    handleTranscriptChange: review.change,
+    handleTranscriptKeyDown: review.handleKeyDown,
   };
 }
