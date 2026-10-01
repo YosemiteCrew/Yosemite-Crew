@@ -14,6 +14,7 @@ import type { Announce } from './useAnnouncer';
 import { useMicrophoneCapture } from './useMicrophoneCapture';
 import { useTranscriptReview } from './useTranscriptReview';
 import { NO_SPEECH_MESSAGE, type VoiceCaptureState } from './voiceCaptureTypes';
+import { logger } from '@/app/lib/logger';
 
 export type { VoiceCaptureState } from './voiceCaptureTypes';
 
@@ -162,7 +163,7 @@ export function useVoiceRecordingSession({
         })
       );
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      logger.error('Failed to start recording:', error);
       engineLiveRef.current = false;
       const message = describeStartFailure(error);
       setErrorMessage(message);
