@@ -307,10 +307,7 @@ export interface MerckGateway {
   search: (params: MerckSearchRequest) => Promise<MerckSearchResponse>;
   enable: (organisationId: string) => Promise<OrgIntegration>;
   disable: (organisationId: string) => Promise<OrgIntegration>;
-  getStatus: (
-    organisationId: string,
-    integrations: OrgIntegration[]
-  ) => Promise<OrgIntegration | null>;
+  getStatus: (organisationId: string, integrations: OrgIntegration[]) => OrgIntegration | null;
 }
 
 class ApiMerckGateway implements MerckGateway {
@@ -361,11 +358,8 @@ class ApiMerckGateway implements MerckGateway {
     return res.data;
   }
 
-  getStatus(
-    organisationId: string,
-    integrations: OrgIntegration[]
-  ): Promise<OrgIntegration | null> {
-    return Promise.resolve(resolveMerckIntegration(organisationId, integrations));
+  getStatus(organisationId: string, integrations: OrgIntegration[]): OrgIntegration | null {
+    return resolveMerckIntegration(organisationId, integrations);
   }
 }
 

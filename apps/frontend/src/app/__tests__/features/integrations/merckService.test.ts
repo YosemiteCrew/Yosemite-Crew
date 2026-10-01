@@ -473,10 +473,11 @@ describe('getMerckGateway', () => {
     );
   });
 
-  it('gateway.getStatus returns resolved integration', async () => {
+  it('gateway.getStatus synchronously returns the resolved integration', () => {
     const integrations = [makeIntegration('MERCK_MANUALS', 'enabled')];
     const gateway = getMerckGateway();
-    const result = await gateway.getStatus('org-1', integrations);
+    const result = gateway.getStatus('org-1', integrations);
+    expect(result).not.toBeInstanceOf(Promise);
     expect(result?.provider).toBe('MERCK_MANUALS');
   });
 
