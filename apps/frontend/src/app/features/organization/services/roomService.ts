@@ -279,11 +279,6 @@ const updateUnit = async (unit: RoomUnit) => {
   return fromFHIRRoomUnit(res.data);
 };
 
-const deleteUnit = async (unitId: string) => {
-  const res = await deleteData<ReturnType<typeof toFHIRRoomUnit>>(`/fhir/v1/room-unit/${unitId}`);
-  return fromFHIRRoomUnit(res.data);
-};
-
 const syncUnitsForGroup = async (
   group: RoomUnitGroup,
   desiredCount: number,
@@ -294,7 +289,7 @@ const syncUnitsForGroup = async (
   const surplusUnits = currentUnits.slice(desiredCount);
 
   for (const unit of surplusUnits) {
-    await deleteUnit(unit.id);
+    await updateUnit({ ...unit, isActive: false });
   }
 
   const missingCount = desiredCount - currentUnits.length;
