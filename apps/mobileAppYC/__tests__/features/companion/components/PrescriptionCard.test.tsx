@@ -99,6 +99,13 @@ describe('PrescriptionCard', () => {
     ).toBeTruthy();
   });
 
+  it('does not offer a refill action for a prescription without an encounter', () => {
+    renderCard({encounterId: undefined});
+
+    expect(screen.getAllByText('Amoxicillin')).toHaveLength(2);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('omits the recorded line when the date is unparseable', () => {
     renderCard({createdAt: 'not-a-date'});
 

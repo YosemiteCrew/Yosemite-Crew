@@ -16,7 +16,7 @@ export type MobilePrescriptionItem = {
 export type MobilePrescription = {
   id: string;
   patientId: string;
-  encounterId: string;
+  encounterId?: string;
   organisationId: string;
   status: string;
   summary?: string;
