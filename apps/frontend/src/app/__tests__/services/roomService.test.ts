@@ -646,6 +646,67 @@ describe('Room Service', () => {
       );
     });
 
+    it('deactivates surplus units when reducing a group count without deleting their history', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
+      const group = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Large',
+        unitCount: 2,
+        isActive: true,
+      };
+      const units = [1, 2].map((number) => ({
+        id: `unit-${number}`,
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: `POD-${number}`,
+        displayName: `Pod ${number}`,
+        isActive: true,
+      }));
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedPutData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedDeleteData.mockResolvedValue({ data: units[1] });
+      mockedGetData.mockImplementation((url: string) => {
+        if (url === '/fhir/v1/organisation-room/room-1') {
+          return Promise.resolve({ data: mockResponseData });
+        }
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [group] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          return Promise.resolve({ data: units });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'INPATIENT',
+        availability: { species: ['CANINE'], totalUnits: 1 },
+        units: [{ id: 'group-1', name: 'Pod', size: 'Large', count: 1 }],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit/unit-2',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedDeleteData).not.toHaveBeenCalledWith('/fhir/v1/room-unit/unit-2');
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', [units[0]]);
+    });
+
     it('reuses a group deactivated during the same save instead of creating a duplicate', async () => {
       const mockDTO = { resourceType: 'Location', id: 'room-1' };
       const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
