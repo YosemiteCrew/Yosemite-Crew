@@ -292,6 +292,167 @@ const dispatchNotification = async (
   return { push, email };
 };
 
+const claimReminderSend = async (scopeInput: unknown) => {
+  const scope = ReminderScopeSchema.parse(scopeInput);
+  const attemptAt = new Date();
+  const claim = await prisma.careReminder.updateMany({
+    where: {
+      id: scope.id,
+      organisationId: scope.organisationId,
+      status: "PENDING",
+    },
+    data: {
+      status: "SENDING",
+      sendingAt: attemptAt,
+      lastAttemptAt: attemptAt,
+    },
+  });
+  if (claim.count !== 1) {
+    throw new CareReminderError(
+      "This reminder is already being sent or has changed.",
+      409,
+    );
+  }
+};
+
+const deliverReminder = async (
+  reminder: Awaited<ReturnType<typeof assertReminder>>,
+): Promise<DeliverySummary> => {
+  const patient = await prisma.patient.findUnique({
+    where: { id: reminder.patientId },
+    select: { name: true },
+  });
+  const link = await prisma.parentPatient.findFirst({
+    where: {
+      patientId: reminder.patientId,
+      role: "PRIMARY",
+      status: "ACTIVE",
+    },
+    select: { parentId: true },
+  });
+  const parent = link
+    ? await prisma.parent.findUnique({
+        where: { id: link.parentId },
+        select: { linkedUserId: true, email: true },
+      })
+    : null;
+  return dispatchNotification(
+    reminder,
+    patient?.name ?? "your pet",
+    parent?.linkedUserId ?? null,
+    parent?.email ?? null,
+  );
+};
+
+const recoverFailedReminderSend = async (
+  scopeInput: unknown,
+  reminder: Awaited<ReturnType<typeof assertReminder>>,
+  sentBy?: string,
+) => {
+  const scope = ReminderScopeSchema.parse(scopeInput);
+  const failed: DeliverySummary = { push: "failed", email: "failed" };
+  await prisma.careReminder.updateMany({
+    where: {
+      id: scope.id,
+      organisationId: scope.organisationId,
+      status: "SENDING",
+    },
+    data: {
+      status: "PENDING",
+      sendingAt: null,
+      lastDelivery: failed,
+    },
+  });
+  await AuditTrailService.recordSafely({
+    organisationId: scope.organisationId,
+    patientId: reminder.patientId,
+    eventType: "CARE_REMINDER_DELIVERY_ATTEMPT",
+    actorType: sentBy ? "PMS_USER" : "SYSTEM",
+    actorId: sentBy ?? null,
+    entityType: "COMPANION",
+    entityId: scope.id,
+    metadata: { reminderType: reminder.reminderType, delivery: failed },
+  });
+};
+
+const recordReminderDeliveryAttempt = (
+  reminder: Awaited<ReturnType<typeof assertReminder>>,
+  sentBy: string | undefined,
+  delivery: DeliverySummary,
+) =>
+  AuditTrailService.recordSafely({
+    organisationId: reminder.organisationId,
+    patientId: reminder.patientId,
+    eventType: "CARE_REMINDER_DELIVERY_ATTEMPT",
+    actorType: sentBy ? "PMS_USER" : "SYSTEM",
+    actorId: sentBy ?? null,
+    entityType: "COMPANION",
+    entityId: reminder.id,
+    metadata: {
+      reminderType: reminder.reminderType,
+      dueDate: reminder.dueDate,
+      delivery,
+    },
+  });
+
+const finishReminderSend = async (
+  reminder: Awaited<ReturnType<typeof assertReminder>>,
+  sentBy: string | undefined,
+  delivery: DeliverySummary,
+) => {
+  const delivered =
+    delivery.push === "delivered" || delivery.email === "delivered";
+  const updated = await prisma.careReminder
+    .update({
+      where: {
+        id: reminder.id,
+        organisationId: reminder.organisationId,
+        status: "SENDING",
+      },
+      data: {
+        status: delivered ? "SENT" : "PENDING",
+        sentAt: delivered ? new Date() : null,
+        sendingAt: null,
+        lastDelivery: delivery,
+      },
+      select: reminderSelect,
+    })
+    .catch((err: unknown) => {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2025"
+      ) {
+        return null;
+      }
+      throw err;
+    });
+
+  await recordReminderDeliveryAttempt(reminder, sentBy, delivery);
+  if (delivered) {
+    await AuditTrailService.recordSafely({
+      organisationId: reminder.organisationId,
+      patientId: reminder.patientId,
+      eventType: "CARE_REMINDER_SENT",
+      actorType: sentBy ? "PMS_USER" : "SYSTEM",
+      actorId: sentBy ?? null,
+      entityType: "COMPANION",
+      entityId: reminder.id,
+      metadata: {
+        reminderType: reminder.reminderType,
+        dueDate: reminder.dueDate,
+        delivery,
+      },
+    });
+  }
+  if (!updated) {
+    throw new CareReminderError(
+      "The reminder was cancelled or changed while it was being sent, so its status was not updated.",
+      409,
+    );
+  }
+  return updated;
+};
+
 export const CareReminderService = {
   async create(params: CreateCareReminderParams) {
     const {
@@ -411,9 +572,11 @@ export const CareReminderService = {
     if (!scope.success) {
       throw new CareReminderError("Invalid reminder scope.", 400);
     }
-    id = scope.data.id;
-    organisationId = scope.data.organisationId;
-    const reminder = await assertReminder(id, organisationId);
+    const reminderScope = scope.data;
+    const reminder = await assertReminder(
+      reminderScope.id,
+      reminderScope.organisationId,
+    );
     if (reminder.status !== "PENDING") {
       throw new CareReminderError(
         `Cannot send a ${reminder.status} reminder.`,
@@ -421,141 +584,16 @@ export const CareReminderService = {
       );
     }
 
-    const attemptAt = new Date();
-    const claim = await prisma.careReminder.updateMany({
-      where: { id, organisationId, status: "PENDING" },
-      data: {
-        status: "SENDING",
-        sendingAt: attemptAt,
-        lastAttemptAt: attemptAt,
-      },
-    });
-    if (claim.count !== 1) {
-      throw new CareReminderError(
-        "This reminder is already being sent or has changed.",
-        409,
-      );
-    }
+    await claimReminderSend(reminderScope);
 
     let delivery: DeliverySummary;
     try {
-      const patient = await prisma.patient.findUnique({
-        where: { id: reminder.patientId },
-        select: { name: true },
-      });
-      const patientName = patient?.name ?? "your pet";
-      const link = await prisma.parentPatient.findFirst({
-        where: {
-          patientId: reminder.patientId,
-          role: "PRIMARY",
-          status: "ACTIVE",
-        },
-        select: { parentId: true },
-      });
-      let ownerUserId: string | null = null;
-      let ownerEmail: string | null = null;
-      if (link) {
-        const parent = await prisma.parent.findUnique({
-          where: { id: link.parentId },
-          select: { linkedUserId: true, email: true },
-        });
-        ownerUserId = parent?.linkedUserId ?? null;
-        ownerEmail = parent?.email ?? null;
-      }
-      delivery = await dispatchNotification(
-        reminder,
-        patientName,
-        ownerUserId,
-        ownerEmail,
-      );
+      delivery = await deliverReminder(reminder);
     } catch (error) {
-      const failed: DeliverySummary = { push: "failed", email: "failed" };
-      await prisma.careReminder.updateMany({
-        where: { id, organisationId, status: "SENDING" },
-        data: {
-          status: "PENDING",
-          sendingAt: null,
-          lastDelivery: failed,
-        },
-      });
-      await AuditTrailService.recordSafely({
-        organisationId,
-        patientId: reminder.patientId,
-        eventType: "CARE_REMINDER_DELIVERY_ATTEMPT",
-        actorType: sentBy ? "PMS_USER" : "SYSTEM",
-        actorId: sentBy ?? null,
-        entityType: "COMPANION",
-        entityId: id,
-        metadata: { reminderType: reminder.reminderType, delivery: failed },
-      });
+      await recoverFailedReminderSend(reminderScope, reminder, sentBy);
       throw error;
     }
-
-    const delivered =
-      delivery.push === "delivered" || delivery.email === "delivered";
-
-    const updated = await prisma.careReminder
-      .update({
-        where: { id, organisationId, status: "SENDING" },
-        data: {
-          status: delivered ? "SENT" : "PENDING",
-          sentAt: delivered ? new Date() : null,
-          sendingAt: null,
-          lastDelivery: delivery,
-        },
-        select: reminderSelect,
-      })
-      .catch((err: unknown) => {
-        if (
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === "P2025"
-        ) {
-          return null;
-        }
-        throw err;
-      });
-
-    await AuditTrailService.recordSafely({
-      organisationId,
-      patientId: reminder.patientId,
-      eventType: "CARE_REMINDER_DELIVERY_ATTEMPT",
-      actorType: sentBy ? "PMS_USER" : "SYSTEM",
-      actorId: sentBy ?? null,
-      entityType: "COMPANION",
-      entityId: id,
-      metadata: {
-        reminderType: reminder.reminderType,
-        dueDate: reminder.dueDate,
-        delivery,
-      },
-    });
-
-    // Preserve the existing sent event for consumers that use it as a delivered signal.
-    if (delivered) {
-      await AuditTrailService.recordSafely({
-        organisationId,
-        patientId: reminder.patientId,
-        eventType: "CARE_REMINDER_SENT",
-        actorType: sentBy ? "PMS_USER" : "SYSTEM",
-        actorId: sentBy ?? null,
-        entityType: "COMPANION",
-        entityId: id,
-        metadata: {
-          reminderType: reminder.reminderType,
-          dueDate: reminder.dueDate,
-          delivery,
-        },
-      });
-    }
-
-    if (!updated) {
-      throw new CareReminderError(
-        "The reminder was cancelled or changed while it was being sent, so its status was not updated.",
-        409,
-      );
-    }
-
-    return updated;
+    return finishReminderSend(reminder, sentBy, delivery);
   },
 
   async sendScheduledDue() {
@@ -570,37 +608,40 @@ export const CareReminderService = {
       },
       data: { status: "PENDING", sendingAt: null, lastDelivery: Prisma.DbNull },
     });
-    const due = await prisma.careReminder.findMany({
-      where: {
-        status: "PENDING",
-        // A send time further back than the window is left for staff to send by
-        // hand, so old rows or a long worker outage never release a burst of
-        // stale reminders to owners.
-        sendAt: {
-          lte: new Date(now),
-          gte: new Date(now - SCHEDULED_SEND_WINDOW_MS),
+    const due: Array<{ id: string; organisationId: string }> =
+      await prisma.careReminder.findMany({
+        where: {
+          status: "PENDING",
+          // A send time further back than the window is left for staff to send by
+          // hand, so old rows or a long worker outage never release a burst of
+          // stale reminders to owners.
+          sendAt: {
+            lte: new Date(now),
+            gte: new Date(now - SCHEDULED_SEND_WINDOW_MS),
+          },
+          lastAttemptAt: null,
         },
-        lastAttemptAt: null,
-      },
-      select: { id: true, organisationId: true },
-      orderBy: { sendAt: "asc" },
-      take: 100,
-    });
-    const sendOne = (reminder: (typeof due)[number]) =>
-      this.send(reminder.id, reminder.organisationId).catch(
-        (error: unknown) => {
-          logger.error("Scheduled care reminder could not be delivered", {
-            reminderId: reminder.id,
-            error,
-          });
-        },
-      );
+        select: { id: true, organisationId: true },
+        orderBy: { sendAt: "asc" },
+        take: 100,
+      });
+    const sendOne = async (reminder: (typeof due)[number]): Promise<void> => {
+      try {
+        await this.send(reminder.id, reminder.organisationId);
+      } catch (error: unknown) {
+        logger.error("Scheduled care reminder could not be delivered", {
+          reminderId: reminder.id,
+          error,
+        });
+      }
+    };
     // One at a time, so a full batch never outruns the mail provider's send rate.
-    await due.reduce<Promise<unknown>>(
-      (previous, reminder) => previous.then(() => sendOne(reminder)),
-      Promise.resolve(),
-    );
-    return due.length;
+    return due
+      .reduce<Promise<void>>(
+        (previous, reminder) => previous.then(() => sendOne(reminder)),
+        Promise.resolve(),
+      )
+      .then(() => due.length);
   },
 
   async markResponded(

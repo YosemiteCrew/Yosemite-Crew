@@ -1,5 +1,8 @@
 import apiClient from '@/shared/services/apiClient';
-import {careReminderApi} from '@/features/companion/services/careReminderService';
+import {
+  careReminderApi,
+  MAX_CARE_REMINDER_PAGES,
+} from '@/features/companion/services/careReminderService';
 
 jest.mock('@/shared/services/apiClient', () => {
   const actual = jest.requireActual('@/shared/services/apiClient');
@@ -68,6 +71,24 @@ describe('careReminderApi', () => {
     await expect(careReminderApi.list('token')).rejects.toThrow(
       'Care reminder pagination did not advance',
     );
+  });
+
+  it('stops when the page limit is reached instead of returning a partial list', async () => {
+    (apiClient.get as jest.Mock).mockImplementation(() => {
+      const pageNumber = (apiClient.get as jest.Mock).mock.calls.length;
+      return Promise.resolve(page([], `c${pageNumber}`)).then(response => ({
+        ...response,
+        data: {
+          ...response.data,
+          hasMore: pageNumber <= MAX_CARE_REMINDER_PAGES,
+        },
+      }));
+    });
+
+    await expect(careReminderApi.list('token')).rejects.toThrow(
+      'Care reminder pagination exceeded the page limit',
+    );
+    expect(apiClient.get).toHaveBeenCalledTimes(MAX_CARE_REMINDER_PAGES);
   });
 
   it('propagates request failures instead of returning a partial list', async () => {
