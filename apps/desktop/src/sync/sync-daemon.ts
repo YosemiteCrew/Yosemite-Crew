@@ -38,6 +38,7 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
   let running = false;
   let timer: ReturnType<typeof setInterval> | null = null;
   let currentStatus: OnlineStatus = deps.isOnline() ? 'online' : 'offline';
+  let flushing = false;
 
   // Sends batch[index] and then the rest, one at a time and in queue order: a
   // later change to a record must never reach the server before an earlier
@@ -71,13 +72,17 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
   };
 
   const flush = async (): Promise<void> => {
-    if (!deps.isOnline()) return;
+    if (!deps.isOnline() || flushing) return;
     const batch = deps.queue.peek(10);
     if (batch.length === 0) return;
 
-    deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-
-    await sendFrom(batch, 0);
+    flushing = true;
+    try {
+      deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
+      await sendFrom(batch, 0);
+    } finally {
+      flushing = false;
+    }
   };
 
   const start = (): void => {
