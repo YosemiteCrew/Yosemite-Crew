@@ -87,6 +87,7 @@ const selectRecipients = (select: HTMLElement, selectedIds = ['pet-1', 'pet-2'])
 beforeEach(() => {
   jest.clearAllMocks();
   mockOrgState.primaryOrgId = 'org-1';
+  mockCompanionState.companionsIdsByOrgId = { 'org-1': mockCompanionIds };
   (loadCompanionsForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
   listMock.mockResolvedValue([reminder]);
   createMock.mockResolvedValue({ created: 2 });
@@ -135,11 +136,18 @@ it('shows dates on the calendar day of the preferred time zone', async () => {
 });
 
 it('filters companion records in one pass', async () => {
-  const flatMap = jest.spyOn(mockCompanionIds, 'flatMap');
-  render(<CareRemindersPage />);
+  const companionIds = [...mockCompanionIds, 'missing'];
+  mockCompanionState.companionsIdsByOrgId['org-1'] = companionIds;
+  const flatMap = jest.spyOn(companionIds, 'flatMap');
+  const { rerender } = render(<CareRemindersPage />);
 
   expect(await screen.findByText('Milo · Annual check-up')).toBeInTheDocument();
   expect(flatMap).toHaveBeenCalledTimes(1);
+  expect(screen.getByLabelText('Companions').querySelectorAll('option')).toHaveLength(2);
+
+  Reflect.deleteProperty(mockCompanionState.companionsIdsByOrgId, 'org-1');
+  rerender(<CareRemindersPage />);
+  expect(screen.getByLabelText('Companions').querySelectorAll('option')).toHaveLength(0);
 });
 
 it('says the result is unknown when an earlier send never finished', async () => {
@@ -227,9 +235,13 @@ it('shows a helpful empty state and can refresh reminders', async () => {
 
 it('does not request clinic reminders without an active practice', async () => {
   mockOrgState.primaryOrgId = null;
-  render(<CareRemindersPage />);
+  const { container } = render(<CareRemindersPage />);
   expect(screen.getByText('Select a practice to view care reminders.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  const form = container.querySelector('form');
+  if (form) fireEvent.submit(form);
   expect(listMock).not.toHaveBeenCalled();
+  expect(createMock).not.toHaveBeenCalled();
 });
 
 it('shows a save error and a busy label while scheduling', async () => {
