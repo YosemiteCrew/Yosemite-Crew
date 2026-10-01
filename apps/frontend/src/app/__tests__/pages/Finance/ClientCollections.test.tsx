@@ -204,6 +204,33 @@ describe('ClientCollections', () => {
     expect(screen.getAllByRole('button', { name: /Mark invoice/ })).toHaveLength(3);
   });
 
+  it('hides the previous practice invoices while the next practice loads', async () => {
+    const nextPracticeInvoice = {
+      ...overdue,
+      invoiceId: 'invoice-next-1234',
+      currency: 'USD',
+      balance: 99,
+    };
+    let resolveNextRequest: ((rows: Array<typeof overdue>) => void) | undefined;
+    mockApi.list.mockResolvedValueOnce([overdue]).mockImplementationOnce(
+      () =>
+        new Promise<Array<typeof overdue>>((resolve) => {
+          resolveNextRequest = resolve;
+        })
+    );
+    const { rerender } = render(<ClientCollections />);
+    expect(await screen.findByText('EUR 54.25')).toBeInTheDocument();
+
+    mockOrg.primaryOrgId = 'org-2';
+    rerender(<ClientCollections />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading overdue accounts');
+    expect(screen.queryByText('EUR 54.25')).not.toBeInTheDocument();
+    expect(resolveNextRequest).toBeDefined();
+    resolveNextRequest?.([nextPracticeInvoice]);
+    expect(await screen.findByText('USD 99.00')).toBeInTheDocument();
+  });
+
   it('does not request overdue accounts without an active organisation', () => {
     mockOrg.primaryOrgId = null;
     render(<ClientCollections />);

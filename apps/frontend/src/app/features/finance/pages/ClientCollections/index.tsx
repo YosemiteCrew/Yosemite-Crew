@@ -21,8 +21,11 @@ type ClientGroup = { parentId: string; invoices: OverdueClientInvoice[] };
 const termsByParent = (rows: OverdueClientInvoice[]) =>
   Object.fromEntries(rows.map((row) => [row.parentId, row.netDays]));
 
-const ClientCollections = () => {
-  const organisationId = useOrgStore((state) => state.primaryOrgId);
+type ClientCollectionsForOrganisationProps = { organisationId: string | null };
+
+const ClientCollectionsForOrganisation = ({
+  organisationId,
+}: ClientCollectionsForOrganisationProps) => {
   const parentsById = useParentStore((state) => state.parentsById);
   const { can } = usePermissions();
   const canEditBilling = can(PERMISSIONS.BILLING_EDIT_ANY);
@@ -169,6 +172,16 @@ const ClientCollections = () => {
         />
       </div>
     </PermissionGate>
+  );
+};
+
+const ClientCollections = () => {
+  const organisationId = useOrgStore((state) => state.primaryOrgId);
+  return (
+    <ClientCollectionsForOrganisation
+      key={organisationId ?? 'none'}
+      organisationId={organisationId}
+    />
   );
 };
 
