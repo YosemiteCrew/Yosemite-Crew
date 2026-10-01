@@ -570,6 +570,44 @@ describe('VoiceCapture', () => {
     expect(fields[0].id).not.toBe(fields[1].id);
   });
 
+  it('ignores a final phrase the engine reports after it has already ended', async () => {
+    const user = userEvent.setup();
+    const transcriber = makeSupportedTranscriber();
+    render(<VoiceCapture transcriber={transcriber} />);
+
+    await startListening(user);
+    await emit(transcriber, (t) => t.emitEnd());
+    await emit(transcriber, (t) => t.emitFinal('phantom words'));
+    await act(async () => {
+      mediaRecorderInstance?.onstop?.();
+    });
+
+    expect(screen.getByLabelText('Transcript')).toHaveValue('');
+    expect(screen.getByRole('alert')).toHaveTextContent('No speech was heard');
+  });
+
+  it('releases the microphone instead of starting the engine when the panel unmounts mid-prompt', async () => {
+    const user = userEvent.setup();
+    const transcriber = makeSupportedTranscriber();
+    let grantMicrophone: (stream: { getTracks: () => { stop: jest.Mock }[] }) => void = () => {};
+    getUserMedia.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          grantMicrophone = resolve as typeof grantMicrophone;
+        })
+    );
+    const { unmount } = render(<VoiceCapture transcriber={transcriber} />);
+
+    await user.click(screen.getByLabelText('Start voice recording'));
+    unmount();
+    await act(async () => {
+      grantMicrophone({ getTracks: () => [mockTrack] });
+    });
+
+    expect(mockTrack.stop).toHaveBeenCalled();
+    expect(transcriber.startCalls).toBe(0);
+  });
+
   it('cleans up the recorder, tracks, audio url, and transcriber on unmount', async () => {
     const user = userEvent.setup();
     const transcriber = makeSupportedTranscriber();
