@@ -99,11 +99,13 @@ export const GroupModal: FC<GroupModalProps> = ({
   onDelete,
 }) => {
   const [actionError, setActionError] = useState<string | null>(null);
-  const runAction = (action: () => Promise<void>) => {
+  const runAction = async (action: () => Promise<void>) => {
     setActionError(null);
-    action().catch(() => {
+    try {
+      await action();
+    } catch {
       setActionError('Unable to update this group. Please try again.');
-    });
+    }
   };
 
   const handleClose = () => {
@@ -140,21 +142,21 @@ export const GroupModal: FC<GroupModalProps> = ({
     if (availableUsers.length === 10) break;
   }
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title.trim() || members.length === 0) return;
-    runAction(() => onCreate(title.trim(), members));
+    await runAction(() => onCreate(title.trim(), members));
   };
 
-  const handleSaveTitle = () => {
+  const handleSaveTitle = async () => {
     if (!title.trim()) return;
-    runAction(() => onUpdateTitle(title.trim()));
+    await runAction(() => onUpdateTitle(title.trim()));
   };
 
   const handleAddMemberClick = (userId: string) => {
     if (mode === 'create') {
       onMembersChange([...members, userId]);
     } else {
-      runAction(() => onAddMember(userId));
+      return runAction(() => onAddMember(userId));
     }
   };
 
@@ -162,7 +164,7 @@ export const GroupModal: FC<GroupModalProps> = ({
     if (mode === 'create') {
       onMembersChange(members.filter((id) => id !== userId));
     } else {
-      runAction(() => onRemoveMember(userId));
+      return runAction(() => onRemoveMember(userId));
     }
   };
 
