@@ -260,6 +260,16 @@ describe('GroupModal', () => {
       expect(props.onRemoveMember).toHaveBeenCalledWith('u1');
     });
 
+    it('shows an error when removing a member fails', async () => {
+      setup(
+        editProps({ onRemoveMember: jest.fn().mockRejectedValue(new Error('request failed')) })
+      );
+      fireEvent.click(screen.getAllByTitle('Remove member')[0]);
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Unable to update this group. Please try again.'
+      );
+    });
+
     it('deletes the group', () => {
       const props = setup(editProps());
       fireEvent.click(screen.getByText('Delete Group'));

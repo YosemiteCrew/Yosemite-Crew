@@ -101,7 +101,7 @@ export const GroupModal: FC<GroupModalProps> = ({
   const [actionError, setActionError] = useState<string | null>(null);
   const runAction = (action: () => Promise<void>) => {
     setActionError(null);
-    return action().catch(() => {
+    action().catch(() => {
       setActionError('Unable to update this group. Please try again.');
     });
   };
@@ -142,12 +142,12 @@ export const GroupModal: FC<GroupModalProps> = ({
 
   const handleCreate = () => {
     if (!title.trim() || members.length === 0) return;
-    return runAction(() => onCreate(title.trim(), members));
+    runAction(() => onCreate(title.trim(), members));
   };
 
   const handleSaveTitle = () => {
     if (!title.trim()) return;
-    return runAction(() => onUpdateTitle(title.trim()));
+    runAction(() => onUpdateTitle(title.trim()));
   };
 
   const handleAddMemberClick = (userId: string) => {
