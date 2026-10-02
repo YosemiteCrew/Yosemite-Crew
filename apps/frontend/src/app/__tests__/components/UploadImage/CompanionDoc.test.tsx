@@ -37,7 +37,10 @@ describe('CompanionDoc', () => {
 
   it('passes props and resolves signed URL via api body', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { url: 'https://s3-url', key: 's3/key.pdf' },
+      data: {
+        url: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
+        key: 's3/key.pdf',
+      },
     });
     const onChange = jest.fn();
 

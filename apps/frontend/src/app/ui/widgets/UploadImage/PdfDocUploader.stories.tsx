@@ -1,6 +1,6 @@
-import type { ComponentProps } from 'react';
+import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import PdfDocUploader from './PdfDocUploader';
 
@@ -19,6 +19,11 @@ const stalledSigner: UploaderProps['getSignedUrl'] = () =>
 
 /** Built inside a render so no `File` is constructed while the CSF module is analysed. */
 const makePdf = (name: string) => new File(['fixture'], name, { type: 'application/pdf' });
+
+const UploadFailurePreview = (args: UploaderProps) => {
+  const [file, setFile] = useState<File | null>(null);
+  return <PdfDocUploader {...args} file={file} setFile={setFile} />;
+};
 
 const meta = {
   title: 'Widgets/PdfDocUploader',
@@ -95,5 +100,27 @@ export const LongFileName: Story = {
           'file name cannot push the remove control off the card.',
       },
     },
+  },
+};
+
+export const UploadFailed: Story = {
+  name: 'Upload failed',
+  render: (args) => <UploadFailurePreview {...args} />,
+  args: {
+    getSignedUrl: async () => {
+      throw new Error('Upload failed');
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.upload(
+      canvas.getByLabelText('Upload signed consent form', { selector: 'input' }),
+      makePdf('failed-upload.pdf')
+    );
+    await expect(await canvas.findByRole('alert')).toHaveTextContent(
+      'The PDF could not be uploaded. Try again.'
+    );
+    await expect(canvas.getByRole('button', { name: 'Retry upload' })).toBeInTheDocument();
+    await expect(canvas.getByText('failed-upload.pdf')).toBeInTheDocument();
   },
 };

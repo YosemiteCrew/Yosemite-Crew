@@ -1,9 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PdfDocUploader from '@/app/ui/widgets/UploadImage/PdfDocUploader';
-import axios from 'axios';
-
-jest.mock('axios');
 
 jest.mock('react-icons/io5', () => ({
   IoCloudUploadOutline: () => <span data-testid="icon-cloud" />,
@@ -15,6 +12,8 @@ describe('PdfDocUploader', () => {
   const mockOnChange = jest.fn();
   const mockSetFile = jest.fn();
   const mockGetSignedUrl = jest.fn();
+  const mockFetch = jest.fn();
+  const originalFetch = globalThis.fetch;
   const placeholder = 'Upload PDF';
 
   const createPdfFile = (name = 'test.pdf', size = 1024) => {
@@ -25,6 +24,12 @@ describe('PdfDocUploader', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    globalThis.fetch = mockFetch as unknown as typeof fetch;
+    mockFetch.mockResolvedValue({ ok: true } as Response);
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   it('renders the upload button and placeholder text', () => {
@@ -73,8 +78,10 @@ describe('PdfDocUploader', () => {
   });
 
   it('uploads a valid pdf: sets file, requests signed url, uploads to s3, and calls onChange', async () => {
-    mockGetSignedUrl.mockResolvedValue({ uploadUrl: 'https://s3.url', s3Key: 'uploads/test.pdf' });
-    (axios.put as jest.Mock).mockResolvedValue({});
+    mockGetSignedUrl.mockResolvedValue({
+      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
+      s3Key: 'uploads/test.pdf',
+    });
 
     render(
       <PdfDocUploader
@@ -95,16 +102,21 @@ describe('PdfDocUploader', () => {
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
     expect(mockGetSignedUrl).toHaveBeenCalledWith(file);
-    expect(axios.put).toHaveBeenCalledWith('https://s3.url', file, {
+    expect(mockFetch).toHaveBeenCalledWith('https://bucket.s3.us-east-1.amazonaws.com/upload', {
+      method: 'PUT',
+      body: file,
       headers: { 'Content-Type': 'application/pdf' },
-      withCredentials: false,
+      credentials: 'omit',
+      redirect: 'error',
     });
     expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024);
   });
 
   it('handles a file drop the same as a picked file', async () => {
-    mockGetSignedUrl.mockResolvedValue({ uploadUrl: 'https://s3.url', s3Key: 'key' });
-    (axios.put as jest.Mock).mockResolvedValue({});
+    mockGetSignedUrl.mockResolvedValue({
+      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
+      s3Key: 'key',
+    });
 
     render(
       <PdfDocUploader
@@ -126,6 +138,45 @@ describe('PdfDocUploader', () => {
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
     expect(mockGetSignedUrl).toHaveBeenCalledWith(file);
+  });
+
+  it('shows upload progress and ignores another file until the current upload settles', async () => {
+    let resolveSignedUrl: (signed: { uploadUrl: string; s3Key: string }) => void = () => {};
+    mockGetSignedUrl.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSignedUrl = resolve;
+        })
+    );
+
+    render(
+      <PdfDocUploader
+        placeholder={placeholder}
+        onChange={mockOnChange}
+        file={null}
+        setFile={mockSetFile}
+        getSignedUrl={mockGetSignedUrl}
+      />
+    );
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [createPdfFile()] } });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Uploading PDF…');
+    expect(screen.getByRole('button', { name: placeholder })).toBeDisabled();
+
+    fireEvent.change(input, { target: { files: [createPdfFile('second.pdf')] } });
+    expect(mockGetSignedUrl).toHaveBeenCalledTimes(1);
+
+    resolveSignedUrl({
+      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
+      s3Key: 'uploads/test.pdf',
+    });
+
+    await waitFor(() =>
+      expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024)
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('ignores non-pdf files', async () => {
@@ -188,10 +239,8 @@ describe('PdfDocUploader', () => {
     expect(mockSetFile).not.toHaveBeenCalled();
   });
 
-  it('logs the error and skips onChange when the upload flow rejects', async () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    const error = new Error('signed url failed');
-    mockGetSignedUrl.mockRejectedValue(error);
+  it('shows an error and skips onChange when the upload flow rejects', async () => {
+    mockGetSignedUrl.mockRejectedValue(new Error('signed url failed'));
 
     render(
       <PdfDocUploader
@@ -209,9 +258,97 @@ describe('PdfDocUploader', () => {
       fireEvent.change(input, { target: { files: [file] } });
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(error);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The PDF could not be uploaded. Try again.'
+    );
+    expect(mockSetFile).toHaveBeenCalledWith(file);
     expect(mockOnChange).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
+  });
+
+  it('shows an error when the upload request fails', async () => {
+    mockGetSignedUrl.mockResolvedValue({
+      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
+      s3Key: 'uploads/test.pdf',
+    });
+    mockFetch.mockResolvedValue({ ok: false } as Response);
+
+    render(
+      <PdfDocUploader
+        placeholder={placeholder}
+        onChange={mockOnChange}
+        file={null}
+        setFile={mockSetFile}
+        getSignedUrl={mockGetSignedUrl}
+      />
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [createPdfFile()] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The PDF could not be uploaded. Try again.'
+    );
+    expect(mockOnChange).not.toHaveBeenCalled();
+  });
+
+  const credentialedUrl = new URL('https://bucket.s3.us-east-1.amazonaws.com/upload');
+  credentialedUrl.username = 'test-user';
+  credentialedUrl.password = 'test-password';
+
+  it.each([
+    ['malformed', 'not-a-url'],
+    ['non-HTTPS', 'http://bucket.s3.us-east-1.amazonaws.com/upload'],
+    ['unapproved host', 'https://upload.invalid/file'],
+    ['non-default port', 'https://bucket.s3.us-east-1.amazonaws.com:8443/upload'],
+    ['nested AWS host', 'https://bucket.s3.region.extra.cluster.amazonaws.com/upload'],
+    ['credentialed', credentialedUrl.href],
+  ])('rejects a %s signed upload URL before sending a request', async (_label, uploadUrl) => {
+    mockGetSignedUrl.mockResolvedValue({ uploadUrl, s3Key: 'uploads/test.pdf' });
+
+    render(
+      <PdfDocUploader
+        placeholder={placeholder}
+        onChange={mockOnChange}
+        file={null}
+        setFile={mockSetFile}
+        getSignedUrl={mockGetSignedUrl}
+      />
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [createPdfFile()] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The PDF could not be uploaded. Try again.'
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockOnChange).not.toHaveBeenCalled();
+  });
+
+  it('retries a failed upload without selecting the file again', async () => {
+    mockGetSignedUrl.mockRejectedValueOnce(new Error('signed url failed')).mockResolvedValueOnce({
+      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
+      s3Key: 'uploads/test.pdf',
+    });
+
+    render(
+      <PdfDocUploader
+        placeholder={placeholder}
+        onChange={mockOnChange}
+        file={null}
+        setFile={mockSetFile}
+        getSignedUrl={mockGetSignedUrl}
+      />
+    );
+    const file = createPdfFile();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry upload' }));
+
+    await waitFor(() =>
+      expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024)
+    );
+    expect(mockGetSignedUrl).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('removes the selected file when the trash icon is clicked', () => {

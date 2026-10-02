@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import DocUploader from '@/app/ui/widgets/UploadImage/DocUploader';
 import { postData } from '@/app/services/axios';
-import axios from 'axios';
 
 // --- Mocks ---
 
@@ -11,8 +10,6 @@ import axios from 'axios';
 jest.mock('@/app/services/axios', () => ({
   postData: jest.fn(),
 }));
-
-jest.mock('axios');
 
 // 2. Mock Icons
 jest.mock(
@@ -41,6 +38,8 @@ describe('DocUploader Component', () => {
   const mockSetFile = jest.fn();
   const mockApiUrl = '/api/upload';
   const mockPlaceholder = 'Upload PDF';
+  const mockFetch = jest.fn();
+  const originalFetch = globalThis.fetch;
 
   // Helper to create a dummy PDF file
   const createPdfFile = (name = 'test.pdf', size = 1024) => {
@@ -51,6 +50,12 @@ describe('DocUploader Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    globalThis.fetch = mockFetch as unknown as typeof fetch;
+    mockFetch.mockResolvedValue({ ok: true } as Response);
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   // --- Section 1: Rendering ---
@@ -110,9 +115,8 @@ describe('DocUploader Component', () => {
 
   it('handles file selection via input change', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: 'url', s3Key: 'key' },
+      data: { uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload', s3Key: 'key' },
     });
-    (axios.put as jest.Mock).mockResolvedValue({});
 
     render(
       <DocUploader
@@ -138,9 +142,8 @@ describe('DocUploader Component', () => {
 
   it('handles file drop event', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: 'url', s3Key: 'key' },
+      data: { uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload', s3Key: 'key' },
     });
-    (axios.put as jest.Mock).mockResolvedValue({});
 
     render(
       <DocUploader
@@ -242,9 +245,11 @@ describe('DocUploader Component', () => {
   // --- Section 4: API & Error Handling ---
   it('uploads file successfully (getSignedUrl -> uploadToS3 -> onChange)', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: 'https://s3.url', s3Key: 'uploads/test.pdf' },
+      data: {
+        uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
+        s3Key: 'uploads/test.pdf',
+      },
     });
-    (axios.put as jest.Mock).mockResolvedValue({});
 
     render(
       <DocUploader
@@ -269,19 +274,20 @@ describe('DocUploader Component', () => {
     });
 
     // 2. Verify S3 Upload
-    expect(axios.put).toHaveBeenCalledWith('https://s3.url', file, {
+    expect(mockFetch).toHaveBeenCalledWith('https://bucket.s3.us-east-1.amazonaws.com/upload', {
+      method: 'PUT',
+      body: file,
       headers: { 'Content-Type': 'application/pdf' },
-      withCredentials: false,
+      credentials: 'omit',
+      redirect: 'error',
     });
 
     // 3. Verify Callback
     expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024);
   });
 
-  it('logs error if upload process fails', async () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    const error = new Error('Upload Failed');
-    (postData as jest.Mock).mockRejectedValue(error);
+  it('shows an upload error if the signed URL request fails', async () => {
+    (postData as jest.Mock).mockRejectedValue(new Error('Upload Failed'));
 
     render(
       <DocUploader
@@ -300,10 +306,10 @@ describe('DocUploader Component', () => {
       fireEvent.change(input, { target: { files: [file] } });
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(error);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The PDF could not be uploaded. Try again.'
+    );
     expect(mockOnChange).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it('removes the file when trash icon is clicked', () => {

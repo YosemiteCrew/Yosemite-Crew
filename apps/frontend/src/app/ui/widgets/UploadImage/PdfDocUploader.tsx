@@ -1,10 +1,20 @@
-import React, { useRef } from 'react';
-import axios from 'axios';
+import React, { useRef, useState } from 'react';
 import { IoCloudUploadOutline, IoDocumentTextOutline, IoTrashOutline } from 'react-icons/io5';
 
 import './UploadImage.css';
 
 const allowedTypes = new Set(['application/pdf']);
+
+const isS3UploadHost = (hostname: string) => {
+  const labels = hostname.toLowerCase().split('.');
+  if (labels.slice(-2).join('.') !== 'amazonaws.com') return false;
+
+  const serviceLabels = labels.slice(0, -2);
+  const s3LabelIndex = serviceLabels.findIndex(
+    (label) => label === 's3' || label.startsWith('s3-')
+  );
+  return s3LabelIndex >= 0 && serviceLabels.length - s3LabelIndex <= 3;
+};
 
 type SignedUrlResult = {
   uploadUrl: string;
@@ -21,10 +31,29 @@ type PdfDocUploaderProps = {
 };
 
 const uploadPdfToS3 = async (uploadUrl: string, file: File) => {
-  await axios.put(uploadUrl, file, {
-    headers: { 'Content-Type': file?.type },
-    withCredentials: false,
+  let url: URL;
+  try {
+    url = new URL(uploadUrl);
+  } catch {
+    throw new Error('Invalid upload URL.');
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.port ||
+    url.username ||
+    url.password ||
+    !isS3UploadHost(url.hostname)
+  ) {
+    throw new Error('Invalid upload URL.');
+  }
+  const response = await fetch(url.href, {
+    method: 'PUT',
+    body: file,
+    headers: { 'Content-Type': file.type },
+    credentials: 'omit',
+    redirect: 'error',
   });
+  if (!response.ok) throw new Error('Upload failed.');
 };
 
 const validatePdfFile = (f: File) => {
@@ -41,19 +70,31 @@ const PdfDocUploader = ({
   getSignedUrl,
 }: Readonly<PdfDocUploaderProps>) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [failedFile, setFailedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleFiles = async (fileList: FileList | null) => {
-    if (!fileList) return;
-    const picked = Array.from(fileList)[0];
-    if (!picked || !validatePdfFile(picked)) return;
+  const uploadFile = (picked: File) => {
     setFile(picked);
-    try {
-      const signed = await getSignedUrl(picked);
-      await uploadPdfToS3(signed.uploadUrl, picked);
-      onChange(signed.s3Key, picked.type, picked.size);
-    } catch (err: any) {
-      console.log(err);
-    }
+    setUploadError(null);
+    setFailedFile(null);
+    setIsUploading(true);
+    getSignedUrl(picked)
+      .then(async (signed) => {
+        await uploadPdfToS3(signed.uploadUrl, picked);
+        onChange(signed.s3Key, picked.type, picked.size);
+      })
+      .catch(() => {
+        setUploadError('The PDF could not be uploaded. Try again.');
+        setFailedFile(picked);
+      })
+      .finally(() => setIsUploading(false));
+  };
+
+  const handleFiles = (fileList: FileList | null) => {
+    const picked = fileList?.[0];
+    if (isUploading || !picked || !validatePdfFile(picked)) return;
+    uploadFile(picked);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
@@ -62,6 +103,8 @@ const PdfDocUploader = ({
   };
 
   const handleRemove = () => {
+    setUploadError(null);
+    setFailedFile(null);
     setFile(null);
   };
 
@@ -74,6 +117,8 @@ const PdfDocUploader = ({
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
         aria-label={placeholder}
+        aria-busy={isUploading}
+        disabled={isUploading}
       >
         <div className="upldCont">
           <IoCloudUploadOutline className="upload-cloud" />
@@ -89,10 +134,31 @@ const PdfDocUploader = ({
             accept=".pdf"
             style={{ display: 'none' }}
             aria-label={placeholder}
+            disabled={isUploading}
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
       </button>
+
+      {isUploading && (
+        <p className="mt-2 text-sm text-text-secondary" role="status">
+          Uploading PDF…
+        </p>
+      )}
+
+      {uploadError && (
+        <div className="mt-2 flex items-center gap-3 text-sm text-[var(--danger)]" role="alert">
+          <span>{uploadError}</span>
+          <button
+            type="button"
+            onClick={() => failedFile && uploadFile(failedFile)}
+            disabled={isUploading}
+            className="font-medium underline disabled:cursor-wait disabled:opacity-60"
+          >
+            {isUploading ? 'Retrying…' : 'Retry upload'}
+          </button>
+        </div>
+      )}
 
       {file && (
         <div
@@ -110,6 +176,7 @@ const PdfDocUploader = ({
             className="absolute top-3 right-3 cursor-pointer"
             onClick={handleRemove}
             aria-label={`Remove ${file.name}`}
+            disabled={isUploading}
           >
             <IoTrashOutline color="var(--danger)" />
           </button>
