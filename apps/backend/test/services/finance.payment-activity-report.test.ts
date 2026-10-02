@@ -50,6 +50,37 @@ describe("payment activity report", () => {
     (prisma.refund.findMany as jest.Mock).mockResolvedValue([]);
   });
 
+  it("normalizes each payment currency once before totaling", async () => {
+    (prisma.payment.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: "payment-1",
+        amount: 10,
+        currency: "eur",
+        status: "SUCCEEDED",
+        provider: "MANUAL",
+        paidAt: new Date("2026-09-10T00:00:00.000Z"),
+        createdAt: new Date("2026-09-10T00:00:00.000Z"),
+        invoiceId: "invoice-1",
+      },
+    ]);
+    const uppercaseSpy = jest.spyOn(String.prototype, "toUpperCase");
+
+    try {
+      const result = await getPaymentActivityReport("org-1", from, to);
+      const currencyCalls = uppercaseSpy.mock.contexts
+        .map((value) => String(value))
+        .filter((value) => value === "eur" || value === "EUR");
+
+      expect(result.totals).toEqual([
+        { currency: "EUR", payments: 10, refunds: 0, net: 10 },
+      ]);
+      expect(currencyCalls.filter((value) => value === "eur")).toHaveLength(1);
+      expect(currencyCalls).toHaveLength(3);
+    } finally {
+      uppercaseSpy.mockRestore();
+    }
+  });
+
   it("returns organisation-scoped payments and refunds with currency-specific totals", async () => {
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([
       {
