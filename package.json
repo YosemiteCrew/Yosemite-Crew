@@ -178,6 +178,13 @@
       "@noble/hashes@1": "2.4.0",
       "image-size": "2.0.3"
     },
+    "packageExtensions": {
+      "react-native-bootsplash": {
+        "dependencies": {
+          "semver": "^7.7.4"
+        }
+      }
+    },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch",
       "body-parser@1.20.6": "patches/body-parser@1.20.6.patch",

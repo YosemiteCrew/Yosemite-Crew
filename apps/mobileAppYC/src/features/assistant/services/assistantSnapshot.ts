@@ -66,51 +66,64 @@ export const buildSnapshot = (
   const nameById = new Map(pets.map(pet => [pet.id, pet.name]));
   const horizon = context.now.getTime() + UPCOMING_WINDOW_DAYS * MS_PER_DAY;
 
-  const appointments = context.appointments
-    .filter(appointment => nameById.has(appointment.companionId))
-    .filter(appointment => !TERMINAL_STATUSES.has(appointment.status))
-    .map(appointment => ({
-      appointment,
-      startsAt: appointmentStartsAt(appointment),
-    }))
-    .filter(
-      entry =>
-        entry.startsAt !== null &&
-        entry.startsAt.getTime() >= context.now.getTime() &&
-        entry.startsAt.getTime() <= horizon,
-    )
-    .sort(
-      (a, b) => (a.startsAt as Date).getTime() - (b.startsAt as Date).getTime(),
-    )
+  const upcomingAppointments: {
+    appointment: AssistantContext['appointments'][number];
+    startsAt: Date;
+  }[] = [];
+  for (const appointment of context.appointments) {
+    if (
+      !nameById.has(appointment.companionId) ||
+      TERMINAL_STATUSES.has(appointment.status)
+    ) {
+      continue;
+    }
+    const startsAt = appointmentStartsAt(appointment);
+    if (
+      startsAt !== null &&
+      startsAt.getTime() >= context.now.getTime() &&
+      startsAt.getTime() <= horizon
+    ) {
+      upcomingAppointments.push({appointment, startsAt});
+    }
+  }
+  const appointments = upcomingAppointments
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
     .slice(0, SNAPSHOT_ITEM_LIMIT)
     .map(entry => ({
       petId: entry.appointment.companionId,
       petName: nameById.get(entry.appointment.companionId) ?? '',
       title: entry.appointment.serviceName ?? entry.appointment.type ?? '',
-      at: (entry.startsAt as Date).toISOString(),
+      at: entry.startsAt.toISOString(),
       subtitle: entry.appointment.organisationName ?? undefined,
     }));
 
-  const tasks = context.tasks
-    .filter(task => nameById.has(task.companionId))
-    .filter(task => {
-      const status = String(task.status ?? '').toUpperCase();
-      return status !== 'COMPLETED' && status !== 'CANCELLED';
-    })
-    .map(task => ({task, dueAt: taskDueAt(task)}))
-    .filter(
-      entry =>
-        entry.dueAt !== null &&
-        entry.dueAt.getTime() >= context.now.getTime() - MS_PER_DAY &&
-        entry.dueAt.getTime() <= horizon,
-    )
-    .sort((a, b) => (a.dueAt as Date).getTime() - (b.dueAt as Date).getTime())
+  const dueTasks: {task: AssistantContext['tasks'][number]; dueAt: Date}[] = [];
+  for (const task of context.tasks) {
+    const status = String(task.status ?? '').toUpperCase();
+    if (
+      !nameById.has(task.companionId) ||
+      status === 'COMPLETED' ||
+      status === 'CANCELLED'
+    ) {
+      continue;
+    }
+    const dueAt = taskDueAt(task);
+    if (
+      dueAt !== null &&
+      dueAt.getTime() >= context.now.getTime() - MS_PER_DAY &&
+      dueAt.getTime() <= horizon
+    ) {
+      dueTasks.push({task, dueAt});
+    }
+  }
+  const tasks = dueTasks
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
     .slice(0, SNAPSHOT_ITEM_LIMIT)
     .map(entry => ({
       petId: entry.task.companionId,
       petName: nameById.get(entry.task.companionId) ?? '',
       title: taskLabel(entry.task),
-      at: (entry.dueAt as Date).toISOString(),
+      at: entry.dueAt.toISOString(),
     }));
 
   // Overdue shots matter, so they stay - but only recent ones. Without a lower

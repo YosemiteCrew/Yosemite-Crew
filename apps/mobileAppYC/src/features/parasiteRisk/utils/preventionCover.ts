@@ -62,29 +62,25 @@ export function resolvePreventionCover(
 
   if (relevant.length === 0) return {status: 'none'};
 
+  const completed: {task: Task; completedAt: number}[] = [];
+  const overdue: number[] = [];
+  for (const task of relevant) {
+    if (isCompleted(task)) {
+      const completedAt = dueTimestamp({
+        ...task,
+        dueAt: task.completedAt ?? task.dueAt,
+      });
+      if (completedAt !== null) completed.push({task, completedAt});
+    } else {
+      const due = dueTimestamp(task);
+      if (due !== null && due < now) overdue.push(due);
+    }
+  }
   // Sorted newest first, so the head is the most recent completion. Compared
   // explicitly rather than relying on the default sort, which is a stringify
   // comparison that only happens to work for ISO timestamps.
-  const completed = relevant
-    .filter(isCompleted)
-    .map(task => ({
-      task,
-      completedAt: dueTimestamp({
-        ...task,
-        dueAt: task.completedAt ?? task.dueAt,
-      }),
-    }))
-    .filter(
-      (value): value is {task: Task; completedAt: number} =>
-        value.completedAt !== null,
-    )
-    .sort((a, b) => b.completedAt - a.completedAt);
-
-  const overdue = relevant
-    .filter(task => !isCompleted(task))
-    .map(dueTimestamp)
-    .filter((value): value is number => value !== null && value < now)
-    .sort((a, b) => a - b);
+  completed.sort((a, b) => b.completedAt - a.completedAt);
+  overdue.sort((a, b) => a - b);
 
   // An outstanding past-due task is the strongest signal, and we report the
   // oldest one because that is how long there has actually been a gap.
