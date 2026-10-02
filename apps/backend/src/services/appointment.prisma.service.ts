@@ -2042,6 +2042,15 @@ const createAppointments = async (
   const encounterId = normalizeOptionalString(input.encounterId);
   if (series) {
     validateWeeklyOccurrences(occurrences, series.timeZone);
+    if (
+      occurrences[0].startTime.getTime() !== input.startTime.getTime() ||
+      occurrences[0].endTime.getTime() !== input.endTime.getTime()
+    ) {
+      throw new AppointmentPrismaServiceError(
+        "The preview must include the selected appointment first.",
+        400,
+      );
+    }
     if (encounterId) {
       throw new AppointmentPrismaServiceError(
         "An appointment series cannot share one visit record.",
@@ -2475,17 +2484,7 @@ export const AppointmentPrismaService = {
     paymentCollectionMethod?: string,
     actorId?: string,
   ) {
-    validateWeeklyOccurrences(occurrences, recurrenceTimeZone);
     const input = fromAppointmentRequestDTO(dto);
-    if (
-      occurrences[0].startTime.getTime() !== input.startTime.getTime() ||
-      occurrences[0].endTime.getTime() !== input.endTime.getTime()
-    ) {
-      throw new AppointmentPrismaServiceError(
-        "The preview must include the selected appointment first.",
-        400,
-      );
-    }
     const resolvedPaymentCollectionMethod =
       resolvePaymentCollectionMethod(paymentCollectionMethod, (message) => {
         return new AppointmentPrismaServiceError(message, 400);
