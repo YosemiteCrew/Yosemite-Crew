@@ -168,6 +168,10 @@ export const GroupModal: FC<GroupModalProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    await runAction(onDelete);
+  };
+
   const emptyTeammatesMessage = () => {
     if (orgUsers.length === 0) return 'No teammates available. Please wait...';
     if (search.trim()) return 'No teammates match your search.';
@@ -357,7 +361,7 @@ export const GroupModal: FC<GroupModalProps> = ({
             <ModalFooter align="stretch">
               <Delete
                 text={busy ? 'Deleting...' : 'Delete Group'}
-                onClick={() => runAction(onDelete)}
+                onClick={handleDelete}
                 isDisabled={busy}
               />
             </ModalFooter>

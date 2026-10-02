@@ -276,6 +276,14 @@ describe('GroupModal', () => {
       expect(props.onDelete).toHaveBeenCalled();
     });
 
+    it('shows an error when deleting the group fails', async () => {
+      setup(editProps({ onDelete: jest.fn().mockRejectedValue(new Error('request failed')) }));
+      fireEvent.click(screen.getByText('Delete Group'));
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Unable to update this group. Please try again.'
+      );
+    });
+
     it('treats a practitionerId-matched owner as the creator', () => {
       setup({
         mode: 'edit',
