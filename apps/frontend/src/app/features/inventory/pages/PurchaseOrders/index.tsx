@@ -12,8 +12,7 @@ import {
 import { IoAddOutline, IoPrintOutline, IoTrashOutline } from 'react-icons/io5';
 import Button from '@/app/ui/Button';
 import Card from '@/app/ui/Card';
-import Input from '@/app/ui/Input';
-import { Textarea } from '@/app/ui/Input';
+import Input, { Textarea } from '@/app/ui/Input';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import PermissionGate from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
@@ -149,7 +148,7 @@ const PurchaseOrderForm = ({
               </p>
             </div>
             <label className="grid gap-1 text-sm text-text-secondary">
-              Supplier
+              {'Supplier'}
               <select
                 required
                 value={form.vendorId}
@@ -181,7 +180,7 @@ const PurchaseOrderForm = ({
               />
             </label>
             <label className="grid gap-1 text-sm text-text-secondary">
-              Currency
+              {'Currency'}
               <select
                 value={form.currency}
                 onChange={(event) => onFormChange({ currency: event.target.value })}
@@ -224,7 +223,7 @@ const PurchaseOrderForm = ({
                 className="grid gap-2 rounded-xl border border-card-border p-3 sm:grid-cols-[minmax(0,2fr)_1fr_1fr_auto] sm:items-end"
               >
                 <label className="grid gap-1 text-sm text-text-secondary">
-                  Product
+                  {'Product'}
                   <select
                     required
                     value={line.itemId}
