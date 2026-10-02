@@ -72,6 +72,19 @@ const feedbackKey = (appointmentId: string, userId: string) => ({
   appointmentId_userId: { appointmentId, userId },
 });
 
+const toFeedbackResponse = (
+  feedback:
+    | { rating: number; review: string | null; practitionerName: string | null }
+    | null
+    | undefined,
+  practitionerName: string,
+) => ({
+  isRated: Boolean(feedback),
+  rating: feedback?.rating ?? null,
+  review: feedback?.review ?? null,
+  practitionerName: feedback?.practitionerName ?? practitionerName,
+});
+
 const validateFeedback = (rating: number, review?: string) => {
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     throw new PractitionerFeedbackServiceError(
@@ -134,22 +147,7 @@ export const PractitionerFeedbackService = {
     return Object.fromEntries(
       completedAppointments.map(({ appointmentId, practitionerName }) => {
         const feedback = feedbackByAppointmentId.get(appointmentId);
-        return [
-          appointmentId,
-          feedback
-            ? {
-                isRated: true,
-                rating: feedback.rating,
-                review: feedback.review,
-                practitionerName: feedback.practitionerName,
-              }
-            : {
-                isRated: false,
-                rating: null,
-                review: null,
-                practitionerName,
-              },
-        ];
+        return [appointmentId, toFeedbackResponse(feedback, practitionerName)];
       }),
     );
   },
@@ -160,19 +158,7 @@ export const PractitionerFeedbackService = {
       where: feedbackKey(appointmentId, parentId),
     });
 
-    return feedback
-      ? {
-          isRated: true,
-          rating: feedback.rating,
-          review: feedback.review,
-          practitionerName: feedback.practitionerName,
-        }
-      : {
-          isRated: false,
-          rating: null,
-          review: null,
-          practitionerName: target.feedback.practitionerName,
-        };
+    return toFeedbackResponse(feedback, target.feedback.practitionerName);
   },
 
   async rateAppointment(
