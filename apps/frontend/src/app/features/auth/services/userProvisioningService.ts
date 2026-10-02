@@ -7,6 +7,22 @@ const PROVISION_RETRY_BASE_MS = 800;
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+const attemptProvisioning = async (
+  body: { firstName: string; lastName: string; role: string } | undefined,
+  attempt = 0
+): Promise<boolean> => {
+  try {
+    await postData('/fhir/v1/user', body);
+    return true;
+  } catch (error: unknown) {
+    if (isAuthRedirectError(error)) throw error;
+    logger.warn(`Backend user provisioning attempt ${attempt + 1} failed`, error);
+    if (attempt === PROVISION_MAX_ATTEMPTS - 1) return false;
+    await delay(PROVISION_RETRY_BASE_MS * 2 ** attempt);
+    return attemptProvisioning(body, attempt + 1);
+  }
+};
+
 /**
  * Creates the backend user record for a freshly confirmed account. The name and
  * role captured on the sign-up form (held in the auth store as pendingSignUp)
@@ -27,16 +43,5 @@ export const provisionBackendUser = async (): Promise<boolean> => {
       }
     : undefined;
 
-  let provisioning = postData('/fhir/v1/user', body).then(() => true);
-  for (let attempt = 0; attempt < PROVISION_MAX_ATTEMPTS; attempt += 1) {
-    provisioning = provisioning.catch(async (error: unknown) => {
-      if (isAuthRedirectError(error)) throw error;
-      logger.warn(`Backend user provisioning attempt ${attempt + 1} failed`, error);
-      if (attempt === PROVISION_MAX_ATTEMPTS - 1) return false;
-      await delay(PROVISION_RETRY_BASE_MS * 2 ** attempt);
-      await postData('/fhir/v1/user', body);
-      return true;
-    });
-  }
-  return provisioning;
+  return attemptProvisioning(body);
 };
