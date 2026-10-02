@@ -103,6 +103,14 @@ const formatMoney = (amount: number, currency: string) => {
   return formatter.format(amount);
 };
 
+const getCommittedSpend = (orders: PurchaseOrder[]) =>
+  orders.reduce<Record<string, number>>((totals, order) => {
+    if (order.status === 'CONFIRMED' || order.status === 'PARTIALLY_RECEIVED') {
+      totals[order.currency] = (totals[order.currency] ?? 0) + order.totalAmount;
+    }
+    return totals;
+  }, {});
+
 type PurchaseOrderFormProps = {
   form: CreateOrderForm;
   vendors: PurchaseOrderVendor[];
@@ -848,6 +856,12 @@ const PurchasingSummary = ({
   </section>
 );
 
+const PurchaseOrdersLoading = () => (
+  <div className="px-6 py-8" aria-label="Loading purchase orders">
+    <div className="h-36 animate-pulse rounded-2xl bg-card-hover" />
+  </div>
+);
+
 export const PurchaseOrdersContent = () => {
   useLoadOrg();
   const organisationId = useOrgStore((state) => state.primaryOrgId);
@@ -952,16 +966,7 @@ export const PurchaseOrdersContent = () => {
     (sum, line) => sum + outstandingQuantity(line),
     0
   );
-  const openOrders = orders.filter((order) =>
-    ['CONFIRMED', 'PARTIALLY_RECEIVED'].includes(order.status)
-  );
-  const committedSpend = openOrders.reduce<Record<string, number>>(
-    (totals, order) => ({
-      ...totals,
-      [order.currency]: (totals[order.currency] ?? 0) + order.totalAmount,
-    }),
-    {}
-  );
+  const committedSpend = getCommittedSpend(orders);
 
   const closeReceiving = () => updateReceiveForm({ order: null, lines: [] });
 
@@ -1069,12 +1074,7 @@ export const PurchaseOrdersContent = () => {
     );
   };
 
-  if (loading)
-    return (
-      <div className="px-6 py-8" aria-label="Loading purchase orders">
-        <div className="h-36 animate-pulse rounded-2xl bg-card-hover" />
-      </div>
-    );
+  if (loading) return <PurchaseOrdersLoading />;
 
   return (
     <PermissionGate allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]} fallback={<Fallback />}>

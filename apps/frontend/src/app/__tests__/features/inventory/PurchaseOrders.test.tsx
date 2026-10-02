@@ -122,6 +122,9 @@ describe('PurchaseOrdersContent', () => {
     expect(screen.getByText('6 units')).toBeVisible();
     expect(screen.getByText('North Shore Supply')).toBeVisible();
     expect(screen.getByText('6', { selector: 'p' })).toBeVisible();
+    expect(
+      within(screen.getByRole('region', { name: 'Purchasing summary' })).getByText('€90.00')
+    ).toBeVisible();
     expect(mockedFetchOrders).toHaveBeenCalledWith('org-1', 1);
   });
 
