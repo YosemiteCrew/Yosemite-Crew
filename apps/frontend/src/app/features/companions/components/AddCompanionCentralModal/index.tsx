@@ -521,7 +521,7 @@ const useAddCompanionCentralModalContent = ({
   // ── Breed codes ──
   useEffect(() => {
     const signal = { cancelled: false };
-    loadBreedOptions(speciesOptions, companionFormData.type, setBreedOptions, signal);
+    void loadBreedOptions(speciesOptions, companionFormData.type, setBreedOptions, signal);
     return () => {
       signal.cancelled = true;
     };
