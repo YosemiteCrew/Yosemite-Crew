@@ -1,0 +1,84 @@
+name: React Doctor score
+description: >
+  Scans one React app with React Doctor and holds its whole-app score to a
+  minimum. Error-level diagnostics fail the scan step; a score below the minimum
+  fails the score step whatever the error count; a missing score is retried once
+  and then fails, so the check never passes without a score.
+
+inputs:
+  directory:
+    description: App directory to scan, relative to the repository root.
+    required: true
+  minimum-score:
+    description: Lowest whole-app score that passes. Raise it as the apps improve; never lower it to land a change.
+    required: false
+    default: '95'
+  version:
+    description: >
+      React Doctor CLI version, pinned. react-doctor@0.7.5+ emits report
+      schemaVersion 3, which the pinned action rejects as an unrecognized
+      payload ("Scan could not complete"); 0.7.4 emits schema 1.
+    required: false
+    default: '0.7.4'
+
+runs:
+  using: composite
+  steps:
+    - name: Run React Doctor
+      id: react-doctor
+      uses: millionco/react-doctor@013f7373f91a3b9e68bd1dc7d4d354f4b041b117 # v2.2.9
+      with:
+        directory: ${{ inputs.directory }}
+        blocking: error
+        node-version: '22'
+        # Score the whole app. The default pull request scope scores only what
+        # the pull request touched, which says nothing about the app's score and
+        # returns no score at all when no React file changed.
+        scope: full
+        version: ${{ inputs.version }}
+
+    - name: Enforce React Doctor score
+      shell: bash
+      env:
+        REACT_DOCTOR_SCORE: ${{ steps.react-doctor.outputs.score }}
+        REACT_DOCTOR_DIRECTORY: ${{ inputs.directory }}
+        REACT_DOCTOR_MIN_SCORE: ${{ inputs.minimum-score }}
+        REACT_DOCTOR_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        score="${REACT_DOCTOR_SCORE:-}"
+
+        # The score comes from a remote scoring service. When it does not
+        # answer, scan again once; if there is still no score, fail rather
+        # than pass a check that measured nothing.
+        if [ -z "$score" ]; then
+          echo "::warning::React Doctor returned no score for $REACT_DOCTOR_DIRECTORY. Scanning once more."
+          sleep 30
+          report="${RUNNER_TEMP:-/tmp}/react-doctor-score-retry.json"
+          npm exec --yes --package "react-doctor@${REACT_DOCTOR_VERSION}" -- \
+            react-doctor "$REACT_DOCTOR_DIRECTORY" --json --json-compact --blocking none --project '*' --scope full \
+            > "$report" || true
+          score="$(node -e '
+            try {
+              const value = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).summary?.score;
+              if (typeof value === "number") process.stdout.write(String(value));
+            } catch {}
+          ' "$report")"
+        fi
+
+        if [ -z "$score" ]; then
+          echo "::error::React Doctor returned no score for $REACT_DOCTOR_DIRECTORY on two attempts, so the minimum of $REACT_DOCTOR_MIN_SCORE could not be checked. The scoring service may be unavailable; re-run this job. The check fails instead of passing unchecked."
+          exit 1
+        fi
+
+        if ! [[ "$score" =~ ^[0-9]+$ ]]; then
+          echo "::error::React Doctor returned an unexpected score '$score' for $REACT_DOCTOR_DIRECTORY."
+          exit 1
+        fi
+
+        echo "React Doctor score for $REACT_DOCTOR_DIRECTORY: $score (minimum $REACT_DOCTOR_MIN_SCORE)"
+        if [ "$score" -lt "$REACT_DOCTOR_MIN_SCORE" ]; then
+          echo "::error::React Doctor score $score for $REACT_DOCTOR_DIRECTORY is below the required $REACT_DOCTOR_MIN_SCORE. The scan summary above lists the findings to fix."
+          exit 1
+        fi
