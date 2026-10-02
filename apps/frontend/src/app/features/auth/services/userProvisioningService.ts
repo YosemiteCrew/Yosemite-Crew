@@ -27,16 +27,16 @@ export const provisionBackendUser = async (): Promise<boolean> => {
       }
     : undefined;
 
-  return Array.from({ length: PROVISION_MAX_ATTEMPTS }).reduce<Promise<boolean>>(
-    (provisioning, _, attempt) =>
-      provisioning.catch((error: unknown) => {
-        if (isAuthRedirectError(error)) throw error;
-        logger.warn(`Backend user provisioning attempt ${attempt + 1} failed`, error);
-        if (attempt === PROVISION_MAX_ATTEMPTS - 1) return false;
-        return delay(PROVISION_RETRY_BASE_MS * 2 ** attempt)
-          .then(() => postData('/fhir/v1/user', body))
-          .then(() => true);
-      }),
-    postData('/fhir/v1/user', body).then(() => true)
-  );
+  let provisioning = postData('/fhir/v1/user', body).then(() => true);
+  for (let attempt = 0; attempt < PROVISION_MAX_ATTEMPTS; attempt += 1) {
+    provisioning = provisioning.catch(async (error: unknown) => {
+      if (isAuthRedirectError(error)) throw error;
+      logger.warn(`Backend user provisioning attempt ${attempt + 1} failed`, error);
+      if (attempt === PROVISION_MAX_ATTEMPTS - 1) return false;
+      await delay(PROVISION_RETRY_BASE_MS * 2 ** attempt);
+      await postData('/fhir/v1/user', body);
+      return true;
+    });
+  }
+  return provisioning;
 };
