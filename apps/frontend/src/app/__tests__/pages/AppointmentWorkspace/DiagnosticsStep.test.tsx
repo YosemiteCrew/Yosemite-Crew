@@ -576,6 +576,20 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(screen.getByText(/No results available yet/i)).toBeInTheDocument();
   });
 
+  it('expands the first result when results arrive after the section mounts', async () => {
+    mockUseLabTests.mockReturnValue(baseHook({ results: [] }));
+    const { rerender } = render(
+      <DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />
+    );
+
+    expect(screen.queryByTestId('category-r1')).not.toBeInTheDocument();
+
+    mockUseLabTests.mockReturnValue(baseHook({ results: [makeResult()] }));
+    rerender(<DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />);
+
+    await waitFor(() => expect(screen.getByTestId('category-r1')).toBeInTheDocument());
+  });
+
   it('renders the order iframe overlay when showOrderIframe is set', () => {
     renderStep({ showOrderIframe: true, iframeOrderUiUrl: 'https://idexx.test/frame' });
 
