@@ -762,6 +762,92 @@ const PurchaseOrderPrintView = ({ order, vendorById, itemById }: PurchaseOrderPr
     </>
   ) : null;
 
+const PurchaseOrdersHeader = ({
+  canEdit,
+  showCreateForm,
+  error,
+  loadFailed,
+  onToggleCreate,
+  onRetry,
+}: {
+  canEdit: boolean;
+  showCreateForm: boolean;
+  error: string | null;
+  loadFailed: boolean;
+  onToggleCreate: () => void;
+  onRetry: () => void;
+}) => (
+  <>
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-start gap-3">
+        <Button text="Back to inventory" href="/inventory" variant="secondary" className="mt-0.5" />
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">
+            Stock / Purchasing
+          </p>
+          <h1 className="text-page-title mt-1">Purchase orders</h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            Order stock, confirm supplier commitments, and track each delivery.
+          </p>
+        </div>
+      </div>
+      {canEdit && (
+        <Button
+          text={showCreateForm ? 'Close form' : 'New order'}
+          variant="primary"
+          onClick={onToggleCreate}
+        />
+      )}
+    </header>
+    {error && (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]"
+      >
+        <p>{error}</p>
+        {loadFailed && <Button text="Retry loading" variant="secondary" onClick={onRetry} />}
+      </div>
+    )}
+  </>
+);
+
+const PurchasingSummary = ({
+  totalOrderCount,
+  outstandingUnits,
+  committedSpend,
+}: {
+  totalOrderCount: number;
+  outstandingUnits: number;
+  committedSpend: Record<string, number>;
+}) => (
+  <section aria-label="Purchasing summary" className="grid gap-3 sm:grid-cols-3">
+    <Card className="p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Orders</p>
+      <p className="mt-2 text-2xl font-semibold text-text-primary">{totalOrderCount}</p>
+    </Card>
+    <Card className="p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+        Units outstanding
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-text-primary">{outstandingUnits}</p>
+    </Card>
+    <Card className="p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+        Open value on this page
+      </p>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-lg font-semibold text-text-primary">
+        {Object.entries(committedSpend).length ? (
+          Object.entries(committedSpend).map(([unit, amount]) => (
+            <span key={unit}>{formatMoney(amount, unit)}</span>
+          ))
+        ) : (
+          <span>—</span>
+        )}
+      </div>
+    </Card>
+  </section>
+);
+
 export const PurchaseOrdersContent = () => {
   useLoadOrg();
   const organisationId = useOrgStore((state) => state.primaryOrgId);
@@ -993,73 +1079,19 @@ export const PurchaseOrdersContent = () => {
   return (
     <PermissionGate allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]} fallback={<Fallback />}>
       <main className="yc-page-content min-h-full space-y-5 px-4 py-5 sm:px-6 print:hidden">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <Button
-              text="Back to inventory"
-              href="/inventory"
-              variant="secondary"
-              className="mt-0.5"
-            />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">
-                Stock / Purchasing
-              </p>
-              <h1 className="text-page-title mt-1">Purchase orders</h1>
-              <p className="mt-1 text-sm text-text-secondary">
-                Order stock, confirm supplier commitments, and track each delivery.
-              </p>
-            </div>
-          </div>
-          {canEdit && (
-            <Button
-              text={showCreateForm ? 'Close form' : 'New order'}
-              variant="primary"
-              onClick={() => updateCreateForm((current) => ({ show: !current.show }))}
-            />
-          )}
-        </header>
-
-        {error && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]"
-          >
-            <p>{error}</p>
-            {loadFailed && (
-              <Button text="Retry loading" variant="secondary" onClick={() => void loadData()} />
-            )}
-          </div>
-        )}
-
-        <section aria-label="Purchasing summary" className="grid gap-3 sm:grid-cols-3">
-          <Card className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-              Orders
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-text-primary">{totalOrderCount}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-              Units outstanding
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-text-primary">{outstandingUnits}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-              Open value on this page
-            </p>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-lg font-semibold text-text-primary">
-              {Object.entries(committedSpend).length ? (
-                Object.entries(committedSpend).map(([unit, amount]) => (
-                  <span key={unit}>{formatMoney(amount, unit)}</span>
-                ))
-              ) : (
-                <span>—</span>
-              )}
-            </div>
-          </Card>
-        </section>
+        <PurchaseOrdersHeader
+          canEdit={canEdit}
+          showCreateForm={showCreateForm}
+          error={error}
+          loadFailed={loadFailed}
+          onToggleCreate={() => updateCreateForm((current) => ({ show: !current.show }))}
+          onRetry={() => void loadData()}
+        />
+        <PurchasingSummary
+          totalOrderCount={totalOrderCount}
+          outstandingUnits={outstandingUnits}
+          committedSpend={committedSpend}
+        />
 
         {showCreateForm && canEdit && (
           <PurchaseOrderForm
