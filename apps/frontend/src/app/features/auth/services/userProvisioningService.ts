@@ -2,25 +2,28 @@ import { isAuthRedirectError, postData } from '@/app/services/axios';
 import { logger } from '@/app/lib/logger';
 import { useAuthStore } from '@/app/stores/authStore';
 
-const PROVISION_MAX_ATTEMPTS = 3;
 const PROVISION_RETRY_BASE_MS = 800;
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+type ProvisionAttempt = { ok: true } | { ok: false; error: unknown };
+
 const attemptProvisioning = async (
-  body: { firstName: string; lastName: string; role: string } | undefined,
-  attempt = 0
-): Promise<boolean> => {
+  body: { firstName: string; lastName: string; role: string } | undefined
+): Promise<ProvisionAttempt> => {
   try {
     await postData('/fhir/v1/user', body);
-    return true;
+    return { ok: true };
   } catch (error: unknown) {
-    if (isAuthRedirectError(error)) throw error;
-    logger.warn(`Backend user provisioning attempt ${attempt + 1} failed`, error);
-    if (attempt === PROVISION_MAX_ATTEMPTS - 1) return false;
-    await delay(PROVISION_RETRY_BASE_MS * 2 ** attempt);
-    return attemptProvisioning(body, attempt + 1);
+    return { ok: false, error };
   }
+};
+
+const recordProvisioningFailure = (result: ProvisionAttempt, attempt: number): boolean => {
+  if (result.ok) return true;
+  if (isAuthRedirectError(result.error)) throw result.error;
+  logger.warn(`Backend user provisioning attempt ${attempt} failed`, result.error);
+  return false;
 };
 
 /**
@@ -43,5 +46,14 @@ export const provisionBackendUser = async (): Promise<boolean> => {
       }
     : undefined;
 
-  return attemptProvisioning(body);
+  const first = await attemptProvisioning(body);
+  if (recordProvisioningFailure(first, 1)) return true;
+
+  await delay(PROVISION_RETRY_BASE_MS);
+  const second = await attemptProvisioning(body);
+  if (recordProvisioningFailure(second, 2)) return true;
+
+  await delay(PROVISION_RETRY_BASE_MS * 2);
+  const third = await attemptProvisioning(body);
+  return recordProvisioningFailure(third, 3);
 };

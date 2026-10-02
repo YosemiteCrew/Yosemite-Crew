@@ -69,6 +69,18 @@ describe('provisionBackendUser', () => {
     expect(postData).toHaveBeenCalledTimes(3);
   });
 
+  it('returns true when the second attempt succeeds', async () => {
+    (postData as jest.Mock)
+      .mockRejectedValueOnce(new Error('503 cold start'))
+      .mockResolvedValueOnce({});
+
+    const promise = provisionBackendUser();
+    await jest.advanceTimersByTimeAsync(800);
+
+    await expect(promise).resolves.toBe(true);
+    expect(postData).toHaveBeenCalledTimes(2);
+  });
+
   it('returns false after exhausting all attempts', async () => {
     (postData as jest.Mock).mockRejectedValue(new Error('persistent failure'));
 
