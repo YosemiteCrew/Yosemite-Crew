@@ -367,7 +367,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
 
   // refreshResultsRef lets refreshAppointmentOrders call refreshResults without
   // creating a circular dep — refreshResults is defined after this callback.
-  const refreshResultsRef = React.useRef<() => Promise<void>>(async () => undefined);
+  const refreshResultsRef = React.useRef<() => Promise<void>>(() => Promise.resolve());
 
   const refreshAppointmentOrders = useCallback(async () => {
     if (!primaryOrgId || !integrationEnabled || !appointmentId) {
