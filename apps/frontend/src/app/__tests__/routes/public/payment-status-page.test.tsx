@@ -49,11 +49,14 @@ describe('payment-status public page', () => {
   });
 
   it('renders missing session state when session_id is absent', () => {
-    render(<PaymentStatusPage />);
+    const { container } = render(<PaymentStatusPage />);
 
     expect(
       screen.getByRole('heading', { level: 1, name: 'Missing payment session' })
     ).toBeInTheDocument();
+    expect(container.querySelector('[data-yc-app]')).toHaveClass(
+      'pb-[calc(2.5rem_+_var(--yc-consent-inset,0px))]'
+    );
     expect(screen.getByText('Missing payment session')).toBeInTheDocument();
     expect(screen.getByText('We could not find a payment session in the URL.')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
