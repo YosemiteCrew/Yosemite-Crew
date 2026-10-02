@@ -146,7 +146,7 @@ export const GroupModal: FC<GroupModalProps> = ({
     if (mode === 'create') {
       onMembersChange([...members, userId]);
     } else {
-      onAddMember(userId);
+      void onAddMember(userId);
     }
   };
 
@@ -154,7 +154,7 @@ export const GroupModal: FC<GroupModalProps> = ({
     if (mode === 'create') {
       onMembersChange(members.filter((id) => id !== userId));
     } else {
-      onRemoveMember(userId);
+      void onRemoveMember(userId);
     }
   };
 
