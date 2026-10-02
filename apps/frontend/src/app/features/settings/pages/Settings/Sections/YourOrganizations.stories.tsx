@@ -317,6 +317,10 @@ export const Empty: Story = {
 export const Phone: Story = {
   name: 'Phone: a long name clamps rather than pushing the badge out',
   globals: { viewport: { value: 'mobile', isRotated: false } },
+  /* Full-bleed rather than centred: the centred layout shrink-wraps the root,
+     so the card's `max-w-full` resolved against its own fixed width and the
+     card stayed wider than the phone the runner now sizes the page to. */
+  parameters: { layout: 'fullscreen' },
   beforeEach: () =>
     seed(
       [

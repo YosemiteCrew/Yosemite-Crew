@@ -174,11 +174,12 @@ export const RoomMenuOpen: Story = {
   play: async ({ canvasElement }) => {
     const panel = within(await openModal(canvasElement));
     await userEvent.click(panel.getByRole('button', { name: 'Room: ICU 1' }));
-    // The listbox portals to document.body, outside both the canvas and the dialog.
-    const listbox = await within(document.body).findByLabelText('Room');
-    await expect(listbox).toHaveAttribute('data-portal-dropdown');
+    /* The listbox portals to document.body, outside both the canvas and the
+       dialog. Queried by role: the trigger's own <label> also reads "Room". */
+    const listbox = await within(document.body).findByRole('listbox', { name: 'Room' });
+    await expect(listbox.closest('[data-portal-dropdown]')).not.toBeNull();
     // Assert it has its three rooms, not merely that aria-expanded flipped.
-    await expect(within(listbox).getAllByRole('button')).toHaveLength(3);
+    await expect(within(listbox).getAllByRole('option')).toHaveLength(3);
     await expect(within(listbox).getByText('Isolation')).toBeInTheDocument();
   },
   parameters: {
@@ -199,8 +200,8 @@ export const UnitFollowsRoom: Story = {
   play: async ({ canvasElement }) => {
     const panel = within(await openModal(canvasElement));
     await userEvent.click(panel.getByRole('button', { name: 'Room: ICU 1' }));
-    const listbox = await within(document.body).findByLabelText('Room');
-    await userEvent.click(within(listbox).getByText('Ward B'));
+    const listbox = await within(document.body).findByRole('listbox', { name: 'Room' });
+    await userEvent.click(within(listbox).getByRole('option', { name: 'Ward B' }));
     // Ward B has no critical-care unit, so the unit falls to the room's first option.
     expect(
       await panel.findByRole('button', { name: 'Unit: General inpatient' })

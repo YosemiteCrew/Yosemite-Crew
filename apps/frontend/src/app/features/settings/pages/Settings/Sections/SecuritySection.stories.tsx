@@ -169,7 +169,11 @@ const statusLine = (canvasElement: HTMLElement): HTMLElement =>
 /** Runs enrolment up to the point where the secret is on screen. */
 const startEnrolment = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement);
-  await userEvent.click(await canvas.findByRole('button', { name: 'Set up authenticator app' }));
+  const setUp = await canvas.findByRole('button', { name: 'Set up authenticator app' });
+  /* The button remains unavailable until its prerequisite status has loaded,
+     so wait until it becomes interactive before starting enrolment. */
+  await waitFor(() => expect(setUp).not.toHaveAttribute('aria-disabled', 'true'));
+  await userEvent.click(setUp);
   await waitFor(() =>
     expect(canvasElement.querySelector('[data-testid="totp-secret"]')?.textContent).toBe(SECRET)
   );
@@ -290,7 +294,8 @@ export const Enrolling: Story = {
     // under a field the person is already fixing.
     await userEvent.type(code, '1');
     await expect(canvas.queryByRole('alert')).not.toBeInTheDocument();
-    await expect(code).toHaveAttribute('aria-invalid', 'false');
+    // A valid field carries no aria-invalid at all rather than "false".
+    await expect(code).not.toHaveAttribute('aria-invalid');
   },
 };
 
@@ -387,6 +392,10 @@ export const Enabled: Story = {
 export const Phone: Story = {
   name: 'Phone: the secret wraps',
   globals: { viewport: { value: 'mobile', isRotated: false } },
+  /* Full-bleed rather than centred: the centred layout shrink-wraps the root,
+     so the card's `max-w-full` resolved against its own fixed width and the
+     card stayed wider than the phone the runner now sizes the page to. */
+  parameters: { layout: 'fullscreen' },
   beforeEach: seed({ createDevice: () => Promise.resolve(ENROLLED_DEVICE) }),
   play: async ({ canvasElement }) => {
     await startEnrolment(canvasElement);
