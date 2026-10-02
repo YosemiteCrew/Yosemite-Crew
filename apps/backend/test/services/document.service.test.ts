@@ -1129,7 +1129,7 @@ describe("DocumentService", () => {
     expect(mockedUpload.deleteFromS3).toHaveBeenCalledWith("k-1");
     expect(mockedPrisma.document.deleteMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: { equals: uuidDocumentId } },
+        where: { id: uuidDocumentId },
       }),
     );
   });
@@ -1176,7 +1176,7 @@ describe("DocumentService", () => {
       }),
     );
     expect(mockedPrisma.documentAttachment.deleteMany).toHaveBeenCalledWith({
-      where: { documentId: { equals: uuidDocumentId } },
+      where: { documentId: uuidDocumentId },
     });
     expect(mockedPrisma.documentAttachment.createMany).toHaveBeenCalledWith(
       expect.objectContaining({

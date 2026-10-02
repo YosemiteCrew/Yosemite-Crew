@@ -1056,7 +1056,7 @@ const syncDocumentAttachmentsToPostgres = async (
   attachments: AttachmentInput[],
 ) => {
   await tx.documentAttachment.deleteMany({
-    where: { documentId: { equals: documentId } },
+    where: { documentId },
   });
   if (!attachments.length) {
     return;
@@ -1254,9 +1254,9 @@ export const DocumentService = {
 
     await prisma.$transaction(async (tx) => {
       await tx.documentAttachment.deleteMany({
-        where: { documentId: { equals: doc.id } },
+        where: { documentId: doc.id },
       });
-      await tx.document.deleteMany({ where: { id: { equals: doc.id } } });
+      await tx.document.deleteMany({ where: { id: doc.id } });
     });
 
     return true;
