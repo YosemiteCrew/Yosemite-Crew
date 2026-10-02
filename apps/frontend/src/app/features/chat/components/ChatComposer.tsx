@@ -261,7 +261,7 @@ export function ChatComposer() {
                       key={emoji}
                       type="button"
                       onClick={() => {
-                        void insert(emoji);
+                        insert(emoji);
                         setEmojiOpen(false);
                       }}
                       className="flex size-9 items-center justify-center rounded-full text-lg hover:bg-[var(--inset)]"
