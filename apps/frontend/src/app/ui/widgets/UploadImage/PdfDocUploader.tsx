@@ -70,14 +70,14 @@ const PdfDocUploader = ({
   getSignedUrl,
 }: Readonly<PdfDocUploaderProps>) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const failedFileRef = useRef<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [failedFile, setFailedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const uploadFile = (picked: File) => {
     setFile(picked);
     setUploadError(null);
-    setFailedFile(null);
+    failedFileRef.current = null;
     setIsUploading(true);
     getSignedUrl(picked)
       .then(async (signed) => {
@@ -86,7 +86,7 @@ const PdfDocUploader = ({
       })
       .catch(() => {
         setUploadError('The PDF could not be uploaded. Try again.');
-        setFailedFile(picked);
+        failedFileRef.current = picked;
       })
       .finally(() => setIsUploading(false));
   };
@@ -104,7 +104,7 @@ const PdfDocUploader = ({
 
   const handleRemove = () => {
     setUploadError(null);
-    setFailedFile(null);
+    failedFileRef.current = null;
     setFile(null);
   };
 
@@ -151,7 +151,7 @@ const PdfDocUploader = ({
           <span>{uploadError}</span>
           <button
             type="button"
-            onClick={() => failedFile && uploadFile(failedFile)}
+            onClick={() => failedFileRef.current && uploadFile(failedFileRef.current)}
             disabled={isUploading}
             className="font-medium underline disabled:cursor-wait disabled:opacity-60"
           >
