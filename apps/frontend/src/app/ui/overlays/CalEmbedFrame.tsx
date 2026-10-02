@@ -34,6 +34,7 @@ const CalEmbedFrame = ({
       const cal = await getCalApi({ namespace: CAL_EMBED_NAMESPACE });
       if (cancelled || !container.isConnected) return;
 
+      setFailedCalLink(null);
       cal('ui', {
         hideEventTypeDetails: false,
         layout: CAL_EMBED_CONFIG.layout,
