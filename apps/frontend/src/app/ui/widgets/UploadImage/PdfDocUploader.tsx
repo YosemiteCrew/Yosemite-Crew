@@ -140,11 +140,7 @@ const PdfDocUploader = ({
         </div>
       </button>
 
-      {isUploading && (
-        <p className="mt-2 text-sm text-text-secondary" role="status">
-          Uploading PDF…
-        </p>
-      )}
+      {isUploading && <output className="mt-2 text-sm text-text-secondary">Uploading PDF…</output>}
 
       {uploadError && (
         <div className="mt-2 flex items-center gap-3 text-sm text-[var(--danger)]" role="alert">

@@ -162,6 +162,7 @@ describe('PdfDocUploader', () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [createPdfFile()] } });
 
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
     expect(screen.getByRole('status')).toHaveTextContent('Uploading PDF…');
     expect(screen.getByRole('button', { name: placeholder })).toBeDisabled();
 
