@@ -414,29 +414,42 @@ const syncRoomUnitGroups = async (
   );
 
   const speciesConstraints = toSpeciesConstraints(source.availability?.species);
+  const groupPayloads = desiredUnitGroups.map((draft, index) => {
+    const unitCount = Math.max(1, Number(draft.count ?? 1));
+    const name = draft.name?.trim() || `Unit type ${index + 1}`;
+    const draftId = draft.id?.startsWith('unit-') ? '' : (draft.id ?? '');
+    // Reuse a previously-deactivated group with the same name rather than
+    // creating a fresh row, which would collide on that same unique index.
+    const groupId = draftId || archivedGroupsByName.get(name)?.id || '';
+    return {
+      id: groupId,
+      organisationId: room.organisationId,
+      roomId: room.id,
+      name,
+      size: draft.size,
+      unitCount,
+      speciesConstraints: draft.speciesConstraints ?? speciesConstraints,
+      capabilities: source.equipment ?? source.capabilities,
+      isActive: true,
+    };
+  });
+
+  const names = groupPayloads.map((group) => group.name);
+  const ids = groupPayloads.map((group) => group.id).filter(Boolean);
+  if (new Set(names).size !== names.length || new Set(ids).size !== ids.length) {
+    throw new Error('Room unit groups must have unique names and IDs.');
+  }
+
   const syncedResults = await Promise.all(
-    desiredUnitGroups.map(async (draft, index) => {
-      const unitCount = Math.max(1, Number(draft.count ?? 1));
-      const name = draft.name?.trim() || `Unit type ${index + 1}`;
-      const draftId = draft.id?.startsWith('unit-') ? '' : (draft.id ?? '');
-      // Reuse a previously-deactivated group with the same name rather than
-      // creating a fresh row, which would collide on that same unique index.
-      const groupId = draftId || archivedGroupsByName.get(name)?.id || '';
-      const groupPayload: RoomUnitGroup = {
-        id: groupId,
-        organisationId: room.organisationId,
-        roomId: room.id,
-        name,
-        size: draft.size,
-        unitCount,
-        speciesConstraints: draft.speciesConstraints ?? speciesConstraints,
-        capabilities: source.equipment ?? source.capabilities,
-        isActive: true,
-      };
+    groupPayloads.map(async (groupPayload) => {
       const group = groupPayload.id
         ? await updateUnitGroup(groupPayload)
         : await createUnitGroup(groupPayload);
-      const units = await syncUnitsForGroup(group, unitCount, group.speciesConstraints);
+      const units = await syncUnitsForGroup(
+        group,
+        groupPayload.unitCount,
+        group.speciesConstraints
+      );
       return { group, units };
     })
   );
