@@ -945,10 +945,15 @@ const BILLED_TREATMENT_ITEM_STATUSES = new Set([
 const normalizeLockState = (
   lockState: unknown,
 ): string | Record<string, unknown> | null => {
+  let normalized: string | Record<string, unknown> | null;
   if (typeof lockState === "string") {
-    return lockState;
+    normalized = lockState;
+  } else if (isRecord(lockState)) {
+    normalized = lockState;
+  } else {
+    normalized = null;
   }
-  return isRecord(lockState) ? lockState : null;
+  return normalized;
 };
 
 const mapTreatmentItemRow = (
@@ -2330,9 +2335,15 @@ const assertTreatmentItemsUnlocked = async (params: {
 const resolveLockStateWrite = (
   lockState: string | Record<string, unknown> | null | undefined,
 ): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined => {
-  if (lockState === undefined) return undefined;
-  if (lockState === null) return Prisma.DbNull;
-  return lockState as unknown as Prisma.InputJsonValue;
+  let writeValue: Prisma.InputJsonValue | typeof Prisma.DbNull | undefined;
+  if (lockState === undefined) {
+    writeValue = undefined;
+  } else if (lockState === null) {
+    writeValue = Prisma.DbNull;
+  } else {
+    writeValue = lockState as unknown as Prisma.InputJsonValue;
+  }
+  return writeValue;
 };
 
 export const WorkspaceService = {

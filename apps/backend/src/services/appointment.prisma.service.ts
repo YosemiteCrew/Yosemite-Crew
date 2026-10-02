@@ -620,11 +620,15 @@ const resolveAdmitJsonOverride = <T>(
   currentValue: Prisma.JsonValue | null,
   override: T | undefined,
 ) => {
+  let resolved: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined;
   if (override === undefined) {
-    return toNullableJsonValue(currentValue);
+    resolved = toNullableJsonValue(currentValue);
+  } else if (Object.is(override, null)) {
+    resolved = Prisma.JsonNull;
+  } else {
+    resolved = toJsonValue(override);
   }
-
-  return override ? toJsonValue(override) : Prisma.JsonNull;
+  return resolved;
 };
 
 const resolveInpatientAdmissionFields = (

@@ -22,6 +22,7 @@ import {
   type OrgUsageCountersDoc,
 } from "./shared/org-usage-limit";
 import type { UserOrganization as PrismaUserOrganization } from "@prisma/client";
+import { z } from "zod";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -154,23 +155,28 @@ const requireSafeString = (value: unknown, fieldName: string): string => {
     );
   }
 
-  const trimmed = value.trim();
+  const result = z
+    .string()
+    .trim()
+    .min(1)
+    .refine((text) => !text.includes("$"))
+    .safeParse(value);
 
-  if (!trimmed) {
+  if (!result.success && !value.trim()) {
     throw new UserOrganizationServiceError(
       `${fieldName} cannot be empty.`,
       400,
     );
   }
 
-  if (trimmed.includes("$")) {
+  if (!result.success) {
     throw new UserOrganizationServiceError(
       `Invalid character in ${fieldName}.`,
       400,
     );
   }
 
-  return trimmed;
+  return result.data;
 };
 
 const optionalSafeString = (
@@ -633,7 +639,8 @@ const handleExistingSeatTransition = async (
   const orgObjectId = await resolveOrganisationObjectId(
     document.organizationReference,
   );
-  let seatDelta: -1 | 0 | 1 = 0;
+  type SeatDelta = -1 | 0 | 1;
+  let seatDelta: SeatDelta = 0;
 
   if (!wasActive && willBeActive) {
     await reserveMemberSlot(orgObjectId);
@@ -931,7 +938,9 @@ export const UserOrganizationService = {
   },
 
   async deleteAllByOrganizationId(organisationId: string) {
-    const orgId = requireSafeString(organisationId, "Organization Identifier");
+    const orgId = z
+      .string()
+      .parse(requireSafeString(organisationId, "Organization Identifier"));
 
     await prisma.userOrganization.updateMany({
       where: { organizationReference: orgId },

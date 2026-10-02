@@ -2835,6 +2835,29 @@ describe("TaskService", () => {
       }
     });
 
+    it("rejects malformed occurrence ids before issuing a bulk cancellation", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(
+        ownedTask({
+          assignedTo: "user-1",
+          recurrence: { type: "DAILY", isMaster: true },
+        }) as never,
+      );
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        {
+          id: { in: ["task-2"] },
+          dueAt,
+          createdBy: "user-1",
+          assignedTo: "user-1",
+        },
+      ] as never);
+
+      await expect(
+        TaskService.deleteTask("task-1", "user-1", "ALL", "org-1"),
+      ).rejects.toThrow();
+
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it("cancelling only the first occurrence (scope=THIS) on a master row does not touch its recurrence", async () => {
       // Regression for #3181: the master row IS occurrence #1, so a plain
       // "THIS" cancel on it must only flip that row's own status and must
