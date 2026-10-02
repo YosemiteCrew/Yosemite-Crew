@@ -1,4 +1,5 @@
 import { Prisma, PurchaseOrderStatus } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { roundMoney } from "src/services/finance/pricing";
 
@@ -11,6 +12,14 @@ export class PurchaseOrderServiceError extends Error {
     this.name = "PurchaseOrderServiceError";
   }
 }
+
+const queryId = (value: unknown): string => {
+  const result = z.string().min(1).safeParse(value);
+  if (!result.success) {
+    throw new PurchaseOrderServiceError("Invalid identifier", 400);
+  }
+  return result.data;
+};
 
 export interface CreatePurchaseOrderInput {
   organisationId: string;
@@ -47,6 +56,9 @@ export interface ReceiveDeliveryLineInput {
   purchaseOrderLineId: string;
   quantityReceived: number;
   batchId?: string;
+  batchNumber?: string;
+  lotNumber?: string;
+  expiryDate?: Date;
 }
 
 export interface ReturnDeliveryInput {
@@ -117,9 +129,14 @@ const generateOrderNumber = async (organisationId: string): Promise<string> => {
  * its lines hold. A cancelled or draft order keeps its status.
  */
 const syncStatusFromLines = async (purchaseOrderId: string, tx: Tx) => {
+  const safePurchaseOrderId = queryId(purchaseOrderId);
   const lines = await tx.purchaseOrderLine.findMany({
-    where: { purchaseOrderId },
-    select: { quantityOrdered: true, quantityReceived: true },
+    where: { purchaseOrderId: safePurchaseOrderId },
+    select: {
+      purchaseOrderId: true,
+      quantityOrdered: true,
+      quantityReceived: true,
+    },
   });
   if (!lines.length) return;
 
@@ -130,7 +147,10 @@ const syncStatusFromLines = async (purchaseOrderId: string, tx: Tx) => {
   }
 
   await tx.purchaseOrder.updateMany({
-    where: { id: purchaseOrderId, status: { in: RECEIVING_STATUSES } },
+    where: {
+      id: { equals: lines[0].purchaseOrderId },
+      status: { in: RECEIVING_STATUSES },
+    },
     data: { status },
   });
 };
@@ -213,9 +233,12 @@ const postReceiptToBatch = async (
     data: {
       itemId,
       organisationId,
-      batchNumber: orderLine.batchNumber ?? `PO-${deliveryId.slice(0, 8)}`,
-      lotNumber: orderLine.lotNumber,
-      expiryDate: orderLine.expiryDate,
+      batchNumber:
+        line.batchNumber ??
+        orderLine.batchNumber ??
+        `PO-${deliveryId.slice(0, 8)}`,
+      lotNumber: line.lotNumber ?? orderLine.lotNumber,
+      expiryDate: line.expiryDate ?? orderLine.expiryDate,
       quantity: line.quantityReceived,
       allocated: 0,
     },
@@ -600,18 +623,43 @@ const transitionStatus = async (
   to: PurchaseOrderStatus,
   refusal: string,
 ) => {
-  const { count } = await prisma.purchaseOrder.updateMany({
-    where: { id: purchaseOrderId, organisationId, status: { in: from } },
-    data: { status: to },
+  const safePurchaseOrderId = queryId(purchaseOrderId);
+  const safeOrganisationId = queryId(organisationId);
+  const scopedOrder = await prisma.purchaseOrder.findFirst({
+    where: { id: safePurchaseOrderId, organisationId: safeOrganisationId },
+    select: { id: true, organisationId: true },
   });
-  const order = await prisma.purchaseOrder.findFirst({
-    where: { id: purchaseOrderId, organisationId },
-  });
-  if (!order) {
+  if (!scopedOrder) {
     throw new PurchaseOrderServiceError("Purchase order not found", 404);
   }
-  if (count === 0) throw new PurchaseOrderServiceError(refusal, 400);
-  return order;
+  try {
+    return await prisma.purchaseOrder.update({
+      where: {
+        id: scopedOrder.id,
+        organisationId: scopedOrder.organisationId,
+        status: { in: from },
+      },
+      data: { status: to },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      const stillExists = await prisma.purchaseOrder.findFirst({
+        where: {
+          id: scopedOrder.id,
+          organisationId: scopedOrder.organisationId,
+        },
+        select: { id: true },
+      });
+      if (!stillExists) {
+        throw new PurchaseOrderServiceError("Purchase order not found", 404);
+      }
+      throw new PurchaseOrderServiceError(refusal, 400);
+    }
+    throw error;
+  }
 };
 
 export const PurchaseOrderService = {
@@ -696,15 +744,22 @@ export const PurchaseOrderService = {
   },
 
   receiveDelivery(input: ReceiveDeliveryInput) {
+    const safeInput = {
+      ...input,
+      organisationId: queryId(input.organisationId),
+      purchaseOrderId: queryId(input.purchaseOrderId),
+    };
     return replayOnDuplicateKey(
       () =>
-        prisma.$transaction((tx) => receiveDeliveryInTransaction(input, tx)),
+        prisma.$transaction((tx) =>
+          receiveDeliveryInTransaction(safeInput, tx),
+        ),
       () =>
         findDeliveryByKey(
           prisma,
-          input.purchaseOrderId,
-          input.organisationId,
-          input.idempotencyKey,
+          safeInput.purchaseOrderId,
+          safeInput.organisationId,
+          safeInput.idempotencyKey,
         ),
     );
   },

@@ -13,6 +13,7 @@ jest.mock("src/config/prisma", () => ({
       create: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn(),
     },
     purchaseOrderLine: {
@@ -111,6 +112,7 @@ beforeEach(() => {
   db.purchaseOrder.findMany.mockResolvedValue([]);
   db.purchaseOrder.count.mockResolvedValue(0);
   db.purchaseOrder.create.mockResolvedValue(order({ status: "DRAFT" }));
+  db.purchaseOrder.update.mockResolvedValue(order());
   db.purchaseOrder.updateMany.mockResolvedValue({ count: 1 });
   db.purchaseOrderLine.findMany.mockResolvedValue([orderLine()]);
   db.purchaseOrderLine.update.mockResolvedValue({});
@@ -279,12 +281,49 @@ describe("PurchaseOrderService.receiveDelivery", () => {
     });
     expect(db.purchaseOrder.updateMany).toHaveBeenCalledWith({
       where: {
-        id: "po-1",
+        id: { equals: "po-1" },
         status: { in: ["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED"] },
       },
       data: { status: "PARTIALLY_RECEIVED" },
     });
     expect(result).toEqual(delivery());
+  });
+
+  it("rejects non-string order identifiers before receipt queries", async () => {
+    expect(() =>
+      PurchaseOrderService.receiveDelivery({
+        ...input,
+        purchaseOrderId: { not: "po-1" } as unknown as string,
+      }),
+    ).toThrow("Invalid identifier");
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("uses the received batch details when creating inventory stock", async () => {
+    db.purchaseOrderLine.findMany
+      .mockResolvedValueOnce([orderLine()])
+      .mockResolvedValueOnce([orderLine({ quantityReceived: 2 })]);
+
+    await PurchaseOrderService.receiveDelivery({
+      organisationId: "org-1",
+      purchaseOrderId: "po-1",
+      idempotencyKey: "receipt-with-lot",
+      lines: [
+        {
+          purchaseOrderLineId: "line-1",
+          quantityReceived: 2,
+          batchNumber: "received-batch",
+          lotNumber: "received-lot",
+          expiryDate: new Date("2027-02-01T00:00:00.000Z"),
+        },
+      ],
+    });
+
+    expect(db.inventoryBatch.create.mock.calls[0][0].data).toMatchObject({
+      batchNumber: "received-batch",
+      lotNumber: "received-lot",
+      expiryDate: new Date("2027-02-01T00:00:00.000Z"),
+    });
   });
 
   it("names a fallback batch after the delivery when the line has no batch number", async () => {
@@ -563,7 +602,7 @@ describe("PurchaseOrderService.returnDelivery", () => {
     });
     expect(db.purchaseOrder.updateMany.mock.calls[0][0]).toEqual({
       where: {
-        id: "po-1",
+        id: { equals: "po-1" },
         status: { in: ["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED"] },
       },
       data: { status: "PARTIALLY_RECEIVED" },
@@ -706,26 +745,50 @@ describe("PurchaseOrderService status changes", () => {
     await expect(
       PurchaseOrderService.confirmOrder("po-1", "org-1"),
     ).resolves.toEqual(order());
-    expect(db.purchaseOrder.updateMany).toHaveBeenCalledWith({
-      where: { id: "po-1", organisationId: "org-1", status: { in: ["DRAFT"] } },
+    expect(db.purchaseOrder.update).toHaveBeenCalledWith({
+      where: {
+        id: "po-1",
+        organisationId: "org-1",
+        status: { in: ["DRAFT"] },
+      },
       data: { status: "CONFIRMED" },
     });
 
-    db.purchaseOrder.updateMany.mockResolvedValueOnce({ count: 0 });
+    db.purchaseOrder.update.mockRejectedValueOnce(knownError("P2025"));
     await expect(
       PurchaseOrderService.confirmOrder("po-1", "org-1"),
     ).rejects.toMatchObject({ statusCode: 400 });
 
-    db.purchaseOrder.updateMany.mockResolvedValueOnce({ count: 0 });
     db.purchaseOrder.findFirst.mockResolvedValueOnce(null);
     await expect(
       PurchaseOrderService.confirmOrder("po-1", "org-2"),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
+  it("returns not found if the order disappears during a status change", async () => {
+    db.purchaseOrder.update.mockRejectedValueOnce(knownError("P2025"));
+    db.purchaseOrder.findFirst
+      .mockResolvedValueOnce(order())
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      PurchaseOrderService.confirmOrder("po-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("rejects non-string order identifiers before status filters", async () => {
+    await expect(
+      PurchaseOrderService.confirmOrder(
+        { not: "po-1" } as unknown as string,
+        "org-1",
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.purchaseOrder.update).not.toHaveBeenCalled();
+  });
+
   it("cancels only an order that is still open", async () => {
     await PurchaseOrderService.cancelOrder("po-1", "org-1");
-    expect(db.purchaseOrder.updateMany).toHaveBeenCalledWith({
+    expect(db.purchaseOrder.update).toHaveBeenCalledWith({
       where: {
         id: "po-1",
         organisationId: "org-1",
@@ -734,10 +797,19 @@ describe("PurchaseOrderService status changes", () => {
       data: { status: "CANCELLED" },
     });
 
-    db.purchaseOrder.updateMany.mockResolvedValueOnce({ count: 0 });
+    db.purchaseOrder.update.mockRejectedValueOnce(knownError("P2025"));
     await expect(
       PurchaseOrderService.cancelOrder("po-1", "org-1"),
     ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("propagates unexpected status-update failures", async () => {
+    db.purchaseOrder.update.mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+    await expect(
+      PurchaseOrderService.confirmOrder("po-1", "org-1"),
+    ).rejects.toThrow("database unavailable");
   });
 });
 

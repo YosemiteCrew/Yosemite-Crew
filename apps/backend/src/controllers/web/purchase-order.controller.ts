@@ -53,6 +53,12 @@ const receiveDeliveryLineSchema = z.object({
   purchaseOrderLineId: z.uuid(),
   quantityReceived: z.number().int().positive(),
   batchId: z.uuid().optional(),
+  batchNumber: z.string().trim().min(1).max(100).optional(),
+  lotNumber: z.string().trim().min(1).max(100).optional(),
+  expiryDate: z.iso
+    .datetime()
+    .optional()
+    .transform((value) => (value ? new Date(value) : undefined)),
 });
 
 const receiveDeliverySchema = z.object({
