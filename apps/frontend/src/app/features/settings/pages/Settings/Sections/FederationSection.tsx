@@ -395,13 +395,13 @@ const FollowersCard = () => {
   const handleApprove = async (uri: string) => {
     await approveFollower(uri);
     notify('success', { title: 'Follower approved', text: 'The follow request was accepted.' });
-    load();
+    await load();
   };
 
   const handleReject = async (uri: string) => {
     await rejectFollower(uri);
     notify('success', { title: 'Follower rejected', text: 'The follow request was rejected.' });
-    load();
+    await load();
   };
 
   const renderState = getListRenderState(loading, followers.length === 0);
@@ -490,7 +490,7 @@ const FollowingCard = () => {
       await followRemoteActor(actorUri.trim());
       notify('success', { title: 'Follow sent', text: 'Follow request queued for delivery.' });
       setActorUri('');
-      load();
+      await load();
     } catch {
       notify('error', { title: 'Follow failed', text: 'Could not send follow request.' });
     } finally {
@@ -501,7 +501,7 @@ const FollowingCard = () => {
   const handleUnfollow = async (uri: string) => {
     await unfollowRemoteActor(uri);
     notify('success', { title: 'Unfollowed', text: 'Unfollow sent.' });
-    load();
+    await load();
   };
 
   const renderState = getListRenderState(loading, following.length === 0);
