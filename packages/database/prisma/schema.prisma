@@ -694,11 +694,77 @@ model Patient {
   parentLinks          ParentPatient[]
   companionShareTokens CompanionShareToken[]
   petPassports         PetPassport[]
+  petProfile           PetProfile?
+  healthMetrics        HealthMetric[]
   duplicateReviewAsA   PatientDuplicateDismissal[] @relation("PatientDuplicateReviewA")
   duplicateReviewAsB   PatientDuplicateDismissal[] @relation("PatientDuplicateReviewB")
 
   @@index([type])
   @@index([status])
+}
+
+enum HealthMetricType {
+  WEIGHT
+  ACTIVITY_LEVEL
+  FOOD_INTAKE
+  WATER_INTAKE
+  URINATION
+}
+
+enum HealthMetricStatus {
+  GREEN
+  ORANGE
+  RED
+}
+
+model HealthMetric {
+  id              String             @id @default(uuid())
+  patientId       String
+  organisationId  String
+  type            HealthMetricType
+  value           Float
+  unit            String
+  status          HealthMetricStatus @default(GREEN)
+  recordedAt      DateTime           @default(now())
+  recordedBy      String?
+  notes           String?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, type, recordedAt])
+  @@index([organisationId, type])
+}
+
+model HealthMetricThreshold {
+  id             String             @id @default(uuid())
+  organisationId String
+  type           HealthMetricType
+  species        String?
+  breedId        String?
+  minGreen       Float?
+  maxGreen       Float?
+  minOrange      Float?
+  maxOrange      Float?
+  minRed         Float?
+  maxRed         Float?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([organisationId, type, species, breedId])
+  @@index([organisationId, type])
+}
+
+model PetProfile {
+  id              String   @id @default(uuid())
+  patientId       String   @unique
+  avatarUrl       String?
+  themeColor      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
 }
 
 model PatientDuplicateDismissal {
