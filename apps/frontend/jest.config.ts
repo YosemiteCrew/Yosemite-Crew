@@ -81,6 +81,7 @@ const config: Config = {
     // re-includes them (micromatch honours order).
     '<rootDir>/src/app/features/companions/components/AddCompanionCentralModal/index.tsx',
     '<rootDir>/src/app/features/inventory/pages/Inventory/index.tsx',
+    '<rootDir>/src/app/features/inventory/pages/PurchaseOrders/index.tsx',
     '<rootDir>/src/app/features/appointments/pages/AppointmentWorkspace/index.tsx',
     '<rootDir>/src/app/features/appointments/pages/Appointments/index.tsx',
     '<rootDir>/src/app/features/integrations/pages/IdexxWorkspace/index.tsx',
