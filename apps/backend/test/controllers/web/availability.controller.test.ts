@@ -409,6 +409,21 @@ describe("AvailabilityController", () => {
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
+    it("rejects a null start time instead of treating it as the Unix epoch", async () => {
+      (req as any).userId = "u1";
+      req.params = { orgId: "o1" };
+      req.body = {
+        startTime: null,
+        endTime: "2023-01-02",
+        sourceType: "BLOCK",
+      };
+
+      await AvailabilityController.addOccupancy(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedAvailabilityService.addOccupancy).not.toHaveBeenCalled();
+    });
+
     it("should success (201)", async () => {
       (req as any).userId = "u1";
       req.params = { orgId: "o1" };

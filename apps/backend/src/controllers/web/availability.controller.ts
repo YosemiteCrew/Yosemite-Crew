@@ -13,7 +13,7 @@ type NormalizedOccupancy = {
   referenceId?: string;
 };
 
-const safeDate = (value?: string | number | Date): Date | undefined => {
+const safeDate = (value?: string | number | Date | null): Date | undefined => {
   if (value === undefined || value === null) return undefined;
   const parsed =
     value instanceof Date ? new Date(value.getTime()) : new Date(value);
