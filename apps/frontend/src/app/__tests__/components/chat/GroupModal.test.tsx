@@ -129,6 +129,18 @@ describe('GroupModal', () => {
     expect(props.onCreate).toHaveBeenCalledWith('Core Team', ['u1']);
   });
 
+  it('shows an error when group creation fails', async () => {
+    setup({
+      title: 'Core Team',
+      members: ['u1'],
+      onCreate: jest.fn().mockRejectedValue(new Error('request failed')),
+    });
+    fireEvent.click(screen.getByText('Create Group'));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Unable to update this group. Please try again.'
+    );
+  });
+
   it('forwards title and search edits', () => {
     const props = setup();
     fireEvent.change(screen.getByPlaceholderText('Group Title'), { target: { value: 'X' } });
@@ -220,6 +232,14 @@ describe('GroupModal', () => {
       const props = setup(editProps());
       fireEvent.click(screen.getByText('Save Title'));
       expect(props.onUpdateTitle).toHaveBeenCalledWith('Team A');
+    });
+
+    it('shows an error when saving the title fails', async () => {
+      setup(editProps({ onUpdateTitle: jest.fn().mockRejectedValue(new Error('request failed')) }));
+      fireEvent.click(screen.getByText('Save Title'));
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Unable to update this group. Please try again.'
+      );
     });
 
     it('does not save an empty title', () => {

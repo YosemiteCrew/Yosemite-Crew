@@ -8,7 +8,7 @@
  * ChatContainer so the create/edit logic is independently testable.
  */
 
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import type { Channel as StreamChannel } from 'stream-chat';
 import { IoIosAddCircleOutline } from 'react-icons/io';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
@@ -98,6 +98,14 @@ export const GroupModal: FC<GroupModalProps> = ({
   onRemoveMember,
   onDelete,
 }) => {
+  const [actionError, setActionError] = useState<string | null>(null);
+  const runAction = (action: () => Promise<void>) => {
+    setActionError(null);
+    return action().catch(() => {
+      setActionError('Unable to update this group. Please try again.');
+    });
+  };
+
   const handleClose = () => {
     onClose();
   };
@@ -132,21 +140,21 @@ export const GroupModal: FC<GroupModalProps> = ({
     if (availableUsers.length === 10) break;
   }
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!title.trim() || members.length === 0) return;
-    await onCreate(title.trim(), members);
+    return runAction(() => onCreate(title.trim(), members));
   };
 
-  const handleSaveTitle = async () => {
+  const handleSaveTitle = () => {
     if (!title.trim()) return;
-    await onUpdateTitle(title.trim());
+    return runAction(() => onUpdateTitle(title.trim()));
   };
 
   const handleAddMemberClick = (userId: string) => {
     if (mode === 'create') {
       onMembersChange([...members, userId]);
     } else {
-      void onAddMember(userId);
+      runAction(() => onAddMember(userId));
     }
   };
 
@@ -154,7 +162,7 @@ export const GroupModal: FC<GroupModalProps> = ({
     if (mode === 'create') {
       onMembersChange(members.filter((id) => id !== userId));
     } else {
-      void onRemoveMember(userId);
+      runAction(() => onRemoveMember(userId));
     }
   };
 
@@ -182,6 +190,11 @@ export const GroupModal: FC<GroupModalProps> = ({
         />
 
         <div className="flex-1 flex flex-col overflow-hidden gap-6">
+          {actionError && (
+            <p role="alert" className="text-caption-1 text-[var(--danger-text)]">
+              {actionError}
+            </p>
+          )}
           <div className="flex-1 overflow-y-auto flex flex-col gap-6 pt-1 scrollbar-hidden pr-1">
             {(mode === 'create' || isCreator) && (
               <div className="flex flex-col gap-3">
@@ -342,7 +355,7 @@ export const GroupModal: FC<GroupModalProps> = ({
             <ModalFooter align="stretch">
               <Delete
                 text={busy ? 'Deleting...' : 'Delete Group'}
-                onClick={onDelete}
+                onClick={() => runAction(onDelete)}
                 isDisabled={busy}
               />
             </ModalFooter>
