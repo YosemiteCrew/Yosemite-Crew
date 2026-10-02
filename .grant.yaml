@@ -71,13 +71,11 @@ ignore-packages:
   # only inside the generated docs search bundle. Owner: maintainers.
   # Re-review by: 2026-11-01.
   - lunr-languages
-  # GENUINE FINDING, exception pending a licensing decision - NOT cleared.
-  # The stream-chat family ships GetStream's proprietary Source Code License
-  # Agreement; the @calcom/embed family ships the Cal.com Commercial (EE)
-  # license. Both are vendor SDKs for paid services the product integrates,
-  # used at arm's length over the network, but their compatibility with
-  # AGPL-3.0 distribution needs an explicit decision. Owner: maintainers.
-  # Re-review by: 2026-10-01 - do not renew silently.
+  # Accepted by the maintainers on 2026-10-03: the stream-chat family (GetStream's
+  # Source Code License Agreement) and the @calcom/embed family (Cal.com Commercial
+  # license) are vendor SDKs for the paid chat and booking services the product
+  # integrates, and they stay in use. Owner: maintainers.
+  # Re-review by: 2028-10-01 (the gate's two-year limit; re-confirm, do not drop silently).
   - stream-chat
   - stream-chat-react
   - stream-chat-react-native
