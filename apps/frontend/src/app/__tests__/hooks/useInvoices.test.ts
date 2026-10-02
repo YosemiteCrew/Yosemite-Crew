@@ -144,6 +144,22 @@ describe('useInvoices Hooks', () => {
       });
     });
 
+    it('logs a failed appointment invoice lookup', async () => {
+      const error = new Error('network failed');
+      const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
+      (loadInvoicesForAppointment as jest.Mock).mockRejectedValueOnce(error);
+      mockOrgState.primaryOrgId = 'org-1';
+      mockInvoiceState.invoicesById = {};
+      mockInvoiceState.invoiceIdsByOrgId = { 'org-1': [] };
+
+      renderHook(() => useInvoicesForPrimaryOrgAppointment('apt-1'));
+
+      await waitFor(() =>
+        expect(logError).toHaveBeenCalledWith('Failed to load invoices for appointment:', error)
+      );
+      logError.mockRestore();
+    });
+
     it('does not load appointment invoices when matching invoice already exists', async () => {
       mockOrgState.primaryOrgId = 'org-1';
       mockInvoiceState.invoicesById = {
