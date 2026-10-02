@@ -85,9 +85,10 @@ const seed = (opts: { integrations?: OrgIntegration[]; error?: string | null } =
   });
 };
 
-/** Every card carries the same `rounded-[18px]` shell, so this counts cards. */
-const cards = (canvasElement: HTMLElement): HTMLElement[] =>
-  [...canvasElement.querySelectorAll('div[class*="rounded-[18px]"]')] as HTMLElement[];
+/** Every card is framed by the shared `.yc-card-surface`, so this counts cards. */
+const cards = (canvasElement: HTMLElement): HTMLElement[] => [
+  ...canvasElement.querySelectorAll<HTMLElement>('div.yc-card-surface'),
+];
 
 const tab = (canvasElement: HTMLElement, label: string): HTMLElement =>
   within(canvasElement).getByRole('button', { name: label });
@@ -104,7 +105,7 @@ const meta = {
           'six cards, the active-count pill, the plugin strip, the two empty states and the ' +
           'error banner - had never been drawn.\n\n' +
           'The **four filter tabs** are the surface that hides the most. They are not a tab ' +
-          'list: each is a `<button aria-pressed>` inside a `<fieldset>` with an sr-only legend, ' +
+          'list: each is a `<button aria-pressed>` inside a labelled `role="group"`, ' +
           'and every card decides its own visibility from the active key. Coming-soon cards are ' +
           'deliberately excluded from both Connected and Available - they cannot be connected, ' +
           'so they belong only under All and Coming soon - which means the four tabs show 6, 1, ' +
@@ -164,7 +165,7 @@ export const AllIntegrations: Story = {
        pre-resolution value. */
     expect(await canvas.findByText('1 active')).toBeInTheDocument();
 
-    // The tabs are pressed-buttons in a fieldset, not a tablist - a role='tab'
+    // The tabs are pressed-buttons in a group, not a tablist - a role='tab'
     // query finds nothing here.
     await expect(canvas.queryAllByRole('tab')).toHaveLength(0);
     await expect(tab(canvasElement, 'All')).toHaveAttribute('aria-pressed', 'true');
@@ -364,7 +365,7 @@ export const PhoneLayout: Story = {
       Math.round(grid.getBoundingClientRect().width)
     );
 
-    /* The four tabs sit in a `flex-wrap` fieldset rather than a scroller, so the
+    /* The four tabs sit in a `flex-wrap` group rather than a scroller, so the
        thing to check at 375px is that none of them is pushed past the canvas
        edge. Asserting "they wrapped onto two lines" would be a bet on the exact
        pill widths; asserting "nothing is clipped" is the property the layout
@@ -372,8 +373,9 @@ export const PhoneLayout: Story = {
     const tabs = ['All', 'Connected', 'Available', 'Coming soon'].map((label) =>
       tab(canvasElement, label)
     );
-    const fieldset = tabs[0].closest('fieldset') as HTMLElement;
-    await expect(getComputedStyle(fieldset).flexWrap).toBe('wrap');
+    const group = within(canvasElement).getByRole('group', { name: 'Filter integrations' });
+    await expect(group).toContainElement(tabs[0]);
+    await expect(getComputedStyle(group).flexWrap).toBe('wrap');
     const canvasRight = canvasElement.getBoundingClientRect().right;
     for (const node of tabs) {
       await expect(node.getBoundingClientRect().right).toBeLessThanOrEqual(canvasRight);

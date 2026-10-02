@@ -231,7 +231,8 @@ export const VitalsTab: Story = {
 
     const vitalsTab = canvas.getByRole('tab', { name: 'Vitals' });
     const observationTab = canvas.getByRole('tab', { name: 'Observation Tool' });
-    await expect(canvas.getAllByRole('tab')).toHaveLength(3);
+    // Vitals, Observation Tool, Dental and Dermatology.
+    await expect(canvas.getAllByRole('tab')).toHaveLength(4);
     await expect(vitalsTab).toHaveAttribute('aria-selected', 'true');
     await expect(observationTab).toHaveAttribute('aria-selected', 'false');
 
@@ -263,7 +264,7 @@ export const VitalsTab: Story = {
     docs: {
       description: {
         story:
-          'The tab the drawer opens on. Three equal-width tabs over the vitals list, with the ' +
+          'The tab the drawer opens on. Four equal-share tabs over the vitals list, with the ' +
           'active one carrying the blue underline that `-mb-px` pulls onto the strip border.',
       },
     },
@@ -279,7 +280,8 @@ export const VitalsTabEmpty: Story = {
     /* An encounter with empty arrays is NOT the missing-encounter case: the tab
        strip and the panel are both still here. That distinction is the whole
        reason this story sits next to the no-encounter one. */
-    await expect(canvas.getAllByRole('tab')).toHaveLength(3);
+    // Vitals, Observation Tool, Dental and Dermatology.
+    await expect(canvas.getAllByRole('tab')).toHaveLength(4);
     await expect(panelFor(canvasElement, 'VITALS')).toBeInTheDocument();
 
     const panel = panelFor(canvasElement, 'VITALS') as HTMLElement;
@@ -489,22 +491,33 @@ export const Phone: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const tablist = canvas.getByRole('tablist');
-    const [vitalsTab, observationTab] = canvas.getAllByRole('tab');
+    const tabs = canvas.getAllByRole('tab');
+    await expect(tabs).toHaveLength(4);
 
-    /* All tabs are `flex-1` with `px-6`, so the split must stay even even though
-       "Observation Tool" is nearly three times the length of "Vitals". At 375 the
-       drawer is full-screen and this is the width where an intrinsic-width tab
-       would first show up as a lopsided strip. */
-    const vitalsBox = vitalsTab.getBoundingClientRect();
-    const observationBox = observationTab.getBoundingClientRect();
-    await expect(Math.abs(vitalsBox.width - observationBox.width)).toBeLessThanOrEqual(1);
+    /* Four labels cannot share 375 even after wrapping, so `TabToggle` keeps the
+       overflow inside the strip: the tablist is the scroll container and a tab
+       clipped at its edge is the cue that there is more. What must not happen is
+       the strip pushing the drawer - or the page - sideways. */
+    const stripBox = tablist.getBoundingClientRect();
+    await expect(tablist.scrollWidth).toBeGreaterThan(tablist.clientWidth);
+    await expect(stripBox.right).toBeLessThanOrEqual(canvasElement.getBoundingClientRect().right);
+    await expect(globalThis.document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      globalThis.window.innerWidth
+    );
 
-    // One row, not two: the labels wrap inside their own button before the
-    // second tab is pushed under the first.
-    await expect(Math.abs(vitalsBox.top - observationBox.top)).toBeLessThanOrEqual(1);
+    // One row, not two: no tab is pushed under another.
+    const firstTop = tabs[0].getBoundingClientRect().top;
+    for (const tab of tabs) {
+      await expect(Math.abs(tab.getBoundingClientRect().top - firstTop)).toBeLessThanOrEqual(1);
+    }
 
-    // And the strip itself does not scroll sideways inside the drawer.
-    await expect(tablist.scrollWidth).toBeLessThanOrEqual(tablist.clientWidth + 1);
+    // The last tab is reachable by scrolling the strip, not lost past its end.
+    tablist.scrollLeft = tablist.scrollWidth;
+    await waitFor(() =>
+      expect(tabs[3].getBoundingClientRect().right).toBeLessThanOrEqual(
+        tablist.getBoundingClientRect().right + 1
+      )
+    );
 
     // The panel below is still the wired one at this width.
     await expect(panelFor(canvasElement, 'VITALS')).toBeInTheDocument();
@@ -515,9 +528,9 @@ export const Phone: Story = {
       description: {
         story:
           'At 375 the quick-actions drawer goes full-screen, so this is the real phone width for ' +
-          'the tab strip. The two labels are very different lengths and the tabs are still forced ' +
-          'to an even split, which leaves "Observation Tool" close to wrapping inside its own ' +
-          'button.',
+          'the tab strip. Four labels do not fit, so the strip scrolls inside itself and the ' +
+          'clipped tab at its edge is the cue that there is more; the drawer and the page stay ' +
+          'put.',
       },
     },
   },

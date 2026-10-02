@@ -89,9 +89,9 @@ const meta = {
           'page adopts it during render. That also means the CTA reads **Save** rather than ' +
           '**Create** - the label is chosen by whether an org already exists, so a first-time ' +
           'creator never sees this exact pane.\n\n' +
-          'One error in the address form is not announced like the rest: `GoogleSearchDropDown` ' +
-          'renders its message without `role="alert"`, while every `FormInput` beside it uses ' +
-          'one. The validation story below pins that difference rather than counting error text.\n\n' +
+          'Every error in the address form is announced: `GoogleSearchDropDown` and each ' +
+          '`FormInput` beside it render their message through the shared `Field` with ' +
+          '`role="alert"`. The validation story below pins that rather than counting error text.\n\n' +
           'The `isTransitioning` state - where the whole wizard is hidden behind `invisible ' +
           'pointer-events-none` while the org is written - has no story: it is only entered after ' +
           '`createOrg`/`updateOrg` resolves, and this repo has no request-mocking layer for a ' +
@@ -161,16 +161,16 @@ export const AddressValidation: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Save' }));
 
-    // Four messages, but only three are announced: the address-line field is a
-    // GoogleSearchDropDown, whose error block carries no role.
+    // Four messages, all four announced: the address-line GoogleSearchDropDown
+    // renders its error through the same `Field` as the inputs beside it.
     const alerts = await canvas.findAllByRole('alert');
-    await expect(alerts).toHaveLength(3);
+    await expect(alerts).toHaveLength(4);
     await expect(canvas.getByText('City is required')).toBeInTheDocument();
     await expect(canvas.getByText('State or province is required')).toBeInTheDocument();
     await expect(canvas.getByText('Postal code is required')).toBeInTheDocument();
 
     const addressError = canvas.getByText('Address line is required');
-    await expect(addressError.closest('[role="alert"]')).toBeNull();
+    await expect(addressError.closest('[role="alert"]')).not.toBeNull();
 
     // The submit guard returns before `setIsTransitioning(true)`, so the wizard
     // is still on screen rather than blanked behind the fullscreen loader.
@@ -195,14 +195,14 @@ export const AddressErrorsClearPerField: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Save' }));
-    expect(await canvas.findAllByRole('alert')).toHaveLength(3);
+    expect(await canvas.findAllByRole('alert')).toHaveLength(4);
 
     await userEvent.type(canvas.getByRole('textbox', { name: 'City' }), 'Berlin');
 
     // Only the city message goes: each field clears its own key on change rather
     // than re-running the whole validator.
     await waitFor(() => expect(canvas.queryByText('City is required')).not.toBeInTheDocument());
-    await expect(canvas.getAllByRole('alert')).toHaveLength(2);
+    await expect(canvas.getAllByRole('alert')).toHaveLength(3);
     await expect(canvas.getByText('Postal code is required')).toBeInTheDocument();
     await expect(canvas.getByText('Address line is required')).toBeInTheDocument();
   },
@@ -212,8 +212,7 @@ export const AddressErrorsClearPerField: Story = {
         story:
           'Each `FormInput` clears its own key from `formDataErrors` in its `onChange`, so the ' +
           'messages disappear one at a time as fields are filled rather than all at once on the ' +
-          'next Save. Worth watching the address-line message specifically: it is the one with no ' +
-          '`role="alert"`, so a screen reader is never told it went away either.',
+          'next Save. The address-line message stays put until its own field is edited.',
       },
     },
   },

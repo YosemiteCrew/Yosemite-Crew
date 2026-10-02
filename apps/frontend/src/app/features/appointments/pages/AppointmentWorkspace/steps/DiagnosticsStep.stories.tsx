@@ -518,7 +518,7 @@ const meta = {
           'appointment-drawer panel at `Appointments/LabTests` queues on pick, so the same hook ' +
           'behaves differently in the two surfaces.\n\n' +
           'Every IDEXX endpoint is answered by an axios adapter stub, and the PDFs are locally ' +
-          'built blobs. Two actions are left unclicked on purpose: **Create Lab Order** opens the ' +
+          'built blobs. Two actions are left unclicked on purpose: **Create lab order** opens the ' +
           'vendor ordering iframe against a live vetconnectplus URL the moment the POST returns, ' +
           'and **Follow up / Continue** does the same, so the stories assert the enabled/disabled ' +
           'contract around those buttons instead of firing them.\n\n' +
@@ -568,7 +568,7 @@ export const NoOrdersYet: Story = {
 
     // Ordering nothing is not an order: the CTA stays disabled until the queue
     // has something in it.
-    await expect(canvas.getByRole('button', { name: 'Create Lab Order' })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: 'Create lab order' })).toBeDisabled();
 
     /* The two practitioner fields are pre-filled from the booking: the lead
        becomes the veterinarian and the first support member who is NOT the lead
@@ -654,7 +654,7 @@ export const QueueingATest: Story = {
     await expect(
       canvas.getByText('No tests selected yet. Search and add tests from the Order Builder.')
     ).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Create Lab Order' })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: 'Create lab order' })).toBeDisabled();
 
     await userEvent.click(within(pending).getByRole('button', { name: 'Add to queue' }));
 
@@ -665,7 +665,7 @@ export const QueueingATest: Story = {
     await expect(canvas.getByText('Code: CBC')).toBeInTheDocument();
     await expect(canvas.getByText('24 hours')).toBeInTheDocument();
     await expect(canvas.getByText('EDTA whole blood')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Create Lab Order' })).toBeEnabled();
+    await expect(canvas.getByRole('button', { name: 'Create lab order' })).toBeEnabled();
 
     /* Removing it puts the CTA back: a stale enabled button posts an order with
        no tests on it. The remove control is icon-only, so its name is its only
@@ -674,7 +674,7 @@ export const QueueingATest: Story = {
     await expect(
       await canvas.findByText('No tests selected yet. Search and add tests from the Order Builder.')
     ).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Create Lab Order' })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: 'Create lab order' })).toBeDisabled();
   },
 };
 
@@ -877,7 +877,7 @@ export const ReadOnly: Story = {
        copy alone would pass with the builder still sitting above it. */
     await expect(canvas.queryByText('Order Builder')).toBeNull();
     await expect(canvas.queryByRole('textbox', { name: 'Search for lab tests' })).toBeNull();
-    await expect(canvas.queryByRole('button', { name: 'Create Lab Order' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'Create lab order' })).toBeNull();
 
     /* The empty queue says something different once locked: "nothing was
        selected before this was locked" rather than "add some" - the instruction
@@ -971,7 +971,7 @@ export const ServiceError: Story = {
        generic apology.
 
        Two copies, and that is deliberate: the section renders the error at the
-       top and again beside the Create Lab Order button, because the order is
+       top and again beside the Create lab order button, because the order is
        placed several screens below the heading and the top copy alone would be
        off-screen at the moment it appears. `findByText` throws on multiple
        matches, which is what failed here - the assertion, not the component. The

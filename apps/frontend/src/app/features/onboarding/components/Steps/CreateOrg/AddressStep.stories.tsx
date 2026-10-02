@@ -105,10 +105,9 @@ const meta = {
           'renders six. `country` has no control here - it is set on the previous step, from the ' +
           'dial code - so an address that is complete apart from its country blocks Next and ' +
           'shows nothing at all. The "Country missing" story below is that dead end.\n\n' +
-          '**Announcement is uneven.** Five of the six messages come from `FormInput` and carry ' +
-          '`role="alert"`. The address-line message comes from `GoogleSearchDropDown`, which ' +
-          'renders the same warning icon and text with no role, so a screen reader is never told ' +
-          'about the first field in the form.\n\n' +
+          '**Every message is announced.** Five of the six messages come from `FormInput` and the ' +
+          'address-line message from `GoogleSearchDropDown`; both render through the shared ' +
+          '`Field`, so all six carry `role="alert"`.\n\n' +
           'Typing in the address field debounces a call to `places.googleapis.com`, so no play ' +
           'function here types into it; the prediction dropdown is out of scope for these stories.',
       },
@@ -213,9 +212,11 @@ export const ParentErrors: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // Six messages painted, five announced. The odd one out is the first field.
-    await expect(canvas.getAllByRole('alert')).toHaveLength(5);
-    await expect(canvas.getByText('Address line is required').closest('[role="alert"]')).toBeNull();
+    // Six messages painted, six announced - the address line included.
+    await expect(canvas.getAllByRole('alert')).toHaveLength(6);
+    await expect(
+      canvas.getByText('Address line is required').closest('[role="alert"]')
+    ).not.toBeNull();
 
     // The paired numeric fields carry messages too, which is the only place they
     // are ever seen - the validator's bounds are otherwise undiscoverable.
@@ -228,7 +229,7 @@ export const ParentErrors: Story = {
        parent's list over the field the user just fixed - drop that guard and
        every message comes straight back on the next keystroke. */
     await waitFor(() => expect(canvas.queryByText('City is required')).not.toBeInTheDocument());
-    await expect(canvas.getAllByRole('alert')).toHaveLength(4);
+    await expect(canvas.getAllByRole('alert')).toHaveLength(5);
     await expect(canvas.getByText('Address line is required')).toBeInTheDocument();
   },
   parameters: {
@@ -253,7 +254,7 @@ export const LocalValidation: Story = {
     await expect(canvas.getByText('City is required')).toBeInTheDocument();
     await expect(canvas.getByText('State or province is required')).toBeInTheDocument();
     await expect(canvas.getByText('Postal code is required')).toBeInTheDocument();
-    await expect(canvas.getAllByRole('alert')).toHaveLength(3);
+    await expect(canvas.getAllByRole('alert')).toHaveLength(4);
 
     /* A fifth error was raised. `validateOrgAddress` also returns
        `country: 'Country is required'` for this org, and the step has no country

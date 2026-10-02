@@ -115,9 +115,9 @@ const meta = {
           'Modal `canClose` hook, which returns `false` **and** opens the confirm as a side ' +
           'effect - so a reviewer cannot verify the guard by looking at the drawer alone.\n\n' +
           '**Validation is name and type only.** Room code, availability, units and equipment ' +
-          'all save empty; the two required fields report in different places, because one is a ' +
-          '`FormInput` (red border, `role="alert"` line, `aria-invalid`) and the other is a ' +
-          '`LabelDropdown` (red border and a plain message with no alert role).\n\n' +
+          'all save empty. The two required fields are a `FormInput` (red border, `role="alert"` ' +
+          'line, `aria-invalid`) and a `LabelDropdown` (red trigger and its own `role="alert"` ' +
+          'line), both rendered through the shared `Field`.\n\n' +
           'The four section bodies are covered separately in ' +
           '**Organization/AddRoomSections**, which drives them from props rather than through ' +
           'this drawer.\n\n' +
@@ -218,16 +218,17 @@ export const RequiredFieldErrors: Story = {
 
     await userEvent.click(panel.getByRole('button', { name: 'New room' }));
 
-    // Two required fields, reported in two different components: the name gets a
-    // `role="alert"` line wired to the input, the room type gets a plain message
-    // under a red trigger with no alert semantics at all.
+    // Two required fields, reported by two different components that share the
+    // `Field` message: the name gets a `role="alert"` line wired to the input,
+    // the room type a `role="alert"` line under its red trigger.
     expect(await panel.findByText('Name is required')).toBeInTheDocument();
     await expect(panel.getByText('Room type is required')).toBeInTheDocument();
     await expect(panel.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true');
-    await expect(panel.queryAllByRole('alert')).toHaveLength(1);
+    await expect(panel.queryAllByRole('alert')).toHaveLength(2);
+    await expect(panel.getByText('Room type is required').closest('[role="alert"]')).not.toBeNull();
     // Room code is optional, so it must stay clean - all three sit in one grid
-    // and it is easy to mark the wrong one.
-    await expect(panel.getByLabelText('Room code')).toHaveAttribute('aria-invalid', 'false');
+    // and it is easy to mark the wrong one. A valid input carries no aria-invalid.
+    await expect(panel.getByLabelText('Room code')).not.toHaveAttribute('aria-invalid');
 
     // Validation runs before the request, so a failed Add leaves the drawer open
     // and the footer label unchanged rather than flashing "Adding room...".
@@ -239,8 +240,7 @@ export const RequiredFieldErrors: Story = {
       description: {
         story:
           'The only state a reviewer can reach without a backend, and the one where the two ' +
-          'error treatments sit side by side. The asymmetry is real: assistive tech is told about ' +
-          'the name but not about the room type.',
+          'required-field errors sit side by side. Assistive tech is told about both.',
       },
     },
   },
