@@ -152,19 +152,19 @@ export const GroupModal: FC<GroupModalProps> = ({
     await runAction(() => onUpdateTitle(title.trim()));
   };
 
-  const handleAddMemberClick = (userId: string) => {
+  const handleAddMemberClick = async (userId: string) => {
     if (mode === 'create') {
       onMembersChange([...members, userId]);
     } else {
-      return runAction(() => onAddMember(userId));
+      await runAction(() => onAddMember(userId));
     }
   };
 
-  const handleRemoveMemberClick = (userId: string) => {
+  const handleRemoveMemberClick = async (userId: string) => {
     if (mode === 'create') {
       onMembersChange(members.filter((id) => id !== userId));
     } else {
-      return runAction(() => onRemoveMember(userId));
+      await runAction(() => onRemoveMember(userId));
     }
   };
 
