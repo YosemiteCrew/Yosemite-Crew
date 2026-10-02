@@ -6,6 +6,7 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
 export const metadata: Metadata = { title: 'Purchase orders — Yosemite Crew' };
 
+// no-story: this route only applies access guards and renders the purchase-order screen.
 const PAGE_SKELETON = <PageSkeleton variant="list" />;
 
 export default function Page() {

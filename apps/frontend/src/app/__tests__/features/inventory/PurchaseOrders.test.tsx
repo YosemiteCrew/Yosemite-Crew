@@ -117,6 +117,8 @@ describe('PurchaseOrdersContent', () => {
   it('loads orders and shows outstanding quantities', async () => {
     render(<PurchaseOrdersContent />);
     expect(await screen.findByText('PO-001')).toBeVisible();
+    expect(screen.getByText('28/09/2026')).toBeVisible();
+    expect(screen.getByText('06/10/2026')).toBeVisible();
     expect(screen.getByText('6 units')).toBeVisible();
     expect(screen.getByText('North Shore Supply')).toBeVisible();
     expect(screen.getByText('6', { selector: 'p' })).toBeVisible();
@@ -161,6 +163,20 @@ describe('PurchaseOrdersContent', () => {
     expect(screen.getByRole('button', { name: 'Remove item 1' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('heading', { name: 'New supplier order' })).not.toBeInTheDocument();
+  });
+
+  it('preserves the remaining draft line DOM when an earlier line is removed', async () => {
+    const user = userEvent.setup();
+    render(<PurchaseOrdersContent />);
+    await screen.findByText('PO-001');
+    await user.click(screen.getByRole('button', { name: 'New order' }));
+    await user.click(screen.getByRole('button', { name: 'Add item' }));
+    const secondLineQuantity = screen.getAllByLabelText('Quantity')[1];
+
+    await user.click(screen.getByRole('button', { name: 'Remove item 1' }));
+
+    expect(screen.getAllByLabelText('Quantity')).toHaveLength(1);
+    expect(screen.getByLabelText('Quantity')).toBe(secondLineQuantity);
   });
 
   it('confirms a draft and cancels it through their explicit actions', async () => {

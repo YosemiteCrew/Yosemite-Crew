@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { IoAddOutline, IoPrintOutline, IoTrashOutline } from 'react-icons/io5';
 import Button from '@/app/ui/Button';
 import Card from '@/app/ui/Card';
@@ -30,7 +38,7 @@ import {
 } from '@/app/features/inventory/services/purchaseOrderService';
 import type { InventoryApiItem } from '@/app/features/inventory/pages/Inventory/types';
 
-type DraftLine = { itemId: string; quantityOrdered: number; unitCost: number };
+type DraftLine = { id: string; itemId: string; quantityOrdered: number; unitCost: number };
 type ReceiptDraftLine = {
   purchaseOrderLineId: string;
   quantityReceived: number;
@@ -38,6 +46,37 @@ type ReceiptDraftLine = {
   lotNumber: string;
   expiryDate: string;
 };
+type CreateOrderForm = {
+  show: boolean;
+  vendorId: string;
+  currency: string;
+  expectedDate: string;
+  notes: string;
+  lines: DraftLine[];
+};
+type ReceiveOrderForm = { order: PurchaseOrder | null; lines: ReceiptDraftLine[] };
+type PurchaseOrderData = {
+  orders: PurchaseOrder[];
+  page: number;
+  totalOrderCount: number;
+  totalPages: number;
+  vendors: PurchaseOrderVendor[];
+  items: InventoryApiItem[];
+  outstandingLines: PurchaseOrderLine[];
+};
+type StateUpdate<T> = Partial<T> | ((current: T) => Partial<T>);
+
+const mergeState = <T,>(current: T, update: StateUpdate<T>): T => ({
+  ...current,
+  ...(typeof update === 'function' ? update(current) : update),
+});
+
+const createDraftLine = (): DraftLine => ({
+  id: crypto.randomUUID(),
+  itemId: '',
+  quantityOrdered: 1,
+  unitCost: 0,
+});
 
 const statusTone: Record<PurchaseOrder['status'], StatusTone> = {
   DRAFT: 'neutral',
@@ -51,48 +90,731 @@ const outstandingQuantity = (line: PurchaseOrderLine) =>
   Math.max(0, line.quantityOrdered - line.quantityReceived);
 
 const formatDate = (value: string | null | undefined) =>
-  value ? new Date(value).toLocaleDateString() : 'Not set';
+  value ? new Date(value).toLocaleDateString('en-GB', { timeZone: 'UTC' }) : 'Not set';
 
-const formatMoney = (amount: number, currency: string) =>
-  new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
+const moneyFormatters = new Map<string, Intl.NumberFormat>();
+
+const formatMoney = (amount: number, currency: string) => {
+  let formatter = moneyFormatters.get(currency);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('en-GB', { style: 'currency', currency });
+    moneyFormatters.set(currency, formatter);
+  }
+  return formatter.format(amount);
+};
+
+type PurchaseOrderFormProps = {
+  form: CreateOrderForm;
+  vendors: PurchaseOrderVendor[];
+  items: InventoryApiItem[];
+  itemById: Map<string, InventoryApiItem>;
+  saving: boolean;
+  onFormChange: (update: StateUpdate<CreateOrderForm>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+};
+
+const PurchaseOrderForm = ({
+  form,
+  vendors,
+  items,
+  itemById,
+  saving,
+  onFormChange,
+  onSubmit,
+}: PurchaseOrderFormProps) => {
+  const updateLine = (id: string, patch: Partial<DraftLine>) =>
+    onFormChange((current) => ({
+      lines: current.lines.map((line) => (line.id === id ? { ...line, ...patch } : line)),
+    }));
+
+  if (!form.show) return null;
+
+  return (
+    <Card className="p-4 sm:p-6">
+      <section>
+        <form onSubmit={onSubmit} className="space-y-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-text-primary">New supplier order</h2>
+              <p className="mt-1 text-sm text-text-secondary">
+                Review the order details before confirming it.
+              </p>
+            </div>
+            <label className="grid gap-1 text-sm text-text-secondary">
+              Supplier
+              <select
+                required
+                value={form.vendorId}
+                onChange={(event) => onFormChange({ vendorId: event.target.value })}
+                className="h-10 min-w-56 rounded-xl border border-card-border bg-neutral-0 px-3 text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+              >
+                <option value="">Choose a supplier</option>
+                {vendors.map((vendor) => (
+                  <option key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {vendors.length === 0 && (
+            <p className="text-sm text-text-secondary">
+              Add a supplier in Inventory before creating an order.
+            </p>
+          )}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="grid gap-1 text-sm text-text-secondary">
+              Expected delivery
+              <Input
+                type="date"
+                placeholder="Expected delivery"
+                value={form.expectedDate}
+                onChange={(event) => onFormChange({ expectedDate: event.target.value })}
+              />
+            </label>
+            <label className="grid gap-1 text-sm text-text-secondary">
+              Currency
+              <select
+                value={form.currency}
+                onChange={(event) => onFormChange({ currency: event.target.value })}
+                className="h-10 rounded-xl border border-card-border bg-neutral-0 px-3 text-text-primary"
+              >
+                <option>EUR</option>
+                <option>GBP</option>
+                <option>USD</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm text-text-secondary">
+              Notes
+              <Textarea
+                value={form.notes}
+                onChange={(event) => onFormChange({ notes: event.target.value })}
+                rows={2}
+                maxLength={500}
+                placeholder="Optional note for this order"
+              />
+            </label>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-text-primary">Items</h3>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-blue-text hover:underline"
+                onClick={() =>
+                  onFormChange((current) => ({
+                    lines: [...current.lines, createDraftLine()],
+                  }))
+                }
+              >
+                <IoAddOutline aria-hidden="true" /> Add item
+              </button>
+            </div>
+            {form.lines.map((line, index) => (
+              <div
+                key={line.id}
+                className="grid gap-2 rounded-xl border border-card-border p-3 sm:grid-cols-[minmax(0,2fr)_1fr_1fr_auto] sm:items-end"
+              >
+                <label className="grid gap-1 text-sm text-text-secondary">
+                  Product
+                  <select
+                    required
+                    value={line.itemId}
+                    onChange={(event) =>
+                      updateLine(line.id, {
+                        itemId: event.target.value,
+                        unitCost: Number(itemById.get(event.target.value)?.unitCost ?? 0),
+                      })
+                    }
+                    className="h-10 min-w-0 rounded-xl border border-card-border bg-neutral-0 px-3 text-text-primary"
+                  >
+                    <option value="">Choose a product</option>
+                    {items.map((item) => (
+                      <option key={item._id} value={item._id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm text-text-secondary">
+                  Quantity
+                  <Input
+                    required
+                    type="number"
+                    min={1}
+                    step={1}
+                    placeholder="Quantity"
+                    value={line.quantityOrdered}
+                    onChange={(event) =>
+                      updateLine(line.id, { quantityOrdered: Number(event.target.value) })
+                    }
+                  />
+                </label>
+                <label className="grid gap-1 text-sm text-text-secondary">
+                  Unit cost
+                  <Input
+                    required
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="Unit cost"
+                    value={line.unitCost}
+                    onChange={(event) =>
+                      updateLine(line.id, { unitCost: Number(event.target.value) })
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  aria-label={`Remove item ${index + 1}`}
+                  disabled={form.lines.length === 1}
+                  onClick={() =>
+                    onFormChange((current) => ({
+                      lines: current.lines.filter((draft) => draft.id !== line.id),
+                    }))
+                  }
+                  className="inline-flex size-10 items-center justify-center rounded-xl text-text-secondary hover:bg-card-hover disabled:opacity-40"
+                >
+                  <IoTrashOutline aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+            <p className="text-right text-sm font-semibold text-text-primary">
+              Estimated total{' '}
+              {formatMoney(
+                form.lines.reduce((sum, line) => sum + line.quantityOrdered * line.unitCost, 0),
+                form.currency
+              )}
+            </p>
+          </div>
+          {items.length === 0 && (
+            <p className="text-sm text-text-secondary">
+              Add products to Inventory before creating an order.
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              text="Cancel"
+              variant="secondary"
+              onClick={() => onFormChange({ show: false })}
+            />
+            <Button
+              text={saving ? 'Saving…' : 'Save draft'}
+              type="submit"
+              isDisabled={saving || !vendors.length || !items.length}
+            />
+          </div>
+        </form>
+      </section>
+    </Card>
+  );
+};
+
+type OrderHistoryProps = {
+  orders: PurchaseOrder[];
+  page: number;
+  totalOrderCount: number;
+  totalPages: number;
+  loading: boolean;
+  canEdit: boolean;
+  vendorById: Map<string, PurchaseOrderVendor>;
+  onCreate: () => void;
+  onPageChange: (page: number) => void;
+  onPrint: (order: PurchaseOrder) => void;
+  onReview: (order: PurchaseOrder) => void;
+  onReceive: (order: PurchaseOrder) => void;
+  onCancel: (order: PurchaseOrder) => void;
+};
+
+const OrderHistory = ({
+  orders,
+  page,
+  totalOrderCount,
+  totalPages,
+  loading,
+  canEdit,
+  vendorById,
+  onCreate,
+  onPageChange,
+  onPrint,
+  onReview,
+  onReceive,
+  onCancel,
+}: OrderHistoryProps) => (
+  <Card className="overflow-hidden">
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-card-border px-4 py-4 sm:px-6">
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">Order history</h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Confirmed quantities stay in the record as deliveries arrive.
+          </p>
+        </div>
+        <span className="text-sm text-text-secondary">
+          {totalOrderCount
+            ? `${(page - 1) * 25 + 1}–${Math.min(page * 25, totalOrderCount)} of ${totalOrderCount} orders`
+            : '0 orders'}
+        </span>
+      </div>
+      {orders.length === 0 ? (
+        <div className="px-6 py-12 text-center">
+          <p className="text-base font-semibold text-text-primary">No purchase orders yet</p>
+          <p className="mt-1 text-sm text-text-secondary">
+            Create a draft when you are ready to replenish stock.
+          </p>
+          {canEdit && <Button className="mt-4" text="Create first order" onClick={onCreate} />}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[780px] text-left text-sm">
+            <thead className="bg-card-bg text-xs uppercase tracking-wide text-text-secondary">
+              <tr>
+                <th className="px-4 py-3 sm:px-6">Order</th>
+                <th className="px-4 py-3">Supplier</th>
+                <th className="px-4 py-3">Expected</th>
+                <th className="px-4 py-3">Outstanding</th>
+                <th className="px-4 py-3">Total</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-card-border">
+              {orders.map((order) => (
+                <tr key={order.id} className="align-middle">
+                  <td className="px-4 py-4 font-semibold text-text-primary sm:px-6">
+                    {order.orderNumber}
+                    <span className="mt-1 block text-xs font-normal text-text-secondary">
+                      {formatDate(order.orderDate)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-text-primary">
+                    {vendorById.get(order.vendorId)?.name ?? 'Supplier'}
+                  </td>
+                  <td className="px-4 py-4 text-text-secondary">
+                    {formatDate(order.expectedDate)}
+                  </td>
+                  <td className="px-4 py-4 text-text-primary">
+                    {order.lines.reduce((sum, line) => sum + outstandingQuantity(line), 0)} units
+                  </td>
+                  <td className="px-4 py-4 text-text-primary">
+                    {formatMoney(order.totalAmount, order.currency)}
+                  </td>
+                  <td className="px-4 py-4">
+                    <StatusPill
+                      label={order.status.replaceAll('_', ' ')}
+                      tone={statusTone[order.status]}
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label={`Print ${order.orderNumber}`}
+                        onClick={() => onPrint(order)}
+                        className="rounded-lg p-2 text-text-secondary hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+                      >
+                        <IoPrintOutline aria-hidden="true" />
+                      </button>
+                      <Button
+                        text="Review"
+                        variant="secondary"
+                        className="!h-9 !px-3"
+                        onClick={() => onReview(order)}
+                      />
+                      {canEdit && ['CONFIRMED', 'PARTIALLY_RECEIVED'].includes(order.status) && (
+                        <Button
+                          text="Receive"
+                          className="!h-9 !px-3"
+                          onClick={() => onReceive(order)}
+                        />
+                      )}
+                      {canEdit && order.status === 'DRAFT' && (
+                        <button
+                          type="button"
+                          aria-label={`Cancel ${order.orderNumber}`}
+                          onClick={() => onCancel(order)}
+                          className="rounded-lg p-2 text-text-secondary hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+                        >
+                          <IoTrashOutline aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {totalPages > 1 && (
+        <nav
+          aria-label="Purchase order pages"
+          className="flex items-center justify-between border-t border-card-border px-4 py-3 sm:px-6"
+        >
+          <Button
+            text="Previous"
+            variant="secondary"
+            className="!h-9 !px-3"
+            isDisabled={page === 1 || loading}
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+          />
+          <span className="text-sm text-text-secondary">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            text="Next"
+            variant="secondary"
+            className="!h-9 !px-3"
+            isDisabled={page >= totalPages || loading}
+            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          />
+        </nav>
+      )}
+    </section>
+  </Card>
+);
+
+type ReviewOrderDialogProps = {
+  order: PurchaseOrder | null;
+  canEdit: boolean;
+  saving: boolean;
+  error: string | null;
+  vendorById: Map<string, PurchaseOrderVendor>;
+  itemById: Map<string, InventoryApiItem>;
+  onClose: () => void;
+  onConfirm: (order: PurchaseOrder) => void;
+};
+
+const ReviewOrderDialog = ({
+  order,
+  canEdit,
+  saving,
+  error,
+  vendorById,
+  itemById,
+  onClose,
+  onConfirm,
+}: ReviewOrderDialogProps) => (
+  <Modal
+    showModal={Boolean(order)}
+    setShowModal={(show) => {
+      if (!show) onClose();
+    }}
+    onClose={onClose}
+    variant="centered"
+    size="md"
+    aria-labelledby="review-order-title"
+  >
+    {order && (
+      <section className="max-h-[90vh] overflow-y-auto space-y-5">
+        <div>
+          <h2 id="review-order-title" className="text-lg font-semibold text-text-primary">
+            Review {order.orderNumber}
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            {canEdit && order.status === 'DRAFT'
+              ? 'Check the supplier, quantities, and total before confirming this order.'
+              : 'Review the supplier, quantities, and total for this order.'}
+          </p>
+        </div>
+        <dl className="grid gap-3 rounded-xl border border-card-border p-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-text-secondary">Supplier</dt>
+            <dd className="font-medium text-text-primary">
+              {vendorById.get(order.vendorId)?.name ?? 'Supplier'}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-text-secondary">Expected</dt>
+            <dd className="font-medium text-text-primary">{formatDate(order.expectedDate)}</dd>
+          </div>
+        </dl>
+        <ul className="divide-y divide-card-border rounded-xl border border-card-border">
+          {order.lines.map((line) => (
+            <li key={line.id} className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <p className="font-medium text-text-primary">
+                  {itemById.get(line.itemId)?.name ?? 'Inventory item'}
+                </p>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {line.quantityOrdered} ordered · {line.quantityReceived} received ·{' '}
+                  {outstandingQuantity(line)} outstanding
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-medium text-text-primary">
+                {formatMoney(line.totalCost, order.currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {order.notes && (
+          <p className="rounded-xl bg-card-bg p-4 text-sm text-text-secondary">{order.notes}</p>
+        )}
+        <p className="text-right font-semibold text-text-primary">
+          Total {formatMoney(order.totalAmount, order.currency)}
+        </p>
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button
+            text={canEdit && order.status === 'DRAFT' ? 'Back' : 'Close'}
+            variant="secondary"
+            isDisabled={saving}
+            onClick={onClose}
+          />
+          {canEdit && order.status === 'DRAFT' && (
+            <Button
+              text={saving ? 'Confirming…' : 'Confirm order'}
+              isDisabled={saving}
+              onClick={() => onConfirm(order)}
+            />
+          )}
+        </div>
+      </section>
+    )}
+  </Modal>
+);
+
+type ReceiveOrderDialogProps = {
+  order: PurchaseOrder | null;
+  lines: ReceiptDraftLine[];
+  itemById: Map<string, InventoryApiItem>;
+  saving: boolean;
+  onClose: () => void;
+  onChange: (update: StateUpdate<ReceiveOrderForm>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+};
+
+const ReceiveOrderDialog = ({
+  order,
+  lines,
+  itemById,
+  saving,
+  onClose,
+  onChange,
+  onSubmit,
+}: ReceiveOrderDialogProps) => (
+  <Modal
+    showModal={Boolean(order)}
+    setShowModal={(show) => {
+      if (!show) onClose();
+    }}
+    onClose={onClose}
+    variant="centered"
+    size="lg"
+    aria-labelledby="receive-order-title"
+  >
+    {order && (
+      <section className="max-h-[90vh] overflow-y-auto">
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <h2 id="receive-order-title" className="text-lg font-semibold text-text-primary">
+              Receive {order.orderNumber}
+            </h2>
+            <p className="mt-1 text-sm text-text-secondary">
+              Record the quantities and the batch details on the delivery.
+            </p>
+          </div>
+          {lines.map((line) => {
+            const orderLine = order.lines.find((item) => item.id === line.purchaseOrderLineId);
+            if (!orderLine) return null;
+            const updateLine = (patch: Partial<ReceiptDraftLine>) =>
+              onChange((current) => ({
+                lines: current.lines.map((draft) =>
+                  draft.purchaseOrderLineId === line.purchaseOrderLineId
+                    ? { ...draft, ...patch }
+                    : draft
+                ),
+              }));
+            return (
+              <fieldset
+                key={line.purchaseOrderLineId}
+                className="grid gap-3 rounded-xl border border-card-border p-3 sm:grid-cols-2"
+              >
+                <legend className="px-1 text-sm font-semibold text-text-primary">
+                  {itemById.get(orderLine.itemId)?.name ?? 'Inventory item'} ·{' '}
+                  {outstandingQuantity(orderLine)} outstanding
+                </legend>
+                <label className="grid gap-1 text-sm text-text-secondary">
+                  Quantity received
+                  <Input
+                    type="number"
+                    min={0}
+                    max={outstandingQuantity(orderLine)}
+                    step={1}
+                    placeholder="Quantity received"
+                    value={line.quantityReceived}
+                    onChange={(event) =>
+                      updateLine({ quantityReceived: Number(event.target.value) })
+                    }
+                  />
+                </label>
+                <label className="grid gap-1 text-sm text-text-secondary">
+                  Batch number
+                  <Input
+                    placeholder="Batch number"
+                    value={line.batchNumber}
+                    onChange={(event) => updateLine({ batchNumber: event.target.value })}
+                  />
+                </label>
+                <label className="grid gap-1 text-sm text-text-secondary">
+                  Lot number
+                  <Input
+                    placeholder="Lot number"
+                    value={line.lotNumber}
+                    onChange={(event) => updateLine({ lotNumber: event.target.value })}
+                  />
+                </label>
+                <label className="grid gap-1 text-sm text-text-secondary">
+                  Expiry date
+                  <Input
+                    type="date"
+                    placeholder="Expiry date"
+                    value={line.expiryDate}
+                    onChange={(event) => updateLine({ expiryDate: event.target.value })}
+                  />
+                </label>
+              </fieldset>
+            );
+          })}
+          <div className="flex justify-end gap-2">
+            <Button text="Cancel" variant="secondary" onClick={onClose} />
+            <Button
+              text={saving ? 'Saving…' : 'Record delivery'}
+              type="submit"
+              isDisabled={saving}
+            />
+          </div>
+        </form>
+      </section>
+    )}
+  </Modal>
+);
+
+type PurchaseOrderPrintViewProps = {
+  order: PurchaseOrder | null;
+  vendorById: Map<string, PurchaseOrderVendor>;
+  itemById: Map<string, InventoryApiItem>;
+};
+
+const PurchaseOrderPrintView = ({ order, vendorById, itemById }: PurchaseOrderPrintViewProps) =>
+  order ? (
+    <>
+      <section
+        className="purchase-order-print hidden print:fixed print:inset-0 print:block p-8 text-black"
+        aria-label="Purchase order document"
+      >
+        <div className="flex justify-between border-b border-black pb-5">
+          <div>
+            <p className="text-xs uppercase tracking-widest">Supplier order</p>
+            <h1 className="mt-2 text-3xl font-semibold">{order.orderNumber}</h1>
+          </div>
+          <div className="text-right">
+            <p>{vendorById.get(order.vendorId)?.name ?? 'Supplier'}</p>
+            <p className="mt-1">Order date: {formatDate(order.orderDate)}</p>
+            <p>Expected: {formatDate(order.expectedDate)}</p>
+          </div>
+        </div>
+        <table className="mt-8 w-full text-left">
+          <thead>
+            <tr className="border-b border-black">
+              <th className="py-2">Product</th>
+              <th>Quantity</th>
+              <th>Unit cost</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {order.lines.map((line) => (
+              <tr key={line.id} className="border-b border-card-border">
+                <td className="py-3">{itemById.get(line.itemId)?.name ?? 'Inventory item'}</td>
+                <td>{line.quantityOrdered}</td>
+                <td>{formatMoney(line.unitCost, order.currency)}</td>
+                <td>{formatMoney(line.totalCost, order.currency)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {order.notes && <p className="mt-6">Notes: {order.notes}</p>}
+        <p className="mt-8 text-right text-xl font-semibold">
+          Total: {formatMoney(order.totalAmount, order.currency)}
+        </p>
+      </section>
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          .purchase-order-print,
+          .purchase-order-print * {
+            visibility: visible !important;
+          }
+          .purchase-order-print {
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+          }
+        }
+      `}</style>
+    </>
+  ) : null;
 
 export const PurchaseOrdersContent = () => {
   useLoadOrg();
   const organisationId = useOrgStore((state) => state.primaryOrgId);
   const canEdit = usePermissions().can(PERMISSIONS.INVENTORY_EDIT_ANY);
-  const [orders, setOrders] = useState<PurchaseOrder[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalOrderCount, setTotalOrderCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [vendors, setVendors] = useState<PurchaseOrderVendor[]>([]);
-  const [items, setItems] = useState<InventoryApiItem[]>([]);
-  const [outstandingLines, setOutstandingLines] = useState<PurchaseOrderLine[]>([]);
+  const [data, updateData] = useReducer(mergeState<PurchaseOrderData>, {
+    orders: [],
+    page: 1,
+    totalOrderCount: 0,
+    totalPages: 1,
+    vendors: [],
+    items: [],
+    outstandingLines: [],
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [vendorId, setVendorId] = useState('');
-  const [currency, setCurrency] = useState('EUR');
-  const [expectedDate, setExpectedDate] = useState('');
-  const [notes, setNotes] = useState('');
-  const [draftLines, setDraftLines] = useState<DraftLine[]>([
-    { itemId: '', quantityOrdered: 1, unitCost: 0 },
-  ]);
+  const [createForm, updateCreateForm] = useReducer(mergeState<CreateOrderForm>, {
+    show: false,
+    vendorId: '',
+    currency: 'EUR',
+    expectedDate: '',
+    notes: '',
+    lines: [createDraftLine()],
+  });
   const [reviewingOrder, setReviewingOrder] = useState<PurchaseOrder | null>(null);
-  const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
-  const [receiptLines, setReceiptLines] = useState<ReceiptDraftLine[]>([]);
-  const [receiptIdempotencyKey, setReceiptIdempotencyKey] = useState('');
+  const [receiveForm, updateReceiveForm] = useReducer(mergeState<ReceiveOrderForm>, {
+    order: null,
+    lines: [],
+  });
+  const receiptIdempotencyKey = useRef('');
   const [printOrder, setPrintOrder] = useState<PurchaseOrder | null>(null);
+  const { orders, page, totalOrderCount, totalPages, vendors, items, outstandingLines } = data;
+  const {
+    show: showCreateForm,
+    vendorId,
+    currency,
+    expectedDate,
+    notes,
+    lines: draftLines,
+  } = createForm;
+  const { order: receivingOrder, lines: receiptLines } = receiveForm;
 
   const loadData = useCallback(async () => {
     if (!organisationId) {
-      setOrders([]);
-      setTotalOrderCount(0);
-      setTotalPages(1);
-      setVendors([]);
-      setItems([]);
-      setOutstandingLines([]);
+      updateData({
+        orders: [],
+        totalOrderCount: 0,
+        totalPages: 1,
+        vendors: [],
+        items: [],
+        outstandingLines: [],
+      });
       setLoading(false);
       return;
     }
@@ -106,12 +828,14 @@ export const PurchaseOrdersContent = () => {
         fetchInventoryItems(organisationId),
         fetchOutstandingPurchaseOrderLines(organisationId),
       ]);
-      setOrders(orderPage.items);
-      setTotalOrderCount(orderPage.total);
-      setTotalPages(orderPage.totalPages);
-      setVendors(supplierList);
-      setItems(inventory);
-      setOutstandingLines(outstanding);
+      updateData({
+        orders: orderPage.items,
+        totalOrderCount: orderPage.total,
+        totalPages: orderPage.totalPages,
+        vendors: supplierList,
+        items: inventory,
+        outstandingLines: outstanding,
+      });
     } catch {
       setError('Purchase orders could not be loaded. Try again.');
       setLoadFailed(true);
@@ -153,11 +877,7 @@ export const PurchaseOrdersContent = () => {
     {}
   );
 
-  const updateDraftLine = (index: number, patch: Partial<DraftLine>) => {
-    setDraftLines((current) =>
-      current.map((line, lineIndex) => (lineIndex === index ? { ...line, ...patch } : line))
-    );
-  };
+  const closeReceiving = () => updateReceiveForm({ order: null, lines: [] });
 
   const submitOrder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -179,13 +899,15 @@ export const PurchaseOrdersContent = () => {
         })),
       };
       await createPurchaseOrder(organisationId, input);
-      setShowCreateForm(false);
-      setVendorId('');
-      setExpectedDate('');
-      setNotes('');
-      setDraftLines([{ itemId: '', quantityOrdered: 1, unitCost: 0 }]);
+      updateCreateForm({
+        show: false,
+        vendorId: '',
+        expectedDate: '',
+        notes: '',
+        lines: [createDraftLine()],
+      });
       if (page === 1) await loadData();
-      else setPage(1);
+      else updateData({ page: 1 });
     } catch {
       setError('The purchase order could not be saved. Your draft is still here.');
     } finally {
@@ -199,9 +921,8 @@ export const PurchaseOrdersContent = () => {
     try {
       await action();
       setReviewingOrder(null);
-      setReceivingOrder(null);
-      setReceiptLines([]);
-      setReceiptIdempotencyKey('');
+      updateReceiveForm({ order: null, lines: [] });
+      receiptIdempotencyKey.current = '';
       await loadData();
     } catch {
       setError(failure);
@@ -211,35 +932,43 @@ export const PurchaseOrdersContent = () => {
   };
 
   const startReceiving = (order: PurchaseOrder) => {
-    setReceivingOrder(order);
-    setReceiptIdempotencyKey(crypto.randomUUID());
-    setReceiptLines(
-      order.lines
-        .filter((line) => outstandingQuantity(line) > 0)
-        .map((line) => ({
-          purchaseOrderLineId: line.id,
-          quantityReceived: outstandingQuantity(line),
-          batchNumber: '',
-          lotNumber: '',
-          expiryDate: '',
-        }))
-    );
+    updateReceiveForm({
+      order,
+      lines: order.lines.flatMap((line) => {
+        const quantityReceived = outstandingQuantity(line);
+        return quantityReceived > 0
+          ? [
+              {
+                purchaseOrderLineId: line.id,
+                quantityReceived,
+                batchNumber: '',
+                lotNumber: '',
+                expiryDate: '',
+              },
+            ]
+          : [];
+      }),
+    });
+    receiptIdempotencyKey.current = crypto.randomUUID();
   };
 
   const submitReceipt = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!receivingOrder) return;
-    const lines = receiptLines
-      .filter((line) => line.quantityReceived > 0)
-      .map((line) => ({
-        purchaseOrderLineId: line.purchaseOrderLineId,
-        quantityReceived: line.quantityReceived,
-        ...(line.batchNumber.trim() ? { batchNumber: line.batchNumber.trim() } : {}),
-        ...(line.lotNumber.trim() ? { lotNumber: line.lotNumber.trim() } : {}),
-        ...(line.expiryDate
-          ? { expiryDate: new Date(`${line.expiryDate}T00:00:00.000Z`).toISOString() }
-          : {}),
-      }));
+    const lines = receiptLines.flatMap((line) => {
+      if (line.quantityReceived <= 0) return [];
+      return [
+        {
+          purchaseOrderLineId: line.purchaseOrderLineId,
+          quantityReceived: line.quantityReceived,
+          ...(line.batchNumber.trim() ? { batchNumber: line.batchNumber.trim() } : {}),
+          ...(line.lotNumber.trim() ? { lotNumber: line.lotNumber.trim() } : {}),
+          ...(line.expiryDate
+            ? { expiryDate: new Date(`${line.expiryDate}T00:00:00.000Z`).toISOString() }
+            : {}),
+        },
+      ];
+    });
     if (!lines.length) {
       setError('Enter a quantity for at least one item.');
       return;
@@ -247,7 +976,7 @@ export const PurchaseOrdersContent = () => {
     await runOrderAction(
       () =>
         receivePurchaseOrderDelivery(receivingOrder.id, {
-          idempotencyKey: receiptIdempotencyKey,
+          idempotencyKey: receiptIdempotencyKey.current,
           lines,
         }),
       'The delivery could not be recorded. Please try again.'
@@ -286,7 +1015,7 @@ export const PurchaseOrdersContent = () => {
             <Button
               text={showCreateForm ? 'Close form' : 'New order'}
               variant="primary"
-              onClick={() => setShowCreateForm((visible) => !visible)}
+              onClick={() => updateCreateForm((current) => ({ show: !current.show }))}
             />
           )}
         </header>
@@ -294,7 +1023,7 @@ export const PurchaseOrdersContent = () => {
         {error && (
           <div
             role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-status-danger-border bg-status-danger-bg px-4 py-3 text-sm text-status-danger-text"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]"
           >
             <p>{error}</p>
             {loadFailed && (
@@ -333,607 +1062,67 @@ export const PurchaseOrdersContent = () => {
         </section>
 
         {showCreateForm && canEdit && (
-          <Card className="p-4 sm:p-6">
-            <section>
-              <form onSubmit={submitOrder} className="space-y-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold text-text-primary">New supplier order</h2>
-                    <p className="mt-1 text-sm text-text-secondary">
-                      Review the order details before confirming it.
-                    </p>
-                  </div>
-                  <label className="grid gap-1 text-sm text-text-secondary">
-                    Supplier
-                    <select
-                      required
-                      value={vendorId}
-                      onChange={(event) => setVendorId(event.target.value)}
-                      className="h-10 min-w-56 rounded-xl border border-card-border bg-neutral-0 px-3 text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                    >
-                      <option value="">Choose a supplier</option>
-                      {vendors.map((vendor) => (
-                        <option key={vendor.id} value={vendor.id}>
-                          {vendor.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                {vendors.length === 0 && (
-                  <p className="text-sm text-text-secondary">
-                    Add a supplier in Inventory before creating an order.
-                  </p>
-                )}
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <label className="grid gap-1 text-sm text-text-secondary">
-                    Expected delivery
-                    <Input
-                      type="date"
-                      placeholder="Expected delivery"
-                      value={expectedDate}
-                      onChange={(event) => setExpectedDate(event.target.value)}
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm text-text-secondary">
-                    Currency
-                    <select
-                      value={currency}
-                      onChange={(event) => setCurrency(event.target.value)}
-                      className="h-10 rounded-xl border border-card-border bg-neutral-0 px-3 text-text-primary"
-                    >
-                      <option>EUR</option>
-                      <option>GBP</option>
-                      <option>USD</option>
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm text-text-secondary">
-                    Notes
-                    <Textarea
-                      value={notes}
-                      onChange={(event) => setNotes(event.target.value)}
-                      rows={2}
-                      maxLength={500}
-                      placeholder="Optional note for this order"
-                    />
-                  </label>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-text-primary">Items</h3>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-sm font-semibold text-action-primary hover:underline"
-                      onClick={() =>
-                        setDraftLines((lines) => [
-                          ...lines,
-                          { itemId: '', quantityOrdered: 1, unitCost: 0 },
-                        ])
-                      }
-                    >
-                      <IoAddOutline aria-hidden="true" /> Add item
-                    </button>
-                  </div>
-                  {draftLines.map((line, index) => (
-                    <div
-                      key={index}
-                      className="grid gap-2 rounded-xl border border-card-border p-3 sm:grid-cols-[minmax(0,2fr)_1fr_1fr_auto] sm:items-end"
-                    >
-                      <label className="grid gap-1 text-sm text-text-secondary">
-                        Product
-                        <select
-                          required
-                          value={line.itemId}
-                          onChange={(event) =>
-                            updateDraftLine(index, {
-                              itemId: event.target.value,
-                              unitCost: Number(itemById.get(event.target.value)?.unitCost ?? 0),
-                            })
-                          }
-                          className="h-10 min-w-0 rounded-xl border border-card-border bg-neutral-0 px-3 text-text-primary"
-                        >
-                          <option value="">Choose a product</option>
-                          {items.map((item) => (
-                            <option key={item._id} value={item._id}>
-                              {item.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-1 text-sm text-text-secondary">
-                        Quantity
-                        <Input
-                          required
-                          type="number"
-                          min={1}
-                          step={1}
-                          placeholder="Quantity"
-                          value={line.quantityOrdered}
-                          onChange={(event) =>
-                            updateDraftLine(index, { quantityOrdered: Number(event.target.value) })
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-1 text-sm text-text-secondary">
-                        Unit cost
-                        <Input
-                          required
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          placeholder="Unit cost"
-                          value={line.unitCost}
-                          onChange={(event) =>
-                            updateDraftLine(index, { unitCost: Number(event.target.value) })
-                          }
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        aria-label={`Remove item ${index + 1}`}
-                        disabled={draftLines.length === 1}
-                        onClick={() =>
-                          setDraftLines((lines) =>
-                            lines.filter((_, lineIndex) => lineIndex !== index)
-                          )
-                        }
-                        className="inline-flex size-10 items-center justify-center rounded-xl text-text-secondary hover:bg-card-hover disabled:opacity-40"
-                      >
-                        <IoTrashOutline aria-hidden="true" />
-                      </button>
-                    </div>
-                  ))}
-                  <p className="text-right text-sm font-semibold text-text-primary">
-                    Estimated total{' '}
-                    {formatMoney(
-                      draftLines.reduce(
-                        (sum, line) => sum + line.quantityOrdered * line.unitCost,
-                        0
-                      ),
-                      currency
-                    )}
-                  </p>
-                </div>
-                {items.length === 0 && (
-                  <p className="text-sm text-text-secondary">
-                    Add products to Inventory before creating an order.
-                  </p>
-                )}
-                <div className="flex justify-end gap-2">
-                  <Button
-                    text="Cancel"
-                    variant="secondary"
-                    onClick={() => setShowCreateForm(false)}
-                  />
-                  <Button
-                    text={saving ? 'Saving…' : 'Save draft'}
-                    type="submit"
-                    isDisabled={saving || !vendors.length || !items.length}
-                  />
-                </div>
-              </form>
-            </section>
-          </Card>
+          <PurchaseOrderForm
+            form={createForm}
+            vendors={vendors}
+            items={items}
+            itemById={itemById}
+            saving={saving}
+            onFormChange={updateCreateForm}
+            onSubmit={submitOrder}
+          />
         )}
 
-        <Card className="overflow-hidden">
-          <section>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-card-border px-4 py-4 sm:px-6">
-              <div>
-                <h2 className="text-lg font-semibold text-text-primary">Order history</h2>
-                <p className="mt-1 text-sm text-text-secondary">
-                  Confirmed quantities stay in the record as deliveries arrive.
-                </p>
-              </div>
-              <span className="text-sm text-text-secondary">
-                {totalOrderCount
-                  ? `${(page - 1) * 25 + 1}–${Math.min(page * 25, totalOrderCount)} of ${totalOrderCount} orders`
-                  : '0 orders'}
-              </span>
-            </div>
-            {orders.length === 0 ? (
-              <div className="px-6 py-12 text-center">
-                <p className="text-base font-semibold text-text-primary">No purchase orders yet</p>
-                <p className="mt-1 text-sm text-text-secondary">
-                  Create a draft when you are ready to replenish stock.
-                </p>
-                {canEdit && (
-                  <Button
-                    className="mt-4"
-                    text="Create first order"
-                    onClick={() => setShowCreateForm(true)}
-                  />
-                )}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[780px] text-left text-sm">
-                  <thead className="bg-card-bg text-xs uppercase tracking-wide text-text-secondary">
-                    <tr>
-                      <th className="px-4 py-3 sm:px-6">Order</th>
-                      <th className="px-4 py-3">Supplier</th>
-                      <th className="px-4 py-3">Expected</th>
-                      <th className="px-4 py-3">Outstanding</th>
-                      <th className="px-4 py-3">Total</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-card-border">
-                    {orders.map((order) => (
-                      <tr key={order.id} className="align-middle">
-                        <td className="px-4 py-4 font-semibold text-text-primary sm:px-6">
-                          {order.orderNumber}
-                          <span className="mt-1 block text-xs font-normal text-text-secondary">
-                            {formatDate(order.orderDate)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-text-primary">
-                          {vendorById.get(order.vendorId)?.name ?? 'Supplier'}
-                        </td>
-                        <td className="px-4 py-4 text-text-secondary">
-                          {formatDate(order.expectedDate)}
-                        </td>
-                        <td className="px-4 py-4 text-text-primary">
-                          {order.lines.reduce((sum, line) => sum + outstandingQuantity(line), 0)}{' '}
-                          units
-                        </td>
-                        <td className="px-4 py-4 text-text-primary">
-                          {formatMoney(order.totalAmount, order.currency)}
-                        </td>
-                        <td className="px-4 py-4">
-                          <StatusPill
-                            label={order.status.replaceAll('_', ' ')}
-                            tone={statusTone[order.status]}
-                          />
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              aria-label={`Print ${order.orderNumber}`}
-                              onClick={() => setPrintOrder(order)}
-                              className="rounded-lg p-2 text-text-secondary hover:bg-card-hover focus-visible:outline-2 focus-visible:outline-focus-ring"
-                            >
-                              <IoPrintOutline aria-hidden="true" />
-                            </button>
-                            <Button
-                              text="Review"
-                              variant="secondary"
-                              className="!h-9 !px-3"
-                              onClick={() => {
-                                setError(null);
-                                setReviewingOrder(order);
-                              }}
-                            />
-                            {canEdit &&
-                              ['CONFIRMED', 'PARTIALLY_RECEIVED'].includes(order.status) && (
-                                <Button
-                                  text="Receive"
-                                  className="!h-9 !px-3"
-                                  onClick={() => startReceiving(order)}
-                                />
-                              )}
-                            {canEdit && order.status === 'DRAFT' && (
-                              <button
-                                type="button"
-                                aria-label={`Cancel ${order.orderNumber}`}
-                                onClick={() =>
-                                  void runOrderAction(
-                                    () => cancelPurchaseOrder(order.id),
-                                    'The order could not be cancelled.'
-                                  )
-                                }
-                                className="rounded-lg p-2 text-text-secondary hover:bg-card-hover focus-visible:outline-2 focus-visible:outline-focus-ring"
-                              >
-                                <IoTrashOutline aria-hidden="true" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {totalPages > 1 && (
-              <nav
-                aria-label="Purchase order pages"
-                className="flex items-center justify-between border-t border-card-border px-4 py-3 sm:px-6"
-              >
-                <Button
-                  text="Previous"
-                  variant="secondary"
-                  className="!h-9 !px-3"
-                  isDisabled={page === 1 || loading}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                />
-                <span className="text-sm text-text-secondary">
-                  Page {page} of {totalPages}
-                </span>
-                <Button
-                  text="Next"
-                  variant="secondary"
-                  className="!h-9 !px-3"
-                  isDisabled={page >= totalPages || loading}
-                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                />
-              </nav>
-            )}
-          </section>
-        </Card>
+        <OrderHistory
+          orders={orders}
+          page={page}
+          totalOrderCount={totalOrderCount}
+          totalPages={totalPages}
+          loading={loading}
+          canEdit={canEdit}
+          vendorById={vendorById}
+          onCreate={() => updateCreateForm({ show: true })}
+          onPageChange={(nextPage) => updateData({ page: nextPage })}
+          onPrint={setPrintOrder}
+          onReview={(order) => {
+            setError(null);
+            setReviewingOrder(order);
+          }}
+          onReceive={startReceiving}
+          onCancel={(order) =>
+            void runOrderAction(
+              () => cancelPurchaseOrder(order.id),
+              'The order could not be cancelled.'
+            )
+          }
+        />
       </main>
 
-      <Modal
-        showModal={Boolean(reviewingOrder)}
-        setShowModal={(show) => {
-          if (!show) setReviewingOrder(null);
-        }}
+      <ReviewOrderDialog
+        order={reviewingOrder}
+        canEdit={canEdit}
+        saving={saving}
+        error={error}
+        vendorById={vendorById}
+        itemById={itemById}
         onClose={() => setReviewingOrder(null)}
-        variant="centered"
-        size="md"
-        aria-labelledby="review-order-title"
-      >
-        {reviewingOrder && (
-          <section className="max-h-[90vh] overflow-y-auto space-y-5">
-            <div>
-              <h2 id="review-order-title" className="text-lg font-semibold text-text-primary">
-                Review {reviewingOrder.orderNumber}
-              </h2>
-              <p className="mt-1 text-sm text-text-secondary">
-                {canEdit && reviewingOrder.status === 'DRAFT'
-                  ? 'Check the supplier, quantities, and total before confirming this order.'
-                  : 'Review the supplier, quantities, and total for this order.'}
-              </p>
-            </div>
-            <dl className="grid gap-3 rounded-xl border border-card-border p-4 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-text-secondary">Supplier</dt>
-                <dd className="font-medium text-text-primary">
-                  {vendorById.get(reviewingOrder.vendorId)?.name ?? 'Supplier'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-text-secondary">Expected</dt>
-                <dd className="font-medium text-text-primary">
-                  {formatDate(reviewingOrder.expectedDate)}
-                </dd>
-              </div>
-            </dl>
-            <ul className="divide-y divide-card-border rounded-xl border border-card-border">
-              {reviewingOrder.lines.map((line) => (
-                <li key={line.id} className="flex items-center justify-between gap-4 p-4">
-                  <div>
-                    <p className="font-medium text-text-primary">
-                      {itemById.get(line.itemId)?.name ?? 'Inventory item'}
-                    </p>
-                    <p className="mt-1 text-sm text-text-secondary">
-                      {line.quantityOrdered} ordered · {line.quantityReceived} received ·{' '}
-                      {outstandingQuantity(line)} outstanding
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-sm font-medium text-text-primary">
-                    {formatMoney(line.totalCost, reviewingOrder.currency)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {reviewingOrder.notes && (
-              <p className="rounded-xl bg-card-bg p-4 text-sm text-text-secondary">
-                {reviewingOrder.notes}
-              </p>
-            )}
-            <p className="text-right font-semibold text-text-primary">
-              Total {formatMoney(reviewingOrder.totalAmount, reviewingOrder.currency)}
-            </p>
-            {error && (
-              <p role="alert" className="text-sm text-danger">
-                {error}
-              </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                text={canEdit && reviewingOrder.status === 'DRAFT' ? 'Back' : 'Close'}
-                variant="secondary"
-                isDisabled={saving}
-                onClick={() => setReviewingOrder(null)}
-              />
-              {canEdit && reviewingOrder.status === 'DRAFT' && (
-                <Button
-                  text={saving ? 'Confirming…' : 'Confirm order'}
-                  isDisabled={saving}
-                  onClick={() =>
-                    void runOrderAction(
-                      () => confirmPurchaseOrder(reviewingOrder.id),
-                      'The order could not be confirmed.'
-                    )
-                  }
-                />
-              )}
-            </div>
-          </section>
-        )}
-      </Modal>
-
-      <Modal
-        showModal={Boolean(receivingOrder)}
-        setShowModal={(show) => {
-          if (!show) setReceivingOrder(null);
-        }}
-        onClose={() => setReceivingOrder(null)}
-        variant="centered"
-        size="lg"
-        aria-labelledby="receive-order-title"
-      >
-        {receivingOrder && (
-          <section className="max-h-[90vh] overflow-y-auto">
-            <form onSubmit={submitReceipt} className="space-y-4">
-              <div>
-                <h2 id="receive-order-title" className="text-lg font-semibold text-text-primary">
-                  Receive {receivingOrder.orderNumber}
-                </h2>
-                <p className="mt-1 text-sm text-text-secondary">
-                  Record the quantities and the batch details on the delivery.
-                </p>
-              </div>
-              {receiptLines.map((line, index) => {
-                const orderLine = receivingOrder.lines.find(
-                  (item) => item.id === line.purchaseOrderLineId
-                );
-                if (!orderLine) return null;
-                return (
-                  <fieldset
-                    key={line.purchaseOrderLineId}
-                    className="grid gap-3 rounded-xl border border-card-border p-3 sm:grid-cols-2"
-                  >
-                    <legend className="px-1 text-sm font-semibold text-text-primary">
-                      {itemById.get(orderLine.itemId)?.name ?? 'Inventory item'} ·{' '}
-                      {outstandingQuantity(orderLine)} outstanding
-                    </legend>
-                    <label className="grid gap-1 text-sm text-text-secondary">
-                      Quantity received
-                      <Input
-                        type="number"
-                        min={0}
-                        max={outstandingQuantity(orderLine)}
-                        step={1}
-                        placeholder="Quantity received"
-                        value={line.quantityReceived}
-                        onChange={(event) =>
-                          setReceiptLines((lines) =>
-                            lines.map((draft, draftIndex) =>
-                              draftIndex === index
-                                ? { ...draft, quantityReceived: Number(event.target.value) }
-                                : draft
-                            )
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-1 text-sm text-text-secondary">
-                      Batch number
-                      <Input
-                        placeholder="Batch number"
-                        value={line.batchNumber}
-                        onChange={(event) =>
-                          setReceiptLines((lines) =>
-                            lines.map((draft, draftIndex) =>
-                              draftIndex === index
-                                ? { ...draft, batchNumber: event.target.value }
-                                : draft
-                            )
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-1 text-sm text-text-secondary">
-                      Lot number
-                      <Input
-                        placeholder="Lot number"
-                        value={line.lotNumber}
-                        onChange={(event) =>
-                          setReceiptLines((lines) =>
-                            lines.map((draft, draftIndex) =>
-                              draftIndex === index
-                                ? { ...draft, lotNumber: event.target.value }
-                                : draft
-                            )
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-1 text-sm text-text-secondary">
-                      Expiry date
-                      <Input
-                        type="date"
-                        placeholder="Expiry date"
-                        value={line.expiryDate}
-                        onChange={(event) =>
-                          setReceiptLines((lines) =>
-                            lines.map((draft, draftIndex) =>
-                              draftIndex === index
-                                ? { ...draft, expiryDate: event.target.value }
-                                : draft
-                            )
-                          )
-                        }
-                      />
-                    </label>
-                  </fieldset>
-                );
-              })}
-              <div className="flex justify-end gap-2">
-                <Button text="Cancel" variant="secondary" onClick={() => setReceivingOrder(null)} />
-                <Button
-                  text={saving ? 'Saving…' : 'Record delivery'}
-                  type="submit"
-                  isDisabled={saving}
-                />
-              </div>
-            </form>
-          </section>
-        )}
-      </Modal>
-
-      {printOrder && (
-        <section
-          className="purchase-order-print hidden print:fixed print:inset-0 print:block p-8 text-black"
-          aria-label="Purchase order document"
-        >
-          <div className="flex justify-between border-b border-black pb-5">
-            <div>
-              <p className="text-xs uppercase tracking-widest">Supplier order</p>
-              <h1 className="mt-2 text-3xl font-semibold">{printOrder.orderNumber}</h1>
-            </div>
-            <div className="text-right">
-              <p>{vendorById.get(printOrder.vendorId)?.name ?? 'Supplier'}</p>
-              <p className="mt-1">Order date: {formatDate(printOrder.orderDate)}</p>
-              <p>Expected: {formatDate(printOrder.expectedDate)}</p>
-            </div>
-          </div>
-          <table className="mt-8 w-full text-left">
-            <thead>
-              <tr className="border-b border-black">
-                <th className="py-2">Product</th>
-                <th>Quantity</th>
-                <th>Unit cost</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {printOrder.lines.map((line) => (
-                <tr key={line.id} className="border-b border-gray-300">
-                  <td className="py-3">{itemById.get(line.itemId)?.name ?? 'Inventory item'}</td>
-                  <td>{line.quantityOrdered}</td>
-                  <td>{formatMoney(line.unitCost, printOrder.currency)}</td>
-                  <td>{formatMoney(line.totalCost, printOrder.currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {printOrder.notes && <p className="mt-6">Notes: {printOrder.notes}</p>}
-          <p className="mt-8 text-right text-xl font-semibold">
-            Total: {formatMoney(printOrder.totalAmount, printOrder.currency)}
-          </p>
-        </section>
-      )}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          .purchase-order-print,
-          .purchase-order-print * {
-            visibility: visible !important;
-          }
-          .purchase-order-print {
-            position: absolute !important;
-            inset: 0 !important;
-            width: 100% !important;
-          }
+        onConfirm={(order) =>
+          void runOrderAction(
+            () => confirmPurchaseOrder(order.id),
+            'The order could not be confirmed.'
+          )
         }
-      `}</style>
+      />
+      <ReceiveOrderDialog
+        order={receivingOrder}
+        lines={receiptLines}
+        itemById={itemById}
+        saving={saving}
+        onClose={closeReceiving}
+        onChange={updateReceiveForm}
+        onSubmit={submitReceipt}
+      />
+      <PurchaseOrderPrintView order={printOrder} vendorById={vendorById} itemById={itemById} />
     </PermissionGate>
   );
 };
