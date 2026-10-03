@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { resolvePracticeTimeZone } from "src/services/finance/client-collections";
 import {
   buildClientStatementSnapshot,
   ClientStatementError,
@@ -6,9 +7,17 @@ import {
   type StatementInvoice,
 } from "src/services/finance/client-statement";
 
+jest.mock("src/services/finance/client-collections", () => ({
+  resolvePracticeTimeZone: jest.fn(),
+}));
+
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    invoice: { findMany: jest.fn() },
+    $transaction: jest.fn(),
+    invoice: { findMany: jest.fn(), count: jest.fn() },
+    payment: { count: jest.fn() },
+    refund: { count: jest.fn() },
+    creditNote: { count: jest.fn() },
     parent: { findUnique: jest.fn() },
     clientStatement: {
       findUnique: jest.fn(),
@@ -21,7 +30,11 @@ jest.mock("src/config/prisma", () => ({
 }));
 
 const mockedPrisma = prisma as unknown as {
-  invoice: { findMany: jest.Mock };
+  $transaction: jest.Mock;
+  invoice: { findMany: jest.Mock; count: jest.Mock };
+  payment: { count: jest.Mock };
+  refund: { count: jest.Mock };
+  creditNote: { count: jest.Mock };
   parent: { findUnique: jest.Mock };
   clientStatement: {
     findUnique: jest.Mock;
@@ -97,6 +110,14 @@ const generate = (over: Partial<Record<string, unknown>> = {}) =>
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.mocked(resolvePracticeTimeZone).mockResolvedValue("UTC");
+  mockedPrisma.$transaction.mockImplementation(async (run) =>
+    run(mockedPrisma),
+  );
+  mockedPrisma.invoice.count.mockResolvedValue(1);
+  mockedPrisma.payment.count.mockResolvedValue(0);
+  mockedPrisma.refund.count.mockResolvedValue(0);
+  mockedPrisma.creditNote.count.mockResolvedValue(0);
   mockedPrisma.clientStatement.findUnique.mockResolvedValue(null);
   mockedPrisma.parent.findUnique.mockResolvedValue(client);
   mockedPrisma.invoice.findMany.mockResolvedValue([invoice()]);
@@ -104,6 +125,177 @@ beforeEach(() => {
 });
 
 describe("buildClientStatementSnapshot", () => {
+  it("uses recorded creation dates when older rows lack finalization, due or paid dates", () => {
+    const result = buildClientStatementSnapshot({
+      client,
+      periodStart: PERIOD_START,
+      periodEnd: PERIOD_END,
+      generatedAt: NOW,
+      invoices: [
+        invoice({
+          finalizedAt: null,
+          dueAt: null,
+          payments: [
+            {
+              id: "payment",
+              amount: 40,
+              paidAt: null,
+              createdAt: new Date("2026-09-02T12:00:00.000Z"),
+              refunds: [],
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(result.currencies[0]).toMatchObject({
+      openingBalance: 100,
+      closingBalance: 60,
+      aging: { days31To60: 60 },
+    });
+    expect(result.currencies[0].entries[0].occurredAt).toBe(
+      "2026-09-02T12:00:00.000Z",
+    );
+  });
+  it.each([
+    ["2026-03-08T04:59:59.999Z", "2026-03-08T05:00:00.000Z", "days1To30"],
+    ["2026-03-08T04:59:59.999Z", "2026-04-07T04:00:00.000Z", "days31To60"],
+    ["2026-03-08T04:59:59.999Z", "2026-05-07T04:00:00.000Z", "days61To90"],
+    ["2026-03-08T04:59:59.999Z", "2026-06-06T04:00:00.000Z", "days91Plus"],
+    ["2026-10-03T04:00:00.000Z", "2026-11-03T04:59:59.999Z", "days1To30"],
+  ])("ages %s to %s by practice dates in %s", (due, end, bucket) => {
+    const result = buildClientStatementSnapshot({
+      client,
+      periodStart: new Date("2026-01-01T00:00:00.000Z"),
+      periodEnd: new Date(end),
+      generatedAt: new Date("2026-12-01T00:00:00.000Z"),
+      timeZone: "America/New_York",
+      invoices: [
+        invoice({
+          dueAt: new Date(due),
+          createdAt: new Date(due),
+          finalizedAt: new Date(due),
+        }),
+      ],
+    });
+
+    expect(result.currencies[0].aging).toEqual({
+      current: 0,
+      days1To30: 0,
+      days31To60: 0,
+      days61To90: 0,
+      days91Plus: 0,
+      totalOutstanding: 100,
+      [bucket]: 100,
+    });
+  });
+
+  it("keeps a credit note that is voided after the statement cutoff", () => {
+    const result = buildClientStatementSnapshot({
+      client,
+      periodStart: PERIOD_START,
+      periodEnd: PERIOD_END,
+      generatedAt: NOW,
+      invoices: [
+        invoice({
+          creditNotes: [
+            {
+              id: "note",
+              amount: 40,
+              createdAt: new Date("2026-09-02T12:00:00.000Z"),
+              voidedAt: new Date("2026-10-02T12:00:00.000Z"),
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(result.currencies[0]).toMatchObject({
+      openingBalance: 100,
+      closingBalance: 60,
+    });
+    expect(result.currencies[0].entries).toEqual([
+      expect.objectContaining({
+        id: "credit-note:note",
+        kind: "CREDIT_NOTE",
+        direction: "CREDIT",
+        amount: 40,
+      }),
+    ]);
+  });
+
+  it("records the original credit and its dated reversal within the period", () => {
+    const voidedAt = new Date("2026-09-12T12:00:00.000Z");
+    const result = buildClientStatementSnapshot({
+      client,
+      periodStart: PERIOD_START,
+      periodEnd: PERIOD_END,
+      generatedAt: NOW,
+      invoices: [
+        invoice({
+          creditNotes: [
+            {
+              id: "note",
+              amount: 40,
+              createdAt: new Date("2026-09-02T12:00:00.000Z"),
+              voidedAt,
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(result.currencies[0]).toMatchObject({
+      openingBalance: 100,
+      closingBalance: 100,
+    });
+    expect(result.currencies[0].entries).toEqual([
+      expect.objectContaining({
+        kind: "CREDIT_NOTE",
+        direction: "CREDIT",
+        amount: 40,
+      }),
+      expect.objectContaining({
+        kind: "CREDIT_NOTE_VOID",
+        direction: "DEBIT",
+        amount: 40,
+        occurredAt: voidedAt.toISOString(),
+      }),
+    ]);
+  });
+
+  it("retains an opening credit when its reversal falls on the cutoff", () => {
+    const result = buildClientStatementSnapshot({
+      client,
+      periodStart: PERIOD_START,
+      periodEnd: PERIOD_END,
+      generatedAt: NOW,
+      invoices: [
+        invoice({
+          creditNotes: [
+            {
+              id: "note",
+              amount: 40,
+              createdAt: new Date("2026-08-02T12:00:00.000Z"),
+              voidedAt: PERIOD_END,
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(result.currencies[0]).toMatchObject({
+      openingBalance: 60,
+      closingBalance: 100,
+    });
+    expect(result.currencies[0].entries).toEqual([
+      expect.objectContaining({
+        kind: "CREDIT_NOTE_VOID",
+        direction: "DEBIT",
+        amount: 40,
+      }),
+    ]);
+  });
   it("fixes opening and closing balances from movements in the requested period", () => {
     const result = buildClientStatementSnapshot({
       client,
@@ -403,6 +595,220 @@ describe("buildClientStatementSnapshot", () => {
 });
 
 describe("ClientStatementService.generate", () => {
+  it("records the current generation time when no clock override is supplied", async () => {
+    jest.useFakeTimers().setSystemTime(NOW);
+    try {
+      await generate({ now: undefined });
+      expect(
+        mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+          .generatedAt,
+      ).toBe(NOW.toISOString());
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  it.each(["periodStart", "periodEnd"])(
+    "rejects an invalid %s before reading the database",
+    async (field) => {
+      await expect(
+        generate({ [field]: new Date(Number.NaN) }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(mockedPrisma.clientStatement.findUnique).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a statement covering more than 366 calendar dates", async () => {
+    await expect(
+      generate({
+        periodStart: new Date("2025-09-01T00:00:00.000Z"),
+        periodEnd: new Date("2026-09-02T00:00:00.000Z"),
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Statement period must be 366 days or less.",
+    });
+    expect(mockedPrisma.clientStatement.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("accepts the last millisecond of a 366-day period", async () => {
+    await expect(
+      generate({
+        periodStart: new Date("2025-09-01T00:00:00.000Z"),
+        periodEnd: new Date("2026-09-01T23:59:59.999Z"),
+      }),
+    ).resolves.toMatchObject({ id: STATEMENT });
+  });
+
+  it.each(["invoice", "payment", "refund", "creditNote"] as const)(
+    "bounds %s rows before materializing any history",
+    async (table) => {
+      mockedPrisma[table].count.mockResolvedValue(10_001);
+
+      await expect(generate()).rejects.toMatchObject({ statusCode: 422 });
+      expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
+      expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it("bounds the combined history rather than each collection independently", async () => {
+    mockedPrisma.invoice.count.mockResolvedValue(2_500);
+    mockedPrisma.payment.count.mockResolvedValue(2_500);
+    mockedPrisma.refund.count.mockResolvedValue(2_500);
+    mockedPrisma.creditNote.count.mockResolvedValue(2_501);
+
+    await expect(generate()).rejects.toMatchObject({ statusCode: 422 });
+    expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
+  });
+
+  it("accepts exactly 10,000 rows and counts within the same bounded snapshot", async () => {
+    mockedPrisma.payment.count.mockResolvedValue(9_999);
+
+    await generate();
+
+    const where = mockedPrisma.invoice.findMany.mock.calls[0][0].where;
+    expect(mockedPrisma.invoice.count).toHaveBeenCalledWith({ where });
+    const paymentWhere = {
+      invoice: where,
+      status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
+    };
+    expect(mockedPrisma.payment.count).toHaveBeenCalledWith({
+      where: paymentWhere,
+    });
+    expect(mockedPrisma.refund.count).toHaveBeenCalledWith({
+      where: { payment: paymentWhere, status: "SUCCEEDED" },
+    });
+    expect(mockedPrisma.creditNote.count).toHaveBeenCalledWith({
+      where: { invoice: where, status: { in: ["ISSUED", "VOIDED"] } },
+    });
+    expect(mockedPrisma.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { isolationLevel: "RepeatableRead", timeout: 10_000 },
+    );
+    expect(mockedPrisma.clientStatement.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the organisation's practice timezone for stored ageing", async () => {
+    jest.mocked(resolvePracticeTimeZone).mockResolvedValue("America/New_York");
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({
+        dueAt: new Date("2026-03-08T04:59:59.999Z"),
+        finalizedAt: new Date("2026-03-01T00:00:00.000Z"),
+      }),
+    ]);
+
+    await generate({
+      periodStart: new Date("2026-04-01T00:00:00.000Z"),
+      periodEnd: new Date("2026-04-07T04:00:00.000Z"),
+    });
+
+    expect(resolvePracticeTimeZone).toHaveBeenCalledWith(ORG);
+    expect(
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0].aging.days31To60,
+    ).toBe(100);
+  });
+
+  it.each([
+    ["2026-09-12T12:00:00.000Z", 100, 2],
+    ["2026-10-12T12:00:00.000Z", 60, 1],
+  ])(
+    "loads issued and voided notes with their recorded reversal at %s",
+    async (voidedAt, closingBalance, entries) => {
+      mockedPrisma.invoice.findMany.mockResolvedValue([
+        {
+          ...invoice(),
+          creditNotes: [
+            {
+              id: "note",
+              amount: 40,
+              createdAt: new Date("2026-09-02T00:00:00.000Z"),
+              status: "VOIDED",
+              metadata: { voidedAt },
+            },
+          ],
+        },
+      ]);
+
+      await generate();
+
+      expect(
+        mockedPrisma.invoice.findMany.mock.calls[0][0].select.creditNotes,
+      ).toEqual({
+        where: { status: { in: ["ISSUED", "VOIDED"] } },
+        select: {
+          id: true,
+          amount: true,
+          createdAt: true,
+          status: true,
+          metadata: true,
+        },
+      });
+      const currency =
+        mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+          .currencies[0];
+      expect(currency.closingBalance).toBe(closingBalance);
+      expect(currency.entries).toHaveLength(entries);
+    },
+  );
+
+  it.each([
+    null,
+    [],
+    "unexpected",
+    {},
+    { voidedAt: 123 },
+    { voidedAt: "invalid" },
+    { voidedAt: "2026-08-01T00:00:00.000Z" },
+  ])(
+    "refuses to invent a reversal date for a voided note with %j",
+    async (metadata) => {
+      mockedPrisma.invoice.findMany.mockResolvedValue([
+        {
+          ...invoice(),
+          creditNotes: [
+            {
+              id: "note",
+              amount: 40,
+              status: "VOIDED",
+              metadata,
+              createdAt: new Date("2026-09-02T00:00:00.000Z"),
+            },
+          ],
+        },
+      ]);
+
+      await expect(generate()).rejects.toMatchObject({
+        statusCode: 409,
+        message: "A credit note is missing its reversal date.",
+      });
+      expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not treat metadata on an issued note as a reversal", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      {
+        ...invoice(),
+        creditNotes: [
+          {
+            id: "note",
+            amount: 40,
+            status: "ISSUED",
+            metadata: { voidedAt: "2026-09-12T12:00:00.000Z" },
+            createdAt: new Date("2026-09-02T00:00:00.000Z"),
+          },
+        ],
+      },
+    ]);
+
+    await generate();
+
+    expect(
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0].closingBalance,
+    ).toBe(60);
+  });
+
   it("rejects an inverted period before reading the database", async () => {
     await expect(
       generate({ periodStart: PERIOD_END, periodEnd: PERIOD_START }),

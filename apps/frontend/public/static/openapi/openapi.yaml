@@ -10288,7 +10288,7 @@ paths:
         - 'Non-FHIR'
       summary: Generate a fixed client statement
       operationId: generateClientStatement
-      description: Stores and returns a fixed account snapshot for the selected period. Balances and aging totals remain separate by currency.
+      description: Stores and returns a fixed account snapshot for the selected period. Balances and aging totals remain separate by currency, with dated credit-note reversals and aging by practice calendar dates.
       security:
         - BearerAuth: []
       parameters:
@@ -10369,7 +10369,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/MessageError'
         409:
-          description: The idempotency key belongs to another statement period.
+          description: The idempotency key belongs to another statement period, or a credit note is missing its reversal date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        422:
+          description: The client account is too large to generate a statement.
           content:
             application/json:
               schema:
@@ -36044,7 +36050,7 @@ components:
           format: date-time
         kind:
           type: string
-          enum: [INVOICE, PAYMENT, REFUND, CREDIT_NOTE, DEPOSIT]
+          enum: [INVOICE, PAYMENT, REFUND, CREDIT_NOTE, CREDIT_NOTE_VOID, DEPOSIT]
         direction:
           type: string
           enum: [DEBIT, CREDIT]

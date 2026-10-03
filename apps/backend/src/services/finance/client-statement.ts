@@ -1,8 +1,11 @@
 import { Prisma } from "@prisma/client";
+import moment from "moment-timezone";
 import { prisma } from "src/config/prisma";
 import { roundMoney } from "src/services/finance/pricing";
+import { resolvePracticeTimeZone } from "src/services/finance/client-collections";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_STATEMENT_ROWS = 10_000;
 const INCLUDED_PAYMENT_STATUSES = [
   "SUCCEEDED",
   "PARTIALLY_REFUNDED",
@@ -13,7 +16,13 @@ export type ClientStatementEntry = {
   id: string;
   invoiceId: string;
   occurredAt: string;
-  kind: "INVOICE" | "PAYMENT" | "REFUND" | "CREDIT_NOTE" | "DEPOSIT";
+  kind:
+    | "INVOICE"
+    | "PAYMENT"
+    | "REFUND"
+    | "CREDIT_NOTE"
+    | "CREDIT_NOTE_VOID"
+    | "DEPOSIT";
   direction: "DEBIT" | "CREDIT";
   amount: number;
 };
@@ -66,7 +75,12 @@ export type StatementInvoice = {
   paidAt: Date | null;
   createdAt: Date;
   payments: StatementPayment[];
-  creditNotes: Array<{ id: string; amount: number; createdAt: Date }>;
+  creditNotes: Array<{
+    id: string;
+    amount: number;
+    createdAt: Date;
+    voidedAt?: Date | null;
+  }>;
 };
 
 type Movement = ClientStatementEntry & {
@@ -214,6 +228,19 @@ const buildInvoiceMovements = (
         currency,
       }),
     );
+    if (note.voidedAt) {
+      movements.push(
+        movement({
+          id: `credit-note-void:${note.id}`,
+          invoiceId: invoice.id,
+          at: note.voidedAt,
+          kind: "CREDIT_NOTE_VOID",
+          direction: "DEBIT",
+          amount: note.amount,
+          currency,
+        }),
+      );
+    }
   }
 
   return {
@@ -237,11 +264,15 @@ const addAgedBalance = (
   dueAt: Date,
   periodEnd: Date,
   balance: number,
+  timeZone: string,
 ): void => {
   if (balance <= 0) return;
   const days = Math.max(
     0,
-    Math.floor((periodEnd.getTime() - dueAt.getTime()) / DAY_MS),
+    moment
+      .tz(periodEnd, timeZone)
+      .startOf("day")
+      .diff(moment.tz(dueAt, timeZone).startOf("day"), "days"),
   );
   if (days === 0) aging.current = add(currency, aging.current, balance);
   else if (days <= 30)
@@ -259,6 +290,7 @@ export const buildClientStatementSnapshot = (input: {
   periodStart: Date;
   periodEnd: Date;
   generatedAt: Date;
+  timeZone?: string;
   invoices: readonly StatementInvoice[];
 }): ClientStatementSnapshot => {
   const byCurrency = new Map<string, CurrencyAccumulator>();
@@ -318,6 +350,7 @@ export const buildClientStatementSnapshot = (input: {
           invoice.dueAt,
           input.periodEnd,
           invoice.balance,
+          input.timeZone ?? "UTC",
         );
       }
 
@@ -405,6 +438,29 @@ const assertSameRequest = (
   return toRecord(statement);
 };
 
+const creditNoteVoidDate = (note: {
+  status: string;
+  metadata: Prisma.JsonValue;
+  createdAt: Date;
+}): Date | null => {
+  if (note.status !== "VOIDED") return null;
+  const value =
+    note.metadata &&
+    typeof note.metadata === "object" &&
+    !Array.isArray(note.metadata)
+      ? note.metadata.voidedAt
+      : null;
+  const date =
+    typeof value === "string" ? new Date(value) : new Date(Number.NaN);
+  if (!Number.isFinite(date.getTime()) || date < note.createdAt) {
+    throw new ClientStatementError(
+      "A credit note is missing its reversal date.",
+      409,
+    );
+  }
+  return date;
+};
+
 export const ClientStatementService = {
   async generate(input: {
     organisationId: string;
@@ -416,6 +472,15 @@ export const ClientStatementService = {
     now?: Date;
   }): Promise<ClientStatementRecord> {
     const now = input.now ?? new Date();
+    if (
+      !Number.isFinite(input.periodStart.getTime()) ||
+      !Number.isFinite(input.periodEnd.getTime())
+    ) {
+      throw new ClientStatementError(
+        "Statement period must contain valid dates.",
+        400,
+      );
+    }
     if (input.periodStart >= input.periodEnd) {
       throw new ClientStatementError(
         "Statement period start must be before its end.",
@@ -428,50 +493,97 @@ export const ClientStatementService = {
         400,
       );
     }
+    if (
+      input.periodEnd.getTime() - input.periodStart.getTime() >=
+      366 * DAY_MS
+    ) {
+      throw new ClientStatementError(
+        "Statement period must be 366 days or less.",
+        400,
+      );
+    }
 
     const existing = await findIdempotentStatement(input);
     if (existing) {
       return assertSameRequest(existing, input.periodStart, input.periodEnd);
     }
 
-    const invoices = await prisma.invoice.findMany({
-      where: {
-        organisationId: input.organisationId,
-        parentId: input.parentId,
-        status: { not: "CANCELLED" },
-        OR: [
-          { finalizedAt: { lte: input.periodEnd } },
-          { finalizedAt: null, createdAt: { lte: input.periodEnd } },
-        ],
-      },
-      select: {
-        id: true,
-        currency: true,
-        totalAmount: true,
-        depositCollectedAmount: true,
-        finalizedAt: true,
-        dueAt: true,
-        paidAt: true,
-        createdAt: true,
-        payments: {
-          where: { status: { in: [...INCLUDED_PAYMENT_STATUSES] } },
+    const invoices = await prisma.$transaction(
+      async (tx) => {
+        const where: Prisma.InvoiceWhereInput = {
+          organisationId: input.organisationId,
+          parentId: input.parentId,
+          status: { not: "CANCELLED" },
+          OR: [
+            { finalizedAt: { lte: input.periodEnd } },
+            { finalizedAt: null, createdAt: { lte: input.periodEnd } },
+          ],
+        };
+        const paymentWhere: Prisma.PaymentWhereInput = {
+          invoice: where,
+          status: { in: [...INCLUDED_PAYMENT_STATUSES] },
+        };
+        const rowCounts = await Promise.all([
+          tx.invoice.count({ where }),
+          tx.payment.count({ where: paymentWhere }),
+          tx.refund.count({
+            where: { payment: paymentWhere, status: "SUCCEEDED" },
+          }),
+          tx.creditNote.count({
+            where: { invoice: where, status: { in: ["ISSUED", "VOIDED"] } },
+          }),
+        ]);
+        if (
+          rowCounts.reduce((total, count) => total + count, 0) >
+          MAX_STATEMENT_ROWS
+        ) {
+          throw new ClientStatementError(
+            "This client account exceeds the supported statement size.",
+            422,
+          );
+        }
+        return tx.invoice.findMany({
+          where,
           select: {
             id: true,
-            amount: true,
+            currency: true,
+            totalAmount: true,
+            depositCollectedAmount: true,
+            finalizedAt: true,
+            dueAt: true,
             paidAt: true,
             createdAt: true,
-            refunds: {
-              where: { status: "SUCCEEDED" },
-              select: { id: true, amount: true, createdAt: true },
+            payments: {
+              where: { status: { in: [...INCLUDED_PAYMENT_STATUSES] } },
+              select: {
+                id: true,
+                amount: true,
+                paidAt: true,
+                createdAt: true,
+                refunds: {
+                  where: { status: "SUCCEEDED" },
+                  select: { id: true, amount: true, createdAt: true },
+                },
+              },
+            },
+            creditNotes: {
+              where: { status: { in: ["ISSUED", "VOIDED"] } },
+              select: {
+                id: true,
+                amount: true,
+                createdAt: true,
+                status: true,
+                metadata: true,
+              },
             },
           },
-        },
-        creditNotes: {
-          where: { status: "ISSUED" },
-          select: { id: true, amount: true, createdAt: true },
-        },
+        });
       },
-    });
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+        timeout: 10_000,
+      },
+    );
     if (invoices.length === 0) {
       throw new ClientStatementError("Client account not found.", 404);
     }
@@ -489,7 +601,14 @@ export const ClientStatementService = {
       periodStart: input.periodStart,
       periodEnd: input.periodEnd,
       generatedAt: now,
-      invoices,
+      timeZone: await resolvePracticeTimeZone(input.organisationId),
+      invoices: invoices.map((invoice) => ({
+        ...invoice,
+        creditNotes: invoice.creditNotes.map((note) => ({
+          ...note,
+          voidedAt: creditNoteVoidDate(note),
+        })),
+      })),
     });
 
     try {
