@@ -2,6 +2,7 @@ import { isAuthRedirectError, postData } from '@/app/services/axios';
 import { logger } from '@/app/lib/logger';
 import { useAuthStore } from '@/app/stores/authStore';
 
+const PROVISION_MAX_ATTEMPTS = 3;
 const PROVISION_RETRY_BASE_MS = 800;
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -46,14 +47,11 @@ export const provisionBackendUser = async (): Promise<boolean> => {
       }
     : undefined;
 
-  const first = await attemptProvisioning(body);
-  if (recordProvisioningFailure(first, 1)) return true;
-
-  await delay(PROVISION_RETRY_BASE_MS);
-  const second = await attemptProvisioning(body);
-  if (recordProvisioningFailure(second, 2)) return true;
-
-  await delay(PROVISION_RETRY_BASE_MS * 2);
-  const third = await attemptProvisioning(body);
-  return recordProvisioningFailure(third, 3);
+  for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      await delay(PROVISION_RETRY_BASE_MS * (attempt - 1));
+    }
+    if (recordProvisioningFailure(await attemptProvisioning(body), attempt)) return true;
+  }
+  return false;
 };
