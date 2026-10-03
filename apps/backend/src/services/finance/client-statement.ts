@@ -803,9 +803,21 @@ export const ClientStatementService = {
           parentId: input.parentId,
           invoiceId: { in: rows.map((invoice) => invoice.id) },
         };
+        const allocationWhere: Prisma.ProviderReceiptAllocationWhereInput = {
+          receipt: { organisationId: input.organisationId },
+          invoiceId: { in: rows.map((invoice) => invoice.id) },
+          paymentId: {
+            in: rows.flatMap((invoice) =>
+              invoice.payments.map((payment) => payment.id),
+            ),
+          },
+        };
         const rowCount =
           rowCounts.reduce((total, count) => total + count, 0) +
-          (await tx.invoiceRevision.count({ where: revisionWhere }));
+          (await tx.invoiceRevision.count({ where: revisionWhere })) +
+          (await tx.providerReceiptAllocation.count({
+            where: allocationWhere,
+          }));
         if (rowCount > MAX_STATEMENT_ROWS) {
           throw new ClientStatementError(
             "This client account exceeds the supported statement size.",
@@ -828,8 +840,40 @@ export const ClientStatementService = {
           rows,
           rowCount,
         );
+        const allocations = await tx.providerReceiptAllocation.findMany({
+          where: allocationWhere,
+          select: {
+            paymentId: true,
+            invoiceId: true,
+            amount: true,
+            appliedAt: true,
+          },
+        });
+        const appliedPayments = new Map<string, Date>();
+        for (const allocation of allocations) {
+          const invoice = rows.find((row) => row.id === allocation.invoiceId);
+          const payment = invoice?.payments.find(
+            (row) => row.id === allocation.paymentId,
+          );
+          if (
+            !payment ||
+            !allocation.appliedAt ||
+            allocation.amount !== payment.amount ||
+            appliedPayments.has(payment.id)
+          ) {
+            throw new ClientStatementError(
+              "A payment is missing its dated allocation history.",
+              409,
+            );
+          }
+          appliedPayments.set(payment.id, allocation.appliedAt);
+        }
         return rows.map((invoice) => ({
           ...invoice,
+          payments: invoice.payments.map((payment) => ({
+            ...payment,
+            paidAt: appliedPayments.get(payment.id) ?? payment.paidAt,
+          })),
           deposits: deposits.get(invoice.id),
           revisions: revisions.get(invoice.id) ?? [],
         }));

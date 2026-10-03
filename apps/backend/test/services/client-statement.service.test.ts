@@ -16,6 +16,7 @@ jest.mock("src/config/prisma", () => ({
     $transaction: jest.fn(),
     invoice: { findMany: jest.fn(), count: jest.fn() },
     invoiceRevision: { findMany: jest.fn(), count: jest.fn() },
+    providerReceiptAllocation: { findMany: jest.fn(), count: jest.fn() },
     payment: { count: jest.fn() },
     refund: { count: jest.fn() },
     creditNote: { count: jest.fn() },
@@ -35,6 +36,7 @@ const mockedPrisma = prisma as unknown as {
   $transaction: jest.Mock;
   invoice: { findMany: jest.Mock; count: jest.Mock };
   invoiceRevision: { findMany: jest.Mock; count: jest.Mock };
+  providerReceiptAllocation: { findMany: jest.Mock; count: jest.Mock };
   payment: { count: jest.Mock };
   refund: { count: jest.Mock };
   creditNote: { count: jest.Mock };
@@ -532,6 +534,8 @@ beforeEach(() => {
   );
   mockedPrisma.invoice.count.mockResolvedValue(1);
   mockedPrisma.invoiceRevision.count.mockResolvedValue(1);
+  mockedPrisma.providerReceiptAllocation.count.mockResolvedValue(0);
+  mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([]);
   mockedPrisma.invoiceRevision.findMany.mockImplementation(async () => {
     const rows: StatementInvoice[] =
       await mockedPrisma.invoice.findMany.mock.results.at(-1)?.value;
@@ -1073,6 +1077,95 @@ describe("buildClientStatementSnapshot", () => {
 });
 
 describe("ClientStatementService.generate", () => {
+  describe("dated allocations", () => {
+    beforeEach(() => {
+      mockedPrisma.invoice.findMany.mockResolvedValue([
+        invoice({
+          payments: [
+            {
+              id: "allocated-payment",
+              amount: 40,
+              paidAt: new Date("2026-08-01"),
+              createdAt: new Date("2026-08-01"),
+              refunds: [],
+            },
+          ],
+        }),
+      ]);
+      mockedPrisma.providerReceiptAllocation.count.mockResolvedValue(1);
+    });
+    const allocation = (over: Record<string, unknown> = {}) => ({
+      invoiceId: "invoice-1",
+      paymentId: "allocated-payment",
+      amount: 40,
+      appliedAt: new Date("2026-09-15"),
+      ...over,
+    });
+    it.each([
+      ["2026-09-15", 60, 1],
+      ["2026-10-01", 100, 0],
+    ])(
+      "uses application date %s instead of capture date",
+      async (date, balance, count) => {
+        mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([
+          allocation({ appliedAt: new Date(date) }),
+        ]);
+        await generate();
+        const currency =
+          mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+            .currencies[0];
+        expect(currency.openingBalance).toBe(100);
+        expect(currency.closingBalance).toBe(balance);
+        expect(currency.aging.totalOutstanding).toBe(balance);
+        expect(currency.entries).toHaveLength(count);
+        if (count)
+          expect(currency.entries[0].occurredAt).toBe(
+            new Date(date).toISOString(),
+          );
+        expect(
+          mockedPrisma.providerReceiptAllocation.findMany,
+        ).toHaveBeenCalledWith({
+          where: {
+            receipt: { organisationId: ORG },
+            invoiceId: { in: ["invoice-1"] },
+            paymentId: { in: ["allocated-payment"] },
+          },
+          select: {
+            paymentId: true,
+            invoiceId: true,
+            amount: true,
+            appliedAt: true,
+          },
+        });
+      },
+    );
+    it.each([
+      ["date", { appliedAt: null }],
+      ["amount", { amount: 30 }],
+      ["invoice", { invoiceId: "other" }],
+    ])("refuses incomplete allocation %s", async (_name, changed) => {
+      mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([
+        allocation(changed),
+      ]);
+      await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+    });
+    it("refuses conflicting duplicate payment allocations", async () => {
+      mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([
+        allocation(),
+        allocation({ appliedAt: new Date("2026-09-20") }),
+      ]);
+      await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+    });
+    it("bounds allocation rows before loading them", async () => {
+      mockedPrisma.providerReceiptAllocation.count.mockResolvedValue(10_000);
+      await expect(generate()).rejects.toMatchObject({ statusCode: 422 });
+      expect(
+        mockedPrisma.providerReceiptAllocation.findMany,
+      ).not.toHaveBeenCalled();
+    });
+  });
   it("includes a dated partial deposit when the invoice is not fully paid", async () => {
     mockedPrisma.invoice.findMany.mockResolvedValue([
       invoice({ depositCollectedAmount: 40, paidAt: null }),
