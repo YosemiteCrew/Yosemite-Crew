@@ -831,7 +831,7 @@ const saveTreatmentPrescriptions = async (
 const getFinalizeFailure = async (
   organisationId: string,
   artifacts: SavedInHouseArtifact[]
-): Promise<unknown | undefined> => {
+): Promise<unknown> => {
   const outcomes = await Promise.allSettled(
     artifacts.map(({ id, version }) =>
       version === undefined
