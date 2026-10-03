@@ -183,6 +183,26 @@ describe("buildClientStatementSnapshot", () => {
     ]);
   });
 
+  it.each([
+    ["HUF", 19.125, 19.13],
+    ["JPY", 19.6, 20],
+    ["KWD", 19.1235, 19.124],
+  ])(
+    "preserves invoice precision for %s",
+    (currency, totalAmount, expected) => {
+      const result = buildClientStatementSnapshot({
+        client,
+        periodStart: PERIOD_START,
+        periodEnd: PERIOD_END,
+        generatedAt: NOW,
+        invoices: [invoice({ currency, totalAmount })],
+      });
+
+      expect(result.currencies[0].closingBalance).toBe(expected);
+      expect(result.currencies[0].aging.totalOutstanding).toBe(expected);
+    },
+  );
+
   it("places outstanding balances in every age band", () => {
     const daysBeforeEnd = (days: number) =>
       new Date(PERIOD_END.getTime() - days * 24 * 60 * 60 * 1000);
@@ -317,6 +337,47 @@ describe("buildClientStatementSnapshot", () => {
     expect(result.currencies[0].entries).toEqual([]);
   });
 
+  it.each([20, 100])(
+    "keeps a refunded deposit of %s in the closing balance",
+    (refundedAmount) => {
+      const paidAt = new Date("2026-09-05T00:00:00.000Z");
+      const result = buildClientStatementSnapshot({
+        client,
+        periodStart: PERIOD_START,
+        periodEnd: PERIOD_END,
+        generatedAt: NOW,
+        invoices: [
+          invoice({
+            depositCollectedAmount: 100,
+            paidAt,
+            payments: [
+              {
+                id: "deposit-payment",
+                amount: 100,
+                paidAt,
+                createdAt: paidAt,
+                refunds: [
+                  {
+                    id: "deposit-refund",
+                    amount: refundedAmount,
+                    createdAt: new Date("2026-09-20T00:00:00.000Z"),
+                  },
+                ],
+              },
+            ],
+          }),
+        ],
+      });
+
+      expect(result.currencies[0].closingBalance).toBe(refundedAmount);
+      expect(result.currencies[0].aging.totalOutstanding).toBe(refundedAmount);
+      expect(result.currencies[0].entries.map((entry) => entry.kind)).toEqual([
+        "PAYMENT",
+        "REFUND",
+      ]);
+    },
+  );
+
   it("sorts same-time entries by their stable ids", () => {
     const at = new Date("2026-09-05T00:00:00.000Z");
     const result = buildClientStatementSnapshot({
@@ -362,6 +423,15 @@ describe("ClientStatementService.generate", () => {
       id: STATEMENT,
       createdAt: NOW,
       snapshot: snapshot(),
+    });
+    expect(mockedPrisma.clientStatement.findUnique).toHaveBeenCalledWith({
+      where: {
+        organisationId_parentId_idempotencyKey: {
+          organisationId: ORG,
+          parentId: PARENT,
+          idempotencyKey: "statement-key",
+        },
+      },
     });
     expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
     expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
@@ -431,6 +501,15 @@ describe("ClientStatementService.generate", () => {
     await expect(generate()).resolves.toEqual(
       expect.objectContaining({ id: STATEMENT }),
     );
+    expect(mockedPrisma.clientStatement.findUnique).toHaveBeenNthCalledWith(2, {
+      where: {
+        organisationId_parentId_idempotencyKey: {
+          organisationId: ORG,
+          parentId: PARENT,
+          idempotencyKey: "statement-key",
+        },
+      },
+    });
   });
 
   it("does not hide a non-unique database failure", async () => {
