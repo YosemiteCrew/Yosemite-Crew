@@ -48,7 +48,7 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
     flushing = true;
     try {
       deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-      for (const mutation of batch) {
+      for await (const mutation of batch) {
         try {
           const result = await deps.transport.send({
             type: mutation.type,
