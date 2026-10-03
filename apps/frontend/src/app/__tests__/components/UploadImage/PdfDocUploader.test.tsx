@@ -11,9 +11,7 @@ jest.mock('react-icons/io5', () => ({
 describe('PdfDocUploader', () => {
   const mockOnChange = jest.fn();
   const mockSetFile = jest.fn();
-  const mockGetSignedUrl = jest.fn();
-  const mockFetch = jest.fn();
-  const originalFetch = globalThis.fetch;
+  const mockUploadFile = jest.fn();
   const placeholder = 'Upload PDF';
 
   const createPdfFile = (name = 'test.pdf', size = 1024) => {
@@ -24,12 +22,6 @@ describe('PdfDocUploader', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    globalThis.fetch = mockFetch as unknown as typeof fetch;
-    mockFetch.mockResolvedValue({ ok: true } as Response);
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
   });
 
   it('renders the upload button and placeholder text', () => {
@@ -39,7 +31,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     expect(screen.getByText(placeholder)).toBeInTheDocument();
@@ -54,7 +46,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={file}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     expect(screen.getByText('preview.pdf')).toBeInTheDocument();
@@ -68,7 +60,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -78,10 +70,7 @@ describe('PdfDocUploader', () => {
   });
 
   it('uploads a valid pdf: sets file, requests signed url, uploads to s3, and calls onChange', async () => {
-    mockGetSignedUrl.mockResolvedValue({
-      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
-      s3Key: 'uploads/test.pdf',
-    });
+    mockUploadFile.mockResolvedValue({ s3Key: 'uploads/test.pdf' });
 
     render(
       <PdfDocUploader
@@ -89,7 +78,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
 
@@ -101,22 +90,12 @@ describe('PdfDocUploader', () => {
     });
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
-    expect(mockGetSignedUrl).toHaveBeenCalledWith(file);
-    expect(mockFetch).toHaveBeenCalledWith('https://bucket.s3.us-east-1.amazonaws.com/upload', {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': 'application/pdf' },
-      credentials: 'omit',
-      redirect: 'error',
-    });
+    expect(mockUploadFile).toHaveBeenCalledWith(file);
     expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024);
   });
 
   it('handles a file drop the same as a picked file', async () => {
-    mockGetSignedUrl.mockResolvedValue({
-      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
-      s3Key: 'key',
-    });
+    mockUploadFile.mockResolvedValue({ s3Key: 'key' });
 
     render(
       <PdfDocUploader
@@ -124,7 +103,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
 
@@ -137,47 +116,7 @@ describe('PdfDocUploader', () => {
     });
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
-    expect(mockGetSignedUrl).toHaveBeenCalledWith(file);
-  });
-
-  it('shows upload progress and ignores another file until the current upload settles', async () => {
-    let resolveSignedUrl: (signed: { uploadUrl: string; s3Key: string }) => void = () => {};
-    mockGetSignedUrl.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveSignedUrl = resolve;
-        })
-    );
-
-    render(
-      <PdfDocUploader
-        placeholder={placeholder}
-        onChange={mockOnChange}
-        file={null}
-        setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
-      />
-    );
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(input, { target: { files: [createPdfFile()] } });
-
-    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
-    expect(screen.getByRole('status')).toHaveTextContent('Uploading PDF…');
-    expect(screen.getByRole('button', { name: placeholder })).toBeDisabled();
-
-    fireEvent.change(input, { target: { files: [createPdfFile('second.pdf')] } });
-    expect(mockGetSignedUrl).toHaveBeenCalledTimes(1);
-
-    resolveSignedUrl({
-      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
-      s3Key: 'uploads/test.pdf',
-    });
-
-    await waitFor(() =>
-      expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024)
-    );
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(mockUploadFile).toHaveBeenCalledWith(file);
   });
 
   it('ignores non-pdf files', async () => {
@@ -187,7 +126,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const invalidFile = new File(['content'], 'test.png', { type: 'image/png' });
@@ -198,7 +137,7 @@ describe('PdfDocUploader', () => {
     });
 
     expect(mockSetFile).not.toHaveBeenCalled();
-    expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    expect(mockUploadFile).not.toHaveBeenCalled();
   });
 
   it('ignores pdf files over the 20MB size limit', async () => {
@@ -208,7 +147,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const largeFile = createPdfFile('large.pdf', 21 * 1024 * 1024);
@@ -228,7 +167,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -240,8 +179,8 @@ describe('PdfDocUploader', () => {
     expect(mockSetFile).not.toHaveBeenCalled();
   });
 
-  it('shows an error and skips onChange when the upload flow rejects', async () => {
-    mockGetSignedUrl.mockRejectedValue(new Error('signed url failed'));
+  it('shows an error and skips onChange when the upload rejects', async () => {
+    mockUploadFile.mockRejectedValue(new Error('upload failed'));
 
     render(
       <PdfDocUploader
@@ -249,15 +188,12 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const file = createPdfFile();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-
-    await waitFor(() => {
-      fireEvent.change(input, { target: { files: [file] } });
-    });
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The PDF could not be uploaded. Try again.'
@@ -266,12 +202,14 @@ describe('PdfDocUploader', () => {
     expect(mockOnChange).not.toHaveBeenCalled();
   });
 
-  it('shows an error when the upload request fails', async () => {
-    mockGetSignedUrl.mockResolvedValue({
-      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
-      s3Key: 'uploads/test.pdf',
-    });
-    mockFetch.mockResolvedValue({ ok: false } as Response);
+  it('shows upload progress and ignores another file until the current upload settles', async () => {
+    let resolveUpload: (uploaded: { s3Key: string }) => void = () => {};
+    mockUploadFile.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        })
+    );
 
     render(
       <PdfDocUploader
@@ -279,56 +217,31 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [createPdfFile()] } });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The PDF could not be uploaded. Try again.'
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
+    expect(screen.getByRole('status')).toHaveTextContent('Uploading PDF…');
+    expect(screen.getByRole('button', { name: placeholder })).toBeDisabled();
+
+    fireEvent.change(input, { target: { files: [createPdfFile('second.pdf')] } });
+    expect(mockUploadFile).toHaveBeenCalledTimes(1);
+
+    resolveUpload({ s3Key: 'uploads/test.pdf' });
+
+    await waitFor(() =>
+      expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024)
     );
-    expect(mockOnChange).not.toHaveBeenCalled();
-  });
-
-  const credentialedUrl = new URL('https://bucket.s3.us-east-1.amazonaws.com/upload');
-  credentialedUrl.username = 'test-user';
-  credentialedUrl.password = 'test-password';
-
-  it.each([
-    ['malformed', 'not-a-url'],
-    ['non-HTTPS', 'http://bucket.s3.us-east-1.amazonaws.com/upload'],
-    ['unapproved host', 'https://upload.invalid/file'],
-    ['non-default port', 'https://bucket.s3.us-east-1.amazonaws.com:8443/upload'],
-    ['nested AWS host', 'https://bucket.s3.region.extra.cluster.amazonaws.com/upload'],
-    ['credentialed', credentialedUrl.href],
-  ])('rejects a %s signed upload URL before sending a request', async (_label, uploadUrl) => {
-    mockGetSignedUrl.mockResolvedValue({ uploadUrl, s3Key: 'uploads/test.pdf' });
-
-    render(
-      <PdfDocUploader
-        placeholder={placeholder}
-        onChange={mockOnChange}
-        file={null}
-        setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
-      />
-    );
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(input, { target: { files: [createPdfFile()] } });
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The PDF could not be uploaded. Try again.'
-    );
-    expect(mockFetch).not.toHaveBeenCalled();
-    expect(mockOnChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('retries a failed upload without selecting the file again', async () => {
-    mockGetSignedUrl.mockRejectedValueOnce(new Error('signed url failed')).mockResolvedValueOnce({
-      uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
-      s3Key: 'uploads/test.pdf',
-    });
+    mockUploadFile
+      .mockRejectedValueOnce(new Error('upload failed'))
+      .mockResolvedValueOnce({ s3Key: 'uploads/test.pdf' });
 
     render(
       <PdfDocUploader
@@ -336,7 +249,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const file = createPdfFile();
@@ -348,8 +261,32 @@ describe('PdfDocUploader', () => {
     await waitFor(() =>
       expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024)
     );
-    expect(mockGetSignedUrl).toHaveBeenCalledTimes(2);
+    expect(mockUploadFile).toHaveBeenCalledTimes(2);
+    expect(mockUploadFile).toHaveBeenLastCalledWith(file);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('clears the upload error when the file is removed', async () => {
+    mockUploadFile.mockRejectedValue(new Error('upload failed'));
+    const file = createPdfFile();
+
+    render(
+      <PdfDocUploader
+        placeholder={placeholder}
+        onChange={mockOnChange}
+        file={file}
+        setFile={mockSetFile}
+        uploadFile={mockUploadFile}
+      />
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByRole('alert');
+
+    fireEvent.click(screen.getByRole('button', { name: `Remove ${file.name}` }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(mockSetFile).toHaveBeenLastCalledWith(null);
   });
 
   it('removes the selected file when the trash icon is clicked', () => {
@@ -360,7 +297,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={file}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     fireEvent.click(screen.getByTestId('icon-trash').closest('button')!);

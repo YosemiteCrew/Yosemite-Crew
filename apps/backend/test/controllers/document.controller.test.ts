@@ -6,6 +6,7 @@ import {
 import {
   generatePresignedDownloadUrl,
   generatePresignedUrl,
+  handleFileUpload,
 } from "src/middlewares/upload";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { prisma } from "src/config/prisma";
@@ -46,6 +47,13 @@ jest.mock("../../src/services/document.service", () => {
 jest.mock("src/middlewares/upload", () => ({
   generatePresignedUrl: jest.fn(),
   generatePresignedDownloadUrl: jest.fn(),
+  handleFileUpload: jest.fn(),
+  isValidPdfUpload: jest.fn(
+    (file: { mimetype: string; size: number; data: Buffer }) =>
+      file.mimetype === "application/pdf" &&
+      file.size <= 20 * 1024 * 1024 &&
+      file.data.subarray(0, 5).toString("ascii") === "%PDF-",
+  ),
 }));
 
 jest.mock("src/config/prisma", () => ({
@@ -179,6 +187,48 @@ describe("DocumentController", () => {
       );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ url: "http://url", key: "key1" });
+    });
+
+    it("uploads a validated PDF on the server and returns its storage key", async () => {
+      const file = {
+        name: "record.pdf",
+        mimetype: "application/pdf",
+        size: 10,
+        data: Buffer.from("%PDF-1.7"),
+      };
+      req.body = { patientId: "c1" };
+      req.files = { file };
+      authoriseAsOrgMember();
+      (handleFileUpload as jest.Mock).mockResolvedValue({
+        key: "companion/c1/record.pdf",
+      });
+
+      await DocumentController.getUploadUrl(req, res);
+
+      expect(handleFileUpload).toHaveBeenCalledWith(file, "companion/c1");
+      expect(generatePresignedUrl).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        s3Key: "companion/c1/record.pdf",
+      });
+    });
+
+    it("rejects an invalid PDF before uploading it", async () => {
+      req.body = { patientId: "c1" };
+      req.files = {
+        file: {
+          name: "record.pdf",
+          mimetype: "application/pdf",
+          size: 8,
+          data: Buffer.from("not pdf"),
+        },
+      };
+      authoriseAsOrgMember();
+
+      await DocumentController.getUploadUrl(req, res);
+
+      expect(handleFileUpload).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("should handle generic errors", async () => {

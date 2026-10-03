@@ -1176,6 +1176,32 @@ describe('TreatmentStep', () => {
     );
   });
 
+  it('rehydrates while prescription finalization is still in progress', async () => {
+    let resolveFinalize: (() => void) | undefined;
+    const pendingFinalize = new Promise<void>((resolve) => {
+      resolveFinalize = resolve;
+    });
+    (finalizePrescription as jest.Mock).mockReturnValue(pendingFinalize);
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT));
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    resolveFinalize?.();
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+  });
+
   // #1909: an already-finalized prescription (a locked clinical record) must NOT be re-saved on the
   // next Save Treatment - re-POSTing/PATCHing it returns 409 and would fail the whole save. It is
   // skipped while fresh rows still persist and the step advances to billing.

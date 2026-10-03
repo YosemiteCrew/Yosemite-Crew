@@ -64,6 +64,7 @@ describe('PossibleDuplicates', () => {
     expect(screen.getAllByText('Same name and birth date')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(mockLoad).toHaveBeenCalledTimes(2));
+    expect(await screen.findAllByText('Poppy')).toHaveLength(2);
     fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss as not a match' })[0]!);
 
     await waitFor(() =>
@@ -93,6 +94,28 @@ describe('PossibleDuplicates', () => {
       screen.getByRole('status', { name: 'Loading possible duplicate patients' })
     ).toBeInTheDocument();
     await act(async () => resolveLoad([candidate]));
+    expect(await screen.findAllByText('Poppy')).toHaveLength(2);
+  });
+
+  it('disables refresh while a newly selected clinic is loading', async () => {
+    let resolveNextClinic!: (matches: (typeof candidate)[]) => void;
+    mockLoad.mockResolvedValueOnce([candidate]).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveNextClinic = resolve;
+      })
+    );
+    let selectedClinicId = 'practice-1';
+    mockOrg.mockImplementation((selector) =>
+      selector({ primaryOrgId: selectedClinicId, membershipsByOrgId: {}, status: 'loaded' })
+    );
+    const { rerender } = render(<PossibleDuplicates />);
+
+    expect(await screen.findAllByText('Poppy')).toHaveLength(2);
+    selectedClinicId = 'practice-2';
+    rerender(<PossibleDuplicates />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeDisabled());
+    await act(async () => resolveNextClinic([candidate]));
     expect(await screen.findAllByText('Poppy')).toHaveLength(2);
   });
 

@@ -1226,6 +1226,7 @@ model Organization {
   practiceProfileFields PracticeProfileField[]
 
   bookingSettings     PublicBookingSettings?
+  practiceWebsite     PracticeWebsite?
   bookingSlugHistory  BookingSlugReservation[]
   publicBookingRequests PublicBookingRequest[]
 
@@ -1416,6 +1417,25 @@ model PublicBookingSettings {
   replyToEmail      String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+/// The clinic website a practice builds from a template in the website builder.
+/// It is served at `/site/<bookingSlug>` only while `published` is true AND the
+/// practice's public booking page is live, because every template's call to
+/// action is that booking page.
+model PracticeWebsite {
+  id             String    @id @default(uuid())
+  organizationId String    @unique
+  templateId     String
+  headline       String
+  tagline        String?
+  about          String?
+  published      Boolean   @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }

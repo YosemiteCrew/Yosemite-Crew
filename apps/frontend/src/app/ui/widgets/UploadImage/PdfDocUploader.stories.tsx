@@ -7,12 +7,11 @@ import PdfDocUploader from './PdfDocUploader';
 type UploaderProps = ComponentProps<typeof PdfDocUploader>;
 
 /**
- * The signer is the component's only route to the network: it hands back the S3
- * URL that the PUT then targets. Returning a promise that never settles lets a
- * story pick a real file — the preview card appears — while guaranteeing no
- * request leaves Storybook.
+ * `uploadFile` is the component's only route to the network. Returning a promise
+ * that never settles lets a story pick a real file — the preview card appears —
+ * while guaranteeing no request leaves Storybook.
  */
-const stalledSigner: UploaderProps['getSignedUrl'] = () =>
+const stalledUpload: UploaderProps['uploadFile'] = () =>
   new Promise(() => {
     // Deliberately never resolves; see the note above.
   });
@@ -33,8 +32,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Single-file PDF upload well. Click or drop onto it, and the file goes straight to S3 ' +
-          'through a signed URL the caller supplies via `getSignedUrl` — which is why the same well ' +
+          'Single-file PDF upload well. Click or drop onto it, and the file is sent through the ' +
+          '`uploadFile` function the caller supplies — which is why the same well ' +
           'serves practice documents (`DocUploader`) and companion records (`CompanionDoc`) without ' +
           'knowing either endpoint. Anything that is not a PDF, or is over 20 MB, is dropped ' +
           'silently. The selected file is the caller’s state, so the preview card below the well ' +
@@ -48,7 +47,7 @@ const meta = {
     file: null,
     onChange: fn(),
     setFile: fn(),
-    getSignedUrl: stalledSigner,
+    uploadFile: stalledUpload,
   },
 } satisfies Meta<typeof PdfDocUploader>;
 
@@ -107,7 +106,7 @@ export const UploadFailed: Story = {
   name: 'Upload failed',
   render: (args) => <UploadFailurePreview {...args} />,
   args: {
-    getSignedUrl: async () => {
+    uploadFile: async () => {
       throw new Error('Upload failed');
     },
   },

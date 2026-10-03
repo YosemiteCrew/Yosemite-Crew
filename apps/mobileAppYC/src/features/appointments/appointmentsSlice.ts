@@ -478,12 +478,11 @@ const appointmentsSlice = createSlice({
         const {companionId, items} = action.payload;
         const incomingIds = new Set(items.map(item => item.id));
         if (state.activeRequests?.[companionId] === action.meta.requestId) {
-          state.items
-            .filter(
-              item =>
-                item.companionId === companionId && !incomingIds.has(item.id),
-            )
-            .forEach(item => delete state.visitPreparationDrafts?.[item.id]);
+          for (const item of state.items) {
+            if (item.companionId === companionId && !incomingIds.has(item.id)) {
+              delete state.visitPreparationDrafts?.[item.id];
+            }
+          }
         }
         state.items = state.items.filter(a => a.companionId !== companionId);
         state.items.push(...items);

@@ -38,8 +38,6 @@ describe('DocUploader Component', () => {
   const mockSetFile = jest.fn();
   const mockApiUrl = '/api/upload';
   const mockPlaceholder = 'Upload PDF';
-  const mockFetch = jest.fn();
-  const originalFetch = globalThis.fetch;
 
   // Helper to create a dummy PDF file
   const createPdfFile = (name = 'test.pdf', size = 1024) => {
@@ -50,12 +48,6 @@ describe('DocUploader Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    globalThis.fetch = mockFetch as unknown as typeof fetch;
-    mockFetch.mockResolvedValue({ ok: true } as Response);
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
   });
 
   // --- Section 1: Rendering ---
@@ -115,7 +107,7 @@ describe('DocUploader Component', () => {
 
   it('handles file selection via input change', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload', s3Key: 'key' },
+      data: { s3Key: 'key' },
     });
 
     render(
@@ -136,13 +128,16 @@ describe('DocUploader Component', () => {
     });
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
-    expect(postData).toHaveBeenCalled();
+    expect(postData).toHaveBeenCalledWith(mockApiUrl, expect.any(FormData), {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    expect((postData as jest.Mock).mock.calls[0][1].get('file')).toBe(file);
     expect(mockOnChange).toHaveBeenCalledWith('key', 'application/pdf', 1024);
   });
 
   it('handles file drop event', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload', s3Key: 'key' },
+      data: { s3Key: 'key' },
     });
 
     render(
@@ -171,7 +166,9 @@ describe('DocUploader Component', () => {
     });
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
-    expect(postData).toHaveBeenCalled();
+    expect(postData).toHaveBeenCalledWith(mockApiUrl, expect.any(FormData), {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   });
 
   // --- Section 3: Validation Logic ---
@@ -243,12 +240,9 @@ describe('DocUploader Component', () => {
   });
 
   // --- Section 4: API & Error Handling ---
-  it('uploads file successfully (getSignedUrl -> uploadToS3 -> onChange)', async () => {
+  it('uploads file directly and calls onChange with the stored key', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: {
-        uploadUrl: 'https://bucket.s3.us-east-1.amazonaws.com/upload',
-        s3Key: 'uploads/test.pdf',
-      },
+      data: { s3Key: 'uploads/test.pdf' },
     });
 
     render(
@@ -268,25 +262,16 @@ describe('DocUploader Component', () => {
       fireEvent.change(input, { target: { files: [file] } });
     });
 
-    // 1. Verify Signed URL Request
-    expect(postData).toHaveBeenCalledWith(mockApiUrl, {
-      mimeType: 'application/pdf',
+    // Upload to the authenticated API rather than returning a storage URL to the browser.
+    expect(postData).toHaveBeenCalledWith(mockApiUrl, expect.any(FormData), {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
+    expect(((postData as jest.Mock).mock.calls[0][1] as FormData).get('file')).toBe(file);
 
-    // 2. Verify S3 Upload
-    expect(mockFetch).toHaveBeenCalledWith('https://bucket.s3.us-east-1.amazonaws.com/upload', {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': 'application/pdf' },
-      credentials: 'omit',
-      redirect: 'error',
-    });
-
-    // 3. Verify Callback
     expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024);
   });
 
-  it('shows an upload error if the signed URL request fails', async () => {
+  it('shows an upload error if the upload request fails', async () => {
     (postData as jest.Mock).mockRejectedValue(new Error('Upload Failed'));
 
     render(

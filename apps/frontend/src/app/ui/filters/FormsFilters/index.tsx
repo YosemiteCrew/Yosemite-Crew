@@ -5,7 +5,7 @@ import {
   getFormCategoryOptionsForOrgType,
 } from '@/app/features/forms/types/forms';
 import type { FormsCategory, FormsStatus } from '@/app/features/forms/types/forms';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -25,7 +25,13 @@ type FormsFiltersProps = {
   categoryAction?: React.ReactNode;
 };
 
-const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFiltersProps) => {
+/**
+ * The category options for the current org type, and `category` resolved against
+ * them: a category that is no longer offered (an org type change) reads as 'All'.
+ * The page filters with the same resolved value, so the control and the table
+ * never disagree about a stale category.
+ */
+export const useFormsCategoryFilter = (category: FormsFilterState['category']) => {
   const orgType = useOrgStore((s) =>
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
@@ -42,21 +48,23 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
     }));
   }, [effectiveOrgType]);
 
-  const allowedCategoryValues = useMemo(
-    () => new Set(categoryOptions.map((opt) => opt.value)),
-    [categoryOptions]
+  const effectiveCategory: FormsFilterState['category'] = categoryOptions.some(
+    (opt) => opt.value === category
+  )
+    ? category
+    : 'All';
+
+  return { effectiveOrgType, categoryOptions, effectiveCategory };
+};
+
+const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFiltersProps) => {
+  const { effectiveOrgType, categoryOptions, effectiveCategory } = useFormsCategoryFilter(
+    filters.category
   );
-  const effectiveCategory = allowedCategoryValues.has(filters.category) ? filters.category : 'All';
-  // The dropdown showing "All categories" was not enough: the PARENT keeps
-  // filtering on its own `filters.category`, so a category that stopped being
-  // allowed (an org type change) left the control reading All while the table
-  // stayed filtered by the stale value and forms silently disappeared. Reported
-  // from an effect, since onFiltersChange sets state in the parent.
-  const categoryIsStale = effectiveCategory !== filters.category;
-  useEffect(() => {
-    if (!categoryIsStale) return;
-    onFiltersChange({ ...filters, category: 'All' });
-  }, [categoryIsStale, filters, onFiltersChange]);
+  // Every change is reported with the resolved category, so a stale one is
+  // dropped from the parent's state on the next interaction.
+  const changeFilters = (patch: Partial<FormsFilterState>) =>
+    onFiltersChange({ ...filters, category: effectiveCategory, ...patch });
   const selectedCategoryLabel =
     effectiveCategory === 'All'
       ? 'All categories'
@@ -89,7 +97,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
   };
 
   const selectCategory = (value: string) => {
-    onFiltersChange({ ...filters, category: value as FormsCategory | 'All' });
+    changeFilters({ category: value as FormsCategory | 'All' });
     setOpen(false);
   };
 
@@ -101,7 +109,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
             key={status}
             label={status}
             active={status === filters.status}
-            onClick={() => onFiltersChange({ ...filters, status })}
+            onClick={() => changeFilters({ status })}
           />
         ))}
       </div>

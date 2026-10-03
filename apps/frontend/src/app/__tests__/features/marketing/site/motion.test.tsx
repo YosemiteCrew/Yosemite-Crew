@@ -9,6 +9,7 @@ import {
   Reveal,
   CountUp,
   HeroVideo,
+  InkAnnotate,
   ScrollProgress,
   Tilt,
   Spotlight,
@@ -547,6 +548,30 @@ describe('motion primitives', () => {
     expect(source).toBeInTheDocument();
     expect(source.getAttribute('src')).toBe('https://x/v.mp4');
     expect(source.hasAttribute('media')).toBe(false);
+  });
+
+  it('draws the ink mark with fallback metrics when web fonts fail to load', async () => {
+    const originalFonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: { ready: Promise.reject(new Error('font load failed')) },
+    });
+    const requestFrame = jest.spyOn(globalThis, 'requestAnimationFrame').mockReturnValue(1);
+
+    try {
+      render(<InkAnnotate>Resilient text</InkAnnotate>);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(requestFrame).toHaveBeenCalled();
+    } finally {
+      requestFrame.mockRestore();
+      if (originalFonts) {
+        Object.defineProperty(document, 'fonts', originalFonts);
+      } else {
+        Reflect.deleteProperty(document, 'fonts');
+      }
+    }
   });
 
   it('Tilt flattens when the cursor leaves the card', () => {

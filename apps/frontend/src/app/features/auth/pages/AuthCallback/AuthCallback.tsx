@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { IoAlertCircleOutline } from 'react-icons/io5';
 import { completeGithubSignIn } from '@/app/features/auth/lib/githubOAuth';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
+import RedirectTo from '@/app/features/auth/components/RedirectTo';
 
 const GENERIC_ERROR = 'We could not complete GitHub sign in. Please try again.';
 
@@ -84,7 +84,7 @@ export default function AuthCallback() {
   }, []);
 
   if (redirectTo) {
-    redirect(redirectTo);
+    return <RedirectTo route={redirectTo} />;
   }
 
   if (error) {

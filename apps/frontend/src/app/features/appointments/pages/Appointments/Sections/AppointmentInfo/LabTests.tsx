@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { createPortal } from 'react-dom';
 import { IoOpenOutline } from 'react-icons/io5';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
@@ -8,9 +7,7 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
-import Close from '@/app/ui/primitives/Icons/Close';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
-import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { Appointment } from '@yosemite-crew/types';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -60,6 +57,7 @@ import {
   resolveLatestOrder,
   shouldCloseOrderIframe,
 } from './LabTests.helpers';
+import IdexxOrderLaunchDialog from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/IdexxOrderLaunchDialog';
 import BreedSubstitutionNotice from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/BreedSubstitutionNotice';
 
 const TESTS_PAGE_SIZE = 25;
@@ -367,7 +365,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
 
   // refreshResultsRef lets refreshAppointmentOrders call refreshResults without
   // creating a circular dep — refreshResults is defined after this callback.
-  const refreshResultsRef = React.useRef<() => Promise<void>>(async () => undefined);
+  const refreshResultsRef = React.useRef<() => Promise<void>>(() => Promise.resolve());
 
   const refreshAppointmentOrders = useCallback(async () => {
     if (!primaryOrgId || !integrationEnabled || !appointmentId) {
@@ -538,7 +536,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
           return;
         }
       } catch (e) {
-        setError(getApiErrorMessage(e, 'Unable to poll order status while IDEXX frame is open.'));
+        setError(getApiErrorMessage(e, 'Unable to check the IDEXX order status.'));
       }
     }, 8000);
 
@@ -561,7 +559,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
       const frameOrderId = String(orderForFrame?.idexxOrderId ?? '').trim();
       const frameUiUrl = resolveOrderUiUrl(orderForFrame);
       if (!frameOrderId || !frameUiUrl) {
-        setError('IDEXX order frame is not available for this order.');
+        setError('IDEXX ordering is not available for this order.');
         return;
       }
       setIframeOpenSource(source);
@@ -1290,70 +1288,6 @@ const LabResultsList = ({ s }: { s: UseLabTestsReturn }) => (
 
 // ---------- Main component ----------
 
-type IdexxOrderIframeOverlayProps = {
-  url: string;
-  title: string;
-  onClose: () => void;
-};
-
-const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverlayProps) => {
-  const [loaded, setLoaded] = useState(false);
-  const isFollowUp = title.toLowerCase().includes('follow-up');
-  return (
-    <div
-      // --sh55, matching the two other copies of this overlay (DiagnosticsStep:753
-      // and IdexxWorkspace:731). bg-black/60 is a hardcoded scrim: the token is
-      // a warm rgba(29,28,27,.55) in light and a heavier rgba(0,0,0,.8) in dark,
-      // so this copy was both the wrong hue in light and too weak in dark.
-      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
-      data-signing-overlay="true"
-      style={{ pointerEvents: 'auto' }}
-    >
-      <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-card-border">
-          <div className="flex flex-col">
-            <div className="text-body-2 text-text-primary">{title}</div>
-            {isFollowUp ? (
-              <div className="text-caption-1 text-text-secondary">
-                If IDEXX shows the order was submitted and this window stays open, close it with the
-                top-right cross arrow to refresh this appointment.
-              </div>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 hover:bg-card-hover rounded-full transition-colors cursor-pointer"
-            aria-label="Close IDEXX order frame"
-            style={{ pointerEvents: 'auto' }}
-          >
-            <Close iconOnly />
-          </button>
-        </div>
-        <div className="relative flex-1">
-          {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
-              <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-order-loader" />
-            </div>
-          )}
-          <iframe
-            key={url}
-            src={url}
-            title="IDEXX order UI"
-            className="size-full border-0"
-            loading="lazy"
-            sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            style={{ pointerEvents: 'auto' }}
-            onLoad={() => setLoaded(true)}
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
 type LabTestsProps = {
   activeAppointment: Appointment | null;
 };
@@ -1381,22 +1315,14 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     );
   }
 
-  const iframeTitle =
-    s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
-  const orderIframeUrl = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
-
   return (
     <>
-      {s.showOrderIframe && orderIframeUrl && typeof document !== 'undefined'
-        ? createPortal(
-            <IdexxOrderIframeOverlay
-              url={orderIframeUrl}
-              title={iframeTitle}
-              onClose={s.closeOrderIframeManually}
-            />,
-            document.body
-          )
-        : null}
+      <IdexxOrderLaunchDialog
+        open={s.showOrderIframe}
+        url={s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder)}
+        source={s.iframeOpenSource}
+        onClose={s.closeOrderIframeManually}
+      />
       <PdfPreviewOverlay
         open={s.showPdfPreview}
         pdfUrl={s.pdfPreviewUrl}

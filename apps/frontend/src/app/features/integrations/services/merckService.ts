@@ -296,6 +296,7 @@ export const normalizeMerckSearchPayload = (
 export const isAllowedMerckUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
+    if (url.protocol !== 'https:') return false;
     const host = url.hostname.toLowerCase();
     return MERCK_MANUAL_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
   } catch {
@@ -307,10 +308,7 @@ export interface MerckGateway {
   search: (params: MerckSearchRequest) => Promise<MerckSearchResponse>;
   enable: (organisationId: string) => Promise<OrgIntegration>;
   disable: (organisationId: string) => Promise<OrgIntegration>;
-  getStatus: (
-    organisationId: string,
-    integrations: OrgIntegration[]
-  ) => Promise<OrgIntegration | null>;
+  getStatus: (organisationId: string, integrations: OrgIntegration[]) => OrgIntegration | null;
 }
 
 class ApiMerckGateway implements MerckGateway {
@@ -361,10 +359,7 @@ class ApiMerckGateway implements MerckGateway {
     return res.data;
   }
 
-  async getStatus(
-    organisationId: string,
-    integrations: OrgIntegration[]
-  ): Promise<OrgIntegration | null> {
+  getStatus(organisationId: string, integrations: OrgIntegration[]): OrgIntegration | null {
     return resolveMerckIntegration(organisationId, integrations);
   }
 }

@@ -67,7 +67,7 @@ type CalendarBlockEditorProps = {
   error: string;
   saving: boolean;
   onClose: () => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
   onChange: (draft: Draft) => void;
 };
 
@@ -289,7 +289,7 @@ const useCalendarBlockEditor = ({
       reason: block.reason,
     });
   };
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!draft) return;
     if (!draft.targetId) {

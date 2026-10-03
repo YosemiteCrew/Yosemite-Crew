@@ -18,7 +18,11 @@ const reloadAfterPayment = () =>
     loadAppointmentsForPrimaryOrg({ force: true, silent: true }),
   ]);
 
-const generatePaymentLink = async (invoiceId: string, setGeneratedLink: (url: string) => void) => {
+const generatePaymentLink = async (
+  invoiceId: string,
+  setGeneratedLink: (url: string) => void,
+  notify: NotifyFn
+) => {
   try {
     const url = await getPaymentLink(invoiceId);
     if (typeof url === 'string') {
@@ -26,14 +30,16 @@ const generatePaymentLink = async (invoiceId: string, setGeneratedLink: (url: st
     }
   } catch (error) {
     console.log(error);
+    notify('error', { title: 'Payment link failed', text: 'Could not generate a payment link.' });
   }
 };
 
-const copyLinkToClipboard = async (generatedLink: string) => {
+const copyLinkToClipboard = async (generatedLink: string, notify: NotifyFn) => {
   try {
     await navigator.clipboard.writeText(generatedLink);
   } catch (error) {
     console.log(error);
+    notify('error', { title: 'Copy failed', text: 'Could not copy the payment link.' });
   }
 };
 
@@ -65,7 +71,7 @@ const collectOfflinePayment = async (
   }
 };
 
-const startCashCollection = async (
+const startCashCollection = (
   invoiceId: string,
   setSettingCashCollectionMethod: (v: boolean) => void,
   setShowCashConfirmation: (v: boolean) => void,
@@ -159,12 +165,12 @@ const InvoicePaymentActions = ({
 
   const handleGenerate = () => {
     /* v8 ignore next -- the Generate & Mail button is disabled when invoiceId is absent, so this guard's empty branch is unreachable via the UI */
-    if (invoiceId) generatePaymentLink(invoiceId, setGeneratedLink);
+    if (invoiceId) void generatePaymentLink(invoiceId, setGeneratedLink, notify);
   };
 
   const handleCopy = () => {
     /* v8 ignore next -- the Copy link button only renders when generatedLink is set, so this guard's empty branch is unreachable via the UI */
-    if (generatedLink) copyLinkToClipboard(generatedLink);
+    if (generatedLink) void copyLinkToClipboard(generatedLink, notify);
   };
 
   const handleDownload = () => {
@@ -174,7 +180,7 @@ const InvoicePaymentActions = ({
   const handleCollectOfflinePayment = () => {
     /* v8 ignore next -- the Collect cash button is disabled under this exact condition, so the early return is unreachable via the UI */
     if (!invoiceId || markingOfflinePaid) return;
-    collectOfflinePayment(invoiceId, setMarkingOfflinePaid, setShowCashConfirmation, notify);
+    void collectOfflinePayment(invoiceId, setMarkingOfflinePaid, setShowCashConfirmation, notify);
   };
 
   const handleStartCashCollection = () => {

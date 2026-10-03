@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import ProtectedForms from '@/app/features/forms/pages/Forms';
 import { useFormsStore } from '@/app/stores/formsStore';
@@ -8,6 +8,10 @@ import { loadForms } from '@/app/features/forms/services/formService';
 expect.extend(toHaveNoViolations);
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { logger } from '@/app/lib/logger';
+import { registerPlugin, unregisterPlugin } from '@/app/features/plugins/registry';
+import type { FormsListActionExtension } from '@/app/features/plugins/types';
+import type { FormsProps } from '@/app/features/forms/types/forms';
 
 // Controllable mocks (prefixed with `mock` so jest hoisting permits references).
 const mockCan = jest.fn(() => true);
@@ -102,6 +106,8 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 jest.mock('@/app/ui/filters/FormsFilters', () => ({
   __esModule: true,
+  useFormsCategoryFilter: jest.requireActual('@/app/ui/filters/FormsFilters')
+    .useFormsCategoryFilter,
   default: ({ onFiltersChange, categoryAction }: any) => (
     <div data-testid="forms-filters">
       {categoryAction}
@@ -116,6 +122,12 @@ jest.mock('@/app/ui/filters/FormsFilters', () => ({
         onClick={() => onFiltersChange({ status: 'Archived', category: 'Custom' })}
       >
         Empty Filter
+      </button>
+      <button
+        data-testid="filter-stale"
+        onClick={() => onFiltersChange({ status: 'All', category: 'Groomer - Grooming Prep' })}
+      >
+        Stale Filter
       </button>
     </div>
   ),
@@ -243,7 +255,7 @@ describe('Forms Page', () => {
       selector(catalogState)
     );
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
-      selector({ primaryOrgId: ORG_ID })
+      selector({ primaryOrgId: ORG_ID, orgsById: {} })
     );
     (useFormsStore as unknown as jest.Mock).mockReturnValue({
       formsById: mockForms,
@@ -305,8 +317,43 @@ describe('Forms Page', () => {
     expect(loadForms).not.toHaveBeenCalled();
   });
 
+  it('does not log submitted form data when an extension action runs', () => {
+    const debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
+    const forms = [{ _id: 'private-form', name: 'Private form' } as FormsProps];
+    const ExtensionAction: FormsListActionExtension['component'] = ({ onAction }) => (
+      <button type="button" onClick={() => onAction(forms)}>
+        Run extension
+      </button>
+    );
+
+    registerPlugin({
+      id: 'forms-list-log-test',
+      name: 'Forms list log test',
+      version: '1.0.0',
+      extensions: [
+        {
+          id: 'forms-list-log-test-action',
+          extensionPointId: 'forms.list.actions',
+          component: ExtensionAction,
+        },
+      ],
+    });
+
+    try {
+      render(<ProtectedForms />);
+      fireEvent.click(screen.getByRole('button', { name: 'Run extension' }));
+      expect(debugSpy).toHaveBeenCalledWith(
+        'Plugin action triggered',
+        'forms-list-log-test-action'
+      );
+    } finally {
+      act(() => unregisterPlugin('forms-list-log-test'));
+      debugSpy.mockRestore();
+    }
+  });
+
   it('handles loadForms error gracefully', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const loggerSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
     (useFormsStore as unknown as jest.Mock).mockReturnValue({
       formsById: {},
       formIds: [],
@@ -317,9 +364,9 @@ describe('Forms Page', () => {
     render(<ProtectedForms />);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to load forms', expect.any(Error));
+      expect(loggerSpy).toHaveBeenCalledWith('Failed to load forms', expect.any(Error));
     });
-    consoleSpy.mockRestore();
+    loggerSpy.mockRestore();
   });
 
   // --- Section 2: Active Form Logic (useMemo & useEffect) ---
@@ -352,6 +399,28 @@ describe('Forms Page', () => {
 
     // Verify store update called with null
     expect(mockSetActiveForm).toHaveBeenCalledWith(null);
+  });
+
+  it('filters a category the org type no longer offers as all categories', () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: ORG_ID, orgsById: { [ORG_ID]: { type: 'BOARDER' } } })
+    );
+    (useFormsStore as unknown as jest.Mock).mockReturnValue({
+      formsById: {
+        'form-1': { _id: 'form-1', name: 'Kennel Card', category: 'Boarder - Schedule' },
+      },
+      formIds: ['form-1'],
+      activeFormId: 'form-1',
+      setActiveForm: mockSetActiveForm,
+      loading: false,
+    });
+    render(<ProtectedForms />);
+    mockSetActiveForm.mockClear();
+
+    // A groomer category is not offered to a boarder, so it must not hide every form.
+    fireEvent.click(screen.getByTestId('filter-stale'));
+
+    expect(mockSetActiveForm).not.toHaveBeenCalledWith(null);
   });
 
   it('auto-selects the first form if activeID is missing or filtered out', () => {

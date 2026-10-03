@@ -85,13 +85,15 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
       setBusy(true);
       setError(null);
 
-      const request =
-        action.type === 'issue'
-          ? issueCreditNote(requestInvoiceId, { amount: action.amount, reason: action.reason })
-          : voidCreditNote(requestInvoiceId, action.creditNoteId);
-
-      request
-        .then((creditNote) => {
+      const execute = async () => {
+        try {
+          const creditNote =
+            action.type === 'issue'
+              ? await issueCreditNote(requestInvoiceId, {
+                  amount: action.amount,
+                  reason: action.reason,
+                })
+              : await voidCreditNote(requestInvoiceId, action.creditNoteId);
           if (displayedInvoiceId.current !== requestInvoiceId) return;
           upsertInvoice(mergeCreditNote(invoice, creditNote));
           if (action.type === 'issue') setIssuedToken((token) => token + 1);
@@ -102,8 +104,7 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
                 ? 'The credit has been recorded against this invoice.'
                 : 'The credit note no longer reduces this invoice.',
           });
-        })
-        .catch((err: unknown) => {
+        } catch (err: unknown) {
           if (displayedInvoiceId.current !== requestInvoiceId) return;
           const message = getCreditNoteErrorMessage(
             err,
@@ -120,15 +121,18 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
           // be confirmed.
           setError(`${message} Check the ledger below before retrying.`);
           notify('error', { title: 'Credit note not confirmed', text: message });
-          getFinanceInvoiceById(requestInvoiceId).catch(() => {
+          try {
+            await getFinanceInvoiceById(requestInvoiceId);
+          } catch {
             // The re-read is a best effort; the message above already tells the
             // user not to trust the ledger blindly.
-          });
-        })
-        .finally(() => {
+          }
+        } finally {
           if (displayedInvoiceId.current !== requestInvoiceId) return;
           setBusy(false);
-        });
+        }
+      };
+      void execute();
     },
     [invoice, upsertInvoice, notify]
   );

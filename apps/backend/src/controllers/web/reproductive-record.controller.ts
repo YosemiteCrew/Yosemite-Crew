@@ -44,7 +44,24 @@ const CreateBodySchema = z.object({
   notes: z.string().max(3000).optional(),
 });
 
-const UpdateBodySchema = CreateBodySchema.omit({ patientId: true }).partial();
+const UpdateBodySchema = CreateBodySchema.omit({ patientId: true })
+  .partial()
+  .extend({
+    lastHeatDate: z.iso.datetime().nullable().optional(),
+    nextHeatExpected: z.iso.datetime().nullable().optional(),
+    matingDate: z.iso.datetime().nullable().optional(),
+    sireId: z.uuid().nullable().optional(),
+    sireName: z.string().max(300).nullable().optional(),
+    pregnancyStatus: PregnancyStatusEnum.nullable().optional(),
+    pregnancyConfirmedAt: z.iso.datetime().nullable().optional(),
+    expectedWhelp: z.iso.datetime().nullable().optional(),
+    litterSizeUltrasound: z.number().int().min(0).nullable().optional(),
+    litterSizeXray: z.number().int().min(0).nullable().optional(),
+    actualWhelp: z.iso.datetime().nullable().optional(),
+    litterSizeBorn: z.number().int().min(0).nullable().optional(),
+    litterSizeAlive: z.number().int().min(0).nullable().optional(),
+    notes: z.string().max(3000).nullable().optional(),
+  });
 
 const ListQuerySchema = z.object({
   patientId: z.uuid().optional(),
@@ -55,6 +72,10 @@ const RepParamsSchema = orgParams.extend({ recordId: uuid() });
 
 const parseOptionalDate = (val?: string): Date | undefined =>
   val ? new Date(val) : undefined;
+
+const parseOptionalUpdateDate = (
+  val?: string | null,
+): Date | null | undefined => (val === null ? null : parseOptionalDate(val));
 
 const { handler } = createClinicalHandlers(ReproductiveRecordError);
 
@@ -125,12 +146,12 @@ export const ReproductiveRecordController = {
         params.organisationId,
         {
           ...rest,
-          lastHeatDate: parseOptionalDate(lastHeatDate),
-          nextHeatExpected: parseOptionalDate(nextHeatExpected),
-          matingDate: parseOptionalDate(matingDate),
-          pregnancyConfirmedAt: parseOptionalDate(pregnancyConfirmedAt),
-          expectedWhelp: parseOptionalDate(expectedWhelp),
-          actualWhelp: parseOptionalDate(actualWhelp),
+          lastHeatDate: parseOptionalUpdateDate(lastHeatDate),
+          nextHeatExpected: parseOptionalUpdateDate(nextHeatExpected),
+          matingDate: parseOptionalUpdateDate(matingDate),
+          pregnancyConfirmedAt: parseOptionalUpdateDate(pregnancyConfirmedAt),
+          expectedWhelp: parseOptionalUpdateDate(expectedWhelp),
+          actualWhelp: parseOptionalUpdateDate(actualWhelp),
         },
         userId,
       );

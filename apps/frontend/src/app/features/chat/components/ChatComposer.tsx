@@ -30,6 +30,7 @@ import {
 } from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
+import { VoiceCapture } from '@/app/ui/primitives/VoiceCapture/VoiceCapture';
 import { useChatShare } from './chatShareContext';
 import { partitionUploadFiles } from '../lib/uploadSafety';
 
@@ -76,6 +77,7 @@ export function ChatComposer() {
   const { openShare } = useChatShare();
   const [attachOpen, setAttachOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -85,7 +87,21 @@ export function ChatComposer() {
     setEmojiOpen(false);
   };
 
-  const insert = (text: string) => composer.textComposer.insertText({ text });
+  const insert = (text: string) => {
+    setUploadError(null);
+    try {
+      void Promise.resolve(composer.textComposer.insertText({ text })).catch(() => {
+        setUploadError('Could not insert the emoji. Please try again.');
+      });
+    } catch {
+      setUploadError('Could not insert the emoji. Please try again.');
+    }
+  };
+
+  const onVoiceTranscript = (transcript: string) => {
+    insert(transcript);
+    setVoiceOpen(false);
+  };
 
   const onFiles = (e: ChangeEvent<HTMLInputElement>) => {
     const { files } = e.target;
@@ -99,7 +115,15 @@ export function ChatComposer() {
       } else {
         setUploadError(null);
       }
-      if (allowed.length) void composer.attachmentManager.uploadFiles(allowed);
+      if (allowed.length) {
+        try {
+          void Promise.resolve(composer.attachmentManager.uploadFiles(allowed)).catch(() => {
+            setUploadError('Could not upload the selected files. Please try again.');
+          });
+        } catch {
+          setUploadError('Could not upload the selected files. Please try again.');
+        }
+      }
     }
     e.target.value = '';
     setAttachOpen(false);
@@ -135,6 +159,11 @@ export function ChatComposer() {
           </button>
         ))}
       </div>
+      {voiceOpen && (
+        <div className="mb-2">
+          <VoiceCapture onTranscript={onVoiceTranscript} />
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <div className="relative">
           <ComposerIconButton
@@ -224,9 +253,17 @@ export function ChatComposer() {
             <button
               type="button"
               aria-label="Voice message"
-              title="Voice messages are coming soon"
-              disabled
-              className="inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] disabled:cursor-not-allowed"
+              aria-expanded={voiceOpen}
+              onClick={() => {
+                closeAll();
+                setVoiceOpen((o) => !o);
+              }}
+              className={clsx(
+                'inline-flex size-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]',
+                voiceOpen
+                  ? 'text-[var(--blue)]'
+                  : 'text-[var(--ink-soft)] hover:text-[var(--ink-body)]'
+              )}
             >
               <IoMicOutline className="h-[18px] w-[18px]" />
             </button>

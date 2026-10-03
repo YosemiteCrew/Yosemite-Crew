@@ -2799,6 +2799,32 @@ describe("AppointmentService conditional paths", () => {
     );
   });
 
+  it("updateAppointmentPMS clears concern when explicitly nulled", async () => {
+    (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+      createPrismaAppointment({ status: "UPCOMING", concern: "Old" }),
+    );
+    (prisma.appointment.update as jest.Mock).mockResolvedValue(
+      createPrismaAppointment({ status: "UPCOMING", concern: null }),
+    );
+
+    await AppointmentService.updateAppointmentPMS("appt_1", {
+      lead: { id: "vet_1" },
+      concern: null,
+    } as never);
+
+    expect(prisma.appointment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ concern: null }),
+      }),
+    );
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "APPOINTMENT_RESCHEDULED",
+        metadata: expect.objectContaining({ concern: null }),
+      }),
+    );
+  });
+
   it("updateAppointmentPMS records an emergency flag flip", async () => {
     (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
       createPrismaAppointment({ status: "UPCOMING", isEmergency: false }),

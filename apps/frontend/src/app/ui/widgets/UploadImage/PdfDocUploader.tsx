@@ -5,19 +5,7 @@ import './UploadImage.css';
 
 const allowedTypes = new Set(['application/pdf']);
 
-const isS3UploadHost = (hostname: string) => {
-  const labels = hostname.toLowerCase().split('.');
-  if (labels.slice(-2).join('.') !== 'amazonaws.com') return false;
-
-  const serviceLabels = labels.slice(0, -2);
-  const s3LabelIndex = serviceLabels.findIndex(
-    (label) => label === 's3' || label.startsWith('s3-')
-  );
-  return s3LabelIndex >= 0 && serviceLabels.length - s3LabelIndex <= 3;
-};
-
-type SignedUrlResult = {
-  uploadUrl: string;
+type UploadResult = {
   s3Key: string;
 };
 
@@ -26,34 +14,8 @@ type PdfDocUploaderProps = {
   onChange: (url: string, mimeType?: string, size?: number) => void;
   file: File | null;
   setFile: React.Dispatch<React.SetStateAction<File | null>>;
-  getSignedUrl: (file: File) => Promise<SignedUrlResult>;
+  uploadFile: (file: File) => Promise<UploadResult>;
   error?: string;
-};
-
-const uploadPdfToS3 = async (uploadUrl: string, file: File) => {
-  let url: URL;
-  try {
-    url = new URL(uploadUrl);
-  } catch {
-    throw new Error('Invalid upload URL.');
-  }
-  if (
-    url.protocol !== 'https:' ||
-    url.port ||
-    url.username ||
-    url.password ||
-    !isS3UploadHost(url.hostname)
-  ) {
-    throw new Error('Invalid upload URL.');
-  }
-  const response = await fetch(url.href, {
-    method: 'PUT',
-    body: file,
-    headers: { 'Content-Type': file.type },
-    credentials: 'omit',
-    redirect: 'error',
-  });
-  if (!response.ok) throw new Error('Upload failed.');
 };
 
 const validatePdfFile = (f: File) => {
@@ -67,22 +29,21 @@ const PdfDocUploader = ({
   placeholder,
   file,
   setFile,
-  getSignedUrl,
+  uploadFile,
 }: Readonly<PdfDocUploaderProps>) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const failedFileRef = useRef<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const uploadFile = (picked: File) => {
+  const startUpload = (picked: File) => {
     setFile(picked);
     setUploadError(null);
     failedFileRef.current = null;
     setIsUploading(true);
-    getSignedUrl(picked)
-      .then(async (signed) => {
-        await uploadPdfToS3(signed.uploadUrl, picked);
-        onChange(signed.s3Key, picked.type, picked.size);
+    uploadFile(picked)
+      .then((uploaded) => {
+        onChange(uploaded.s3Key, picked.type, picked.size);
       })
       .catch(() => {
         setUploadError('The PDF could not be uploaded. Try again.');
@@ -94,7 +55,7 @@ const PdfDocUploader = ({
   const handleFiles = (fileList: FileList | null) => {
     const picked = fileList?.[0];
     if (isUploading || !picked || !validatePdfFile(picked)) return;
-    uploadFile(picked);
+    startUpload(picked);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
@@ -147,7 +108,7 @@ const PdfDocUploader = ({
           <span>{uploadError}</span>
           <button
             type="button"
-            onClick={() => failedFileRef.current && uploadFile(failedFileRef.current)}
+            onClick={() => failedFileRef.current && startUpload(failedFileRef.current)}
             disabled={isUploading}
             className="font-medium underline disabled:cursor-wait disabled:opacity-60"
           >

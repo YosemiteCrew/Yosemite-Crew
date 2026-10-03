@@ -1,5 +1,5 @@
 // no-story: Exercised through InpatientMonitoringPanel.stories.tsx as part of the panel flow.
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import { Button, Text, Textarea } from '@/app/ui';
 import { MEASUREMENT_FIELDS } from './inpatientObservationFields';
 
@@ -7,7 +7,7 @@ type InpatientObservationFormProps = {
   defaultObservedAt: string;
   isSaving: boolean;
   error: string | null;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onSubmit: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
   onCancel: () => void;
 };
 

@@ -33,8 +33,8 @@ describe('DeveloperWebsiteBuilder page', () => {
     render(<DeveloperWebsiteBuilder />);
     expect(screen.getByTestId('dev-guard')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Website builder' })).toBeInTheDocument();
-    expect(screen.getByText(/the website builder is coming soon/i)).toBeInTheDocument();
-    expect(screen.getByTestId('primary-Open builder')).toBeInTheDocument();
+    expect(screen.getByText(/build and publish their site/i)).toBeInTheDocument();
+    expect(screen.getByTestId('primary-Open builder')).toHaveAttribute('href', '/website-builder');
   });
 
   test('renders the sample templates', () => {
