@@ -655,8 +655,11 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
 const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
   // Mirror the Invoice section: the View (eye) toggle expands/collapses the
   // result breakdown below; default the first result open.
-  const [expandedId, setExpandedId] = useState<string | null>(s.results[0]?.resultId ?? null);
-  const toggle = (id: string) => setExpandedId((current) => (current === id ? null : id));
+  // Until the user toggles a result, the first result is open, including when
+  // results arrive after the section has mounted.
+  const [selectedId, setSelectedId] = useState<string | null | undefined>(undefined);
+  const expandedId = selectedId === undefined ? (s.results[0]?.resultId ?? null) : selectedId;
+  const toggle = (id: string) => setSelectedId(expandedId === id ? null : id);
 
   return (
     <SectionContainer title="Results" className="flex flex-col gap-4">

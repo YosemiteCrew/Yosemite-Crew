@@ -576,6 +576,38 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(screen.getByText(/No results available yet/i)).toBeInTheDocument();
   });
 
+  it('expands the first result when results arrive after the section mounts', async () => {
+    mockUseLabTests.mockReturnValue(baseHook({ results: [] }));
+    const { rerender } = render(
+      <DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />
+    );
+
+    expect(screen.queryByTestId('category-r1')).not.toBeInTheDocument();
+
+    mockUseLabTests.mockReturnValue(baseHook({ results: [makeResult()] }));
+    rerender(<DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />);
+
+    await waitFor(() => expect(screen.getByTestId('category-r1')).toBeInTheDocument());
+  });
+
+  it('keeps a collapsed result closed when more results arrive', () => {
+    mockUseLabTests.mockReturnValue(baseHook({ results: [makeResult()] }));
+    const { rerender } = render(
+      <DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /hide results for result r1/i }));
+    expect(screen.queryByTestId('category-r1')).not.toBeInTheDocument();
+
+    mockUseLabTests.mockReturnValue(
+      baseHook({ results: [makeResult(), makeResult({ resultId: 'r2' })] })
+    );
+    rerender(<DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />);
+
+    expect(screen.queryByTestId('category-r1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('category-r2')).not.toBeInTheDocument();
+  });
+
   it('renders the order iframe overlay when showOrderIframe is set', () => {
     renderStep({ showOrderIframe: true, iframeOrderUiUrl: 'https://idexx.test/frame' });
 
