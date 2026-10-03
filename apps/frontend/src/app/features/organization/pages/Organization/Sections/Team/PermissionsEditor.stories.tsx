@@ -19,7 +19,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The per-membership permission matrix on the Team screen: eighteen rows, a View and an ' +
+          'The per-membership permission matrix on the Team screen: nineteen rows, a View and an ' +
           'Edit checkbox each, a reset link and a Cancel/Save bar.\n\n' +
           'All of it lives inside an `Accordion` with `defaultOpen={false}`, and that accordion ' +
           '**unmounts its children when closed** rather than hiding them - `{open && hasChildren && ' +
@@ -28,7 +28,7 @@ const meta = {
           'The header is not a disclosure over static markup; it is the mount.\n\n' +
           'What that hid is a table with four distinct row treatments that no two of which appear ' +
           'together by default. Audit Logs has no `edit` group, so its Edit cell is an em dash and ' +
-          'not an unchecked box - 18 View boxes against 17 Edit boxes. For an OWNER the Teams and ' +
+          'not an unchecked box - 19 View boxes against 18 Edit boxes. For an OWNER the Teams and ' +
           'Organization rows are `ownerLocked`: both boxes are forced checked, disabled, and ' +
           'carry the title "An owner keeps this permission", because those two rows gate the screens ' +
           'an owner would use to undo the change. Everything else is a live toggle, and turning View ' +
@@ -79,7 +79,7 @@ export const Open: Story = {
     /* Assert the matrix has its rows, not merely that aria-expanded flipped -
        an empty accordion body satisfies the attribute just as well. */
     const boxes = await canvas.findAllByRole('checkbox');
-    await expect(boxes).toHaveLength(35);
+    await expect(boxes).toHaveLength(37);
 
     await expect(canvas.getByText('Permission')).toBeInTheDocument();
     await expect(canvas.getByText('View')).toBeInTheDocument();
@@ -92,6 +92,13 @@ export const Open: Story = {
     await expect(canvas.getByLabelText('Audit Logs view permission')).toBeInTheDocument();
     await expect(canvas.queryByLabelText('Audit Logs edit permission')).toBeNull();
     await expect(canvas.getByText('—')).toBeInTheDocument();
+    // The controlled drug register row carries both boxes like any other row.
+    await expect(
+      canvas.getByLabelText('Controlled drug register view permission')
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText('Controlled drug register edit permission')
+    ).toBeInTheDocument();
 
     // The baseline is reflected, not assumed: a vet holds inventory view and edit.
     await expect(canvas.getByLabelText('Inventory view permission')).toBeChecked();
@@ -107,7 +114,7 @@ export const Open: Story = {
     docs: {
       description: {
         story:
-          'The whole matrix for a veterinarian. Eighteen rows on a shared `yc-table-head`, two 72px ' +
+          'The whole matrix for a veterinarian. Nineteen rows on a shared `yc-table-head`, two 72px ' +
           'centred columns, and a hairline under every row but the last.',
       },
     },
@@ -264,7 +271,7 @@ export const ReadOnly: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await openMatrix(canvasElement);
     const boxes = await canvas.findAllByRole('checkbox');
-    await expect(boxes).toHaveLength(35);
+    await expect(boxes).toHaveLength(37);
     await expect(boxes.every((box) => box.hasAttribute('disabled'))).toBe(true);
     // The reset link and the save bar are removed rather than dimmed.
     await expect(canvas.queryByRole('button', { name: 'Reset to role defaults' })).toBeNull();

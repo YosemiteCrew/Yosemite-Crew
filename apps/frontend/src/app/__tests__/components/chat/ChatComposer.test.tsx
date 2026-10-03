@@ -41,9 +41,25 @@ describe('ChatComposer', () => {
     expect(screen.getByLabelText('Send message')).toBeInTheDocument();
   });
 
-  it('renders a disabled voice-message affordance', () => {
+  it('toggles the voice panel from the mic button', () => {
     render(<ChatComposer />);
-    expect(screen.getByLabelText('Voice message')).toBeDisabled();
+    expect(screen.getByLabelText('Voice message')).toBeEnabled();
+    fireEvent.click(screen.getByLabelText('Voice message'));
+    expect(screen.getByRole('region', { name: 'Voice capture' })).toBeInTheDocument();
+    expect(screen.getByText('Voice capture unavailable')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Voice message'));
+    expect(screen.queryByRole('region', { name: 'Voice capture' })).not.toBeInTheDocument();
+  });
+
+  it('inserts a typed transcript from the voice panel into the composer', () => {
+    render(<ChatComposer />);
+    fireEvent.click(screen.getByLabelText('Voice message'));
+    fireEvent.change(screen.getByLabelText('Transcript'), {
+      target: { value: 'Fluid therapy due' },
+    });
+    fireEvent.click(screen.getByText('Use text'));
+    expect(mockInsertText).toHaveBeenCalledWith({ text: 'Fluid therapy due' });
+    expect(screen.queryByRole('region', { name: 'Voice capture' })).not.toBeInTheDocument();
   });
 
   it('sends on the send button', () => {

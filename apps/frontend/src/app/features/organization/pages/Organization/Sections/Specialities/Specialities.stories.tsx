@@ -261,7 +261,10 @@ export const OverviewColumn: Story = {
     const canvas = within(canvasElement);
 
     await expect(canvas.queryByRole('columnheader')).not.toBeInTheDocument();
-    await expect(canvas.getAllByRole('button', { name: 'View details' })).toHaveLength(2);
+    /* The compact cards carry their own "View" button per speciality; the
+       table's "View details" eye buttons are in the hidden half. */
+    await expect(canvas.getAllByRole('button', { name: 'View' })).toHaveLength(2);
+    await expect(canvas.queryByRole('button', { name: 'View details' })).not.toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Manage' })).toBeInTheDocument();
   },
   parameters: {

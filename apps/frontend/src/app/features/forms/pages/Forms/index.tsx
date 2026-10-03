@@ -23,6 +23,9 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { useExtensionPoint } from '@/app/features/plugins';
+import { logger } from '@/app/lib/logger';
+import type { FormsListActionExtension } from '@/app/features/plugins/types';
 
 const AddForm = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/AddForm'));
 const FormInfo = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/FormInfo'));
@@ -99,6 +102,15 @@ const Forms = () => {
   const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
   const loadSpecialityCatalog = useRevampCatalogStore((s) => s.loadSpecialityCatalog);
   const fetchedRef = useRef(false);
+
+  const formsListContext = useMemo(
+    () => ({ type: 'forms.list' as const, organisationId: primaryOrgId ?? '' }),
+    [primaryOrgId]
+  );
+
+  const { extensions: formsListActionExtensions } = useExtensionPoint<
+    React.ComponentProps<FormsListActionExtension['component']>
+  >('forms.list.actions', formsListContext);
 
   const orgSpecialities = useMemo(
     () => (primaryOrgId ? specialities.filter((s) => s.organisationId === primaryOrgId) : []),
@@ -195,7 +207,7 @@ const Forms = () => {
           await loadForms();
         }
       } catch (err) {
-        console.error('Failed to load forms', err);
+        logger.error('Failed to load forms', err);
       }
     })();
   }, [list.length]);
@@ -309,6 +321,19 @@ const Forms = () => {
               ) : null
             }
           />
+          {formsListActionExtensions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-[var(--hairline)]">
+              {formsListActionExtensions.map((ext) => (
+                <ext.extension.component
+                  key={`${ext.pluginId}:${ext.extension.id}`}
+                  organisationId={primaryOrgId ?? ''}
+                  onAction={(_forms) => {
+                    logger.debug('Plugin action triggered', ext.extension.id);
+                  }}
+                />
+              ))}
+            </div>
+          )}
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
             <FormsTable
               filteredList={filteredList}
