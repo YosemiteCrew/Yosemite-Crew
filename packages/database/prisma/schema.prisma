@@ -240,6 +240,64 @@ enum LabOrderModality {
 enum IntegrationProvider {
   IDEXX
   MERCK_MANUALS
+  LAIKA
+  VETNOX
+  CLINICAL_KEY
+  DRUG_INTERACTION_CHECKER
+  DOSAGE_CALCULATOR
+  PROTOCOL_LIBRARY
+  VETNIO
+  TALKATO
+  SCRIBE_VET
+  DISCHARGE_BUILDER
+  TEMPLATE_ENGINE
+  VOICE_COMMANDS
+  DIGITAL_INTAKE
+  PATIENT_MONITOR
+  FOLLOWUP_AUTOMATION
+  CARE_PLAN_MANAGER
+  WELLNESS_TRACKER
+  BEHAVIOR_LOGGER
+  WEBSITE_BUILDER
+  CLIENT_PORTAL
+  ONLINE_BOOKING
+  PET_PROFILE
+  TELEHEALTH_PORTAL
+  REVIEW_MANAGER
+  SMS_AUTOMATION
+  EMAIL_CAMPAIGNS
+  APPOINTMENT_REMINDERS
+  CLIENT_MESSAGING
+  CALL_INTEGRATION
+  WHATSAPP_BUSINESS
+  QUICKBOOKS
+  XERO
+  INVENTORY_SYNC
+  PAYROLL_PROVIDER
+  EXPENSE_TRACKER
+  BILLING_AUTOMATION
+  RAD_ANALYZER
+  ANTECH
+  HESKA
+  VETSCAN
+  MONITOR_SYNC
+  BUSINESS_INTELLIGENCE
+  BENCHMARKING
+  DATA_EXPORT
+  REVENUE_ANALYTICS
+  CLINICAL_ANALYTICS
+  COMPLIANCE_REPORTER
+  PLUMB_VETERINARY
+  FORM_BUILDER
+  TEMPLATE_MANAGER
+  CONFIG_SYNC
+  PROTOCOL_SYNC
+  PHARMACY_INTEGRATION
+  PET_INSURANCE
+  REFERRAL_NETWORK
+  LOYALTY_PROGRAM
+  E_COMMERCE
+  SUPPLY_CHAIN
 }
 
 enum IntegrationStatus {
@@ -3123,6 +3181,13 @@ model ClinicalArtifact {
   appointmentId     String?
   caseId            String?
   encounterId       String?
+  // The animal this record is about, set when the artifact is written from
+  // whatever the writer demonstrably knows (its encounter, case or
+  // appointment), so an artifact with no encounter still reaches the owner
+  // (#2704). Nullable with no default: rows written before it read NULL and
+  // keep resolving through encounterId. Making it NOT NULL later needs an
+  // expand/backfill/contract sequence, not a single migration.
+  patientId         String?
   kind              ClinicalArtifactKind
   status            ClinicalArtifactStatus @default(DRAFT)
   templateId        String?
@@ -3164,6 +3229,7 @@ model ClinicalArtifact {
   // been seen at several practices - so it filters on encounterId alone and no
   // organisationId-leading index above applies to it. See #2709.
   @@index([encounterId, status])
+  @@index([patientId, status])
 }
 
 model SoapNote {

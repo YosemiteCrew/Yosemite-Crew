@@ -259,6 +259,49 @@ describe("migration-audit.service", () => {
       });
     });
 
+    it("reads the source files together and hands each to its own section", async () => {
+      mockedPrisma.migrationAuditRun.findUnique.mockResolvedValue({
+        id: "run-1",
+        sourceFiles: {
+          owners: "orgs/org-1/owners.csv",
+          animals: "orgs/org-1/animals.csv",
+          appointments: "orgs/org-1/appointments.csv",
+        },
+      });
+      let releaseOwners!: (value: Buffer) => void;
+      mockedReadObjectBounded.mockImplementation((key: string) => {
+        if (key.includes("owners"))
+          return new Promise<Buffer>((resolve) => {
+            releaseOwners = resolve;
+          });
+        if (key.includes("animals"))
+          return Promise.resolve(Buffer.from(VALID_ANIMALS));
+        return Promise.resolve(Buffer.from(VALID_APPOINTMENTS));
+      });
+
+      const pending = runMigrationAudit("run-1");
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // The owners file is still loading while the others are requested.
+      expect(readObjectBounded).toHaveBeenCalledTimes(3);
+
+      releaseOwners(Buffer.from(VALID_OWNERS));
+      await pending;
+
+      const finalUpdate = mockedPrisma.migrationAuditRun.update.mock
+        .calls[1][0] as { data: any };
+      expect(finalUpdate.data.status).toBe("COMPLETED");
+      expect(finalUpdate.data.summary.OWNERS).toMatchObject({
+        status: "ASSESSED",
+        totalRows: 1,
+      });
+      const createManyCall = mockedPrisma.migrationAuditIssue.createMany.mock
+        .calls[0][0] as { data: unknown[] };
+      expect(createManyCall.data).toEqual([
+        expect.objectContaining({ code: "attachment_manifest_not_provided" }),
+      ]);
+    });
+
     it("marks the run FAILED with the error message when a source read fails", async () => {
       mockedPrisma.migrationAuditRun.findUnique.mockResolvedValue({
         id: "run-1",

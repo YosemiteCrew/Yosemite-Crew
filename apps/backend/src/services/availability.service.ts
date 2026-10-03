@@ -607,12 +607,7 @@ export const AvailabilityService = {
     });
   },
 
-  async getOccupancy(
-    organisationId: string,
-    userId: string,
-    from: Date,
-    to: Date,
-  ) {
+  getOccupancy(organisationId: string, userId: string, from: Date, to: Date) {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",

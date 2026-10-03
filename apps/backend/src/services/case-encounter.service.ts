@@ -16,6 +16,7 @@ import type {
   WorkspaceFinalizationGate,
 } from "@yosemite-crew/types";
 import { isSpeciesCompatible } from "./shared/normalize-tokens";
+import { mapInSequence } from "src/utils/async-iteration";
 
 type CaseRow = {
   id: string;
@@ -225,6 +226,7 @@ type ClinicalArtifactDelegate = {
       appointmentId?: string | null;
       caseId?: string | null;
       encounterId?: string | null;
+      patientId?: string | null;
       kind: "PRESCRIPTION";
       status: string;
       summary?: string | null;
@@ -513,7 +515,7 @@ const getPackageMetadata = (
   sourceVersion: null,
 });
 
-const createPackageTemplateInstances = async (params: {
+type PackageTemplateInstanceParams = {
   tx: {
     templateInstance: TemplateInstanceDelegate;
   };
@@ -522,52 +524,65 @@ const createPackageTemplateInstances = async (params: {
   caseId: string;
   encounterId: string;
   selection: Awaited<ReturnType<typeof CatalogService.resolveSelection>>;
-}) => {
+};
+
+const createPackageTemplateInstance = async (
+  params: PackageTemplateInstanceParams,
+  binding: PackageTemplateInstanceParams["selection"]["templateBindings"][number],
+) => {
+  const templateId = binding.templateId!.trim();
+  const existing = await params.tx.templateInstance.findFirst({
+    where: {
+      organisationId: params.organisationId,
+      templateId,
+      OR: [
+        { appointmentId: params.appointmentId },
+        { encounterId: params.encounterId },
+        { caseId: params.caseId },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (existing) {
+    return;
+  }
+
+  await params.tx.templateInstance.create({
+    data: {
+      templateId,
+      templateVersion: binding.templateVersion ?? 1,
+      organisationId: params.organisationId,
+      appointmentId: params.appointmentId,
+      caseId: params.caseId,
+      encounterId: params.encounterId,
+      status: "DRAFT",
+      data: {
+        origin: "PACKAGE_EXPANSION",
+        packageId: params.selection.productItemId,
+        packageItemId: params.selection.productItemId,
+        productItemId: params.selection.productItemId,
+        productKind: params.selection.productKind,
+        templateKind: binding.templateKind,
+      },
+      authorId: null,
+    },
+  });
+};
+
+const createPackageTemplateInstances = async (
+  params: PackageTemplateInstanceParams,
+) => {
   const bindings = params.selection.templateBindings.filter(
     (binding) =>
       typeof binding.templateId === "string" && binding.templateId.trim(),
   );
 
-  for (const binding of bindings) {
-    const templateId = binding.templateId!.trim();
-    const existing = await params.tx.templateInstance.findFirst({
-      where: {
-        organisationId: params.organisationId,
-        templateId,
-        OR: [
-          { appointmentId: params.appointmentId },
-          { encounterId: params.encounterId },
-          { caseId: params.caseId },
-        ],
-      },
-      select: { id: true },
-    });
-
-    if (existing) {
-      continue;
-    }
-
-    await params.tx.templateInstance.create({
-      data: {
-        templateId,
-        templateVersion: binding.templateVersion ?? 1,
-        organisationId: params.organisationId,
-        appointmentId: params.appointmentId,
-        caseId: params.caseId,
-        encounterId: params.encounterId,
-        status: "DRAFT",
-        data: {
-          origin: "PACKAGE_EXPANSION",
-          packageId: params.selection.productItemId,
-          packageItemId: params.selection.productItemId,
-          productItemId: params.selection.productItemId,
-          productKind: params.selection.productKind,
-          templateKind: binding.templateKind,
-        },
-        authorId: null,
-      },
-    });
-  }
+  // Bindings run one at a time on the transaction, so a repeated template
+  // sees the instance created for its earlier binding.
+  await mapInSequence(bindings, (binding) =>
+    createPackageTemplateInstance(params, binding),
+  );
 };
 
 const buildPrescriptionMedicationRows = (
@@ -692,6 +707,7 @@ const maybeExpandPackageTreatmentItems = async (params: {
   appointmentId: string;
   caseId: string;
   encounterId: string;
+  patientId: string;
   selection: Awaited<ReturnType<typeof CatalogService.resolveSelection>>;
 }) => {
   if (params.selection.productKind !== "PACKAGE") {
@@ -737,6 +753,7 @@ const expandPackageTreatmentItems = async (params: {
   appointmentId: string;
   caseId: string;
   encounterId: string;
+  patientId: string;
   selection: Awaited<ReturnType<typeof CatalogService.resolveSelection>>;
 }) => {
   const packageProductItemId = params.selection.productItemId;
@@ -770,6 +787,7 @@ const expandPackageTreatmentItems = async (params: {
         organisationId: params.organisationId,
         appointmentId: params.appointmentId,
         encounterId: params.encounterId,
+        patientId: params.patientId,
         kind: "PRESCRIPTION",
         status: "DRAFT",
         summary: `${params.selection.name} medication package`,
@@ -805,7 +823,7 @@ const expandPackageTreatmentItems = async (params: {
     selection: params.selection,
   });
 
-  for (const item of items) {
+  await mapInSequence(items, (item) => {
     const included = params.selection.includedItems.some(
       (includedItem) => includedItem.productItemId === item.productItemId,
     );
@@ -827,7 +845,7 @@ const expandPackageTreatmentItems = async (params: {
       packageMetadata,
     );
 
-    await params.tx.workspaceTreatmentItem.create({
+    return params.tx.workspaceTreatmentItem.create({
       data: {
         organisationId: params.organisationId,
         appointmentId: params.appointmentId,
@@ -855,7 +873,7 @@ const expandPackageTreatmentItems = async (params: {
             : null,
       },
     });
-  }
+  });
 };
 
 const toCaseStatus = (status: string): CaseStatus => {
@@ -1283,6 +1301,7 @@ export const CaseEncounterService = {
               appointmentId,
               caseId,
               encounterId: createdEncounter.id,
+              patientId,
               selection,
             });
           }

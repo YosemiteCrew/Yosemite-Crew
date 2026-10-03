@@ -345,6 +345,137 @@ const nextFillOrdinal = async (
   return (highest?.fillOrdinal ?? -1) + 1;
 };
 
+/*
+ * The writes below read their input at the head of a promise chain, so invalid
+ * input is refused as a rejected promise and before a transaction is opened.
+ */
+type AuthoriseFillsParams = {
+  organisationId: string;
+  itemId: string;
+  validUntil: Date;
+  maxAdditionalFills: number;
+  perFillQuantity: Prisma.Decimal.Value;
+  perFillQuantityUnit: string;
+  authorisedBy: string;
+  canEditAny: boolean;
+  now?: Date;
+};
+
+const readAuthoriseFillsInput = (params: AuthoriseFillsParams) => {
+  const organisationId = requireField(
+    asNonEmptyString(params.organisationId),
+    "organisationId",
+  );
+  const itemId = requireField(asNonEmptyString(params.itemId), "itemId");
+  const unit = requireField(
+    asNonEmptyString(params.perFillQuantityUnit),
+    "perFillQuantityUnit",
+  );
+  const authorisedBy = requireField(
+    asNonEmptyString(params.authorisedBy),
+    "authorisedBy",
+  );
+  const now = params.now ?? new Date();
+
+  if (
+    !Number.isInteger(params.maxAdditionalFills) ||
+    params.maxAdditionalFills < 0
+  ) {
+    throw new PrescriptionFillAuthorisationServiceError(
+      "maxAdditionalFills must be a non-negative integer",
+      400,
+    );
+  }
+
+  const perFillQuantity = new Prisma.Decimal(params.perFillQuantity);
+  if (perFillQuantity.lessThanOrEqualTo(0)) {
+    throw new PrescriptionFillAuthorisationServiceError(
+      "perFillQuantity must be greater than zero",
+      400,
+    );
+  }
+
+  if (params.validUntil.getTime() <= now.getTime()) {
+    throw new PrescriptionFillAuthorisationServiceError(
+      "validUntil must be in the future",
+      400,
+    );
+  }
+
+  return { organisationId, itemId, unit, authorisedBy, now, perFillQuantity };
+};
+
+type ReserveFillParams = {
+  organisationId: string;
+  itemId: string;
+  idempotencyKey: string;
+  expectedVersion?: number;
+  reservedBy?: string;
+  dispenseRequestId?: string;
+  now?: Date;
+};
+
+const readReserveFillInput = (params: ReserveFillParams) => ({
+  organisationId: requireField(
+    asNonEmptyString(params.organisationId),
+    "organisationId",
+  ),
+  itemId: requireField(asNonEmptyString(params.itemId), "itemId"),
+  idempotencyKey: requireField(
+    asNonEmptyString(params.idempotencyKey),
+    "idempotencyKey",
+  ),
+  now: params.now ?? new Date(),
+});
+
+type RecordFulfilmentParams = {
+  organisationId: string;
+  reservationId: string;
+  quantity: Prisma.Decimal.Value;
+  now?: Date;
+};
+
+const readRecordFulfilmentInput = (params: RecordFulfilmentParams) => {
+  const organisationId = requireField(
+    asNonEmptyString(params.organisationId),
+    "organisationId",
+  );
+  const reservationId = requireField(
+    asNonEmptyString(params.reservationId),
+    "reservationId",
+  );
+  const now = params.now ?? new Date();
+  const quantity = new Prisma.Decimal(params.quantity);
+
+  if (quantity.lessThanOrEqualTo(0)) {
+    throw new PrescriptionFillAuthorisationServiceError(
+      "quantity must be greater than zero",
+      400,
+    );
+  }
+
+  return { organisationId, reservationId, now, quantity };
+};
+
+type CancelReservationParams = {
+  organisationId: string;
+  reservationId: string;
+  reason?: string;
+  now?: Date;
+};
+
+const readCancelReservationInput = (params: CancelReservationParams) => ({
+  organisationId: requireField(
+    asNonEmptyString(params.organisationId),
+    "organisationId",
+  ),
+  reservationId: requireField(
+    asNonEmptyString(params.reservationId),
+    "reservationId",
+  ),
+  now: params.now ?? new Date(),
+});
+
 export const PrescriptionFillAuthorisationService = {
   /**
    * Issue a clinician's repeat authority for one prescription item.
@@ -354,114 +485,78 @@ export const PrescriptionFillAuthorisationService = {
    * holding version 1 be refused at reservation rather than quietly handed
    * version 2's allowance.
    */
-  async authoriseFills(params: {
-    organisationId: string;
-    itemId: string;
-    validUntil: Date;
-    maxAdditionalFills: number;
-    perFillQuantity: Prisma.Decimal.Value;
-    perFillQuantityUnit: string;
-    authorisedBy: string;
-    canEditAny: boolean;
-    now?: Date;
-  }) {
-    const organisationId = requireField(
-      asNonEmptyString(params.organisationId),
-      "organisationId",
-    );
-    const itemId = requireField(asNonEmptyString(params.itemId), "itemId");
-    const unit = requireField(
-      asNonEmptyString(params.perFillQuantityUnit),
-      "perFillQuantityUnit",
-    );
-    const authorisedBy = requireField(
-      asNonEmptyString(params.authorisedBy),
-      "authorisedBy",
-    );
-    const now = params.now ?? new Date();
-
-    if (
-      !Number.isInteger(params.maxAdditionalFills) ||
-      params.maxAdditionalFills < 0
-    ) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        "maxAdditionalFills must be a non-negative integer",
-        400,
-      );
-    }
-
-    const perFillQuantity = new Prisma.Decimal(params.perFillQuantity);
-    if (perFillQuantity.lessThanOrEqualTo(0)) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        "perFillQuantity must be greater than zero",
-        400,
-      );
-    }
-
-    if (params.validUntil.getTime() <= now.getTime()) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        "validUntil must be in the future",
-        400,
-      );
-    }
-
-    return prisma.$transaction(async (tx) => {
-      await lockItem(tx, organisationId, itemId);
-      const item = await loadOwnedItem(tx, organisationId, itemId);
-      assertActorMayAuthorise(item.prescription.artifact, {
-        actorId: authorisedBy,
-        canEditAny: params.canEditAny,
-      });
-      if (item.prescription.artifact.status === "VOID") {
-        throw new PrescriptionFillAuthorisationServiceError(
-          "Refills cannot be authorised on a cancelled prescription",
-          409,
-        );
-      }
-      const patientId = await resolvePatientId(
-        tx,
-        organisationId,
-        item.prescription.artifact.encounterId,
-      );
-
-      const previous = await loadActiveAuthorization(
-        tx,
-        organisationId,
-        itemId,
-      );
-
-      if (previous) {
-        await tx.prescriptionFillAuthorization.update({
-          where: { id: previous.id },
-          data: { status: PrescriptionFillAuthorizationStatus.SUPERSEDED },
-        });
-      }
-      // Numbered after the newest row of any status: re-authorising after a
-      // revoke has no ACTIVE predecessor, and restarting at 1 would collide
-      // with the revoked version on the (itemId, version) key.
-      const newest = await tx.prescriptionFillAuthorization.findFirst({
-        where: { organisationId, itemId },
-        orderBy: { version: "desc" },
-        select: { version: true },
-      });
-
-      return tx.prescriptionFillAuthorization.create({
-        data: {
+  authoriseFills(params: AuthoriseFillsParams) {
+    return Promise.resolve(params)
+      .then(readAuthoriseFillsInput)
+      .then(
+        ({
           organisationId,
-          patientId,
-          prescriptionId: item.prescriptionId,
           itemId,
-          version: (newest?.version ?? 0) + 1,
-          validUntil: params.validUntil,
-          maxAdditionalFills: params.maxAdditionalFills,
-          perFillQuantity,
-          perFillQuantityUnit: unit,
+          unit,
           authorisedBy,
-          authorisedAt: now,
-          supersedesId: previous?.id,
-        },
-      });
-    });
+          now,
+          perFillQuantity,
+        }) =>
+          prisma.$transaction(async (tx) => {
+            await lockItem(tx, organisationId, itemId);
+            const item = await loadOwnedItem(tx, organisationId, itemId);
+            assertActorMayAuthorise(item.prescription.artifact, {
+              actorId: authorisedBy,
+              canEditAny: params.canEditAny,
+            });
+            if (item.prescription.artifact.status === "VOID") {
+              throw new PrescriptionFillAuthorisationServiceError(
+                "Refills cannot be authorised on a cancelled prescription",
+                409,
+              );
+            }
+            const patientId = await resolvePatientId(
+              tx,
+              organisationId,
+              item.prescription.artifact.encounterId,
+            );
+
+            const previous = await loadActiveAuthorization(
+              tx,
+              organisationId,
+              itemId,
+            );
+
+            if (previous) {
+              await tx.prescriptionFillAuthorization.update({
+                where: { id: previous.id },
+                data: {
+                  status: PrescriptionFillAuthorizationStatus.SUPERSEDED,
+                },
+              });
+            }
+            // Numbered after the newest row of any status: re-authorising after a
+            // revoke has no ACTIVE predecessor, and restarting at 1 would collide
+            // with the revoked version on the (itemId, version) key.
+            const newest = await tx.prescriptionFillAuthorization.findFirst({
+              where: { organisationId, itemId },
+              orderBy: { version: "desc" },
+              select: { version: true },
+            });
+
+            return tx.prescriptionFillAuthorization.create({
+              data: {
+                organisationId,
+                patientId,
+                prescriptionId: item.prescriptionId,
+                itemId,
+                version: (newest?.version ?? 0) + 1,
+                validUntil: params.validUntil,
+                maxAdditionalFills: params.maxAdditionalFills,
+                perFillQuantity,
+                perFillQuantityUnit: unit,
+                authorisedBy,
+                authorisedAt: now,
+                supersedesId: previous?.id,
+              },
+            });
+          }),
+      );
   },
 
   /**
@@ -698,85 +793,70 @@ export const PrescriptionFillAuthorisationService = {
    * retrying after a timeout needs. A DIFFERENT intent reusing a key is a
    * conflict and is refused.
    */
-  async reserveFill(params: {
-    organisationId: string;
-    itemId: string;
-    idempotencyKey: string;
-    expectedVersion?: number;
-    reservedBy?: string;
-    dispenseRequestId?: string;
-    now?: Date;
-  }) {
-    const organisationId = requireField(
-      asNonEmptyString(params.organisationId),
-      "organisationId",
-    );
-    const itemId = requireField(asNonEmptyString(params.itemId), "itemId");
-    const idempotencyKey = requireField(
-      asNonEmptyString(params.idempotencyKey),
-      "idempotencyKey",
-    );
-    const now = params.now ?? new Date();
+  reserveFill(params: ReserveFillParams) {
+    return Promise.resolve(params)
+      .then(readReserveFillInput)
+      .then(({ organisationId, itemId, idempotencyKey, now }) =>
+        prisma.$transaction(async (tx) => {
+          await lockItem(tx, organisationId, itemId);
 
-    return prisma.$transaction(async (tx) => {
-      await lockItem(tx, organisationId, itemId);
+          const replay = await tx.prescriptionFillReservation.findUnique({
+            where: {
+              organisationId_idempotencyKey: { organisationId, idempotencyKey },
+            },
+          });
 
-      const replay = await tx.prescriptionFillReservation.findUnique({
-        where: {
-          organisationId_idempotencyKey: { organisationId, idempotencyKey },
-        },
-      });
+          if (replay) {
+            if (replay.itemId !== itemId) {
+              throw new PrescriptionFillAuthorisationServiceError(
+                "idempotencyKey has already been used for a different prescription item",
+                409,
+              );
+            }
+            return replay;
+          }
 
-      if (replay) {
-        if (replay.itemId !== itemId) {
-          throw new PrescriptionFillAuthorisationServiceError(
-            "idempotencyKey has already been used for a different prescription item",
-            409,
+          const authority = await loadActiveAuthorization(
+            tx,
+            organisationId,
+            itemId,
           );
-        }
-        return replay;
-      }
 
-      const authority = await loadActiveAuthorization(
-        tx,
-        organisationId,
-        itemId,
+          if (!authority) {
+            throw new PrescriptionFillAuthorisationServiceError(
+              "No active fill authorisation for this prescription item",
+              409,
+            );
+          }
+
+          if (
+            params.expectedVersion !== undefined &&
+            params.expectedVersion !== authority.version
+          ) {
+            throw new PrescriptionFillAuthorisationServiceError(
+              `Fill authorisation has moved to version ${authority.version}`,
+              409,
+            );
+          }
+
+          await assertFillAvailable(tx, authority, now);
+
+          return tx.prescriptionFillReservation.create({
+            data: {
+              organisationId,
+              authorizationId: authority.id,
+              itemId,
+              dispenseRequestId: asNonEmptyString(params.dispenseRequestId),
+              fillOrdinal: await nextFillOrdinal(tx, authority.id),
+              quantity: authority.perFillQuantity,
+              quantityUnit: authority.perFillQuantityUnit,
+              idempotencyKey,
+              reservedBy: asNonEmptyString(params.reservedBy),
+              reservedAt: now,
+            },
+          });
+        }),
       );
-
-      if (!authority) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          "No active fill authorisation for this prescription item",
-          409,
-        );
-      }
-
-      if (
-        params.expectedVersion !== undefined &&
-        params.expectedVersion !== authority.version
-      ) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          `Fill authorisation has moved to version ${authority.version}`,
-          409,
-        );
-      }
-
-      await assertFillAvailable(tx, authority, now);
-
-      return tx.prescriptionFillReservation.create({
-        data: {
-          organisationId,
-          authorizationId: authority.id,
-          itemId,
-          dispenseRequestId: asNonEmptyString(params.dispenseRequestId),
-          fillOrdinal: await nextFillOrdinal(tx, authority.id),
-          quantity: authority.perFillQuantity,
-          quantityUnit: authority.perFillQuantityUnit,
-          idempotencyKey,
-          reservedBy: asNonEmptyString(params.reservedBy),
-          reservedAt: now,
-        },
-      });
-    });
   },
 
   /**
@@ -793,82 +873,65 @@ export const PrescriptionFillAuthorisationService = {
    * second would overwrite rather than add. The lock is held to commit, so the
    * second waits and reads the first's committed total instead.
    */
-  async recordFulfilment(params: {
-    organisationId: string;
-    reservationId: string;
-    quantity: Prisma.Decimal.Value;
-    now?: Date;
-  }) {
-    const organisationId = requireField(
-      asNonEmptyString(params.organisationId),
-      "organisationId",
-    );
-    const reservationId = requireField(
-      asNonEmptyString(params.reservationId),
-      "reservationId",
-    );
-    const now = params.now ?? new Date();
-    const quantity = new Prisma.Decimal(params.quantity);
+  recordFulfilment(params: RecordFulfilmentParams) {
+    return Promise.resolve(params)
+      .then(readRecordFulfilmentInput)
+      .then(({ organisationId, reservationId, now, quantity }) =>
+        prisma.$transaction(async (tx) => {
+          await lockReservationItem(tx, organisationId, reservationId);
 
-    if (quantity.lessThanOrEqualTo(0)) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        "quantity must be greater than zero",
-        400,
+          const reservation = await tx.prescriptionFillReservation.findFirst({
+            where: { id: reservationId, organisationId },
+            include: { authorization: true },
+          });
+
+          if (!reservation) {
+            throw new PrescriptionFillAuthorisationServiceError(
+              RESERVATION_NOT_FOUND,
+              404,
+            );
+          }
+
+          if (
+            reservation.status !== PrescriptionFillReservationStatus.RESERVED
+          ) {
+            throw new PrescriptionFillAuthorisationServiceError(
+              `A ${reservation.status.toLowerCase()} fill cannot be fulfilled`,
+              409,
+            );
+          }
+
+          if (hasExpired(reservation.authorization, now)) {
+            throw new PrescriptionFillAuthorisationServiceError(
+              "Fill authorisation expired before this fill was completed",
+              409,
+            );
+          }
+
+          const fulfilled = reservation.fulfilledQuantity.add(quantity);
+          if (fulfilled.greaterThan(reservation.quantity)) {
+            throw new PrescriptionFillAuthorisationServiceError(
+              "Fulfilled quantity would exceed the authorised quantity for this fill",
+              409,
+            );
+          }
+
+          const complete = fulfilled.greaterThanOrEqualTo(reservation.quantity);
+
+          return tx.prescriptionFillReservation.update({
+            where: { id: reservation.id },
+            data: {
+              fulfilledQuantity: fulfilled,
+              ...(complete
+                ? {
+                    status: PrescriptionFillReservationStatus.COMPLETED,
+                    completedAt: now,
+                  }
+                : {}),
+            },
+          });
+        }),
       );
-    }
-
-    return prisma.$transaction(async (tx) => {
-      await lockReservationItem(tx, organisationId, reservationId);
-
-      const reservation = await tx.prescriptionFillReservation.findFirst({
-        where: { id: reservationId, organisationId },
-        include: { authorization: true },
-      });
-
-      if (!reservation) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          RESERVATION_NOT_FOUND,
-          404,
-        );
-      }
-
-      if (reservation.status !== PrescriptionFillReservationStatus.RESERVED) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          `A ${reservation.status.toLowerCase()} fill cannot be fulfilled`,
-          409,
-        );
-      }
-
-      if (hasExpired(reservation.authorization, now)) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          "Fill authorisation expired before this fill was completed",
-          409,
-        );
-      }
-
-      const fulfilled = reservation.fulfilledQuantity.add(quantity);
-      if (fulfilled.greaterThan(reservation.quantity)) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          "Fulfilled quantity would exceed the authorised quantity for this fill",
-          409,
-        );
-      }
-
-      const complete = fulfilled.greaterThanOrEqualTo(reservation.quantity);
-
-      return tx.prescriptionFillReservation.update({
-        where: { id: reservation.id },
-        data: {
-          fulfilledQuantity: fulfilled,
-          ...(complete
-            ? {
-                status: PrescriptionFillReservationStatus.COMPLETED,
-                completedAt: now,
-              }
-            : {}),
-        },
-      });
-    });
   },
 
   /**
@@ -881,55 +944,48 @@ export const PrescriptionFillAuthorisationService = {
    * check passing on a snapshot that no longer holds. Both routes carry the
    * same permission pair, so any caller who can fulfil can also cancel.
    */
-  async cancelReservation(params: {
-    organisationId: string;
-    reservationId: string;
-    reason?: string;
-    now?: Date;
-  }) {
-    const organisationId = requireField(
-      asNonEmptyString(params.organisationId),
-      "organisationId",
-    );
-    const reservationId = requireField(
-      asNonEmptyString(params.reservationId),
-      "reservationId",
-    );
-    const now = params.now ?? new Date();
+  cancelReservation(params: CancelReservationParams) {
+    return Promise.resolve(params)
+      .then(readCancelReservationInput)
+      .then(({ organisationId, reservationId, now }) =>
+        prisma.$transaction(async (tx) => {
+          await lockReservationItem(tx, organisationId, reservationId);
 
-    return prisma.$transaction(async (tx) => {
-      await lockReservationItem(tx, organisationId, reservationId);
+          const reservation = await tx.prescriptionFillReservation.findFirst({
+            where: { id: reservationId, organisationId },
+          });
 
-      const reservation = await tx.prescriptionFillReservation.findFirst({
-        where: { id: reservationId, organisationId },
-      });
+          if (!reservation) {
+            throw new PrescriptionFillAuthorisationServiceError(
+              RESERVATION_NOT_FOUND,
+              404,
+            );
+          }
 
-      if (!reservation) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          RESERVATION_NOT_FOUND,
-          404,
-        );
-      }
+          if (
+            reservation.status === PrescriptionFillReservationStatus.CANCELLED
+          ) {
+            return reservation;
+          }
 
-      if (reservation.status === PrescriptionFillReservationStatus.CANCELLED) {
-        return reservation;
-      }
+          if (
+            reservation.status === PrescriptionFillReservationStatus.COMPLETED
+          ) {
+            throw new PrescriptionFillAuthorisationServiceError(
+              "A completed fill cannot be cancelled; reverse the dispense instead",
+              409,
+            );
+          }
 
-      if (reservation.status === PrescriptionFillReservationStatus.COMPLETED) {
-        throw new PrescriptionFillAuthorisationServiceError(
-          "A completed fill cannot be cancelled; reverse the dispense instead",
-          409,
-        );
-      }
-
-      return tx.prescriptionFillReservation.update({
-        where: { id: reservation.id },
-        data: {
-          status: PrescriptionFillReservationStatus.CANCELLED,
-          cancelledAt: now,
-          cancelledReason: asNonEmptyString(params.reason),
-        },
-      });
-    });
+          return tx.prescriptionFillReservation.update({
+            where: { id: reservation.id },
+            data: {
+              status: PrescriptionFillReservationStatus.CANCELLED,
+              cancelledAt: now,
+              cancelledReason: asNonEmptyString(params.reason),
+            },
+          });
+        }),
+      );
   },
 };

@@ -52,7 +52,9 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
     return () => {
       // Cleanup on unmount only
       if (hasSessionRef.current) {
-        Sound.stopPlayer();
+        Sound.stopPlayer().catch(error => {
+          console.error('Audio stop error:', error);
+        });
         Sound.removePlayBackListener();
         Sound.removePlaybackEndListener();
       }

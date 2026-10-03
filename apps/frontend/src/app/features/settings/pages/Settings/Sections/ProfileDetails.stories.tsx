@@ -416,18 +416,18 @@ export const NoProfileRecord: Story = {
 
     /* Required-field validation runs before the handler, so an empty address is
        caught in the card rather than sent. All four address fields are required
-       and editable, so all four complain at once - but only three are
-       ANNOUNCED. `FormInput` gives its message `role="alert"` and wires it to
-       the input with `aria-describedby`; the `googleAddress` renderer draws the
-       same-looking line as plain text with neither, so a screen reader is told
-       about three of the four fields blocking the save. */
+       and editable, so all four complain at once, and all four are ANNOUNCED.
+       `FormInput` and the `googleAddress` renderer (`GoogleSearchDropDown`)
+       both render their message through the shared `Field`, which gives it
+       `role="alert"`, so a screen reader is told about every field blocking
+       the save, the address line first. */
     const errors = await canvas.findAllByRole('alert');
     await expect(errors.map((e) => e.textContent)).toEqual([
+      'Address line is required',
       'State / Province is required',
       'City is required',
       'Postal code is required',
     ]);
-    await expect(canvas.getByText('Address line is required')).toBeInTheDocument();
 
     await expect(requests).toHaveLength(0);
     await expect(canvas.getByRole('textbox', { name: 'City' })).toBeInTheDocument();

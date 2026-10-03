@@ -1,6 +1,7 @@
 import { Prisma, TaskScheduleStatus, TemplateKind } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { TaskService } from "./task.service";
+import { mapInSequence } from "src/utils/async-iteration";
 
 type StoredTaskWorkflowSeed = {
   source: "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
@@ -255,11 +256,11 @@ const materializeSchedule = async (
 
   const seeds = schedule.materializedSeeds.map(parseSeed);
 
-  for (
-    let index = generatedTaskIds.length + skippedSeeds;
-    index < seeds.length;
-    index++
-  ) {
+  // One seed at a time, saving progress after each so a retry resumes at the
+  // first seed that has not been handled yet.
+  const materializeFrom = async (index: number): Promise<void> => {
+    if (index >= seeds.length) return;
+
     const task = await TaskService.createFromWorkflowSeed(
       toWorkflowSeedInput(seeds[index]),
       { notify: false },
@@ -281,7 +282,11 @@ const materializeSchedule = async (
           : {}),
       },
     });
-  }
+
+    await materializeFrom(index + 1);
+  };
+
+  await materializeFrom(generatedTaskIds.length + skippedSeeds);
 
   await prisma.taskSchedule.update({
     where: { id: schedule.id },
@@ -306,12 +311,14 @@ export const TaskScheduleEngine = {
       orderBy: [{ activatedAt: "asc" }, { updatedAt: "asc" }],
     });
 
-    for (const schedule of schedules) {
+    // Schedules are processed in activation order; one failing does not stop
+    // the rest.
+    await mapInSequence(schedules, async (schedule) => {
       try {
         await materializeSchedule(schedule, now);
       } catch (error) {
         console.error("Failed to process task schedule", schedule.id, error);
       }
-    }
+    });
   },
 };

@@ -356,6 +356,9 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
     });
 
     expect(mockUpsertUser).toHaveBeenCalledTimes(2);
+    // Each member's profile is read in their own clinic.
+    expect(mockedUserProfile).toHaveBeenCalledWith("userA", "org1");
+    expect(mockedUserProfile).toHaveBeenCalledWith("userB", "org2");
     expect(mockChannel).toHaveBeenCalledTimes(1);
     // Both clinics list the conversation, so the channel is stamped with both.
     expect(mockChannel).toHaveBeenCalledWith(

@@ -23,7 +23,7 @@ jest.mock('@/hooks', () => {
 // omits both a `default` export and `refresh`, which this component reaches for
 // via `import NetInfo from ...; NetInfo.refresh()`. Provide a focused mock.
 jest.mock('@react-native-community/netinfo', () => {
-  const refresh = jest.fn();
+  const refresh = jest.fn(() => Promise.resolve({isConnected: false}));
   return {
     __esModule: true,
     default: {
@@ -126,6 +126,24 @@ describe('NetworkStatusBottomSheet', () => {
     fireEvent.press(getByTestId('network-offline-retry'));
 
     expect(NetInfo.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs instead of failing when the connection status cannot be refreshed', async () => {
+    const failure = new Error('refresh failed');
+    (NetInfo.refresh as jest.Mock).mockRejectedValueOnce(failure);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const {getByTestId} = render(<NetworkStatusBottomSheet />);
+
+    fireEvent.press(getByTestId('network-offline-retry'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Network] Could not refresh the connection status',
+      failure,
+    );
+    warnSpy.mockRestore();
   });
 
   // ===========================================================================

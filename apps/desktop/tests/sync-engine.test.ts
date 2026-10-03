@@ -137,6 +137,80 @@ describe('createSyncEngine', () => {
     expect(results[1]!.table).toBe('appointments');
   });
 
+  test('fullSync continues with later tables after a push error', async () => {
+    const store = await createOfflineStore({ db, SQL, now: () => 1000 });
+    store.registerTable(patientSchema);
+    store.registerTable({ name: 'appointments', columns: [{ name: 'reason', type: 'TEXT' }] });
+    store.insert('patients', { id: 'p1', name: 'Buddy', species: 'Canine' });
+    store.insert('appointments', { id: 'a1', reason: 'Checkup' });
+
+    const calls: string[] = [];
+    const transport: SyncTransport = {
+      fetchChanges: jest.fn(async (table: string) => {
+        calls.push(`pull:${table}`);
+        return [];
+      }),
+      upsertRows: jest.fn(async (table: string) => {
+        calls.push(`push:${table}`);
+        return table === 'patients' ? { success: false, errors: ['conflict'] } : { success: true };
+      }),
+    };
+
+    const results = await createSyncEngine({ store, transport }).fullSync([
+      'patients',
+      'appointments',
+    ]);
+
+    expect(calls).toEqual([
+      'push:patients',
+      'pull:patients',
+      'push:appointments',
+      'pull:appointments',
+    ]);
+    expect(results.map((result) => result.errors)).toEqual([['conflict'], []]);
+  });
+
+  test('fullSync finishes one table (push, then pull) before starting the next', async () => {
+    const store = await createOfflineStore({ db, SQL, now: () => 1000 });
+    store.registerTable(patientSchema);
+    store.registerTable({ name: 'appointments', columns: [{ name: 'reason', type: 'TEXT' }] });
+    store.insert('patients', { id: 'p1', name: 'Buddy', species: 'Canine' });
+    store.insert('appointments', { id: 'a1', reason: 'Checkup' });
+
+    const calls: string[] = [];
+    let releasePatientsPull: (rows: Record<string, unknown>[]) => void = () => {};
+    const transport: SyncTransport = {
+      fetchChanges: jest.fn((table: string) => {
+        calls.push(`pull:${table}`);
+        if (table === 'patients') {
+          return new Promise<Record<string, unknown>[]>((resolve) => {
+            releasePatientsPull = resolve;
+          });
+        }
+        return Promise.resolve([]);
+      }),
+      upsertRows: jest.fn((table: string) => {
+        calls.push(`push:${table}`);
+        return Promise.resolve({ success: true });
+      }),
+    };
+
+    const engine = createSyncEngine({ store, transport });
+    const done = engine.fullSync(['patients', 'appointments']);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(calls).toEqual(['push:patients', 'pull:patients']);
+
+    releasePatientsPull([]);
+    const results = await done;
+    expect(calls).toEqual([
+      'push:patients',
+      'pull:patients',
+      'push:appointments',
+      'pull:appointments',
+    ]);
+    expect(results.map((r) => r.table)).toEqual(['patients', 'appointments']);
+  });
+
   test('getLastSyncTimestamps returns empty initially', async () => {
     const store = await createOfflineStore({ db, SQL });
     store.registerTable(patientSchema);

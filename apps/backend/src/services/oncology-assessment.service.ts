@@ -139,7 +139,7 @@ export const OncologyAssessmentService = {
     return assertAssessment(id, organisationId);
   },
 
-  async list(params: ListOncologyParams) {
+  list(params: ListOncologyParams) {
     const { organisationId, patientId, encounterId, overallStage } = params;
     return prisma.oncologyAssessment.findMany({
       where: {

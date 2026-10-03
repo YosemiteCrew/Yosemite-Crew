@@ -759,7 +759,15 @@ export const EveryCardWaiting: Story = {
     const canvas = within(canvasElement);
 
     /* Nothing can have resolved: every answer is parked until this function
-       releases it, so these reads are not racing a network reply. */
+       releases it, so these reads are not racing a network reply.
+
+       Gated on every stream having ASKED first. The hooks fetch from effects, and
+       the static build CI tests is production React with no `act` to flush them
+       before the play starts - a release issued before a hook has asked frees
+       nothing for it, and that card then waits on an answer nobody will send. */
+    await waitFor(async () => {
+      await expect([...requested].sort()).toEqual([...ENDPOINTS].sort());
+    });
     for (const copy of PLACEHOLDER_COPY) {
       await expect(canvas.getByText(copy)).toBeInTheDocument();
     }

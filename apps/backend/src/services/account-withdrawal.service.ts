@@ -12,7 +12,7 @@ export class AccountWithdrawalServiceError extends Error {
 }
 
 export const AccountWithdrawalService = {
-  async create(input: {
+  create(input: {
     userId?: string;
     fullName: string;
     email: string;
@@ -22,16 +22,20 @@ export const AccountWithdrawalService = {
     checkboxConfirmed: boolean;
   }) {
     if (!input.fullName || !input.email) {
-      throw new AccountWithdrawalServiceError(
-        "fullName and email are required",
-        400,
+      return Promise.reject(
+        new AccountWithdrawalServiceError(
+          "fullName and email are required",
+          400,
+        ),
       );
     }
 
     if (!input.checkboxConfirmed) {
-      throw new AccountWithdrawalServiceError(
-        "Checkbox confirmation is required",
-        400,
+      return Promise.reject(
+        new AccountWithdrawalServiceError(
+          "Checkbox confirmation is required",
+          400,
+        ),
       );
     }
 
@@ -50,7 +54,7 @@ export const AccountWithdrawalService = {
   },
 
   // For admin dashboard
-  async listAll() {
+  listAll() {
     return prisma.accountWithdrawal.findMany({
       orderBy: { createdAt: "desc" },
     });

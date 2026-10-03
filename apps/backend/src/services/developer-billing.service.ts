@@ -3,6 +3,7 @@ import logger from "../utils/logger";
 import { prisma } from "src/config/prisma";
 import { DeveloperPlanTier, DeveloperSubscriptionStatus } from "@prisma/client";
 import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
+import { mapInSequence } from "src/utils/async-iteration";
 
 export class DeveloperBillingServiceError extends Error {
   constructor(
@@ -110,24 +111,28 @@ async function cancelCustomerSubscriptions(
   stripeCustomerId: string,
 ): Promise<Set<string>> {
   const canceled = new Set<string>();
-  try {
-    let startingAfter: string | undefined;
-    do {
-      const subscriptions = await stripe.subscriptions.list({
-        customer: stripeCustomerId,
-        status: "all",
-        limit: 100,
-        ...(startingAfter ? { starting_after: startingAfter } : {}),
-      });
-      for (const subscription of subscriptions.data) {
-        if (!isLiveStripeSubscription(subscription)) continue;
+  // Walk the customer's subscriptions page by page, cancelling one at a time.
+  const cancelPage = async (startingAfter?: string): Promise<void> => {
+    const subscriptions = await stripe.subscriptions.list({
+      customer: stripeCustomerId,
+      status: "all",
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+    await mapInSequence(
+      subscriptions.data.filter(isLiveStripeSubscription),
+      async (subscription) => {
         await stripe.subscriptions.cancel(subscription.id);
         canceled.add(subscription.id);
-      }
-      startingAfter = subscriptions.has_more
-        ? subscriptions.data.at(-1)?.id
-        : undefined;
-    } while (startingAfter);
+      },
+    );
+    const next = subscriptions.has_more
+      ? subscriptions.data.at(-1)?.id
+      : undefined;
+    if (next) await cancelPage(next);
+  };
+  try {
+    await cancelPage();
   } catch (err) {
     logger.error(
       "Failed to reconcile developer subscriptions during account deletion; cancel them in Stripe by hand",
@@ -141,20 +146,21 @@ async function expireCustomerCheckouts(
   stripe: Stripe,
   stripeCustomerId: string,
 ): Promise<void> {
+  const expirePage = async (startingAfter?: string): Promise<void> => {
+    const open = await stripe.checkout.sessions.list({
+      customer: stripeCustomerId,
+      status: "open",
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+    await mapInSequence(open.data, (session) =>
+      stripe.checkout.sessions.expire(session.id),
+    );
+    const next = open.has_more ? open.data.at(-1)?.id : undefined;
+    if (next) await expirePage(next);
+  };
   try {
-    let startingAfter: string | undefined;
-    do {
-      const open = await stripe.checkout.sessions.list({
-        customer: stripeCustomerId,
-        status: "open",
-        limit: 100,
-        ...(startingAfter ? { starting_after: startingAfter } : {}),
-      });
-      for (const session of open.data) {
-        await stripe.checkout.sessions.expire(session.id);
-      }
-      startingAfter = open.has_more ? open.data.at(-1)?.id : undefined;
-    } while (startingAfter);
+    await expirePage();
   } catch (err) {
     logger.error(
       "Failed to expire open checkout sessions during account deletion; expire them in Stripe by hand",

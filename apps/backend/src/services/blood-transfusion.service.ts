@@ -152,7 +152,7 @@ export const BloodTransfusionService = {
     return assertTransfusion(id, organisationId);
   },
 
-  async list(params: ListTransfusionsParams) {
+  list(params: ListTransfusionsParams) {
     const { organisationId, patientId, encounterId } = params;
     return prisma.bloodTransfusion.findMany({
       where: {

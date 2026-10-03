@@ -2,6 +2,7 @@ import {useCallback, useReducer, useEffect} from 'react';
 import {Platform, PermissionsAndroid, AppState} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import i18n from '@/localization';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 export interface UserLocation {
   latitude: number;
@@ -174,11 +175,11 @@ export const useLocationPermission = (): LocationPermissionState => {
       }
     };
 
-    fetchLocation();
+    runInBackground(fetchLocation());
 
     const subscription = AppState.addEventListener('change', nextState => {
       if (nextState === 'active') {
-        fetchLocation();
+        runInBackground(fetchLocation());
       }
     });
 

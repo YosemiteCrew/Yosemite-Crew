@@ -28,7 +28,7 @@ const InvoiceStatusFilterPills = ({
   ariaLabel = 'Filter invoices by status',
 }: InvoiceStatusFilterPillsProps) => (
   <div /* NOSONAR: styled flex pill group; native <fieldset> defaults (block layout, border, required legend) break the pill design */
-    className={clsx('flex flex-wrap items-center gap-2', className)}
+    className={clsx('flex items-center gap-2', className)}
     role="group"
     aria-label={ariaLabel}
   >

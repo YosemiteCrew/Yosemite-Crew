@@ -26,6 +26,7 @@ import {
 } from "src/utils/stripe-minor-units";
 import { markInvoiceTreatmentItemsSettled } from "./settlement";
 import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
+import { mapInSequence } from "src/utils/async-iteration";
 
 type PaymentLineSummary = {
   id: string;
@@ -400,7 +401,7 @@ const getOutstandingBalance = async (
   };
 };
 
-const applyCheckoutSessionTaxToInvoice = async (
+const applyCheckoutSessionTaxToInvoice = (
   invoice: {
     id: string;
     currency: string;
@@ -490,7 +491,7 @@ type PaymentTxClient = Omit<
   "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
 >;
 
-const createPaymentAttempt = async (
+const createPaymentAttempt = (
   invoiceId: string,
   input: PaymentAttemptInput,
   client: PaymentTxClient = prisma,
@@ -1117,14 +1118,19 @@ export const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
     },
   });
 
-  for (const staleAttempt of staleSessionAttempts) {
-    if (!staleAttempt.providerCheckoutSessionId) continue;
-    await expireCheckoutSessionAtProvider({
-      invoiceId,
-      sessionId: staleAttempt.providerCheckoutSessionId,
-      rawProviderPayload: staleAttempt.rawProviderPayload,
-    });
-  }
+  const staleSessions = staleSessionAttempts.flatMap((staleAttempt) =>
+    staleAttempt.providerCheckoutSessionId
+      ? [
+          {
+            sessionId: staleAttempt.providerCheckoutSessionId,
+            rawProviderPayload: staleAttempt.rawProviderPayload,
+          },
+        ]
+      : [],
+  );
+  await mapInSequence(staleSessions, (session) =>
+    expireCheckoutSessionAtProvider({ invoiceId, ...session }),
+  );
 
   // The same status predicate the select above uses. Without it this rewrote
   // EVERY Stripe checkout attempt on the invoice, including SUCCEEDED ones -
@@ -1294,7 +1300,7 @@ const loadCheckoutEligibleInvoice = async (
 // lock: a capture could read the balance, the reconstructed row could land
 // after that read, and the invoice would be credited twice for one settlement.
 // A different key would serialize nothing.
-const loadRefundablePaymentUnderLock = async (invoiceId: string) =>
+const loadRefundablePaymentUnderLock = (invoiceId: string) =>
   prisma.$transaction(async (tx) => {
     const lockKey = `invoice-payment:${invoiceId}`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
@@ -1452,7 +1458,7 @@ const executeProviderRefund = async (params: {
 // `invoice.metadata` is re-read in here too. The snapshot from the read
 // transaction is older than the provider round-trip, and spreading it into a
 // whole-column write discards anything written to `metadata` in between.
-const writeRefundUnderLock = async (params: {
+const writeRefundUnderLock = (params: {
   invoiceId: string;
   payment: RefundablePayment;
   providerRefundId: string | null;
@@ -1925,17 +1931,18 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice has no refundable payment", 409);
     }
 
-    const refunds: RefundInvoiceResult["refund"][] = [];
-    let invoice: RefundInvoicePaymentsResult["invoice"] | null = null;
-
-    for (const payment of payments) {
-      const result = await this.refundPaymentById(payment.id, {
+    // Each refund moves money and re-reads the invoice, so they run in order.
+    const results = await mapInSequence(payments, (payment) =>
+      this.refundPaymentById(payment.id, {
         reason,
         amount: payment.amount,
-      });
-      refunds.push(result.refund);
-      invoice = result.payment.invoice;
-    }
+      }),
+    );
+    const refunds: RefundInvoiceResult["refund"][] = results.map(
+      (result) => result.refund,
+    );
+    const invoice: RefundInvoicePaymentsResult["invoice"] | null =
+      results.at(-1)?.payment.invoice ?? null;
 
     if (!invoice) {
       throw new FinancePaymentError("Invoice has no refundable payment", 409);

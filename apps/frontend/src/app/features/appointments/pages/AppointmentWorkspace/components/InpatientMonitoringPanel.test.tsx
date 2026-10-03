@@ -1,5 +1,13 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InpatientMonitoringPanel from './InpatientMonitoringPanel';
 import InpatientObservationForm from './InpatientObservationForm';
@@ -9,6 +17,10 @@ import {
   recordHospitalizationObservation,
   type HospitalizationObservation,
 } from '@/app/features/appointments/services/hospitalizationMonitoringService';
+import {
+  useHospitalizationObservationFeed,
+  useInpatientObservationEntry,
+} from './useInpatientMonitoringPanel';
 
 jest.mock('@/app/features/appointments/services/hospitalizationMonitoringService', () => ({
   listHospitalizationObservations: jest.fn(),
@@ -73,7 +85,9 @@ describe('InpatientMonitoringPanel', () => {
     render(<InpatientMonitoringPanel {...props} />);
 
     expect(await screen.findByText('38.2 °C')).toBeInTheDocument();
-    expect(screen.getByText('Sep 27, 2026, 07:00 PM')).toBeInTheDocument();
+    const observedAt = screen.getByText('Sep 27, 2026, 07:00 PM');
+    expect(observedAt.tagName).toBe('TIME');
+    expect(observedAt.closest('h3')).not.toBeInTheDocument();
     const entry = screen.getByRole('listitem');
     expect(within(entry).getByText('90 bpm')).toBeInTheDocument();
     expect(within(entry).getByText('12 mL')).toBeInTheDocument();
@@ -424,5 +438,75 @@ describe('InpatientObservationForm', () => {
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('inpatient monitoring hooks', () => {
+  const context = {
+    organisationId: 'org-1',
+    patientId: 'patient-1',
+    encounterId: 'encounter-1',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    expect(setPreferredTimeZone('Asia/Tokyo')).toBe(true);
+  });
+
+  it('loads records newest first and adds a saved observation in order', async () => {
+    jest.mocked(listHospitalizationObservations).mockResolvedValue([
+      { ...record, id: 'older', observedAt: '2026-09-27T08:00:00.000Z' },
+      { ...record, id: 'newer', observedAt: '2026-09-27T10:00:00.000Z' },
+    ]);
+    const { result } = renderHook(() => useHospitalizationObservationFeed(context));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.records.map(({ id }) => id)).toEqual(['newer', 'older']);
+
+    act(() =>
+      result.current.addObservation({
+        ...record,
+        id: 'saved',
+        observedAt: '2026-09-27T12:00:00.000Z',
+      })
+    );
+    expect(result.current.records.map(({ id }) => id)).toEqual(['saved', 'newer', 'older']);
+  });
+
+  it('saves an observation in clinic time and closes the entry form', async () => {
+    jest.useFakeTimers({ now: new Date('2026-09-29T08:30:00.000Z'), advanceTimers: true });
+    jest.mocked(recordHospitalizationObservation).mockResolvedValue({ ...record, id: 'saved' });
+    const onSaved = jest.fn();
+    const { result } = renderHook(() => useInpatientObservationEntry({ ...context, onSaved }));
+
+    try {
+      act(() => result.current.openForm());
+      expect(result.current.formObservedAt).toBe('2026-09-29T17:30');
+      const form = document.createElement('form');
+      const observedAt = document.createElement('input');
+      observedAt.name = 'observedAt';
+      observedAt.value = '2026-09-29T17:30';
+      const heartRate = document.createElement('input');
+      heartRate.name = 'heartRate';
+      heartRate.value = '88';
+      form.append(observedAt, heartRate);
+
+      await act(async () =>
+        result.current.saveObservation({
+          preventDefault: jest.fn(),
+          currentTarget: form,
+        } as unknown as React.FormEvent<HTMLFormElement>)
+      );
+
+      expect(recordHospitalizationObservation).toHaveBeenCalledWith({
+        ...context,
+        observedAt: '2026-09-29T08:30:00.000Z',
+        heartRate: 88,
+      });
+      expect(onSaved).toHaveBeenCalledWith({ ...record, id: 'saved' });
+      expect(result.current.formObservedAt).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

@@ -106,6 +106,7 @@ import {VisitPreparationDraftCard} from '../components/VisitPreparationDraftCard
 import {handleChatActivation} from '../utils/chatActivation';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const useAppointmentInvoicesData = ({
@@ -225,7 +226,7 @@ const useAppointmentActions = ({
     try {
       await dispatch(cancelAppointment({appointmentId})).unwrap();
       if (companionId) {
-        dispatch(fetchAppointmentsForCompanion({companionId}));
+        runInBackground(dispatch(fetchAppointmentsForCompanion({companionId})));
       }
       navigation.goBack();
     } catch (error) {
@@ -385,8 +386,10 @@ const useAppointmentDocumentsEffect = ({
       return;
     }
     markFetched();
-    dispatch(
-      fetchAppointmentDocuments({appointmentId, companionId, encounterId}),
+    runInBackground(
+      dispatch(
+        fetchAppointmentDocuments({appointmentId, companionId, encounterId}),
+      ),
     );
   }, [appointmentId, companionId, encounterId, dispatch, markFetched]);
 };
@@ -431,7 +434,7 @@ const useBusinessPhotoEffect = ({
         // swallow
       }
     };
-    fetchPhoto();
+    runInBackground(fetchPhoto());
   }, [
     businessPhoto,
     dispatch,
@@ -537,7 +540,7 @@ const useCheckInFlow = ({
       await dispatch(checkInAppointment({appointmentId})).unwrap();
       await dispatch(fetchAppointmentById({appointmentId})).unwrap();
       if (companionId) {
-        dispatch(fetchAppointmentsForCompanion({companionId}));
+        runInBackground(dispatch(fetchAppointmentsForCompanion({companionId})));
       }
       if (Platform.OS === 'android') {
         ToastAndroid.show('Checked in', ToastAndroid.SHORT);
@@ -764,12 +767,12 @@ export const ViewAppointmentScreen: React.FC = () => {
   });
   useReactEffect(() => {
     if (companionId && !hasHydratedExpenses) {
-      dispatch(fetchExpensesForCompanion({companionId}));
+      runInBackground(dispatch(fetchExpensesForCompanion({companionId})));
     }
   }, [companionId, dispatch, hasHydratedExpenses]);
   useReactEffect(() => {
     if (companionId && !tasksHydrated) {
-      dispatch(fetchTasksForCompanion({companionId}));
+      runInBackground(dispatch(fetchTasksForCompanion({companionId})));
     }
   }, [companionId, dispatch, tasksHydrated]);
   useReactEffect(() => {
@@ -783,23 +786,25 @@ export const ViewAppointmentScreen: React.FC = () => {
     if (apt && !formsFetchedRef.current) {
       formsFetchedRef.current = true;
       lastFormsFetchTsRef.current = Date.now();
-      dispatch(
-        fetchAppointmentForms({
-          appointmentId,
-          serviceId: apt.serviceId ?? null,
-          organisationId: apt.businessId ?? null,
-          species: apt.species ?? null,
-        }),
+      runInBackground(
+        dispatch(
+          fetchAppointmentForms({
+            appointmentId,
+            serviceId: apt.serviceId ?? null,
+            organisationId: apt.businessId ?? null,
+            species: apt.species ?? null,
+          }),
+        ),
       );
     }
   }, [apt, appointmentId, dispatch]);
   useFocusEffect(
     React.useCallback(() => {
       if (appointmentId) {
-        dispatch(fetchAppointmentById({appointmentId}));
+        runInBackground(dispatch(fetchAppointmentById({appointmentId})));
       }
       if (companionId) {
-        dispatch(fetchExpensesForCompanion({companionId}));
+        runInBackground(dispatch(fetchExpensesForCompanion({companionId})));
       }
       if (apt) {
         const now = Date.now();
@@ -808,13 +813,15 @@ export const ViewAppointmentScreen: React.FC = () => {
         if (shouldFetch) {
           formsFetchedRef.current = true;
           lastFormsFetchTsRef.current = now;
-          dispatch(
-            fetchAppointmentForms({
-              appointmentId,
-              serviceId: apt.serviceId ?? null,
-              organisationId: apt.businessId ?? null,
-              species: apt.species ?? null,
-            }),
+          runInBackground(
+            dispatch(
+              fetchAppointmentForms({
+                appointmentId,
+                serviceId: apt.serviceId ?? null,
+                organisationId: apt.businessId ?? null,
+                species: apt.species ?? null,
+              }),
+            ),
           );
         }
         if (companionId) {
@@ -823,19 +830,21 @@ export const ViewAppointmentScreen: React.FC = () => {
             now - lastTasksFetchTsRef.current > 3000;
           if (shouldFetchTasks) {
             lastTasksFetchTsRef.current = now;
-            dispatch(fetchTasksForCompanion({companionId}));
+            runInBackground(dispatch(fetchTasksForCompanion({companionId})));
           }
           const shouldFetchDocuments =
             !lastDocumentsFetchTsRef.current ||
             now - lastDocumentsFetchTsRef.current > 3000;
           if (shouldFetchDocuments) {
             markDocumentsFetched();
-            dispatch(
-              fetchAppointmentDocuments({
-                appointmentId,
-                companionId,
-                encounterId: apt.encounterId,
-              }),
+            runInBackground(
+              dispatch(
+                fetchAppointmentDocuments({
+                  appointmentId,
+                  companionId,
+                  encounterId: apt.encounterId,
+                }),
+              ),
             );
           }
         }
@@ -933,7 +942,7 @@ export const ViewAppointmentScreen: React.FC = () => {
         cta: {
           onPress: () => {
             if (!processingPayment) {
-              openPaymentScreen(expense);
+              runInBackground(openPaymentScreen(expense));
             }
           },
         },
@@ -1425,7 +1434,7 @@ export const ViewAppointmentScreen: React.FC = () => {
                         expense.source === 'inApp' && hasInvoice(expense)
                           ? () => {
                               if (!processingPayment) {
-                                openPaymentScreen(expense);
+                                runInBackground(openPaymentScreen(expense));
                               }
                             }
                           : undefined

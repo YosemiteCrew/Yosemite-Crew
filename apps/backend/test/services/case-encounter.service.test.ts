@@ -430,6 +430,24 @@ describe("CaseEncounterService", () => {
       ],
     } as never);
 
+    // Writes share the transaction client, so each must finish before the
+    // next one starts.
+    let writesInFlight = 0;
+    let peakWrites = 0;
+    const trackWrite = (result: unknown) => async () => {
+      writesInFlight += 1;
+      peakWrites = Math.max(peakWrites, writesInFlight);
+      await new Promise((resolve) => setImmediate(resolve));
+      writesInFlight -= 1;
+      return result;
+    };
+    mockedPrisma.workspaceTreatmentItem.create.mockImplementation(
+      trackWrite({ id: "ti_1" }) as never,
+    );
+    mockedPrisma.templateInstance.create.mockImplementation(
+      trackWrite({ id: "template_instance_pkg_1" }) as never,
+    );
+
     const result = await CaseEncounterService.createEncounter(
       {
         caseId: "case_1",
@@ -458,6 +476,7 @@ describe("CaseEncounterService", () => {
         kind: "PRESCRIPTION",
         status: "DRAFT",
         summary: "Bundle medication package",
+        patientId: "comp_1",
       }),
     });
     expect(mockedPrisma.templateInstance.create).toHaveBeenCalledWith({
@@ -534,6 +553,14 @@ describe("CaseEncounterService", () => {
       }),
     );
     expect(result.appointmentId).toBe("appt_pkg");
+    expect(peakWrites).toBe(1);
+    // The second binding's existence check runs after the first instance is
+    // created, so a repeated template sees it.
+    expect(
+      mockedPrisma.templateInstance.findFirst.mock.invocationCallOrder[1],
+    ).toBeGreaterThan(
+      mockedPrisma.templateInstance.create.mock.invocationCallOrder[0],
+    );
   });
 
   it("does not duplicate package treatment rows when they already exist", async () => {

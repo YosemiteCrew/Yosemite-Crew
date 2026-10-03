@@ -1,6 +1,11 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent, screen} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import {PaymentSuccessScreen} from '../../../../src/features/payments/screens/PaymentSuccessScreen';
 // ✅ FIX 2: Remove unused 'useDispatch' from import
 import {useSelector} from 'react-redux';
@@ -305,6 +310,30 @@ describe('PaymentSuccessScreen', () => {
         screen: 'ExpensesStack',
         params: {screen: 'ExpensesMain'},
       });
+    });
+
+    it('logs failed invoice and expense updates instead of leaving them unhandled', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-1', expenseId: 'exp-1'},
+      });
+      mockDispatch.mockImplementation(() =>
+        Promise.reject(new Error('update failed')),
+      );
+
+      render(<PaymentSuccessScreen />);
+
+      await waitFor(() =>
+        expect(
+          warnSpy.mock.calls.filter(
+            ([tag, detail]) =>
+              tag === '[Background] Task failed' &&
+              String(detail).includes('Error: update failed'),
+          ),
+        ).toHaveLength(2),
+      );
+      mockDispatch.mockReset();
+      warnSpy.mockRestore();
     });
 
     it('opens the invoice URL when the view invoice link is pressed', () => {

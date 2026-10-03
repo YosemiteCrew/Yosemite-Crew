@@ -38,37 +38,42 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
   let running = false;
   let timer: ReturnType<typeof setInterval> | null = null;
   let currentStatus: OnlineStatus = deps.isOnline() ? 'online' : 'offline';
+  let flushing = false;
 
   const flush = async (): Promise<void> => {
-    if (!deps.isOnline()) return;
+    if (!deps.isOnline() || flushing) return;
     const batch = deps.queue.peek(10);
     if (batch.length === 0) return;
 
-    deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-
-    for (const mutation of batch) {
-      try {
-        const result = await deps.transport.send({
-          type: mutation.type,
-          entityType: mutation.entityType,
-          entityId: mutation.entityId,
-          data: mutation.data,
-        });
-
-        if (result.ok) {
-          deps.queue.pop(mutation.id);
-          deps.logger.debug('sync_mutation_success', { id: mutation.id });
-        } else {
-          deps.queue.markFailed(mutation.id);
-          deps.logger.warn('sync_mutation_failed', {
-            id: mutation.id,
-            error: result.error,
+    flushing = true;
+    try {
+      deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
+      for (const mutation of batch) {
+        try {
+          const result = await deps.transport.send({
+            type: mutation.type,
+            entityType: mutation.entityType,
+            entityId: mutation.entityId,
+            data: mutation.data,
           });
+
+          if (result.ok) {
+            deps.queue.pop(mutation.id);
+            deps.logger.debug('sync_mutation_success', { id: mutation.id });
+          } else {
+            deps.queue.markFailed(mutation.id);
+            deps.logger.warn('sync_mutation_failed', {
+              id: mutation.id,
+              error: result.error,
+            });
+          }
+        } catch (error) {
+          deps.queue.markFailed(mutation.id);
+          deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
         }
-      } catch (error) {
-        deps.queue.markFailed(mutation.id);
-        deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
       }
+    } finally {
+      flushing = false;
     }
   };
 

@@ -43,6 +43,7 @@ import DeleteCoParentBottomSheet, {
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Props = NativeStackScreenProps<HomeStackParamList, 'EditCoParent'>;
 
 const defaultPermissions: CoParentPermissions = {
@@ -157,12 +158,14 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     if (!coParent && selectedCompanion?.id) {
       const selectedCompanionImage =
         selectedCompanion.profileImage ?? undefined;
-      dispatch(
-        fetchCoParents({
-          companionId: selectedCompanion.id,
-          companionName: selectedCompanion.name,
-          companionImage: selectedCompanionImage,
-        }),
+      runInBackground(
+        dispatch(
+          fetchCoParents({
+            companionId: selectedCompanion.id,
+            companionName: selectedCompanion.name,
+            companionImage: selectedCompanionImage,
+          }),
+        ),
       );
     }
   }, [coParent, dispatch, selectedCompanion]);
@@ -313,7 +316,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
           text: 'Transfer',
           style: 'destructive',
           onPress: () => {
-            performOwnershipTransfer();
+            runInBackground(performOwnershipTransfer());
           },
         },
       ],

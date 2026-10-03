@@ -37,10 +37,10 @@ const downloadCsv = (entries: OrganisationAuditEntry[]) => {
   URL.revokeObjectURL(url);
 };
 
-export const OrganisationAuditContent = ({
-  loadFeed = getOrganisationAuditTrail,
-}: OrganisationAuditContentProps) => {
-  const organisationId = useOrgStore((state) => state.primaryOrgId);
+const useOrganisationAuditFeed = (
+  organisationId: string | null,
+  loadFeed: typeof getOrganisationAuditTrail
+) => {
   const [feed, setFeed] = useState<{
     organisationId: string | null;
     entries: OrganisationAuditEntry[];
@@ -84,10 +84,6 @@ export const OrganisationAuditContent = ({
       } catch {
         if (requestGeneration !== generation.current) return;
         setFeed((current) => ({ ...current, loading: false, loadingMore: false, error: true }));
-      } finally {
-        if (requestGeneration === generation.current) {
-          setFeed((current) => ({ ...current, loading: false, loadingMore: false }));
-        }
       }
     },
     [loadFeed, organisationId]
@@ -97,33 +93,13 @@ export const OrganisationAuditContent = ({
     generation.current += 1;
     const requestGeneration = generation.current;
     if (!organisationId) return;
-    loadFeed({ limit: PAGE_SIZE })
-      .then((page) => {
-        if (requestGeneration !== generation.current) return;
-        setFeed({
-          organisationId,
-          entries: page.entries,
-          nextCursor: page.nextCursor,
-          loading: false,
-          loadingMore: false,
-          error: false,
-        });
-      })
-      .catch(() => {
-        if (requestGeneration !== generation.current) return;
-        setFeed({
-          organisationId,
-          entries: [],
-          nextCursor: null,
-          loading: false,
-          loadingMore: false,
-          error: true,
-        });
-      });
+    queueMicrotask(() => {
+      if (requestGeneration === generation.current) load();
+    });
     return () => {
       generation.current += 1;
     };
-  }, [loadFeed, organisationId]);
+  }, [load, organisationId]);
 
   const currentFeed =
     feed.organisationId === organisationId
@@ -135,7 +111,84 @@ export const OrganisationAuditContent = ({
           loadingMore: false,
           error: false,
         };
-  const { entries, nextCursor, loading, loadingMore, error } = currentFeed;
+  return { ...currentFeed, load };
+};
+
+const AuditActivityTable = ({ entries }: { entries: OrganisationAuditEntry[] }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full min-w-[680px] border-collapse">
+      <thead className="border-b border-divider bg-neutral-100">
+        <tr>
+          <th className={cellClass} scope="col">
+            When
+          </th>
+          <th className={cellClass} scope="col">
+            Activity
+          </th>
+          <th className={cellClass} scope="col">
+            Updated by
+          </th>
+          <th className={cellClass} scope="col">
+            Record
+          </th>
+          <th className={cellClass} scope="col">
+            Record reference
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {entries.map((entry) => (
+          <tr className="border-b border-divider last:border-0" key={entry.id}>
+            <td className={`${cellClass} whitespace-nowrap text-text-secondary`}>
+              {formatDateTimeLocal(entry.occurredAt, '—')}
+            </td>
+            <td className={cellClass}>{getAuditEventLabel(entry.eventType)}</td>
+            <td className={cellClass}>{getAuditActorLabel(entry.actorName, entry.actorType)}</td>
+            <td className={cellClass}>{getAuditRecordLabel(entry.entityType)}</td>
+            <td className={`${cellClass} font-mono text-caption-2`}>{entry.patientId}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+const AuditFeedStatus = ({
+  error,
+  loading,
+  showEmpty,
+  onRetry,
+}: {
+  error: boolean;
+  loading: boolean;
+  showEmpty: boolean;
+  onRetry: () => void;
+}) => (
+  <>
+    {error && (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center justify-between gap-3 p-5 text-body-4 text-text-primary"
+      >
+        <span>Activity could not be loaded.</span>
+        <Primary text="Try again" onClick={onRetry} />
+      </div>
+    )}
+    {loading && (
+      <output className="block p-5 text-body-4 text-text-secondary">Loading activity…</output>
+    )}
+    {showEmpty && <p className="p-5 text-body-4 text-text-secondary">No activity to show yet.</p>}
+  </>
+);
+
+export const OrganisationAuditContent = ({
+  loadFeed = getOrganisationAuditTrail,
+}: OrganisationAuditContentProps) => {
+  const organisationId = useOrgStore((state) => state.primaryOrgId);
+  const { entries, nextCursor, loading, loadingMore, error, load } = useOrganisationAuditFeed(
+    organisationId,
+    loadFeed
+  );
   const showEmpty = !loading && entries.length === 0 && !error;
   const showTable = !loading && entries.length > 0;
 
@@ -163,61 +216,13 @@ export const OrganisationAuditContent = ({
         className="overflow-hidden rounded-2xl border border-divider bg-neutral-0"
         aria-label="Organisation activity"
       >
-        {error && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 p-5 text-body-4 text-text-primary"
-          >
-            <span>Activity could not be loaded.</span>
-            <Primary text="Try again" onClick={() => load()} />
-          </div>
-        )}
-        {loading && (
-          <output className="block p-5 text-body-4 text-text-secondary">Loading activity…</output>
-        )}
-        {showEmpty && (
-          <p className="p-5 text-body-4 text-text-secondary">No activity to show yet.</p>
-        )}
-        {showTable && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] border-collapse">
-              <thead className="border-b border-divider bg-neutral-100">
-                <tr>
-                  <th className={cellClass} scope="col">
-                    When
-                  </th>
-                  <th className={cellClass} scope="col">
-                    Activity
-                  </th>
-                  <th className={cellClass} scope="col">
-                    Updated by
-                  </th>
-                  <th className={cellClass} scope="col">
-                    Record
-                  </th>
-                  <th className={cellClass} scope="col">
-                    Record reference
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((entry) => (
-                  <tr className="border-b border-divider last:border-0" key={entry.id}>
-                    <td className={`${cellClass} whitespace-nowrap text-text-secondary`}>
-                      {formatDateTimeLocal(entry.occurredAt, '—')}
-                    </td>
-                    <td className={cellClass}>{getAuditEventLabel(entry.eventType)}</td>
-                    <td className={cellClass}>
-                      {getAuditActorLabel(entry.actorName, entry.actorType)}
-                    </td>
-                    <td className={cellClass}>{getAuditRecordLabel(entry.entityType)}</td>
-                    <td className={`${cellClass} font-mono text-caption-2`}>{entry.patientId}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <AuditFeedStatus
+          error={error}
+          loading={loading}
+          showEmpty={showEmpty}
+          onRetry={() => load()}
+        />
+        {showTable && <AuditActivityTable entries={entries} />}
       </section>
 
       {nextCursor && (

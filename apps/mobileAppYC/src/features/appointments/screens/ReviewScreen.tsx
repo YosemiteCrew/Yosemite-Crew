@@ -25,16 +25,14 @@ import {
   getFreshStoredTokens,
   isTokenExpired,
 } from '@/features/auth/sessionManager';
-import {
-  fetchBusinessDetails,
-  fetchGooglePlacesImage,
-} from '@/features/linkedBusinesses';
+import {fetchBusinessFallbackPhoto} from '@/features/appointments/utils/businessFallbackPhoto';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 import i18next from 'i18next';
 import {describeRequestError} from '@/shared/utils/safeErrorLog';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -79,7 +77,7 @@ const ReviewForm: React.FC<AppointmentStackParamList['Review']> = ({
 
   useEffect(() => {
     if (!business && apt?.businessId) {
-      dispatch(fetchBusinesses(undefined));
+      runInBackground(dispatch(fetchBusinesses(undefined)));
     }
   }, [apt?.businessId, business, dispatch]);
 
@@ -105,19 +103,11 @@ const ReviewForm: React.FC<AppointmentStackParamList['Review']> = ({
     const isDummy = isDummyPhoto(businessPhoto);
     if (businessPhoto && !isDummy) return;
 
-    dispatch(fetchBusinessDetails(googlePlacesId))
-      .unwrap()
-      .then(res => {
-        if (res.photoUrl) setFallbackPhoto(res.photoUrl);
-      })
-      .catch(() => {
-        dispatch(fetchGooglePlacesImage(googlePlacesId))
-          .unwrap()
-          .then(img => {
-            if (img.photoUrl) setFallbackPhoto(img.photoUrl);
-          })
-          .catch(() => {});
-      });
+    runInBackground(
+      fetchBusinessFallbackPhoto(dispatch, googlePlacesId).then(photo => {
+        if (photo) setFallbackPhoto(photo);
+      }),
+    );
   }, [businessPhoto, dispatch, googlePlacesId]);
 
   const handleSubmit = async () => {

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, within } from 'storybook/test';
+import { expect, userEvent, within } from 'storybook/test';
 import type { Element, Root, Text } from 'hast';
 import DocsShell from './DocsShell';
 import type { NavNode } from './docsNav';
@@ -197,7 +197,10 @@ export const PhoneNavigation: DocsShellStory = {
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(tree).toHaveAttribute('data-open', 'false');
 
-    toggle.click();
+    /* Through userEvent, which yields to the event loop after the click so React's
+       update has committed. A bare `toggle.click()` only queues that update, and the
+       very next line read the attribute before it landed. */
+    await userEvent.click(toggle);
 
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(tree).toHaveAttribute('data-open', 'true');

@@ -191,5 +191,16 @@ describe('IPC validation', () => {
       error: 'handler-failed',
     });
     expect(errors[0]!.event).toBe('ipc_handler_failed');
+
+    // A plain (non-async) handler that throws is answered the same way: the
+    // renderer's invoke still settles with a result instead of the throw
+    // escaping into Electron.
+    registry.handle('yc:get-settings', () => {
+      throw new Error('sync boom');
+    });
+    const pending = registered['yc:get-settings']!(sender(localFileUrl));
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).resolves.toEqual({ ok: false, error: 'handler-failed' });
+    expect(errors[1]!.event).toBe('ipc_handler_failed');
   });
 });

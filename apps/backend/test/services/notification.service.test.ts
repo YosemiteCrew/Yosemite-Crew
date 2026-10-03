@@ -327,6 +327,31 @@ describe("NotificationService", () => {
       );
     });
 
+    it("pushes to each device one after another, in token order", async () => {
+      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
+        { deviceToken: "token-1" },
+        { deviceToken: "token-2" },
+      ]);
+      let releaseFirst!: (value: string) => void;
+      mockSend
+        .mockReturnValueOnce(
+          new Promise<string>((resolve) => {
+            releaseFirst = resolve;
+          }),
+        )
+        .mockResolvedValueOnce("msg-2");
+
+      const pending = NotificationService.sendToUser("user1", payload);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+
+      releaseFirst("msg-1");
+      const res = await pending;
+
+      expect(res.map((entry) => entry.token)).toEqual(["token-1", "token-2"]);
+    });
+
     it("handles non-Error objects in DB insert catch block", async () => {
       (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
         { deviceToken: "token-2" },
@@ -361,6 +386,34 @@ describe("NotificationService", () => {
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining("User processing failed"),
       );
+
+      sendToUserSpy.mockRestore();
+    });
+
+    it("notifies one user at a time, in the order given", async () => {
+      let releaseFirst!: (value: never[]) => void;
+      const sendToUserSpy = jest
+        .spyOn(NotificationService, "sendToUser")
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+        )
+        .mockResolvedValueOnce([]);
+
+      const pending = NotificationService.sendToUsers(["u1", "u2"], payload);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(sendToUserSpy).toHaveBeenCalledTimes(1);
+
+      releaseFirst([]);
+      const res = await pending;
+
+      expect(sendToUserSpy.mock.calls.map(([userId]) => userId)).toEqual([
+        "u1",
+        "u2",
+      ]);
+      expect(Object.keys(res)).toEqual(["u1", "u2"]);
 
       sendToUserSpy.mockRestore();
     });

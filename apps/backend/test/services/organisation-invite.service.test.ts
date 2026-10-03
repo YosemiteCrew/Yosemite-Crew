@@ -511,6 +511,40 @@ describe("OrganisationInviteService", () => {
       expect(result[0].organisationType).toBe("CLINIC");
     });
 
+    it("looks organisations up together and keeps the invites in their stored order", async () => {
+      mockedPrisma.organisationInvite.findMany.mockResolvedValue([
+        makeInvite({ id: "p-slow", organisationId: "org-slow" }),
+        makeInvite({ id: "p-fast", organisationId: "org-fast" }),
+      ]);
+      let releaseSlow!: (value: unknown) => void;
+      mockedPrisma.organization.findFirst.mockImplementation(
+        ({ where }: { where: { OR: Array<{ id?: string }> } }) =>
+          where.OR.some((clause) => clause.id === "org-slow")
+            ? new Promise((resolve) => {
+                releaseSlow = resolve;
+              })
+            : Promise.resolve({ name: "Fast", type: "CLINIC" }),
+      );
+
+      const pending =
+        OrganisationInviteService.listPendingInvitesForEmail(
+          "user@example.com",
+        );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(mockedPrisma.organization.findFirst).toHaveBeenCalledTimes(2);
+
+      releaseSlow({ name: "Slow", type: "HOSPITAL" });
+      const result = await pending;
+
+      expect(
+        result.map((entry) => [entry.invite._id, entry.organisationName]),
+      ).toEqual([
+        ["p-slow", "Slow"],
+        ["p-fast", "Fast"],
+      ]);
+    });
+
     it("resolves the organisation by either its uuid id or its FHIR id", async () => {
       // Post-migration invites carry a Postgres uuid / FHIR id, so the lookup
       // must match on both columns rather than assuming a single identifier.

@@ -3,7 +3,7 @@ import { expect, fireEvent, fn, waitFor, within } from 'storybook/test';
 
 import type { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 import type { Task } from '@/app/features/tasks/types/task';
-import { setPreferredTimeZone } from '@/app/lib/timezone';
+import { buildPreferredTimeZoneDayInstant, setPreferredTimeZone } from '@/app/lib/timezone';
 import WeekCalendar from './WeekCalendar';
 
 const ORG_ID = 'org-storybook';
@@ -355,7 +355,9 @@ export const EmptyWeek: Story = {
     /* Every cell is a create target, and the callback has to name both the column
        and the minute: a quarter down the 11:00 row of the Thursday is the 16th at
        675 minutes past midnight. The day is passed as the cell's own date, so a grid
-       that handed back `weekStart` instead would put every new task on the Monday. */
+       that handed back `weekStart` instead would put every new task on the Monday.
+       A column's date is that day's noon in the clinic's zone, not a browser
+       midnight, so it is built the same way here and holds in any runner zone. */
     const thursday11 = cellAt(canvasElement, 11, 3);
     const create = within(thursday11).getByRole('button', { name: /^Create task on / });
     const box = thursday11.getBoundingClientRect();
@@ -365,7 +367,9 @@ export const EmptyWeek: Story = {
     });
     await expect(args.onCreateTaskAt).toHaveBeenCalledTimes(1);
     const [createdDate, createdMinute, createdAssignee] = args.onCreateTaskAt.mock.calls[0];
-    await expect(createdDate.getTime()).toBe(at(16, 0, 0).getTime());
+    await expect(createdDate.getTime()).toBe(
+      buildPreferredTimeZoneDayInstant(2026, 7, 16).getTime()
+    );
     await expect(createdMinute).toBe(675);
     // A week grid has no assignee column, so the third argument stays undefined and
     // the caller falls back to whoever the page has selected.
@@ -581,9 +585,11 @@ export const DragInFlight: Story = {
 
     await expect(args.onTaskDropAt).toHaveBeenCalledTimes(1);
     const [droppedDate, droppedMinute, droppedAssignee] = args.onTaskDropAt.mock.calls[0];
-    // Halfway down the 09:00 row of the Wednesday: the 15th, at 570 minutes past
-    // midnight, with no assignee.
-    await expect(droppedDate.getTime()).toBe(at(15, 0, 0).getTime());
+    // Halfway down the 09:00 row of the Wednesday: the 15th (its clinic-zone noon
+    // anchor, like every column date), at 570 minutes past midnight, with no assignee.
+    await expect(droppedDate.getTime()).toBe(
+      buildPreferredTimeZoneDayInstant(2026, 7, 15).getTime()
+    );
     await expect(droppedMinute).toBe(570);
     await expect(droppedAssignee).toBeUndefined();
   },

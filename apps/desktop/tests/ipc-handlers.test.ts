@@ -1276,3 +1276,40 @@ describe('yc:set-settings names the fields the store refused', () => {
     });
   });
 });
+
+/*
+ * Most handlers do their work synchronously. Whatever they throw has to reach
+ * the renderer as a settled `handler-failed` result, never as an exception
+ * thrown out of the invoke call or a rejected promise.
+ */
+describe('ipc-handlers — a service that throws still answers the renderer', () => {
+  const boom = (): never => {
+    throw new Error('disk gone');
+  };
+
+  test.each<[string, unknown[], (s: IpcServices) => void]>([
+    ['yc:reload', [], (s) => (s.retryOfflineLoad = boom)],
+    ['yc:start-telehealth', [{ appointmentId: 'x' }], (s) => (s.startTelehealth = boom)],
+    ['yc:get-settings', [], (s) => (s.settingsStore = { load: boom, save: boom } as never)],
+    ['yc:clear-cache', [], (s) => (s.offlineCache = { clear: boom } as never)],
+    ['yc:vault-list', [], (s) => (s.documentVault = { listDocuments: boom } as never)],
+    ['yc:cs-export', [], (s) => (s.csExport = { exportDailyLog: boom })],
+    ['yc:tabs-get', [], (s) => (s.tabManager = { getState: boom } as never)],
+    ['yc:get-last-seen-version', [], (s) => (s.settingsStore = { load: boom } as never)],
+  ])('%s', async (channel, args, breakService) => {
+    const services = makeServices();
+    breakService(services);
+    const call = register(services);
+
+    let pending: unknown;
+    expect(() => {
+      pending = call(channel, ...args);
+    }).not.toThrow();
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).resolves.toEqual({ ok: false, error: 'handler-failed' });
+    expect(services.logger.error).toHaveBeenCalledWith(
+      'ipc_handler_failed',
+      expect.objectContaining({ channel })
+    );
+  });
+});

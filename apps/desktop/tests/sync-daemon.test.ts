@@ -1,7 +1,12 @@
+import { setImmediate as realSetImmediate } from 'node:timers';
 import { createSyncDaemon } from '../src/sync/sync-daemon';
 import type { SyncQueue } from '../src/sync/sync-queue';
 import type { SyncTransport } from '../src/sync/sync-daemon';
 import type { DesktopLogger } from '../src/utils/logger';
+
+// Lets every pending promise settle. The suite fakes the global timers, so this
+// uses the real setImmediate from node:timers.
+const drain = (): Promise<void> => new Promise((resolve) => realSetImmediate(resolve));
 
 const dummyMutation = {
   id: 'm1',
@@ -230,6 +235,61 @@ describe('createSyncDaemon', () => {
       expect(transport.send).toHaveBeenCalledTimes(2);
       expect(queue.pop).toHaveBeenCalledWith('m1');
       expect(queue.pop).toHaveBeenCalledWith('m2');
+    });
+
+    it('sends a batch strictly in queue order, one at a time', async () => {
+      queue.size.mockReturnValue(3);
+      const m2 = { ...dummyMutation, id: 'm2', entityId: 'p2' };
+      const m3 = { ...dummyMutation, id: 'm3', entityId: 'p3' };
+      queue.peek.mockReturnValue([dummyMutation, m2, m3]);
+      let releaseFirst: (value: { ok: boolean }) => void = () => {};
+      transport.send
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              releaseFirst = resolve;
+            })
+        )
+        .mockRejectedValueOnce(new Error('network down'))
+        .mockResolvedValueOnce({ ok: true });
+      daemon.start();
+      onlineCb();
+      await drain();
+      // The second change waits for the first to settle.
+      expect(transport.send).toHaveBeenCalledTimes(1);
+
+      releaseFirst({ ok: true });
+      await drain();
+      // A failure in the middle does not stop the rest of the batch.
+      expect(transport.send).toHaveBeenCalledTimes(3);
+      expect(queue.pop.mock.calls).toEqual([['m1'], ['m3']]);
+      expect(queue.markFailed).toHaveBeenCalledWith('m2');
+      expect(transport.send.mock.calls.map(([m]) => m.entityId)).toEqual(['p1', 'p2', 'p3']);
+    });
+
+    it('does not send the same queued mutation from overlapping flush triggers', async () => {
+      queue.size.mockReturnValue(1);
+      queue.peek.mockReturnValue([dummyMutation]);
+      let releaseSend: (value: { ok: boolean }) => void = () => {};
+      transport.send.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseSend = resolve;
+          })
+      );
+      daemon.start();
+      onlineCb();
+      await drain();
+      expect(transport.send).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(30_000);
+      onlineCb();
+      await drain();
+
+      expect(transport.send).toHaveBeenCalledTimes(1);
+      releaseSend({ ok: true });
+      await drain();
+      expect(queue.pop).toHaveBeenCalledTimes(1);
     });
 
     it('logs debug on success', async () => {

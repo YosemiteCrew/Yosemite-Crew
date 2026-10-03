@@ -137,7 +137,7 @@ export const ClientComplaintService = {
     return assertComplaint(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     clientId?: string;
     status?: ComplaintStatus;

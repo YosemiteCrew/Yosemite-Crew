@@ -253,7 +253,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
   // land here, and all three can fire long after the user has moved to another
   // tab. Act on the SENDER, never on the active tab, and reload the page that
   // failed rather than the start URL.
-  registry.handle('yc:reload', async (event) => {
+  registry.handle('yc:reload', (event) => {
     services.retryOfflineLoad(event.sender);
     return { ok: true };
   });
@@ -261,28 +261,28 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     await openExternal(services.offlineTargetFor(event.sender));
     return { ok: true };
   });
-  registry.handle('yc:start-signin', async () => {
+  registry.handle('yc:start-signin', () => {
     services.logger.info('signin_started');
     if (services.tabMode) services.loadStartUrl();
     else services.enterTabMode(services.config.startUrl.href);
     return { ok: true };
   });
 
-  registry.handle('yc:start-telehealth', async (_event, args) => {
+  registry.handle('yc:start-telehealth', (_event, args) => {
     const parsed = parseTelehealthLaunchInput(args[0]);
     if (!parsed.ok) return { ok: false, error: parsed.error };
     const href = services.startTelehealth(parsed.intent);
     return { ok: true, href, provider: STREAM_TELEHEALTH_PROVIDER.id };
   });
 
-  registry.handle('yc:get-settings', async () => {
+  registry.handle('yc:get-settings', () => {
     const store = services.settingsStore;
     if (!store) return { ok: false, error: 'settings-not-ready' };
     const settings = store.load();
     return { ok: true, settings };
   });
 
-  registry.handle('yc:set-settings', async (_event, args) => {
+  registry.handle('yc:set-settings', (_event, args) => {
     const store = services.settingsStore;
     if (!store) return { ok: false, error: 'settings-not-ready' };
     const partial = args[0];
@@ -298,7 +298,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, settings: updated, rejected };
   });
 
-  registry.handle('yc:execute-command', async (_event, args) => {
+  registry.handle('yc:execute-command', (_event, args) => {
     const id = args[0];
     if (typeof id !== 'string') return { ok: false, error: 'invalid-command-id' };
     const action = BUILTIN_ACTIONS.find((a) => a.id === id);
@@ -320,30 +320,30 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:get-palette-recents', async () => {
+  registry.handle('yc:get-palette-recents', () => {
     const store = services.recentsStore;
     if (!store) return { ok: true, recents: [] };
     return { ok: true, recents: store.load() };
   });
 
-  registry.handle('yc:get-palette-actions', async () => {
+  registry.handle('yc:get-palette-actions', () => {
     return { ok: true, actions: BUILTIN_ACTIONS };
   });
 
-  registry.handle('yc:close-palette', async () => {
+  registry.handle('yc:close-palette', () => {
     if (services.commandPaletteWindow && !services.commandPaletteWindow.isDestroyed()) {
       services.commandPaletteWindow.close();
     }
     return { ok: true };
   });
 
-  registry.handle('yc:get-cache-status', async () => {
+  registry.handle('yc:get-cache-status', () => {
     const cache = services.offlineCache;
     if (!cache) return { ok: false, error: 'cache-not-ready' };
     return { ok: true, stats: cache.getStats() };
   });
 
-  registry.handle('yc:clear-cache', async () => {
+  registry.handle('yc:clear-cache', () => {
     const cache = services.offlineCache;
     if (!cache) return { ok: false, error: 'cache-not-ready' };
     cache.clear();
@@ -351,7 +351,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:get-cached-urls', async () => {
+  registry.handle('yc:get-cached-urls', () => {
     const cache = services.offlineCache;
     if (!cache) return { ok: true, urls: [] };
     const entries = cache.entries().map((e) => ({
@@ -363,7 +363,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, urls: entries };
   });
 
-  registry.handle('yc:get-cached-content', async (_event, args) => {
+  registry.handle('yc:get-cached-content', (_event, args) => {
     const cache = services.offlineCache;
     if (!cache) return { ok: false, error: 'cache-not-ready' };
     const url = args[0];
@@ -379,7 +379,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     };
   });
 
-  registry.handle('yc:get-sync-status', async () => ({
+  registry.handle('yc:get-sync-status', () => ({
     ok: true,
     status: services.getSyncStatusSummary(),
     lastResults: services.lastOfflineSyncResults,
@@ -418,7 +418,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, result };
   });
 
-  registry.handle('yc:show-notification', async (_event, args) => {
+  registry.handle('yc:show-notification', (_event, args) => {
     const mgr = services.notificationManager;
     if (!mgr) return { ok: false, error: 'manager-not-ready' };
     const opts = args[0];
@@ -442,7 +442,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, shown };
   });
 
-  registry.handle('yc:clear-notification-badge', async () => {
+  registry.handle('yc:clear-notification-badge', () => {
     services.unreadCount = 0;
     services.updateUnreadBadge();
     return { ok: true };
@@ -457,7 +457,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: authenticated, authenticated };
   });
 
-  registry.handle('yc:apply-theme', async () => {
+  registry.handle('yc:apply-theme', () => {
     if (!services.mainWindow || services.mainWindow.isDestroyed())
       return { ok: false, error: 'no-window' };
     const settings = services.settingsStore?.load() || DEFAULT_SETTINGS;
@@ -467,7 +467,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:cs-record', async (_event, args) => {
+  registry.handle('yc:cs-record', (_event, args) => {
     if (!services.controlledSubstanceLog) return { ok: false, error: 'cs-not-ready' };
     const data = args[0];
     if (typeof data !== 'object' || data === null || Array.isArray(data))
@@ -519,7 +519,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, transaction: tx, witnessPinVerified };
   });
 
-  registry.handle('yc:cs-export', async (_event, args) => {
+  registry.handle('yc:cs-export', (_event, args) => {
     if (!services.csExport) return { ok: false, error: 'cs-export-not-ready' };
     const dateArg = args[0];
     const date = typeof dateArg === 'string' ? new Date(dateArg) : new Date();
@@ -528,7 +528,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, result };
   });
 
-  registry.handle('yc:audit-append', async (_event, args) => {
+  registry.handle('yc:audit-append', (_event, args) => {
     if (!services.auditLog) return { ok: false, error: 'audit-not-ready' };
     const entry = args[0];
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry))
@@ -571,7 +571,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, entry: created };
   });
 
-  registry.handle('yc:vault-save', async (_event, args) => {
+  registry.handle('yc:vault-save', (_event, args) => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
     const filename = args[0];
     const content = args[1];
@@ -587,12 +587,12 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, document: doc };
   });
 
-  registry.handle('yc:vault-list', async () => {
+  registry.handle('yc:vault-list', () => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
     return { ok: true, documents: services.documentVault.listDocuments() };
   });
 
-  registry.handle('yc:vault-get', async (_event, args) => {
+  registry.handle('yc:vault-get', (_event, args) => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
     const id = args[0];
     if (typeof id !== 'string') return { ok: false, error: 'invalid-id' };
@@ -601,7 +601,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, document: result.doc, content: result.content };
   });
 
-  registry.handle('yc:vault-delete', async (_event, args) => {
+  registry.handle('yc:vault-delete', (_event, args) => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
     const id = args[0];
     if (typeof id !== 'string') return { ok: false, error: 'invalid-id' };
@@ -610,7 +610,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:vault-stats', async () => {
+  registry.handle('yc:vault-stats', () => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
     /*
      * `encryptionAvailable` rides along with the stats so the vault window can
@@ -627,7 +627,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     };
   });
 
-  registry.handle('yc:vault-save-buffer', async (_event, args) => {
+  registry.handle('yc:vault-save-buffer', (_event, args) => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
     const [filename, base64Content, mimeType] = args as [string, string, string];
     if (typeof filename !== 'string' || typeof base64Content !== 'string')
@@ -661,7 +661,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     }
   });
 
-  registry.handle('yc:vault-reveal-doc', async (_event, args) => {
+  registry.handle('yc:vault-reveal-doc', (_event, args) => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
     const id = args[0];
     if (typeof id !== 'string') return { ok: false, error: 'invalid-id' };
@@ -686,12 +686,12 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     }
   });
 
-  registry.handle('yc:vault-open', async () => {
+  registry.handle('yc:vault-open', () => {
     services.openVaultWindow();
     return { ok: true };
   });
 
-  registry.handle('yc:dea-register', async (_event, args) => {
+  registry.handle('yc:dea-register', (_event, args) => {
     if (!services.deaTracker) return { ok: false, error: 'dea-tracker-not-ready' };
     const reg = args[0];
     if (typeof reg !== 'object' || reg === null || Array.isArray(reg))
@@ -703,7 +703,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:open-patient-window', async (_event, args) => {
+  registry.handle('yc:open-patient-window', (_event, args) => {
     const patientId = args[0];
     const rawName = args[1];
     if (typeof patientId !== 'string') return { ok: false, error: 'invalid-patient-id' };
@@ -801,7 +801,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     services.attachedTabId = null;
   };
 
-  registry.handle('yc:tabs-get', async () => {
+  registry.handle('yc:tabs-get', () => {
     if (!services.tabManager) return { ok: false, error: 'tabs-not-ready' };
     return {
       ok: true,
@@ -813,7 +813,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     };
   });
 
-  registry.handle('yc:tab-new', async (_event, args) => {
+  registry.handle('yc:tab-new', (_event, args) => {
     if (
       !services.tabManager ||
       !services.tabViewHost ||
@@ -833,7 +833,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, id };
   });
 
-  registry.handle('yc:tab-close', async (_event, args) => {
+  registry.handle('yc:tab-close', (_event, args) => {
     if (
       !services.tabManager ||
       !services.tabViewHost ||
@@ -861,7 +861,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:tab-activate', async (_event, args) => {
+  registry.handle('yc:tab-activate', (_event, args) => {
     if (
       !services.tabManager ||
       !services.tabViewHost ||
@@ -877,7 +877,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:tab-move', async (_event, args) => {
+  registry.handle('yc:tab-move', (_event, args) => {
     if (!services.tabManager) return { ok: false, error: 'tabs-not-ready' };
     const [id, toIndex] = args as [string, number];
     if (typeof id !== 'string' || !Number.isInteger(toIndex))
@@ -887,7 +887,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: moved };
   });
 
-  registry.handle('yc:tab-pin', async (_event, args) => {
+  registry.handle('yc:tab-pin', (_event, args) => {
     if (!services.tabManager) return { ok: false, error: 'tabs-not-ready' };
     const [id, pinned] = args as [string, boolean];
     if (typeof id !== 'string' || typeof pinned !== 'boolean')
@@ -897,7 +897,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: result };
   });
 
-  registry.handle('yc:tab-duplicate', async (_event, args) => {
+  registry.handle('yc:tab-duplicate', (_event, args) => {
     if (
       !services.tabManager ||
       !services.tabViewHost ||
@@ -928,7 +928,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
   // returned, so a resolved-from-the-click promise would race the close. The
   // tab bar then performs the action through the same tab IPC its own buttons
   // use, which keeps one code path per action.
-  registry.handle('yc:tab-context-menu', async (event, args) => {
+  registry.handle('yc:tab-context-menu', (event, args) => {
     const id = args[0];
     if (!services.tabManager || typeof id !== 'string') return { ok: false, error: 'invalid-args' };
     const win = services.mainWindow;
@@ -955,7 +955,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:tab-reopen-closed', async () => {
+  registry.handle('yc:tab-reopen-closed', () => {
     if (
       !services.tabManager ||
       !services.tabViewHost ||
@@ -975,12 +975,12 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, id };
   });
 
-  registry.handle('yc:chrome-overlay', async (_event, args) => {
+  registry.handle('yc:chrome-overlay', (_event, args) => {
     services.setChromeOverlay(args[0] === true);
     return { ok: true };
   });
 
-  registry.handle('yc:tab-set-zoom', async (_event, args) => {
+  registry.handle('yc:tab-set-zoom', (_event, args) => {
     if (!services.tabManager || !services.tabViewHost)
       return { ok: false, error: 'tabs-not-ready' };
     const [id, level] = args as [string, number];
@@ -993,7 +993,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:find-in-page', async (_event, args) => {
+  registry.handle('yc:find-in-page', (_event, args) => {
     const opts = args[0] as { text: string; forward?: boolean; matchCase?: boolean } | undefined;
     if (!opts || typeof opts.text !== 'string') return { ok: false, error: 'invalid-args' };
     const wc = services.activeContents();
@@ -1005,28 +1005,28 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, requestId };
   });
 
-  registry.handle('yc:stop-find-in-page', async () => {
+  registry.handle('yc:stop-find-in-page', () => {
     const wc = services.activeContents();
     if (!wc) return { ok: false, error: 'no-active-content' };
     wc.stopFindInPage('clearSelection');
     return { ok: true };
   });
 
-  registry.handle('yc:open-devtools', async () => {
+  registry.handle('yc:open-devtools', () => {
     const wc = services.activeContents();
     if (!wc) return { ok: false, error: 'no-active-content' };
     if (!wc.isDevToolsOpened()) wc.openDevTools();
     return { ok: true };
   });
 
-  registry.handle('yc:close-devtools', async () => {
+  registry.handle('yc:close-devtools', () => {
     const wc = services.activeContents();
     if (!wc) return { ok: false, error: 'no-active-content' };
     if (wc.isDevToolsOpened()) wc.closeDevTools();
     return { ok: true };
   });
 
-  registry.handle('yc:tab-toggle-mute', async (_event, args) => {
+  registry.handle('yc:tab-toggle-mute', (_event, args) => {
     const [id] = args as [string];
     if (!services.tabViewHost || typeof id !== 'string')
       return { ok: false, error: 'invalid-args' };
@@ -1068,7 +1068,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     }
   });
 
-  registry.handle('yc:tab-detach', async (_event, args) => {
+  registry.handle('yc:tab-detach', (_event, args) => {
     const [id] = args as [string];
     if (
       !services.tabViewHost ||
@@ -1119,14 +1119,14 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:tab-set-orientation', async (_event, args) => {
+  registry.handle('yc:tab-set-orientation', (_event, args) => {
     const [mode] = args as [string];
     if (mode !== 'horizontal' && mode !== 'vertical') return { ok: false, error: 'invalid-mode' };
     services.setTabOrientation(mode);
     return { ok: true };
   });
 
-  registry.handle('yc:tab-set-split', async (_event, args) => {
+  registry.handle('yc:tab-set-split', (_event, args) => {
     const [id] = args as [string | null];
     if (!services.tabManager || !services.tabViewHost)
       return { ok: false, error: 'tabs-not-ready' };
@@ -1140,7 +1140,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:show-cheatsheet', async () => {
+  registry.handle('yc:show-cheatsheet', () => {
     if (services.tabChromeView && !services.tabChromeView.webContents.isDestroyed()) {
       services.setChromeOverlay(true);
       void services.tabChromeView.webContents
@@ -1150,21 +1150,21 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true };
   });
 
-  registry.handle('yc:get-app-version', async () => {
+  registry.handle('yc:get-app-version', () => {
     return app.getVersion();
   });
 
-  registry.handle('yc:get-last-seen-version', async () => {
+  registry.handle('yc:get-last-seen-version', () => {
     return services.settingsStore?.load().lastSeenVersion ?? '';
   });
 
-  registry.handle('yc:set-last-seen-version', async (_event, args) => {
+  registry.handle('yc:set-last-seen-version', (_event, args) => {
     const [v] = args as [string];
     services.settingsStore?.save({ lastSeenVersion: v });
     return { ok: true };
   });
 
-  registry.handle('yc:dismiss-whats-new', async () => {
+  registry.handle('yc:dismiss-whats-new', () => {
     services.settingsStore?.save({ lastSeenVersion: app.getVersion() });
     if (services.mainWindow && !services.mainWindow.isDestroyed()) {
       if (services.tabMode) {

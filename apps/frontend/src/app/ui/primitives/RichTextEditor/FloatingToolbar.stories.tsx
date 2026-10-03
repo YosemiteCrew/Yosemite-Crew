@@ -184,9 +184,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The bar in one row: [Bold Italic Underline] | [Bulleted list Indent] "editing". */
-const barButtons = (canvasElement: HTMLElement) => {
-  const toolbar = within(canvasElement).getByRole('toolbar', { name: 'Text formatting' });
+/**
+ * The bar in one row: [Bold Italic Underline] | [Bulleted list Indent] "editing".
+ *
+ * Found, not got: `useEditor` runs with `immediatelyRender: false`, so the editor
+ * is created in an effect after the first commit and the harness only mounts the
+ * bar from `onCreate`. In a production build that lands after the play function
+ * has started, and a synchronous query sees an empty field.
+ */
+const barButtons = async (canvasElement: HTMLElement) => {
+  const toolbar = await within(canvasElement).findByRole('toolbar', { name: 'Text formatting' });
   const [bold, italic, underline, bulletList, indent] = within(toolbar).getAllByRole('button');
   return { toolbar, bold, italic, underline, bulletList, indent };
 };
@@ -197,7 +204,8 @@ const editorHtml = (canvasElement: HTMLElement) =>
 export const Default: Story = {
   name: 'Caret in plain text (nothing pressed)',
   play: async ({ canvasElement }) => {
-    const { toolbar, bold, italic, underline, bulletList, indent } = barButtons(canvasElement);
+    const { toolbar, bold, italic, underline, bulletList, indent } =
+      await barButtons(canvasElement);
     const buttons = [bold, italic, underline, bulletList, indent];
 
     // Label order is the design's grouping and the only thing telling the five
@@ -246,7 +254,7 @@ export const MarksActive: Story = {
     seed: caretInside('responsive'),
   },
   play: async ({ canvasElement }) => {
-    const { bold, italic, underline, bulletList, indent } = barButtons(canvasElement);
+    const { bold, italic, underline, bulletList, indent } = await barButtons(canvasElement);
 
     // All three marks are live at the caret, so all three report pressed. The
     // block controls must not: they answer for the paragraph, not the marks.
@@ -275,7 +283,7 @@ export const IndentSinksAListItem: Story = {
     seed: caretInside('Nails'),
   },
   play: async ({ canvasElement }) => {
-    const { bold, bulletList, indent } = barButtons(canvasElement);
+    const { bold, bulletList, indent } = await barButtons(canvasElement);
 
     await expect(bulletList).toHaveAttribute('aria-pressed', 'true');
     await expect(bold).toHaveAttribute('aria-pressed', 'false');
@@ -306,7 +314,7 @@ export const IndentPushesAParagraph: Story = {
     seed: selectWord('drinking'),
   },
   play: async ({ canvasElement }) => {
-    const { indent } = barButtons(canvasElement);
+    const { indent } = await barButtons(canvasElement);
 
     await userEvent.click(indent);
 
@@ -333,7 +341,7 @@ export const TogglingMarks: Story = {
     seed: selectWord('responsive'),
   },
   play: async ({ canvasElement }) => {
-    const { bold, italic, underline } = barButtons(canvasElement);
+    const { bold, italic, underline } = await barButtons(canvasElement);
 
     /* Three adjacent buttons wired to three different marks through the same
        `toggleMark` call. A copy-paste slip binds two of them to the same mark,
@@ -358,7 +366,8 @@ export const Phone: Story = {
   name: 'Phone: the bar stays one row',
   globals: { viewport: { value: 'mobile', isRotated: false } },
   play: async ({ canvasElement }) => {
-    const { toolbar, bold, italic, underline, bulletList, indent } = barButtons(canvasElement);
+    const { toolbar, bold, italic, underline, bulletList, indent } =
+      await barButtons(canvasElement);
     const buttons = [bold, italic, underline, bulletList, indent];
 
     // 375px is the narrowest the field is ever drawn at. Five 26px buttons plus

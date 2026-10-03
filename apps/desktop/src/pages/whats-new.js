@@ -20,10 +20,15 @@
         return null;
       }
     );
-    Promise.all([yc.getAppVersion(), channel]).then(function (parts) {
-      const suffix = parts[1] ? ' · ' + channelLabel(parts[1]) + ' channel' : '';
-      version.textContent = 'Version ' + parts[0] + suffix;
-    });
+    Promise.all([yc.getAppVersion(), channel])
+      .then(function (parts) {
+        const suffix = parts[1] ? ' · ' + channelLabel(parts[1]) + ' channel' : '';
+        version.textContent = 'Version ' + parts[0] + suffix;
+      })
+      .catch(function () {
+        // Without a version there is nothing honest to show: keep the line empty.
+        version.textContent = '';
+      });
   }
 
   document.getElementById('continue-btn').addEventListener('click', function () {

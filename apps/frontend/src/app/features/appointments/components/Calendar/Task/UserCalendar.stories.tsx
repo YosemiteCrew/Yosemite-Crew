@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fireEvent, fn, waitFor, within } from 'storybook/test';
 
 import type { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import { normalizeCalendarId } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
 import type { Team } from '@/app/features/organization/types/team';
 import type { Task } from '@/app/features/tasks/types/task';
 import { setPreferredTimeZone } from '@/app/lib/timezone';
@@ -269,7 +270,10 @@ const meta = {
     onTaskDragEnd: fn(),
     onDragHoverTarget: fn(),
     canDragTask: () => true,
-    resolveDisplayName: (memberId?: string) => DISPLAY_NAMES[memberId ?? ''] ?? '-',
+    /* Keyed through the same `normalizeCalendarId` the page's own resolver uses, so a
+       `Practitioner/...` reference resolves like a bare id. The grid hands the raw
+       assignee field straight to this prop and prints '-' for anything it misses. */
+    resolveDisplayName: (memberId?: string) => DISPLAY_NAMES[normalizeCalendarId(memberId)] ?? '-',
   },
   decorators: [
     (Story) => (

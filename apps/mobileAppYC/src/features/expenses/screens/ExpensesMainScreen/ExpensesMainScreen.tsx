@@ -48,6 +48,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Navigation = NativeStackNavigationProp<
   ExpenseStackParamList,
@@ -102,7 +103,9 @@ export const ExpensesMainScreen: React.FC = () => {
     if (!selectedCompanionId) {
       return;
     }
-    dispatch(fetchExpensesForCompanion({companionId: selectedCompanionId}));
+    runInBackground(
+      dispatch(fetchExpensesForCompanion({companionId: selectedCompanionId})),
+    );
   }, [dispatch, selectedCompanionId]);
 
   useFocusEffect(
@@ -115,7 +118,9 @@ export const ExpensesMainScreen: React.FC = () => {
 
   useEffect(() => {
     if (selectedCompanionId && hasHydrated) {
-      dispatch(fetchExpensesForCompanion({companionId: selectedCompanionId}));
+      runInBackground(
+        dispatch(fetchExpensesForCompanion({companionId: selectedCompanionId})),
+      );
     }
   }, [dispatch, selectedCompanionId, userCurrencyCode, hasHydrated]);
 
@@ -156,7 +161,7 @@ export const ExpensesMainScreen: React.FC = () => {
         cta: {
           onPress: () => {
             if (!processingPayment) {
-              openPaymentScreen(expense);
+              runInBackground(openPaymentScreen(expense));
             }
           },
         },

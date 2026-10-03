@@ -14,6 +14,7 @@ import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { pruneUndefined } from "src/utils/prune-undefined";
+import { mapInSequence, mapWithConcurrency } from "../utils/async-iteration";
 import { orgBillingCurrency } from "src/utils/billing";
 import { prisma } from "src/config/prisma";
 import {
@@ -275,15 +276,14 @@ const extractOrganizationIdentifier = (reference: string): string => {
   return lastSegment;
 };
 
-const ensureOrgUsageCounters = async (orgId: string) => {
-  return prisma.organizationUsageCounter.upsert({
+const ensureOrgUsageCounters = (orgId: string) =>
+  prisma.organizationUsageCounter.upsert({
     where: { orgId },
     create: {
       orgId,
     },
     update: {},
   });
-};
 
 const isFreePlan = async (orgId: string) => {
   const billing = await prisma.organizationBilling.findFirst({
@@ -618,8 +618,8 @@ const syncSeatsIfBusiness = async (orgId: string) => {
   }
 };
 
-const findExistingUserOrganization = async (id?: string | null) => {
-  if (!id) return null;
+const findExistingUserOrganization = (id?: string | null) => {
+  if (!id) return Promise.resolve(null);
   return prisma.userOrganization.findFirst({
     where: { OR: [{ id }, { fhirId: id }] },
   });
@@ -959,9 +959,7 @@ export const UserOrganizationService = {
       return [];
     }
 
-    const results = [];
-
-    for (const mapping of mappings) {
+    return mapWithConcurrency(mappings, async (mapping) => {
       const organizationId = extractOrganizationIdentifier(
         mapping.organizationReference,
       );
@@ -990,7 +988,7 @@ export const UserOrganizationService = {
             where: { orgId: organization?.id ?? organizationId },
           })
         : null;
-      results.push({
+      return {
         mapping: toUserOrganizationResponseDTO(mappingDomain),
         organization: organization
           ? mapOrganizationFromPrisma(organization)
@@ -1009,9 +1007,8 @@ export const UserOrganizationService = {
             }
           : null,
         orgUsage: orgUsage ? { ...orgUsage, _id: orgUsage.id } : null,
-      });
-    }
-    return results;
+      };
+    });
   },
 
   async listByOrganisationId(id: string) {
@@ -1040,8 +1037,22 @@ export const UserOrganizationService = {
       return [];
     }
 
-    const results = [];
-    for (const mapping of mappings) {
+    // Today's appointment count is the same for every member, so it is read once.
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    const count = await prisma.occupancy.count({
+      where: {
+        organisationId,
+        sourceType: "APPOINTMENT",
+        startTime: { gte: startOfDay, lte: endOfDay },
+      },
+    });
+
+    // Members are loaded one at a time; each member already runs its own five
+    // reads together.
+    return mapInSequence(mappings, async (mapping) => {
       const userRef = mapping.practitionerReference;
       const userId =
         extractReferenceId(userRef) ?? mapping.practitionerReference;
@@ -1066,22 +1077,10 @@ export const UserOrganizationService = {
           ),
         ]);
 
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
-      const count = await prisma.occupancy.count({
-        where: {
-          organisationId,
-          sourceType: "APPOINTMENT",
-          startTime: { gte: startOfDay, lte: endOfDay },
-        },
-      });
-
       let name: string = "";
       if (user?.firstName) name += user.firstName;
       if (user?.lastName) name += " " + user.lastName;
-      const result = {
+      return {
         userOrganisation: toUserOrganizationResponseDTO(
           buildUserOrganizationDomainFromPrisma(mapping),
         ),
@@ -1094,11 +1093,7 @@ export const UserOrganizationService = {
         weeklyHours,
         count,
       };
-
-      results.push(result);
-    }
-
-    return results;
+    });
   },
 
   async recomputeAllEffectivePermissions() {
@@ -1112,11 +1107,7 @@ export const UserOrganizationService = {
       },
     });
 
-    let scannedCount = 0;
-    let updatedCount = 0;
-
-    for (const doc of documents) {
-      scannedCount += 1;
+    const stale = documents.flatMap((doc) => {
       const computed = computeEffectivePermissions(
         doc.roleCode as RoleCode,
         doc.extraPermissions,
@@ -1126,16 +1117,17 @@ export const UserOrganizationService = {
       const same =
         current.length === computed.length &&
         computed.every((perm) => current.includes(perm));
-      if (!same) {
-        await prisma.userOrganization.update({
-          where: { id: doc.id },
-          data: { effectivePermissions: computed },
-        });
-        updatedCount += 1;
-      }
-    }
+      return same ? [] : [{ id: doc.id, computed }];
+    });
 
-    return { scannedCount, updatedCount };
+    await mapInSequence(stale, ({ id, computed }) =>
+      prisma.userOrganization.update({
+        where: { id },
+        data: { effectivePermissions: computed },
+      }),
+    );
+
+    return { scannedCount: documents.length, updatedCount: stale.length };
   },
 
   async getMappingByUserAndOrganization(

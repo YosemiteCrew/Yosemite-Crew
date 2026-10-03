@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fireEvent, fn, userEvent, within } from 'storybook/test';
+import { expect, fireEvent, fn, userEvent, waitFor, within } from 'storybook/test';
 import type { InternalAxiosRequestConfig } from 'axios';
 
 import type { Team } from '@/app/features/organization/types/team';
@@ -179,7 +179,14 @@ const taskSlots = (canvasElement: HTMLElement): HTMLElement[] => [
 
 /** Pick up a task chip and drop it on an empty hour cell. */
 const dragTaskOnto = async (marker: HTMLElement, slot: HTMLElement) => {
+  const createButton = { name: /^Create task on / };
+  await expect(within(slot).getByRole('button', createButton)).toBeInTheDocument();
   fireEvent.dragStart(marker);
+  /* The drop handler reads the dragged task from the render that follows the pick
+     up, so wait for that render: while a task is in flight the cell swaps its
+     create button for the drop target. Dropping in the same tick as the dragstart
+     lands on the pre-drag cell, which ignores it. */
+  await waitFor(() => expect(within(slot).queryByRole('button', createButton)).toBeNull());
   const rect = slot.getBoundingClientRect();
   // The drop minute is read as a ratio of the cell's own box, so the pointer is
   // placed by that box rather than by a hard-coded pixel.

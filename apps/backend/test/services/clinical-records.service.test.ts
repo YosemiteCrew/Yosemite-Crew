@@ -50,6 +50,9 @@ jest.mock("src/config/prisma", () => ({
     appointment: {
       updateMany: jest.fn(),
     },
+    encounter: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 

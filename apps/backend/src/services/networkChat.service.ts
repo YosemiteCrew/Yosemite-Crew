@@ -2,9 +2,7 @@
 import { ChannelData } from "stream-chat";
 import crypto from "node:crypto";
 
-import { ChatServiceError, chatUserDisplayName } from "./chat.service";
-import { UserProfileService } from "./user-profile.service";
-import { UserService } from "./user.service";
+import { ChatServiceError, upsertChatUsers } from "./chat.service";
 import { prisma } from "src/config/prisma";
 import { getStreamServer } from "src/config/stream-client";
 
@@ -41,12 +39,11 @@ const isActiveMemberOfOrg = async (
   return Boolean(mapping);
 };
 
-const loadOrganisation = async (organisationId: string) => {
-  return prisma.organization.findFirst({
+const loadOrganisation = (organisationId: string) =>
+  prisma.organization.findFirst({
     where: { id: organisationId },
     select: { id: true, name: true, crossOrgMessagingEnabled: true },
   });
-};
 
 export type NetworkColleague = {
   userId: string;
@@ -245,24 +242,14 @@ export const NetworkChatService = {
 
     if (existing) return existing;
 
-    // Mirror createOrgDirectChat's Stream upsert (resolve names per home org).
-    for (const userId of members) {
-      const homeOrgId =
-        userId === requesterUserId ? requesterOrgId : otherOrgId;
-      const userProfile = await UserProfileService.getByUserId(
+    // Resolve each member's name and photo in their home organisation.
+    await upsertChatUsers(
+      members.map((userId) => ({
         userId,
-        homeOrgId,
-      );
-      const user = await UserService.getById(userId);
-
-      await getStreamServer().upsertUser({
-        name: chatUserDisplayName(user),
-        id: userId,
-        image:
-          userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
-        role: "user",
-      });
-    }
+        organisationId:
+          userId === requesterUserId ? requesterOrgId : otherOrgId,
+      })),
+    );
 
     const hash = shortHash(
       `${requesterOrgId}:${otherOrgId}:${members.join(":")}`,

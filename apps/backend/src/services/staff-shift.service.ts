@@ -105,7 +105,7 @@ export const StaffShiftService = {
     return assertShift(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     staffId?: string;
     role?: string;

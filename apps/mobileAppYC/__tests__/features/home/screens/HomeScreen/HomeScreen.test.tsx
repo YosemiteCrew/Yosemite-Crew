@@ -1,6 +1,6 @@
 import React from 'react';
 import {mockTheme} from '../../../../setup/mockTheme';
-import {render, fireEvent, act} from '@testing-library/react-native';
+import {render, fireEvent, act, waitFor} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {HomeScreen} from '@/features/home/screens/HomeScreen/HomeScreen';
@@ -1074,6 +1074,49 @@ describe('HomeScreen', () => {
       act(() => {
         checkInArgs.onCheckingInChange('a1', true);
       });
+    });
+
+    it('logs when opening maps or checking in fails unexpectedly', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const {openMapsToPlaceId} = require('@/shared/utils/openMaps');
+      openMapsToPlaceId.mockRejectedValueOnce(new Error('no maps app'));
+      mockHandleCheckIn.mockRejectedValueOnce(new Error('check-in crashed'));
+      const store = createStore({
+        appointments: {
+          upcoming: [
+            {
+              id: 'a1',
+              date: '2025-01-01',
+              time: '10:00',
+              status: 'CONFIRMED',
+              companionId: 'c1',
+              businessId: 'b1',
+            },
+          ],
+          loading: false,
+          hydratedCompanions: {c1: true},
+        },
+      });
+
+      const {getByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+      fireEvent.press(getByTestId('apt-directions'));
+      fireEvent.press(getByTestId('apt-checkin'));
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: no maps app'),
+        );
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Background] Task failed',
+          expect.stringContaining('Error: check-in crashed'),
+        );
+      });
+      warnSpy.mockRestore();
     });
 
     it('renders payment button', () => {

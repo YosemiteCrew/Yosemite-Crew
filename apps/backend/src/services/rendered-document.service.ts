@@ -493,16 +493,21 @@ const normalizePersistedRenderedDocument = (
   ) as PersistedRenderedDocument["kind"],
 });
 
-export const createRenderedDocumentRecord = async (
+export const createRenderedDocumentRecord = (
   input: PersistRenderedDocumentInput,
   client: RenderedDocumentWriteClient = renderedDocumentClient,
 ): Promise<PersistedRenderedDocument> => {
-  const draft = buildRenderedDocumentDraft(input);
-
-  return client.renderedDocument.create({
-    data: toRenderedDocumentCreateData(input, draft),
-    include: { signature: true },
-  });
+  // Built in the chain so invalid input arrives as a rejection, before a write.
+  return Promise.resolve(input)
+    .then((value) =>
+      toRenderedDocumentCreateData(value, buildRenderedDocumentDraft(value)),
+    )
+    .then((data) =>
+      client.renderedDocument.create({
+        data,
+        include: { signature: true },
+      }),
+    );
 };
 
 /**
@@ -669,7 +674,7 @@ const LINKED_RECORD_SELECT = {
  * construction). `null` for a document with neither link
  * (FORM_SUBMISSION/TASK_SCHEDULE/INVOICE-sourced).
  */
-const findLinkedRecord = async (
+const findLinkedRecord = (
   client: RenderedDocumentWriteClient,
   document: Pick<
     PersistedRenderedDocument,
@@ -688,7 +693,7 @@ const findLinkedRecord = async (
       select: LINKED_RECORD_SELECT,
     });
   }
-  return null;
+  return Promise.resolve(null);
 };
 
 /**

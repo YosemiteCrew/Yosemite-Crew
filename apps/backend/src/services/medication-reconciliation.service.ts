@@ -151,7 +151,7 @@ export const MedicationReconciliationService = {
     return assertMedRec(id, organisationId);
   },
 
-  async list(params: ListMedRecParams) {
+  list(params: ListMedRecParams) {
     const { organisationId, patientId, encounterId, status } = params;
     return prisma.medicationReconciliation.findMany({
       where: {

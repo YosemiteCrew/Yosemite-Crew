@@ -71,18 +71,16 @@ export const LabResultService = {
     });
   },
 
-  async getByResultId(
-    organisationId: string,
-    provider: string,
-    resultId: string,
-  ) {
+  getByResultId(organisationId: string, provider: string, resultId: string) {
     const safeOrganisationId = normalizeOptionalString(organisationId);
     const safeProvider = normalizeOptionalString(provider);
     const safeResultId = normalizeOptionalString(resultId);
     if (!safeOrganisationId || !safeProvider || !safeResultId) {
-      throw new LabResultServiceError(
-        "Invalid organisationId, provider or resultId",
-        400,
+      return Promise.reject(
+        new LabResultServiceError(
+          "Invalid organisationId, provider or resultId",
+          400,
+        ),
       );
     }
     return prisma.labResult.findFirst({

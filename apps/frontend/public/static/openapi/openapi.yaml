@@ -20225,6 +20225,54 @@ paths:
                 properties:
                   message:
                     type: string
+  /v1/organisation-rating/practitioner-feedback/batch:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: POST /v1/organisation-rating/practitioner-feedback/batch
+      operationId: post_v1_organisation_rating_practitioner_feedback_batch
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PractitionerFeedbackBatchLookupBody'
+      responses:
+        200:
+          description: Feedback for completed appointments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PractitionerFeedbackBatchResponse'
+        400:
+          description: Invalid feedback request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        401:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Feedback could not be loaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
   '/v1/organisation-rating/appointment/{appointmentId}/practitioner-feedback':
     put:
       tags:
@@ -35186,6 +35234,19 @@ components:
         - rating
         - review
         - practitionerName
+    PractitionerFeedbackBatchLookupBody:
+      type: object
+      additionalProperties: false
+    PractitionerFeedbackBatchResponse:
+      type: object
+      properties:
+        feedbackByAppointment:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/PractitionerFeedback'
+      required:
+        - feedbackByAppointment
+      additionalProperties: false
     SendInviteBody:
       type: object
       properties:

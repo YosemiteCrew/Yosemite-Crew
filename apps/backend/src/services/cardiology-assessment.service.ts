@@ -25,12 +25,7 @@ type HeartRhythm =
   | "OTHER";
 
 type MurmurGrade =
-  | "GRADE_1"
-  | "GRADE_2"
-  | "GRADE_3"
-  | "GRADE_4"
-  | "GRADE_5"
-  | "GRADE_6";
+  "GRADE_1" | "GRADE_2" | "GRADE_3" | "GRADE_4" | "GRADE_5" | "GRADE_6";
 type AcvimClass = "A" | "B1" | "B2" | "C" | "D";
 
 export interface CreateCardiologyParams {
@@ -174,7 +169,7 @@ export const CardiologyAssessmentService = {
     return assertAssessment(id, organisationId);
   },
 
-  async list(params: ListCardiologyParams) {
+  list(params: ListCardiologyParams) {
     const { organisationId, patientId, encounterId, acvimClass } = params;
     return prisma.cardiologyAssessment.findMany({
       where: {

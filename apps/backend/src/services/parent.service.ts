@@ -13,6 +13,7 @@ import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
 import { uploadKeyToMove } from "src/utils/upload-key";
 import { escapeLikePattern } from "../utils/escape-like";
+import { mapInSequence } from "../utils/async-iteration";
 
 export class ParentServiceError extends Error {
   constructor(
@@ -374,7 +375,7 @@ const mayAccessParent = async (id: string, ctx?: ParentCreateContext) => {
  */
 const NEW_CLIENT_WINDOW_MS = 15 * 60 * 1000;
 
-const resolveParentRecord = async (id: string) =>
+const resolveParentRecord = (id: string) =>
   prisma.parent.findUnique({
     where: { id },
     include: { address: true },
@@ -401,11 +402,9 @@ const resolveParentLinkedUserId = async (
   return linkedUserId;
 };
 
-const resolveParentExistingByLinkedUser = async (
-  linkedUserId: string | null,
-) => {
+const resolveParentExistingByLinkedUser = (linkedUserId: string | null) => {
   if (!linkedUserId) {
-    return null;
+    return Promise.resolve(null);
   }
 
   return prisma.parent.findFirst({
@@ -715,8 +714,8 @@ export const ParentService = {
     // what happened.
     const authService = getAuthService();
     if (authService) {
-      for (const authUser of linkedAuthUsers ?? []) {
-        if (!authUser.providerUserId) continue;
+      await mapInSequence(linkedAuthUsers ?? [], async (authUser) => {
+        if (!authUser.providerUserId) return;
         try {
           await authService.deleteUser(authUser.providerUserId);
         } catch (error) {
@@ -725,7 +724,7 @@ export const ParentService = {
             error,
           );
         }
-      }
+      });
     }
 
     return toParentResponseDTO(buildParentResponse(existing));
@@ -742,7 +741,7 @@ export const ParentService = {
     return resolveParentRecord(parentId);
   },
 
-  async findByMongoId(id: string) {
+  findByMongoId(id: string) {
     return resolveParentRecord(id);
   },
 

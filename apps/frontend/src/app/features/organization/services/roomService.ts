@@ -279,11 +279,6 @@ const updateUnit = async (unit: RoomUnit) => {
   return fromFHIRRoomUnit(res.data);
 };
 
-const deleteUnit = async (unitId: string) => {
-  const res = await deleteData<ReturnType<typeof toFHIRRoomUnit>>(`/fhir/v1/room-unit/${unitId}`);
-  return fromFHIRRoomUnit(res.data);
-};
-
 const syncUnitsForGroup = async (
   group: RoomUnitGroup,
   desiredCount: number,
@@ -293,9 +288,7 @@ const syncUnitsForGroup = async (
   const createdUnits: RoomUnit[] = [];
   const surplusUnits = currentUnits.slice(desiredCount);
 
-  for (const unit of surplusUnits) {
-    await deleteUnit(unit.id);
-  }
+  await Promise.all(surplusUnits.map((unit) => updateUnit({ ...unit, isActive: false })));
 
   const missingCount = desiredCount - currentUnits.length;
   // A previously-deactivated unit under this same group can occupy the exact

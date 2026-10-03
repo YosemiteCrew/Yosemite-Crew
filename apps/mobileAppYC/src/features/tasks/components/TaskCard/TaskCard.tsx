@@ -20,6 +20,7 @@ import {
 } from '@/features/tasks/utils/taskLabels';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 import type {Theme} from '@/theme';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 const calculateNearestDosageTime = (
   dosages: Array<{time: string; dosage: string}>,
@@ -328,7 +329,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         }
       }
     };
-    maybeFetchOt();
+    runInBackground(maybeFetchOt());
     return () => {
       active = false;
     };

@@ -1,25 +1,19 @@
 'use client';
 
 // no-story: Exercised through InpatientMonitoringPanel.stories.tsx with the full data flow.
-import { useEffect, useState, type FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Button, Text } from '@/app/ui';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { formatDateTimeLocal, formatDisplayDate } from '@/app/lib/date';
-import {
-  buildDateInPreferredTimeZone,
-  buildPreferredTimeZoneDayInstant,
-  getDateKeyInPreferredTimeZone,
-  getDatePartsInPreferredTimeZone,
-} from '@/app/lib/timezone';
-import {
-  listHospitalizationObservations,
-  recordHospitalizationObservation,
-  type HospitalizationObservation,
-} from '@/app/features/appointments/services/hospitalizationMonitoringService';
+import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
+import type { HospitalizationObservation } from '@/app/features/appointments/services/hospitalizationMonitoringService';
 import InpatientObservationForm from './InpatientObservationForm';
-import { MEASUREMENT_FIELDS, type MeasurementName } from './inpatientObservationFields';
+import {
+  useHospitalizationObservationFeed,
+  useInpatientObservationEntry,
+} from './useInpatientMonitoringPanel';
 
 export type InpatientMonitoringPanelProps = {
   organisationId?: string;
@@ -30,25 +24,6 @@ export type InpatientMonitoringPanelProps = {
 
 type FluidPeriod = { key: string; label: string; intake: number; output: number };
 
-const pad2 = (value: number) => String(value).padStart(2, '0');
-
-// A datetime-local control carries no zone, so it is written and read in the clinic's
-// preferred zone: the time staff type is the time the timeline shows back to them.
-const toClinicDateTimeInput = (date: Date) => {
-  const { year, month, day, hour, minute } = getDatePartsInPreferredTimeZone(date);
-  return `${year}-${pad2(month)}-${pad2(day)}T${pad2(hour)}:${pad2(minute)}`;
-};
-
-const fromClinicDateTimeInput = (value: FormDataEntryValue | null): Date | null => {
-  const match = typeof value === 'string' && /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
-  if (!match) return null;
-  const [, year, month, day, hour, minute] = match.map(Number);
-  return buildDateInPreferredTimeZone(
-    buildPreferredTimeZoneDayInstant(year, month, day),
-    hour * 60 + minute
-  );
-};
-
 // Rounded to two decimals on display, so a float sum such as 0.1 + 0.2 never reaches staff
 // as 0.30000000000000004.
 const mlFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
@@ -58,9 +33,6 @@ const netFormatter = new Intl.NumberFormat('en-US', {
 });
 const formatMl = (ml: number) => `${mlFormatter.format(ml)} mL`;
 const formatNetMl = (ml: number) => `${netFormatter.format(ml)} mL`;
-
-const sortedNewestFirst = (records: HospitalizationObservation[]) =>
-  [...records].sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt));
 
 const display = (value: number | null, unit: string) => (value === null ? '—' : `${value}${unit}`);
 
@@ -104,15 +76,6 @@ const fluidBalanceByDay = (records: HospitalizationObservation[]): FluidPeriod[]
     days.set(key, day);
   }
   return [...days.values()];
-};
-
-const readMeasurements = (form: FormData) => {
-  const values: Partial<Record<MeasurementName, number>> = {};
-  for (const { name } of MEASUREMENT_FIELDS) {
-    const value = form.get(name);
-    if (typeof value === 'string' && value.trim()) values[name] = Number(value);
-  }
-  return values;
 };
 
 const renderFluidRow = (period: FluidPeriod, key?: string) => (
@@ -175,7 +138,7 @@ const renderFluidBalance = (records: HospitalizationObservation[]) => {
 
 const renderObservationItem = (record: HospitalizationObservation) => (
   <li key={record.id} className="py-4 first:pt-0 last:pb-0">
-    <Text as="h3" variant="body-3-emphasis" className="text-text-primary">
+    <Text as="p" variant="body-3-emphasis" className="text-text-primary">
       <time dateTime={record.observedAt}>{formatDateTimeLocal(record.observedAt)}</time>
     </Text>
     <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
@@ -196,6 +159,112 @@ const renderObservationItem = (record: HospitalizationObservation) => (
   </li>
 );
 
+type PanelContentProps = {
+  canRecord: boolean;
+  records: HospitalizationObservation[];
+  isLoading: boolean;
+  loadError: string | null;
+  onRetry: () => void;
+  formObservedAt: string | null;
+  isSaving: boolean;
+  formError: string | null;
+  onOpenForm: () => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onCloseForm: () => void;
+};
+
+const PanelContent = ({
+  canRecord,
+  records,
+  isLoading,
+  loadError,
+  onRetry,
+  formObservedAt,
+  isSaving,
+  formError,
+  onOpenForm,
+  onSave,
+  onCloseForm,
+}: PanelContentProps) => (
+  <div className="flex flex-col gap-4">
+    {isLoading && (
+      <Text as="p" variant="body-4" role="status" className="text-text-secondary">
+        Loading observations…
+      </Text>
+    )}
+
+    {loadError && (
+      <div className="flex flex-wrap items-center gap-3">
+        <Text as="p" variant="body-4" role="alert" className="text-text-error">
+          {loadError}
+        </Text>
+        <Button text="Refresh" variant="secondary" onClick={onRetry} />
+      </div>
+    )}
+
+    {!isLoading && !loadError && records.length === 0 && (
+      <Text as="p" variant="body-4" className="text-text-secondary">
+        No monitoring observations recorded for this stay.
+      </Text>
+    )}
+
+    {renderFluidBalance(records)}
+
+    {records.length > 0 && (
+      <ol className="divide-y divide-card-border">{records.map(renderObservationItem)}</ol>
+    )}
+
+    {canRecord && formObservedAt === null && (
+      <Button text="Record observation" variant="secondary" onClick={onOpenForm} />
+    )}
+
+    {canRecord && formObservedAt !== null && (
+      <InpatientObservationForm
+        defaultObservedAt={formObservedAt}
+        isSaving={isSaving}
+        error={formError}
+        onSubmit={onSave}
+        onCancel={onCloseForm}
+      />
+    )}
+  </div>
+);
+
+type ReadyContext = {
+  organisationId: string;
+  patientId: string;
+  encounterId: string;
+};
+
+const InpatientMonitoringPanelSession = ({
+  context,
+  canRecord,
+}: {
+  context: ReadyContext;
+  canRecord: boolean;
+}) => {
+  const feed = useHospitalizationObservationFeed(context);
+  const entry = useInpatientObservationEntry({ ...context, onSaved: feed.addObservation });
+
+  return (
+    <SectionContainer title="Inpatient monitoring" className="min-w-0">
+      <PanelContent
+        canRecord={canRecord}
+        records={feed.records}
+        isLoading={feed.isLoading}
+        loadError={feed.loadError}
+        onRetry={feed.retry}
+        formObservedAt={entry.formObservedAt}
+        isSaving={entry.isSaving}
+        formError={entry.formError}
+        onOpenForm={entry.openForm}
+        onSave={entry.saveObservation}
+        onCloseForm={entry.closeForm}
+      />
+    </SectionContainer>
+  );
+};
+
 const InpatientMonitoringPanelBody = ({
   organisationId,
   patientId,
@@ -205,38 +274,6 @@ const InpatientMonitoringPanelBody = ({
   const permissions = usePermissions();
   const canView = permissions.can(PERMISSIONS.APPOINTMENTS_VIEW_ANY);
   const canRecord = !readOnly && permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
-  const [records, setRecords] = useState<HospitalizationObservation[]>([]);
-  const [loadedRefresh, setLoadedRefresh] = useState<number | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [formObservedAt, setFormObservedAt] = useState<string | null>(null);
-  const [refresh, setRefresh] = useState(0);
-  const isLoading = loadedRefresh !== refresh;
-
-  useEffect(() => {
-    if (!canView || !organisationId || !patientId || !encounterId) {
-      return;
-    }
-    let active = true;
-    listHospitalizationObservations(organisationId, patientId, encounterId)
-      .then((items) => {
-        if (active) {
-          setRecords(sortedNewestFirst(items));
-          setLoadError(null);
-        }
-      })
-      .catch(() => {
-        if (active) setLoadError('Unable to load observations. Please try again.');
-      })
-      .finally(() => {
-        if (active) setLoadedRefresh(refresh);
-      });
-    return () => {
-      active = false;
-    };
-  }, [canView, encounterId, organisationId, patientId, refresh]);
-
   if (!canView) return null;
 
   if (!organisationId || !patientId || !encounterId) {
@@ -249,104 +286,11 @@ const InpatientMonitoringPanelBody = ({
     );
   }
 
-  const saveObservation = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const observedAt = fromClinicDateTimeInput(form.get('observedAt'));
-    if (!observedAt) return;
-    // One minute of grace for a clock that has not ticked over to the minute staff typed.
-    if (observedAt.getTime() > Date.now() + 60_000) {
-      setFormError('The observation time cannot be in the future.');
-      return;
-    }
-    const measurements = readMeasurements(form);
-    const notesEntry = form.get('notes');
-    const notes = typeof notesEntry === 'string' ? notesEntry.trim() : '';
-    if (Object.keys(measurements).length === 0 && !notes) {
-      setFormError('Enter at least one measurement or a note.');
-      return;
-    }
-
-    setIsSaving(true);
-    setFormError(null);
-    try {
-      const entry = await recordHospitalizationObservation({
-        organisationId,
-        patientId,
-        encounterId,
-        observedAt: observedAt.toISOString(),
-        ...measurements,
-        ...(measurements.temperature === undefined ? {} : { temperatureUnit: 'C' as const }),
-        ...(notes ? { notes } : {}),
-      });
-      setRecords((current) => sortedNewestFirst([entry, ...current]));
-      setFormObservedAt(null);
-    } catch {
-      setFormError('Unable to save this observation. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const closeForm = () => {
-    setFormError(null);
-    setFormObservedAt(null);
-  };
-
-  const openForm = () => setFormObservedAt(toClinicDateTimeInput(new Date()));
-
   return (
-    <SectionContainer title="Inpatient monitoring" className="min-w-0">
-      <div className="flex flex-col gap-4">
-        {isLoading && (
-          <Text as="p" variant="body-4" role="status" className="text-text-secondary">
-            Loading observations…
-          </Text>
-        )}
-
-        {loadError && (
-          <div className="flex flex-wrap items-center gap-3">
-            <Text as="p" variant="body-4" role="alert" className="text-text-error">
-              {loadError}
-            </Text>
-            <Button
-              text="Refresh"
-              variant="secondary"
-              onClick={() => {
-                setLoadError(null);
-                setRefresh((value) => value + 1);
-              }}
-            />
-          </div>
-        )}
-
-        {!isLoading && !loadError && records.length === 0 && (
-          <Text as="p" variant="body-4" className="text-text-secondary">
-            No monitoring observations recorded for this stay.
-          </Text>
-        )}
-
-        {renderFluidBalance(records)}
-
-        {records.length > 0 && (
-          <ol className="divide-y divide-card-border">{records.map(renderObservationItem)}</ol>
-        )}
-
-        {canRecord && formObservedAt === null && (
-          <Button text="Record observation" variant="secondary" onClick={openForm} />
-        )}
-
-        {canRecord && formObservedAt !== null && (
-          <InpatientObservationForm
-            defaultObservedAt={formObservedAt}
-            isSaving={isSaving}
-            error={formError}
-            onSubmit={saveObservation}
-            onCancel={closeForm}
-          />
-        )}
-      </div>
-    </SectionContainer>
+    <InpatientMonitoringPanelSession
+      context={{ organisationId, patientId, encounterId }}
+      canRecord={canRecord}
+    />
   );
 };
 

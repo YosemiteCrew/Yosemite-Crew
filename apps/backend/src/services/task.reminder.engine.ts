@@ -8,6 +8,7 @@ import { prisma } from "src/config/prisma";
 import { parentHasCompanionFeature } from "src/middlewares/companion-access";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
+import { mapInSequence } from "src/utils/async-iteration";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -47,6 +48,78 @@ const mayRemindAssignee = async (
   task.audience !== "PARENT_TASK" ||
   parentHasCompanionFeature(task.assignedTo, task.patientId, "tasks");
 
+type TaskReminder = {
+  enabled?: boolean;
+  offsetMinutes?: number;
+  scheduledNotificationId?: string;
+};
+
+/**
+ * Send one task's reminder when it is due and not yet sent. A failure is
+ * logged and does not stop the other tasks' reminders.
+ */
+const sendDueReminder = async (
+  task: Task,
+  nowUtc: dayjs.Dayjs,
+): Promise<void> => {
+  try {
+    const reminder = task.reminder as TaskReminder | null;
+    if (!reminder?.enabled) return;
+    if (reminder.scheduledNotificationId) return;
+    if (typeof reminder.offsetMinutes !== "number") return;
+
+    const tz = task.timezone || "UTC";
+    const dueAtLocal = dayjs(task.dueAt).tz(tz);
+    const reminderAtLocal = dueAtLocal.subtract(
+      reminder.offsetMinutes,
+      "minute",
+    );
+    const nowLocal = nowUtc.tz(tz);
+    if (nowLocal.isBefore(reminderAtLocal)) return;
+
+    const humanTime = dueAtLocal.format("MMM D, h:mm A");
+
+    const companion = await companionToRemindAbout(task);
+    if (!companion) return;
+
+    // Handled like a sent reminder, so it is never re-checked or sent late.
+    if (!(await mayRemindAssignee(task))) {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: {
+          reminder: { ...reminder, scheduledNotificationId: "skipped" },
+        },
+      });
+      return;
+    }
+
+    const payload = NotificationTemplates.Task.TASK_DUE_REMINDER(
+      companion.name,
+      task.name,
+      humanTime,
+    );
+
+    const result = await NotificationService.sendToUser(
+      task.assignedTo,
+      payload,
+    );
+
+    const nextReminder = {
+      ...reminder,
+      scheduledNotificationId: result?.[0]?.token ?? "sent",
+    };
+
+    await prisma.task.update({
+      where: { id: task.id },
+      data: {
+        reminder: nextReminder,
+      },
+    });
+  } catch (err) {
+    console.error(`Failed reminder for task ${task.id}`, err);
+  }
+};
+
 export const TaskReminderEngine = {
   /**
    * Runs every 1 minute
@@ -59,7 +132,7 @@ export const TaskReminderEngine = {
     // its due time passes, which for a zero-offset reminder (fire at due
     // time) means no worker tick ever sees it - the tick just before due
     // finds it too early, and the tick just after finds it already
-    // filtered out. `reminder.scheduledNotificationId` (checked below)
+    // filtered out. `reminder.scheduledNotificationId` (checked per task)
     // is what actually stops a reminder from resending, so the query only
     // needs to keep the scan bounded, not gate delivery.
     const tasks = await prisma.task.findMany({
@@ -69,67 +142,7 @@ export const TaskReminderEngine = {
       },
     });
 
-    for (const task of tasks) {
-      try {
-        const reminder = task.reminder as {
-          enabled?: boolean;
-          offsetMinutes?: number;
-          scheduledNotificationId?: string;
-        } | null;
-        if (!reminder?.enabled) continue;
-        if (reminder.scheduledNotificationId) continue;
-        if (typeof reminder.offsetMinutes !== "number") continue;
-
-        const tz = task.timezone || "UTC";
-        const dueAtLocal = dayjs(task.dueAt).tz(tz);
-        const reminderAtLocal = dueAtLocal.subtract(
-          reminder.offsetMinutes,
-          "minute",
-        );
-        const nowLocal = nowUtc.tz(tz);
-        if (nowLocal.isBefore(reminderAtLocal)) continue;
-
-        const humanTime = dueAtLocal.format("MMM D, h:mm A");
-
-        const companion = await companionToRemindAbout(task);
-        if (!companion) continue;
-
-        // Handled like a sent reminder, so it is never re-checked or sent late.
-        if (!(await mayRemindAssignee(task))) {
-          await prisma.task.update({
-            where: { id: task.id },
-            data: {
-              reminder: { ...reminder, scheduledNotificationId: "skipped" },
-            },
-          });
-          continue;
-        }
-
-        const payload = NotificationTemplates.Task.TASK_DUE_REMINDER(
-          companion.name,
-          task.name,
-          humanTime,
-        );
-
-        const result = await NotificationService.sendToUser(
-          task.assignedTo,
-          payload,
-        );
-
-        const nextReminder = {
-          ...reminder,
-          scheduledNotificationId: result?.[0]?.token ?? "sent",
-        };
-
-        await prisma.task.update({
-          where: { id: task.id },
-          data: {
-            reminder: nextReminder,
-          },
-        });
-      } catch (err) {
-        console.error(`Failed reminder for task ${task.id}`, err);
-      }
-    }
+    // Reminders go out one task at a time, in the order the tasks were read.
+    await mapInSequence(tasks, (task) => sendDueReminder(task, nowUtc));
   },
 };

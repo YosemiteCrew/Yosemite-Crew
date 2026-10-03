@@ -641,6 +641,53 @@ describe("FormAssignmentService", () => {
     );
   });
 
+  it("syncs one template kind at a time and carries on past a kind that fails", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    mockedTemplateService.resolve.mockImplementation(
+      async ({ kind }: { kind: string }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        if (kind === "FORM") throw new Error("no linked form");
+        return { templateId: "template-1", templateVersion: 2 };
+      },
+    );
+    mockedPrisma.formAssignment.findFirst.mockResolvedValue(null);
+
+    await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      canManageForms: true,
+    });
+
+    expect(peak).toBe(1);
+    expect(
+      mockedTemplateService.resolve.mock.calls.map(([input]) => input.kind),
+    ).toEqual(["FORM", "CONSENT"]);
+    expect(mockedPrisma.formAssignment.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks a later kind's template only after the earlier kind's request exists", async () => {
+    mockedTemplateService.resolve.mockResolvedValue({
+      templateId: "template-1",
+      templateVersion: 2,
+    });
+
+    await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      canManageForms: true,
+    });
+
+    const createOrder =
+      mockedPrisma.formAssignment.create.mock.invocationCallOrder;
+    const resolveOrder = mockedTemplateService.resolve.mock.invocationCallOrder;
+    expect(resolveOrder).toHaveLength(2);
+    expect(createOrder[0]).toBeLessThan(resolveOrder[1]);
+  });
+
   // CONSENT became a storage kind of its own (1c3c790f0); a FORM-only lookup
   // refused every consent template, so none could be sent to a client.
   describe("assignable template kinds", () => {

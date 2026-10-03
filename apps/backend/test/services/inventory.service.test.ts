@@ -22,6 +22,7 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     $transaction: jest.fn(),
     $executeRaw: jest.fn(),
+    $queryRaw: jest.fn(),
     organizationBilling: {
       findUnique: jest.fn(),
     },
@@ -94,6 +95,7 @@ describe("Inventory service", () => {
         typeof callback === "function" ? callback(prisma) : undefined,
     );
     (prisma.$executeRaw as jest.Mock).mockResolvedValue(1);
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: "item-1" }]);
     // A Connect-written billing currency; until the account can take charges
     // the column is not trusted and the country decides (#3607).
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
@@ -1339,6 +1341,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       marginPercentage: 10,
     });
     mockOf(prisma.$executeRaw).mockResolvedValue(1);
+    mockOf(prisma.$queryRaw).mockResolvedValue([{ id: "item-1" }]);
     mockOf(getInventoryCategories).mockReturnValue([
       {
         code: "SEED",
@@ -2527,6 +2530,16 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         where: { id: "item-1" },
         data: { onHand: 11 },
       });
+      const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+      const [batchWriteOrder] = mockOf(prisma.inventoryBatch.create).mock
+        .invocationCallOrder;
+      const [sumOrder] = mockOf(prisma.inventoryBatch.findMany).mock
+        .invocationCallOrder;
+      const [itemWriteOrder] = mockOf(prisma.inventoryItem.update).mock
+        .invocationCallOrder;
+      expect(batchWriteOrder).toBeLessThan(lockOrder);
+      expect(lockOrder).toBeLessThan(sumOrder);
+      expect(sumOrder).toBeLessThan(itemWriteOrder);
     });
 
     it("clears every optional batch field when explicitly nulled", async () => {
@@ -2562,6 +2575,16 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         minShelfLifeAlertDate: null,
         allocated: 2,
       });
+      const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+      const [batchWriteOrder] = mockOf(prisma.inventoryBatch.update).mock
+        .invocationCallOrder;
+      const [sumOrder] = mockOf(prisma.inventoryBatch.findMany).mock
+        .invocationCallOrder;
+      const [itemWriteOrder] = mockOf(prisma.inventoryItem.update).mock
+        .invocationCallOrder;
+      expect(batchWriteOrder).toBeLessThan(lockOrder);
+      expect(lockOrder).toBeLessThan(sumOrder);
+      expect(sumOrder).toBeLessThan(itemWriteOrder);
     });
 
     it("recomputes onHand and allocated after a delete", async () => {
@@ -2578,6 +2601,16 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         where: { id: "item-9" },
         data: { onHand: 2, allocated: 1 },
       });
+      const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+      const [batchWriteOrder] = mockOf(prisma.inventoryBatch.delete).mock
+        .invocationCallOrder;
+      const [sumOrder] = mockOf(prisma.inventoryBatch.findMany).mock
+        .invocationCallOrder;
+      const [itemWriteOrder] = mockOf(prisma.inventoryItem.update).mock
+        .invocationCallOrder;
+      expect(batchWriteOrder).toBeLessThan(lockOrder);
+      expect(lockOrder).toBeLessThan(sumOrder);
+      expect(sumOrder).toBeLessThan(itemWriteOrder);
     });
   });
 
@@ -2691,13 +2724,108 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       expect(updated.onHand).toBe(5);
     });
 
+    it("draws the batches before it writes the reservation on the item", async () => {
+      // Batch-then-item, like every other stock path: writing the item first
+      // took its row lock ahead of the batch locks and deadlocked against a
+      // concurrent consumption holding the batch and waiting for the item.
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10, allocated: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "b1", quantity: 10 }),
+      ]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 8, allocated: 3 }),
+      );
+
+      await InventoryService.consumeStock(
+        {
+          itemId: "item-1",
+          quantity: 2,
+          reason: "APPOINTMENT_USAGE",
+          stockSource: "ALLOCATED",
+        },
+        "org-1",
+      );
+
+      const statements = mockOf(prisma.$executeRaw).mock.calls.map(
+        ([parts]: [TemplateStringsArray]) =>
+          parts.join("?").includes('"InventoryBatch"') ? "batches" : "item",
+      );
+      expect(statements).toEqual(["batches", "item"]);
+      const [, allocatedOrder] = mockOf(prisma.$executeRaw).mock
+        .invocationCallOrder;
+      const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+      expect(allocatedOrder).toBeLessThan(lockOrder);
+    });
+
+    it("locks the item before it sums the batches it just drew", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany)
+        .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 10 })])
+        .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 7 })]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 7 }),
+      );
+
+      await InventoryService.consumeStock(
+        { itemId: "item-1", quantity: 3, reason: "APPOINTMENT_USAGE" },
+        "org-1",
+      );
+
+      const [lock] = mockOf(prisma.$queryRaw).mock.calls;
+      expect(lock[0].join("?")).toMatch(
+        /FROM "InventoryItem"[\s\S]*FOR UPDATE/,
+      );
+      expect(lock.slice(1)).toEqual(["item-1", "org-1"]);
+      const [drawOrder] = mockOf(prisma.$executeRaw).mock.invocationCallOrder;
+      const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+      const [, sumOrder] = mockOf(prisma.inventoryBatch.findMany).mock
+        .invocationCallOrder;
+      const [writeOrder] = mockOf(prisma.inventoryItem.update).mock
+        .invocationCallOrder;
+      expect(drawOrder).toBeLessThan(lockOrder);
+      expect(lockOrder).toBeLessThan(sumOrder);
+      expect(sumOrder).toBeLessThan(writeOrder);
+    });
+
+    it("refuses to write onHand when the locked item row is gone", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "b1", quantity: 10 }),
+      ]);
+      mockOf(prisma.$queryRaw).mockResolvedValue([]);
+
+      await expect(
+        InventoryService.consumeStock(
+          { itemId: "item-1", quantity: 3, reason: "APPOINTMENT_USAGE" },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Inventory item not found",
+        statusCode: 404,
+      });
+      expect(prisma.inventoryItem.update).not.toHaveBeenCalled();
+    });
+
     it("refuses an ALLOCATED draw the reservation no longer covers", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
         itemRow({ onHand: 10, allocated: 5 }),
       );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "b1", quantity: 10 }),
+      ]);
       // The row moved between the read and the write - the conditional decrement
-      // matches nothing, which is the race this guard exists to lose safely.
-      mockOf(prisma.$executeRaw).mockResolvedValue(0);
+      // matches nothing, which is the race this guard exists to lose safely. The
+      // batch draw lands, and is rolled back with the refused transaction.
+      mockOf(prisma.$executeRaw).mockImplementation(
+        async (parts: TemplateStringsArray) =>
+          parts.join("?").includes('"allocated" >=') ? 0 : 1,
+      );
 
       await expect(
         InventoryService.consumeStock(
@@ -2713,7 +2841,9 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         message: "Insufficient allocated stock",
         statusCode: 400,
       });
-      expect(prisma.inventoryBatch.findMany).not.toHaveBeenCalled();
+      expect(mockOf(prisma.$executeRaw).mock.calls).toHaveLength(2);
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+      expect(prisma.inventoryItem.update).not.toHaveBeenCalled();
     });
 
     it("rejects an unrecognised stockSource instead of defaulting it", async () => {
@@ -2748,10 +2878,40 @@ describe("Inventory service guards, helpers, and branch paths", () => {
           "org-1",
         ),
       ).rejects.toMatchObject({
-        message: "Failed to consume full requested quantity",
-        statusCode: 500,
+        message: "Insufficient non-expired stock",
+        statusCode: 409,
       });
       expect(prisma.inventoryBatch.update).not.toHaveBeenCalled();
+    });
+
+    it("only draws usable batches in FEFO order", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "usable", quantity: 2 }),
+      ]);
+
+      await expect(
+        InventoryService.consumeStock(
+          { itemId: "item-1", quantity: 3, reason: "COUNTER_SALE" },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Insufficient non-expired stock",
+        statusCode: 409,
+      });
+      expect(mockOf(prisma.inventoryBatch.findMany).mock.calls[0][0]).toEqual({
+        where: {
+          itemId: "item-1",
+          OR: [{ expiryDate: null }, { expiryDate: { gt: expect.any(Date) } }],
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { id: "asc" },
+        ],
+      });
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
     });
 
     it("skips empty batches, drains the rest in FIFO order, and stops early", async () => {
@@ -2919,6 +3079,35 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       ]);
     });
 
+    it("finishes one line before starting the next and stops at a failure", async () => {
+      let releaseFirst!: (value: unknown) => void;
+      mockOf(prisma.inventoryItem.findFirst)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+        )
+        .mockResolvedValueOnce(null);
+
+      const pending = InventoryService.bulkConsumeStock(
+        {
+          items: [
+            { itemId: "missing", quantity: 1, reason: "OTHER" },
+            { itemId: "item-2", quantity: 1, reason: "OTHER" },
+            { itemId: "item-3", quantity: 1, reason: "OTHER" },
+          ],
+        },
+        "org-1",
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledTimes(1);
+
+      releaseFirst(null);
+      await expect(pending).rejects.toThrow("Inventory item not found");
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledTimes(1);
+    });
+
     it("propagates the first failing line", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(null);
 
@@ -3028,6 +3217,43 @@ describe("Inventory service guards, helpers, and branch paths", () => {
     });
   });
 
+  describe("getInventoryTurnoverByItem opening stock", () => {
+    it("reads opening stock for every item together and keeps it with its item", async () => {
+      mockOf(prisma.inventoryItem.findMany).mockResolvedValue([
+        itemRow({ id: "slow-read", onHand: 10 }),
+        itemRow({ id: "fast-read", onHand: 10 }),
+      ]);
+      mockOf(prisma.inventoryStockMovement.findMany).mockResolvedValue([]);
+      let releaseFirst!: (value: unknown) => void;
+      mockOf(prisma.inventoryBatch.aggregate)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+        )
+        .mockResolvedValueOnce({ _sum: { quantity: 2 } });
+
+      const pending = InventoryService.getInventoryTurnoverByItem({
+        organisationId: "org-1",
+        from: new Date("2024-01-01"),
+        to: new Date("2024-12-31"),
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.inventoryBatch.aggregate).toHaveBeenCalledTimes(2);
+
+      releaseFirst({ _sum: { quantity: 8 } });
+      const report = await pending;
+
+      expect(report.map((row) => [row.itemId, row.beginningInventory])).toEqual(
+        [
+          ["slow-read", 8],
+          ["fast-read", 2],
+        ],
+      );
+    });
+  });
+
   describe("InventoryAdjustmentService.adjustStock", () => {
     it("rejects a blank itemId and a blank organisationId", async () => {
       await expect(
@@ -3066,7 +3292,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
     });
 
-    it("draws down batches atomically in expiry order and logs one movement per drawn batch", async () => {
+    it("draws down batches with one conditional update in expiry order and logs one movement per drawn batch", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
         itemRow({ onHand: null }),
       );
@@ -3076,6 +3302,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         batchRow({ id: "second", quantity: 5 }),
         batchRow({ id: "untouched", quantity: 7 }),
       ]);
+      mockOf(prisma.$executeRaw).mockResolvedValue(2);
       mockOf(prisma.inventoryItem.update).mockResolvedValue(
         itemRow({ onHand: 3 }),
       );
@@ -3089,26 +3316,105 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       });
 
       /*
-       * `decrement`, not a literal quantity: a concurrent draw-down on the
-       * same batch is applied by the database rather than lost. The empty
-       * batch is skipped entirely instead of being rewritten to 0.
+       * Each row is only written if it still holds what was planned from it,
+       * so a batch drained concurrently after the read refuses the adjustment
+       * instead of going negative. The empty batch is skipped entirely.
        */
-      expect(mockOf(prisma.inventoryBatch.update).mock.calls).toEqual([
-        [{ where: { id: "first" }, data: { quantity: { decrement: 4 } } }],
-        [{ where: { id: "second" }, data: { quantity: { decrement: 2 } } }],
-      ]);
-      expect(prisma.inventoryStockMovement.create).toHaveBeenCalledTimes(2);
-      expect(
-        mockOf(prisma.inventoryStockMovement.create).mock.calls[1][0].data,
-      ).toMatchObject({
-        itemId: "item-1",
-        batchId: "second",
-        change: -2,
-        reason: "SHRINKAGE",
-        userId: "user-1",
+      const draws = mockOf(prisma.$executeRaw).mock.calls;
+      expect(draws).toHaveLength(1);
+      expect(draws[0][0].join("?")).toContain('b."quantity" >= v."quantity"');
+      expect(draws[0][1].values).toEqual(["first", 4, "second", 2]);
+      expect(prisma.inventoryBatch.update).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            itemId: "item-1",
+            batchId: "first",
+            change: -4,
+            reason: "SHRINKAGE",
+            userId: "user-1",
+          }),
+          expect.objectContaining({
+            itemId: "item-1",
+            batchId: "second",
+            change: -2,
+            reason: "SHRINKAGE",
+            userId: "user-1",
+          }),
+        ],
       });
       expect(result._id).toBe("item-1");
     });
+
+    it("refuses a draw-down whose planned batch was drained concurrently", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "only", quantity: 5 }),
+      ]);
+      // The batch no longer holds the 4 planned from it: no row matches.
+      mockOf(prisma.$executeRaw).mockResolvedValue(0);
+
+      await expect(
+        InventoryAdjustmentService.adjustStock({
+          itemId: "item-1",
+          newOnHand: 1,
+          reason: "SHRINKAGE",
+          organisationId: "org-1",
+        }),
+      ).rejects.toMatchObject({
+        message: "Insufficient stock",
+        statusCode: 400,
+      });
+      expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
+      expect(prisma.inventoryItem.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a draw-down", 3, "$executeRaw"],
+      ["a top-up", 8, "inventoryBatch.create"],
+    ])(
+      "locks the item after %s and before it sums the batches",
+      async (_label, newOnHand, batchWrite) => {
+        mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+          itemRow({ onHand: 5 }),
+        );
+        mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+          batchRow({ id: "only", quantity: 5 }),
+        ]);
+        mockOf(prisma.inventoryItem.update).mockResolvedValue(
+          itemRow({ onHand: newOnHand }),
+        );
+
+        await InventoryAdjustmentService.adjustStock({
+          itemId: "item-1",
+          newOnHand,
+          reason: "MANUAL_ADJUSTMENT",
+          organisationId: "org-1",
+        });
+
+        const [lock] = mockOf(prisma.$queryRaw).mock.calls;
+        expect(lock[0].join("?")).toMatch(
+          /FROM "InventoryItem"[\s\S]*FOR UPDATE/,
+        );
+        expect(lock.slice(1)).toEqual(["item-1", "org-1"]);
+        const writeMock =
+          batchWrite === "$executeRaw"
+            ? mockOf(prisma.$executeRaw)
+            : mockOf(prisma.inventoryBatch.create);
+        const [batchWriteOrder] = writeMock.mock.invocationCallOrder;
+        const [lockOrder] = mockOf(prisma.$queryRaw).mock.invocationCallOrder;
+        const sumOrder = mockOf(
+          prisma.inventoryBatch.findMany,
+        ).mock.invocationCallOrder.at(-1);
+        const [itemWriteOrder] = mockOf(prisma.inventoryItem.update).mock
+          .invocationCallOrder;
+        expect(batchWriteOrder).toBeLessThan(lockOrder);
+        expect(lockOrder).toBeLessThan(sumOrder as number);
+        expect(sumOrder).toBeLessThan(itemWriteOrder);
+      },
+    );
 
     it("reads batches in a deterministic order and runs the whole adjustment in one transaction", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
@@ -3130,8 +3436,55 @@ describe("Inventory service guards, helpers, and branch paths", () => {
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(mockOf(prisma.inventoryBatch.findMany).mock.calls[0][0]).toEqual({
-        where: { itemId: "item-1" },
-        orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+        where: {
+          itemId: "item-1",
+          OR: [{ expiryDate: null }, { expiryDate: { gt: expect.any(Date) } }],
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { id: "asc" },
+        ],
+      });
+    });
+
+    it("uses expired batches only for an explicit write-off", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "expired", quantity: 2 }),
+      ]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 3 }),
+      );
+
+      await InventoryAdjustmentService.adjustStock({
+        itemId: "item-1",
+        newOnHand: 3,
+        reason: "EXPIRED_STOCK_WRITE_OFF",
+        userId: "user-1",
+        organisationId: "org-1",
+      });
+
+      expect(mockOf(prisma.inventoryBatch.findMany).mock.calls[0][0]).toEqual({
+        where: {
+          itemId: "item-1",
+          expiryDate: { lte: expect.any(Date) },
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { id: "asc" },
+        ],
+      });
+      expect(prisma.inventoryStockMovement.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            batchId: "expired",
+            change: -2,
+            reason: "EXPIRED_STOCK_WRITE_OFF",
+            userId: "user-1",
+          }),
+        ],
       });
     });
 
@@ -3161,6 +3514,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
        * still destroyed the stock it had already drawn.
        */
       expect(prisma.inventoryBatch.update).not.toHaveBeenCalled();
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
       expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
       expect(prisma.inventoryItem.update).not.toHaveBeenCalled();
     });

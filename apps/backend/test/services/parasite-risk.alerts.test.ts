@@ -297,6 +297,56 @@ describe("refreshFollowedCells", () => {
     expect(summary.alertsSent).toBe(1);
   });
 
+  it("finishes one cell and its alerts before refreshing the next", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+      { ...subscription, id: "sub-2", parentId: "parent-2" },
+      {
+        ...subscription,
+        id: "sub-3",
+        parentId: "parent-3",
+        latBucket: 41.875,
+        lonBucket: 12.375,
+      },
+    ]);
+    const events: string[] = [];
+    let inFlight = 0;
+    let peak = 0;
+    const track = async <T>(label: string, value: T) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setImmediate(resolve));
+      events.push(label);
+      inFlight -= 1;
+      return value;
+    };
+    (refreshCell as jest.Mock).mockImplementation((latBucket: number) =>
+      track(`refresh:${latBucket}`, {
+        readings: [reading("paralysis_tick", "HIGH")],
+      }),
+    );
+    (NotificationService.sendToUser as jest.Mock).mockImplementation(
+      (parentId: string) =>
+        track(`push:${parentId}`, [{ token: "device-1", success: true }]),
+    );
+
+    const summary = await refreshFollowedCells();
+
+    expect(peak).toBe(1);
+    expect(events).toEqual([
+      "refresh:-27.375",
+      "push:parent-1",
+      "push:parent-2",
+      "refresh:41.875",
+      "push:parent-3",
+    ]);
+    expect(summary).toEqual({
+      cellsRefreshed: 2,
+      cellsFailed: 0,
+      alertsSent: 3,
+    });
+  });
+
   it("skips parents with no linked auth user rather than throwing", async () => {
     (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
       subscription,

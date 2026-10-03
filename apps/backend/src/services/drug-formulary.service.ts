@@ -159,7 +159,7 @@ export const DrugFormularyService = {
     return assertFormulary(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     category?: FormularyCategory;
     isActive?: boolean;

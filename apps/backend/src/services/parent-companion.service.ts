@@ -174,7 +174,7 @@ const loadLinkWithParent = async (record: ParentPatientRecord) => {
   return toCompanionParentLink(record, parent ?? undefined);
 };
 
-const findPrimaryLink = async (patientId: string, excludeParentId?: string) =>
+const findPrimaryLink = (patientId: string, excludeParentId?: string) =>
   prisma.parentPatient.findFirst({
     where: {
       patientId,

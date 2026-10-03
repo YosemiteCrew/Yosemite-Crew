@@ -24,6 +24,7 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     $transaction: jest.fn(),
     $executeRaw: jest.fn(),
+    $queryRaw: jest.fn(),
     appointment: { findUnique: jest.fn(), findFirst: jest.fn() },
     inventoryItem: {
       findMany: jest.fn(),
@@ -158,6 +159,7 @@ describe("InvoiceService", () => {
         typeof callback === "function" ? callback(prisma) : undefined,
     );
     (prisma.$executeRaw as jest.Mock).mockResolvedValue(1);
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -292,6 +294,16 @@ describe("InvoiceService", () => {
           entityId: "inv_counter",
           occurredAt: saleInvoice.createdAt,
         }),
+      });
+      expect(prisma.inventoryBatch.findMany).toHaveBeenCalledWith({
+        where: {
+          itemId: { in: ["item_1"] },
+          OR: [{ expiryDate: null }, { expiryDate: { gt: expect.any(Date) } }],
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { id: "asc" },
+        ],
       });
       expect(prisma.invoice.create).not.toHaveBeenCalled();
       expect(prisma.inventoryStockMovement.createMany).not.toHaveBeenCalled();
@@ -508,6 +520,18 @@ describe("InvoiceService", () => {
       const [draw, recount] = (prisma.$executeRaw as jest.Mock).mock.calls;
       expect(draw[1].values).toEqual(["batch_1", 1, "batch_2", 3]);
       expect(recount[1].values).toEqual(["item_1", "item_2"]);
+      // The items are locked, in id order, by a statement of their own after
+      // the batch draw and before the recount. A recount that waited for the
+      // row lock itself would sum the batches from its pre-wait snapshot.
+      const [lock] = (prisma.$queryRaw as jest.Mock).mock.calls;
+      expect(lock[0].join("?")).toMatch(/ORDER BY "id"\s+FOR UPDATE/);
+      expect(lock[1].values).toEqual(["item_1", "item_2"]);
+      const [drawOrder, recountOrder] = (prisma.$executeRaw as jest.Mock).mock
+        .invocationCallOrder;
+      const [lockOrder] = (prisma.$queryRaw as jest.Mock).mock
+        .invocationCallOrder;
+      expect(drawOrder).toBeLessThan(lockOrder);
+      expect(lockOrder).toBeLessThan(recountOrder);
       expect(prisma.inventoryStockMovement.createMany).toHaveBeenCalledWith({
         data: [
           expect.objectContaining({ batchId: "batch_1", change: -1 }),

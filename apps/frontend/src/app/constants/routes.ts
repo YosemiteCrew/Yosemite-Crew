@@ -106,6 +106,7 @@ export const devRoutes: RouteItem[] = [
   { name: 'Plugins', href: '/developers/plugins' },
   { name: 'Documentation', href: '/developers/documentation' },
   { name: 'API Playground', href: '/developers/playground' },
+  { name: 'MCP Playground', href: '/developers/mcp' },
 ];
 
 export const headerAppRoutes: RouteItem[] = [

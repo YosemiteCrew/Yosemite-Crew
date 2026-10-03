@@ -487,4 +487,37 @@ describe("WaitlistService.notifyOnCancellation", () => {
     expect(AuditTrailService.recordSafely).toHaveBeenCalledTimes(2);
     expect(result?.notified).toBe(2);
   });
+
+  it("offers entries first come, first served, one at a time", async () => {
+    pm.appointment.findUnique.mockResolvedValue(appointment);
+    pm.waitlistEntry.findMany.mockResolvedValue([
+      makeEntry(),
+      makeEntry({ id: "entry-2" }),
+    ]);
+    let inFlight = 0;
+    let peak = 0;
+    const offerEntry = async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setImmediate(resolve));
+      inFlight -= 1;
+      return {};
+    };
+    pm.waitlistEntry.update
+      .mockImplementationOnce(offerEntry)
+      .mockImplementationOnce(offerEntry);
+
+    await WaitlistService.notifyOnCancellation("appt-1");
+
+    expect(peak).toBe(1);
+    expect(
+      pm.waitlistEntry.update.mock.calls.map(
+        ([args]: [{ where: { id: string } }]) => args.where.id,
+      ),
+    ).toEqual(["entry-1", "entry-2"]);
+    // The first entry's audit row is written before the second is offered.
+    expect(
+      (AuditTrailService.recordSafely as jest.Mock).mock.invocationCallOrder[0],
+    ).toBeLessThan(pm.waitlistEntry.update.mock.invocationCallOrder[1]);
+  });
 });

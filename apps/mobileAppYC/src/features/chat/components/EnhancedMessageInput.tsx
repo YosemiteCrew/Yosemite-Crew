@@ -36,6 +36,7 @@ import {ALLOWED_FILE_TYPES} from '@/features/documents/constants';
 import {normalizeMimeType} from '@/shared/utils/mime';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 // Request audio recording permission (Android)
 const requestAudioPermission = async () => {
   if (Platform.OS === 'android') {
@@ -305,19 +306,19 @@ export const EnhancedMessageInput: React.FC = () => {
         {
           text: 'Photo from Gallery',
           onPress: () => {
-            pickImageFromGallery();
+            runInBackground(pickImageFromGallery());
           },
         },
         {
           text: 'Take Photo',
           onPress: () => {
-            takePhoto();
+            runInBackground(takePhoto());
           },
         },
         {
           text: 'Send File',
           onPress: () => {
-            pickDocument();
+            runInBackground(pickDocument());
           },
         },
         {

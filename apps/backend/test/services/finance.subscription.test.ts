@@ -726,6 +726,37 @@ describe("FinanceSubscriptionService", () => {
     );
   });
 
+  it("records the paid and renewed events one after the other, in that order", async () => {
+    (prisma.financeProviderLink.findMany as jest.Mock).mockResolvedValueOnce([
+      { orgId: "org_1" },
+    ]);
+    (prisma.financeProviderLink.upsert as jest.Mock).mockResolvedValue({});
+    let inFlight = 0;
+    let peak = 0;
+    (prisma.financeEvent.create as jest.Mock).mockImplementation(
+      async (args: { data: { eventType: string } }) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await Promise.resolve();
+        inFlight -= 1;
+        return { id: `event_${args.data.eventType}` };
+      },
+    );
+
+    await FinanceSubscriptionService.recordSubscriptionInvoicePaid({
+      subscriptionId: "sub_1",
+      invoiceId: "inv_1",
+    });
+
+    expect(peak).toBe(1);
+    expect(
+      (prisma.financeEvent.create as jest.Mock).mock.calls.map(
+        ([args]) => args.data.eventType,
+      ),
+    ).toEqual(["SUBSCRIPTION_INVOICE_PAID", "SUBSCRIPTION_RENEWED"]);
+    (prisma.financeEvent.create as jest.Mock).mockReset();
+  });
+
   it("covers subscription status and interval mapping branches", async () => {
     (prisma.financeProviderLink.upsert as jest.Mock).mockResolvedValue({});
     (prisma.subscriptionEntitlement.upsert as jest.Mock).mockResolvedValue({});

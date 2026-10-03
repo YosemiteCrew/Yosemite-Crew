@@ -25,6 +25,7 @@ import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { isSpeciesCompatible } from "./shared/normalize-tokens";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
+import { mapInSequence } from "src/utils/async-iteration";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -424,47 +425,60 @@ const buildTemplateDefault = (
   source,
 });
 
-const resolveTemplateDefaultsForSelection = async (args: {
+type TemplateDefaultsArgs = {
   tx: TransactionClient;
   organisationId: string;
   selection: CatalogSelection;
-}): Promise<AppointmentTemplateDefault[]> => {
-  const defaults: AppointmentTemplateDefault[] = [];
-  const bindings: CatalogTemplateBinding[] = args.selection.templateBindings
-    ?.length
-    ? args.selection.templateBindings
-    : args.selection.templateKinds.map((templateKind) => ({ templateKind }));
+};
 
-  for (const binding of bindings) {
-    if (binding.templateId) {
-      const resolvedTemplate = (await args.tx.template.findFirst({
-        where: {
-          id: binding.templateId,
-          kind: toLegacyTemplateKind(binding.templateKind),
-        },
-      })) as TemplateRow | null;
+const resolveTemplateDefaultForBinding = async (
+  args: TemplateDefaultsArgs,
+  binding: CatalogTemplateBinding,
+): Promise<AppointmentTemplateDefault | null> => {
+  if (binding.templateId) {
+    const resolvedTemplate = (await args.tx.template.findFirst({
+      where: {
+        id: binding.templateId,
+        kind: toLegacyTemplateKind(binding.templateKind),
+      },
+    })) as TemplateRow | null;
 
-      if (!resolvedTemplate) {
-        throw new AppointmentPrismaServiceError(
-          `Bound template ${binding.templateId} was not found.`,
-          404,
-        );
-      }
-
-      defaults.push(
-        buildTemplateDefault(
-          resolvedTemplate,
-          "CATALOG_BINDING",
-          binding.templateVersion ?? undefined,
-        ),
+    if (!resolvedTemplate) {
+      throw new AppointmentPrismaServiceError(
+        `Bound template ${binding.templateId} was not found.`,
+        404,
       );
-      continue;
     }
 
-    const organisationTemplate =
-      ((await args.tx.template.findFirst({
+    return buildTemplateDefault(
+      resolvedTemplate,
+      "CATALOG_BINDING",
+      binding.templateVersion ?? undefined,
+    );
+  }
+
+  const organisationTemplate =
+    ((await args.tx.template.findFirst({
+      where: {
+        organisationId: args.organisationId,
+        kind: toLegacyTemplateKind(binding.templateKind),
+        status: "PUBLISHED",
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    })) as TemplateRow | null) ??
+    ((await args.tx.template.findFirst({
+      where: {
+        organisationId: args.organisationId,
+        kind: toLegacyTemplateKind(binding.templateKind),
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    })) as TemplateRow | null);
+
+  const libraryTemplate = organisationTemplate
+    ? null
+    : (((await args.tx.template.findFirst({
         where: {
-          organisationId: args.organisationId,
+          ownership: "YC_LIBRARY",
           kind: toLegacyTemplateKind(binding.templateKind),
           status: "PUBLISHED",
         },
@@ -472,46 +486,40 @@ const resolveTemplateDefaultsForSelection = async (args: {
       })) as TemplateRow | null) ??
       ((await args.tx.template.findFirst({
         where: {
-          organisationId: args.organisationId,
+          ownership: "YC_LIBRARY",
           kind: toLegacyTemplateKind(binding.templateKind),
         },
         orderBy: [{ updatedAt: "desc" }],
-      })) as TemplateRow | null);
+      })) as TemplateRow | null));
 
-    const libraryTemplate = organisationTemplate
-      ? null
-      : (((await args.tx.template.findFirst({
-          where: {
-            ownership: "YC_LIBRARY",
-            kind: toLegacyTemplateKind(binding.templateKind),
-            status: "PUBLISHED",
-          },
-          orderBy: [{ updatedAt: "desc" }],
-        })) as TemplateRow | null) ??
-        ((await args.tx.template.findFirst({
-          where: {
-            ownership: "YC_LIBRARY",
-            kind: toLegacyTemplateKind(binding.templateKind),
-          },
-          orderBy: [{ updatedAt: "desc" }],
-        })) as TemplateRow | null));
-
-    const resolvedTemplate = organisationTemplate ?? libraryTemplate;
-    if (!resolvedTemplate) {
-      continue;
-    }
-
-    defaults.push(
-      buildTemplateDefault(
-        resolvedTemplate,
-        resolvedTemplate.ownership === "YC_LIBRARY"
-          ? "LIBRARY_DEFAULT"
-          : "ORGANISATION_DEFAULT",
-      ),
-    );
+  const resolvedTemplate = organisationTemplate ?? libraryTemplate;
+  if (!resolvedTemplate) {
+    return null;
   }
 
-  return defaults;
+  return buildTemplateDefault(
+    resolvedTemplate,
+    resolvedTemplate.ownership === "YC_LIBRARY"
+      ? "LIBRARY_DEFAULT"
+      : "ORGANISATION_DEFAULT",
+  );
+};
+
+const resolveTemplateDefaultsForSelection = async (
+  args: TemplateDefaultsArgs,
+): Promise<AppointmentTemplateDefault[]> => {
+  const bindings: CatalogTemplateBinding[] = args.selection.templateBindings
+    ?.length
+    ? args.selection.templateBindings
+    : args.selection.templateKinds.map((templateKind) => ({ templateKind }));
+
+  // Reads share the transaction client, so bindings resolve one at a time.
+  const defaults = await mapInSequence(bindings, (binding) =>
+    resolveTemplateDefaultForBinding(args, binding),
+  );
+  return defaults.filter(
+    (entry): entry is AppointmentTemplateDefault => entry !== null,
+  );
 };
 
 const attachTemplateDefaults = (
@@ -1151,6 +1159,13 @@ type BookedWindow = {
   endTime: Date;
 };
 
+type CalendarBlockWindow = {
+  targetType: "STAFF" | "ROOM";
+  targetId: string;
+  startAt: Date;
+  endAt: Date;
+};
+
 const getRoomId = (room: unknown): string | undefined => {
   const id = (room as { id?: unknown } | null)?.id;
   return typeof id === "string" && id.trim() ? id : undefined;
@@ -1193,6 +1208,48 @@ const findStaffBlockWindows = async (
   }));
 };
 
+const findCalendarBlockWindows = (
+  tx: TransactionClient,
+  organisationId: string,
+  windows: BookedWindow[],
+): Promise<CalendarBlockWindow[]> => {
+  const targets = new Map<
+    string,
+    { targetType: "STAFF" | "ROOM"; targetId: string }
+  >();
+  for (const window of windows) {
+    if (window.leadId) {
+      targets.set(`STAFF:${window.leadId}`, {
+        targetType: "STAFF",
+        targetId: window.leadId,
+      });
+    }
+    if (window.roomId) {
+      targets.set(`ROOM:${window.roomId}`, {
+        targetType: "ROOM",
+        targetId: window.roomId,
+      });
+    }
+  }
+  if (!targets.size || !windows.length) return Promise.resolve([]);
+
+  const from = new Date(
+    Math.min(...windows.map((window) => window.startTime.getTime())),
+  );
+  const to = new Date(
+    Math.max(...windows.map((window) => window.endTime.getTime())),
+  );
+  return tx.calendarBlock.findMany({
+    where: {
+      organisationId,
+      OR: [...targets.values()],
+      startAt: { lt: to },
+      endAt: { gt: from },
+    },
+    select: { targetType: true, targetId: true, startAt: true, endAt: true },
+  });
+};
+
 const sameBookedWindow = (
   a: { startTime: Date; endTime: Date },
   b: { startTime: Date; endTime: Date },
@@ -1210,10 +1267,11 @@ const assertNotCalendarBlocked = async (args: {
   organisationId: string;
   next: BookedWindow;
   previous?: BookedWindow;
+  calendarBlocks?: CalendarBlockWindow[];
 }) => {
-  const { next, previous } = args;
+  const { next, previous, calendarBlocks } = args;
   const sameWindow = previous ? sameBookedWindow(previous, next) : false;
-  const targets: Prisma.CalendarBlockWhereInput[] = [];
+  const targets: { targetType: "STAFF" | "ROOM"; targetId: string }[] = [];
   if (next.leadId && !(sameWindow && previous?.leadId === next.leadId)) {
     targets.push({ targetType: "STAFF", targetId: next.leadId });
   }
@@ -1222,15 +1280,26 @@ const assertNotCalendarBlocked = async (args: {
   }
   if (!targets.length) return;
 
-  const block = await args.tx.calendarBlock.findFirst({
-    where: {
-      organisationId: args.organisationId,
-      OR: targets,
-      startAt: { lt: next.endTime },
-      endAt: { gt: next.startTime },
-    },
-    select: { targetType: true },
-  });
+  const block = calendarBlocks
+    ? calendarBlocks.find(
+        (candidate) =>
+          targets.some(
+            (target) =>
+              target.targetType === candidate.targetType &&
+              target.targetId === candidate.targetId,
+          ) &&
+          candidate.startAt < next.endTime &&
+          candidate.endAt > next.startTime,
+      )
+    : await args.tx.calendarBlock.findFirst({
+        where: {
+          organisationId: args.organisationId,
+          OR: targets,
+          startAt: { lt: next.endTime },
+          endAt: { gt: next.startTime },
+        },
+        select: { targetType: true },
+      });
   if (block) {
     throw new AppointmentPrismaServiceError(
       block.targetType === "ROOM"
@@ -1250,6 +1319,7 @@ const upsertAppointmentOccupancy = async (args: {
   startTime: Date;
   endTime: Date;
   previous?: BookedWindow;
+  calendarBlocks?: CalendarBlockWindow[];
 }) => {
   const parsedScope = OccupancyScopeSchema.safeParse(args);
   if (!parsedScope.success) {
@@ -1274,6 +1344,7 @@ const upsertAppointmentOccupancy = async (args: {
       endTime: args.endTime,
     },
     previous: args.previous,
+    calendarBlocks: args.calendarBlocks,
   });
   await args.tx.occupancy.deleteMany({
     where: {
@@ -1843,6 +1914,7 @@ const createAppointmentOccurrence = async (args: {
   encounterId: string | undefined;
   appointmentType: ReturnType<typeof attachTemplateDefaults>;
   productItemId: string | null;
+  calendarBlocks?: CalendarBlockWindow[];
 }) => {
   const { tx, input, status, occurrence, series } = args;
   const appointment = await tx.appointment.create({
@@ -1890,6 +1962,7 @@ const createAppointmentOccurrence = async (args: {
       roomId: getRoomId(input.room),
       startTime: appointment.startTime,
       endTime: appointment.endTime,
+      calendarBlocks: args.calendarBlocks,
     });
   }
 
@@ -1969,6 +2042,15 @@ const createAppointments = async (
   const encounterId = normalizeOptionalString(input.encounterId);
   if (series) {
     validateWeeklyOccurrences(occurrences, series.timeZone);
+    if (
+      occurrences[0].startTime.getTime() !== input.startTime.getTime() ||
+      occurrences[0].endTime.getTime() !== input.endTime.getTime()
+    ) {
+      throw new AppointmentPrismaServiceError(
+        "The preview must include the selected appointment first.",
+        400,
+      );
+    }
     if (encounterId) {
       throw new AppointmentPrismaServiceError(
         "An appointment series cannot share one visit record.",
@@ -2046,6 +2128,20 @@ const createAppointments = async (
         templateDefaults,
       );
 
+      const calendarBlocks =
+        series && status === "UPCOMING"
+          ? await findCalendarBlockWindows(
+              tx,
+              input.organisationId,
+              occurrences.map((occurrence) => ({
+                leadId: input.lead?.id,
+                roomId: getRoomId(input.room),
+                startTime: occurrence.startTime,
+                endTime: occurrence.endTime,
+              })),
+            )
+          : undefined;
+
       return runInOrder(occurrences, (occurrence, index) =>
         createAppointmentOccurrence({
           tx,
@@ -2058,6 +2154,7 @@ const createAppointments = async (
           encounterId,
           appointmentType,
           productItemId: selection.productItemId,
+          calendarBlocks,
         }),
       );
     },
@@ -2387,17 +2484,7 @@ export const AppointmentPrismaService = {
     paymentCollectionMethod?: string,
     actorId?: string,
   ) {
-    validateWeeklyOccurrences(occurrences, recurrenceTimeZone);
     const input = fromAppointmentRequestDTO(dto);
-    if (
-      occurrences[0].startTime.getTime() !== input.startTime.getTime() ||
-      occurrences[0].endTime.getTime() !== input.endTime.getTime()
-    ) {
-      throw new AppointmentPrismaServiceError(
-        "The preview must include the selected appointment first.",
-        400,
-      );
-    }
     const resolvedPaymentCollectionMethod =
       resolvePaymentCollectionMethod(paymentCollectionMethod, (message) => {
         return new AppointmentPrismaServiceError(message, 400);
@@ -3038,6 +3125,19 @@ export const AppointmentPrismaService = {
           organisationId,
           dto,
         );
+        const upcoming = plan.occurrences.filter(
+          ({ row }) => row.status === "UPCOMING",
+        );
+        const calendarBlocks = await findCalendarBlockWindows(
+          tx,
+          organisationId,
+          upcoming.map((occurrence) => ({
+            leadId: occurrence.leadId,
+            roomId: getRoomId(occurrence.row.room),
+            startTime: occurrence.startTime,
+            endTime: occurrence.endTime,
+          })),
+        );
         await runInOrder(plan.occurrences, ({ row }) =>
           upsertAppointmentOccupancy({
             tx,
@@ -3058,6 +3158,7 @@ export const AppointmentPrismaService = {
               startTime: occurrence.startTime,
               endTime: occurrence.endTime,
               previous: bookedWindowOf(occurrence.row),
+              calendarBlocks,
             });
           }
           return tx.appointment.update({

@@ -17,6 +17,7 @@ import {HistoricalUploadsSection} from '@/features/passport/components/Historica
 import {fetchDocuments} from '@/features/documents/documentSlice';
 import {SUBCATEGORY_IDS} from '@/features/documents/subcategoryIds';
 import {setSelectedCompanion} from '@/features/companion';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 // The passport view only ever surfaces vet-SIGNED clinical artifacts (see
 // pet-passport.service.ts). A parent's own upload of an old paper record has
@@ -77,8 +78,8 @@ export const PassportScreen: React.FC = () => {
 
   useEffect(() => {
     if (companionId) {
-      dispatch(fetchPassport({companionId}));
-      dispatch(fetchDocuments({companionId}));
+      runInBackground(dispatch(fetchPassport({companionId})));
+      runInBackground(dispatch(fetchDocuments({companionId})));
     }
   }, [companionId, dispatch]);
 

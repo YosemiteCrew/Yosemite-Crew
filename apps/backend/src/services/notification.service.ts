@@ -5,6 +5,7 @@ import { NotificationType } from "@prisma/client";
 import logger from "src/utils/logger";
 import { NotificationPayload } from "src/utils/notificationTemplates";
 import { DeviceTokenService } from "./deviceToken.service";
+import { mapInSequence } from "../utils/async-iteration";
 import { prisma } from "src/config/prisma";
 
 // firebase-admin is used here ONLY for FCM push delivery (device messaging),
@@ -213,8 +214,6 @@ export const NotificationService = {
       return [];
     }
 
-    const results: SendResult[] = [];
-
     // One row per notification, written before the fan-out rather than inside
     // it. Inside the loop it produced one row per device, so a user with a
     // phone and a tablet saw every notification twice in the list. Awaited
@@ -243,19 +242,10 @@ export const NotificationService = {
       ? { ...options, data: { ...options?.data, notificationId } }
       : (options ?? {});
 
-    // Use for..of to handle async cleanly
-    for (const record of tokens) {
-      if (!record) continue;
-
-      const result = await this.sendToDevice(
-        record.deviceToken,
-        payload,
-        sendOptions,
-      );
-      results.push(result);
-    }
-
-    return results;
+    // One device after another.
+    return mapInSequence(tokens.filter(Boolean), (record) =>
+      this.sendToDevice(record.deviceToken, payload, sendOptions),
+    );
   },
 
   /**
@@ -269,7 +259,7 @@ export const NotificationService = {
   ): Promise<Record<string, SendResult[]>> {
     const summary: Record<string, SendResult[]> = {};
 
-    for (const userId of userIds) {
+    await mapInSequence(userIds, async (userId) => {
       try {
         summary[userId] = await this.sendToUser(userId, payload, options);
       } catch (error) {
@@ -280,14 +270,16 @@ export const NotificationService = {
         );
         summary[userId] = [{ token: "", success: false, error: message }];
       }
-    }
+    });
 
     return summary;
   },
 
-  async listNotificationsForUser(userId: string) {
+  listNotificationsForUser(userId: string) {
     if (!isNonEmptyString(userId)) {
-      throw new Error("userId is required to list notifications");
+      return Promise.reject(
+        new Error("userId is required to list notifications"),
+      );
     }
 
     return prisma.notification.findMany({

@@ -3,6 +3,7 @@ import path from "node:path";
 import { type CodeEntryMongo, type CodeSystem } from "src/models/code-entry";
 import { type MappingEquivalence } from "src/models/code-mapping";
 import { CodeService } from "src/services/code.service";
+import { mapInSequence } from "../utils/async-iteration";
 import { prisma } from "src/config/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -593,14 +594,15 @@ export const ClinicalTermsService = {
     let entriesUpserted = 0;
     let mappingsUpserted = 0;
 
-    for (const concept of concepts) {
+    await mapInSequence(concepts, async (concept) => {
       await CodeService.upsertEntry(buildEntryInput(concept));
       entriesUpserted += 1;
 
-      for (const code of concept.codes) {
+      const codes = concept.codes.flatMap((code) => {
         const targetSystem = normalizeCodeSystem(code.system);
-        if (!targetSystem) continue;
-
+        return targetSystem ? [{ code, targetSystem }] : [];
+      });
+      await mapInSequence(codes, async ({ code, targetSystem }) => {
         await CodeService.upsertMapping({
           sourceSystem: "YOSEMITECODE",
           sourceCode: concept.ycCode,
@@ -612,8 +614,8 @@ export const ClinicalTermsService = {
           active: concept.active,
         });
         mappingsUpserted += 1;
-      }
-    }
+      });
+    });
 
     return { entriesUpserted, mappingsUpserted };
   },

@@ -133,21 +133,32 @@ const AUDIT_EVENT_BY_KIND: Record<PassportRecordKind, PassportAuditEvent> = {
  * while the audit row, the owner notification and the rendered PDF all say B.
  * `ClinicalArtifact.encounterId` is a loose column with no relation, so the
  * patient is resolved through a second lookup.
+ *
+ * A record written outside an encounter carries no such hop, so the patient is
+ * taken from the artifact's own `patientId` instead (#2704). The encounter stays
+ * authoritative whenever it is present: a row whose encounter and own column
+ * disagree has had one of them tampered with, and resolving that by preference
+ * is how the wrong animal's record reaches an owner. The fallback is therefore
+ * taken only where the hop cannot answer at all, and never across organisations
+ * — the caller has already loaded the artifact scoped to its own.
  */
 const assertArtifactBelongsToPatient = async (
   encounterId: string | null,
   patientId: string,
+  artifactPatientId: string | null,
 ): Promise<void> => {
-  const encounter = encounterId
-    ? await prisma.encounter.findUnique({
-        where: { id: encounterId },
-        select: { patientId: true },
-      })
-    : null;
+  const resolvedPatientId = encounterId
+    ? ((
+        await prisma.encounter.findUnique({
+          where: { id: encounterId },
+          select: { patientId: true },
+        })
+      )?.patientId ?? null)
+    : artifactPatientId;
 
   // Same uniform 404 as a missing record: a caller must not be able to probe
   // which record ids exist in the org by comparing error codes.
-  if (encounter?.patientId !== patientId) {
+  if (!resolvedPatientId || resolvedPatientId !== patientId) {
     throw new PetClinicalRecordError("Clinical record not found.", 404);
   }
 };
@@ -164,10 +175,16 @@ const loadPassportArtifactForPatient = async <T extends object>(params: {
       organisationId: params.organisationId,
       kind: { in: [...PASSPORT_RECORD_KINDS] },
     },
-    select: { ...params.select, encounterId: true, kind: true },
+    select: {
+      ...params.select,
+      encounterId: true,
+      patientId: true,
+      kind: true,
+    },
   })) as
     | (Record<string, unknown> & {
         encounterId: string | null;
+        patientId: string | null;
         kind: PassportRecordKind;
       })
     | null;
@@ -176,7 +193,11 @@ const loadPassportArtifactForPatient = async <T extends object>(params: {
     throw new PetClinicalRecordError("Clinical record not found.", 404);
   }
 
-  await assertArtifactBelongsToPatient(artifact.encounterId, params.patientId);
+  await assertArtifactBelongsToPatient(
+    artifact.encounterId,
+    params.patientId,
+    artifact.patientId,
+  );
 
   return artifact;
 };
@@ -424,6 +445,7 @@ export const PetClinicalRecordService = {
       data: {
         organisationId: ctx.organisationId,
         encounterId: ctx.encounterId,
+        patientId: ctx.patientId,
         kind: "IMMUNIZATION",
         status: "DRAFT",
         authorId: ctx.actor.id ?? null,
@@ -491,6 +513,7 @@ export const PetClinicalRecordService = {
       data: {
         organisationId: ctx.organisationId,
         encounterId: ctx.encounterId,
+        patientId: ctx.patientId,
         kind: "PARASITE_TREATMENT",
         status: "DRAFT",
         authorId: ctx.actor.id ?? null,
@@ -543,6 +566,7 @@ export const PetClinicalRecordService = {
       data: {
         organisationId: ctx.organisationId,
         encounterId: ctx.encounterId,
+        patientId: ctx.patientId,
         kind: "RABIES_TITRATION",
         status: "DRAFT",
         authorId: ctx.actor.id ?? null,
@@ -587,6 +611,7 @@ export const PetClinicalRecordService = {
       data: {
         organisationId: ctx.organisationId,
         encounterId: ctx.encounterId,
+        patientId: ctx.patientId,
         kind: "CLINICAL_EXAM",
         status: "DRAFT",
         authorId: ctx.actor.id ?? null,
@@ -757,7 +782,11 @@ export const PetClinicalRecordService = {
     if (!artifact) {
       throw new PetClinicalRecordError("Clinical record not found.", 404);
     }
-    await assertArtifactBelongsToPatient(artifact.encounterId, patientId);
+    await assertArtifactBelongsToPatient(
+      artifact.encounterId,
+      patientId,
+      artifact.patientId,
+    );
     assertArtifactNotRevoked(artifact.status, "sent for signature");
     if (artifact.status === "SIGNED") {
       throw new PetClinicalRecordError(

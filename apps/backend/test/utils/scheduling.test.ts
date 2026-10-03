@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import {
   buildBookableWindowsForVets,
   buildCalendarPrefillMatches,
@@ -311,6 +311,153 @@ describe("scheduling utils", () => {
       ["service-b", 540, 585],
       ["service-a", 544, 570],
       ["service-b", 544, 570],
+    ]);
+  });
+
+  describe("parallel vet reads", () => {
+    const referenceDate = new Date("2999-06-21T00:00:00.000Z");
+    const windowFor = (startTime: string, endTime: string) => ({
+      date: "2999-06-21",
+      dayOfWeek: "FRIDAY",
+      windows: [{ startTime, endTime }],
+    });
+
+    it("reads vets together and keeps vet order when a later vet answers first", async () => {
+      const started: string[] = [];
+      const resolvers = new Map<
+        string,
+        (value: ReturnType<typeof windowFor>) => void
+      >();
+      const pending = buildBookableWindowsForVets({
+        organisationId: "org-1",
+        vetIds: ["vet-1", "vet-2"],
+        durationMinutes: 30,
+        referenceDate,
+        getBookableSlotsForDate: (_organisationId, vetId) => {
+          started.push(vetId);
+          return new Promise<ReturnType<typeof windowFor>>((resolve) =>
+            resolvers.set(vetId, resolve),
+          );
+        },
+      });
+
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(started).toEqual(["vet-1", "vet-2"]);
+
+      resolvers.get("vet-2")?.(windowFor("09:00", "09:30"));
+      await new Promise((resolve) => setImmediate(resolve));
+      resolvers.get("vet-1")?.(windowFor("09:00", "09:30"));
+
+      const result = await pending;
+      expect(result.windows).toHaveLength(1);
+      expect(result.windows[0]?.vetIds).toEqual(["vet-1", "vet-2"]);
+    });
+
+    it("never has more than two vet reads in flight", async () => {
+      let inFlight = 0;
+      let peak = 0;
+      const vetIds = Array.from({ length: 8 }, (_, index) => `vet-${index}`);
+
+      await buildBookableWindowsForVets({
+        organisationId: "org-1",
+        vetIds,
+        durationMinutes: 30,
+        referenceDate,
+        getBookableSlotsForDate: async () => {
+          inFlight += 1;
+          peak = Math.max(peak, inFlight);
+          await new Promise((resolve) => setImmediate(resolve));
+          inFlight -= 1;
+          return windowFor("10:00", "10:30");
+        },
+      });
+
+      expect(peak).toBe(2);
+    });
+
+    it("shares one cached read for a vet listed twice", async () => {
+      const getBookableSlotsForDate = jest.fn(async () =>
+        windowFor("11:00", "11:30"),
+      );
+
+      const result = await buildBookableWindowsForVets({
+        organisationId: "org-1",
+        vetIds: ["vet-1", "vet-1"],
+        durationMinutes: 30,
+        referenceDate,
+        slotCache: new Map(),
+        getBookableSlotsForDate,
+      });
+
+      expect(getBookableSlotsForDate).toHaveBeenCalledTimes(1);
+      expect(result.windows[0]?.vetIds).toEqual(["vet-1"]);
+    });
+
+    it("rejects with a failed read and starts no further vet after it", async () => {
+      const started: string[] = [];
+      const vetIds = Array.from({ length: 7 }, (_, index) => `vet-${index}`);
+
+      await expect(
+        buildBookableWindowsForVets({
+          organisationId: "org-1",
+          vetIds,
+          durationMinutes: 30,
+          referenceDate,
+          getBookableSlotsForDate: async (_organisationId, vetId) => {
+            started.push(vetId);
+            if (vetId === "vet-0") throw new Error("availability down");
+            await new Promise((resolve) => setImmediate(resolve));
+            return windowFor("12:00", "12:30");
+          },
+        }),
+      ).rejects.toThrow("availability down");
+
+      expect(started).toEqual(["vet-0", "vet-1"]);
+    });
+  });
+
+  it("looks up prefill windows one at a time, context by context, shift by shift", async () => {
+    const calls: string[] = [];
+    let inFlight = 0;
+    let peak = 0;
+
+    await buildCalendarPrefillMatches({
+      inputDate: new Date("2026-06-20T00:00:00.000Z"),
+      timezone: "UTC",
+      minuteOfDay: 540,
+      contexts: [
+        {
+          matchId: "service-a",
+          organisationId: "org-1",
+          durationMinutes: 30,
+          vetIds: ["vet-1"],
+        },
+        {
+          matchId: "service-b",
+          organisationId: "org-1",
+          durationMinutes: 30,
+          vetIds: ["vet-2"],
+        },
+      ],
+      utcDateShifts: [-1, 0] as const,
+      getBookableWindows: async (context, referenceDate) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        calls.push(
+          `${context.matchId}@${referenceDate.toISOString().slice(0, 10)}`,
+        );
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+        return { date: "2026-06-20", dayOfWeek: "SATURDAY", windows: [] };
+      },
+    });
+
+    expect(peak).toBe(1);
+    expect(calls).toEqual([
+      "service-a@2026-06-19",
+      "service-a@2026-06-20",
+      "service-b@2026-06-19",
+      "service-b@2026-06-20",
     ]);
   });
 });

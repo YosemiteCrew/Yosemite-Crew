@@ -1,4 +1,5 @@
 import logger from "src/utils/logger";
+import { mapInSequence, mapWithConcurrency } from "src/utils/async-iteration";
 
 /**
  * Remove the repeatable-job entries bullmq 5 left behind.
@@ -38,37 +39,34 @@ export async function pruneLegacyRepeatables(
   queue: SchedulerCapableQueue,
 ): Promise<string[]> {
   const schedulers = await queue.getJobSchedulers();
-  const removed: string[] = [];
+  const legacyKeys = (schedulers ?? [])
+    .map((scheduler) => scheduler?.key)
+    .filter(isLegacyRepeatableKey);
 
-  for (const scheduler of schedulers ?? []) {
-    const key = scheduler?.key;
-    if (!isLegacyRepeatableKey(key)) {
-      continue;
-    }
-
-    // A failure here must not stop the boot: the worst case of leaving one
-    // entry behind is a duplicate job, whereas throwing takes the API down.
-    // removeJobScheduler reports whether it actually removed anything, and a
-    // false is not an error - it means the entry was already gone - but it must
-    // not be counted as a removal either.
+  // A failure here must not stop the boot: the worst case of leaving one
+  // entry behind is a duplicate job, whereas throwing takes the API down.
+  // removeJobScheduler reports whether it actually removed anything, and a
+  // false is not an error - it means the entry was already gone - but it must
+  // not be counted as a removal either.
+  const outcomes = await mapWithConcurrency(legacyKeys, async (key) => {
     try {
       const wasRemoved = await queue.removeJobScheduler(key);
-
-      if (wasRemoved) {
-        removed.push(key);
-      } else {
+      if (!wasRemoved) {
         logger.warn(
           `Legacy repeatable ${key} on queue ${queue.name} was not removed; it may already be gone`,
         );
       }
+      return wasRemoved;
     } catch (error) {
       logger.warn(
         `Could not remove legacy repeatable ${key} on queue ${queue.name}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
+      return false;
     }
-  }
+  });
+  const removed = legacyKeys.filter((_key, index) => outcomes[index]);
 
   if (removed.length > 0) {
     logger.info(
@@ -84,11 +82,6 @@ export async function pruneLegacyRepeatables(
 export async function pruneLegacyRepeatablesAcross(
   queues: SchedulerCapableQueue[],
 ): Promise<string[]> {
-  const removed: string[] = [];
-
-  for (const queue of queues) {
-    removed.push(...(await pruneLegacyRepeatables(queue)));
-  }
-
-  return removed;
+  const removedPerQueue = await mapInSequence(queues, pruneLegacyRepeatables);
+  return removedPerQueue.flat();
 }

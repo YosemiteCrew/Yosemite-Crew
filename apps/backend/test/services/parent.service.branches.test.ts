@@ -811,7 +811,9 @@ describe("ParentService lookups", () => {
   it("looks a parent up by its legacy id", async () => {
     mockedPrisma.parent.findUnique.mockResolvedValue(record());
 
-    const result = await ParentService.findByMongoId("parent-1");
+    const lookup = ParentService.findByMongoId("parent-1");
+    expect(lookup).toBeInstanceOf(Promise);
+    const result = await lookup;
 
     expect(mockedPrisma.parent.findUnique).toHaveBeenCalledWith({
       where: { id: "parent-1" },

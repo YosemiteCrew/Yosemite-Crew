@@ -114,7 +114,7 @@ export const TreatmentOutcomeService = {
     return assertOutcome(id, organisationId);
   },
 
-  async list(params: {
+  list(params: {
     organisationId: string;
     patientId?: string;
     outcomeType?: TreatmentOutcomeType;

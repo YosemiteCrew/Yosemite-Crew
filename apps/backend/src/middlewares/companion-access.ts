@@ -207,10 +207,9 @@ export const requireCompanionPermission =
     ]?.trim();
     if (!patientId) return notFound(res);
 
-    return enforce(req, res, next, feature, async () => ({
-      kind: "patient",
-      patientId,
-    }));
+    return enforce(req, res, next, feature, () =>
+      Promise.resolve({ kind: "patient", patientId }),
+    );
   };
 
 export const requireCompanionPermissionForResource =
@@ -219,12 +218,14 @@ export const requireCompanionPermissionForResource =
     enforce(req, res, next, feature, resolve);
 
 /** For a route that names the companion in the request body as `patientId`. */
-export const resolveBodyPatient: CompanionResourceResolver = async (req) => {
+export const resolveBodyPatient: CompanionResourceResolver = (req) => {
   const patientId: unknown = (req.body as { patientId?: unknown } | undefined)
     ?.patientId;
-  return typeof patientId === "string" && patientId
-    ? { kind: "patient", patientId }
-    : { kind: "deny" };
+  return Promise.resolve(
+    typeof patientId === "string" && patientId
+      ? { kind: "patient", patientId }
+      : { kind: "deny" },
+  );
 };
 
 /**
@@ -342,13 +343,13 @@ export const readBodyPatientId = (body: unknown): unknown => {
  * (`readBodyPatientId`). Only a non-empty string names a companion; any other
  * value is refused.
  */
-export const resolveBodyPatientCompanion: CompanionResourceResolver = async (
-  req,
-) => {
+export const resolveBodyPatientCompanion: CompanionResourceResolver = (req) => {
   const patientId = readBodyPatientId(req.body);
-  return typeof patientId === "string" && patientId
-    ? { kind: "patient", patientId }
-    : { kind: "deny" };
+  return Promise.resolve(
+    typeof patientId === "string" && patientId
+      ? { kind: "patient", patientId }
+      : { kind: "deny" },
+  );
 };
 
 /**
@@ -363,13 +364,15 @@ export const readAdverseEventCompanionId = (body: unknown): unknown => {
   return patientId ?? companionId;
 };
 
-export const resolveAdverseEventCompanion: CompanionResourceResolver = async (
+export const resolveAdverseEventCompanion: CompanionResourceResolver = (
   req,
 ) => {
   const patientId = readAdverseEventCompanionId(req.body);
-  return typeof patientId === "string" && patientId
-    ? { kind: "patient", patientId }
-    : { kind: "deny" };
+  return Promise.resolve(
+    typeof patientId === "string" && patientId
+      ? { kind: "patient", patientId }
+      : { kind: "deny" },
+  );
 };
 
 /** Appointment routes: the companion the appointment is booked for. */

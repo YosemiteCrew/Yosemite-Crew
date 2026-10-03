@@ -2,6 +2,7 @@ import { type ComponentProps, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import type { UserOrganization } from '@yosemite-crew/types';
+import type { AxiosAdapter } from 'axios';
 
 import type {
   StoredCompanion,
@@ -9,6 +10,7 @@ import type {
 } from '@/app/features/companions/pages/Companions/types';
 import type { Team } from '@/app/features/organization/types/team';
 import type { Task } from '@/app/features/tasks/types/task';
+import api from '@/app/services/axios';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useParentStore } from '@/app/stores/parentStore';
@@ -76,23 +78,22 @@ const COMPANIONS: StoredCompanion[] = [
   companion('companion-kiko', 'Kiko', MARTA),
   companion('companion-kizie', 'Kizie', SKY),
   // A second pet for Marta. The dialog folds companions by parent, so this must NOT
-  // produce a second Marta chip - see the "Nothing chosen yet" story.
+  // produce a second Marta row - see the "Nothing chosen yet" story.
   companion('companion-luna', 'Luna', MARTA),
 ];
 
 /**
  * Seeds the four stores the dialog reads, rather than mocking modules.
  *
- * The chip lists are pure selectors over `teamStore` and `companionStore`; the pet
- * parent's NAME comes from `parentStore` via `useMemberMap`. None of them fetches on
+ * The assignee lists are pure selectors over `teamStore` and `companionStore`; the
+ * pet parent's NAME comes from `parentStore` via `useMemberMap`. None of them fetches on
  * read - the loaders (`useLoadTeam`, `useLoadCompanionsForPrimaryOrg`) are separate
  * hooks this dialog does not call.
  *
- * `useTaskForm` does fetch: it loads org templates and the YC library on mount. Both
- * are wrapped in `Promise.allSettled` and both failing leaves `templateOptions` empty,
- * which is exactly the shape these stories assert - so the missing backend produces a
- * real state rather than a broken one, and no request mocking is needed (this
- * Storybook has none).
+ * `useTaskForm` does fetch: it loads org templates and the YC library on mount. Left
+ * to the preview's offline 404 those requests log through `console.error` whenever
+ * they settle, which the story runner counts as a failure - so `noTemplates` below
+ * answers them with an empty list instead.
  */
 const seed = ({
   team = TEAM,
@@ -108,6 +109,23 @@ const seed = ({
   useCompanionStore.getState().setCompanionsForOrg(ORG_ID, companions);
   useParentStore.getState().setParents(parents);
 };
+
+const REAL_ADAPTER = api.defaults.adapter;
+
+/**
+ * Answers every request the app client makes with an empty list: the org has no
+ * task templates and the library is empty, which is also what a new organisation
+ * sees, so the template picker stays absent. It replaces the client's adapter
+ * rather than a browser primitive because the client sends through axios's fetch
+ * adapter, and the teardown restores the real adapter.
+ */
+const noTemplates: AxiosAdapter = async (config) => ({
+  data: [],
+  status: 200,
+  statusText: 'OK',
+  headers: { 'content-type': 'application/json' },
+  config,
+});
 
 /**
  * A completed, recurring task being duplicated - the shape the tasks page hands in
@@ -194,6 +212,27 @@ const tracks = (el: HTMLElement): string[] =>
 const gridRow = (dialog: HTMLElement, label: string): HTMLElement =>
   within(dialog).getByText(label).closest('.grid') as HTMLElement;
 
+/**
+ * Opens the "Assign to" dropdown from its closed trigger and returns the listbox.
+ *
+ * The panel portals to `document.body`, outside the dialog, and the LAST one is
+ * taken for the same reason `openDialog` takes the last dialog.
+ */
+const openAssignees = async (trigger: HTMLElement) => {
+  await userEvent.click(trigger);
+  return waitFor(() => {
+    const panels = document.querySelectorAll('[role="listbox"][aria-label="Assign to"]');
+    expect(panels.length).toBeGreaterThan(0);
+    return panels[panels.length - 1] as HTMLElement;
+  });
+};
+
+/** The visible label of every option in the assignee listbox, in order. */
+const optionLabels = (listbox: HTMLElement): string[] =>
+  within(listbox)
+    .getAllByRole('option')
+    .map((option) => (option.lastElementChild?.textContent ?? '').trim());
+
 const meta = {
   title: 'Tasks/AddTask',
   component: AddTask,
@@ -209,15 +248,17 @@ const meta = {
           '`TaskFormFields` in a layout that exists nowhere else, and a `ModalFooter`.\n\n' +
           'The **layout is unique to this caller**. `TaskFormFields` has three branches, and only ' +
           'this dialog passes `twoColumn` *and* `assigneeChips`: task name, category, then the ' +
-          'chip row, then Due date / Time / Repeat sharing a three-track row and Priority / ' +
-          'Reminder sharing a two-track one. Every other consumer gets the single-column stack. ' +
+          'assignee picker, then Due date / Time / Repeat sharing a three-track row and ' +
+          'Priority / Reminder sharing a two-track one. Every other consumer gets the single-column stack. ' +
           'Both grids are `grid-cols-1 sm:grid-cols-N`, and `sm` is a **viewport** query, not a ' +
           'container one - so they collapse when the browser narrows even though the 680px panel ' +
           'has not changed.\n\n' +
-          'The **assignee chips replace two dropdowns**. Team chips carry a violet monogram, ' +
-          'pet-parent chips a pink dot, and picking one of the latter flips `audience` to ' +
-          '`PARENT_TASK` and resolves a `companionId` behind the scenes. The pet-parent list is ' +
-          'folded by parent, so an owner with three pets still gets one chip.\n\n' +
+          'The **assignee picker replaces two dropdowns** with one searchable "Assign to" ' +
+          'dropdown, staff and pet parents under their own group headers. Staff rows carry a ' +
+          'violet monogram, pet-parent rows a pink dot, and picking one of the latter flips ' +
+          '`audience` to `PARENT_TASK` and resolves a `companionId` behind the scenes. The ' +
+          'pet-parent list is folded by parent, so an owner with three pets still gets one ' +
+          'row.\n\n' +
           'The **prefill hydration runs during render**, not in an effect: `if (showModal && ' +
           'prefill && prefill !== consumedPrefill)` sets five pieces of state and marks the ' +
           'prefill consumed. That identity comparison is load-bearing - a caller passing a freshly ' +
@@ -230,8 +271,7 @@ const meta = {
           'neither `aria-label` nor `aria-labelledby` to `Modal`, so the dialog opens **without an ' +
           'accessible name** even though "New task" is right there in the header.\n\n' +
           'No story presses Create in a state that would pass validation. `handleCreate` POSTs, ' +
-          'and this Storybook has no request mocking - the stories stop at the last frame before ' +
-          'the write.',
+          'and the stories stop at the last frame before the write.',
       },
     },
   },
@@ -243,6 +283,10 @@ const meta = {
   },
   beforeEach: () => {
     seed();
+    api.defaults.adapter = noTemplates;
+    return () => {
+      api.defaults.adapter = REAL_ADAPTER;
+    };
   },
   render: (args) => <AddTaskHarness {...args} />,
 } satisfies Meta<typeof AddTask>;
@@ -277,16 +321,25 @@ export const NewTask: Story = {
     await expect(panel.getByRole('button', { name: 'Category: Care' })).toBeInTheDocument();
     await expect(panel.getByRole('button', { name: 'Priority: Medium' })).toBeInTheDocument();
 
-    /* Three chips, not four. Two clinicians and ONE Marta - she owns two of the three
+    /* Four rows, not five. Two clinicians and ONE Marta - she owns two of the three
        seeded companions, and the dialog folds the parent list through a Map keyed on
        `parentId` precisely so an owner with several pets does not repeat. The count is
        the only thing that catches a regression there. */
-    await expect(panel.getByText('Assign to')).toBeInTheDocument();
-    await expect(panel.getByText('Dr. Elena Marsh')).toBeInTheDocument();
-    await expect(panel.getByText('Dr. Ravi Patel')).toBeInTheDocument();
-    await expect(panel.getByText('Pet parent · Marta Alvarez')).toBeInTheDocument();
-    await expect(panel.getByText('Pet parent · Sky Doe')).toBeInTheDocument();
-    await expect(panel.queryAllByRole('button', { pressed: true })).toHaveLength(0);
+    const assignTo = panel.getByRole('button', { name: 'Assign to' });
+    await expect(assignTo).toHaveTextContent('Select staff or pet parent');
+    const assignees = await openAssignees(assignTo);
+    await expect(optionLabels(assignees)).toEqual([
+      'Dr. Elena Marsh',
+      'Dr. Ravi Patel',
+      'Marta Alvarez',
+      'Sky Doe',
+    ]);
+    await expect(within(assignees).getByText('Staff')).toBeInTheDocument();
+    await expect(within(assignees).getByText('Pet parents')).toBeInTheDocument();
+    await expect(within(assignees).queryAllByRole('option', { selected: true })).toHaveLength(0);
+    // Picking nothing: a click elsewhere in the dialog closes the panel again.
+    await userEvent.click(panel.getByRole('heading', { name: 'New task' }));
+    await waitFor(() => expect(assignees).not.toBeInTheDocument());
 
     /* The two field grids, by track count AND child count. A three-track template over
        two children leaves a hole where Repeat should be, and a two-track template over
@@ -301,7 +354,7 @@ export const NewTask: Story = {
     // Different rows, not one grid found twice.
     await expect(dueRow).not.toBe(priorityRow);
 
-    /* No template picker. Both template loads fail here (there is no backend), so
+    /* No template picker. Both template loads come back empty here, so
        `templateOptions` is empty and the field is absent rather than an empty
        dropdown - which is also what a new organisation with no templates sees. */
     await expect(panel.queryByText('Load from template (optional)')).not.toBeInTheDocument();
@@ -360,10 +413,15 @@ export const Prefilled: Story = {
       panel.getByRole('button', { name: 'Due date: Mar 12, 2026, toggle calendar' })
     ).toBeInTheDocument();
 
-    // The source task's assignee arrives selected, so the chip row opens pre-answered.
-    const pressed = panel.getAllByRole('button', { pressed: true });
-    await expect(pressed).toHaveLength(1);
-    await expect(pressed[0]).toHaveTextContent('Dr. Ravi Patel');
+    // The source task's assignee arrives selected, so the picker opens pre-answered.
+    const assignTo = panel.getByRole('button', { name: 'Assign to: Dr. Ravi Patel' });
+    await expect(assignTo).toHaveTextContent('Dr. Ravi Patel');
+    const assignees = await openAssignees(assignTo);
+    const selected = within(assignees).getAllByRole('option', { selected: true });
+    await expect(selected).toHaveLength(1);
+    await expect(selected[0]).toHaveTextContent('Dr. Ravi Patel');
+    await userEvent.click(panel.getByRole('heading', { name: 'New task' }));
+    await waitFor(() => expect(assignees).not.toBeInTheDocument());
 
     /* A daily recurrence adds the End date field, and it is EMPTY: the hydration keeps
        the type but the source task's end boundary is not carried, so the duplicate
@@ -371,8 +429,10 @@ export const Prefilled: Story = {
        consequence of the scrub with a visible surface. */
     const endDate = panel.getByRole('button', { name: 'End date, toggle calendar' });
     // The accessible name is the label ALONE - a Datepicker holding a date reads
-    // "End date: Mar 12, 2026, toggle calendar" - and the value span is empty.
-    await expect(endDate.querySelector('span')).toBeEmptyDOMElement();
+    // "End date: Mar 12, 2026, toggle calendar" - and the value slot shows only the
+    // label again as a faint placeholder, with no date in it.
+    await expect((endDate.querySelector('span')?.textContent ?? '').trim()).toBe('End date');
+    await expect(endDate.querySelector('span')).toHaveClass('text-[var(--ink-faint)]');
 
     /* The rest of the scrub is invisible by design and cannot be asserted from the
        DOM: `_id`, `appointmentId`, `completedAt`, `completedBy`, `calendarEventId` are
@@ -415,14 +475,20 @@ export const PrefillIsConsumedOnce: Story = {
     await expect(name).toHaveValue('Wound check - day 3');
 
     // A second, unrelated field change re-renders again and still does not reset it.
-    await userEvent.click(panel.getByText('Pet parent · Sky Doe'));
+    const assignees = await openAssignees(
+      panel.getByRole('button', { name: 'Assign to: Dr. Ravi Patel' })
+    );
+    await userEvent.click(within(assignees).getByText('Sky Doe'));
     await expect(name).toHaveValue('Wound check - day 3');
 
-    /* And the chip click did land, flipping the task from the prefilled employee
-       assignment to a parent task - one chip pressed, and it is not Ravi's. */
-    const pressed = panel.getAllByRole('button', { pressed: true });
-    await expect(pressed).toHaveLength(1);
-    await expect(pressed[0]).toHaveTextContent('Pet parent · Sky Doe');
+    /* And the pick did land, flipping the task from the prefilled employee
+       assignment to a parent task - the trigger names Sky, not Ravi. */
+    await expect(
+      panel.getByRole('button', { name: 'Assign to: Sky Doe (pet parent)' })
+    ).toHaveTextContent('Sky Doe');
+    await expect(
+      panel.queryByRole('button', { name: /^Assign to: Dr\. Ravi Patel/ })
+    ).not.toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -445,8 +511,8 @@ export const CreateWithoutAnAssignee: Story = {
     await userEvent.click(panel.getByRole('button', { name: 'Create task' }));
 
     /* `validateTaskForm` rejects, so nothing is POSTed and the dialog stays open. Two
-       errors land in two different places: one on the name field, one under the chip
-       row several rows further down. Neither moves focus, and the button that was
+       errors land in two different places: one on the name field, one under the
+       assignee picker several rows further down. Neither moves focus, and the button that was
        pressed is at the bottom of a scrolling body - so on a short window the reader
        can press Create and see nothing change at all. */
     expect(await panel.findByText('Please select a companion or staff')).toBeInTheDocument();
@@ -482,16 +548,16 @@ export const NoAssigneesToPick: Story = {
     const dialog = await openDialog(canvasElement);
     const panel = within(dialog);
 
-    /* No colleagues invited and no pet parents yet, so the chip row collapses to one
-       faint line. The whole row is REPLACED, not emptied: `hasOptions` is false and
+    /* No colleagues invited and no pet parents yet, so the assignee picker collapses to
+       one faint line. The whole row is REPLACED, not emptied: `hasOptions` is false and
        the ternary renders the sentence instead of the flex box, so there is nothing
        selectable between the "Assign to" label and the Due date row. Counted rather
        than eyeballed - an empty flex row and a replaced one look identical. */
     await expect(panel.getByText('Assign to')).toBeInTheDocument();
     await expect(panel.getByText('No assignees available yet.')).toBeInTheDocument();
-    await expect(panel.queryByText('Pet parent · Marta Alvarez')).not.toBeInTheDocument();
-    await expect(panel.queryByText(/^Pet parent · /)).not.toBeInTheDocument();
-    await expect(panel.queryByText('Dr. Elena Marsh')).not.toBeInTheDocument();
+    // No trigger at all, so there is no empty dropdown to open.
+    await expect(panel.queryByRole('button', { name: /^Assign to/ })).not.toBeInTheDocument();
+    await expect(panel.queryByText('Select staff or pet parent')).not.toBeInTheDocument();
 
     /* The rest of the dialog is untouched, which is the part worth pinning: the two
        field grids keep their three-track and two-track templates and all six fields,
@@ -530,28 +596,30 @@ export const UnknownPetParent: Story = {
     const panel = within(dialog);
 
     /* `resolveMemberName` returns '-' for an unknown id and the dialog falls back to
-       `companion.name` - so the chip reads the PET's name behind a "Pet parent"
-       prefix. It is a plausible-looking chip that names the wrong species. Asserted
-       because it is silent: nothing about this frame suggests a lookup failed. */
-    await expect(panel.getByText('Pet parent · Kiko')).toBeInTheDocument();
-    await expect(panel.queryByText('Pet parent · Marta Alvarez')).not.toBeInTheDocument();
+       `companion.name` - so the row under "Pet parents" reads the PET's name. It is a
+       plausible-looking row that names the wrong species. Asserted because it is
+       silent: nothing about this frame suggests a lookup failed. */
+    const assignees = await openAssignees(panel.getByRole('button', { name: 'Assign to' }));
+    const parentGroup = within(assignees).getByRole('group', { name: 'Pet parents' });
 
-    /* ONE parent chip, not zero and not two: the fold still keys on `parentId`, so a
+    /* ONE parent row, not zero and not two: the fold still keys on `parentId`, so a
        missing parent record loses the name without losing the row. Counted because
-       the two other plausible regressions - dropping the chip entirely, or emitting
-       one chip per companion - both leave a frame that reads as reasonable. */
-    await expect(panel.getAllByText(/^Pet parent · /)).toHaveLength(1);
-    // The team chips are unaffected: the failed lookup is in the companion fold, and
-    // it does not take the rest of the row with it.
-    await expect(panel.getByText('Dr. Elena Marsh')).toBeInTheDocument();
-    await expect(panel.getByText('Dr. Ravi Patel')).toBeInTheDocument();
-    // And nothing is selected, so the reader can still pick the mislabelled chip -
+       the two other plausible regressions - dropping the row entirely, or emitting
+       one row per companion - both leave a frame that reads as reasonable. */
+    await expect(optionLabels(parentGroup)).toEqual(['Kiko']);
+    // The staff rows are unaffected: the failed lookup is in the companion fold, and
+    // it does not take the rest of the list with it.
+    await expect(optionLabels(within(assignees).getByRole('group', { name: 'Staff' }))).toEqual([
+      'Dr. Elena Marsh',
+      'Dr. Ravi Patel',
+    ]);
+    // And nothing is selected, so the reader can still pick the mislabelled row -
     // which assigns the task to Marta under Kiko's name.
-    await expect(panel.queryAllByRole('button', { pressed: true })).toHaveLength(0);
-    await userEvent.click(panel.getByText('Pet parent · Kiko'));
-    const pressed = panel.getAllByRole('button', { pressed: true });
-    await expect(pressed).toHaveLength(1);
-    await expect(pressed[0]).toHaveTextContent('Pet parent · Kiko');
+    await expect(within(assignees).queryAllByRole('option', { selected: true })).toHaveLength(0);
+    await userEvent.click(within(parentGroup).getByRole('option'));
+    await expect(
+      panel.getByRole('button', { name: 'Assign to: Kiko (pet parent)' })
+    ).toHaveTextContent('Kiko');
   },
   parameters: {
     docs: {
@@ -615,8 +683,8 @@ export const Phone: Story = {
         story:
           'At 375px the centered dialog re-forms into a bottom sheet with a grabber, and the ' +
           'three-across Due date / Time / Repeat row becomes three full-width fields. The dialog ' +
-          'is long here - eight fields plus the chip row - so the footer is reached by scrolling ' +
-          'the sheet body rather than by the sheet growing.',
+          'is long here - eight fields plus the assignee picker - so the footer is reached by ' +
+          'scrolling the sheet body rather than by the sheet growing.',
       },
     },
   },

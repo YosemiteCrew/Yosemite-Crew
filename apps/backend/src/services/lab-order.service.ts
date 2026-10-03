@@ -215,6 +215,59 @@ const maybeBillSubmittedOrder = async (order: LabOrder) => {
   }
 };
 
+type ListOrdersParams = {
+  organisationId: string;
+  appointmentId?: string;
+  patientId?: string;
+  provider?: string;
+  status?: LabOrderStatus;
+  limit?: number;
+};
+
+const buildListOrdersSearch = (params: ListOrdersParams) => {
+  const { organisationId, appointmentId, patientId, provider, status, limit } =
+    params;
+
+  const safeOrganisationId = ensureNonEmptyString(
+    organisationId,
+    "organisationId",
+  );
+  const safeAppointmentId = ensureOptionalString(
+    appointmentId,
+    "appointmentId",
+  );
+  const safeCompanionId = ensureOptionalString(patientId, "patientId");
+  const safeProvider = ensureOptionalString(provider, "provider");
+  const safeStatus = ensureOptionalStatus(status);
+  // An omitted limit used to mean `take: undefined`, i.e. every lab order the
+  // organisation has ever had -- patient names, test names, notes and result
+  // URLs -- shipped to the browser for a caller that only wanted the latest
+  // few. An unfiltered search now returns a page, and an explicit limit is
+  // capped so a caller cannot ask for the whole table either.
+  const take = Math.min(
+    typeof limit === "number" && Number.isFinite(limit) && limit > 0
+      ? Math.floor(limit)
+      : DEFAULT_LAB_ORDER_SEARCH_LIMIT,
+    MAX_LAB_ORDER_SEARCH_LIMIT,
+  );
+
+  const where: Prisma.LabOrderWhereInput = {
+    organisationId: safeOrganisationId,
+  };
+  if (safeAppointmentId) where.appointmentId = safeAppointmentId;
+  if (safeCompanionId) where.patientId = safeCompanionId;
+  if (safeProvider) {
+    const normalized = normalizeLabProvider(safeProvider);
+    if (!normalized) {
+      throw new LabOrderServiceError("Unsupported lab provider.", 400);
+    }
+    where.provider = normalized;
+  }
+  if (safeStatus) where.status = safeStatus;
+
+  return { where, take };
+};
+
 export const LabOrderService = {
   async listProviderTests(
     providerInput: string,
@@ -600,64 +653,15 @@ export const LabOrderService = {
     return updated;
   },
 
-  async listOrders(params: {
-    organisationId: string;
-    appointmentId?: string;
-    patientId?: string;
-    provider?: string;
-    status?: LabOrderStatus;
-    limit?: number;
-  }) {
-    const {
-      organisationId,
-      appointmentId,
-      patientId,
-      provider,
-      status,
-      limit,
-    } = params;
-
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
-    const safeAppointmentId = ensureOptionalString(
-      appointmentId,
-      "appointmentId",
-    );
-    const safeCompanionId = ensureOptionalString(patientId, "patientId");
-    const safeProvider = ensureOptionalString(provider, "provider");
-    const safeStatus = ensureOptionalStatus(status);
-    // An omitted limit used to mean `take: undefined`, i.e. every lab order the
-    // organisation has ever had -- patient names, test names, notes and result
-    // URLs -- shipped to the browser for a caller that only wanted the latest
-    // few. An unfiltered search now returns a page, and an explicit limit is
-    // capped so a caller cannot ask for the whole table either.
-    const safeLimit = Math.min(
-      typeof limit === "number" && Number.isFinite(limit) && limit > 0
-        ? Math.floor(limit)
-        : DEFAULT_LAB_ORDER_SEARCH_LIMIT,
-      MAX_LAB_ORDER_SEARCH_LIMIT,
-    );
-
-    const where: Prisma.LabOrderWhereInput = {
-      organisationId: safeOrganisationId,
-    };
-    if (safeAppointmentId) where.appointmentId = safeAppointmentId;
-    if (safeCompanionId) where.patientId = safeCompanionId;
-    if (safeProvider) {
-      const normalized = normalizeLabProvider(safeProvider);
-      if (!normalized) {
-        throw new LabOrderServiceError("Unsupported lab provider.", 400);
-      }
-      where.provider = normalized;
-    }
-    if (safeStatus) where.status = safeStatus;
-
-    return prisma.labOrder.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: safeLimit,
+  listOrders(params: ListOrdersParams): Promise<LabOrder[]> {
+    // Validated inside the chain so invalid filters reject instead of throwing.
+    return Promise.resolve(params).then((input) => {
+      const { where, take } = buildListOrdersSearch(input);
+      return prisma.labOrder.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take,
+      });
     });
   },
 };

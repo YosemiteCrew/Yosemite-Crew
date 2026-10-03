@@ -51,7 +51,7 @@ export interface LabelPrintResult {
 }
 
 export interface LabelPrintService {
-  printLabels: (labels: LabelSpec[]) => Promise<LabelPrintResult[]>;
+  printLabels: (labels: LabelSpec[]) => LabelPrintResult[];
   getSupportedLabelTypes: () => string[];
   getStatus: () => { printerAvailable: boolean; printerName?: string };
 }
@@ -111,7 +111,7 @@ export const createLabelPrintService = (
 
   updatePrinterStatus();
 
-  const printLabels = async (labels: LabelSpec[]): Promise<LabelPrintResult[]> => {
+  const printLabels = (labels: LabelSpec[]): LabelPrintResult[] => {
     const results: LabelPrintResult[] = [];
     for (const label of labels) {
       // Cryptographically-random suffix (Math.random is flagged as weak crypto).

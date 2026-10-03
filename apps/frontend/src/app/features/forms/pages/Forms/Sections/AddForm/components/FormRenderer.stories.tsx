@@ -541,11 +541,14 @@ export const LabelFallbacks: Story = {
     /* A child whose label equals its parent group's is blanked, so the words are
        not stacked twice. The input keeps its position and its value binding and
        loses only its caption - which means the group title is now the only thing
-       naming it, and the input's accessible name is the empty string. */
+       naming it, and the input's accessible name is the empty string. Measured
+       as the computed name rather than one attribute: the canonical field names
+       its input through a `<label for>`, not `aria-label`, and the empty label
+       and the label-derived placeholder both come out blank. */
     const group = canvas.getByText('Medication').parentElement as HTMLElement;
     await expect(within(group).getAllByText('Medication')).toHaveLength(1);
     const nested = group.querySelector('input[type="text"]') as HTMLInputElement;
-    await expect(nested.getAttribute('aria-label')).toBe('');
+    await expect(nested).toHaveAccessibleName('');
   },
   parameters: {
     docs: {

@@ -55,7 +55,7 @@ const isUsableFallback = (cell: ParasiteRiskCell, now: number): boolean =>
   now - cell.computedAt.getTime() < MAX_STALE_CACHE_AGE_MS;
 
 /** Remove cache rows that cannot be served by the current model. */
-export async function cleanupCachedCells(): Promise<number> {
+export function cleanupCachedCells(): Promise<number> {
   const cutoff = new Date(Date.now() - MAX_STALE_CACHE_AGE_MS);
   return prisma.$executeRaw`
     DELETE FROM "ParasiteRiskCell"

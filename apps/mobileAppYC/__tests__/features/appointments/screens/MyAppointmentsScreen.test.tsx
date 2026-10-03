@@ -413,6 +413,28 @@ describe('MyAppointmentsScreen', () => {
     });
   });
 
+  it('loads completed appointment feedback with one batch call', () => {
+    const secondCompletedAppointment = {
+      ...mockPastData[0],
+      id: 'apt-past-2',
+    };
+    store = mockStore({
+      ...store.getState(),
+      appointments: {
+        ...store.getState().appointments,
+        pastOverride: [...mockPastData, secondCompletedAppointment],
+      },
+    });
+
+    renderScreen();
+
+    expect(mockFetchFeedbackWorker).toHaveBeenCalledTimes(1);
+    expect(mockFetchFeedbackWorker).toHaveBeenCalledWith([
+      'apt-past-1',
+      'apt-past-2',
+    ]);
+  });
+
   it('handles navigation to Add Business screen via Header button', () => {
     renderScreen();
     const addBtn = screen.getByTestId('header-right-btn');
@@ -461,6 +483,44 @@ describe('MyAppointmentsScreen', () => {
       const dirBtns = screen.getAllByTestId('btn-directions');
       fireEvent.press(dirBtns[2]);
       expect(openMapsToAddress).toHaveBeenCalledWith('456 Rd');
+    });
+  });
+
+  describe('Background failures', () => {
+    it('logs when the maps app cannot be opened', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      (openMapsToAddress as jest.Mock).mockRejectedValueOnce(
+        new Error('no maps app'),
+      );
+      renderScreen();
+
+      fireEvent.press(screen.getAllByTestId('btn-directions')[2]);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: no maps app'),
+      );
+      warnSpy.mockRestore();
+    });
+
+    it('logs when a check-in fails unexpectedly', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockHandleCheckIn.mockRejectedValueOnce(new Error('check-in crashed'));
+      renderScreen();
+
+      fireEvent.press(screen.getAllByTestId('btn-checkin')[0]);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Background] Task failed',
+        expect.stringContaining('Error: check-in crashed'),
+      );
+      warnSpy.mockRestore();
     });
   });
 

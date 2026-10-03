@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import type { AxiosAdapter } from 'axios';
 import type { Organisation } from '@yosemite-crew/types';
+
+import api, { clearInFlightGetRequests } from '@/app/services/axios';
 
 import type { SpecialityRevamp } from '@/app/features/organization/types/revamp';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -70,7 +73,18 @@ type SeedOptions = {
  * The catalog loaders are replaced rather than stubbed at the network: the page
  * calls `loadOrganisationCatalog` on mount and an open accordion calls
  * `loadSpecialityCatalog`, and both are read off the store on every render.
+ *
+ * The fast path only skips the guard's CHECK. Its eleven org-scoped loaders
+ * (billing, specialities, team, rooms, appointments, invoices, tasks, documents,
+ * forms, integrations, inventory) still fire on mount, and offline each one is
+ * refused with a 404. Some of those rejections are not caught on the way up, and
+ * Storybook fails the running play function on an unhandled rejection - which
+ * story it lands on depends on timing. So the shared axios instance is held
+ * instead: every request stays pending, no loader settles, and none of them can
+ * overwrite a seeded store or reject into a play function.
  */
+const holdEveryRequest: AxiosAdapter = () => new Promise<never>(() => {});
+
 const seed =
   ({ specialities = ALL, status = 'ready', query = '', withOrg = true }: SeedOptions = {}) =>
   () => {
@@ -79,9 +93,15 @@ const seed =
     const catalogSnapshot = useRevampCatalogStore.getState();
     const searchSnapshot = useSearchStore.getState();
 
+    const originalAdapter = api.defaults.adapter;
+
     loadOrganisationCatalog.mockClear();
     loadSpecialityCatalog.mockClear();
     globalThis.sessionStorage.setItem(ORG_GUARD_KEY, '1');
+    /* `getData` shares an in-flight GET by endpoint, so a request held open by
+       an earlier story would be handed to this one. */
+    clearInFlightGetRequests();
+    api.defaults.adapter = holdEveryRequest;
 
     useAuthStore.setState({ status: 'authenticated' });
     useOrgStore.setState({
@@ -104,6 +124,8 @@ const seed =
     useSearchStore.setState({ query });
 
     return () => {
+      api.defaults.adapter = originalAdapter;
+      clearInFlightGetRequests();
       globalThis.sessionStorage.removeItem(ORG_GUARD_KEY);
       useAuthStore.setState(authSnapshot);
       useOrgStore.setState(orgSnapshot);
@@ -209,8 +231,10 @@ export const List: Story = {
     await expect(accordion(canvasElement, 'Oncology')).toHaveAttribute('aria-expanded', 'false');
     await expect(accordion(canvasElement, 'Cardiology')).toHaveAttribute('aria-expanded', 'false');
 
-    // The page asks for the catalog once, for the primary org.
-    await expect(loadOrganisationCatalog).toHaveBeenCalledWith(ORG_ID);
+    // The page asks for the catalog once, for the primary org. The request is
+    // made from an effect, which a production React build may flush after the
+    // first paint, so the call is awaited rather than read on that frame.
+    await waitFor(() => expect(loadOrganisationCatalog).toHaveBeenCalledWith(ORG_ID));
 
     // One add action while there are rows: the header's. The empty card's second
     // one only exists when the list is empty.

@@ -150,7 +150,7 @@ export const PocLabService = {
     return assertRecord(id, organisationId);
   },
 
-  async list(params: ListPocLabParams) {
+  list(params: ListPocLabParams) {
     const { organisationId, patientId, encounterId, testType } = params;
     return prisma.pointOfCareLab.findMany({
       where: {

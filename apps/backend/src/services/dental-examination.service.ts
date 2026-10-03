@@ -171,7 +171,7 @@ export const DentalExaminationService = {
     return assertExam(id, organisationId);
   },
 
-  async list(params: ListDentalExamParams) {
+  list(params: ListDentalExamParams) {
     const { organisationId, patientId, encounterId } = params;
     return prisma.dentalExamination.findMany({
       where: {

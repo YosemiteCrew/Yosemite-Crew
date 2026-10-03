@@ -14,6 +14,7 @@ import {
   isTrustedStoreUrl,
   type AppUpdatePrompt,
 } from '@/features/appUpdate/services/appUpdatePolicy';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 export type AppUpdateBottomSheetRef = {
   open: () => void;
@@ -179,7 +180,7 @@ const AppUpdateBottomSheet = ({
         <PrimaryActionButton
           title={t('appUpdate.updateNowButton')}
           onPress={() => {
-            handleOpenStore();
+            runInBackground(handleOpenStore());
           }}
           disabled={isRequired && !prompt.storeUrl}
         />

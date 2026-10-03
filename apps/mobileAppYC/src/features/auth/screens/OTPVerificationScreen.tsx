@@ -41,6 +41,7 @@ import {
 import {storeTokens} from '@/features/auth/services/tokenStorage';
 import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
 import {DEMO_API_MODE_KEY} from '@/features/auth/sessionManager';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 // SuperTokens USER_INPUT_CODE emails deliver a 6-digit code.
 const DEFAULT_OTP_LENGTH = 6;
@@ -137,7 +138,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     // length, and firing at the length of the app's embedded copy submitted a
     // truncated prefix of anything longer.
     if (!isDemoLogin && value.length === expectedLength && !isVerifying) {
-      verifyOtpCode(value);
+      runInBackground(verifyOtpCode(value));
     }
   };
 
@@ -325,7 +326,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
       });
     };
 
-    resetFlow();
+    runInBackground(resetFlow());
   }, [navigation]);
 
   useEffect(() => {

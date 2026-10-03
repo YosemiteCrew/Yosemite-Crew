@@ -120,6 +120,29 @@ describe("QolAssessmentService.list", () => {
   });
 });
 
+describe("QolAssessmentService.trend", () => {
+  it("returns the oldest assessments first, capped at the default limit", async () => {
+    mockFindMany.mockResolvedValue([baseAssessment]);
+    const result = await QolAssessmentService.trend("pat-1", "org-1");
+    expect(result).toEqual([baseAssessment]);
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { patientId: "pat-1", organisationId: "org-1" },
+        orderBy: { assessedAt: "asc" },
+        take: 20,
+      }),
+    );
+  });
+
+  it("honours an explicit limit", async () => {
+    mockFindMany.mockResolvedValue([]);
+    await QolAssessmentService.trend("pat-1", "org-1", 5);
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 5 }),
+    );
+  });
+});
+
 describe("QolAssessmentService.update", () => {
   it("updates scores after recheck", async () => {
     const updated = { ...baseAssessment, hhhhhmmScore: 35, overallScore: 38 };

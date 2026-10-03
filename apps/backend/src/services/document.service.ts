@@ -16,6 +16,7 @@ import { filterUserIdsInOrganisation } from "./shared/organisation-membership";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 import { resolveInstanceSigner } from "./client-signature.helpers";
+import { mapInSequence } from "src/utils/async-iteration";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -1246,9 +1247,10 @@ export const DocumentService = {
 
     const keys = doc.attachments.map(({ key }) => key);
     const inUse = await findKeysInUse(keys, doc.patientId, doc.id);
-    for (const key of keys) {
-      if (!inUse.has(key)) await deleteFromS3(key);
-    }
+    await mapInSequence(
+      keys.filter((key) => !inUse.has(key)),
+      (key) => deleteFromS3(key),
+    );
 
     await prisma.$transaction(async (tx) => {
       await tx.documentAttachment.deleteMany({

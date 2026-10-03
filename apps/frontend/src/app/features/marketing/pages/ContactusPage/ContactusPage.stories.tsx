@@ -223,11 +223,8 @@ export const InvalidEmail: Story = {
 export const BlankAfterTrim: Story = {
   name: 'Field validation (whitespace only)',
   play: async ({ canvasElement }) => {
-    const canvas = await fill(canvasElement, {
-      name: '   ',
-      email: 'lena@example.test',
-      message: '  ',
-    });
+    const draft: Draft = { name: '   ', email: 'lena@example.test', message: '  ' };
+    const canvas = await fill(canvasElement, draft);
 
     /* Whitespace is truthy, so `computeSubmitDisabled` unlocks the button (the
        wait inside `fill` is what proves that) on a draft `validateContactForm`
@@ -239,13 +236,16 @@ export const BlankAfterTrim: Story = {
     const messageError = canvas.getByText('Message is required');
     await expect(messageError).toBeInTheDocument();
     const name = canvas.getByLabelText('Full Name');
-    const message = canvas.getByLabelText('Your Message');
+    // 'Your Message' is the textarea's placeholder; its accessible name is the
+    // `aria-label` the draft was typed into above.
+    const message = canvas.getByLabelText('Request details');
     await expect(name).toHaveAttribute('aria-invalid', 'true');
     await expect(name.getAttribute('aria-describedby')).toContain(nameError.id);
     await expect(message).toHaveAttribute('aria-invalid', 'true');
     await expect(message.getAttribute('aria-describedby')).toContain(messageError.id);
     await expect(message.getAttribute('aria-describedby')).toContain(
-      canvas.getByText(`1 of ${CONTACT_MESSAGE_MAX_LENGTH} characters`).id
+      // The counter counts what was typed, whitespace included: two spaces, not one.
+      canvas.getByText(`${draft.message.length} of ${CONTACT_MESSAGE_MAX_LENGTH} characters`).id
     );
     await expect(canvas.queryByText('Invalid email address')).not.toBeInTheDocument();
   },

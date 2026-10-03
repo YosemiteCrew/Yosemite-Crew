@@ -221,6 +221,30 @@ describe('DocumentSearchScreen', () => {
     expect(getByTestId('recent-search-rabies')).toBeTruthy();
   });
 
+  it('logs a failed search instead of leaving it unhandled', async () => {
+    setupStore();
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDispatch.mockImplementation((action: {type?: string}) =>
+      action?.type === 'documents/search'
+        ? Promise.reject(new Error('search failed'))
+        : undefined,
+    );
+    const {getByTestId} = render(<DocumentSearchScreen />);
+
+    type(getByTestId, 'rabies');
+    fireEvent.press(getByTestId('search-submit'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Background] Task failed',
+      expect.stringContaining('Error: search failed'),
+    );
+    mockDispatch.mockReset();
+    warnSpy.mockRestore();
+  });
+
   it('fills the query from a recent-search chip', () => {
     setupStore();
     const {getByTestId} = render(<DocumentSearchScreen />);

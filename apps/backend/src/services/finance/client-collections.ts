@@ -49,8 +49,8 @@ export const calculateInvoiceDueAt = (
   moment
     .tz(finalizedAt, timeZone)
     .startOf("day")
-    .add(netDays + 1, "days")
-    .subtract(1, "millisecond")
+    .add(netDays, "days")
+    .endOf("day")
     .toDate();
 
 const toPracticeDate = (instant: Date, timeZone: string) =>

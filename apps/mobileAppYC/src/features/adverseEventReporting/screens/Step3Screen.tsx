@@ -9,6 +9,7 @@ import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
 import {AERBusinessSelectCard} from '@/features/adverseEventReporting/components/AERBusinessSelectCard';
 import type {AdverseEventStackParamList} from '@/navigation/types';
 import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step3'>;
 
@@ -26,7 +27,9 @@ export const Step3Screen: React.FC<Props> = ({navigation}) => {
   // is about, so they are loaded for it rather than reused from another pet.
   useEffect(() => {
     if (companionId) {
-      dispatch(fetchLinkedBusinesses({companionId, category: 'hospital'}));
+      runInBackground(
+        dispatch(fetchLinkedBusinesses({companionId, category: 'hospital'})),
+      );
     }
   }, [companionId, dispatch]);
 

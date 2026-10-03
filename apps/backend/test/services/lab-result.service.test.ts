@@ -74,6 +74,27 @@ describe("LabResultService", () => {
     expect(results).toEqual([{ resultId: "RESULT-2" }]);
   });
 
+  it("lists without a patient filter when no patient is given", async () => {
+    prismaMock.labResult.findMany.mockResolvedValue([]);
+
+    await LabResultService.list({ organisationId: "ORG-1", limit: 2.7 });
+
+    expect(prismaMock.labOrder.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.labResult.findMany).toHaveBeenCalledWith({
+      where: { organisationId: "ORG-1" },
+      orderBy: { updatedAt: "desc" },
+      take: 2,
+    });
+  });
+
+  it("rejects a blank patient id without querying", async () => {
+    await expect(
+      LabResultService.list({ organisationId: "ORG-1", patientId: "   " }),
+    ).rejects.toMatchObject({ statusCode: 400, message: "Invalid patientId" });
+    expect(prismaMock.labOrder.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.labResult.findMany).not.toHaveBeenCalled();
+  });
+
   it("gets a result by id through prisma", async () => {
     prismaMock.labResult.findFirst.mockResolvedValue({
       resultId: "RESULT-2",
@@ -94,4 +115,22 @@ describe("LabResultService", () => {
     });
     expect(result).toEqual({ resultId: "RESULT-2" });
   });
+
+  it.each([
+    ["organisationId", ["  ", "IDEXX", "RESULT-2"]],
+    ["provider", ["ORG-1", "", "RESULT-2"]],
+    ["resultId", ["ORG-1", "IDEXX", "   "]],
+  ] as const)(
+    "rejects a blank %s without querying",
+    async (_field, [organisationId, provider, resultId]) => {
+      await expect(
+        LabResultService.getByResultId(organisationId, provider, resultId),
+      ).rejects.toMatchObject({
+        name: "LabResultServiceError",
+        statusCode: 400,
+        message: "Invalid organisationId, provider or resultId",
+      });
+      expect(prismaMock.labResult.findFirst).not.toHaveBeenCalled();
+    },
+  );
 });

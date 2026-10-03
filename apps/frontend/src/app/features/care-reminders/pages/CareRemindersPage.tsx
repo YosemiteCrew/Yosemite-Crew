@@ -43,7 +43,7 @@ const scheduleButtonLabel = (saving: boolean, count: number) => {
   return count === 1 ? 'Schedule 1 reminder' : `Schedule ${count || ''} reminders`;
 };
 
-export const CareRemindersPage = () => {
+const useCareRemindersPage = () => {
   const organisationId = useOrgStore((state) => state.primaryOrgId);
   const companionIds = useCompanionStore((state) =>
     organisationId
@@ -144,6 +144,225 @@ export const CareRemindersPage = () => {
     [companions]
   );
 
+  return {
+    organisationId,
+    companions,
+    reminders,
+    loading,
+    selectedIds,
+    setSelectedIds,
+    reminderType,
+    setReminderType,
+    dueDate,
+    setDueDate,
+    sendAt,
+    setSendAt,
+    saving,
+    sendingId,
+    error,
+    setError,
+    notice,
+    refresh,
+    submit,
+    sendNow,
+    namesById,
+  };
+};
+
+type CareRemindersPageState = ReturnType<typeof useCareRemindersPage>;
+
+const CareReminderScheduleSection = ({
+  companions,
+  selectedIds,
+  setSelectedIds,
+  reminderType,
+  setReminderType,
+  dueDate,
+  setDueDate,
+  sendAt,
+  setSendAt,
+  saving,
+  submit,
+  namesById,
+}: Pick<
+  CareRemindersPageState,
+  | 'companions'
+  | 'selectedIds'
+  | 'setSelectedIds'
+  | 'reminderType'
+  | 'setReminderType'
+  | 'dueDate'
+  | 'setDueDate'
+  | 'sendAt'
+  | 'setSendAt'
+  | 'saving'
+  | 'submit'
+  | 'namesById'
+>) => (
+  <section
+    className="rounded-2xl border border-[var(--color-neutral-200)] bg-[var(--color-surface-card)] p-5 shadow-sm sm:p-6"
+    aria-labelledby="schedule-heading"
+  >
+    <h2 id="schedule-heading" className="font-heading text-xl font-medium">
+      Schedule care
+    </h2>
+    <p className="mb-5 mt-1 text-sm text-[var(--color-neutral-600)]">
+      Choose companions and review the recipient list before saving.
+    </p>
+    <PermissionGate
+      anyOf={[PERMISSIONS.APPOINTMENTS_EDIT_ANY]}
+      fallback={
+        <p className="text-sm text-[var(--color-neutral-600)]">
+          You can view reminders but do not have permission to schedule them.
+        </p>
+      }
+    >
+      <form className="space-y-4" onSubmit={submit}>
+        <label className="block text-sm font-medium" htmlFor="care-recipients">
+          Companions
+        </label>
+        <select
+          id="care-recipients"
+          multiple
+          value={selectedIds}
+          onChange={(event) =>
+            setSelectedIds(
+              Array.from(event.target.selectedOptions, (option) => option.value).slice(0, 200)
+            )
+          }
+          className="min-h-36 w-full rounded-xl border border-[var(--color-neutral-300)] bg-[var(--color-neutral-0)] p-3 text-sm focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-primary-700)]"
+          aria-describedby="recipient-review"
+        >
+          {companions.map((companion) => (
+            <option key={companion.id} value={companion.id}>
+              {companion.name}
+            </option>
+          ))}
+        </select>
+        <p id="recipient-review" className="text-sm text-[var(--color-neutral-600)]">
+          {selectedIds.length
+            ? `Selected (${selectedIds.length}): ${selectedIds.map((id) => namesById[id]).join(', ')}`
+            : 'No recipients selected.'}
+        </p>
+        <label className="block text-sm font-medium" htmlFor="care-type">
+          Care type
+        </label>
+        <select
+          id="care-type"
+          value={reminderType}
+          onChange={(event) => setReminderType(event.target.value as CareReminderType)}
+          className="w-full rounded-xl border border-[var(--color-neutral-300)] bg-[var(--color-neutral-0)] p-3 text-sm"
+        >
+          {REMINDER_TYPES.map((type) => (
+            <option key={type.value} value={type.value}>
+              {type.label}
+            </option>
+          ))}
+        </select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium">
+            <span>Care due date</span>
+            <input
+              required
+              type="date"
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+              className="mt-2 w-full rounded-xl border border-[var(--color-neutral-300)] bg-[var(--color-neutral-0)] p-3 text-sm"
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            <span>Send at (optional)</span>
+            <input
+              type="datetime-local"
+              value={sendAt}
+              onChange={(event) => setSendAt(event.target.value)}
+              className="mt-2 w-full rounded-xl border border-[var(--color-neutral-300)] bg-[var(--color-neutral-0)] p-3 text-sm"
+            />
+          </label>
+        </div>
+        <Primary
+          text={scheduleButtonLabel(saving, selectedIds.length)}
+          isDisabled={saving || !selectedIds.length || !dueDate}
+        />
+      </form>
+    </PermissionGate>
+  </section>
+);
+
+const CareReminderResultsSection = ({
+  organisationId,
+  loading,
+  reminders,
+  namesById,
+  sendingId,
+  refresh,
+  setError,
+  sendNow,
+}: Pick<
+  CareRemindersPageState,
+  | 'organisationId'
+  | 'loading'
+  | 'reminders'
+  | 'namesById'
+  | 'sendingId'
+  | 'refresh'
+  | 'setError'
+  | 'sendNow'
+>) => (
+  <section aria-labelledby="reminders-heading">
+    <div className="mb-4 flex items-end justify-between gap-4">
+      <div>
+        <h2 id="reminders-heading" className="font-heading text-xl font-medium">
+          Scheduled and recent
+        </h2>
+        <p className="mt-1 text-sm text-[var(--color-neutral-600)]">
+          Delivery outcomes remain visible after refreshing.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => refresh().catch(() => setError('Could not refresh reminders.'))}
+        className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-primary-700)] hover:bg-[var(--color-neutral-100)]"
+      >
+        Refresh
+      </button>
+    </div>
+    <CareReminderList
+      organisationId={organisationId}
+      loading={loading}
+      reminders={reminders}
+      namesById={namesById}
+      sendingId={sendingId}
+      onSend={(reminderId) => void sendNow(reminderId)}
+    />
+  </section>
+);
+
+export const CareRemindersPage = () => {
+  const {
+    organisationId,
+    companions,
+    reminders,
+    loading,
+    selectedIds,
+    setSelectedIds,
+    reminderType,
+    setReminderType,
+    dueDate,
+    setDueDate,
+    sendAt,
+    setSendAt,
+    saving,
+    sendingId,
+    error,
+    setError,
+    notice,
+    refresh,
+    submit,
+    sendNow,
+    namesById,
+  } = useCareRemindersPage();
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 text-[var(--color-neutral-900)] sm:px-6">
       <header className="mb-8">
@@ -174,122 +393,30 @@ export const CareRemindersPage = () => {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <section
-          className="rounded-2xl border border-[var(--color-neutral-200)] bg-[var(--color-surface-card)] p-5 shadow-sm sm:p-6"
-          aria-labelledby="schedule-heading"
-        >
-          <h2 id="schedule-heading" className="font-heading text-xl font-medium">
-            Schedule care
-          </h2>
-          <p className="mb-5 mt-1 text-sm text-[var(--color-neutral-600)]">
-            Choose companions and review the recipient list before saving.
-          </p>
-          <PermissionGate
-            anyOf={[PERMISSIONS.APPOINTMENTS_EDIT_ANY]}
-            fallback={
-              <p className="text-sm text-[var(--color-neutral-600)]">
-                You can view reminders but do not have permission to schedule them.
-              </p>
-            }
-          >
-            <form className="space-y-4" onSubmit={submit}>
-              <label className="block text-sm font-medium" htmlFor="care-recipients">
-                Companions
-              </label>
-              <select
-                id="care-recipients"
-                multiple
-                value={selectedIds}
-                onChange={(event) =>
-                  setSelectedIds(
-                    Array.from(event.target.selectedOptions, (option) => option.value).slice(0, 200)
-                  )
-                }
-                className="min-h-36 w-full rounded-xl border border-[var(--color-neutral-300)] bg-[var(--color-neutral-0)] p-3 text-sm focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-primary-700)]"
-                aria-describedby="recipient-review"
-              >
-                {companions.map((companion) => (
-                  <option key={companion.id} value={companion.id}>
-                    {companion.name}
-                  </option>
-                ))}
-              </select>
-              <p id="recipient-review" className="text-sm text-[var(--color-neutral-600)]">
-                {selectedIds.length
-                  ? `Selected (${selectedIds.length}): ${selectedIds.map((id) => namesById[id]).join(', ')}`
-                  : 'No recipients selected.'}
-              </p>
-              <label className="block text-sm font-medium" htmlFor="care-type">
-                Care type
-              </label>
-              <select
-                id="care-type"
-                value={reminderType}
-                onChange={(event) => setReminderType(event.target.value as CareReminderType)}
-                className="w-full rounded-xl border border-[var(--color-neutral-300)] bg-[var(--color-neutral-0)] p-3 text-sm"
-              >
-                {REMINDER_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-medium">
-                  <span>Care due date</span>
-                  <input
-                    required
-                    type="date"
-                    value={dueDate}
-                    onChange={(event) => setDueDate(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-[var(--color-neutral-300)] bg-[var(--color-neutral-0)] p-3 text-sm"
-                  />
-                </label>
-                <label className="block text-sm font-medium">
-                  <span>Send at (optional)</span>
-                  <input
-                    type="datetime-local"
-                    value={sendAt}
-                    onChange={(event) => setSendAt(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-[var(--color-neutral-300)] bg-[var(--color-neutral-0)] p-3 text-sm"
-                  />
-                </label>
-              </div>
-              <Primary
-                text={scheduleButtonLabel(saving, selectedIds.length)}
-                isDisabled={saving || !selectedIds.length || !dueDate}
-              />
-            </form>
-          </PermissionGate>
-        </section>
-
-        <section aria-labelledby="reminders-heading">
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <h2 id="reminders-heading" className="font-heading text-xl font-medium">
-                Scheduled and recent
-              </h2>
-              <p className="mt-1 text-sm text-[var(--color-neutral-600)]">
-                Delivery outcomes remain visible after refreshing.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => refresh().catch(() => setError('Could not refresh reminders.'))}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-primary-700)] hover:bg-[var(--color-neutral-100)]"
-            >
-              Refresh
-            </button>
-          </div>
-          <CareReminderList
-            organisationId={organisationId}
-            loading={loading}
-            reminders={reminders}
-            namesById={namesById}
-            sendingId={sendingId}
-            onSend={(reminderId) => void sendNow(reminderId)}
-          />
-        </section>
+        <CareReminderScheduleSection
+          companions={companions}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
+          reminderType={reminderType}
+          setReminderType={setReminderType}
+          dueDate={dueDate}
+          setDueDate={setDueDate}
+          sendAt={sendAt}
+          setSendAt={setSendAt}
+          saving={saving}
+          submit={submit}
+          namesById={namesById}
+        />
+        <CareReminderResultsSection
+          organisationId={organisationId}
+          loading={loading}
+          reminders={reminders}
+          namesById={namesById}
+          sendingId={sendingId}
+          refresh={refresh}
+          setError={setError}
+          sendNow={sendNow}
+        />
       </div>
     </div>
   );

@@ -93,6 +93,11 @@ const formsStoreState: {
 const DEFAULT_FORM_IDS = ['form-1', 'form-2', 'form-vet', 'form-required', 'form-client'];
 let servicesReturn: any[] = [];
 let signingOverlayOpen = false;
+const mockSigningOverlayActions = {
+  openOverlay: jest.fn(),
+  setUrl: jest.fn(),
+  registerCloseHandler: jest.fn(),
+};
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
@@ -345,7 +350,10 @@ jest.mock('@/app/hooks/useSpecialities', () => ({
 }));
 
 jest.mock('@/app/stores/signingOverlayStore', () => ({
-  useSigningOverlayStore: jest.fn((selector: any) => selector({ open: signingOverlayOpen })),
+  useSigningOverlayStore: jest.fn((selector?: (state: any) => any) => {
+    const state = { open: signingOverlayOpen, ...mockSigningOverlayActions };
+    return selector ? selector(state) : state;
+  }),
 }));
 
 jest.mock('@/app/hooks/useMerckIntegration', () => ({
@@ -388,21 +396,6 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRend
     </div>
   ),
 }));
-
-jest.mock(
-  '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions',
-  () => ({
-    __esModule: true,
-    default: ({ submission, onStatusChange }: any) => (
-      <button
-        type="button"
-        onClick={() => onStatusChange?.(submission?._id, { signing: { status: 'SIGNED' } })}
-      >
-        signature-actions
-      </button>
-    ),
-  })
-);
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -470,6 +463,7 @@ describe('AppointmentInfo modal', () => {
     mockRouterPush.mockClear();
     servicesReturn = [];
     signingOverlayOpen = false;
+    Object.values(mockSigningOverlayActions).forEach((action) => action.mockClear());
     orgStoreState.orgsById['org-1'].type = 'HOSPITAL';
     formsStoreState.formIds = [...DEFAULT_FORM_IDS];
     formsStoreState.formsById['form-1'].requiredSigner = '';
@@ -488,6 +482,10 @@ describe('AppointmentInfo modal', () => {
     (createSubmission as jest.Mock).mockResolvedValue({
       _id: 'submission-1',
       status: 'submitted',
+    });
+    (postData as jest.Mock).mockReset();
+    (postData as jest.Mock).mockResolvedValue({
+      data: { documentId: 'document-1', signingUrl: 'https://sign.example/document-1' },
     });
     (linkAppointmentForms as jest.Mock).mockResolvedValue(undefined);
     (useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockReturnValue({ isEnabled: false });
@@ -841,9 +839,12 @@ describe('AppointmentInfo modal', () => {
     ).toBeInTheDocument();
   });
 
-  // Staff sign a template-backed form on its document, not from this pane.
-  it('saves a template the vet signs without asking for a signature here', async () => {
+  it('starts signing the saved template instance when staff select Sign', async () => {
     formsStoreState.formIds = [...DEFAULT_FORM_IDS, 'tpl-vet'];
+    (createSubmission as jest.Mock).mockResolvedValue({
+      _id: 'template-instance-1',
+      status: 'submitted',
+    });
 
     render(
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
@@ -856,8 +857,17 @@ describe('AppointmentInfo modal', () => {
     await waitFor(() =>
       expect(createSubmission).toHaveBeenCalledWith(expect.objectContaining({ formId: 'tpl-vet' }))
     );
-    expect(await screen.findByText('Completed')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'signature-actions' })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign' }));
+
+    await waitFor(() =>
+      expect(postData).toHaveBeenCalledWith(
+        '/fhir/v1/form/form-submissions/template-instance-1/sign'
+      )
+    );
+    expect(mockSigningOverlayActions.openOverlay).toHaveBeenCalledWith('template-instance-1');
+    expect(mockSigningOverlayActions.setUrl).toHaveBeenCalledWith(
+      'https://sign.example/document-1'
+    );
   });
 
   const renderModal = (props: any = {}) =>
@@ -1666,7 +1676,7 @@ describe('AppointmentInfo modal', () => {
       screen.getByText('Sent to pet parent. It will update when they sign the document.')
     ).toBeInTheDocument();
 
-    const actionButtons = screen.getAllByRole('button', { name: 'signature-actions' });
+    const actionButtons = screen.getAllByRole('button', { name: 'Sign' });
     expect(actionButtons).toHaveLength(1);
     fireEvent.click(actionButtons[0]);
 

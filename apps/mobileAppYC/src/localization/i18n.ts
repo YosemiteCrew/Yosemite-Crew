@@ -39,6 +39,9 @@ i18nInstance
     react: {
       useSuspense: false,
     },
+  })
+  .catch(error => {
+    console.warn('[i18n] Failed to initialise translations', error);
   });
 
 export {default} from 'i18next';

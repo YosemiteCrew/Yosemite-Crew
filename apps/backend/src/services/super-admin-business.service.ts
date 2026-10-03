@@ -348,7 +348,7 @@ const loadMemberCounts = async (
   return new Map<string, number>(counts);
 };
 
-const findOrganizationById = async (id: string) =>
+const findOrganizationById = (id: string) =>
   prisma.organization.findFirst({
     where: { OR: [{ id }, { fhirId: id }] },
     include: { address: true },

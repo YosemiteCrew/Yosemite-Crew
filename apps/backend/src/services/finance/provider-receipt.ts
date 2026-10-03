@@ -19,6 +19,7 @@ import {
   type PageSizeBounds,
 } from "src/services/shared/pagination";
 import logger from "src/utils/logger";
+import { mapInSequence } from "src/utils/async-iteration";
 
 /**
  * The journal of captured provider payments (#3170).
@@ -1385,21 +1386,17 @@ export const ProviderReceiptService = {
   },
 
   /** Post each recorded line in turn, at most once each. */
-  async postAllocations(
+  postAllocations(
     receipt: AllocationReceipt,
     rows: { id: string; invoiceId: string; amount: number }[],
   ): Promise<AllocatedLine[]> {
-    const posted: AllocatedLine[] = [];
     /*
      * Sequential rather than concurrent. Two lines of one allocation can name
      * invoices whose balances are read and written by the same service, and a
      * partial failure has to leave a prefix of posted rows rather than an
      * unknown subset.
      */
-    for (const row of rows) {
-      posted.push(await postAllocationLine(receipt, row));
-    }
-    return posted;
+    return mapInSequence(rows, (row) => postAllocationLine(receipt, row));
   },
 
   /** Post reserved lines and return any amount the invoices did not take. */

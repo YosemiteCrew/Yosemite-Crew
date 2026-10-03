@@ -903,6 +903,41 @@ describe('PaymentInvoiceScreen', () => {
     expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/refund/1');
   });
 
+  it('logs instead of failing when the refund receipt cannot be opened', async () => {
+    const failure = new Error('no browser');
+    openUrlSpy.mockRejectedValueOnce(failure);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {
+        expenseId: 'exp-2',
+        invoice: {
+          ...mockInvoiceData,
+          id: 'inv-exp-2',
+          status: 'REFUNDED',
+          refundId: 'refund-2',
+          refundStatus: 'PARTIALLY_REFUNDED',
+          refundAmount: 10,
+          refundDate: '2026-03-22T10:00:00.000Z',
+          downloadUrl: 'https://example.com/refund-fallback/2',
+        },
+      },
+    });
+
+    render(<PaymentInvoiceScreen />);
+    await waitFor(() => {
+      expect(screen.getByText('View refund receipt')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText('View refund receipt'));
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Payments] Could not open the receipt',
+        failure,
+      ),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('uses downloadUrl when refundReceiptUrl is unavailable', async () => {
     (useRoute as jest.Mock).mockReturnValue({
       params: {

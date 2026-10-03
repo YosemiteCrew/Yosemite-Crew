@@ -305,6 +305,52 @@ describe("DeveloperUsageService", () => {
       ]);
     });
 
+    it("delivers a batch one event at a time, oldest first", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([
+        event({ id: "meter-event-1" }),
+        event({ id: "meter-event-2" }),
+        event({ id: "meter-event-3" }),
+      ]);
+      let inFlight = 0;
+      let peak = 0;
+      reportUsage.mockImplementation(
+        async (_customerId: string, _quantity: number, id: string) => {
+          inFlight += 1;
+          peak = Math.max(peak, inFlight);
+          await new Promise((resolve) => setImmediate(resolve));
+          inFlight -= 1;
+          if (id === "meter-event-2") throw new Error("provider down");
+        },
+      );
+
+      await expect(
+        DeveloperUsageService.drainMeterEvents(now),
+      ).resolves.toMatchObject({ delivered: 2, retrying: 1 });
+      expect(peak).toBe(1);
+      expect(reportUsage.mock.calls.map((call) => call[2])).toEqual([
+        "meter-event-1",
+        "meter-event-2",
+        "meter-event-3",
+      ]);
+      reportUsage.mockReset();
+    });
+
+    it("stops the drain when a retry cannot be recorded", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([
+        event({ id: "meter-event-1" }),
+        event({ id: "meter-event-2" }),
+      ]);
+      reportUsage.mockRejectedValueOnce(new Error("provider down"));
+      mockPrisma.developerMeterEvent.update.mockRejectedValueOnce(
+        new Error("database unavailable"),
+      );
+
+      await expect(DeveloperUsageService.drainMeterEvents(now)).rejects.toThrow(
+        "database unavailable",
+      );
+      expect(reportUsage).toHaveBeenCalledTimes(1);
+    });
+
     it("continues draining after a full batch while the job has time", async () => {
       jest.spyOn(Date, "now").mockReturnValue(0);
       const firstBatch = Array.from({ length: 100 }, (_, index) =>

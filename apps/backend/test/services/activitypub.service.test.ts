@@ -831,6 +831,54 @@ describe("announceEmergency", () => {
   });
 });
 
+describe("announceEmergency delivery", () => {
+  it("queues deliveries to different inboxes without waiting on each other", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActivity.create.mockResolvedValue({});
+    prisma.aPFollower.findMany.mockResolvedValue([
+      { sharedInboxUri: null, remoteInboxUri: "https://a/inbox" },
+      { sharedInboxUri: null, remoteInboxUri: "https://b/inbox" },
+    ]);
+    let releaseFirst!: (value: unknown) => void;
+    queueAdd
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce({});
+
+    const pending = svc.announceEmergency({
+      fromOrgId: "org-1",
+      content: "Emergency!",
+      urgency: "EMERGENCY",
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(queueAdd).toHaveBeenCalledTimes(2);
+
+    releaseFirst({});
+    await expect(pending).resolves.toMatchObject({ type: "Announce" });
+  });
+
+  it("fails the announce when a delivery cannot be queued", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActivity.create.mockResolvedValue({});
+    prisma.aPFollower.findMany.mockResolvedValue([
+      { sharedInboxUri: null, remoteInboxUri: "https://a/inbox" },
+    ]);
+    queueAdd.mockRejectedValueOnce(new Error("redis down"));
+
+    await expect(
+      svc.announceEmergency({
+        fromOrgId: "org-1",
+        content: "Emergency!",
+        urgency: "EMERGENCY",
+      }),
+    ).rejects.toThrow("redis down");
+  });
+});
+
 // ─── updateLicenseToken ───────────────────────────────────────────────────────
 
 describe("updateLicenseToken", () => {

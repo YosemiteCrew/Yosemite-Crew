@@ -493,13 +493,7 @@ const enterTabMode = (initialUrl: string): void => {
       // track nativeTheme/prefers-color-scheme live, so set the explicit
       // data-theme attribute tokens.css reads.
       applyThemeModeToWc(cv.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
-      if (tabOrientation === 'vertical') {
-        void cv.webContents
-          .executeJavaScript(
-            `document.getElementById('tabbar')?.setAttribute('data-orientation','vertical')`
-          )
-          .catch((error) => logger.warn('tabbar_orientation_js_failed', { error }));
-      }
+      if (tabOrientation === 'vertical') sendTabbarOrientation(cv.webContents, 'vertical');
       // Seed the caption button: the window may already be maximised (restored
       // session state, or a relaunch into a snapped position) before any
       // maximize event fires.
@@ -685,14 +679,19 @@ const setSplitTab = (id: string | null): void => {
   layoutTabChrome();
 };
 
+// Tell the tab-bar page which way it is laid out.
+const sendTabbarOrientation = (wc: Electron.WebContents, mode: 'horizontal' | 'vertical'): void => {
+  void wc
+    .executeJavaScript(
+      `document.getElementById('tabbar')?.setAttribute('data-orientation','${mode}')`
+    )
+    .catch((error) => logger.warn('tabbar_orientation_js_failed', { error }));
+};
+
 const setTabOrientation = (mode: 'horizontal' | 'vertical'): void => {
   tabOrientation = mode;
   if (tabChromeView && !tabChromeView.webContents.isDestroyed()) {
-    void tabChromeView.webContents
-      .executeJavaScript(
-        `document.getElementById('tabbar')?.setAttribute('data-orientation','${mode}')`
-      )
-      .catch((error) => logger.warn('tabbar_orientation_js_failed', { error }));
+    sendTabbarOrientation(tabChromeView.webContents, mode);
   }
   layoutTabChrome();
 };
@@ -947,6 +946,18 @@ const runBackup = async (): Promise<void> => {
 // showPmpStatus, exportDiagnostics extracted to src/ui/status-dialogs.ts
 
 // setupOfflineSync extracted to src/boot/setup.ts
+
+// Starts in the background: the window does not wait for the local sync store.
+const startOfflineSync = async (): Promise<void> => {
+  const sync = await setupOfflineSync({
+    logger,
+    net,
+    endpoint: process.env.YC_DESKTOP_SYNC_URL,
+  });
+  offlineStore = sync.offlineStore;
+  syncEngine = sync.syncEngine;
+  offlineSyncTimer = sync.offlineSyncTimer;
+};
 
 const runOfflineFullSync = async (): Promise<SyncResult[]> => {
   if (!syncEngine) throw new Error('sync-not-ready');
@@ -2172,15 +2183,7 @@ if (gotSingleInstanceLock) {
         refreshPrinters,
       });
 
-      void setupOfflineSync({
-        logger,
-        net,
-        endpoint: process.env.YC_DESKTOP_SYNC_URL,
-      }).then((sync) => {
-        offlineStore = sync.offlineStore;
-        syncEngine = sync.syncEngine;
-        offlineSyncTimer = sync.offlineSyncTimer;
-      });
+      void startOfflineSync();
 
       const native = setupNativeSurfaces({
         app,
@@ -2204,14 +2207,14 @@ if (gotSingleInstanceLock) {
       {
         syncQueue = createSyncQueue(app.getPath('userData'));
         const transport = {
-          send: async (_mutation: {
+          send: (_mutation: {
             type: string;
             entityType: string;
             entityId: string;
             data: Record<string, unknown> | null;
           }) => {
             logger.debug('sync_transport_send', { mutation: _mutation });
-            return { ok: true };
+            return Promise.resolve({ ok: true });
           },
         };
         syncDaemon = createSyncDaemon({

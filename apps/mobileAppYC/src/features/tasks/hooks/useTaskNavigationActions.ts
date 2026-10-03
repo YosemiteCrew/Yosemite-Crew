@@ -3,6 +3,7 @@ import type {NavigationProp} from '@react-navigation/native';
 import type {AppDispatch} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
 import {markTaskStatus} from '@/features/tasks';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 type Navigation = NavigationProp<TaskStackParamList>;
 
@@ -26,7 +27,7 @@ export const useTaskNavigationActions = (
 
   const handleCompleteTask = useCallback(
     (taskId: string) => {
-      dispatch(markTaskStatus({taskId, status: 'completed'}));
+      runInBackground(dispatch(markTaskStatus({taskId, status: 'completed'})));
     },
     [dispatch],
   );

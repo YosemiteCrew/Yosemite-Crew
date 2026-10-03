@@ -91,7 +91,7 @@ function maskIdentifier(identifier: string) {
   return `${trimmed.slice(0, 3)}***${trimmed.slice(-2)}`;
 }
 
-async function findWebhookSubmission(documentId: string) {
+function findWebhookSubmission(documentId: string) {
   return prisma.formSubmission.findFirst({
     where: {
       signing: {
@@ -125,7 +125,7 @@ async function handleSubmissionEvent(
   return true;
 }
 
-async function findWebhookPacket(documentId: string) {
+function findWebhookPacket(documentId: string) {
   return prisma.workspaceDocumentPacket.findFirst({
     where: {
       signing: {
@@ -154,7 +154,7 @@ const RENDERED_DOCUMENT_EVENTS = new Set([
 
 // Every rendered-document signing (standalone, or on behalf of a form
 // submission) stores the Documenso document id on the rendered document.
-async function findWebhookRenderedDocument(documentId: string) {
+function findWebhookRenderedDocument(documentId: string) {
   return prisma.renderedDocument.findFirst({
     where: {
       signing: {
@@ -237,17 +237,14 @@ const documensoWebhookSignatureState = (
   return verifySignature(rawBody, signature, secret) ? "verified" : "invalid";
 };
 
-const resolveDocumensoRedirectUser = async (userId: string) => {
+const resolveDocumensoRedirectUser = (userId: string) => {
   return prisma.user.findFirst({
     where: { userId },
     select: { email: true, firstName: true, lastName: true },
   });
 };
 
-const resolveDocumensoRedirectMapping = async (
-  userId: string,
-  orgId: string,
-) => {
+const resolveDocumensoRedirectMapping = (userId: string, orgId: string) => {
   return prisma.userOrganization.findFirst({
     where: {
       practitionerReference: userId,

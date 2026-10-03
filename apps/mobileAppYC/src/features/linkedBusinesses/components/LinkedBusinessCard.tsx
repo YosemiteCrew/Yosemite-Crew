@@ -19,6 +19,7 @@ import type {LinkedBusiness} from '../types';
 import {openMapsToAddress} from '@/shared/utils/openMaps';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 interface LinkedBusinessCardProps {
   business: LinkedBusiness;
   _onDelete?: (id: string) => void;
@@ -139,7 +140,7 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
       );
       return;
     }
-    openMapsToAddress(business.address);
+    runInBackground(openMapsToAddress(business.address));
   }, [business.address]);
 
   const photoUri = resolvePhotoUri(googlePlacesPhoto, business.photo);

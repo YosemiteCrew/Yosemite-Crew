@@ -66,14 +66,18 @@ export const NoCompanions: Story = {
   args: { companions: [] },
 };
 
+/* The modal portals to document.body (ModalBase), so nothing it renders is inside
+   the story's canvas - every query goes through the body. */
+const modal = () => within(document.body);
+
 export const ValidationError: Story = {
   name: 'Refuses an incomplete claim',
-  play: async ({ canvasElement, args }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Create this insurance claim' }));
+  play: async ({ args }) => {
+    const body = modal();
+    await userEvent.click(await body.findByRole('button', { name: 'Create this insurance claim' }));
 
     // Caught locally by useInsuranceClaimDraft before any request goes out.
-    await expect(await canvas.findByRole('alert')).toHaveTextContent(
+    await expect(await body.findByRole('alert')).toHaveTextContent(
       'Choose a companion for this claim.'
     );
     await expect(args.onSubmit).not.toHaveBeenCalled();
@@ -82,18 +86,23 @@ export const ValidationError: Story = {
 
 export const SubmittedSuccessfully: Story = {
   name: 'Fills the form and submits',
-  play: async ({ canvasElement, args }) => {
-    const canvas = within(canvasElement);
+  play: async ({ args }) => {
+    const body = modal();
 
-    await userEvent.selectOptions(
-      canvas.getByRole('combobox', { name: 'Companion' }),
-      'pt-bramble'
+    /* The companion picker is the themed Dropdown (9a4a7b1b2): open its trigger and
+       pick the option, which hands the companion's id to the draft. */
+    await userEvent.click(await body.findByRole('button', { name: 'Companion' }));
+    await userEvent.click(
+      await body.findByRole('option', { name: 'Bramble (Cavalier King Charles Spaniel)' })
     );
-    await userEvent.type(canvas.getByLabelText('Insurer'), 'Pawsome Insurance');
-    await userEvent.type(canvas.getByLabelText('Policy number'), 'POL-4471');
-    await userEvent.type(canvas.getByLabelText('Submitted amount (£)'), '250');
+    await expect(
+      body.getByRole('button', { name: 'Companion: Bramble (Cavalier King Charles Spaniel)' })
+    ).toBeInTheDocument();
+    await userEvent.type(body.getByLabelText('Insurer'), 'Pawsome Insurance');
+    await userEvent.type(body.getByLabelText('Policy number'), 'POL-4471');
+    await userEvent.type(body.getByLabelText('Submitted amount (£)'), '250');
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Create this insurance claim' }));
+    await userEvent.click(body.getByRole('button', { name: 'Create this insurance claim' }));
 
     await expect(args.onSubmit).toHaveBeenCalledWith({
       patientId: 'pt-bramble',
@@ -102,6 +111,6 @@ export const SubmittedSuccessfully: Story = {
       submittedAmount: 250,
       currency: 'GBP',
     });
-    await expect(canvas.queryByRole('alert')).not.toBeInTheDocument();
+    await expect(body.queryByRole('alert')).not.toBeInTheDocument();
   },
 };

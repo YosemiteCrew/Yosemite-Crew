@@ -153,7 +153,14 @@ export const StaffDetails: Story = {
 
     // Support is the multi-select, and it holds the panel open across picks rather
     // than closing on the first one the way Lead does.
-    await userEvent.click(canvas.getByRole('button', { name: 'Support' }));
+    /* At the runner's 1280x800 the trigger sits in the last 40px of the viewport.
+       The portalled panel opens below it and does not flip up, so its lower rows
+       start off-screen, and a click there scrolls the page - which the positioning
+       hook treats as an outside scroll and closes the panel. Bring the field up
+       first, the way a reader would before opening it. */
+    const support = canvas.getByRole('button', { name: 'Support' });
+    support.scrollIntoView({ block: 'center' });
+    await userEvent.click(support);
     const supportPanel = await findMultiSelectPanel();
     await expect(within(supportPanel).getAllByRole('option')).toHaveLength(SupportOptions.length);
     await userEvent.click(within(supportPanel).getByRole('option', { name: SupportOptions[0] }));

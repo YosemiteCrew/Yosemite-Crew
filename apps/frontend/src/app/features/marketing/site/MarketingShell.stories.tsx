@@ -439,8 +439,15 @@ export const Scrolled: Story = {
     /* ScrollDrift renders null, so this is the only way to prove it is mounted. It
        stamps a transform on every `[data-scroll-speed]` layer on the page; if it were
        dropped from the shell, every ambient glow on every public page would simply stop
-       moving, with no error and nothing missing from the DOM. */
+       moving, with no error and nothing missing from the DOM.
+
+       It only writes from a `scroll` listener attached in an effect, and the static
+       build CI tests runs production React with no `act` to flush that effect before
+       the play starts - so the one `scrollTo` above can fire before anyone listens.
+       Each poll re-announces the same position the way a still-moving page would,
+       rather than waiting on an event that has already been missed. */
     await waitFor(() => {
+      globalThis.window.dispatchEvent(new Event('scroll'));
       /* Matched loosely on the operands because the browser reserialises what
          ScrollDrift wrote: it sets `translate3d(0, 38.0px, 0)` and reading it back
          gives `translate3d(0px, 38px, 0px)`. Pinning the source spelling passes in

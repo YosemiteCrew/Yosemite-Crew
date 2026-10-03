@@ -52,23 +52,27 @@ export type ListContactRequestFilter = {
   organisationId?: string;
 };
 
-const ensureDsarDetails = (input: {
+/**
+ * The refusal for a DSAR request missing what it must carry, if any. An
+ * accepted declaration is stamped with when it was accepted.
+ */
+const dsarDetailsRefusal = (input: {
   type: ContactType;
   dsarDetails?: DsraDetails;
-}) => {
-  if (input.type === "DSAR") {
-    if (!input.dsarDetails?.requesterType) {
-      throw new ContactServiceError(
-        "DSAR requests must include dsarDetails.requesterType",
-        400,
-      );
-    }
-    if (!input.dsarDetails.declarationAccepted) {
-      throw new ContactServiceError("DSAR declaration must be accepted", 400);
-    }
-    input.dsarDetails.declarationAcceptedAt =
-      input.dsarDetails.declarationAcceptedAt ?? new Date();
+}): ContactServiceError | undefined => {
+  if (input.type !== "DSAR") return undefined;
+  if (!input.dsarDetails?.requesterType) {
+    return new ContactServiceError(
+      "DSAR requests must include dsarDetails.requesterType",
+      400,
+    );
   }
+  if (!input.dsarDetails.declarationAccepted) {
+    return new ContactServiceError("DSAR declaration must be accepted", 400);
+  }
+  input.dsarDetails.declarationAcceptedAt =
+    input.dsarDetails.declarationAcceptedAt ?? new Date();
+  return undefined;
 };
 
 const toPrismaJson = <T>(value: T | undefined) =>
@@ -79,6 +83,47 @@ const buildComplaintContext = (input: { fullName: string; phone?: string }) =>
     fullName: input.fullName.trim(),
     ...(input.phone?.trim() ? { phone: input.phone.trim() } : {}),
   }) as Prisma.InputJsonValue;
+
+/** The refusal a contact request is answered with, if any. */
+const contactRequestRefusal = (
+  input: CreateContactRequestInput,
+): ContactServiceError | undefined => {
+  if (!input.subject || !input.message) {
+    return new ContactServiceError("subject and message are required", 400);
+  }
+  return dsarDetailsRefusal(input);
+};
+
+/** The refusal a website contact request is answered with, if any. */
+const webContactRequestRefusal = (
+  input: CreateWebContactRequestInput,
+): ContactServiceError | undefined => {
+  if (!input.type) {
+    return new ContactServiceError("type is required", 400);
+  }
+  if (!input.message?.trim()) {
+    return new ContactServiceError("message is required", 400);
+  }
+  /* #3361: the stored message is what the mirror POSTs verbatim, and the
+     panel's intake refuses a longer one with a permanent 400. Refusing here
+     keeps the submission out of the database rather than accepting one that
+     can never reach the CRM. The bound is on the trimmed text because that is
+     what is stored and forwarded. */
+  if (input.message.trim().length > CONTACT_MESSAGE_MAX_LENGTH) {
+    return new ContactServiceError(
+      `message must be ${CONTACT_MESSAGE_MAX_LENGTH} characters or fewer`,
+      400,
+    );
+  }
+  if (!input.fullName?.trim()) {
+    return new ContactServiceError("fullName is required", 400);
+  }
+  if (!input.email?.trim()) {
+    return new ContactServiceError("email is required", 400);
+  }
+
+  return dsarDetailsRefusal(input);
+};
 
 export const ContactService = {
   /**
@@ -97,13 +142,9 @@ export const ContactService = {
     return own.includes(patientId) ? patientId : undefined;
   },
 
-  async createRequest(input: CreateContactRequestInput) {
-    // Basic validations
-    if (!input.subject || !input.message) {
-      throw new ContactServiceError("subject and message are required", 400);
-    }
-
-    ensureDsarDetails(input);
+  createRequest(input: CreateContactRequestInput) {
+    const refusal = contactRequestRefusal(input);
+    if (refusal) return Promise.reject(refusal);
 
     const dsarDetails = toPrismaJson(input.dsarDetails);
     const attachments = toPrismaJson(input.attachments);
@@ -128,32 +169,9 @@ export const ContactService = {
     });
   },
 
-  async createWebRequest(input: CreateWebContactRequestInput) {
-    if (!input.type) {
-      throw new ContactServiceError("type is required", 400);
-    }
-    if (!input.message?.trim()) {
-      throw new ContactServiceError("message is required", 400);
-    }
-    /* #3361: the stored message is what the mirror POSTs verbatim, and the
-       panel's intake refuses a longer one with a permanent 400. Refusing here
-       keeps the submission out of the database rather than accepting one that
-       can never reach the CRM. The bound is on the trimmed text because that is
-       what is stored and forwarded. */
-    if (input.message.trim().length > CONTACT_MESSAGE_MAX_LENGTH) {
-      throw new ContactServiceError(
-        `message must be ${CONTACT_MESSAGE_MAX_LENGTH} characters or fewer`,
-        400,
-      );
-    }
-    if (!input.fullName?.trim()) {
-      throw new ContactServiceError("fullName is required", 400);
-    }
-    if (!input.email?.trim()) {
-      throw new ContactServiceError("email is required", 400);
-    }
-
-    ensureDsarDetails(input);
+  createWebRequest(input: CreateWebContactRequestInput) {
+    const refusal = webContactRequestRefusal(input);
+    if (refusal) return Promise.reject(refusal);
 
     const dsarDetails = toPrismaJson(input.dsarDetails);
     const attachments = toPrismaJson(input.attachments);
@@ -181,7 +199,7 @@ export const ContactService = {
     });
   },
 
-  async listRequests(filter: ListContactRequestFilter) {
+  listRequests(filter: ListContactRequestFilter) {
     return prisma.contactRequest.findMany({
       where: {
         status: filter.status ?? undefined,
@@ -193,11 +211,11 @@ export const ContactService = {
     });
   },
 
-  async getById(id: string) {
+  getById(id: string) {
     return prisma.contactRequest.findUnique({ where: { id } });
   },
 
-  async updateStatus(id: string, status: ContactStatus) {
+  updateStatus(id: string, status: ContactStatus) {
     return prisma.contactRequest.update({
       where: { id },
       data: { status },

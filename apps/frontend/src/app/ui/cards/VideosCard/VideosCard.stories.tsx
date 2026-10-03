@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
+import { guidesData } from '@/app/features/guides/data/guidesData';
+
 import VideosCard from './VideosCard';
 
 /** Same key the card writes when it is dismissed. */
@@ -61,6 +63,13 @@ export const Default: Story = {
  */
 const openDialog = () => document.querySelector('dialog[open]') as HTMLElement | null;
 
+/**
+ * The card previews the first three films of the generated library, so the
+ * tiles are read from `guidesData` rather than named here: a regenerated
+ * curriculum changes which films those are, not what the card does with them.
+ */
+const [FIRST_GUIDE, SECOND_GUIDE] = guidesData;
+
 const findOpenDialog = async (): Promise<HTMLElement> => {
   await waitFor(() => expect(openDialog()).toBeInTheDocument());
   return openDialog() as HTMLElement;
@@ -71,24 +80,23 @@ export const PlayerOpen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(
-      canvas.getByRole('button', { name: 'Play video: Run a visit end to end' })
+      canvas.getByRole('button', { name: `Play video: ${SECOND_GUIDE.title}` })
     );
 
     // The dialog portals to document.body, so it is outside the story canvas.
     const dialog = await findOpenDialog();
     // Assert the dialog carries the clicked tile's content. A check that a
     // dialog opened would pass on an empty one, or on the wrong video.
-    await expect(within(dialog).getByText('Run a visit end to end')).toBeInTheDocument();
+    await expect(within(dialog).getByText(SECOND_GUIDE.title)).toBeInTheDocument();
     await expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument();
 
     const video = dialog.querySelector('video') as HTMLVideoElement;
-    await expect(video).toHaveAttribute('aria-label', 'Run a visit end to end');
+    await expect(video).toHaveAttribute('aria-label', SECOND_GUIDE.title);
     // The dialog is wired to the tile that was clicked, not to the first video:
     // both the source and the poster come from the second guide entry.
-    await expect(video.getAttribute('poster') ?? '').toContain('guideImages/2');
-    await expect(video.querySelector('source')?.getAttribute('src') ?? '').toContain(
-      'addCompanion.mp4'
-    );
+    await expect(video).toHaveAttribute('poster', SECOND_GUIDE.thumbnailUrl);
+    await expect(video.querySelector('source')).toHaveAttribute('src', SECOND_GUIDE.videoUrl);
+    await expect(SECOND_GUIDE.videoUrl).not.toBe(FIRST_GUIDE.videoUrl);
   },
   parameters: {
     docs: {
@@ -109,12 +117,10 @@ export const PlayerClosesBack: Story = {
   name: 'Player closes back to the card',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole('button', { name: 'Play video: Your first day in the PIMS' })
-    );
+    await userEvent.click(canvas.getByRole('button', { name: `Play video: ${FIRST_GUIDE.title}` }));
 
     const dialog = await findOpenDialog();
-    await expect(within(dialog).getByText('Your first day in the PIMS')).toBeInTheDocument();
+    await expect(within(dialog).getByText(FIRST_GUIDE.title)).toBeInTheDocument();
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     // Closing returns the dialog to its inert node - the card is untouched, and

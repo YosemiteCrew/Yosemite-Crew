@@ -56,6 +56,7 @@ import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusines
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {resolveImageSource} from '@/shared/utils/resolveImageSource';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 const normalizeToken = (value?: string | null) =>
   (value ?? '').toLowerCase().replaceAll(/[^a-z0-9]/g, '');
@@ -157,7 +158,7 @@ export const ObservationalToolScreen: React.FC = () => {
 
   useEffect(() => {
     if (!businesses.length || !services.length) {
-      dispatch(fetchBusinesses());
+      runInBackground(dispatch(fetchBusinesses()));
     }
   }, [dispatch, businesses.length, services.length]);
 
@@ -208,7 +209,7 @@ export const ObservationalToolScreen: React.FC = () => {
         }
       }
     };
-    fetchDefinition();
+    runInBackground(fetchDefinition());
     return () => {
       isMounted = false;
     };
@@ -469,7 +470,9 @@ export const ObservationalToolScreen: React.FC = () => {
           ? entry.image
           : (entry.image?.uri ?? null);
       if ((!imageUri || isDummyPhoto(imageUri)) && entry.googlePlacesId) {
-        requestBusinessPhoto(entry.googlePlacesId, entry.businessId);
+        runInBackground(
+          requestBusinessPhoto(entry.googlePlacesId, entry.businessId),
+        );
       }
     });
   }, [providerEntries, requestBusinessPhoto]);

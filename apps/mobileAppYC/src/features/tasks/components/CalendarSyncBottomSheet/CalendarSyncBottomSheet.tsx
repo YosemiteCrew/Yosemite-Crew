@@ -13,6 +13,7 @@ import {
 } from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {runInBackground} from '@/shared/utils/runInBackground';
 
 export interface CalendarSyncBottomSheetRef {
   open: () => void;
@@ -127,7 +128,7 @@ export const CalendarSyncBottomSheet = ({
       }
     };
 
-    fetchDeviceCalendars();
+    runInBackground(fetchDeviceCalendars());
   }, [onCalendarsLoaded]);
 
   const providerItems: SelectItem[] = useMemo(() => {

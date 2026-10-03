@@ -152,7 +152,7 @@ export const NeurologyAssessmentService = {
     return assertAssessment(id, organisationId);
   },
 
-  async list(params: ListNeurologyParams) {
+  list(params: ListNeurologyParams) {
     const { organisationId, patientId, encounterId, gaitScore } = params;
     return prisma.neurologyAssessment.findMany({
       where: {

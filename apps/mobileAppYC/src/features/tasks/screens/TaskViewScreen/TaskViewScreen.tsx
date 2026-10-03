@@ -53,6 +53,7 @@ import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import type {VetService} from '@/features/appointments/types';
 
 import i18next from 'i18next';
+import {runInBackground} from '@/shared/utils/runInBackground';
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TaskView'>;
 type Route = RouteProp<TaskStackParamList, 'TaskView'>;
 
@@ -228,7 +229,7 @@ export const TaskViewScreen: React.FC = () => {
   useEffect(() => {
     if (!isObservationalTool) return;
     if (!businesses.length || !services.length) {
-      dispatch(fetchBusinesses());
+      runInBackground(dispatch(fetchBusinesses()));
     }
   }, [businesses.length, dispatch, isObservationalTool, services.length]);
 
@@ -291,7 +292,9 @@ export const TaskViewScreen: React.FC = () => {
   };
 
   const handleCompleteTask = () => {
-    dispatch(markTaskStatus({taskId: task.id, status: 'completed'}));
+    runInBackground(
+      dispatch(markTaskStatus({taskId: task.id, status: 'completed'})),
+    );
   };
 
   const handleOpenOtPreview = () => {
@@ -852,9 +855,11 @@ export const TaskViewScreen: React.FC = () => {
                 value={getCalendarProviderLabel(task.calendarProvider)}
                 onPress={() => {
                   if (task.calendarEventId) {
-                    openCalendarEvent(
-                      task.calendarEventId,
-                      task.dueAt ?? task.date,
+                    runInBackground(
+                      openCalendarEvent(
+                        task.calendarEventId,
+                        task.dueAt ?? task.date,
+                      ),
                     );
                   }
                 }}

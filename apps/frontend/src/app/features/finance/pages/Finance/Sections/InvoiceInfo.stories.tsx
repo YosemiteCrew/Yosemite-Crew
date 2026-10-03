@@ -67,9 +67,9 @@ const seedStores = (parent: StoredParent | null = PARENT) => {
 };
 
 /**
- * `formatMoney` runs at `maximumFractionDigits: 0`, so every figure below is a
- * whole number on purpose - a 92.65 total would print as "$93" and make the
- * assertions read as though the arithmetic were wrong.
+ * Per-invoice figures print to the penny in the invoice's own currency (#2648),
+ * so a total of 114 reads "$114.00". The figures are whole numbers only to keep
+ * the arithmetic easy to check by eye.
  */
 const PAID_INVOICE: Invoice = {
   id: 'a1b2c3d4e5f60718293a4b5c',
@@ -245,31 +245,31 @@ export const Paid: Story = {
       await expect(row.children).toHaveLength(4);
     }
     await expect(rows[0].children[0]).toHaveTextContent('Dental consultation');
-    await expect(rows[0].children[3]).toHaveTextContent('$60');
+    await expect(rows[0].children[3]).toHaveTextContent('$60.00');
     await expect(rows[1].children[0]).toHaveTextContent('Scale and polish');
-    await expect(rows[1].children[3]).toHaveTextContent('$45');
+    await expect(rows[1].children[3]).toHaveTextContent('$45.00');
 
     // Summary arithmetic, in full: subtotal - discount + tax = total.
     const summarySection = section(dialog, 'Invoice summary') as HTMLElement;
     const summary = within(summarySection);
-    await expect(summaryValue(summarySection, 'Subtotal')).toHaveTextContent('$105');
-    await expect(summaryValue(summarySection, 'Discount')).toHaveTextContent('$10');
+    await expect(summaryValue(summarySection, 'Subtotal')).toHaveTextContent('$105.00');
+    await expect(summaryValue(summarySection, 'Discount')).toHaveTextContent('$10.00');
     // The tax row takes the percent into its label when the invoice carries one.
     await expect(summary.getByText('Tax · 20%')).toBeInTheDocument();
-    await expect(summaryValue(summarySection, 'Tax · 20%')).toHaveTextContent('$19');
+    await expect(summaryValue(summarySection, 'Tax · 20%')).toHaveTextContent('$19.00');
 
     /* Every summary row is a label span followed by its value span, so the value
        is read off the label rather than by searching for the figure - which would
        silently pass by matching the same amount printed in the ledger. */
     const total = summaryValue(summarySection, 'Total');
     const outstanding = summaryValue(summarySection, 'Outstanding');
-    await expect(total).toHaveTextContent('$114');
+    await expect(total).toHaveTextContent('$114.00');
 
     /* Settled, so outstanding is zero AND carries the success ink rather than the
        warn ink. The zero alone would pass with the tint broken, and "different
        from the total" would pass on any colour at all, so both are resolved
        against their tokens - inside waitFor, because the panel fades in. */
-    await expect(outstanding).toHaveTextContent('$0');
+    await expect(outstanding).toHaveTextContent('$0.00');
     await waitFor(() => {
       expect(getComputedStyle(outstanding).color).toBe(resolveToken(dialog, '--success-text'));
       expect(getComputedStyle(total).color).toBe(resolveToken(dialog, '--ink'));
@@ -279,7 +279,7 @@ export const Paid: Story = {
     const paymentsSection = section(dialog, 'Payments') as HTMLElement;
     const payments = within(paymentsSection);
     await expect(payments.getByText('Paid in the pet-parent app')).toBeInTheDocument();
-    await expect(payments.getByText('$114')).toBeInTheDocument();
+    await expect(payments.getByText('$114.00')).toBeInTheDocument();
     await expect(payments.getByRole('link', { name: 'Receipt' })).toBeInTheDocument();
 
     /* And NO "Receipt sent to ..." line, even though a payer email is on file.
@@ -344,8 +344,8 @@ export const AwaitingPayment: Story = {
     const summarySection = section(dialog, 'Invoice summary') as HTMLElement;
     const total = summaryValue(summarySection, 'Total');
     const outstanding = summaryValue(summarySection, 'Outstanding');
-    await expect(outstanding).toHaveTextContent('$114');
-    await expect(total).toHaveTextContent('$114');
+    await expect(outstanding).toHaveTextContent('$114.00');
+    await expect(total).toHaveTextContent('$114.00');
     await waitFor(() => {
       expect(getComputedStyle(outstanding).color).toBe(resolveToken(dialog, '--warn-text'));
       expect(getComputedStyle(total).color).toBe(resolveToken(dialog, '--ink'));
@@ -398,7 +398,7 @@ export const PaidAtClinic: Story = {
     // No Stripe receipt for a desk payment, so the link is absent, not disabled.
     await expect(payments.queryByRole('link', { name: 'Receipt' })).not.toBeInTheDocument();
     // The row still closes with the amount; only the receipt link went.
-    await expect(payments.getByText('$114')).toBeInTheDocument();
+    await expect(payments.getByText('$114.00')).toBeInTheDocument();
     /* The caption names the method and the payer. Matched at its two ends rather
        than in full, because the timestamp between them renders in the viewer's
        timezone and would differ between machines. */
@@ -466,8 +466,8 @@ export const NoItemsNoContact: Story = {
        ever moved. That is the one place the tint is not a payment signal. */
     const total = summaryValue(summarySection, 'Total');
     const outstanding = summaryValue(summarySection, 'Outstanding');
-    await expect(total.textContent).toBe('$0');
-    await expect(outstanding.textContent).toBe('$0');
+    await expect(total.textContent).toBe('$0.00');
+    await expect(outstanding.textContent).toBe('$0.00');
     await waitFor(() => {
       expect(getComputedStyle(outstanding).color).toBe(resolveToken(dialog, '--success-text'));
     });
@@ -566,12 +566,12 @@ export const Phone: Story = {
     await expect(panel.getByText('Dental consultation')).toBeInTheDocument();
     await expect(panel.getByText('Scale and polish')).toBeInTheDocument();
     // The phone record breaks the discount out as its own signed row.
-    await expect(panel.getByText('-$10')).toBeInTheDocument();
+    await expect(panel.getByText('-$10.00')).toBeInTheDocument();
     await expect(panel.getByText('Tax 20%')).toBeInTheDocument();
     /* Once, not twice: unlike the desktop ledger, the phone payment row prints no
        amount at all - the total above it is the only figure on the sheet. */
-    await expect(panel.getAllByText('$114')).toHaveLength(1);
-    await expect(panel.getByText('Total').nextElementSibling).toHaveTextContent('$114');
+    await expect(panel.getAllByText('$114.00')).toHaveLength(1);
+    await expect(panel.getByText('Total').nextElementSibling).toHaveTextContent('$114.00');
     // The phone ledger still names the channel, it just drops the amount.
     await expect(panel.getByText('Paid in the pet-parent app')).toBeInTheDocument();
 

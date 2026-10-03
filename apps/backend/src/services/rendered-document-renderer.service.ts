@@ -27,6 +27,7 @@ import {
   type PdfBranding,
 } from "src/services/formPDF.service";
 import type { RenderedDocumentSource } from "@yosemite-crew/types";
+import { mapWithConcurrency } from "src/utils/async-iteration";
 
 type RenderedDocumentPdfSource = {
   title: string;
@@ -2300,15 +2301,15 @@ export const renderCombinedClinicalPacketPdf = async (
   const brand = await loadOrganizationBrand(input.organisationId);
   const organization = buildSharedOrganizationBranding(brand);
 
+  // Sections are read independently, a few at a time, then assembled in the
+  // order the documents were given.
+  const builtSections = await mapWithConcurrency(input.documents, (doc) =>
+    buildCombinedClinicalSection(doc, input.organisationId, organization),
+  );
   const sections: CombinedClinicalSection[] = [];
   let headerAppointmentId: string | null = null;
   let headerEncounterId: string | null = null;
-  for (const doc of input.documents) {
-    const built = await buildCombinedClinicalSection(
-      doc,
-      input.organisationId,
-      organization,
-    );
+  for (const built of builtSections) {
     if (built) {
       sections.push(built.section);
       headerAppointmentId ??= built.appointmentId;

@@ -35,9 +35,9 @@ const APPOINTMENT: Appointment = {
 };
 
 /**
- * `formatMoney` runs at `maximumFractionDigits: 0`, so every figure here is a whole
- * number on purpose - a 92.65 total would print as "$93" and make the assertions read
- * as though the arithmetic were wrong.
+ * Per-invoice figures print to the penny in the invoice's own currency (#2648), so a
+ * total of 114 reads "$114.00". The figures are whole numbers only to keep the
+ * arithmetic easy to check by eye.
  *
  * Fixed instants throughout: the formatters pin the en-US locale and
  * `getPreferredTimeZone` falls back to Europe/Berlin with no timezone token stored,
@@ -101,14 +101,14 @@ const meta = {
         component:
           'The invoice record as it is drawn below 768px: a 36px-avatar header, one bordered card ' +
           'holding the billed lines and ending in a `--screen-2` tax band and a 20px total, a ' +
-          'payment row, a finalized note, and up to two full-width actions. It replaces the ' +
+          'payment row, and up to two full-width actions. It replaces the ' +
           'desktop record entirely rather than reflowing it - none of the desktop sections exist ' +
           'here.\n\n' +
           'Three of its states had never been drawn, and each is a whole block appearing or ' +
           'vanishing rather than a style change:\n\n' +
           '**Unsettled.** `isSettledInvoice` is `PAID`/`REFUNDED` *or* any invoice carrying ' +
-          '`paidAt`. Below that bar the payment card AND the "Receipt sent to ..." note both ' +
-          'disappear - so an awaiting-payment invoice is a shorter sheet, not one with an empty ' +
+          '`paidAt`. Below that bar the payment card disappears - so an awaiting-payment ' +
+          'invoice is a shorter sheet, not one with an empty ' +
           'ledger. This is the state most invoices are in while anyone is actually looking at ' +
           'them.\n\n' +
           '**No billed items.** The card keeps its tax and total rows and swaps the lines for one ' +
@@ -169,23 +169,23 @@ export const Settled: Story = {
     const card = itemsCard(canvasElement);
     await expect(card.children).toHaveLength(5);
     await expect(card.children[0]).toHaveTextContent('Dental consultation');
-    await expect(card.children[0]).toHaveTextContent('$60');
+    await expect(card.children[0]).toHaveTextContent('$60.00');
     await expect(card.children[1]).toHaveTextContent('Scale and polish');
-    await expect(card.children[1]).toHaveTextContent('$45');
+    await expect(card.children[1]).toHaveTextContent('$45.00');
     // The discount is its own SIGNED row here - the desktop summary prints it unsigned
     // in a labelled table instead.
-    await expect(card.children[2]).toHaveTextContent('-$10');
+    await expect(card.children[2]).toHaveTextContent('-$10.00');
     // The tax label folds the percent in without a middle dot ("Tax 20%", where the
     // desktop summary says "Tax · 20%").
     await expect(card.children[3]).toHaveTextContent('Tax 20%');
-    await expect(card.children[3]).toHaveTextContent('$19');
+    await expect(card.children[3]).toHaveTextContent('$19.00');
     await expect(card.children[4]).toHaveTextContent('Total');
-    await expect(card.children[4]).toHaveTextContent('$114');
+    await expect(card.children[4]).toHaveTextContent('$114.00');
 
     /* Once, not twice. Unlike the desktop ledger, the phone payment row prints NO
        amount - the total above it is the only figure on the sheet, which is the
        difference a reviewer comparing the two records would look for first. */
-    await expect(canvas.getAllByText('$114')).toHaveLength(1);
+    await expect(canvas.getAllByText('$114.00')).toHaveLength(1);
 
     // The payment row names the channel rather than saying "payment recorded", and
     // the caption is matched at its two ends because the timestamp between them
@@ -195,8 +195,10 @@ export const Settled: Story = {
     await expect(canvas.getByTitle(/ · Sky Doe$/)).toBeInTheDocument();
     await expect(canvas.getByRole('link', { name: 'Receipt' })).toBeInTheDocument();
 
-    // The finalized note, with the payer's stored email.
-    await expect(canvas.getByText('Receipt sent to sky.doe@example.com')).toBeInTheDocument();
+    /* No "Receipt sent to ..." note. It was removed in #2609: nothing in the product
+       emails an invoice receipt, so an address on file was never evidence one was
+       delivered. The Stripe link above is the real signal. */
+    await expect(canvas.queryByText(/^Receipt sent to /)).not.toBeInTheDocument();
 
     // Two actions and the close control.
     await expect(
@@ -237,12 +239,10 @@ export const Unsettled: Story = {
     await expect(canvas.getByRole('heading', { name: '#INV-2026-0163' })).toBeInTheDocument();
     await expect(canvas.getByText('Awaiting payment')).toBeInTheDocument();
 
-    /* Both settled-only blocks are gone. Asserted separately because they are gated by
-       two different conditions on the same flag - `settled` for the payment card,
-       `settled && email` for the note - and a regression in either one alone would
-       claim money had been taken. The channel title is checked rather than the card's
-       class, since `getLedgerChannel` still returns a title for an unsettled invoice
-       and would happily render one. */
+    /* The settled-only payment card is gone, and with it any claim that money had
+       been taken. The channel title is checked rather than the card's class, since
+       `getLedgerChannel` still returns a title for an unsettled invoice and would
+       happily render one. */
     await expect(canvas.queryByText('Paid in the pet-parent app')).not.toBeInTheDocument();
     await expect(canvas.queryByText(/^Online payment · /)).not.toBeInTheDocument();
     await expect(canvas.queryByRole('link', { name: 'Receipt' })).not.toBeInTheDocument();
@@ -252,8 +252,8 @@ export const Unsettled: Story = {
        rows, same figures, so nothing about the amount owed changes with the state. */
     const card = itemsCard(canvasElement);
     await expect(card.children).toHaveLength(5);
-    await expect(card.children[4]).toHaveTextContent('$114');
-    await expect(canvas.getAllByText('$114')).toHaveLength(1);
+    await expect(card.children[4]).toHaveTextContent('$114.00');
+    await expect(canvas.getAllByText('$114.00')).toHaveLength(1);
 
     // The actions row survives: a PDF can exist for an unpaid invoice, and the
     // appointment route never depended on payment at all.
@@ -302,7 +302,7 @@ export const SettledWithoutEmail: Story = {
     const card = itemsCard(canvasElement);
     await expect(card.children).toHaveLength(5);
     await expect(card.children[4]).toHaveTextContent('Total');
-    await expect(card.children[4]).toHaveTextContent('$114');
+    await expect(card.children[4]).toHaveTextContent('$114.00');
   },
   parameters: {
     docs: {
@@ -351,7 +351,7 @@ export const NoBilledItems: Story = {
     /* A zero invoice prints figures rather than dashes - twice, once in the tax band
        and once in the total - because a dash in a billing document reads as unknown
        rather than as nothing owed. */
-    await expect(canvas.getAllByText('$0')).toHaveLength(2);
+    await expect(canvas.getAllByText('$0.00')).toHaveLength(2);
     await expect(card.children[2]).toHaveTextContent('Total');
 
     // The empty state is an <output>, so it is announced rather than being a silent
@@ -477,7 +477,7 @@ export const NoActions: Story = {
     const canvas = within(canvasElement);
 
     /* The whole row is unrendered rather than rendered empty - the guard is on the
-       container, not on the two children - so the sheet ends on the finalized note
+       container, not on the two children - so the sheet ends on the payment card
        with no dangling 10px gap under it. */
     await expect(canvas.queryByRole('link', { name: /^Download invoice/ })).not.toBeInTheDocument();
     await expect(
@@ -488,15 +488,15 @@ export const NoActions: Story = {
     // Close is still there; it lives in the header, not in the action row.
     await expect(canvas.getByRole('button', { name: 'Close' })).toBeInTheDocument();
     // And the record is otherwise complete - this is a fully paid invoice.
-    await expect(canvas.getByText('Receipt sent to sky.doe@example.com')).toBeInTheDocument();
+    await expect(canvas.getByText('Paid in the pet-parent app')).toBeInTheDocument();
 
-    /* Four blocks, and the sheet ENDS on the note. The record root is a `gap-3` column,
-       so a row that rendered empty would still add a fourth gap under the note and a
-       fifth child here - which is exactly the difference between a guard on the
-       container and a guard on its two children. */
+    /* Three blocks - header, bill, payment card - and the sheet ENDS on the payment
+       card. The record root is a `gap-3` column, so a row that rendered empty would
+       still add a gap under the card and a fourth child here - which is exactly the
+       difference between a guard on the container and a guard on its two children. */
     const record = canvasElement.querySelector('.flex.flex-col.gap-3.pb-1') as HTMLElement;
-    await expect(record.children).toHaveLength(4);
-    await expect(record.lastElementChild).toHaveTextContent('Receipt sent to sky.doe@example.com');
+    await expect(record.children).toHaveLength(3);
+    await expect(record.lastElementChild).toHaveTextContent('Paid in the pet-parent app');
   },
   parameters: {
     docs: {

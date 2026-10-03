@@ -77,7 +77,9 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    BootSplash.hide({fade: false});
+    BootSplash.hide({fade: false}).catch(error => {
+      console.warn('[Splash] Could not hide the launch screen', error);
+    });
 
     logoScale.value = withSpring(1, {damping: 13, stiffness: 120});
     loadX.value = withRepeat(
