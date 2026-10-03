@@ -1,8 +1,6 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useRef, useState } from 'react';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import {
   IoArrowForwardOutline,
   IoBookOutline,
@@ -11,7 +9,6 @@ import {
   IoOpenOutline,
   IoOptionsOutline,
 } from 'react-icons/io5';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { Appointment } from '@yosemite-crew/types';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
@@ -34,9 +31,6 @@ type AppointmentMerckSearchProps = {
   activeAppointment: Appointment | null;
 };
 
-// A stalled MSD page may never fire onLoad; cap the spinner and fall back.
-const MERCK_READER_TIMEOUT_MS = 12000;
-
 const getSafeMerckEntries = (entries: MerckEntry[]) =>
   entries.filter(
     (entry) =>
@@ -57,7 +51,7 @@ const getAppointmentEntriesContent = (
   entries: MerckEntry[],
   loading: boolean,
   hasSearched: boolean,
-  onOpenReader: (entry: MerckEntry, url: string) => void,
+  onOpenManual: (url: string) => void,
   onCopyUrl: (url: string) => Promise<void>
 ) => {
   if (entries.length === 0) {
@@ -86,7 +80,7 @@ const getAppointmentEntriesContent = (
     >
       <button
         type="button"
-        onClick={() => onOpenReader(entry, entry.primaryUrl)}
+        onClick={() => onOpenManual(entry.primaryUrl)}
         className="group flex w-fit max-w-full items-center text-left"
       >
         <span
@@ -96,22 +90,21 @@ const getAppointmentEntriesContent = (
         >
           {stripMerckHtml(entry.title)}
         </span>
+        <span className="sr-only"> (opens in a new tab)</span>
       </button>
       <div className="line-clamp-2 wrap-break-word text-[10.5px] text-[var(--ink-faint)]">
         {stripMerckHtml(entry.summaryText || '') || 'No summary available.'}
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <Primary href="#" text="Open" onClick={() => onOpenReader(entry, entry.primaryUrl)} />
-        <button
-          type="button"
-          onClick={() => globalThis.window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer')}
-          aria-label="Open in new tab"
-          title="Open in new tab"
-          className="flex size-10 items-center justify-center rounded-full! border border-hairline text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
-        >
-          <IoOpenOutline size={16} />
-        </button>
+        <Primary
+          href="#"
+          text="Open"
+          icon={<IoOpenOutline aria-hidden="true" />}
+          iconPosition="right"
+          ariaLabel={`Open ${stripMerckHtml(entry.title)} in a new tab`}
+          onClick={() => onOpenManual(entry.primaryUrl)}
+        />
         <button
           type="button"
           onClick={() => {
@@ -133,9 +126,10 @@ const getAppointmentEntriesContent = (
               type="button"
               className="max-w-full wrap-break-word rounded-full! border border-hairline px-2.5 py-1 text-[10.5px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-[var(--card-hover)]"
               style={getMerckSubtopicPillStyle(subLink.label)}
-              onClick={() => onOpenReader(entry, subLink.url)}
+              onClick={() => onOpenManual(subLink.url)}
             >
               {subLink.label}
+              <span className="sr-only"> (opens in a new tab)</span>
             </button>
           ))}
         </div>
@@ -252,146 +246,6 @@ const MerckRefinePanel = ({
   </div>
 );
 
-/**
- * Full-screen in-app reader for a single manual page; the iframe stays sandboxed.
- *
- * Exported so it can be rendered on its own. It is portalled and only ever mounted
- * after a live search returns an entry, so nothing else can reach its spinner or its
- * blocked fallback without a running MSD gateway.
- */
-export const MerckReaderOverlay = ({
-  url,
-  title,
-  loading,
-  blocked,
-  onClose,
-  onLoad,
-  onError,
-}: {
-  url: string;
-  title: string;
-  loading: boolean;
-  blocked: boolean;
-  onClose: () => void;
-  onLoad: () => void;
-  onError: () => void;
-}) => (
-  <div
-    data-signing-overlay="true"
-    className="fixed inset-0 z-5000 flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
-  >
-    <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl border border-hairline bg-[var(--screen)] shadow-2xl">
-      <div className="flex items-center justify-between gap-2 border-b border-hairline px-5 py-3">
-        <div className="flex min-w-0 items-center gap-2.5 pr-2">
-          <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-[var(--blue-soft)] text-blue-text">
-            <IoBookOutline size={15} aria-hidden="true" />
-          </span>
-          <span className="truncate text-[13.5px] font-bold text-[var(--ink)]">{title}</span>
-        </div>
-        <button
-          type="button"
-          onMouseDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onClose();
-          }}
-          className="flex size-[34px] items-center justify-center rounded-full! border border-hairline text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)]"
-          aria-label="Close Merck reader"
-        >
-          <Close iconOnly />
-        </button>
-      </div>
-      <div className="relative flex-1">
-        {blocked ? (
-          // Safety net for a manual that never finishes loading (network stall, MSD
-          // outage). Rather than spin forever, offer the working new-tab path.
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)] px-6 text-center">
-            <span className="flex size-11 items-center justify-center rounded-full bg-[var(--blue-soft)] text-blue-text">
-              <IoOpenOutline size={20} aria-hidden="true" />
-            </span>
-            <span className="text-[13.5px] font-bold text-[var(--ink)]">
-              This manual didn’t load
-            </span>
-            <span className="max-w-[340px] text-[12px] text-[var(--ink-faint)]">
-              MSD took too long to respond. Open it in a new tab instead.
-            </span>
-            <button
-              type="button"
-              onClick={() => globalThis.window.open(url, '_blank', 'noopener,noreferrer')}
-              className="mt-1 inline-flex items-center gap-2 rounded-full! border border-hairline px-4 py-2 text-[12.5px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
-            >
-              <IoOpenOutline size={15} aria-hidden="true" />
-              Open in new tab
-            </button>
-          </div>
-        ) : null}
-        {loading && !blocked ? (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)]">
-            <YosemiteLoader
-              label="Loading Manual"
-              size={120}
-              testId="appointment-merck-reader-loader"
-            />
-            <span className="max-w-[320px] text-center text-[12px] text-[var(--ink-faint)]">
-              Fetching “{title}” from MSD…
-            </span>
-          </div>
-        ) : null}
-        <iframe
-          src={url}
-          title={title}
-          className="flex-1 size-full border-0"
-          loading="lazy"
-          referrerPolicy="strict-origin"
-          // allow-same-origin is required: MSD's app reads document.cookie on boot and
-          // throws in an opaque origin, leaving the frame stuck on its own loader. It is
-          // safe here because the framed origin is never our own (isAllowedMerckUrl).
-          sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
-          onLoad={onLoad}
-          onError={onError}
-        />
-      </div>
-    </div>
-  </div>
-);
-
-type ReaderState = {
-  open: boolean;
-  url: string | null;
-  title: string;
-  loading: boolean;
-  blocked: boolean;
-};
-
-const initialReaderState: ReaderState = {
-  open: false,
-  url: null,
-  title: 'Merck Manual',
-  loading: false,
-  blocked: false,
-};
-
-type ReaderAction =
-  | { type: 'opened'; url: string; title: string }
-  | { type: 'closed' }
-  | { type: 'loaded' }
-  | { type: 'blocked' };
-
-const readerReducer = (state: ReaderState, action: ReaderAction): ReaderState => {
-  switch (action.type) {
-    case 'opened':
-      return { open: true, url: action.url, title: action.title, loading: true, blocked: false };
-    case 'closed':
-      return { ...state, open: false };
-    case 'loaded':
-      return { ...state, loading: false };
-    case 'blocked':
-      return { ...state, loading: false, blocked: true };
-    default:
-      return state;
-  }
-};
-
 const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchProps) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const { isEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
@@ -407,7 +261,6 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const [readerState, dispatchReader] = useReducer(readerReducer, initialReaderState);
   const requestRef = useRef(0);
   const resultCacheRef = useRef<Map<string, MerckEntry[]>>(null!);
   resultCacheRef.current ??= new Map();
@@ -465,25 +318,15 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     await performSearch();
   };
 
-  const openReader = (entry: MerckEntry, url: string) => {
+  // Manual pages open in their own tab: MSD needs its own cookies and scripts,
+  // which a sandboxed frame cannot give it.
+  const openManual = (url: string) => {
     if (!isAllowedMerckUrl(url)) {
       setError('Blocked URL: only Merck/MSD Manual links are allowed.');
       return;
     }
-    dispatchReader({ type: 'opened', url, title: entry.title });
+    globalThis.window.open(url, '_blank', 'noopener,noreferrer');
   };
-
-  // A stalled MSD page fires neither onLoad nor onError reliably. Cap the spinner
-  // and switch to the new-tab fallback so it can't hang on "Loading Manual" forever.
-  const failReaderLoad = useCallback(() => {
-    dispatchReader({ type: 'blocked' });
-  }, []);
-
-  useEffect(() => {
-    if (!readerState.open || !readerState.url || !readerState.loading) return;
-    const timer = setTimeout(failReaderLoad, MERCK_READER_TIMEOUT_MS);
-    return () => clearTimeout(timer);
-  }, [readerState.open, readerState.url, readerState.loading, failReaderLoad]);
 
   const copyUrl = async (url: string) => {
     try {
@@ -499,7 +342,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     entries,
     loading,
     hasSearched,
-    openReader,
+    openManual,
     copyUrl
   );
 
@@ -516,125 +359,113 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   const referenceQuerySuffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
 
   return (
-    <>
-      <div
-        className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-hairline bg-[var(--screen)] p-4 shadow-[0_1px_2px_var(--sh03)] scrollbar-hidden"
-        data-has-appointment={hasActiveAppointment}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2 text-[13px] font-bold text-[var(--ink)]">
-            <span className="flex size-7 items-center justify-center rounded-[9px] bg-[var(--blue-soft)] text-blue-text">
-              <IoBookOutline size={14} aria-hidden="true" />
-            </span>
-            {'MSD Manual'}
+    <div
+      className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-hairline bg-[var(--screen)] p-4 shadow-[0_1px_2px_var(--sh03)] scrollbar-hidden"
+      data-has-appointment={hasActiveAppointment}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-[13px] font-bold text-[var(--ink)]">
+          <span className="flex size-7 items-center justify-center rounded-[9px] bg-[var(--blue-soft)] text-blue-text">
+            <IoBookOutline size={14} aria-hidden="true" />
           </span>
-          <span className="text-[10.5px] text-[var(--ink-faint)]">In-visit lookup</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[11.5px] text-[var(--ink-muted)]">
-            Search the manual for this appointment.
-          </span>
-          <CompactAudienceToggle
-            value={audience}
-            disabled={loading}
-            onChange={(next) => {
-              setAudience(next);
-              if (query.trim()) {
-                void performSearch(next);
-              }
-            }}
+          {'MSD Manual'}
+        </span>
+        <span className="text-[10.5px] text-[var(--ink-faint)]">In-visit lookup</span>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11.5px] text-[var(--ink-muted)]">
+          Search the manual for this appointment.
+        </span>
+        <CompactAudienceToggle
+          value={audience}
+          disabled={loading}
+          onChange={(next) => {
+            setAudience(next);
+            if (query.trim()) {
+              void performSearch(next);
+            }
+          }}
+        />
+      </div>
+
+      <div className="flex items-end gap-2 flex-nowrap">
+        <div className="flex-1 min-w-0">
+          <FormInput
+            intype="text"
+            inname="appointment-merck-search"
+            inlabel="Search manuals"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-12! px-4"
           />
         </div>
-
-        <div className="flex items-end gap-2 flex-nowrap">
-          <div className="flex-1 min-w-0">
-            <FormInput
-              intype="text"
-              inname="appointment-merck-search"
-              inlabel="Search manuals"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-12! px-4"
-            />
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Primary
-              href="#"
-              text={loading ? 'Searching...' : 'Search'}
-              onClick={() => void performFreshSearch()}
-              isDisabled={loading || !query.trim()}
-            />
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((prev) => !prev)}
-              aria-label={advancedOpen ? 'Hide filters' : 'Show filters'}
-              title={advancedOpen ? 'Hide filters' : 'Show filters'}
-              className={`size-12 rounded-2xl! border border-card-border flex items-center justify-center transition-colors cursor-pointer ${
-                advancedOpen
-                  ? 'bg-card-hover text-text-primary'
-                  : 'text-text-secondary hover:bg-card-hover'
-              }`}
-            >
-              <IoOptionsOutline size={18} />
-            </button>
-            {copied ? <span className="text-body-4 text-pill-success-text">URL copied</span> : null}
-          </div>
-        </div>
-
-        {advancedOpen ? (
-          <MerckRefinePanel
-            language={language}
-            onLanguageChange={setLanguage}
-            onClose={() => setAdvancedOpen(false)}
+        <div className="flex items-center gap-2 shrink-0">
+          <Primary
+            href="#"
+            text={loading ? 'Searching...' : 'Search'}
+            onClick={() => void performFreshSearch()}
+            isDisabled={loading || !query.trim()}
           />
-        ) : null}
-
-        <div className="min-h-0 flex flex-1 flex-col gap-3">
-          {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
-
-          <div className="min-h-0 flex-1 pr-1 [scrollbar-gutter:stable]">
-            <div className="flex flex-col gap-3">
-              {entriesContent}
-              {entries.length > 0 ? (
-                <div className="pt-2 pb-1.5">
-                  <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        {entries.length === 0 ? (
-          <div className="pt-1 pb-1.5 mt-auto">
-            <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
-          </div>
-        ) : null}
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-hairline pt-3">
-          <span className="text-[11px] text-[var(--ink-faint)]">Opens the full browser</span>
-          <a
-            href={`/integrations/merck-manuals${referenceQuerySuffix}`}
-            className="flex items-center gap-1.5 text-[11.5px] font-semibold text-blue-text"
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((prev) => !prev)}
+            aria-label={advancedOpen ? 'Hide filters' : 'Show filters'}
+            title={advancedOpen ? 'Hide filters' : 'Show filters'}
+            className={`size-12 rounded-2xl! border border-card-border flex items-center justify-center transition-colors cursor-pointer ${
+              advancedOpen
+                ? 'bg-card-hover text-text-primary'
+                : 'text-text-secondary hover:bg-card-hover'
+            }`}
           >
-            Open in Reference
-            <IoArrowForwardOutline size={11} aria-hidden="true" />
-          </a>
+            <IoOptionsOutline size={18} />
+          </button>
+          {copied ? <span className="text-body-4 text-pill-success-text">URL copied</span> : null}
         </div>
       </div>
 
-      {readerState.open && readerState.url && typeof document !== 'undefined'
-        ? createPortal(
-            <MerckReaderOverlay
-              url={readerState.url}
-              title={readerState.title}
-              loading={readerState.loading}
-              blocked={readerState.blocked}
-              onClose={() => dispatchReader({ type: 'closed' })}
-              onLoad={() => dispatchReader({ type: 'loaded' })}
-              onError={failReaderLoad}
-            />,
-            document.body
-          )
-        : null}
-    </>
+      {advancedOpen ? (
+        <MerckRefinePanel
+          language={language}
+          onLanguageChange={setLanguage}
+          onClose={() => setAdvancedOpen(false)}
+        />
+      ) : null}
+
+      <div className="min-h-0 flex flex-1 flex-col gap-3">
+        {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
+
+        <div className="min-h-0 flex-1 pr-1 [scrollbar-gutter:stable]">
+          <div className="flex flex-col gap-3">
+            {entries.length > 0 ? (
+              <div className="text-[11px] text-[var(--ink-faint)]">
+                Manual pages open in a new tab.
+              </div>
+            ) : null}
+            {entriesContent}
+            {entries.length > 0 ? (
+              <div className="pt-2 pb-1.5">
+                <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      {entries.length === 0 ? (
+        <div className="pt-1 pb-1.5 mt-auto">
+          <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
+        </div>
+      ) : null}
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-hairline pt-3">
+        <span className="text-[11px] text-[var(--ink-faint)]">Opens the full browser</span>
+        <a
+          href={`/integrations/merck-manuals${referenceQuerySuffix}`}
+          className="flex items-center gap-1.5 text-[11.5px] font-semibold text-blue-text"
+        >
+          Open in Reference
+          <IoArrowForwardOutline size={11} aria-hidden="true" />
+        </a>
+      </div>
+    </div>
   );
 };
 

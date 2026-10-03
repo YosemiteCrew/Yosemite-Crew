@@ -1,6 +1,5 @@
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { Appointment } from '@yosemite-crew/types';
 import {
@@ -25,8 +24,6 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
-import { YosemiteLoader } from '@/app/ui/overlays/Loader';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
@@ -35,6 +32,7 @@ import {
   LabResultCategoryTable,
   type UseLabTestsReturn,
 } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+import IdexxOrderLaunchDialog from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/IdexxOrderLaunchDialog';
 import {
   resolveOrderUiUrl,
   resolveOrderPdfUrl,
@@ -46,7 +44,6 @@ import {
 import { getIdexxTestSearchProps } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/idexxTestSearchProps';
 import type { IdexxTest } from '@/app/features/integrations/services/types';
 import type { DiagnosticOrder } from '@/app/features/appointments/types/workspace';
-import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
@@ -740,71 +737,6 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
   );
 };
 
-const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
-  const url = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
-  const safeUrl = getSafeIdexxIframeUrl(url);
-  const [loaded, setLoaded] = useState(false);
-  const [prevIframeDeps, setPrevIframeDeps] = useState({
-    safeUrl,
-    iframeOpenSource: s.iframeOpenSource,
-    showOrderIframe: s.showOrderIframe,
-  });
-  if (
-    safeUrl !== prevIframeDeps.safeUrl ||
-    s.iframeOpenSource !== prevIframeDeps.iframeOpenSource ||
-    s.showOrderIframe !== prevIframeDeps.showOrderIframe
-  ) {
-    setPrevIframeDeps({
-      safeUrl,
-      iframeOpenSource: s.iframeOpenSource,
-      showOrderIframe: s.showOrderIframe,
-    });
-    if (s.showOrderIframe) setLoaded(false);
-  }
-  if (!s.showOrderIframe || !safeUrl || typeof document === 'undefined') return null;
-  const title = s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
-      data-signing-overlay="true"
-    >
-      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-card-border px-4 py-2">
-          <span className="flex flex-col">
-            <span className="text-body-2 text-text-primary">{title}</span>
-            {s.iframeOpenSource === 'followup' ? (
-              <span className="text-caption-1 text-text-secondary">
-                If IDEXX shows the order was submitted and this window stays open, close it with the
-                top-right cross arrow to refresh this appointment.
-              </span>
-            ) : null}
-          </span>
-          <Close onClick={s.closeOrderIframeManually} />
-        </div>
-        <div className="relative flex-1">
-          {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
-              <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-order-loader" />
-            </div>
-          )}
-          <iframe
-            key={safeUrl}
-            src={safeUrl}
-            title="IDEXX order UI"
-            className="size-full border-0"
-            loading="lazy"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-same-origin"
-            onLoad={() => setLoaded(true)}
-          />
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
-
 const IdexxNotEnabled = () => (
   <SectionContainer title="IDEXX Diagnostics" className="flex flex-col gap-3">
     <p className="text-body-3 text-text-primary">
@@ -870,7 +802,12 @@ const IdexxSection = ({
           />
         </div>
       </div>
-      <OrderIframeOverlay s={s} />
+      <IdexxOrderLaunchDialog
+        open={s.showOrderIframe}
+        url={s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder)}
+        source={s.iframeOpenSource}
+        onClose={s.closeOrderIframeManually}
+      />
       <PdfPreviewOverlay
         open={s.showPdfPreview}
         pdfUrl={s.pdfPreviewUrl}

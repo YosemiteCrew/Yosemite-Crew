@@ -6,6 +6,7 @@ settings:
 
 overrides:
   protobufjs: 8.8.0
+  '@axe-core/playwright>playwright-core': 1.63.0
   '@protobufjs/utf8': 1.1.1
   qs: 6.16.0
   serialize-javascript: 7.0.5
@@ -719,9 +720,6 @@ importers:
       jest-environment-jsdom:
         specifier: ^30.5.2
         version: 30.5.2
-      playwright-core:
-        specifier: 1.63.0
-        version: 1.63.0
       postcss:
         specifier: 8.5.28
         version: 8.5.28
@@ -1529,7 +1527,7 @@ packages:
   /@axe-core/playwright@4.13.0(playwright-core@1.63.0):
     resolution: {integrity: sha512-6YLx+kxXu5GJceG4ozFg+33a2EMTdjYwWGloJ3sb9Kta5pp+ZNS53uxGVog5JetIY8s++P5UrtX+cri+u0VAVg==}
     peerDependencies:
-      playwright-core: '>= 1.0.0'
+      playwright-core: 1.63.0
     dependencies:
       axe-core: 4.13.0
       playwright-core: 1.63.0

@@ -106,6 +106,8 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 jest.mock('@/app/ui/filters/FormsFilters', () => ({
   __esModule: true,
+  useFormsCategoryFilter: jest.requireActual('@/app/ui/filters/FormsFilters')
+    .useFormsCategoryFilter,
   default: ({ onFiltersChange, categoryAction }: any) => (
     <div data-testid="forms-filters">
       {categoryAction}
@@ -120,6 +122,12 @@ jest.mock('@/app/ui/filters/FormsFilters', () => ({
         onClick={() => onFiltersChange({ status: 'Archived', category: 'Custom' })}
       >
         Empty Filter
+      </button>
+      <button
+        data-testid="filter-stale"
+        onClick={() => onFiltersChange({ status: 'All', category: 'Groomer - Grooming Prep' })}
+      >
+        Stale Filter
       </button>
     </div>
   ),
@@ -247,7 +255,7 @@ describe('Forms Page', () => {
       selector(catalogState)
     );
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
-      selector({ primaryOrgId: ORG_ID })
+      selector({ primaryOrgId: ORG_ID, orgsById: {} })
     );
     (useFormsStore as unknown as jest.Mock).mockReturnValue({
       formsById: mockForms,
@@ -391,6 +399,28 @@ describe('Forms Page', () => {
 
     // Verify store update called with null
     expect(mockSetActiveForm).toHaveBeenCalledWith(null);
+  });
+
+  it('filters a category the org type no longer offers as all categories', () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: ORG_ID, orgsById: { [ORG_ID]: { type: 'BOARDER' } } })
+    );
+    (useFormsStore as unknown as jest.Mock).mockReturnValue({
+      formsById: {
+        'form-1': { _id: 'form-1', name: 'Kennel Card', category: 'Boarder - Schedule' },
+      },
+      formIds: ['form-1'],
+      activeFormId: 'form-1',
+      setActiveForm: mockSetActiveForm,
+      loading: false,
+    });
+    render(<ProtectedForms />);
+    mockSetActiveForm.mockClear();
+
+    // A groomer category is not offered to a boarder, so it must not hide every form.
+    fireEvent.click(screen.getByTestId('filter-stale'));
+
+    expect(mockSetActiveForm).not.toHaveBeenCalledWith(null);
   });
 
   it('auto-selects the first form if activeID is missing or filtered out', () => {

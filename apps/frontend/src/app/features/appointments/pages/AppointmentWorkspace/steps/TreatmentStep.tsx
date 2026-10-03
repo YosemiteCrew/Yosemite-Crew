@@ -714,107 +714,38 @@ const getTreatmentSaveErrorMessage = (error: unknown): string =>
   );
 
 /**
- * Treatment step: services/packages, prescription, and inpatient schedule.
- * Add/edit actions update the workspace store; backend-backed catalog and
- * clinical artifact hydration supply persisted rows. "Skip to Summary" lives
- * in the meta bar.
+ * Save-treatment flow: validates prescriptions, persists services and
+ * prescriptions, finalizes in-house prescriptions, re-hydrates the encounter,
+ * then completes the step and opens the invoice.
  */
-const TreatmentStep = ({
+const useTreatmentSave = ({
   appointmentId,
   organisationId,
   encounterId,
   authorId,
   encounter,
-  companionSpecies,
   ensureEncounterId,
   onOpenInvoice,
-}: TreatmentStepProps) => {
-  const addLineItem = useAppointmentWorkspaceStore((s) => s.addLineItem);
-  const updateLineItem = useAppointmentWorkspaceStore((s) => s.updateLineItem);
-  const removeLineItem = useAppointmentWorkspaceStore((s) => s.removeLineItem);
+  prescriptionItems,
+  setPrescriptionError,
+}: Pick<
+  TreatmentStepProps,
+  | 'appointmentId'
+  | 'organisationId'
+  | 'encounterId'
+  | 'authorId'
+  | 'encounter'
+  | 'ensureEncounterId'
+  | 'onOpenInvoice'
+> & {
+  prescriptionItems: AppointmentEncounter['prescription'];
+  setPrescriptionError: (message: string | null) => void;
+}) => {
   const setPrescriptions = useAppointmentWorkspaceStore((s) => s.setPrescriptions);
   const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
   const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
-  const setActiveSideAction = useAppointmentWorkspaceStore((s) => s.setActiveSideAction);
-  const openTaskInQuickActions = useAppointmentWorkspaceStore((s) => s.openTaskInQuickActions);
   const [treatmentSaveError, setTreatmentSaveError] = useState<string | null>(null);
   const [isSavingTreatment, setIsSavingTreatment] = useState(false);
-  const readOnly = encounter.viewOnly;
-  // Once the encounter is ready for billing, destructive removal of un-billed
-  // items is locked. Already-billed items lock per-row inside each editor (read
-  // -only + "Billed" badge + no delete); adding new items always stays allowed.
-  const billedTreatmentLocked = readOnly || encounter.readyForBilling.value;
-  const isInpatient = encounter.mode === 'INPATIENT';
-  const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
-  // The outpatient visit schedule is built from the companion's real upcoming
-  // appointments already in the store (there is no dedicated outpatient "series" data
-  // model). It degrades to an empty state when no future visits are available — e.g. on
-  // a direct deep-link where the appointment list has not been loaded.
-  const currentAppointment = appointmentsById[appointmentId];
-  const companionId = useMemo(
-    () => (currentAppointment ? getAppointmentCompanion(currentAppointment).id : undefined),
-    [currentAppointment]
-  );
-  const outpatientSchedule = useMemo(
-    () =>
-      buildOutpatientSchedule(Object.values(appointmentsById), {
-        companionId,
-        excludeAppointmentId: appointmentId,
-        // Carries the (still backend-unpopulated) series note + delivered count so
-        // the design's series rail lights up the moment they are supplied.
-        currentAppointment,
-      }),
-    [appointmentsById, companionId, appointmentId, currentAppointment]
-  );
-
-  const {
-    inventoryById,
-    inventoryBySku,
-    prescriptionCatalogItems,
-    servicePackageCatalogItems,
-    scheduleTemplates,
-    prescriptionTemplates,
-  } = useTreatmentCatalog({ organisationId, encounterId, isInpatient });
-
-  const {
-    visibleScheduleTasks,
-    assigneeOptions,
-    scheduleError,
-    handleApplyScheduleTemplate,
-    handleUpdateScheduleTask,
-  } = useScheduleTasks({ appointmentId, organisationId, encounter });
-
-  const prescriptionItems = useMemo(
-    () =>
-      encounter.prescription.map((item) =>
-        backfillPrescriptionFromInventory(item, (line) => {
-          if (line.inventoryItemId && inventoryById[line.inventoryItemId]) {
-            return inventoryById[line.inventoryItemId];
-          }
-          const sku = line.sku?.trim().toLowerCase();
-          return sku ? inventoryBySku.get(sku) : undefined;
-        })
-      ),
-    [encounter.prescription, inventoryById, inventoryBySku]
-  );
-
-  const {
-    prescriptionError,
-    setPrescriptionError,
-    printingLabels,
-    handleAddPrescription,
-    handleApplyPrescriptionTemplate,
-    handleUpdatePrescription,
-    handleRemovePrescription,
-    handlePrintPrescriptionLabels,
-  } = usePrescriptionActions({
-    appointmentId,
-    organisationId,
-    encounterId,
-    encounter,
-    readOnly,
-    prescriptionItems,
-  });
 
   const handleSaveTreatment = async () => {
     if (isSavingTreatment) return;
@@ -967,6 +898,119 @@ const TreatmentStep = ({
     setIsSavingTreatment(false);
     onOpenInvoice();
   };
+
+  return { treatmentSaveError, isSavingTreatment, handleSaveTreatment };
+};
+
+/**
+ * Treatment step: services/packages, prescription, and inpatient schedule.
+ * Add/edit actions update the workspace store; backend-backed catalog and
+ * clinical artifact hydration supply persisted rows. "Skip to Summary" lives
+ * in the meta bar.
+ */
+const TreatmentStep = ({
+  appointmentId,
+  organisationId,
+  encounterId,
+  authorId,
+  encounter,
+  companionSpecies,
+  ensureEncounterId,
+  onOpenInvoice,
+}: TreatmentStepProps) => {
+  const addLineItem = useAppointmentWorkspaceStore((s) => s.addLineItem);
+  const updateLineItem = useAppointmentWorkspaceStore((s) => s.updateLineItem);
+  const removeLineItem = useAppointmentWorkspaceStore((s) => s.removeLineItem);
+  const setActiveSideAction = useAppointmentWorkspaceStore((s) => s.setActiveSideAction);
+  const openTaskInQuickActions = useAppointmentWorkspaceStore((s) => s.openTaskInQuickActions);
+  const readOnly = encounter.viewOnly;
+  // Once the encounter is ready for billing, destructive removal of un-billed
+  // items is locked. Already-billed items lock per-row inside each editor (read
+  // -only + "Billed" badge + no delete); adding new items always stays allowed.
+  const billedTreatmentLocked = readOnly || encounter.readyForBilling.value;
+  const isInpatient = encounter.mode === 'INPATIENT';
+  const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
+  // The outpatient visit schedule is built from the companion's real upcoming
+  // appointments already in the store (there is no dedicated outpatient "series" data
+  // model). It degrades to an empty state when no future visits are available - e.g. on
+  // a direct deep-link where the appointment list has not been loaded.
+  const currentAppointment = appointmentsById[appointmentId];
+  const companionId = useMemo(
+    () => (currentAppointment ? getAppointmentCompanion(currentAppointment).id : undefined),
+    [currentAppointment]
+  );
+  const outpatientSchedule = useMemo(
+    () =>
+      buildOutpatientSchedule(Object.values(appointmentsById), {
+        companionId,
+        excludeAppointmentId: appointmentId,
+        // Carries the (still backend-unpopulated) series note + delivered count so
+        // the design's series rail lights up the moment they are supplied.
+        currentAppointment,
+      }),
+    [appointmentsById, companionId, appointmentId, currentAppointment]
+  );
+
+  const {
+    inventoryById,
+    inventoryBySku,
+    prescriptionCatalogItems,
+    servicePackageCatalogItems,
+    scheduleTemplates,
+    prescriptionTemplates,
+  } = useTreatmentCatalog({ organisationId, encounterId, isInpatient });
+
+  const {
+    visibleScheduleTasks,
+    assigneeOptions,
+    scheduleError,
+    handleApplyScheduleTemplate,
+    handleUpdateScheduleTask,
+  } = useScheduleTasks({ appointmentId, organisationId, encounter });
+
+  const prescriptionItems = useMemo(
+    () =>
+      encounter.prescription.map((item) =>
+        backfillPrescriptionFromInventory(item, (line) => {
+          if (line.inventoryItemId && inventoryById[line.inventoryItemId]) {
+            return inventoryById[line.inventoryItemId];
+          }
+          const sku = line.sku?.trim().toLowerCase();
+          return sku ? inventoryBySku.get(sku) : undefined;
+        })
+      ),
+    [encounter.prescription, inventoryById, inventoryBySku]
+  );
+
+  const {
+    prescriptionError,
+    setPrescriptionError,
+    printingLabels,
+    handleAddPrescription,
+    handleApplyPrescriptionTemplate,
+    handleUpdatePrescription,
+    handleRemovePrescription,
+    handlePrintPrescriptionLabels,
+  } = usePrescriptionActions({
+    appointmentId,
+    organisationId,
+    encounterId,
+    encounter,
+    readOnly,
+    prescriptionItems,
+  });
+
+  const { treatmentSaveError, isSavingTreatment, handleSaveTreatment } = useTreatmentSave({
+    appointmentId,
+    organisationId,
+    encounterId,
+    authorId,
+    encounter,
+    ensureEncounterId,
+    onOpenInvoice,
+    prescriptionItems,
+    setPrescriptionError,
+  });
 
   // Count and total only what the invoice step will ACTUALLY offer as a
   // candidate: it excludes rows that are already billed, and excludes

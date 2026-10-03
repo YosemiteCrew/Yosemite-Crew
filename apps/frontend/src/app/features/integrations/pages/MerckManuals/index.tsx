@@ -2,16 +2,13 @@
 
 import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
 const MERCK_PAGE_SKELETON = <PageSkeleton variant="list" />;
-import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
-import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -33,16 +30,13 @@ import {
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { getJsonStorageItem, setJsonStorageItem } from '@/app/lib/browserStorage';
 import {
-  IoBookOutline,
   IoCloseOutline,
   IoCopyOutline,
   IoInformationCircleOutline,
-  IoLinkOutline,
   IoOpenOutline,
   IoOptionsOutline,
   IoSearchOutline,
 } from 'react-icons/io5';
-import StatusPill, { StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type MerckManualsPageProps = {
   embedded?: boolean;
@@ -90,7 +84,7 @@ const getResultsContent = (
   loading: boolean,
   hasSearched: boolean,
   query: string,
-  onOpenInFrame: (entry: MerckEntry, url: string) => void,
+  onOpenManual: (url: string) => void,
   onCopyUrl: (url: string) => void
 ) => {
   if (entries.length === 0) {
@@ -104,7 +98,7 @@ const getResultsContent = (
   }
 
   return entries.map((entry) => (
-    <EntryCard key={entry.id} entry={entry} onOpenInFrame={onOpenInFrame} onCopy={onCopyUrl} />
+    <EntryCard key={entry.id} entry={entry} onOpenManual={onOpenManual} onCopy={onCopyUrl} />
   ));
 };
 
@@ -231,25 +225,27 @@ const CompactFilterPill = ({
 
 const EntryCard = ({
   entry,
-  onOpenInFrame,
+  onOpenManual,
   onCopy,
 }: {
   entry: MerckEntry;
-  onOpenInFrame: (entry: MerckEntry, url: string) => void;
+  onOpenManual: (url: string) => void;
   onCopy: (url: string) => void;
 }) => {
   const summary = stripMerckHtml(entry.summaryText || '').slice(0, 280);
+  const title = stripMerckHtml(entry.title);
   return (
     <div className="flex flex-col gap-2 rounded-[14px] border border-hairline bg-[var(--screen)] p-3.5 shadow-[0_1px_2px_var(--sh03)] transition-colors hover:border-[var(--hairline-hover)]">
       <button
         type="button"
-        onClick={() => onOpenInFrame(entry, entry.primaryUrl)}
+        onClick={() => onOpenManual(entry.primaryUrl)}
         disabled={!isAllowedMerckUrl(entry.primaryUrl)}
         className="group flex w-fit max-w-full items-center text-left"
       >
         <span className="text-[13.5px] font-bold leading-snug text-[var(--ink)] transition-colors group-hover:text-[var(--blue-text)] group-hover:underline disabled:no-underline">
-          {stripMerckHtml(entry.title)}
+          {title}
         </span>
+        <span className="sr-only"> (opens in a new tab)</span>
       </button>
       <div className="line-clamp-2 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
         {summary || 'No summary available.'}
@@ -266,9 +262,10 @@ const EntryCard = ({
               type="button"
               className="max-w-full rounded-full! border border-hairline px-2.5 py-1 text-[11px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-[var(--card-hover)]"
               style={getMerckSubtopicPillStyle(subLink.label)}
-              onClick={() => onOpenInFrame(entry, subLink.url)}
+              onClick={() => onOpenManual(subLink.url)}
             >
               {subLink.label}
+              <span className="sr-only"> (opens in a new tab)</span>
             </button>
           ))}
         </div>
@@ -278,21 +275,12 @@ const EntryCard = ({
         <Primary
           href="#"
           text="Open"
-          onClick={() => onOpenInFrame(entry, entry.primaryUrl)}
+          icon={<IoOpenOutline aria-hidden="true" />}
+          iconPosition="right"
+          ariaLabel={`Open ${title} in a new tab`}
+          onClick={() => onOpenManual(entry.primaryUrl)}
           isDisabled={!isAllowedMerckUrl(entry.primaryUrl)}
         />
-        <button
-          type="button"
-          onClick={() => {
-            if (globalThis.window === undefined) return;
-            globalThis.window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer');
-          }}
-          aria-label="Open in new tab"
-          title="Open in new tab"
-          className="flex size-10 items-center justify-center rounded-full! border border-hairline text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
-        >
-          <IoOpenOutline size={16} />
-        </button>
         <button
           type="button"
           onClick={() => onCopy(entry.primaryUrl)}
@@ -522,196 +510,6 @@ const MerckSearchPanel = ({
   </div>
 );
 
-const READER_AUDIENCE_META: Record<MerckAudience, { label: string; tokens: StatusPillTokens }> = {
-  PROV: {
-    label: 'PROFESSIONAL',
-    tokens: {
-      bg: 'var(--status-upcoming-bg)',
-      text: 'var(--status-upcoming-text)',
-      border: 'var(--status-upcoming-border)',
-    },
-  },
-  PAT: {
-    label: 'PET PARENT',
-    tokens: {
-      bg: 'var(--blue-soft)',
-      text: 'var(--blue-text)',
-      border: 'var(--status-upcoming-border)',
-    },
-  },
-};
-
-const READER_FOOTER_NOTICE =
-  "Content © MSD Veterinary Manual · displayed under your clinic's integration";
-
-// Safety net for a manual that never finishes loading (network stall, MSD outage):
-// cap the spinner and fall back to opening in a new tab.
-const READER_LOAD_TIMEOUT_MS = 12000;
-
-const MerckReaderFallback = ({
-  readerUrl,
-  readerTitle,
-}: {
-  readerUrl: string;
-  readerTitle: string;
-}) => (
-  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)] px-8 text-center">
-    <span className="flex size-14 items-center justify-center rounded-full bg-[var(--inset)] text-[var(--ink-faint)]">
-      <IoBookOutline size={24} aria-hidden="true" />
-    </span>
-    <span className="text-[15px] font-bold text-[var(--ink)]">This manual didn’t load</span>
-    <span className="max-w-[380px] text-[12.5px] leading-relaxed text-[var(--ink-muted)]">
-      MSD Veterinary Manual took too long to respond. Open “{readerTitle}” in a new tab to read the
-      full content.
-    </span>
-    <Link
-      href={readerUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="mt-1 flex items-center gap-1.5 rounded-full! border border-hairline bg-[var(--screen)] px-4 py-2 text-[12.5px] font-bold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
-    >
-      <IoOpenOutline size={14} aria-hidden="true" />
-      Open in new tab
-    </Link>
-  </div>
-);
-
-/**
- * Exported for `MerckReaderPortal.stories.tsx`. The overlay is presentation only -
- * every piece of state arrives as a prop - but the page that owns those props
- * sits behind `ProtectedRoute` + `OrgGuard` and only reaches this surface after a
- * live MSD search, so the three reader states are unreachable from the page in a
- * story. Rendering it directly is the only way to draw them.
- */
-export const MerckReaderPortal = ({
-  readerOpen,
-  readerUrl,
-  readerTitle,
-  readerLoading,
-  readerBlocked,
-  audience,
-  copied,
-  onCopyUrl,
-  setReaderOpen,
-  setReaderLoading,
-  setReaderBlocked,
-}: {
-  readerOpen: boolean;
-  readerUrl: string | null;
-  readerTitle: string;
-  readerLoading: boolean;
-  readerBlocked: boolean;
-  audience: MerckAudience;
-  copied: string | null;
-  onCopyUrl: (url: string) => void;
-  setReaderOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  setReaderBlocked: React.Dispatch<React.SetStateAction<boolean>>;
-}) => {
-  const onReaderLoadFailed = useCallback(() => {
-    setReaderLoading(false);
-    setReaderBlocked(true);
-  }, [setReaderLoading, setReaderBlocked]);
-
-  useEffect(() => {
-    if (!readerOpen || !readerUrl || !readerLoading) return;
-    const timer = setTimeout(onReaderLoadFailed, READER_LOAD_TIMEOUT_MS);
-    return () => clearTimeout(timer);
-  }, [readerOpen, readerUrl, readerLoading, onReaderLoadFailed]);
-
-  if (!readerOpen || !readerUrl || typeof document === 'undefined') return null;
-
-  const audienceMeta = READER_AUDIENCE_META[audience];
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-10000 flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
-      data-merck-reader-overlay="true"
-    >
-      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl border border-hairline bg-[var(--screen)] shadow-2xl">
-        <div className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3.5">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-[var(--blue-soft)] text-blue-text">
-              <IoBookOutline size={15} aria-hidden="true" />
-            </span>
-            <div
-              id="merck-reader-title"
-              className="truncate text-[13.5px] font-bold text-[var(--ink)]"
-            >
-              {readerTitle}
-            </div>
-            <StatusPill
-              label={audienceMeta.label}
-              tokens={audienceMeta.tokens}
-              className="flex-none"
-            />
-          </div>
-          <div className="flex flex-none items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onCopyUrl(readerUrl)}
-              className="flex items-center gap-1.5 rounded-full! border border-hairline px-3 py-[7px] text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
-            >
-              <IoLinkOutline size={13} aria-hidden="true" />
-              {copied === readerUrl ? 'Copied!' : 'Copy manual URL'}
-            </button>
-            <Link
-              href={readerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-full! border border-hairline px-3 py-[7px] text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
-            >
-              <IoOpenOutline size={13} aria-hidden="true" />
-              Open in new tab
-            </Link>
-            <button
-              type="button"
-              onClick={() => setReaderOpen(false)}
-              className="flex size-[34px] items-center justify-center rounded-full! border border-hairline text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)]"
-              aria-label="Close Merck reader"
-            >
-              <Close iconOnly />
-            </button>
-          </div>
-        </div>
-        <div className="relative flex-1">
-          {readerBlocked ? (
-            <MerckReaderFallback readerUrl={readerUrl} readerTitle={readerTitle} />
-          ) : (
-            <>
-              {readerLoading ? (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)]">
-                  <YosemiteLoader label="Loading Manual" size={120} testId="merck-reader-loader" />
-                  <span className="max-w-[320px] text-center text-[12px] text-[var(--ink-faint)]">
-                    Fetching “{readerTitle}” from MSD…
-                  </span>
-                </div>
-              ) : null}
-              <iframe
-                src={readerUrl}
-                title={readerTitle}
-                className="flex-1 size-full border-0"
-                loading="lazy"
-                referrerPolicy="strict-origin"
-                // allow-same-origin is required: MSD's app reads document.cookie on boot and
-                // throws in an opaque origin, leaving the frame stuck on its own loader. It is
-                // safe here because the framed origin is never our own (isAllowedMerckUrl).
-                sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
-                onLoad={() => setReaderLoading(false)}
-                onError={onReaderLoadFailed}
-              />
-            </>
-          )}
-        </div>
-        <div className="border-t border-hairline px-6 py-3">
-          <span className="text-[11.5px] text-[var(--ink-faint)]">{READER_FOOTER_NOTICE}</span>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
-
 const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const searchParams = useSearchParams();
   const routeQuery = String(searchParams.get('q') ?? '').trim();
@@ -727,12 +525,6 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-
-  const [readerOpen, setReaderOpen] = useState(false);
-  const [readerTitle, setReaderTitle] = useState('Merck Manual');
-  const [readerUrl, setReaderUrl] = useState<string | null>(null);
-  const [readerLoading, setReaderLoading] = useState(false);
-  const [readerBlocked, setReaderBlocked] = useState(false);
 
   const requestIdRef = useRef(0);
   const resultCacheRef = useRef<Map<string, MerckEntry[]>>(null!);
@@ -791,16 +583,14 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     }
   };
 
-  const onOpenInFrame = (entry: MerckEntry, url: string) => {
+  // Manual pages open in their own tab: MSD needs its own cookies and scripts,
+  // which a sandboxed frame cannot give it.
+  const onOpenManual = (url: string) => {
     if (!isAllowedMerckUrl(url)) {
       setError('Blocked URL: only Merck/MSD Vet Manual links are allowed.');
       return;
     }
-    setReaderTitle(entry.title);
-    setReaderUrl(url);
-    setReaderLoading(true);
-    setReaderBlocked(false);
-    setReaderOpen(true);
+    globalThis.window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const onAudienceChange = (next: MerckAudience) => {
@@ -832,7 +622,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     loading,
     hasSearched,
     query,
-    onOpenInFrame,
+    onOpenManual,
     onCopyUrl
   );
   const resultsCountLabel =
@@ -845,7 +635,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
           <div className="flex items-center gap-2">
             <h1 className="text-page-title text-[var(--ink)]">MSD Veterinary Manual</h1>
             <GlassTooltip
-              content="Search veterinary reference content and open results inside Yosemite Crew using secure reader links."
+              content="Search veterinary reference content. Results open on the MSD Veterinary Manual site in a new tab."
               side="bottom"
             >
               <button
@@ -900,7 +690,12 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             ) : null}
 
             {resultsCountLabel ? (
-              <div className="text-[11.5px] text-[var(--ink-faint)]">{resultsCountLabel}</div>
+              <div className="flex flex-col gap-0.5">
+                <div className="text-[11.5px] text-[var(--ink-faint)]">{resultsCountLabel}</div>
+                <div className="text-[11px] text-[var(--ink-faint)]">
+                  Manual pages open in a new tab.
+                </div>
+              </div>
             ) : null}
 
             <div className={resultsContainerClassName}>
@@ -919,20 +714,6 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         </div>
       )}
 
-      <MerckReaderPortal
-        readerOpen={readerOpen}
-        readerUrl={readerUrl}
-        readerTitle={readerTitle}
-        readerLoading={readerLoading}
-        readerBlocked={readerBlocked}
-        audience={audience}
-        copied={copied}
-        onCopyUrl={onCopyUrl}
-        setReaderOpen={setReaderOpen}
-        setReaderLoading={setReaderLoading}
-        setReaderBlocked={setReaderBlocked}
-      />
-
       {entries.length === 0 ? (
         <div className="pt-1 pb-1.5 mt-auto">
           <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
@@ -944,8 +725,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
 
 // no-story: both ProtectedMerckManuals (below) and EmbeddedMerckManuals are
 // ProtectedRoute/OrgGuard/Suspense compositions with no UI of their own, only
-// a loading skeleton; the real screen is MerckManualsPage, whose visible
-// pieces are covered by MerckReaderPortal.stories.tsx.
+// a loading skeleton; the real screen is MerckManualsPage, which needs a live
+// MSD search to show results.
 const ProtectedMerckManuals = () => (
   <ProtectedRoute skeleton={MERCK_PAGE_SKELETON}>
     <OrgGuard skeleton={MERCK_PAGE_SKELETON}>

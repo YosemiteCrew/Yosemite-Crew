@@ -10,7 +10,10 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoAdd, IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
-import FormsFilters, { type FormsFilterState } from '@/app/ui/filters/FormsFilters';
+import FormsFilters, {
+  type FormsFilterState,
+  useFormsCategoryFilter,
+} from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { loadForms } from '@/app/features/forms/services/formService';
@@ -138,16 +141,20 @@ const Forms = () => {
     [formIds, formsById]
   );
 
+  // A category the org type no longer offers filters as 'All', matching what the
+  // filter control shows.
+  const { effectiveCategory } = useFormsCategoryFilter(filters.category);
+
   const filteredList = useMemo(() => {
     const q = headerSearchQuery.trim().toLowerCase();
     return list.filter((item) => {
       const matchesStatus = filters.status === 'All' || item.status === filters.status;
-      const matchesCategory = filters.category === 'All' || item.category === filters.category;
+      const matchesCategory = effectiveCategory === 'All' || item.category === effectiveCategory;
       const matchesQuery =
         !q || item.name?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
       return matchesStatus && matchesCategory && matchesQuery;
     });
-  }, [filters, headerSearchQuery, list]);
+  }, [filters.status, effectiveCategory, headerSearchQuery, list]);
 
   const activeForm: FormsProps | null = useMemo(() => {
     const current = activeFormId ? formsById[activeFormId] : null;

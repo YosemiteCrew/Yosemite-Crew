@@ -110,11 +110,16 @@ jest.mock('@/app/ui/inputs/SearchDropdown', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
+  Primary: ({ text, onClick, isDisabled, href, target }: any) =>
+    target ? (
+      <a href={href} target={target}>
+        {text}
+      </a>
+    ) : (
+      <button type="button" onClick={onClick} disabled={isDisabled}>
+        {text}
+      </button>
+    ),
   Secondary: ({ text, onClick, isDisabled }: any) => (
     <button type="button" onClick={onClick} disabled={isDisabled}>
       {text}
@@ -501,6 +506,84 @@ describe('LabTests', () => {
       expect(result.current.showOrderIframe).toBe(false);
       expect(listIdexxOrdersMock.mock.calls.length).toBe(initialOrderRequests + 1);
     });
+  });
+
+  it.each([
+    ['no IDEXX order id', { idexxOrderId: '', uiUrl: 'https://vetconnectplus.com/order' }],
+    [
+      'no safe ordering URL',
+      { idexxOrderId: '100329799', uiUrl: 'http://vetconnectplus.com/order' },
+    ],
+  ])('refuses to open IDEXX ordering for an order with %s', async (_label, overrides) => {
+    const order = {
+      _id: 'ord-missing',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      companionId: 'patient-1',
+      status: 'CREATED',
+      modality: 'REFERENCE_LAB',
+      tests: ['9126'],
+      ...overrides,
+    };
+    listIdexxOrdersMock.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useLabTests(appointment));
+    await waitFor(() => expect(listIdexxOrdersMock).toHaveBeenCalled());
+
+    act(() => {
+      result.current.openOrderIframe('order', null, order as LabOrder);
+    });
+
+    expect(result.current.showOrderIframe).toBe(false);
+    expect(result.current.error).toBe('IDEXX ordering is not available for this order.');
+  });
+
+  it('refreshes the appointment orders from the order status section', async () => {
+    render(<LabTests activeAppointment={appointment} />);
+
+    const refreshButton = await screen.findByRole('button', {
+      name: 'Refresh appointment orders',
+    });
+    const ordersBefore = listIdexxOrdersMock.mock.calls.length;
+    fireEvent.click(refreshButton);
+
+    await waitFor(() => {
+      expect(listIdexxOrdersMock.mock.calls.length).toBeGreaterThan(ordersBefore);
+    });
+  });
+
+  it('shows a dash for results matched by requisition id and refreshes results on demand', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'ord-req',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'SUBMITTED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: 'req-1',
+        tests: ['9126'],
+      },
+    ]);
+    listIdexxResultsMock.mockResolvedValue([
+      {
+        _id: 'result-req',
+        provider: 'IDEXX',
+        resultId: 'res-req',
+        requisitionId: 'req-1',
+        patientId: 'patient-1',
+        status: 'final',
+      },
+    ]);
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    expect(await screen.findByText(/ID: res-req .*Order: -$/)).toBeInTheDocument();
+
+    listIdexxResultsMock.mockImplementation(() => new Promise(() => {}));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+
+    expect(await screen.findByRole('button', { name: 'Refreshing...' })).toBeDisabled();
   });
 
   it('keeps a follow-up iframe open across polling updates', async () => {
@@ -920,7 +1003,7 @@ describe('LabTests', () => {
     expect(container.querySelector('div.bg-red-500')).toBeInTheDocument();
   });
 
-  it('disables IDEXX iframe and acknowledgment actions for unsafe order URLs', async () => {
+  it('disables IDEXX ordering and acknowledgment actions for unsafe order URLs', async () => {
     listIdexxOrdersMock.mockResolvedValue([
       {
         _id: 'ord-unsafe',
@@ -946,7 +1029,7 @@ describe('LabTests', () => {
     expect(screen.getByRole('button', { name: 'Acknowledgment PDF' })).toBeDisabled();
   });
 
-  it('renders IDEXX iframe with strict referrer policy for safe order URLs', async () => {
+  it('launches IDEXX in a new tab from a dialog for safe order URLs and refreshes on Done', async () => {
     listIdexxOrdersMock.mockResolvedValue([
       {
         _id: 'ord-safe',
@@ -969,17 +1052,23 @@ describe('LabTests', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
-    const iframe = await screen.findByTitle('IDEXX order UI');
-    fireEvent.load(iframe);
-    expect(iframe).toHaveAttribute('src', 'https://integration.vetconnectplus.com/order/123');
-    expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-    expect(iframe).toHaveAttribute(
-      'sandbox',
-      'allow-scripts allow-popups allow-forms allow-same-origin'
-    );
+    expect(await screen.findByRole('dialog', { name: 'IDEXX ordering' })).toBeInTheDocument();
+    expect(screen.getByText(/IDEXX opens in a new browser tab/i)).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Open IDEXX' });
+    expect(link).toHaveAttribute('href', 'https://integration.vetconnectplus.com/order/123');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(document.querySelector('iframe')).toBeNull();
+
+    const ordersBeforeDone = listIdexxOrdersMock.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'IDEXX ordering' })).not.toBeInTheDocument();
+      expect(listIdexxOrdersMock.mock.calls.length).toBe(ordersBeforeDone + 1);
+    });
   });
 
-  it('shows manual close guidance for follow-up iframe flows', async () => {
+  it('shows manual close guidance for follow-up ordering', async () => {
     listIdexxOrdersMock.mockResolvedValue([
       {
         _id: 'ord-safe-followup',
@@ -1002,7 +1091,10 @@ describe('LabTests', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Follow up' }));
 
-    expect(await screen.findByText(/If IDEXX shows the order was submitted/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('dialog', { name: 'IDEXX follow-up ordering' })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/If IDEXX shows the order was submitted/i)).toBeInTheDocument();
   });
 
   it('falls back to companion-only orders when appointment-scoped lookup fails', async () => {
@@ -1572,7 +1664,7 @@ describe('LabTests', () => {
     expect(result.current.technician).toBe('Tech B');
   });
 
-  it('lets a non-complete past order launch the ordering iframe', async () => {
+  it('lets a non-complete past order launch IDEXX ordering', async () => {
     const latest = {
       _id: 'ord-latest-complete',
       organisationId: 'org-1',
@@ -1606,7 +1698,10 @@ describe('LabTests', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
-    expect(await screen.findByTitle('IDEXX order UI')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Open IDEXX' })).toHaveAttribute(
+      'href',
+      'https://integration.vetconnectplus.com/order/past-created'
+    );
   });
 
   it('applies result filtering during follow-up polling', async () => {
@@ -1696,7 +1791,7 @@ describe('LabTests', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Unable to poll order status while IDEXX frame is open.');
+        expect(result.current.error).toBe('Unable to check the IDEXX order status.');
       });
     } finally {
       jest.useRealTimers();
