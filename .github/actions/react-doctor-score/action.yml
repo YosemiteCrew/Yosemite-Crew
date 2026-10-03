@@ -35,6 +35,8 @@ runs:
         # the pull request touched, which says nothing about the app's score and
         # returns no score at all when no React file changed.
         scope: full
+        # The job result is the status; the workflow does not grant statuses: write.
+        commit-status: 'false'
         version: ${{ inputs.version }}
 
     - name: Enforce React Doctor score
