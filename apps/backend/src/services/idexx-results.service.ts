@@ -19,7 +19,9 @@ type IdexxResult = Record<string, unknown> & {
   patient?: Record<string, unknown>;
 };
 
-const toJsonInput = (value: Record<string, unknown> | null | undefined) =>
+const toJsonInput = (
+  value: Record<string, unknown> | null | undefined,
+): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined =>
   value === null
     ? Prisma.JsonNull
     : (value as Prisma.InputJsonValue | undefined);

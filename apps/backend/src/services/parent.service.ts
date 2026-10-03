@@ -178,7 +178,11 @@ const validateTimezone = (value: string, field: string): string => {
 const hasAddressData = (address?: ParentAddressInput | null) =>
   Boolean(
     address &&
-    Object.values(address).some((value) => value != null && value !== ""),
+    Object.values(address).some(
+      (value) =>
+        typeof value === "number" ||
+        (typeof value === "string" && value.length > 0),
+    ),
   );
 
 const normalizeAlerts = (alerts: unknown): Parent["alerts"] | undefined => {

@@ -17,7 +17,7 @@ export interface CodeEntryMongo {
   display: string;
   type: CodeType;
   active: boolean;
-  synonyms?: string[];
+  synonyms?: string[] | null;
   meta?: Record<string, unknown> | null;
   createdAt?: Date;
   updatedAt?: Date;

@@ -610,8 +610,8 @@ const mergeVitalRecordMetadata = (
       ? currentDisplay
       : nextRecordedByDisplay;
 
-  if (baseMetadata == null) {
-    return typeof display === "string" ? { recordedByDisplay: display } : null;
+  if (baseMetadata === null || typeof baseMetadata === "undefined") {
+    return display === null ? null : { recordedByDisplay: display };
   }
 
   return isRecord(baseMetadata)
