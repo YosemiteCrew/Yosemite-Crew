@@ -1357,7 +1357,7 @@ const isEmptyTaskIdFilter = (value: Prisma.TaskWhereInput) => {
   const id = value.id;
   return (
     typeof id === "object" &&
-    !Object.is(id, null) &&
+    id != null &&
     !Array.isArray(id) &&
     "in" in id &&
     Array.isArray((id as { in?: unknown[] }).in) &&

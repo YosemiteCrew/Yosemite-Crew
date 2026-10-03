@@ -1376,7 +1376,7 @@ export const CaseEncounterService = {
 
       if (
         nextAppointmentId !== undefined &&
-        !Object.is(nextAppointmentId, currentAppointment?.id)
+        nextAppointmentId != currentAppointment?.id
       ) {
         if (currentAppointment) {
           await tx.appointment.update({

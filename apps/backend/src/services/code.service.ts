@@ -22,17 +22,10 @@ export class CodeServiceError extends Error {
 }
 
 const syncCodeEntryToPostgres = (input: CodeEntryMongo) => {
-  const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
-    let jsonInput: Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined;
-    if (Object.is(value, null)) {
-      jsonInput = Prisma.JsonNull;
-    } else if (Object.is(value, undefined)) {
-      jsonInput = undefined;
-    } else {
-      jsonInput = value as Prisma.InputJsonValue;
-    }
-    return jsonInput;
-  };
+  const toJsonInput = (value: Record<string, unknown> | null | undefined) =>
+    !value && typeof value === "object"
+      ? Prisma.JsonNull
+      : (value as Prisma.InputJsonValue | undefined);
 
   return prisma.codeEntry.upsert({
     where: {
@@ -48,7 +41,7 @@ const syncCodeEntryToPostgres = (input: CodeEntryMongo) => {
       type: input.type,
       active: input.active,
       synonyms:
-        Object.is(input.synonyms, null)
+        !input.synonyms && typeof input.synonyms === "object"
           ? Prisma.JsonNull
           : (input.synonyms ?? undefined),
       meta: toJsonInput(input.meta),
@@ -58,7 +51,7 @@ const syncCodeEntryToPostgres = (input: CodeEntryMongo) => {
       type: input.type,
       active: input.active,
       synonyms:
-        Object.is(input.synonyms, null)
+        !input.synonyms && typeof input.synonyms === "object"
           ? Prisma.JsonNull
           : (input.synonyms ?? undefined),
       meta: toJsonInput(input.meta),

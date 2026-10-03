@@ -19,17 +19,10 @@ type IdexxResult = Record<string, unknown> & {
   patient?: Record<string, unknown>;
 };
 
-const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
-  let jsonInput: Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined;
-  if (Object.is(value, null)) {
-    jsonInput = Prisma.JsonNull;
-  } else if (Object.is(value, undefined)) {
-    jsonInput = undefined;
-  } else {
-    jsonInput = value as Prisma.InputJsonValue;
-  }
-  return jsonInput;
-};
+const toJsonInput = (value: Record<string, unknown> | null | undefined) =>
+  value === null
+    ? Prisma.JsonNull
+    : (value as Prisma.InputJsonValue | undefined);
 
 const coerceString = (value: unknown): string | null => {
   if (typeof value === "string") return value;

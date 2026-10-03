@@ -610,24 +610,13 @@ const mergeVitalRecordMetadata = (
       ? currentDisplay
       : nextRecordedByDisplay;
 
-  let mergedMetadata: unknown;
-  if (Object.is(display, undefined)) {
-    mergedMetadata = baseMetadata;
-  } else if (
-    Object.is(baseMetadata, null) ||
-    Object.is(baseMetadata, undefined)
-  ) {
-    if (Object.is(display, null)) {
-      mergedMetadata = null;
-    } else {
-      mergedMetadata = { recordedByDisplay: display };
-    }
-  } else if (isRecord(baseMetadata)) {
-    mergedMetadata = { ...baseMetadata, recordedByDisplay: display };
-  } else {
-    mergedMetadata = baseMetadata;
+  if (baseMetadata == null) {
+    return typeof display === "string" ? { recordedByDisplay: display } : null;
   }
-  return mergedMetadata;
+
+  return isRecord(baseMetadata)
+    ? { ...baseMetadata, recordedByDisplay: display }
+    : baseMetadata;
 };
 
 /**

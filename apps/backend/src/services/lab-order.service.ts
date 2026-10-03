@@ -73,17 +73,8 @@ const ensureTestsProvided = (tests: string[] | undefined | null): void => {
   }
 };
 
-const toJsonInput = (value: unknown) => {
-  let jsonInput: Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined;
-  if (Object.is(value, null)) {
-    jsonInput = Prisma.JsonNull;
-  } else if (Object.is(value, undefined)) {
-    jsonInput = undefined;
-  } else {
-    jsonInput = value as Prisma.InputJsonValue;
-  }
-  return jsonInput;
-};
+const toJsonInput = (value: unknown) =>
+  !value && typeof value === "object" ? Prisma.JsonNull : value;
 const resolvePrimaryParentId = async (patientId: string) => {
   const parentLink = await prisma.parentPatient.findFirst({
     where: {

@@ -944,17 +944,8 @@ const BILLED_TREATMENT_ITEM_STATUSES = new Set([
 
 const normalizeLockState = (
   lockState: unknown,
-): string | Record<string, unknown> | null => {
-  let normalized: string | Record<string, unknown> | null;
-  if (typeof lockState === "string") {
-    normalized = lockState;
-  } else if (isRecord(lockState)) {
-    normalized = lockState;
-  } else {
-    normalized = null;
-  }
-  return normalized;
-};
+): string | Record<string, unknown> | null =>
+  typeof lockState === "string" || isRecord(lockState) ? lockState : null;
 
 const mapTreatmentItemRow = (
   row: TreatmentItemRow,
