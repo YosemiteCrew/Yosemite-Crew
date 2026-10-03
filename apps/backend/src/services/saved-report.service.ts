@@ -319,67 +319,100 @@ export const SavedReportService = {
       select: { id: true },
       take: 25,
     });
-    let delivered = 0;
-    for (const candidate of due) {
-      const claimUntil = new Date(now.getTime() + 5 * 60_000);
-      const claimed = await prisma.reportDeliverySchedule.updateMany({
-        where: {
-          id: candidate.id,
-          active: true,
-          nextRunAt: { lte: now },
-          OR: [{ claimUntil: null }, { claimUntil: { lt: now } }],
+    const claimUntil = new Date(now.getTime() + 5 * 60_000);
+    const claimedResults = await Promise.all(
+      due.map((candidate: { id: string }) =>
+        prisma.reportDeliverySchedule.updateMany({
+          where: {
+            id: candidate.id,
+            active: true,
+            nextRunAt: { lte: now },
+            OR: [{ claimUntil: null }, { claimUntil: { lt: now } }],
+          },
+          data: { claimUntil },
+        }),
+      ),
+    );
+    const claimedIds = due
+      .filter(
+        (_: { id: string }, index: number) => claimedResults[index].count > 0,
+      )
+      .map((candidate: { id: string }) => candidate.id);
+    if (!claimedIds.length) return 0;
+    const schedules = await Promise.all(
+      claimedIds.map((id) =>
+        prisma.reportDeliverySchedule.findUniqueOrThrow({
+          where: { id },
+          include: { view: true },
+        }),
+      ),
+    );
+    const results = await Promise.all(
+      schedules.map(
+        async (schedule: {
+          id: string;
+          organisationId: string;
+          recipients: string[];
+          cronExpression: string;
+          timezone: string;
+          view: {
+            organisationId: string;
+            reportType: string;
+            parameters: Prisma.JsonValue;
+            name: string;
+          };
+        }) => {
+          try {
+            const recipients = await authorisedRecipients(
+              schedule.organisationId,
+              schedule.recipients,
+            );
+            if (!recipients.length)
+              throw new SavedReportServiceError(
+                "No authorised recipients remain",
+              );
+            const report = await executeView(schedule.view);
+            await Promise.all(
+              recipients.map((recipient) =>
+                sendEmail({
+                  to: recipient.email,
+                  subject: schedule.view.name,
+                  textBody: `${schedule.view.name}\n\n${JSON.stringify(report, null, 2)}`,
+                }),
+              ),
+            );
+            await prisma.reportDeliverySchedule.update({
+              where: { id: schedule.id },
+              data: {
+                claimUntil: null,
+                lastError: null,
+                lastRunAt: now,
+                lastSuccessAt: now,
+                nextRunAt: nextReportRunAt(
+                  schedule.cronExpression,
+                  schedule.timezone,
+                  now,
+                ),
+              },
+            });
+            return { success: true };
+          } catch (error) {
+            await prisma.reportDeliverySchedule.update({
+              where: { id: schedule.id },
+              data: {
+                claimUntil: null,
+                lastRunAt: now,
+                lastError:
+                  error instanceof Error
+                    ? error.message.slice(0, 500)
+                    : "Report delivery failed",
+              },
+            });
+            return { success: false };
+          }
         },
-        data: { claimUntil },
-      });
-      if (!claimed.count) continue;
-      const schedule = await prisma.reportDeliverySchedule.findUniqueOrThrow({
-        where: { id: candidate.id },
-        include: { view: true },
-      });
-      try {
-        const recipients = await authorisedRecipients(
-          schedule.organisationId,
-          schedule.recipients,
-        );
-        if (!recipients.length)
-          throw new SavedReportServiceError("No authorised recipients remain");
-        const report = await executeView(schedule.view);
-        for (const recipient of recipients) {
-          await sendEmail({
-            to: recipient.email,
-            subject: schedule.view.name,
-            textBody: `${schedule.view.name}\n\n${JSON.stringify(report, null, 2)}`,
-          });
-        }
-        await prisma.reportDeliverySchedule.update({
-          where: { id: schedule.id },
-          data: {
-            claimUntil: null,
-            lastError: null,
-            lastRunAt: now,
-            lastSuccessAt: now,
-            nextRunAt: nextReportRunAt(
-              schedule.cronExpression,
-              schedule.timezone,
-              now,
-            ),
-          },
-        });
-        delivered += 1;
-      } catch (error) {
-        await prisma.reportDeliverySchedule.update({
-          where: { id: schedule.id },
-          data: {
-            claimUntil: null,
-            lastRunAt: now,
-            lastError:
-              error instanceof Error
-                ? error.message.slice(0, 500)
-                : "Report delivery failed",
-          },
-        });
-      }
-    }
-    return delivered;
+      ),
+    );
+    return results.filter((r: { success: boolean }) => r.success).length;
   },
 };

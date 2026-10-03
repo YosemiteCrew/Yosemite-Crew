@@ -40,3 +40,5 @@ ALTER TABLE "ReportDeliverySchedule" ADD CONSTRAINT "ReportDeliverySchedule_view
 
 ALTER TABLE "SavedReportView" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ReportDeliverySchedule" ENABLE ROW LEVEL SECURITY;
+
+-- deployed-code-survives: These are new tables. No deployed code references them yet, so enabling RLS does not affect any existing reader.
