@@ -18,6 +18,7 @@ jest.mock("src/config/prisma", () => ({
     payment: { count: jest.fn() },
     refund: { count: jest.fn() },
     creditNote: { count: jest.fn() },
+    financeEvent: { count: jest.fn(), findMany: jest.fn() },
     parent: { findUnique: jest.fn() },
     clientStatement: {
       findUnique: jest.fn(),
@@ -35,6 +36,7 @@ const mockedPrisma = prisma as unknown as {
   payment: { count: jest.Mock };
   refund: { count: jest.Mock };
   creditNote: { count: jest.Mock };
+  financeEvent: { count: jest.Mock; findMany: jest.Mock };
   parent: { findUnique: jest.Mock };
   clientStatement: {
     findUnique: jest.Mock;
@@ -108,6 +110,18 @@ const generate = (over: Partial<Record<string, unknown>> = {}) =>
     ...over,
   });
 
+const depositEvent = (over: Partial<Record<string, unknown>> = {}) => ({
+  entityId: "deposit-payment",
+  occurredAt: new Date("2026-09-05T12:00:00.000Z"),
+  payload: {
+    invoiceId: "invoice-1",
+    paymentId: "deposit-payment",
+    amount: 40,
+    currency: "GBP",
+  },
+  ...over,
+});
+
 beforeEach(() => {
   jest.resetAllMocks();
   jest.mocked(resolvePracticeTimeZone).mockResolvedValue("UTC");
@@ -118,6 +132,8 @@ beforeEach(() => {
   mockedPrisma.payment.count.mockResolvedValue(0);
   mockedPrisma.refund.count.mockResolvedValue(0);
   mockedPrisma.creditNote.count.mockResolvedValue(0);
+  mockedPrisma.financeEvent.count.mockResolvedValue(0);
+  mockedPrisma.financeEvent.findMany.mockResolvedValue([]);
   mockedPrisma.clientStatement.findUnique.mockResolvedValue(null);
   mockedPrisma.parent.findUnique.mockResolvedValue(client);
   mockedPrisma.invoice.findMany.mockResolvedValue([invoice()]);
@@ -125,6 +141,42 @@ beforeEach(() => {
 });
 
 describe("buildClientStatementSnapshot", () => {
+  it("refuses to build a statement from an undated deposit balance", () => {
+    expect(() =>
+      buildClientStatementSnapshot({
+        client,
+        periodStart: PERIOD_START,
+        periodEnd: PERIOD_END,
+        generatedAt: NOW,
+        invoices: [invoice({ depositCollectedAmount: 40 })],
+      }),
+    ).toThrow("A deposit is missing its dated payment history.");
+  });
+
+  it("does not age a fully settled invoice", () => {
+    const result = buildClientStatementSnapshot({
+      client,
+      periodStart: PERIOD_START,
+      periodEnd: PERIOD_END,
+      generatedAt: NOW,
+      invoices: [
+        invoice({
+          depositCollectedAmount: 100,
+          deposits: [{ id: "complete", amount: 100, occurredAt: PERIOD_START }],
+        }),
+      ],
+    });
+    expect(result.currencies[0].aging).toEqual({
+      current: 0,
+      days1To30: 0,
+      days31To60: 0,
+      days61To90: 0,
+      days91Plus: 0,
+      totalOutstanding: 0,
+    });
+    expect(result.currencies[0].closingBalance).toBe(0);
+  });
+
   it("uses recorded creation dates when older rows lack finalization, due or paid dates", () => {
     const result = buildClientStatementSnapshot({
       client,
@@ -484,6 +536,13 @@ describe("buildClientStatementSnapshot", () => {
         invoice({
           depositCollectedAmount: 40,
           paidAt: new Date("2026-09-05T00:00:00.000Z"),
+          deposits: [
+            {
+              id: "older-deposit",
+              amount: 15,
+              occurredAt: new Date("2026-09-05T00:00:00.000Z"),
+            },
+          ],
           payments: [
             {
               id: "recorded-payment",
@@ -595,6 +654,412 @@ describe("buildClientStatementSnapshot", () => {
 });
 
 describe("ClientStatementService.generate", () => {
+  it("includes a dated partial deposit when the invoice is not fully paid", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ depositCollectedAmount: 40, paidAt: null }),
+    ]);
+    mockedPrisma.financeEvent.count.mockResolvedValue(1);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([
+      {
+        entityId: "deposit-payment",
+        occurredAt: new Date("2026-09-05T12:00:00.000Z"),
+        payload: {
+          invoiceId: "invoice-1",
+          paymentId: "deposit-payment",
+          amount: 40,
+          currency: "GBP",
+        },
+      },
+    ]);
+
+    await generate();
+
+    const currency =
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0];
+    expect(currency).toMatchObject({
+      openingBalance: 100,
+      closingBalance: 60,
+      aging: { totalOutstanding: 60 },
+    });
+    expect(currency.entries).toEqual([
+      expect.objectContaining({
+        kind: "PAYMENT",
+        amount: 40,
+        occurredAt: "2026-09-05T12:00:00.000Z",
+      }),
+    ]);
+  });
+
+  it.each([
+    ["2026-08-20T12:00:00.000Z", 60, 60, 0],
+    ["2026-09-30T23:59:59.999Z", 100, 60, 1],
+    ["2026-10-01T00:00:00.000Z", 100, 100, 0],
+  ])(
+    "uses the deposit date %s rather than full settlement",
+    async (date, opening, closing, entries) => {
+      mockedPrisma.invoice.findMany.mockResolvedValue([
+        invoice({
+          depositCollectedAmount: 40,
+          paidAt: new Date("2026-09-15T00:00:00.000Z"),
+        }),
+      ]);
+      mockedPrisma.financeEvent.findMany.mockResolvedValue([
+        depositEvent({ occurredAt: new Date(date) }),
+      ]);
+
+      await generate();
+
+      const currency =
+        mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+          .currencies[0];
+      expect(currency.openingBalance).toBe(opening);
+      expect(currency.closingBalance).toBe(closing);
+      expect(currency.entries).toHaveLength(entries);
+    },
+  );
+
+  it("counts an existing payment and repeated history only once", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({
+        depositCollectedAmount: 40,
+        payments: [
+          {
+            id: "existing",
+            amount: 25,
+            paidAt: PERIOD_START,
+            createdAt: PERIOD_START,
+            refunds: [],
+          },
+        ],
+      }),
+    ]);
+    const older = depositEvent({
+      payload: {
+        invoiceId: "invoice-1",
+        paymentId: "deposit-payment",
+        amount: 15,
+        currency: " gbp ",
+      },
+    });
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([
+      depositEvent({
+        entityId: "existing",
+        payload: {
+          invoiceId: "invoice-1",
+          paymentId: "existing",
+          amount: 25,
+          currency: "GBP",
+        },
+      }),
+      older,
+      older,
+    ]);
+
+    await generate();
+
+    const currency =
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0];
+    expect(currency.closingBalance).toBe(60);
+    expect(
+      currency.entries.map((entry: { amount: number }) => entry.amount),
+    ).toEqual([25, 15]);
+  });
+
+  it("keeps separate deposits on their own occurrence dates", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ depositCollectedAmount: 40 }),
+    ]);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([
+      depositEvent({
+        occurredAt: new Date("2026-08-20T00:00:00.000Z"),
+        payload: {
+          invoiceId: "invoice-1",
+          paymentId: "deposit-payment",
+          amount: 15,
+          currency: "GBP",
+        },
+      }),
+      depositEvent({
+        entityId: "second",
+        payload: {
+          invoiceId: "invoice-1",
+          paymentId: "second",
+          amount: 25,
+          currency: "GBP",
+        },
+      }),
+    ]);
+
+    await generate();
+
+    const currency =
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0];
+    expect(currency).toMatchObject({ openingBalance: 85, closingBalance: 60 });
+    expect(currency.entries).toEqual([
+      expect.objectContaining({ id: "payment:second", amount: 25 }),
+    ]);
+  });
+
+  it("limits deposit history to the organisation and affected invoice ids", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ depositCollectedAmount: 40 }),
+      invoice({ id: "no-deposit" }),
+    ]);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([depositEvent()]);
+
+    await generate();
+
+    const where = {
+      organisationId: ORG,
+      eventType: "PAYMENT_SUCCEEDED",
+      entityType: "PAYMENT",
+      OR: [{ payload: { path: ["invoiceId"], equals: "invoice-1" } }],
+    };
+    expect(mockedPrisma.financeEvent.count).toHaveBeenCalledWith({ where });
+    expect(mockedPrisma.financeEvent.findMany).toHaveBeenCalledWith({
+      where,
+      select: { entityId: true, occurredAt: true, payload: true },
+    });
+  });
+
+  it("keeps a fully represented future deposit outside the statement period", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({
+        depositCollectedAmount: 40,
+        payments: [
+          { id: "paid", amount: 40, paidAt: NOW, createdAt: NOW, refunds: [] },
+        ],
+      }),
+    ]);
+
+    await generate();
+
+    expect(mockedPrisma.financeEvent.findMany).toHaveBeenCalledTimes(1);
+    expect(
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0].closingBalance,
+    ).toBe(100);
+  });
+
+  it("does not let later settlement hide an earlier partial deposit", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({
+        depositCollectedAmount: 40,
+        paidAt: NOW,
+        payments: [
+          {
+            id: "settlement",
+            amount: 60,
+            paidAt: NOW,
+            createdAt: NOW,
+            refunds: [],
+          },
+        ],
+      }),
+    ]);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([depositEvent()]);
+
+    await generate();
+
+    const currency =
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0];
+    expect(currency).toMatchObject({
+      openingBalance: 100,
+      closingBalance: 60,
+      aging: { totalOutstanding: 60 },
+    });
+    expect(currency.entries).toEqual([
+      expect.objectContaining({ id: "payment:deposit-payment", amount: 40 }),
+    ]);
+  });
+
+  it("does not query payment history for invoices with no recorded deposit", async () => {
+    await generate();
+    expect(mockedPrisma.financeEvent.count).not.toHaveBeenCalled();
+    expect(mockedPrisma.financeEvent.findMany).not.toHaveBeenCalled();
+  });
+
+  it("bounds deposit history together with the other statement rows", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ depositCollectedAmount: 40 }),
+    ]);
+    mockedPrisma.payment.count.mockResolvedValue(5_000);
+    mockedPrisma.financeEvent.count.mockResolvedValue(5_000);
+
+    await expect(generate()).rejects.toMatchObject({ statusCode: 422 });
+    expect(mockedPrisma.financeEvent.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts exactly the row limit including deposit history", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ depositCollectedAmount: 40 }),
+    ]);
+    mockedPrisma.financeEvent.count.mockResolvedValue(9_999);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([depositEvent()]);
+
+    await expect(generate()).resolves.toMatchObject({ id: STATEMENT });
+  });
+
+  it.each([null, new Date("2026-09-05T00:00:00.000Z")])(
+    "refuses an undated deposit even with full-settlement date %s",
+    async (paidAt) => {
+      mockedPrisma.invoice.findMany.mockResolvedValue([
+        invoice({ depositCollectedAmount: 40, paidAt }),
+      ]);
+
+      await expect(generate()).rejects.toMatchObject({
+        statusCode: 409,
+        message: "A deposit is missing its dated payment history.",
+      });
+      expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "rejects non-finite deposit amount %s",
+    async (amount) => {
+      mockedPrisma.invoice.findMany.mockResolvedValue([
+        invoice({ depositCollectedAmount: 40 }),
+      ]);
+      mockedPrisma.financeEvent.findMany.mockResolvedValue([
+        depositEvent({
+          payload: {
+            invoiceId: "invoice-1",
+            paymentId: "deposit-payment",
+            amount,
+            currency: "GBP",
+          },
+        }),
+      ]);
+      await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+    },
+  );
+
+  it.each([
+    null,
+    [],
+    {
+      invoiceId: "invoice-1",
+      paymentId: "deposit-payment",
+      amount: -40,
+      currency: "GBP",
+    },
+    {
+      invoiceId: "invoice-1",
+      paymentId: "deposit-payment",
+      amount: 0,
+      currency: "GBP",
+    },
+    {
+      invoiceId: "invoice-1",
+      paymentId: "deposit-payment",
+      amount: "40",
+      currency: "GBP",
+    },
+    {
+      invoiceId: "invoice-1",
+      paymentId: "deposit-payment",
+      amount: 40,
+      currency: "",
+    },
+  ])("rejects incomplete deposit payload %j", async (payload) => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ depositCollectedAmount: 40 }),
+    ]);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([
+      depositEvent({ payload }),
+    ]);
+
+    await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { occurredAt: new Date(Number.NaN) },
+    { entityId: "different-payment" },
+    {
+      payload: {
+        invoiceId: "other-invoice",
+        paymentId: "deposit-payment",
+        amount: 40,
+        currency: "GBP",
+      },
+    },
+    {
+      payload: {
+        invoiceId: "invoice-1",
+        paymentId: "deposit-payment",
+        amount: 40,
+        currency: "EUR",
+      },
+    },
+  ])("rejects inconsistent deposit record %j", async (override) => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ depositCollectedAmount: 40 }),
+    ]);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([
+      depositEvent(override),
+    ]);
+
+    await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it.each([15, 60])(
+    "reconciles dated payment amount %s against the recorded deposit",
+    async (amount) => {
+      mockedPrisma.invoice.findMany.mockResolvedValue([
+        invoice({ depositCollectedAmount: 40 }),
+      ]);
+      mockedPrisma.financeEvent.findMany.mockResolvedValue([
+        depositEvent({
+          payload: {
+            invoiceId: "invoice-1",
+            paymentId: "deposit-payment",
+            amount,
+            currency: "GBP",
+          },
+        }),
+      ]);
+
+      if (amount < 40) {
+        await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+      } else {
+        await generate();
+        expect(
+          mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+            .currencies[0].closingBalance,
+        ).toBe(40);
+      }
+    },
+  );
+
+  it.each([
+    { occurredAt: new Date("2026-09-06T00:00:00.000Z") },
+    {
+      payload: {
+        invoiceId: "invoice-1",
+        paymentId: "deposit-payment",
+        amount: 25,
+        currency: "GBP",
+      },
+    },
+  ])("rejects conflicting copies of the same deposit %j", async (override) => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ depositCollectedAmount: 40 }),
+    ]);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([
+      depositEvent(override),
+      depositEvent(),
+    ]);
+
+    await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+  });
+
   it("records the current generation time when no clock override is supplied", async () => {
     jest.useFakeTimers().setSystemTime(NOW);
     try {

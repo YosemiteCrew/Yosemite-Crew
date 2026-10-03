@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import moment from "moment-timezone";
+import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { roundMoney } from "src/services/finance/pricing";
 import { resolvePracticeTimeZone } from "src/services/finance/client-collections";
@@ -65,6 +66,8 @@ type StatementPayment = {
   refunds: Array<{ id: string; amount: number; createdAt: Date }>;
 };
 
+type StatementDeposit = { id: string; amount: number; occurredAt: Date };
+
 export type StatementInvoice = {
   id: string;
   currency: string;
@@ -75,6 +78,7 @@ export type StatementInvoice = {
   paidAt: Date | null;
   createdAt: Date;
   payments: StatementPayment[];
+  deposits?: StatementDeposit[];
   creditNotes: Array<{
     id: string;
     amount: number;
@@ -145,7 +149,6 @@ const movement = (input: {
 
 const buildInvoiceMovements = (
   invoice: StatementInvoice,
-  periodEnd: Date,
 ): { movements: Movement[]; dueAt: Date } => {
   const currency = currencyKey(invoice.currency);
   const chargedAt = invoice.finalizedAt ?? invoice.createdAt;
@@ -161,17 +164,8 @@ const buildInvoiceMovements = (
       currency,
     }),
   ];
-  let collectedAtPeriodEnd = 0;
-
   for (const payment of invoice.payments) {
     const paymentAt = payment.paidAt ?? payment.createdAt;
-    if (paymentAt <= periodEnd) {
-      collectedAtPeriodEnd = add(
-        currency,
-        collectedAtPeriodEnd,
-        payment.amount,
-      );
-    }
     movements.push(
       movement({
         id: `payment:${payment.id}`,
@@ -198,19 +192,23 @@ const buildInvoiceMovements = (
     }
   }
 
-  const depositFallback = quantize(
-    currency,
-    Math.max(0, invoice.depositCollectedAmount - collectedAtPeriodEnd),
+  const deposits = invoice.deposits ?? [];
+  const recordedTotal = [...invoice.payments, ...deposits].reduce(
+    (total, payment) => add(currency, total, payment.amount),
+    0,
   );
-  if (depositFallback > 0 && invoice.paidAt && invoice.paidAt <= periodEnd) {
+  if (quantize(currency, invoice.depositCollectedAmount - recordedTotal) > 0) {
+    throw incompleteDepositHistory();
+  }
+  for (const deposit of deposits) {
     movements.push(
       movement({
-        id: `deposit:${invoice.id}`,
+        id: `payment:${deposit.id}`,
         invoiceId: invoice.id,
-        at: invoice.paidAt,
-        kind: "DEPOSIT",
+        at: deposit.occurredAt,
+        kind: "PAYMENT",
         direction: "CREDIT",
-        amount: depositFallback,
+        amount: deposit.amount,
         currency,
       }),
     );
@@ -296,7 +294,7 @@ export const buildClientStatementSnapshot = (input: {
   const byCurrency = new Map<string, CurrencyAccumulator>();
   for (const invoice of input.invoices) {
     const currency = currencyKey(invoice.currency);
-    const invoiceSummary = buildInvoiceMovements(invoice, input.periodEnd);
+    const invoiceSummary = buildInvoiceMovements(invoice);
     const bucket = byCurrency.get(currency) ?? {
       currency,
       movements: [],
@@ -461,6 +459,92 @@ const creditNoteVoidDate = (note: {
   return date;
 };
 
+const incompleteDepositHistory = () =>
+  new ClientStatementError(
+    "A deposit is missing its dated payment history.",
+    409,
+  );
+
+const paymentEventSchema = z.object({
+  entityId: z.string().min(1),
+  occurredAt: z.date(),
+  payload: z.object({
+    invoiceId: z.string().min(1),
+    paymentId: z.string().min(1),
+    amount: z.number().positive(),
+    currency: z.string().trim().min(1),
+  }),
+});
+
+const loadDepositHistory = async (
+  tx: Prisma.TransactionClient,
+  organisationId: string,
+  invoices: readonly StatementInvoice[],
+  rowCount: number,
+): Promise<Map<string, StatementDeposit[]>> => {
+  const missing = new Map(
+    invoices
+      .filter((invoice) => invoice.depositCollectedAmount > 0)
+      .map((invoice) => [
+        invoice.id,
+        {
+          invoice,
+          paymentIds: new Set(invoice.payments.map((payment) => payment.id)),
+          deposits: new Map<string, StatementDeposit>(),
+        },
+      ]),
+  );
+  if (missing.size === 0) return new Map();
+  const where: Prisma.FinanceEventWhereInput = {
+    organisationId,
+    eventType: "PAYMENT_SUCCEEDED",
+    entityType: "PAYMENT",
+    OR: [...missing.keys()].map((id) => ({
+      payload: { path: ["invoiceId"], equals: id },
+    })),
+  };
+  if (
+    rowCount + (await tx.financeEvent.count({ where })) >
+    MAX_STATEMENT_ROWS
+  ) {
+    throw new ClientStatementError(
+      "This client account exceeds the supported statement size.",
+      422,
+    );
+  }
+  const events = await tx.financeEvent.findMany({
+    where,
+    select: { entityId: true, occurredAt: true, payload: true },
+  });
+  for (const event of events) {
+    const parsed = paymentEventSchema.safeParse(event);
+    if (!parsed.success) throw incompleteDepositHistory();
+    const { entityId, occurredAt, payload } = parsed.data;
+    const account = missing.get(payload.invoiceId);
+    if (
+      !account ||
+      entityId !== payload.paymentId ||
+      currencyKey(payload.currency) !== currencyKey(account.invoice.currency)
+    ) {
+      throw incompleteDepositHistory();
+    }
+    if (account.paymentIds.has(entityId)) continue;
+    const deposit = { id: entityId, amount: payload.amount, occurredAt };
+    const previous = account.deposits.get(entityId);
+    if (
+      previous &&
+      (previous.amount !== deposit.amount ||
+        previous.occurredAt.getTime() !== occurredAt.getTime())
+    ) {
+      throw incompleteDepositHistory();
+    }
+    account.deposits.set(entityId, deposit);
+  }
+  return new Map(
+    [...missing].map(([id, account]) => [id, [...account.deposits.values()]]),
+  );
+};
+
 export const ClientStatementService = {
   async generate(input: {
     organisationId: string;
@@ -542,7 +626,7 @@ export const ClientStatementService = {
             422,
           );
         }
-        return tx.invoice.findMany({
+        const rows = await tx.invoice.findMany({
           where,
           select: {
             id: true,
@@ -578,6 +662,16 @@ export const ClientStatementService = {
             },
           },
         });
+        const deposits = await loadDepositHistory(
+          tx,
+          input.organisationId,
+          rows,
+          rowCounts.reduce((total, count) => total + count, 0),
+        );
+        return rows.map((invoice) => ({
+          ...invoice,
+          deposits: deposits.get(invoice.id),
+        }));
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
