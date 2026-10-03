@@ -181,7 +181,7 @@ export const getPaymentActivityReport = async (
     { exponent: number; payments: number; refunds: number }
   >();
   for (const row of rows) {
-    const currency = normalizeCurrency(row.currency);
+    const currency = row.currency;
     const exponent = ledgerExponent(currency);
     const totals = totalsByCurrency.get(currency) ?? {
       exponent,
