@@ -485,6 +485,7 @@ export const Default: InventoryStory = {
     ).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'Restock Surgical gauze pads' })).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'New product' })).toBeEnabled();
+    await expect(canvas.getByRole('link', { name: 'Purchase orders' })).toBeVisible();
 
     // Catalog / Dispensary / Turnover, in that order.
     await expect(canvas.getByRole('group', { name: 'Inventory view' })).toBeVisible();

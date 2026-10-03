@@ -221,6 +221,9 @@ describe("PurchaseOrderController status and delivery actions", () => {
               purchaseOrderLineId: "11111111-1111-4111-8111-111111111111",
               itemId: "attacker-item",
               quantityReceived: 1,
+              batchNumber: "  delivery-batch  ",
+              lotNumber: " delivery-lot ",
+              expiryDate: "2027-02-01T00:00:00.000Z",
             },
           ],
         },
@@ -234,6 +237,15 @@ describe("PurchaseOrderController status and delivery actions", () => {
         receivedBy: "user-1",
         idempotencyKey: "receipt-1",
         deliveryDate: new Date("2026-09-27T10:00:00.000Z"),
+        lines: [
+          expect.objectContaining({
+            purchaseOrderLineId: "11111111-1111-4111-8111-111111111111",
+            quantityReceived: 1,
+            batchNumber: "delivery-batch",
+            lotNumber: "delivery-lot",
+            expiryDate: new Date("2027-02-01T00:00:00.000Z"),
+          }),
+        ],
       }),
     );
   });
