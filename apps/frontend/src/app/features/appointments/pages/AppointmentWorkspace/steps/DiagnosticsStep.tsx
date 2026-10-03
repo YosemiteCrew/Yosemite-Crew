@@ -1,5 +1,5 @@
 import { useRouter } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { Appointment } from '@yosemite-crew/types';
@@ -655,22 +655,11 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
 const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
   // Mirror the Invoice section: the View (eye) toggle expands/collapses the
   // result breakdown below; default the first result open.
-  const [expandedId, setExpandedId] = useState<string | null>(s.results[0]?.resultId ?? null);
-  const userHasToggled = useRef(false);
-
-  // Auto-expand the first result when results arrive, but only if the user
-  // hasn't manually collapsed/expanded any result (expandedId is still null
-  // and user hasn't toggled).
-  useEffect(() => {
-    if (s.results.length > 0 && expandedId === null && !userHasToggled.current) {
-      setExpandedId(s.results[0].resultId);
-    }
-  }, [s.results, expandedId]);
-
-  const toggle = (id: string) => {
-    userHasToggled.current = true;
-    setExpandedId((current) => (current === id ? null : id));
-  };
+  // Until the user toggles a result, the first result is open, including when
+  // results arrive after the section has mounted.
+  const [selectedId, setSelectedId] = useState<string | null | undefined>(undefined);
+  const expandedId = selectedId === undefined ? (s.results[0]?.resultId ?? null) : selectedId;
+  const toggle = (id: string) => setSelectedId(expandedId === id ? null : id);
 
   return (
     <SectionContainer title="Results" className="flex flex-col gap-4">
