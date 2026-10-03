@@ -205,20 +205,24 @@ const loadChargeRefundHistory = async (
       connectedAccountId ? { stripeAccount: connectedAccountId } : undefined,
     );
   }
-  while (page) {
+  const collectPage = async (
+    page: Stripe.ApiList<Stripe.Refund>,
+  ): Promise<void> => {
     refunds.push(...page.data);
     if (refunds.length > 10_000)
       throw new Error("Refund history exceeds the supported size.");
-    if (!page.has_more) break;
+    if (!page.has_more) return;
     const last = page.data.at(-1)?.id;
     if (!last || last === cursor)
       throw new Error("Refund history pagination did not advance.");
     cursor = last;
-    page = await getStripeClient().refunds.list(
+    const nextPage = await getStripeClient().refunds.list(
       { charge: charge.id, limit: 100, starting_after: cursor },
       connectedAccountId ? { stripeAccount: connectedAccountId } : undefined,
     );
-  }
+    return collectPage(nextPage);
+  };
+  if (page) await collectPage(page);
   return refunds
     .filter((refund) => refund.status === "succeeded")
     .map((refund) => {

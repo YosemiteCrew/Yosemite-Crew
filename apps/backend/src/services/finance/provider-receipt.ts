@@ -471,7 +471,7 @@ const recordIndividualRefunds = async (
     .max(10_000)
     .parse(input.refunds ?? []);
   const ids = new Set<string>();
-  for (const refund of refunds) {
+  await mapInSequence(refunds, async (refund) => {
     if (ids.has(refund.id))
       throw new Error("Refund history contains duplicate refunds.");
     ids.add(refund.id);
@@ -496,7 +496,7 @@ const recordIndividualRefunds = async (
     ) {
       throw new Error("The refund differs from its recorded history.");
     }
-  }
+  });
 };
 
 const recordRefundNotification = async (
