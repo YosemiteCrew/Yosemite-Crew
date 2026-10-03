@@ -1095,7 +1095,7 @@ export const ClientStatementService = {
         }
         const history = await tx.invoiceRevision.findMany({
           where: revisionWhere,
-          orderBy: { id: "asc" },
+          orderBy: { id: "desc" },
         });
         const revisions = new Map<string, typeof history>();
         for (const revision of history) {
@@ -1106,8 +1106,7 @@ export const ClientStatementService = {
         rows = rows.filter((invoice) => {
           const atCutoff = revisions
             .get(invoice.id)
-            ?.filter((revision) => revision.recordedAt <= input.periodEnd)
-            .at(-1);
+            ?.find((revision) => revision.recordedAt <= input.periodEnd);
           return (
             !atCutoff ||
             (atCutoff.organisationId === input.organisationId &&

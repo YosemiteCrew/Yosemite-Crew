@@ -542,7 +542,7 @@ describe("dated invoice revisions", () => {
     expect(mockedPrisma.invoiceRevision.count).toHaveBeenCalledWith({ where });
     expect(mockedPrisma.invoiceRevision.findMany).toHaveBeenCalledWith({
       where,
-      orderBy: { id: "asc" },
+      orderBy: { id: "desc" },
     });
   });
 
@@ -589,7 +589,7 @@ describe("dated invoice revisions", () => {
       );
       expect(mockedPrisma.invoiceRevision.findMany).toHaveBeenCalledWith({
         where: { invoiceId: { in: [row.id] } },
-        orderBy: { id: "asc" },
+        orderBy: { id: "desc" },
       });
     },
   );
@@ -609,6 +609,33 @@ describe("dated invoice revisions", () => {
                 invoiceId: "invoice-1",
               },
             ],
+    );
+    await expect(generate()).rejects.toMatchObject({ statusCode: 404 });
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+
+  it("uses the latest eligible owner when an invoice returns after the cutoff", async () => {
+    const versions = [
+      { ...revision(), invoiceId: "invoice-1" },
+      {
+        ...revision({
+          id: 2n,
+          parentId: "other-client",
+          recordedAt: PERIOD_START,
+        }),
+        invoiceId: "invoice-1",
+      },
+      { ...revision({ id: 3n, recordedAt: NOW }), invoiceId: "invoice-1" },
+    ];
+    mockedPrisma.invoiceRevision.findMany.mockImplementation(
+      async ({ select, orderBy }) =>
+        select
+          ? [{ invoiceId: "invoice-1" }]
+          : [...versions].sort(
+              (left, right) =>
+                (left.id > right.id ? 1 : -1) *
+                (orderBy.id === "desc" ? -1 : 1),
+            ),
     );
     await expect(generate()).rejects.toMatchObject({ statusCode: 404 });
     expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
@@ -636,13 +663,23 @@ describe("dated invoice revisions", () => {
       },
     ];
     mockedPrisma.invoiceRevision.findMany.mockImplementation(
-      async ({ where, select }) =>
+      async ({ where, select, orderBy }) =>
         select
           ? [{ invoiceId: "invoice-1" }]
-          : versions.filter(
-              (version) =>
-                !where.parentId || version.parentId === where.parentId,
-            ),
+          : versions
+              .filter(
+                (version) =>
+                  !where.parentId || version.parentId === where.parentId,
+              )
+              .sort((left, right) =>
+                orderBy.id === "desc"
+                  ? left.id > right.id
+                    ? -1
+                    : 1
+                  : left.id < right.id
+                    ? -1
+                    : 1,
+              ),
     );
     await generate();
     const statement =
