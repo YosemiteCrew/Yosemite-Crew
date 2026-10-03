@@ -179,7 +179,10 @@ const hasAddressData = (address?: ParentAddressInput | null) =>
   Boolean(
     address &&
     Object.values(address).some(
-      (value) => value !== undefined && value !== null && value !== "",
+      (value) =>
+        !Object.is(value, undefined) &&
+        !Object.is(value, null) &&
+        value !== "",
     ),
   );
 

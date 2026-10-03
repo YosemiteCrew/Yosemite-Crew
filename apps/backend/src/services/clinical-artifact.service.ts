@@ -336,7 +336,9 @@ const prescriptionItemRowsToJson = (items: PrescriptionItemModel[]) =>
     route: item.route,
     frequency: item.frequency,
     duration: item.duration,
-    quantity: item.quantity === null ? undefined : Number(item.quantity),
+    quantity: Object.is(item.quantity, null)
+      ? undefined
+      : Number(item.quantity),
     instructions: item.instructions,
     refill: item.refill ?? undefined,
     inventoryItemId: item.inventoryItemId ?? undefined,
@@ -345,7 +347,7 @@ const prescriptionItemRowsToJson = (items: PrescriptionItemModel[]) =>
     batchNumber: item.batchNumber ?? undefined,
     lotNumber: item.lotNumber ?? undefined,
     expiryDate: item.expiryDate ? item.expiryDate.toISOString() : undefined,
-    metadata: item.metadata === undefined ? undefined : item.metadata,
+    metadata: item.metadata,
   }));
 
 /**
@@ -608,22 +610,24 @@ const mergeVitalRecordMetadata = (
       ? currentDisplay
       : nextRecordedByDisplay;
 
-  if (display === undefined) {
-    return baseMetadata;
+  let mergedMetadata: unknown;
+  if (Object.is(display, undefined)) {
+    mergedMetadata = baseMetadata;
+  } else if (
+    Object.is(baseMetadata, null) ||
+    Object.is(baseMetadata, undefined)
+  ) {
+    if (Object.is(display, null)) {
+      mergedMetadata = null;
+    } else {
+      mergedMetadata = { recordedByDisplay: display };
+    }
+  } else if (isRecord(baseMetadata)) {
+    mergedMetadata = { ...baseMetadata, recordedByDisplay: display };
+  } else {
+    mergedMetadata = baseMetadata;
   }
-
-  if (baseMetadata === null || baseMetadata === undefined) {
-    return display === null ? null : { recordedByDisplay: display };
-  }
-
-  if (isRecord(baseMetadata)) {
-    return {
-      ...baseMetadata,
-      recordedByDisplay: display,
-    };
-  }
-
-  return baseMetadata;
+  return mergedMetadata;
 };
 
 /**
@@ -1105,11 +1109,11 @@ const prescriptionMedicationsFromItems = (
   prescription: Pick<PrescriptionModel, "items" | "medications">,
 ) => {
   const items = prescription.items ?? [];
-  if (items.length > 0) {
-    return prescriptionItemRowsToJson(items);
-  }
-
-  return prescription.medications;
+  const medications =
+    items.length > 0
+      ? prescriptionItemRowsToJson(items)
+      : prescription.medications;
+  return medications;
 };
 
 const buildPrescriptionRecord = (
@@ -1167,34 +1171,39 @@ export const hydrateMedications = (
   medications: Prisma.JsonValue | null,
   inventoryById: Map<string, InventoryMedicationFields>,
 ): Prisma.JsonValue | null => {
-  if (!Array.isArray(medications)) {
-    return medications;
-  }
-  return medications.map((med) => {
-    if (!isRecord(med)) {
-      return med;
-    }
-    const inventoryItemId = firstNonEmptyString(med.inventoryItemId);
-    const inv = inventoryItemId
-      ? inventoryById.get(inventoryItemId)
-      : undefined;
-    if (!inv) {
-      return med;
-    }
-    return {
-      ...med,
-      medication: firstNonEmptyString(med.medication) ?? inv.name,
-      strength: firstNonEmptyString(med.strength) ?? inv.strength ?? undefined,
-      genericName:
-        firstNonEmptyString(med.genericName) ?? inv.genericName ?? undefined,
-      dosageForm:
-        firstNonEmptyString(med.dosageForm) ?? inv.dosageForm ?? undefined,
-      controlledItem:
-        typeof med.controlledItem === "boolean"
-          ? med.controlledItem
-          : inv.controlledItem,
-    };
-  });
+  const hydrated = Array.isArray(medications)
+    ? medications.map((med): Prisma.JsonValue => {
+        let hydratedMedication: Prisma.JsonValue = med;
+        if (isRecord(med)) {
+          const inventoryItemId = firstNonEmptyString(med.inventoryItemId);
+          const inv = inventoryItemId
+            ? inventoryById.get(inventoryItemId)
+            : undefined;
+          if (inv) {
+            hydratedMedication = {
+              ...med,
+              medication: firstNonEmptyString(med.medication) ?? inv.name,
+              strength:
+                firstNonEmptyString(med.strength) ?? inv.strength ?? undefined,
+              genericName:
+                firstNonEmptyString(med.genericName) ??
+                inv.genericName ??
+                undefined,
+              dosageForm:
+                firstNonEmptyString(med.dosageForm) ??
+                inv.dosageForm ??
+                undefined,
+              controlledItem:
+                typeof med.controlledItem === "boolean"
+                  ? med.controlledItem
+                  : inv.controlledItem,
+            };
+          }
+        }
+        return hydratedMedication;
+      })
+    : medications;
+  return hydrated;
 };
 
 const collectPrescriptionInventoryItemIds = (

@@ -108,7 +108,7 @@ export class IdexxResultsClient {
   }
 
   async searchResults<T = unknown>(
-    params: Record<string, string | number | undefined>,
+    params: Record<string, string | number | null | undefined>,
   ): Promise<T> {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {

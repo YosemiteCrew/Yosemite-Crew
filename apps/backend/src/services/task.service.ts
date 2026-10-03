@@ -4,6 +4,7 @@ import {
   TaskStatus as PrismaTaskStatus,
   TaskPriority as PrismaTaskPriority,
 } from "@prisma/client";
+import { z } from "zod";
 import { isTaskCategory } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
@@ -1356,7 +1357,7 @@ const isEmptyTaskIdFilter = (value: Prisma.TaskWhereInput) => {
   const id = value.id;
   return (
     typeof id === "object" &&
-    id !== null &&
+    !Object.is(id, null) &&
     !Array.isArray(id) &&
     "in" in id &&
     Array.isArray((id as { in?: unknown[] }).in) &&
@@ -2098,13 +2099,15 @@ export const TaskService = {
       actorId,
     );
 
-    const cancellableIds = cancellableRows.map((row) => row.id);
+    const cancellableIds = z
+      .array(z.string().min(1))
+      .parse(cancellableRows.map((row) => row.id));
 
     await prisma.$transaction(async (tx) => {
       await tx.task.updateMany({
         where: {
           id: { in: cancellableIds },
-          organisationId: task.organisationId,
+          organisationId: z.string().min(1).parse(task.organisationId),
         },
         data: { status: "CANCELLED" },
       });

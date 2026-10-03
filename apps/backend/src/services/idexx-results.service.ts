@@ -20,9 +20,15 @@ type IdexxResult = Record<string, unknown> & {
 };
 
 const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
-  if (value === null) return Prisma.JsonNull;
-  if (value === undefined) return undefined;
-  return value as Prisma.InputJsonValue;
+  let jsonInput: Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined;
+  if (Object.is(value, null)) {
+    jsonInput = Prisma.JsonNull;
+  } else if (Object.is(value, undefined)) {
+    jsonInput = undefined;
+  } else {
+    jsonInput = value as Prisma.InputJsonValue;
+  }
+  return jsonInput;
 };
 
 const coerceString = (value: unknown): string | null => {

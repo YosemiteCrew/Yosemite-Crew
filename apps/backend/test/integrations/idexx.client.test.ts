@@ -1,5 +1,6 @@
 import axios from "axios";
 import { IdexxClient } from "src/integrations/idexx/idexx.client";
+import { IdexxResultsClient } from "src/integrations/idexx/idexx-results.client";
 
 jest.mock("axios");
 
@@ -150,5 +151,24 @@ describe("IdexxClient", () => {
 
     await expect(client.listIvlsDevices()).resolves.toEqual({ ok: true });
     expect(http.get).toHaveBeenCalledWith("/api/v1/ivls/devices");
+  });
+
+  it("omits null search filters from the results request", async () => {
+    const http = { get: jest.fn().mockResolvedValue({ data: { ok: true } }) };
+    mockAxios.create.mockReturnValue(http as any);
+
+    const client = new IdexxResultsClient({
+      username: "user",
+      password: "pass",
+      pimsId: "pims",
+      pimsVersion: "1.0",
+    });
+
+    await expect(
+      client.searchResults({ cursor: null, limit: 25 }),
+    ).resolves.toEqual({ ok: true });
+    expect(http.get).toHaveBeenCalledWith(
+      "/api/v3/results/search?limit=25",
+    );
   });
 });
