@@ -177,6 +177,11 @@ jobs:
       - name: Check deployed schema invariants
         run: pnpm --filter @yosemite-crew/database run schema:assert
 
+      - name: Check dated invoice revisions
+        run: |
+          pnpm --filter @yosemite-crew/database run prisma:generate
+          pnpm --filter backend exec jest --roots=./integration --runTestsByPath integration/invoice-revisions.test.ts --runInBand --coverage=false
+
       # `code_entry_search_text` (20260824160000_clinical_term_search_index) is
       # the prefilter behind clinical-term autocomplete, and it has two
       # properties that are easy to lose and silent when lost. Both were real

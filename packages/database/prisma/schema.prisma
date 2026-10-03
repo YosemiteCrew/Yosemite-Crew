@@ -4381,6 +4381,23 @@ model Invoice {
   @@index([taxProvider])
 }
 
+model InvoiceRevision {
+  id             BigInt        @id @default(autoincrement())
+  invoiceId      String
+  organisationId String?
+  parentId       String?
+  totalAmount    Float
+  currency       String
+  status         InvoiceStatus
+  finalizedAt    DateTime?
+  dueAt          DateTime?
+  recordedAt     DateTime      @default(now())
+  baseline       Boolean      @default(false)
+
+  @@index([organisationId, parentId, recordedAt])
+  @@index([invoiceId, id])
+}
+
 model ClientPaymentTerm {
   id             String   @id @default(uuid())
   organisationId String
