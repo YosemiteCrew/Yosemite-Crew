@@ -78,6 +78,12 @@ const toJsonInput = (value: unknown) => {
   if (value === undefined) return undefined;
   return value as Prisma.InputJsonValue;
 };
+
+const nullableUpdateValue = <T>(
+  next: T | null | undefined,
+  current: T | null | undefined,
+): T | null => (next === undefined ? (current ?? null) : next);
+
 const resolvePrimaryParentId = async (patientId: string) => {
   const parentLink = await prisma.parentPatient.findFirst({
     where: {
@@ -545,6 +551,20 @@ export const LabOrderService = {
       throw new LabOrderServiceError("tests are required.", 400);
     }
 
+    const veterinarian = nullableUpdateValue(
+      input.veterinarian,
+      existing.veterinarian,
+    );
+    const technician = nullableUpdateValue(
+      input.technician,
+      existing.technician,
+    );
+    const notes = nullableUpdateValue(input.notes, existing.notes);
+    const specimenCollectionDate = nullableUpdateValue(
+      input.specimenCollectionDate,
+      existing.specimenCollectionDate,
+    );
+
     const adapter = getLabOrderAdapter(provider);
     const result = await adapter.updateOrder(idexxOrderId, {
       organisationId: safeOrganisationId,
@@ -556,11 +576,10 @@ export const LabOrderService = {
         input.ivls ??
         (existing.ivls as Array<{ serialNumber: string }> | undefined) ??
         undefined,
-      veterinarian: input.veterinarian ?? existing.veterinarian ?? null,
-      technician: input.technician ?? existing.technician ?? null,
-      notes: input.notes ?? existing.notes ?? null,
-      specimenCollectionDate:
-        input.specimenCollectionDate ?? existing.specimenCollectionDate ?? null,
+      veterinarian,
+      technician,
+      notes,
+      specimenCollectionDate,
     });
 
     return prisma.labOrder.update({
@@ -581,13 +600,10 @@ export const LabOrderService = {
         tests: toJsonInput(input.tests ?? existing.tests),
         modality: input.modality ?? existing.modality ?? null,
         ivls: toJsonInput(input.ivls ?? existing.ivls ?? null),
-        veterinarian: input.veterinarian ?? existing.veterinarian ?? null,
-        technician: input.technician ?? existing.technician ?? null,
-        notes: input.notes ?? existing.notes ?? null,
-        specimenCollectionDate:
-          input.specimenCollectionDate ??
-          existing.specimenCollectionDate ??
-          null,
+        veterinarian,
+        technician,
+        notes,
+        specimenCollectionDate,
       },
     });
   },

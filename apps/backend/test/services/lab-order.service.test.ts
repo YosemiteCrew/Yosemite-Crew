@@ -1208,6 +1208,44 @@ describe("LabOrderService", () => {
       });
     });
 
+    it("clears nullable details when explicitly nulled", async () => {
+      prismaMock.labOrder.findFirst.mockResolvedValue(
+        storedOrder({
+          veterinarian: "vet-existing",
+          technician: "tech-existing",
+          notes: "note-existing",
+          specimenCollectionDate: "2025-12-31",
+        }),
+      );
+      prismaMock.labOrder.update.mockResolvedValue({ id: "order-1" });
+
+      await LabOrderService.updateOrder("IDEXX", "org-1", "ID-1", {
+        veterinarian: null,
+        technician: null,
+        notes: null,
+        specimenCollectionDate: null,
+      });
+
+      expect(adapterMock.updateOrder).toHaveBeenCalledWith(
+        "ID-1",
+        expect.objectContaining({
+          veterinarian: null,
+          technician: null,
+          notes: null,
+          specimenCollectionDate: null,
+        }),
+      );
+      expect(prismaMock.labOrder.update).toHaveBeenCalledWith({
+        where: { id: "order-1" },
+        data: expect.objectContaining({
+          veterinarian: null,
+          technician: null,
+          notes: null,
+          specimenCollectionDate: null,
+        }),
+      });
+    });
+
     it("nulls out modality and ivls when neither input nor stored order has them", async () => {
       prismaMock.labOrder.findFirst.mockResolvedValue(
         storedOrder({ modality: null, ivls: null }),

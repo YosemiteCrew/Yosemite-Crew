@@ -296,10 +296,10 @@ export const LabOrderController = {
         tests?: string[];
         modality?: "IN_HOUSE" | "REFERENCE_LAB";
         ivls?: Array<{ serialNumber: string }>;
-        veterinarian?: string;
-        technician?: string;
-        notes?: string;
-        specimenCollectionDate?: string;
+        veterinarian?: string | null;
+        technician?: string | null;
+        notes?: string | null;
+        specimenCollectionDate?: string | null;
       };
 
       const order = await LabOrderService.updateOrder(
@@ -310,10 +310,10 @@ export const LabOrderController = {
           tests: body.tests,
           modality: body.modality,
           ivls: body.ivls,
-          veterinarian: body.veterinarian ?? null,
-          technician: body.technician ?? null,
-          notes: body.notes ?? null,
-          specimenCollectionDate: body.specimenCollectionDate ?? null,
+          veterinarian: body.veterinarian,
+          technician: body.technician,
+          notes: body.notes,
+          specimenCollectionDate: body.specimenCollectionDate,
         },
       );
 

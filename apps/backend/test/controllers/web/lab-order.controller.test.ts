@@ -420,9 +420,9 @@ describe("LabOrderController", () => {
           modality: "REFERENCE_LAB",
           ivls: [{ serialNumber: "S1" }],
           veterinarian: "vet-1",
-          technician: null,
+          technician: undefined,
           notes: "follow up",
-          specimenCollectionDate: null,
+          specimenCollectionDate: undefined,
         },
       );
       expect(statusMock).toHaveBeenCalledWith(200);
@@ -790,7 +790,7 @@ describe("LabOrderController", () => {
   });
 
   describe("updateOrder", () => {
-    it("passes an empty body through as explicit nulls", async () => {
+    it("keeps omitted optional fields omitted", async () => {
       req.params = { ...req.params, idexxOrderId: "id-1" };
       req.body = {};
       (mockedLabOrderService.updateOrder as any).mockResolvedValue({});
@@ -805,11 +805,26 @@ describe("LabOrderController", () => {
           tests: undefined,
           modality: undefined,
           ivls: undefined,
-          veterinarian: null,
-          technician: null,
-          notes: null,
-          specimenCollectionDate: null,
+          veterinarian: undefined,
+          technician: undefined,
+          notes: undefined,
+          specimenCollectionDate: undefined,
         },
+      );
+    });
+
+    it("passes explicit nulls through as field clears", async () => {
+      req.params = { ...req.params, idexxOrderId: "id-1" };
+      req.body = { veterinarian: null, notes: null };
+      (mockedLabOrderService.updateOrder as any).mockResolvedValue({});
+
+      await LabOrderController.updateOrder(req as Request, res);
+
+      expect(mockedLabOrderService.updateOrder).toHaveBeenCalledWith(
+        "idexx",
+        "org-1",
+        "id-1",
+        expect.objectContaining({ veterinarian: null, notes: null }),
       );
     });
   });
