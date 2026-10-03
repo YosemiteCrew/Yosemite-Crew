@@ -1,6 +1,7 @@
 // src/services/stripe.service.ts
 import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
+import { z } from "zod";
 
 type WebhookSignature = string | string[] | undefined;
 import logger from "../utils/logger";
@@ -196,6 +197,7 @@ const reverseJournalledCapture = async (
   connectedAccountId: string | undefined,
   paymentIntentId: string | null,
   refundedAmount: number,
+  notification?: { id: string; occurredAt: Date },
 ) => {
   if (!paymentIntentId) {
     // A charge with no intent has no reference this journal is keyed on, and
@@ -233,6 +235,7 @@ const reverseJournalledCapture = async (
       ...key,
       refundedAmount,
       currency: charge.currency,
+      notification,
     });
   } catch (error) {
     // The journal is a record of the refund, never a precondition for
@@ -266,11 +269,11 @@ const claimOpenBookingInvoice = async (
 ): Promise<string | null> => {
   const claimed = await prisma.invoice.updateMany({
     where: {
-      appointmentId,
+      appointmentId: z.string().parse(appointmentId),
       status: { in: ["AWAITING_PAYMENT", "PENDING"] },
       providerPaymentIntentId: null,
     },
-    data: { providerPaymentIntentId: intentId },
+    data: { providerPaymentIntentId: z.string().parse(intentId) },
   });
   if (claimed.count === 0) return null;
 
@@ -392,7 +395,7 @@ const settleAppointmentBookingInvoice = async (params: {
   });
 
   await prisma.appointment.updateMany({
-    where: { id: appointmentId },
+    where: { id: z.string().parse(appointmentId) },
     data: {
       status: "REQUESTED",
       updatedAt: new Date(),
@@ -830,7 +833,10 @@ export const StripeService = {
         break;
 
       case "charge.refunded":
-        await this._handleRefund(event.data.object, connectedAccountId);
+        await this._handleRefund(event.data.object, connectedAccountId, {
+          id: event.id,
+          occurredAt: new Date(event.created * 1000),
+        });
         break;
 
       // connect readiness
@@ -887,21 +893,45 @@ export const StripeService = {
       account.charges_enabled === true && account.payouts_enabled === true;
 
     await prisma.organizationBilling.updateMany({
-      where: { connectAccountId: account.id },
+      where: { connectAccountId: z.string().parse(account.id) },
       data: {
-        currency: account.default_currency ?? undefined,
-        connectChargesEnabled: account.charges_enabled ?? false,
-        connectPayoutsEnabled: account.payouts_enabled ?? false,
-        canAcceptPayments: canAccept,
-        connectDisabledReason:
-          account.requirements?.disabled_reason ?? undefined,
-        connectRequirements: {
-          currentlyDue: account.requirements?.currently_due ?? [],
-          eventuallyDue: account.requirements?.eventually_due ?? [],
-          pastDue: account.requirements?.past_due ?? [],
-          pendingVerification: account.requirements?.pending_verification ?? [],
-          errors: account.requirements?.errors ?? [],
-        } as unknown as Prisma.InputJsonValue,
+        currency: z
+          .string()
+          .optional()
+          .parse(account.default_currency ?? undefined),
+        connectChargesEnabled: z
+          .boolean()
+          .parse(account.charges_enabled ?? false),
+        connectPayoutsEnabled: z
+          .boolean()
+          .parse(account.payouts_enabled ?? false),
+        canAcceptPayments: z.boolean().parse(canAccept),
+        connectDisabledReason: z
+          .string()
+          .optional()
+          .parse(account.requirements?.disabled_reason ?? undefined),
+        connectRequirements: z
+          .object({
+            currentlyDue: z.array(z.string()),
+            eventuallyDue: z.array(z.string()),
+            pastDue: z.array(z.string()),
+            pendingVerification: z.array(z.string()),
+            errors: z.array(
+              z.object({
+                code: z.string().optional(),
+                reason: z.string().optional(),
+                requirement: z.string().optional(),
+              }),
+            ),
+          })
+          .parse({
+            currentlyDue: account.requirements?.currently_due ?? [],
+            eventuallyDue: account.requirements?.eventually_due ?? [],
+            pastDue: account.requirements?.past_due ?? [],
+            pendingVerification:
+              account.requirements?.pending_verification ?? [],
+            errors: account.requirements?.errors ?? [],
+          }),
       },
     });
 
@@ -1215,7 +1245,11 @@ export const StripeService = {
     }
   },
 
-  async _handleRefund(charge: Stripe.Charge, connectedAccountId?: string) {
+  async _handleRefund(
+    charge: Stripe.Charge,
+    connectedAccountId?: string,
+    notification?: { id: string; occurredAt: Date },
+  ) {
     const invoiceId = charge.metadata?.invoiceId;
     const paymentIntentId =
       typeof charge.payment_intent === "string" ? charge.payment_intent : null;
@@ -1247,6 +1281,7 @@ export const StripeService = {
         connectedAccountId,
         paymentIntentId,
         amount,
+        notification,
       );
     }
 

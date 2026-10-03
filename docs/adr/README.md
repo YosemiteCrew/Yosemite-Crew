@@ -23,6 +23,7 @@ Skip it for anything a code review can fully capture on its own — a new utilit
 | [0002](./0002-stripe-direct-charges-merchant-of-record.md)   | Stripe Standard Connect with direct charges; clinic as merchant of record | Accepted                                                               | 2026-06-25 |
 | [0003](./0003-provider-neutral-auth-boundary-supertokens.md) | Provider-neutral auth boundary with SuperTokens as the first adapter      | Accepted (implemented via PR #1763, merged 2026-07-16)                 | 2026-07-02 |
 | [0006](./0006-dated-invoice-history.md)                      | Dated invoice history                                                     | Proposed                                                               | 2026-10-03 |
+| [0007](./0007-dated-receipt-refunds.md)                      | Dated receipt refunds                                                     | Proposed                                                               | 2026-10-03 |
 
 0004 is deliberately unused. It was drafted as a developer-tenant data-residency
 decision on the `feat/dev-portal-phase2-foundations` branch, but its Context asserts

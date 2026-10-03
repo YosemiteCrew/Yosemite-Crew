@@ -4,6 +4,7 @@ import type {
   Prisma,
 } from "@prisma/client";
 import { ProviderReceiptStatus } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import {
   FinancePaymentService,
@@ -188,23 +189,37 @@ const attributeIfOwnerStillUnknown = async (
 
     const updated = await prisma.providerReceipt.updateMany({
       where: {
-        id: existing.id,
+        id: z.string().parse(existing.id),
         organisationId: null,
-        status: observed.status,
+        status: z.enum(RECONCILIATION_STATUSES).parse(observed.status),
       },
       data: {
-        organisationId: input.organisationId,
-        invoiceId: input.invoiceId ?? null,
-        appointmentId: input.appointmentId ?? null,
-        reason: input.reason ?? null,
-        status,
+        organisationId: z.string().parse(input.organisationId),
+        invoiceId: z
+          .string()
+          .nullable()
+          .parse(input.invoiceId ?? null),
+        appointmentId: z
+          .string()
+          .nullable()
+          .parse(input.appointmentId ?? null),
+        reason: z
+          .string()
+          .nullable()
+          .parse(input.reason ?? null),
+        status: z.enum(RECONCILIATION_STATUSES).parse(status),
         // Paired with the status on every write, never only on the insert. An
         // attribution that arrives later and names the invoice the capture
         // went to has applied it just as much as one that knew at ingest.
-        allocatedAmount: initialAllocatedAmount({
-          status,
-          amount: input.amount,
-        }),
+        allocatedAmount: z
+          .number()
+          .nonnegative()
+          .parse(
+            initialAllocatedAmount({
+              status,
+              amount: input.amount,
+            }),
+          ),
         version: { increment: 1 },
       },
     });
@@ -436,6 +451,42 @@ export type RecordRefundInput = {
    */
   refundedAmount: number;
   currency: string;
+  notification?: { id: string; occurredAt: Date };
+};
+
+const recordRefundNotification = async (
+  tx: Prisma.TransactionClient,
+  receiptId: string,
+  input: RecordRefundInput,
+): Promise<void> => {
+  if (!input.notification) return;
+  const { id, occurredAt } = input.notification;
+  if (
+    !id.trim() ||
+    !Number.isFinite(occurredAt.getTime()) ||
+    !Number.isFinite(input.refundedAmount) ||
+    input.refundedAmount < 0
+  ) {
+    throw new Error("Refund history requires a valid event, date and amount.");
+  }
+  const recorded = await tx.providerReceiptRefund.upsert({
+    where: { receiptId_providerEventId: { receiptId, providerEventId: id } },
+    create: {
+      receiptId,
+      providerEventId: id,
+      cumulativeAmount: input.refundedAmount,
+      currency: input.currency,
+      occurredAt,
+    },
+    update: {},
+  });
+  if (
+    recorded.cumulativeAmount !== input.refundedAmount ||
+    recorded.currency !== input.currency ||
+    recorded.occurredAt.getTime() !== occurredAt.getTime()
+  ) {
+    throw new Error("The refund event differs from its recorded history.");
+  }
 };
 
 export type RecordRefundResult = {
@@ -954,16 +1005,18 @@ const reserveAllocation = async (
        */
       const reserved = await tx.providerReceipt.updateMany({
         where: {
-          id: receipt.id,
-          version: input.expectedVersion,
-          organisationId: input.organisationId,
-          allocatedAmount: receipt.allocatedAmount,
-          refundedAmount: receipt.refundedAmount,
-          status: receipt.status,
+          id: z.string().parse(receipt.id),
+          version: z.number().int().nonnegative().parse(input.expectedVersion),
+          organisationId: z.string().parse(input.organisationId),
+          allocatedAmount: z.number().parse(receipt.allocatedAmount),
+          refundedAmount: z.number().parse(receipt.refundedAmount),
+          status: z.enum(RECONCILIATION_STATUSES).parse(receipt.status),
         },
         data: {
-          allocatedAmount: { increment: requested },
-          status,
+          allocatedAmount: {
+            increment: z.number().nonnegative().parse(requested),
+          },
+          status: z.enum(RECONCILIATION_STATUSES).parse(status),
           version: { increment: 1 },
         },
       });
@@ -1176,85 +1229,93 @@ export const ProviderReceiptService = {
       input.merchantAccountRef ?? PLATFORM_MERCHANT_ACCOUNT_REF;
 
     try {
-      const existing = await prisma.providerReceipt.findUnique({
-        where: {
-          provider_merchantAccountRef_paymentRef: {
-            provider: input.provider,
-            merchantAccountRef,
-            paymentRef: input.paymentRef,
+      return await prisma.$transaction(async (tx) => {
+        const existing = await tx.providerReceipt.findUnique({
+          where: {
+            provider_merchantAccountRef_paymentRef: {
+              provider: input.provider,
+              merchantAccountRef,
+              paymentRef: input.paymentRef,
+            },
           },
-        },
-        select: {
-          id: true,
-          amount: true,
-          currency: true,
-          status: true,
-          refundedAmount: true,
-        },
-      });
+          select: {
+            id: true,
+            amount: true,
+            currency: true,
+            status: true,
+            refundedAmount: true,
+          },
+        });
 
-      if (!existing) {
-        // The capture this reverses was never journalled, so there is nothing
-        // to reduce. Loud, because it means money left the account against a
-        // record we do not hold.
-        logger.error(
-          `Refund of ${input.paymentRef} on ${merchantAccountRef} has no journalled capture to reverse`,
-        );
-        return null;
-      }
+        if (!existing) {
+          // The capture this reverses was never journalled, so there is nothing
+          // to reduce. Loud, because it means money left the account against a
+          // record we do not hold.
+          logger.error(
+            `Refund of ${input.paymentRef} on ${merchantAccountRef} has no journalled capture to reverse`,
+          );
+          return null;
+        }
 
-      if (existing.currency !== input.currency) {
-        // Two currencies cannot be compared, so writing this figure would put
-        // a number in the journal that means nothing against the amount beside
-        // it. A gap a human can see beats a total that silently does not add
-        // up.
-        logger.error(
-          `Refund of ${input.paymentRef} on ${merchantAccountRef} is in a different currency from the capture it reverses; not recorded`,
-        );
-        return null;
-      }
+        if (existing.currency !== input.currency) {
+          // Two currencies cannot be compared, so writing this figure would put
+          // a number in the journal that means nothing against the amount beside
+          // it. A gap a human can see beats a total that silently does not add
+          // up.
+          logger.error(
+            `Refund of ${input.paymentRef} on ${merchantAccountRef} is in a different currency from the capture it reverses; not recorded`,
+          );
+          return null;
+        }
 
-      const status = refundedReceiptStatus({
-        amount: existing.amount,
-        refundedAmount: input.refundedAmount,
-      });
-
-      const updated = await prisma.providerReceipt.updateMany({
-        where: {
-          id: existing.id,
-          refundedAmount: { lt: input.refundedAmount },
-        },
-        data: {
+        const status = refundedReceiptStatus({
+          amount: existing.amount,
           refundedAmount: input.refundedAmount,
-          status,
-          version: { increment: 1 },
-        },
-      });
+        });
 
-      if (updated.count === 1) {
+        await recordRefundNotification(tx, existing.id, input);
+        const updated = await tx.providerReceipt.updateMany({
+          where: {
+            id: z.string().parse(existing.id),
+            refundedAmount: {
+              lt: z.number().nonnegative().parse(input.refundedAmount),
+            },
+          },
+          data: {
+            refundedAmount: z
+              .number()
+              .nonnegative()
+              .parse(input.refundedAmount),
+            status: z.enum(RECONCILIATION_STATUSES).parse(status),
+            version: { increment: 1 },
+          },
+        });
+
+        if (updated.count === 1) {
+          return {
+            id: existing.id,
+            status,
+            refundedAmount: input.refundedAmount,
+            applied: true,
+          };
+        }
+
+        // count 0 means the stored figure already covers this refund - a replay,
+        // an event delivered behind a later one, or a concurrent delivery that
+        // won. None of those is an error, and none of them makes the status this
+        // call computed the stored one, so the answer comes from a fresh read.
+        const persisted = await tx.providerReceipt.findUnique({
+          where: { id: existing.id },
+          select: { status: true, refundedAmount: true },
+        });
+
         return {
           id: existing.id,
-          status,
-          refundedAmount: input.refundedAmount,
-          applied: true,
+          status: persisted?.status ?? existing.status,
+          refundedAmount: persisted?.refundedAmount ?? existing.refundedAmount,
+          applied: false,
         };
-      }
-
-      // count 0 means the stored figure already covers this refund - a replay,
-      // an event delivered behind a later one, or a concurrent delivery that
-      // won. None of those is an error, and none of them makes the status this
-      // call computed the stored one, so the answer comes from a fresh read.
-      const persisted = await prisma.providerReceipt.findUnique({
-        where: { id: existing.id },
-        select: { status: true, refundedAmount: true },
       });
-
-      return {
-        id: existing.id,
-        status: persisted?.status ?? existing.status,
-        refundedAmount: persisted?.refundedAmount ?? existing.refundedAmount,
-        applied: false,
-      };
     } catch (error) {
       logger.error(
         `Could not record refund of ${input.paymentRef} on ${merchantAccountRef}`,

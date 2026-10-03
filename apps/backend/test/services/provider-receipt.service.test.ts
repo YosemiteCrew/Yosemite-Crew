@@ -3,12 +3,15 @@ import {
   ProviderReceiptService,
   initialReceiptStatus,
   refundedReceiptStatus,
+  type RecordRefundInput,
 } from "../../src/services/finance/provider-receipt";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
+    providerReceiptRefund: { upsert: jest.fn() },
     providerReceipt: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -23,6 +26,8 @@ jest.mock("src/utils/logger", () => ({
 }));
 
 const mockedPrisma = prisma as unknown as {
+  $transaction: jest.Mock;
+  providerReceiptRefund: { upsert: jest.Mock };
   providerReceipt: {
     create: jest.Mock;
     findUnique: jest.Mock;
@@ -50,6 +55,10 @@ const capture = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockedPrisma.$transaction.mockImplementation(
+    (callback: (tx: typeof mockedPrisma) => Promise<unknown>) =>
+      callback(mockedPrisma),
+  );
 });
 
 describe("initialReceiptStatus", () => {
@@ -728,6 +737,200 @@ describe("ProviderReceiptService.recordRefund", () => {
       expect.stringContaining("Could not record refund of pi_captured"),
       expect.any(Error),
     );
+  });
+});
+
+describe("receipt field values", () => {
+  it.each(["organisationId", "invoiceId", "appointmentId", "reason", "amount"])(
+    "refuses a non-scalar %s during attribution",
+    async (field) => {
+      mockedPrisma.providerReceipt.create.mockRejectedValueOnce(
+        uniqueViolation(),
+      );
+      mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce({
+        id: "receipt-1",
+        organisationId: null,
+        status: "UNATTRIBUTED",
+      });
+      mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({
+        count: 1,
+      });
+      await expect(
+        ProviderReceiptService.journalCapture(
+          capture({
+            organisationId: "org-1",
+            invoiceId: "inv-1",
+            [field]: { not: null },
+          }),
+        ),
+      ).rejects.toThrow();
+      expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["id", "status"])(
+    "refuses a malformed stored %s during attribution",
+    async (field) => {
+      mockedPrisma.providerReceipt.create.mockRejectedValueOnce(
+        uniqueViolation(),
+      );
+      mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce({
+        id: "receipt-1",
+        organisationId: null,
+        status: "UNATTRIBUTED",
+        [field]: { not: null },
+      });
+      mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({
+        count: 1,
+      });
+      await expect(
+        ProviderReceiptService.journalCapture(
+          capture({ organisationId: "org-1", invoiceId: "inv-1" }),
+        ),
+      ).rejects.toThrow();
+      expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { increment: 10 },
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    -1,
+  ])(
+    "refuses a malformed refund total %p from an older caller",
+    async (amount) => {
+      mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+        id: "receipt-1",
+        amount: 100,
+        currency: "gbp",
+        status: "ALLOCATED",
+        refundedAmount: 0,
+      });
+      mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 1 });
+      expect(
+        await ProviderReceiptService.recordRefund({
+          provider: "STRIPE",
+          paymentRef: "pi_captured",
+          currency: "gbp",
+          refundedAmount: amount as unknown as number,
+        }),
+      ).toBeNull();
+      expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("dated receipt refund notifications", () => {
+  const occurredAt = new Date("2026-09-18T10:00:00.000Z");
+  const input: RecordRefundInput = {
+    provider: "STRIPE",
+    paymentRef: "pi_dated",
+    currency: "gbp",
+    refundedAmount: 20,
+    notification: { id: "evt_dated", occurredAt },
+  };
+  const recorded = { cumulativeAmount: 20, currency: "gbp", occurredAt };
+  beforeEach(() => {
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+      id: "receipt-dated",
+      amount: 100,
+      currency: "gbp",
+      status: "ALLOCATED",
+      refundedAmount: 0,
+    });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 1 });
+    mockedPrisma.providerReceiptRefund.upsert.mockResolvedValue(recorded);
+  });
+
+  it("keeps the event date and cumulative total in the receipt transaction", async () => {
+    expect(await ProviderReceiptService.recordRefund(input)).toMatchObject({
+      applied: true,
+    });
+    expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.providerReceiptRefund.upsert).toHaveBeenCalledWith({
+      where: {
+        receiptId_providerEventId: {
+          receiptId: "receipt-dated",
+          providerEventId: "evt_dated",
+        },
+      },
+      create: {
+        receiptId: "receipt-dated",
+        providerEventId: "evt_dated",
+        cumulativeAmount: 20,
+        currency: "gbp",
+        occurredAt,
+      },
+      update: {},
+    });
+  });
+
+  it("keeps an earlier notification even when a later refund total is already stored", async () => {
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+      id: "receipt-dated",
+      amount: 100,
+      currency: "gbp",
+      status: "REFUNDED",
+      refundedAmount: 100,
+    });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
+    expect(await ProviderReceiptService.recordRefund(input)).toMatchObject({
+      applied: false,
+      refundedAmount: 100,
+    });
+    expect(mockedPrisma.providerReceiptRefund.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not invent a dated notification for an older caller", async () => {
+    expect(
+      await ProviderReceiptService.recordRefund({
+        ...input,
+        notification: undefined,
+      }),
+    ).toMatchObject({ applied: true });
+    expect(mockedPrisma.providerReceiptRefund.upsert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["amount", { cumulativeAmount: 30 }],
+    ["currency", { currency: "eur" }],
+    ["date", { occurredAt: new Date("2026-09-19T10:00:00.000Z") }],
+  ])(
+    "refuses a replay that changes the recorded %s",
+    async (_name, changed) => {
+      mockedPrisma.providerReceiptRefund.upsert.mockResolvedValue({
+        ...recorded,
+        ...changed,
+      });
+      expect(await ProviderReceiptService.recordRefund(input)).toBeNull();
+      expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["empty event", { notification: { id: " ", occurredAt } }],
+    [
+      "invalid date",
+      { notification: { id: "evt_dated", occurredAt: new Date("invalid") } },
+    ],
+    ["non-finite amount", { refundedAmount: Number.NaN }],
+    ["negative amount", { refundedAmount: -1 }],
+  ])("refuses an %s before recording a refund", async (_name, changed) => {
+    expect(
+      await ProviderReceiptService.recordRefund({ ...input, ...changed }),
+    ).toBeNull();
+    expect(mockedPrisma.providerReceiptRefund.upsert).not.toHaveBeenCalled();
+    expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not update the total when dated history cannot be saved", async () => {
+    mockedPrisma.providerReceiptRefund.upsert.mockRejectedValue(
+      new Error("history unavailable"),
+    );
+    expect(await ProviderReceiptService.recordRefund(input)).toBeNull();
+    expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
   });
 });
 

@@ -2353,6 +2353,52 @@ describe("StripeService", () => {
   });
 
   describe("_handleAccountUpdated fallbacks", () => {
+    it.each([
+      ["id", { id: { not: null } }],
+      ["currency", { default_currency: { set: "usd" } }],
+      ["charges", { charges_enabled: { set: true } }],
+      ["payouts", { payouts_enabled: { set: true } }],
+      [
+        "disabled reason",
+        { requirements: { disabled_reason: { set: "other" } } },
+      ],
+      [
+        "current requirements",
+        { requirements: { currently_due: [{ not: null }] } },
+      ],
+      [
+        "future requirements",
+        { requirements: { eventually_due: [{ not: null }] } },
+      ],
+      ["past requirements", { requirements: { past_due: [{ not: null }] } }],
+      [
+        "pending requirements",
+        { requirements: { pending_verification: [{ not: null }] } },
+      ],
+      ["error code", { requirements: { errors: [{ code: { not: null } }] } }],
+      [
+        "error reason",
+        { requirements: { errors: [{ reason: { not: null } }] } },
+      ],
+      [
+        "error requirement",
+        { requirements: { errors: [{ requirement: { not: null } }] } },
+      ],
+    ])(
+      "rejects malformed account %s before changing billing details",
+      async (_name, changed) => {
+        await expect(
+          StripeService._handleAccountUpdated({
+            id: "acct_valid",
+            ...changed,
+          } as unknown as Parameters<
+            typeof StripeService._handleAccountUpdated
+          >[0]),
+        ).rejects.toThrow();
+        expect(prisma.organizationBilling.updateMany).not.toHaveBeenCalled();
+      },
+    );
+
     it("replays account snapshots idempotently with absolute values", async () => {
       const account = {
         id: "acct_replay",
@@ -2693,6 +2739,29 @@ describe("StripeService", () => {
       latest_charge: "ch_1",
       metadata: { appointmentId: "appt_1" },
     };
+
+    it.each(["appointment", "payment"])(
+      "rejects non-string booking %s details",
+      async (field) => {
+        bookingAppointment();
+        (prisma.invoice.findUnique as jest.Mock).mockResolvedValue(null);
+        (prisma.invoice.updateMany as jest.Mock).mockResolvedValue({
+          count: 0,
+        });
+        const event =
+          field === "appointment"
+            ? { ...bookingEvent, metadata: { appointmentId: { not: null } } }
+            : { ...bookingEvent, id: { not: null } };
+        await expect(
+          StripeService._handleAppointmentBookingPayment(
+            event as unknown as Parameters<
+              typeof StripeService._handleAppointmentBookingPayment
+            >[0],
+          ),
+        ).rejects.toThrow();
+        expect(prisma.invoice.updateMany).not.toHaveBeenCalled();
+      },
+    );
 
     it("no-ops when an invoice is already bound to this payment intent", async () => {
       // The replay case. Stripe redelivers on any non-2xx and nothing upstream
@@ -3507,6 +3576,26 @@ describe("provider receipt refund reversal", () => {
       provider: "STRIPE",
       paymentRef: "pi_reversal",
     });
+  });
+
+  it("preserves the refund notification date rather than the capture date", async () => {
+    await StripeService.handleWebhookEvent({
+      id: "evt_dated_refund",
+      created: 1790000000,
+      type: "charge.refunded",
+      data: { object: refundedCharge() },
+    } as Parameters<typeof StripeService.handleWebhookEvent>[0]);
+    expect(reversed()[0]).toMatchObject({
+      notification: {
+        id: "evt_dated_refund",
+        occurredAt: new Date(1790000000 * 1000),
+      },
+    });
+  });
+
+  it("leaves the notification date unknown when called without an event", async () => {
+    await StripeService._handleRefund(refundedCharge());
+    expect(reversed()[0].notification).toBeUndefined();
   });
 
   it("journals the capture it is reversing before reducing it", async () => {

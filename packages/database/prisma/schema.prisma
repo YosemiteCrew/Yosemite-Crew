@@ -7622,6 +7622,19 @@ model ProviderReceipt {
   @@index([capturedAt])
 }
 
+model ProviderReceiptRefund {
+  id               String   @id @default(uuid())
+  receiptId        String
+  providerEventId  String
+  cumulativeAmount Float
+  currency         String
+  occurredAt       DateTime
+  createdAt        DateTime @default(now())
+
+  @@unique([receiptId, providerEventId])
+  @@index([receiptId, occurredAt])
+}
+
 /// One operator decision to apply part of a captured payment to one invoice
 /// (#3170 delivery 2).
 ///
