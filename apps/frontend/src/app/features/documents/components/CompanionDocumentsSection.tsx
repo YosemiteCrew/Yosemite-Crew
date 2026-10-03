@@ -160,7 +160,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
         if (!cancelled) setRecords([]);
       }
     };
-    run();
+    void run();
     return () => {
       cancelled = true;
     };

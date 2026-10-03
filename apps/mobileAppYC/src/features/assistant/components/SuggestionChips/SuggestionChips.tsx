@@ -1,5 +1,5 @@
-import React, {useMemo} from 'react';
-import {ScrollView, StyleSheet, Text} from 'react-native';
+import React, {useCallback, useMemo} from 'react';
+import {FlatList, StyleSheet, Text} from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
@@ -14,7 +14,7 @@ interface SuggestionChipsProps {
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    // A horizontal ScrollView carries no intrinsic height, so inside the
+    // A horizontal list carries no intrinsic height, so inside the
     // screen's flex column it was shrunk by its siblings and clipped the
     // bottom of every pill. It should keep its natural height instead.
     row: {
@@ -39,6 +39,29 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
   });
+
+type ChipStyles = ReturnType<typeof createStyles>;
+
+interface Phrase {
+  key: string;
+  label: string;
+}
+
+const SuggestionChip: React.FC<{
+  label: string;
+  styles: ChipStyles;
+  onSelect: (phrase: string) => void;
+}> = ({label, styles, onSelect}) => (
+  <PressableOpacity
+    style={styles.chip}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    onPress={() => onSelect(label)}>
+    <Text style={styles.chipText}>{label}</Text>
+  </PressableOpacity>
+);
+
+const keyOf = (phrase: Phrase): string => phrase.key;
 
 /**
  * First-run affordance. An assistant cannot be discovered by guessing, so the
@@ -66,28 +89,23 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = ({
     [limit, t],
   );
 
+  const renderChip = useCallback(
+    ({item}: {item: Phrase}) => (
+      <SuggestionChip label={item.label} styles={styles} onSelect={onSelect} />
+    ),
+    [styles, onSelect],
+  );
+
   return (
-    // Deliberately a ScrollView rather than a FlatList, against
-    // react-doctor's rn-no-scrollview-mapped-list. That rule targets long
-    // lists; this row is explicitly capped by `limit` (four by default), so
-    // virtualising it would buy nothing and would trade an exact "render these
-    // chips" contract for a windowed one.
-    <ScrollView
+    <FlatList
       horizontal
       showsHorizontalScrollIndicator={false}
       style={styles.row}
       contentContainerStyle={styles.container}
-      testID="assistant-suggestions">
-      {phrases.map(phrase => (
-        <PressableOpacity
-          key={phrase.key}
-          style={styles.chip}
-          accessibilityRole="button"
-          accessibilityLabel={phrase.label}
-          onPress={() => onSelect(phrase.label)}>
-          <Text style={styles.chipText}>{phrase.label}</Text>
-        </PressableOpacity>
-      ))}
-    </ScrollView>
+      testID="assistant-suggestions"
+      data={phrases}
+      keyExtractor={keyOf}
+      renderItem={renderChip}
+    />
   );
 };

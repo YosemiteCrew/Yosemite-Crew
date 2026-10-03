@@ -46,14 +46,8 @@
   font-style: italic;
 }
 
-/* Newsreader (OFL) is ALSO self-hosted here, in addition to next/font in
-   layout.tsx. next/font resolves at BUILD time over the network, so a restricted
-   CI runner or a Google Fonts outage fails `storybook:build` outright with
-   "Failed to fetch Newsreader" — and Chromatic runs that build on every PR, so a
-   network blip would take the visual gate offline rather than degrade it.
-   The token chain is `var(--font-newsreader-src, 'Newsreader')`: in the app
-   next/font still wins, and anywhere that variable is unset (Storybook) this
-   local face resolves instead of silently falling back to Georgia. */
+/* Newsreader (OFL) is self-hosted so builds never depend on Google Fonts being
+   reachable. */
 @font-face {
   font-family: 'Newsreader';
   src: url('/fonts/newsreader/Newsreader-Variable.woff2') format('woff2');
@@ -68,11 +62,6 @@
   font-style: italic;
   font-display: swap;
 }
-
-/* Newsreader (OFL) — marketing display serif — is loaded once by next/font in
-   layout.tsx and reaches every surface through the --font-newsreader token
-   below. It is deliberately not declared a second time here: a self-hosted
-   @font-face copy would ship the same faces again under a non-hashed URL. */
 
 html {
   scroll-behavior: auto;
@@ -579,7 +568,7 @@ input[type='radio']:focus-visible {
   --color-cyan: #5ce1e6;
   --color-cyan-text: #38ccd8;
 
-  --font-newsreader: var(--font-newsreader-src, 'Newsreader'), Georgia, 'Times New Roman', serif;
+  --font-newsreader: 'Newsreader', Georgia, 'Times New Roman', serif;
 }
 :root {
   --black-text: var(--color-black-text);

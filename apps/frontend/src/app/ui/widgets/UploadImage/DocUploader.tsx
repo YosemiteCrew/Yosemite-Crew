@@ -10,12 +10,12 @@ type Props = {
   setFile: React.Dispatch<React.SetStateAction<File | null>>;
   error?: string;
 };
-type GetSignedUrlResponse = { uploadUrl: string; s3Key: string };
-
 const DocUploader = ({ onChange, apiUrl, placeholder, file, setFile }: Readonly<Props>) => {
-  const getSignedUrl = async (file: File): Promise<GetSignedUrlResponse> => {
-    const res = await postData<GetSignedUrlResponse>(apiUrl, {
-      mimeType: file?.type,
+  const uploadFile = async (file: File): Promise<{ s3Key: string }> => {
+    const body = new FormData();
+    body.append('file', file);
+    const res = await postData<{ s3Key: string }>(apiUrl, body, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return res.data;
   };
@@ -26,7 +26,7 @@ const DocUploader = ({ onChange, apiUrl, placeholder, file, setFile }: Readonly<
       onChange={onChange}
       file={file}
       setFile={setFile}
-      getSignedUrl={getSignedUrl}
+      uploadFile={uploadFile}
     />
   );
 };

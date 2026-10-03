@@ -1190,6 +1190,22 @@ const mapBusinessFromApi = (
   return {business, services, packages};
 };
 
+type PractitionerFeedbackPayload = {
+  isRated?: boolean;
+  rating?: number | null;
+  review?: string | null;
+  practitionerName?: string | null;
+};
+
+const normalizePractitionerFeedback = (
+  feedback?: PractitionerFeedbackPayload | null,
+) => ({
+  isRated: Boolean(feedback?.isRated),
+  rating: feedback?.rating ?? null,
+  review: feedback?.review ?? null,
+  practitionerName: feedback?.practitionerName ?? null,
+});
+
 export const appointmentApi = {
   async listAppointments({
     companionId,
@@ -1652,13 +1668,40 @@ export const appointmentApi = {
         headers: withAuthHeaders(accessToken),
       },
     );
-    const payload = data.feedback ?? {};
-    return {
-      isRated: Boolean(payload.isRated),
-      rating: payload.rating ?? null,
-      review: payload.review ?? null,
-      practitionerName: payload.practitionerName ?? null,
-    };
+    return normalizePractitionerFeedback(data.feedback);
+  },
+
+  async getPractitionerFeedbackForParent({
+    accessToken,
+  }: {
+    accessToken: string;
+  }): Promise<
+    Record<
+      string,
+      {
+        isRated: boolean;
+        rating: number | null;
+        review: string | null;
+        practitionerName: string | null;
+      }
+    >
+  > {
+    const url = buildUrl('/v1/organisation-rating/practitioner-feedback/batch');
+    const {data} = await apiClient.post(
+      url,
+      {},
+      {headers: withAuthHeaders(accessToken)},
+    );
+    const feedbackByAppointment = (data.feedbackByAppointment ?? {}) as Record<
+      string,
+      PractitionerFeedbackPayload
+    >;
+    return Object.fromEntries(
+      Object.entries(feedbackByAppointment).map(([appointmentId, feedback]) => [
+        appointmentId,
+        normalizePractitionerFeedback(feedback),
+      ]),
+    );
   },
 
   async getOrganisationRatingStatus({

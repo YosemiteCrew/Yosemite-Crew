@@ -25,19 +25,29 @@ export const useFetchPractitionerFeedbackIfNeeded = ({
   >;
 }) =>
   React.useCallback(
-    async (appointmentId?: string | null, force = false) => {
-      if (
-        !appointmentId ||
-        feedbackByAppointment[appointmentId]?.loading ||
-        (!force &&
-          typeof feedbackByAppointment[appointmentId]?.isRated === 'boolean')
-      ) {
-        return;
-      }
+    async (appointmentIds: Array<string | null | undefined>, force = false) => {
+      const targets = [
+        ...new Set(
+          appointmentIds.filter(
+            (appointmentId): appointmentId is string =>
+              typeof appointmentId === 'string' && appointmentId.length > 0,
+          ),
+        ),
+      ].filter(
+        appointmentId =>
+          !feedbackByAppointment[appointmentId]?.loading &&
+          (force ||
+            typeof feedbackByAppointment[appointmentId]?.isRated !== 'boolean'),
+      );
+      if (!targets.length) return;
 
+      const setTargetState = (state: PractitionerFeedbackState) =>
+        Object.fromEntries(
+          targets.map(appointmentId => [appointmentId, state]),
+        );
       setFeedbackByAppointment(previous => ({
         ...previous,
-        [appointmentId]: {isRated: false, loading: true},
+        ...setTargetState({isRated: false, loading: true}),
       }));
 
       try {
@@ -46,18 +56,37 @@ export const useFetchPractitionerFeedbackIfNeeded = ({
         if (!accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
           setFeedbackByAppointment(previous => ({
             ...previous,
-            [appointmentId]: {isRated: false, loading: false, loadError: true},
+            ...setTargetState({
+              isRated: false,
+              loading: false,
+              loadError: true,
+            }),
           }));
           return;
         }
 
-        const feedback = await appointmentApi.getPractitionerFeedback({
-          appointmentId,
-          accessToken,
-        });
+        const fetchedFeedback =
+          await appointmentApi.getPractitionerFeedbackForParent({
+            accessToken,
+          });
+        const loadedFeedback = Object.fromEntries(
+          Object.entries(fetchedFeedback).map(([appointmentId, feedback]) => [
+            appointmentId,
+            {...feedback, loading: false, loadError: false},
+          ]),
+        );
+        const missingFeedback = Object.fromEntries(
+          targets
+            .filter(appointmentId => !fetchedFeedback[appointmentId])
+            .map(appointmentId => [
+              appointmentId,
+              {isRated: false, loading: false, loadError: true},
+            ]),
+        );
         setFeedbackByAppointment(previous => ({
           ...previous,
-          [appointmentId]: {...feedback, loading: false, loadError: false},
+          ...missingFeedback,
+          ...loadedFeedback,
         }));
       } catch (error) {
         console.warn(
@@ -66,7 +95,7 @@ export const useFetchPractitionerFeedbackIfNeeded = ({
         );
         setFeedbackByAppointment(previous => ({
           ...previous,
-          [appointmentId]: {isRated: false, loading: false, loadError: true},
+          ...setTargetState({isRated: false, loading: false, loadError: true}),
         }));
       }
     },

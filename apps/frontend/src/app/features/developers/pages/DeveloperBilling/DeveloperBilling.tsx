@@ -66,7 +66,7 @@ const DeveloperBilling = () => {
     const run = async () => {
       await loadBilling();
     };
-    run();
+    void run();
   }, [loadBilling]);
 
   // Both hand-offs clear their pending flag only on failure: on success the

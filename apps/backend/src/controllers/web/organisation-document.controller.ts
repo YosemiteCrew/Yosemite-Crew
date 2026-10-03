@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { stringify } from "node:querystring";
 import { z } from "zod";
-import { generatePresignedUrl } from "src/middlewares/upload";
+import {
+  generatePresignedUrl,
+  handleFileUpload,
+  isValidPdfUpload,
+} from "src/middlewares/upload";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 import { OrgDocumentCategory } from "src/models/organisation-document";
 import {
@@ -330,15 +334,43 @@ export const OrganizationDocumentController = {
     try {
       const rawBody: unknown = req.body;
       const orgId = req.params;
+      const uploadedFile = req.files?.file;
+      if (Array.isArray(uploadedFile)) {
+        res.status(400).json({ message: "Upload one PDF at a time." });
+        return;
+      }
       const mimeType =
-        typeof rawBody === "object" && rawBody !== null && "mimeType" in rawBody
+        uploadedFile?.mimetype ??
+        (typeof rawBody === "object" &&
+        rawBody !== null &&
+        "mimeType" in rawBody
           ? (rawBody as { mimeType?: unknown }).mimeType
-          : undefined;
+          : undefined);
 
       if (typeof mimeType !== "string" || !mimeType) {
         res
           .status(400)
           .json({ message: "MIME type is required in the request body." });
+        return;
+      }
+      if (uploadedFile) {
+        if (!isValidPdfUpload(uploadedFile)) {
+          res
+            .status(400)
+            .json({ message: "Upload a valid PDF smaller than 20 MB." });
+          return;
+        }
+        if (!req.params.orgId) {
+          res
+            .status(400)
+            .json({ message: "An organisation is required for this upload." });
+          return;
+        }
+        const result = await handleFileUpload(
+          uploadedFile,
+          `orgs/${stringify(orgId)}`,
+        );
+        res.status(200).json({ s3Key: result.key });
         return;
       }
       if (orgId) {

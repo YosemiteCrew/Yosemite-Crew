@@ -98,7 +98,7 @@ export function PaymentStatusContent() {
       }
     }
 
-    fetchStatus();
+    void fetchStatus();
 
     return () => {
       alive = false;

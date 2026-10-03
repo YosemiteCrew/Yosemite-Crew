@@ -103,6 +103,22 @@ describe('useTaskForm', () => {
     await flushTemplateLoad();
   });
 
+  it('keeps the form usable when a template source throws before returning a promise', async () => {
+    const error = new Error('service unavailable');
+    const logError = jest.spyOn(console, 'log').mockImplementation(() => {});
+    mockGetTaskTemplatesForPrimaryOrg.mockImplementation(() => {
+      throw error;
+    });
+
+    const { result } = renderHook(() => useTaskForm());
+    await waitFor(() =>
+      expect(logError).toHaveBeenCalledWith('Error loading task templates:', error)
+    );
+
+    expect(result.current.templateOptions).toEqual([]);
+    logError.mockRestore();
+  });
+
   it('initializes with initialTask when provided', async () => {
     const { result } = renderHook(() =>
       useTaskForm({ initialTask: { name: 'prefilled', dueAt: new Date('2026-01-15T10:00:00Z') } })

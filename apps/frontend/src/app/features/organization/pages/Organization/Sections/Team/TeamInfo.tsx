@@ -573,7 +573,7 @@ const useTeamMemberRecord = ({
     const userId = activeTeam.practionerId;
     if (!showModal || !userId) return;
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const data = await getProfileForUserForPrimaryOrg(userId);
         if (!cancelled) {

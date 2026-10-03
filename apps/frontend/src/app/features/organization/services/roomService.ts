@@ -285,7 +285,6 @@ const syncUnitsForGroup = async (
   speciesConstraints?: string[]
 ) => {
   const currentUnits = await listRoomUnitsForGroup(group.organisationId, group.roomId, group.id);
-  const createdUnits: RoomUnit[] = [];
   const surplusUnits = currentUnits.slice(desiredCount);
 
   await Promise.all(surplusUnits.map((unit) => updateUnit({ ...unit, isActive: false })));
@@ -303,14 +302,14 @@ const syncUnitsForGroup = async (
         )
       : new Map<string, RoomUnit>();
 
-  for (let index = currentUnits.length; index < desiredCount; index += 1) {
-    const unitNumber = index + 1;
-    const code = `${group.name}-${unitNumber}`.replace(/\s+/g, '-').toUpperCase();
-    const archived = archivedByCode.get(code);
-    const displayName = `${group.name} ${unitNumber}`;
-    createdUnits.push(
-      archived
-        ? await updateUnit({
+  const createdUnits = await Promise.all(
+    Array.from({ length: Math.max(0, desiredCount - currentUnits.length) }, (_, index) => {
+      const unitNumber = currentUnits.length + index + 1;
+      const code = `${group.name}-${unitNumber}`.replace(/\s+/g, '-').toUpperCase();
+      const archived = archivedByCode.get(code);
+      const displayName = `${group.name} ${unitNumber}`;
+      return archived
+        ? updateUnit({
             ...archived,
             unitGroupId: group.id,
             displayName,
@@ -318,7 +317,7 @@ const syncUnitsForGroup = async (
             speciesConstraints,
             isActive: true,
           })
-        : await createUnit({
+        : createUnit({
             id: '',
             organisationId: group.organisationId,
             roomId: group.roomId,
@@ -328,9 +327,9 @@ const syncUnitsForGroup = async (
             size: group.size,
             speciesConstraints,
             isActive: true,
-          })
-    );
-  }
+          });
+    })
+  );
 
   return [...currentUnits.slice(0, desiredCount), ...createdUnits];
 };
@@ -342,9 +341,7 @@ const syncUnitsForGroup = async (
 // while dropping them out of the room's active configuration.
 const deactivateUnitGroupAndItsUnits = async (group: RoomUnitGroup) => {
   const staleUnits = await listRoomUnitsForGroup(group.organisationId, group.roomId, group.id);
-  for (const unit of staleUnits) {
-    await updateUnit({ ...unit, isActive: false });
-  }
+  await Promise.all(staleUnits.map((unit) => updateUnit({ ...unit, isActive: false })));
   await updateUnitGroup({ ...group, isActive: false });
 };
 
@@ -395,9 +392,7 @@ const syncRoomUnitGroups = async (
         )
     );
     staleGroups = existingGroups.filter((group) => group.isActive && !desiredIds.has(group.id));
-    for (const group of staleGroups) {
-      await deactivateUnitGroupAndItsUnits(group);
-    }
+    await Promise.all(staleGroups.map((group) => deactivateUnitGroupAndItsUnits(group)));
   }
 
   if (!desiredUnitGroups.length) {
@@ -419,17 +414,14 @@ const syncRoomUnitGroups = async (
   );
 
   const speciesConstraints = toSpeciesConstraints(source.availability?.species);
-  const syncedGroups: RoomUnitGroup[] = [];
-  const syncedUnits: RoomUnit[] = [];
-
-  for (const [index, draft] of desiredUnitGroups.entries()) {
+  const groupPayloads = desiredUnitGroups.map((draft, index) => {
     const unitCount = Math.max(1, Number(draft.count ?? 1));
     const name = draft.name?.trim() || `Unit type ${index + 1}`;
     const draftId = draft.id?.startsWith('unit-') ? '' : (draft.id ?? '');
     // Reuse a previously-deactivated group with the same name rather than
     // creating a fresh row, which would collide on that same unique index.
     const groupId = draftId || archivedGroupsByName.get(name)?.id || '';
-    const groupPayload: RoomUnitGroup = {
+    return {
       id: groupId,
       organisationId: room.organisationId,
       roomId: room.id,
@@ -440,13 +432,30 @@ const syncRoomUnitGroups = async (
       capabilities: source.equipment ?? source.capabilities,
       isActive: true,
     };
-    const group = groupPayload.id
-      ? await updateUnitGroup(groupPayload)
-      : await createUnitGroup(groupPayload);
-    syncedGroups.push(group);
-    syncedUnits.push(...(await syncUnitsForGroup(group, unitCount, group.speciesConstraints)));
+  });
+
+  const names = groupPayloads.map((group) => group.name);
+  const ids = groupPayloads.map((group) => group.id).filter(Boolean);
+  if (new Set(names).size !== names.length || new Set(ids).size !== ids.length) {
+    throw new Error('Room unit groups must have unique names and IDs.');
   }
 
+  const syncedResults = await Promise.all(
+    groupPayloads.map(async (groupPayload) => {
+      const group = groupPayload.id
+        ? await updateUnitGroup(groupPayload)
+        : await createUnitGroup(groupPayload);
+      const units = await syncUnitsForGroup(
+        group,
+        groupPayload.unitCount,
+        group.speciesConstraints
+      );
+      return { group, units };
+    })
+  );
+
+  const syncedGroups = syncedResults.map(({ group }) => group);
+  const syncedUnits = syncedResults.flatMap(({ units }) => units);
   setRoomUnitGroupsForRoom(room.id, syncedGroups);
   setRoomUnitsForRoom(room.id, syncedUnits);
 };

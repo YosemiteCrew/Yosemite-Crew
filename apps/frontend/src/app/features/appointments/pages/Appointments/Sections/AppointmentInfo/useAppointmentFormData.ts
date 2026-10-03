@@ -96,7 +96,7 @@ export const useAppointmentFormData = ({
         setFormData(createEmptyFormData());
       }
     };
-    run();
+    void run();
     return () => {
       cancelled = true;
     };

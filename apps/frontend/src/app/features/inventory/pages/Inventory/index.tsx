@@ -1297,7 +1297,7 @@ const useInventoryContent = () => {
       setActionError(null);
       try {
         await dispensePrescription(primaryOrgId, record.prescriptionId);
-        fetchDispensaryRecords();
+        await fetchDispensaryRecords();
       } catch {
         setActionError('Unable to dispense prescription.');
       }

@@ -360,7 +360,6 @@ export const InventoryCountService = {
         inventoryBatchId: existing.inventoryBatchId,
         discrepancy: existing.discrepancy,
         resolution,
-        resolutionNotes: reason ?? null,
       },
     });
 

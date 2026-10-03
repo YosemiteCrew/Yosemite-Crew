@@ -434,9 +434,9 @@ const matchRule = (
  * People type "Bruno?" and expect that pet's summary.
  */
 const isBarePetName = (tokens: readonly string[], petName: string): boolean => {
-  const nameTokens = tokenize(petName);
+  const nameTokens = new Set(tokenize(petName));
   return tokens.every(
-    token => NAME_STOPWORDS.has(token) || nameTokens.includes(token),
+    token => NAME_STOPWORDS.has(token) || nameTokens.has(token),
   );
 };
 

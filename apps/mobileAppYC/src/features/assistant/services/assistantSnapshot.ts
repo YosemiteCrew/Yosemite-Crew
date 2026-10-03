@@ -58,6 +58,65 @@ const TERMINAL_STATUSES = new Set([
   'RESCHEDULED',
 ]);
 
+type SnapshotAppointment = AssistantContext['appointments'][number];
+type SnapshotTask = AssistantContext['tasks'][number];
+
+const isOpenTaskStatus = (task: SnapshotTask): boolean => {
+  const status = String(task.status ?? '').toUpperCase();
+  return status !== 'COMPLETED' && status !== 'CANCELLED';
+};
+
+/** Upcoming, non-terminal appointments for known pets, soonest first. */
+const upcomingAppointments = (
+  context: AssistantContext,
+  petIds: ReadonlyMap<string, string>,
+  horizon: number,
+): {appointment: SnapshotAppointment; startsAt: Date}[] => {
+  const entries: {appointment: SnapshotAppointment; startsAt: Date}[] = [];
+  for (const appointment of context.appointments) {
+    if (
+      !petIds.has(appointment.companionId) ||
+      TERMINAL_STATUSES.has(appointment.status)
+    ) {
+      continue;
+    }
+    const startsAt = appointmentStartsAt(appointment);
+    if (
+      startsAt !== null &&
+      startsAt.getTime() >= context.now.getTime() &&
+      startsAt.getTime() <= horizon
+    ) {
+      entries.push({appointment, startsAt});
+    }
+  }
+  entries.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+  return entries;
+};
+
+/** Open tasks for known pets, from a day ago up to the horizon, soonest first. */
+const dueTasks = (
+  context: AssistantContext,
+  petIds: ReadonlyMap<string, string>,
+  horizon: number,
+): {task: SnapshotTask; dueAt: Date}[] => {
+  const entries: {task: SnapshotTask; dueAt: Date}[] = [];
+  for (const task of context.tasks) {
+    if (!petIds.has(task.companionId) || !isOpenTaskStatus(task)) {
+      continue;
+    }
+    const dueAt = taskDueAt(task);
+    if (
+      dueAt !== null &&
+      dueAt.getTime() >= context.now.getTime() - MS_PER_DAY &&
+      dueAt.getTime() <= horizon
+    ) {
+      entries.push({task, dueAt});
+    }
+  }
+  entries.sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  return entries;
+};
+
 /** Builds the payload from the same context the in-app resolvers use. */
 export const buildSnapshot = (
   context: AssistantContext,
@@ -66,51 +125,23 @@ export const buildSnapshot = (
   const nameById = new Map(pets.map(pet => [pet.id, pet.name]));
   const horizon = context.now.getTime() + UPCOMING_WINDOW_DAYS * MS_PER_DAY;
 
-  const appointments = context.appointments
-    .filter(appointment => nameById.has(appointment.companionId))
-    .filter(appointment => !TERMINAL_STATUSES.has(appointment.status))
-    .map(appointment => ({
-      appointment,
-      startsAt: appointmentStartsAt(appointment),
-    }))
-    .filter(
-      entry =>
-        entry.startsAt !== null &&
-        entry.startsAt.getTime() >= context.now.getTime() &&
-        entry.startsAt.getTime() <= horizon,
-    )
-    .sort(
-      (a, b) => (a.startsAt as Date).getTime() - (b.startsAt as Date).getTime(),
-    )
+  const appointments = upcomingAppointments(context, nameById, horizon)
     .slice(0, SNAPSHOT_ITEM_LIMIT)
     .map(entry => ({
       petId: entry.appointment.companionId,
       petName: nameById.get(entry.appointment.companionId) ?? '',
       title: entry.appointment.serviceName ?? entry.appointment.type ?? '',
-      at: (entry.startsAt as Date).toISOString(),
+      at: entry.startsAt.toISOString(),
       subtitle: entry.appointment.organisationName ?? undefined,
     }));
 
-  const tasks = context.tasks
-    .filter(task => nameById.has(task.companionId))
-    .filter(task => {
-      const status = String(task.status ?? '').toUpperCase();
-      return status !== 'COMPLETED' && status !== 'CANCELLED';
-    })
-    .map(task => ({task, dueAt: taskDueAt(task)}))
-    .filter(
-      entry =>
-        entry.dueAt !== null &&
-        entry.dueAt.getTime() >= context.now.getTime() - MS_PER_DAY &&
-        entry.dueAt.getTime() <= horizon,
-    )
-    .sort((a, b) => (a.dueAt as Date).getTime() - (b.dueAt as Date).getTime())
+  const tasks = dueTasks(context, nameById, horizon)
     .slice(0, SNAPSHOT_ITEM_LIMIT)
     .map(entry => ({
       petId: entry.task.companionId,
       petName: nameById.get(entry.task.companionId) ?? '',
       title: taskLabel(entry.task),
-      at: (entry.dueAt as Date).toISOString(),
+      at: entry.dueAt.toISOString(),
     }));
 
   // Overdue shots matter, so they stay - but only recent ones. Without a lower

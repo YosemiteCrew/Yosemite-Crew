@@ -413,6 +413,28 @@ describe('MyAppointmentsScreen', () => {
     });
   });
 
+  it('loads completed appointment feedback with one batch call', () => {
+    const secondCompletedAppointment = {
+      ...mockPastData[0],
+      id: 'apt-past-2',
+    };
+    store = mockStore({
+      ...store.getState(),
+      appointments: {
+        ...store.getState().appointments,
+        pastOverride: [...mockPastData, secondCompletedAppointment],
+      },
+    });
+
+    renderScreen();
+
+    expect(mockFetchFeedbackWorker).toHaveBeenCalledTimes(1);
+    expect(mockFetchFeedbackWorker).toHaveBeenCalledWith([
+      'apt-past-1',
+      'apt-past-2',
+    ]);
+  });
+
   it('handles navigation to Add Business screen via Header button', () => {
     renderScreen();
     const addBtn = screen.getByTestId('header-right-btn');

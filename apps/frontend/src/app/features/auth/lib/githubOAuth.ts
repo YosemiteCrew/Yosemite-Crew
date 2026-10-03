@@ -52,9 +52,9 @@ export const consumeGithubRedirect = (): string => {
  * after the callback. Returns null when the flow is unconfigured or the auth
  * client cannot initialise.
  */
-export async function startGithubSignIn(redirectTo: string): Promise<string | null> {
-  if (!isGithubSignInEnabled()) return null;
-  if (!initAuthClient()) return null;
+export function startGithubSignIn(redirectTo: string): Promise<string | null> {
+  if (!isGithubSignInEnabled()) return Promise.resolve(null);
+  if (!initAuthClient()) return Promise.resolve(null);
   persistRedirect(redirectTo);
   return ThirdParty.getAuthorisationURLWithQueryParamsAndSetState({
     thirdPartyId: GITHUB_THIRD_PARTY_ID,

@@ -172,7 +172,7 @@ export default function DocsSearch() {
         role="combobox"
         value={query}
         onFocus={() => {
-          load();
+          void load();
           setOpen(true);
         }}
         onChange={(event) => {
