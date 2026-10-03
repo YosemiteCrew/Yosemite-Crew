@@ -285,6 +285,30 @@ describe('motion primitives', () => {
     expect(container.querySelector('video')).toBeNull();
   });
 
+  it('InkAnnotate schedules a fallback draw when web fonts fail to load', async () => {
+    const originalFonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: { ready: Promise.reject(new Error('font load failed')) },
+    });
+    const requestFrame = jest.spyOn(globalThis, 'requestAnimationFrame').mockReturnValue(1);
+
+    try {
+      render(<InkAnnotate>Resilient text</InkAnnotate>);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(requestFrame).toHaveBeenCalled();
+    } finally {
+      requestFrame.mockRestore();
+      if (originalFonts) {
+        Object.defineProperty(document, 'fonts', originalFonts);
+      } else {
+        Reflect.deleteProperty(document, 'fonts');
+      }
+    }
+  });
+
   it('Reveal arms off-screen, then plays when it scrolls into view', () => {
     (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = ScrollIO;
     jest.useFakeTimers();

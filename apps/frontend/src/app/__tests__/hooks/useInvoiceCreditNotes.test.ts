@@ -420,4 +420,20 @@ describe('useInvoiceCreditNotes', () => {
       expect.objectContaining({ title: 'Credit note not confirmed' })
     );
   });
+
+  it('keeps the action busy until its best-effort re-read settles', async () => {
+    creditNoteServiceMock.issueCreditNote.mockRejectedValueOnce(new Error('event write failed'));
+    const refresh = deferred<unknown>();
+    getFinanceInvoiceByIdMock.mockReturnValueOnce(refresh.promise);
+
+    const { result } = renderHook(() => useInvoiceCreditNotes(invoiceFixture({ id: 'inv-1' })));
+    act(() => result.current.run({ type: 'issue', amount: 10 }));
+
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.busy).toBe(true);
+
+    await act(async () => refresh.resolve({}));
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    expect(result.current.error).toContain('Check the ledger below before retrying.');
+  });
 });
