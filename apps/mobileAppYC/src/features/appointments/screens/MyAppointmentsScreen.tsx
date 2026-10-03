@@ -295,9 +295,11 @@ export const MyAppointmentsScreen: React.FC = () => {
     const targets = filteredPast.filter(
       apt => apt.status === 'COMPLETED' && apt.employeeId,
     );
-    targets.forEach(apt => {
-      runInBackground(fetchPractitionerFeedbackIfNeeded(apt.id));
-    });
+    runInBackground(
+      fetchPractitionerFeedbackIfNeeded(
+        targets.map(appointment => appointment.id),
+      ),
+    );
   }, [fetchPractitionerFeedbackIfNeeded, filteredPast]);
 
   useFocusEffect(
@@ -648,7 +650,7 @@ export const MyAppointmentsScreen: React.FC = () => {
         styles={styles}
         practitionerFeedback={practitionerFeedback[item.id]}
         onRetryPractitionerFeedback={() =>
-          fetchPractitionerFeedbackIfNeeded(item.id, true)
+          fetchPractitionerFeedbackIfNeeded([item.id], true)
         }
         secondaryColor={theme.colors.cta}
         theme={theme}

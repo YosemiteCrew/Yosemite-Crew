@@ -1546,6 +1546,64 @@ describe('appointmentsService', () => {
       });
     });
 
+    it('loads practitioner feedback for the signed-in parent in one request', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.post.mockResolvedValue({
+        data: {
+          feedbackByAppointment: {
+            'appointment-1': {
+              isRated: true,
+              rating: 4,
+              review: 'Clear explanations',
+              practitionerName: 'Dr Chen',
+            },
+            'appointment-2': {
+              isRated: false,
+            },
+          },
+        },
+      });
+
+      await expect(
+        appointmentApi.getPractitionerFeedbackForParent({
+          accessToken: mockToken,
+        }),
+      ).resolves.toEqual({
+        'appointment-1': {
+          isRated: true,
+          rating: 4,
+          review: 'Clear explanations',
+          practitionerName: 'Dr Chen',
+        },
+        'appointment-2': {
+          isRated: false,
+          rating: null,
+          review: null,
+          practitionerName: null,
+        },
+      });
+      expect(client.post).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/v1/organisation-rating/practitioner-feedback/batch',
+        ),
+        {},
+        {headers: {Authorization: `Bearer ${mockToken}`}},
+      );
+    });
+
+    it('returns no feedback when the batch response is empty', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.post.mockResolvedValue({data: {}});
+
+      await expect(
+        appointmentApi.getPractitionerFeedbackForParent({
+          accessToken: mockToken,
+        }),
+      ).resolves.toEqual({});
+    });
+
     it('getOrganisationRatingStatus returns status', async () => {
       const {appointmentApi} = getModule();
       const client = getApiClient();
