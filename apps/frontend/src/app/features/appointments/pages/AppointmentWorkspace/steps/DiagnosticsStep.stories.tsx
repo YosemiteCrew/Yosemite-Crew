@@ -518,10 +518,11 @@ const meta = {
           'appointment-drawer panel at `Appointments/LabTests` queues on pick, so the same hook ' +
           'behaves differently in the two surfaces.\n\n' +
           'Every IDEXX endpoint is answered by an axios adapter stub, and the PDFs are locally ' +
-          'built blobs. Two actions are left unclicked on purpose: **Create lab order** opens the ' +
-          'vendor ordering iframe against a live vetconnectplus URL the moment the POST returns, ' +
-          'and **Follow up / Continue** does the same, so the stories assert the enabled/disabled ' +
-          'contract around those buttons instead of firing them.\n\n' +
+          'built blobs. **Create lab order** and **Follow up / Continue** open a dialog with a ' +
+          'link that launches IDEXX in a new tab, and start polling the order until IDEXX ' +
+          'reports it submitted. The dialog has its own stories under ' +
+          '`Appointments/IdexxOrderLaunchDialog`, so these stories assert the enabled/disabled ' +
+          'contract around those buttons.\n\n' +
           'Read the states from the Canvas rather than the Docs page: every example shares one ' +
           'org store and one axios adapter, so on Docs the last story to mount wins.',
       },
@@ -730,7 +731,7 @@ export const OrderPlaced: Story = {
     /* The older order's uiUrl is on a host outside the IDEXX allowlist, so
        `getSafeIdexxIframeUrl` returns nothing and the action must be inert. This
        is the silent one: the button looks identical either way, and a regression
-       in the allowlist would only show as a frame pointed at an arbitrary host. */
+       in the allowlist would only show as a link pointed at an arbitrary host. */
     await expect(
       canvas.getByRole('button', { name: `Continue for order ${PAST_ORDER_ID}` })
     ).toBeDisabled();

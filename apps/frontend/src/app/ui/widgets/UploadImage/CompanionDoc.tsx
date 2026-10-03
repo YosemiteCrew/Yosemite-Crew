@@ -11,7 +11,7 @@ type Props = {
   error?: string;
   companionId: string;
 };
-type GetSignedUrlResponse = { url: string; key: string };
+type UploadResponse = { s3Key: string };
 
 const CompanionDoc = ({
   onChange,
@@ -21,13 +21,14 @@ const CompanionDoc = ({
   setFile,
   companionId,
 }: Readonly<Props>) => {
-  const getSignedUrl = async (file: File): Promise<{ uploadUrl: string; s3Key: string }> => {
-    const body = {
-      mimeType: file.type,
-      patientId: companionId,
-    };
-    const res = await postData<GetSignedUrlResponse>(apiUrl, body);
-    return { uploadUrl: res.data.url, s3Key: res.data.key };
+  const uploadFile = async (file: File): Promise<UploadResponse> => {
+    const body = new FormData();
+    body.append('file', file);
+    body.append('patientId', companionId);
+    const res = await postData<UploadResponse>(apiUrl, body, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
   };
 
   return (
@@ -36,7 +37,7 @@ const CompanionDoc = ({
       onChange={onChange}
       file={file}
       setFile={setFile}
-      getSignedUrl={getSignedUrl}
+      uploadFile={uploadFile}
     />
   );
 };

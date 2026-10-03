@@ -20225,6 +20225,54 @@ paths:
                 properties:
                   message:
                     type: string
+  /v1/organisation-rating/practitioner-feedback/batch:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: POST /v1/organisation-rating/practitioner-feedback/batch
+      operationId: post_v1_organisation_rating_practitioner_feedback_batch
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PractitionerFeedbackBatchLookupBody'
+      responses:
+        200:
+          description: Feedback for completed appointments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PractitionerFeedbackBatchResponse'
+        400:
+          description: Invalid feedback request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        401:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Feedback could not be loaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
   '/v1/organisation-rating/appointment/{appointmentId}/practitioner-feedback':
     put:
       tags:
@@ -29080,6 +29128,132 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PurchaseOrderError'
+  /v1/practice-website/{organisationId}:
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Get the practice website settings
+      operationId: get_v1_practice_website
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The practice website settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PracticeWebsiteConfig'
+        '400':
+          description: The organisation could not be resolved.
+        '404':
+          description: The organisation was not found.
+    put:
+      tags:
+        - 'Non-FHIR'
+      summary: Save and optionally publish the practice website
+      operationId: put_v1_practice_website
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - templateId
+                - headline
+                - published
+              properties:
+                templateId:
+                  $ref: '#/components/schemas/PracticeWebsiteTemplateId'
+                headline:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                tagline:
+                  type: string
+                  nullable: true
+                  maxLength: 200
+                about:
+                  type: string
+                  nullable: true
+                  maxLength: 2000
+                published:
+                  type: boolean
+      responses:
+        '200':
+          description: The saved practice website settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PracticeWebsiteConfig'
+        '400':
+          description: The request was invalid.
+        '404':
+          description: The organisation was not found.
+        '409':
+          description: Online booking must be turned on before the website can be published.
+  /public/site/{slug}:
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Get a published practice website
+      operationId: get_public_site_slug
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The published site, or the current address of a site whose address changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    oneOf:
+                      - $ref: '#/components/schemas/PublicPracticeSite'
+                      - type: object
+                        required:
+                          - redirectTo
+                        properties:
+                          redirectTo:
+                            type: string
+        '404':
+          description: No published site exists at this address.
 components:
   securitySchemes:
     BearerAuth:
@@ -29091,6 +29265,93 @@ components:
       scheme: bearer
       bearerFormat: 'yc_<live|test>_<secret> - a developer API key, not a session JWT'
   schemas:
+    PracticeWebsiteTemplateId:
+      type: string
+      enum:
+        - alpine-clinic
+        - city-vets
+        - equine-estate
+    PracticeWebsiteConfig:
+      type: object
+      properties:
+        organisationId:
+          type: string
+        templateId:
+          $ref: '#/components/schemas/PracticeWebsiteTemplateId'
+        headline:
+          type: string
+        tagline:
+          type: string
+          nullable: true
+        about:
+          type: string
+          nullable: true
+        configured:
+          type: boolean
+        published:
+          type: boolean
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        slug:
+          type: string
+          nullable: true
+        publicBookingEnabled:
+          type: boolean
+        publicUrl:
+          type: string
+          nullable: true
+    PublicPracticeSite:
+      type: object
+      properties:
+        templateId:
+          $ref: '#/components/schemas/PracticeWebsiteTemplateId'
+        headline:
+          type: string
+        tagline:
+          type: string
+          nullable: true
+        about:
+          type: string
+          nullable: true
+        practice:
+          type: object
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+            logoUrl:
+              type: string
+              nullable: true
+            welcomeMessage:
+              type: string
+              nullable: true
+            city:
+              type: string
+              nullable: true
+            country:
+              type: string
+              nullable: true
+            bookingWindowDays:
+              type: integer
+            requiresConfirmation:
+              type: boolean
+            services:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  description:
+                    type: string
+                    nullable: true
+                  durationMinutes:
+                    type: integer
     ClientPaymentTerms:
       type: object
       required: [netDays, updatedAt, updatedBy]
@@ -34973,6 +35234,19 @@ components:
         - rating
         - review
         - practitionerName
+    PractitionerFeedbackBatchLookupBody:
+      type: object
+      additionalProperties: false
+    PractitionerFeedbackBatchResponse:
+      type: object
+      properties:
+        feedbackByAppointment:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/PractitionerFeedback'
+      required:
+        - feedbackByAppointment
+      additionalProperties: false
     SendInviteBody:
       type: object
       properties:

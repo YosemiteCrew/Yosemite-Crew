@@ -71,6 +71,30 @@ describe('BookingRequests', () => {
     setStatusMock.mockResolvedValue(undefined);
   });
 
+  it("drops the previous org's response when the org changes before it arrives", async () => {
+    let resolveFirst: (rows: unknown[]) => void = () => {};
+    listMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
+    );
+    listMock.mockResolvedValueOnce([request({ id: 'req-2', petName: 'Milo' })]);
+    const view = render(<BookingRequests />);
+
+    primaryOrgId = 'org-2';
+    view.rerender(<BookingRequests />);
+    await act(async () => {});
+    await act(async () => {
+      resolveFirst([request({ petName: 'Stale' })]);
+    });
+
+    expect(listMock).toHaveBeenNthCalledWith(2, 'org-2');
+    const text = view.container.textContent ?? '';
+    expect(text).toContain('Milo');
+    expect(text).not.toContain('Stale');
+  });
+
   it('lists a confirmed request with the details the practice needs to call back', async () => {
     const container = await renderSection();
 

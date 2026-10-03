@@ -169,7 +169,7 @@ const StripeOnboarding = () => {
       dispatchSetup({ type: 'account-ready', accountId: subscription.connectAccountId });
       return;
     }
-    createAccountIfNeeded();
+    void createAccountIfNeeded();
   }, [subscription, createAccountIfNeeded]);
 
   useEffect(() => {

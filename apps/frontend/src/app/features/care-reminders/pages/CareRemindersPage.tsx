@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import CareReminderList from './CareReminderList';
 import { REMINDER_TYPES } from '../reminderTypes';
@@ -96,7 +96,7 @@ const useCareRemindersPage = () => {
     void load();
   }, [organisationId]);
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!organisationId || !selectedIds.length || !dueDate) return;
     setSaving(true);

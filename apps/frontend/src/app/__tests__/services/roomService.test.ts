@@ -767,5 +767,93 @@ describe('Room Service', () => {
         expect.anything()
       );
     });
+
+    it.each([
+      {
+        units: [
+          { id: 'unit-one', name: 'Pod A', size: 'Large', count: 1 },
+          { id: 'unit-two', name: 'Pod A', size: 'Small', count: 1 },
+        ],
+      },
+      {
+        units: [
+          { id: 'group-1', name: 'Pod A', size: 'Large', count: 1 },
+          { id: 'group-1', name: 'Pod B', size: 'Small', count: 1 },
+        ],
+      },
+    ])('rejects duplicate room unit group identities before writing', async ({ units }) => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockedToDTO.mockReturnValue({});
+      mockedPutData.mockResolvedValue({ data: { id: 'room-1' } });
+      mockedFromDTO.mockReturnValue({ id: 'room-1', type: 'INPATIENT' });
+      mockedGetData.mockResolvedValue({ data: [] });
+
+      try {
+        await expect(
+          updateRoom({
+            id: 'room-1',
+            type: 'INPATIENT',
+            availability: { totalUnits: 2 },
+            units,
+          } as OrganisationRoom & {
+            availability: { totalUnits: number };
+            units: Array<{ id: string; name: string; size: string; count: number }>;
+          })
+        ).rejects.toThrow('Room unit groups must have unique names and IDs.');
+
+        expect(mockedPostData).not.toHaveBeenCalledWith(
+          '/fhir/v1/room-unit-group',
+          expect.anything()
+        );
+        expect(mockSetRoomUnitGroupsForRoom).not.toHaveBeenCalled();
+      } finally {
+        consoleSpy.mockRestore();
+      }
+    });
+
+    it('syncs distinct room unit groups concurrently while preserving result order', async () => {
+      let activeGroupWrites = 0;
+      let maximumConcurrentGroupWrites = 0;
+      let releaseGroupWrites: () => void = () => {};
+      const groupWriteGate = new Promise<void>((resolve) => {
+        releaseGroupWrites = resolve;
+      });
+      mockedToDTO.mockReturnValue({});
+      mockedPutData.mockResolvedValue({ data: { id: 'room-1' } });
+      mockedFromDTO.mockReturnValue({ id: 'room-1', type: 'INPATIENT' });
+      mockedGetData.mockResolvedValue({ data: [] });
+      mockedPostData.mockImplementation(async (url: string, payload: unknown) => {
+        if (url === '/fhir/v1/room-unit-group') {
+          activeGroupWrites += 1;
+          maximumConcurrentGroupWrites = Math.max(maximumConcurrentGroupWrites, activeGroupWrites);
+          await groupWriteGate;
+          activeGroupWrites -= 1;
+        }
+        return { data: payload };
+      });
+
+      const updatePromise = updateRoom({
+        id: 'room-1',
+        type: 'INPATIENT',
+        availability: { totalUnits: 2 },
+        units: [
+          { id: 'unit-one', name: 'Pod A', size: 'Large', count: 1 },
+          { id: 'unit-two', name: 'Pod B', size: 'Small', count: 1 },
+        ],
+      } as OrganisationRoom & {
+        availability: { totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      releaseGroupWrites();
+      await updatePromise;
+
+      expect(maximumConcurrentGroupWrites).toBe(2);
+      expect(mockSetRoomUnitGroupsForRoom).toHaveBeenCalledWith('room-1', [
+        expect.objectContaining({ name: 'Pod A' }),
+        expect.objectContaining({ name: 'Pod B' }),
+      ]);
+    });
   });
 });

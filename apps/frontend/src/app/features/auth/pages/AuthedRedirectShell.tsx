@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState, type ReactNode } from 'react';
-import { redirect } from 'next/navigation';
+import RedirectTo from '@/app/features/auth/components/RedirectTo';
 import { useAuthStore } from '@/app/stores/authStore';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
@@ -41,7 +41,7 @@ export default function AuthedRedirectShell({ children }: Readonly<{ children: R
   }, [isAuthenticated, role, roles]);
 
   if (route) {
-    redirect(route);
+    return <RedirectTo route={route} />;
   }
 
   if (isAuthenticated) {

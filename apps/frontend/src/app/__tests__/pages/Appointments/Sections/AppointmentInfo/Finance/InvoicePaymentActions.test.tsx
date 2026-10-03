@@ -217,7 +217,7 @@ describe('InvoicePaymentActions', () => {
     await waitFor(() => expect(clipboardWriteMock).toHaveBeenCalledWith('https://stripe.test'));
   });
 
-  it('stays silent and keeps the copy action hidden when link generation fails', async () => {
+  it('shows an error and keeps the copy action hidden when link generation fails', async () => {
     getPaymentLinkMock.mockRejectedValue(new Error('network'));
 
     render(
@@ -233,6 +233,10 @@ describe('InvoicePaymentActions', () => {
 
     expect(getPaymentLinkMock).toHaveBeenCalledWith('inv-1');
     expect(screen.queryByText('Copy link')).not.toBeInTheDocument();
+    expect(notifyMock).toHaveBeenCalledWith('error', {
+      title: 'Payment link failed',
+      text: 'Could not generate a payment link.',
+    });
   });
 
   it('ignores a non-string payment link response', async () => {
@@ -252,7 +256,7 @@ describe('InvoicePaymentActions', () => {
     expect(screen.queryByText('Copy link')).not.toBeInTheDocument();
   });
 
-  it('logs and recovers when copying the link fails', async () => {
+  it('shows an error and keeps the copy action available when copying fails', async () => {
     clipboardWriteMock.mockRejectedValue(new Error('denied'));
 
     render(
@@ -270,7 +274,10 @@ describe('InvoicePaymentActions', () => {
     await flushMicrotasks();
 
     expect(clipboardWriteMock).toHaveBeenCalledWith('https://stripe.test');
-    // The component swallows the rejection, so the Copy link action stays available.
+    expect(notifyMock).toHaveBeenCalledWith('error', {
+      title: 'Copy failed',
+      text: 'Could not copy the payment link.',
+    });
     expect(screen.getByText('Copy link')).toBeInTheDocument();
   });
 

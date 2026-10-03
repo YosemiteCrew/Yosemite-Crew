@@ -87,6 +87,11 @@ describe('isAllowedMerckUrl', () => {
     expect(isAllowedMerckUrl('')).toBe(false);
   });
 
+  it('disallows non-https links on an allowed host', () => {
+    expect(isAllowedMerckUrl('javascript://www.msdvetmanual.com/%0aalert(1)')).toBe(false);
+    expect(isAllowedMerckUrl('http://www.msdvetmanual.com/topic')).toBe(false);
+  });
+
   it('disallows relative URLs', () => {
     expect(isAllowedMerckUrl('/relative/url')).toBe(false);
   });
@@ -473,10 +478,11 @@ describe('getMerckGateway', () => {
     );
   });
 
-  it('gateway.getStatus returns resolved integration', async () => {
+  it('gateway.getStatus synchronously returns the resolved integration', () => {
     const integrations = [makeIntegration('MERCK_MANUALS', 'enabled')];
     const gateway = getMerckGateway();
-    const result = await gateway.getStatus('org-1', integrations);
+    const result = gateway.getStatus('org-1', integrations);
+    expect(result).not.toBeInstanceOf(Promise);
     expect(result?.provider).toBe('MERCK_MANUALS');
   });
 

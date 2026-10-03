@@ -14,6 +14,7 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     organisationRating: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       upsert: jest.fn(),
     },
   },
@@ -24,7 +25,10 @@ jest.mock("src/services/audit-trail.service", () => ({
 }));
 
 jest.mock("src/services/appointment.prisma.service", () => ({
-  AppointmentPrismaService: { getById: jest.fn() },
+  AppointmentPrismaService: {
+    getById: jest.fn(),
+    getAppointmentsForParent: jest.fn(),
+  },
   AppointmentPrismaServiceError: class extends Error {
     constructor(
       message: string,
@@ -37,16 +41,20 @@ jest.mock("src/services/appointment.prisma.service", () => ({
 
 const appointmentId = "appointment-1";
 const parentId = "parent-1";
-const completedAppointment = (status: Appointment["status"] = "COMPLETED") =>
+const completedAppointment = (
+  status: Appointment["status"] = "COMPLETED",
+  id = appointmentId,
+  hasLead = true,
+) =>
   toFHIRAppointment({
-    id: appointmentId,
+    id,
     patient: {
       id: "patient-1",
       name: "Milo",
       species: "Dog",
       parent: { id: parentId, name: "Sam" },
     },
-    lead: { id: "practitioner-1", name: "Dr Lee" },
+    ...(hasLead ? { lead: { id: "practitioner-1", name: "Dr Lee" } } : {}),
     organisationId: "clinic-1",
     appointmentDate: new Date("2026-09-01T10:00:00.000Z"),
     startTime: new Date("2026-09-01T10:00:00.000Z"),
@@ -97,6 +105,77 @@ describe("PractitionerFeedbackService", () => {
     await expect(
       PractitionerFeedbackService.getForAppointment(appointmentId, parentId),
     ).resolves.toEqual({ isRated: true, ...savedFeedback });
+  });
+
+  it("loads completed appointment feedback in one parent-scoped query", async () => {
+    (
+      AppointmentPrismaService.getAppointmentsForParent as jest.Mock
+    ).mockResolvedValue([
+      completedAppointment(),
+      completedAppointment("COMPLETED", "appointment-2"),
+      completedAppointment("UPCOMING", "appointment-3"),
+      completedAppointment("COMPLETED", "appointment-4", false),
+    ]);
+    (prisma.organisationRating.findMany as jest.Mock).mockResolvedValue([
+      {
+        appointmentId: "appointment-2",
+        rating: 5,
+        review: "Very kind",
+        practitionerName: "Dr Patel",
+      },
+    ]);
+
+    await expect(
+      PractitionerFeedbackService.getForParent(parentId),
+    ).resolves.toEqual({
+      [appointmentId]: {
+        isRated: false,
+        rating: null,
+        review: null,
+        practitionerName: "Dr Lee",
+      },
+      "appointment-2": {
+        isRated: true,
+        rating: 5,
+        review: "Very kind",
+        practitionerName: "Dr Patel",
+      },
+    });
+    expect(
+      AppointmentPrismaService.getAppointmentsForParent,
+    ).toHaveBeenCalledWith(parentId);
+    expect(prisma.organisationRating.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: parentId,
+        appointmentId: { in: [appointmentId, "appointment-2"] },
+      },
+      select: {
+        appointmentId: true,
+        rating: true,
+        review: true,
+        practitionerName: true,
+      },
+    });
+  });
+
+  it("returns no records without completed appointments and skips feedback lookup", async () => {
+    (
+      AppointmentPrismaService.getAppointmentsForParent as jest.Mock
+    ).mockResolvedValue([completedAppointment("UPCOMING")]);
+
+    await expect(
+      PractitionerFeedbackService.getForParent(parentId),
+    ).resolves.toEqual({});
+    expect(prisma.organisationRating.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing parent before looking up appointments", async () => {
+    await expect(
+      PractitionerFeedbackService.getForParent(""),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(
+      AppointmentPrismaService.getAppointmentsForParent,
+    ).not.toHaveBeenCalled();
   });
 
   it("creates feedback using only the practitioner on the owned appointment", async () => {

@@ -884,9 +884,13 @@ function runInkAnnotation(host: HTMLElement, opts: InkOptions): () => void {
   const fonts = globalThis.document.fonts;
   // Wait for webfonts so the ink traces the final glyph metrics, not the fallback.
   if (fonts) {
-    fonts.ready.then(() => {
-      raf = requestAnimationFrame(draw);
-    });
+    fonts.ready
+      .then(() => {
+        raf = requestAnimationFrame(draw);
+      })
+      .catch(() => {
+        raf = requestAnimationFrame(draw);
+      });
   } else {
     raf = requestAnimationFrame(draw);
   }

@@ -278,10 +278,14 @@ export const keepsTheFacts = (
 ): boolean =>
   numbers(rewrite) === numbers(sentence) &&
   claimWords(rewrite) === claimWords(sentence) &&
-  facts
-    .map(fact => String(fact).trim())
-    .filter(fact => fact !== '' && containsWhole(sentence, fact))
-    .every(fact => containsWhole(rewrite, fact));
+  facts.every(fact => {
+    const value = String(fact).trim();
+    return (
+      value === '' ||
+      !containsWhole(sentence, value) ||
+      containsWhole(rewrite, value)
+    );
+  });
 
 /**
  * Rewrites a factual sentence in a warmer voice.

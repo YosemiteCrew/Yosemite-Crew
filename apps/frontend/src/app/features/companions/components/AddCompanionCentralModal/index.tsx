@@ -355,7 +355,9 @@ const useAddCompanionCentralModalContent = ({
         return;
       }
       parentSearchTimeoutRef.current = globalThis.setTimeout(() => {
-        fetchParentResults(trimmed).then(setParentResults);
+        void fetchParentResults(trimmed)
+          .then(setParentResults)
+          .catch(() => setParentResults([]));
       }, 300);
     },
     [clearParentSearchTimeout, setParentResults]
@@ -519,7 +521,7 @@ const useAddCompanionCentralModalContent = ({
   // ── Breed codes ──
   useEffect(() => {
     const signal = { cancelled: false };
-    loadBreedOptions(speciesOptions, companionFormData.type, setBreedOptions, signal);
+    void loadBreedOptions(speciesOptions, companionFormData.type, setBreedOptions, signal);
     return () => {
       signal.cancelled = true;
     };

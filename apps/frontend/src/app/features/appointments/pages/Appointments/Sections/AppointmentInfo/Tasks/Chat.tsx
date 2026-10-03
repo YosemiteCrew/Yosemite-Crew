@@ -104,7 +104,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
       }
     };
 
-    checkSessionStatus();
+    void checkSessionStatus();
 
     return () => {
       cancelled = true;

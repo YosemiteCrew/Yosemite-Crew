@@ -141,7 +141,7 @@ const PaymentActivityReportContent = () => {
     };
   }, [organisationId, range]);
 
-  const runReport = (event: React.FormEvent<HTMLFormElement>) => {
+  const runReport = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (
       !fromDate ||

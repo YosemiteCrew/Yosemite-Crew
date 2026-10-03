@@ -29,7 +29,7 @@ export const useAppointmentAuditTrail = (appointmentId?: string): AuditTrail[] =
         if (!cancelled) setEntries([]);
       }
     };
-    run();
+    void run();
     return () => {
       cancelled = true;
     };

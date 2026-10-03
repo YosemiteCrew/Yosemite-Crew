@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import Link from 'next/link';
-import { createPortal } from 'react-dom';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
@@ -38,8 +37,6 @@ import Modal from '@/app/ui/overlays/Modal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
-import { YosemiteLoader } from '@/app/ui/overlays/Loader';
-import Close from '@/app/ui/primitives/Icons/Close';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
@@ -698,8 +695,6 @@ const OrderDetailPanel = ({
   );
 };
 
-const IDEXX_FOLLOWUP_LOADER_TESTID = 'idexx-followup-loader';
-
 const getAutoRefreshLabel = (autoRefresh: boolean): string => {
   if (autoRefresh) return 'Auto-refresh: On';
   return 'Auto-refresh: Off';
@@ -713,66 +708,6 @@ const getRefreshButtonLabel = (loading: boolean): string => {
 const getStartRow = (page: number, pageSize: number, pageCount: number): number => {
   if (pageCount === 0) return 0;
   return (page - 1) * pageSize + 1;
-};
-
-type IdexxFollowUpPortalProps = {
-  open: boolean;
-  followUpFrameUrl: string | null;
-  onClose: () => void;
-};
-
-const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpPortalProps) => {
-  const [loaded, setLoaded] = useState(false);
-  if (!open || !followUpFrameUrl || typeof document === 'undefined') {
-    return null;
-  }
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
-      data-signing-overlay="true"
-      style={{ pointerEvents: 'auto' }}
-    >
-      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-card-border px-4 py-2">
-          <div className="text-body-2 text-text-primary">IDEXX follow-up hub</div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-full p-2 transition-colors hover:bg-neutral-100"
-            aria-label="Close IDEXX follow-up frame"
-            style={{ pointerEvents: 'auto' }}
-          >
-            <Close iconOnly />
-          </button>
-        </div>
-        <div className="relative flex-1">
-          {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
-              <YosemiteLoader
-                label="Loading IDEXX"
-                size={120}
-                testId={IDEXX_FOLLOWUP_LOADER_TESTID}
-              />
-            </div>
-          )}
-          <iframe
-            key={followUpFrameUrl}
-            src={followUpFrameUrl}
-            title="IDEXX follow-up hub"
-            className="size-full border-0"
-            loading="lazy"
-            sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            style={{ pointerEvents: 'auto' }}
-            onLoad={() => setLoaded(true)}
-          />
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
 };
 
 type MobileResultsListProps = {
@@ -928,42 +863,50 @@ const getOrderExternalStatusSuffix = (order: LabOrder): string => {
 type OrderLookupCardProps = {
   order: LabOrder;
   openOrderAcknowledgement: (order: LabOrder | null) => void;
-  openFollowUpWorkspace: (order: LabOrder | null) => void;
+  reportFollowUpUnavailable: () => void;
 };
 
 const OrderLookupCard = ({
   order,
   openOrderAcknowledgement,
-  openFollowUpWorkspace,
-}: OrderLookupCardProps) => (
-  <div className="flex flex-col gap-1 rounded-2xl border border-card-border p-3">
-    <div className="text-body-4 text-text-primary">Order {order.idexxOrderId}</div>
-    <div className="text-caption-1 text-text-secondary">
-      Status: {formatTitleCase(order.status, '-')}
-      {getOrderExternalStatusSuffix(order)}
+  reportFollowUpUnavailable,
+}: OrderLookupCardProps) => {
+  // IDEXX keeps its own session, so the follow-up opens in its own tab.
+  const followUpUrl = getOrderUiUrl(order);
+  return (
+    <div className="flex flex-col gap-1 rounded-2xl border border-card-border p-3">
+      <div className="text-body-4 text-text-primary">Order {order.idexxOrderId}</div>
+      <div className="text-caption-1 text-text-secondary">
+        Status: {formatTitleCase(order.status, '-')}
+        {getOrderExternalStatusSuffix(order)}
+      </div>
+      <div className="text-caption-1 text-text-secondary">
+        Modality: {formatTitleCase(order.modality, '-')}
+      </div>
+      <div className="text-caption-1 text-text-secondary">
+        Updated: {formatDateTimeLocal(order.updatedAt, '-')}
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+        <Secondary
+          href="#"
+          text="View acknowledgment"
+          onClick={() => openOrderAcknowledgement(order)}
+          className="px-4"
+        />
+        {followUpUrl ? (
+          <Primary href={followUpUrl} target="_blank" text="Open follow-up" className="px-4" />
+        ) : (
+          <Primary
+            href="#"
+            text="Open follow-up"
+            onClick={reportFollowUpUnavailable}
+            className="px-4"
+          />
+        )}
+      </div>
     </div>
-    <div className="text-caption-1 text-text-secondary">
-      Modality: {formatTitleCase(order.modality, '-')}
-    </div>
-    <div className="text-caption-1 text-text-secondary">
-      Updated: {formatDateTimeLocal(order.updatedAt, '-')}
-    </div>
-    <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-      <Secondary
-        href="#"
-        text="View acknowledgment"
-        onClick={() => openOrderAcknowledgement(order)}
-        className="px-4"
-      />
-      <Primary
-        href="#"
-        text="Open follow-up"
-        onClick={() => openFollowUpWorkspace(order)}
-        className="px-4"
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 const SKELETON_ROWS = [
   { opacity: 1, width: '96px' },
@@ -1154,8 +1097,6 @@ type IdexxWorkspaceActionsState = {
   setPdfPreviewUrl: (v: string | null) => void;
   setPdfPreviewTitle: (v: string) => void;
   setPdfPreviewLoadingId: (v: string | null) => void;
-  setFollowUpFrameUrl: (v: string | null) => void;
-  setShowFollowUpFrame: (v: boolean) => void;
 };
 
 const useIdexxWorkspaceActions = (s: IdexxWorkspaceActionsState) => {
@@ -1325,15 +1266,8 @@ const useIdexxWorkspaceActions = (s: IdexxWorkspaceActionsState) => {
     sRef.current.setShowPdfPreview(true);
   }, []);
 
-  const openFollowUpWorkspace = useCallback((order: LabOrder | null) => {
-    const uiUrl = getOrderUiUrl(order);
-    if (!uiUrl) {
-      sRef.current.setError('Follow-up workspace URL is not available for this order.');
-      return;
-    }
-    sRef.current.setError(null);
-    sRef.current.setFollowUpFrameUrl(uiUrl);
-    sRef.current.setShowFollowUpFrame(true);
+  const reportFollowUpUnavailable = useCallback(() => {
+    sRef.current.setError('Follow-up workspace URL is not available for this order.');
   }, []);
 
   return {
@@ -1344,7 +1278,7 @@ const useIdexxWorkspaceActions = (s: IdexxWorkspaceActionsState) => {
     closePdfPreview,
     openResultPdfPreview,
     openOrderAcknowledgement,
-    openFollowUpWorkspace,
+    reportFollowUpUnavailable,
   };
 };
 
@@ -1372,8 +1306,6 @@ const useIdexxWorkspacePage = () => {
   const [showResultModal, setShowResultModal] = useState(false);
   const [activeResultDetail, setActiveResultDetail] = useState<LabResult | null>(null);
   const [resultDetailLoading, setResultDetailLoading] = useState(false);
-  const [showFollowUpFrame, setShowFollowUpFrame] = useState(false);
-  const [followUpFrameUrl, setFollowUpFrameUrl] = useState<string | null>(null);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState('IDEXX PDF');
@@ -1401,8 +1333,6 @@ const useIdexxWorkspacePage = () => {
     setPdfPreviewUrl,
     setPdfPreviewTitle,
     setPdfPreviewLoadingId,
-    setFollowUpFrameUrl,
-    setShowFollowUpFrame,
   });
   const refresh = actions.refresh;
 
@@ -1513,9 +1443,6 @@ const useIdexxWorkspacePage = () => {
     setShowResultModal,
     activeResultDetail,
     resultDetailLoading,
-    showFollowUpFrame,
-    setShowFollowUpFrame,
-    followUpFrameUrl,
     showPdfPreview,
     pdfPreviewUrl,
     pdfPreviewTitle,
@@ -1610,11 +1537,6 @@ const IdexxWorkspacePage = () => {
         title={s.pdfPreviewTitle}
         closeLabel="Close IDEXX PDF preview"
         onClose={s.actions.closePdfPreview}
-      />
-      <IdexxFollowUpPortal
-        open={s.showFollowUpFrame}
-        followUpFrameUrl={s.followUpFrameUrl}
-        onClose={() => s.setShowFollowUpFrame(false)}
       />
 
       <MobileSearchBar placeholder="Search accession, patient" />
@@ -1804,7 +1726,7 @@ const IdexxWorkspacePage = () => {
               <OrderLookupCard
                 order={s.orderLookup}
                 openOrderAcknowledgement={s.actions.openOrderAcknowledgement}
-                openFollowUpWorkspace={s.actions.openFollowUpWorkspace}
+                reportFollowUpUnavailable={s.actions.reportFollowUpUnavailable}
               />
             ) : null}
           </div>

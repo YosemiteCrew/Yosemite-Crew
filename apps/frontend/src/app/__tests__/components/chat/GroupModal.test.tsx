@@ -129,6 +129,18 @@ describe('GroupModal', () => {
     expect(props.onCreate).toHaveBeenCalledWith('Core Team', ['u1']);
   });
 
+  it('shows an error when group creation fails', async () => {
+    setup({
+      title: 'Core Team',
+      members: ['u1'],
+      onCreate: jest.fn().mockRejectedValue(new Error('request failed')),
+    });
+    fireEvent.click(screen.getByText('Create Group'));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Unable to update this group. Please try again.'
+    );
+  });
+
   it('forwards title and search edits', () => {
     const props = setup();
     fireEvent.change(screen.getByPlaceholderText('Group Title'), { target: { value: 'X' } });
@@ -222,6 +234,14 @@ describe('GroupModal', () => {
       expect(props.onUpdateTitle).toHaveBeenCalledWith('Team A');
     });
 
+    it('shows an error when saving the title fails', async () => {
+      setup(editProps({ onUpdateTitle: jest.fn().mockRejectedValue(new Error('request failed')) }));
+      fireEvent.click(screen.getByText('Save Title'));
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Unable to update this group. Please try again.'
+      );
+    });
+
     it('does not save an empty title', () => {
       const props = setup(editProps({ title: '   ' }));
       fireEvent.click(screen.getByText('Save Title'));
@@ -240,10 +260,28 @@ describe('GroupModal', () => {
       expect(props.onRemoveMember).toHaveBeenCalledWith('u1');
     });
 
+    it('shows an error when removing a member fails', async () => {
+      setup(
+        editProps({ onRemoveMember: jest.fn().mockRejectedValue(new Error('request failed')) })
+      );
+      fireEvent.click(screen.getAllByTitle('Remove member')[0]);
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Unable to update this group. Please try again.'
+      );
+    });
+
     it('deletes the group', () => {
       const props = setup(editProps());
       fireEvent.click(screen.getByText('Delete Group'));
       expect(props.onDelete).toHaveBeenCalled();
+    });
+
+    it('shows an error when deleting the group fails', async () => {
+      setup(editProps({ onDelete: jest.fn().mockRejectedValue(new Error('request failed')) }));
+      fireEvent.click(screen.getByText('Delete Group'));
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Unable to update this group. Please try again.'
+      );
     });
 
     it('treats a practitionerId-matched owner as the creator', () => {

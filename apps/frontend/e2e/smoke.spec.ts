@@ -5,6 +5,41 @@ test('app shell loads', async ({ page }) => {
   await expect(page).toHaveTitle(/Yosemite|Crew|YC/i);
 });
 
+test('payment-status return link stays above the phone consent notice', async ({ page }) => {
+  await page.goto('/payment-status');
+
+  const returnLink = page.getByRole('link', { name: 'Return home' });
+  const consentNotice = page.getByRole('complementary', { name: 'Cookie consent' });
+  await expect(returnLink).toBeVisible();
+  await expect(consentNotice).toBeVisible();
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 390, height: 667 },
+    { width: 360, height: 640 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const geometry = await page.evaluate(() => {
+      const link = document.querySelector('a[href="/"]')?.getBoundingClientRect();
+      const notice = document.querySelector('.CookieConsent')?.getBoundingClientRect();
+      if (!link || !notice) return { viewport: [innerWidth, innerHeight], overlap: true };
+      return {
+        viewport: [innerWidth, innerHeight],
+        overlap: !(
+          link.right <= notice.left ||
+          link.left >= notice.right ||
+          link.bottom <= notice.top ||
+          link.top >= notice.bottom
+        ),
+        link: { top: link.top, bottom: link.bottom },
+        notice: { top: notice.top, bottom: notice.bottom },
+      };
+    });
+    expect(geometry.overlap, JSON.stringify(geometry)).toBe(false);
+  }
+});
+
 /**
  * The public booking page, exercised without a session.
  *

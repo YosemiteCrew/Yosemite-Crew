@@ -1,5 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 import PostAuthRedirect from '@/app/features/auth/components/PostAuthRedirect';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 // jest.setup.ts mocks next/navigation without `redirect`, so it is declared here.
@@ -8,6 +9,10 @@ jest.mock('next/navigation', () => ({ redirect: (route: string) => redirectMock(
 
 jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),
+}));
+
+jest.mock('@/app/lib/defaultOpenScreen', () => ({
+  resolveDefaultOpenScreenRoute: jest.fn(() => '/appointments'),
 }));
 
 const resolveMock = resolvePostAuthRedirect as jest.Mock;
@@ -27,6 +32,15 @@ describe('PostAuthRedirect', () => {
   it('redirects once the destination resolves', async () => {
     render(<PostAuthRedirect />);
     await waitFor(() => expect(redirectMock).toHaveBeenCalledWith('/dashboard'));
+  });
+
+  it('uses the default route when resolving the destination fails', async () => {
+    resolveMock.mockRejectedValueOnce(new Error('Unavailable'));
+
+    render(<PostAuthRedirect fallbackRole="VETERINARIAN" />);
+
+    await waitFor(() => expect(redirectMock).toHaveBeenCalledWith('/appointments'));
+    expect(resolveDefaultOpenScreenRoute).toHaveBeenCalledWith('VETERINARIAN');
   });
 
   it('passes the fallback role through to the resolver', async () => {

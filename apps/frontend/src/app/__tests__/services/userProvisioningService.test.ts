@@ -46,13 +46,36 @@ describe('provisionBackendUser', () => {
     });
   });
 
-  it('retries with backoff after a transient failure and succeeds', async () => {
+  it('retries in order with exponential backoff after transient failures', async () => {
+    (postData as jest.Mock)
+      .mockRejectedValueOnce(new Error('503 cold start'))
+      .mockRejectedValueOnce(new Error('429 too many requests'))
+      .mockResolvedValueOnce({});
+
+    const promise = provisionBackendUser();
+    await Promise.resolve();
+    expect(postData).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(799);
+    expect(postData).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(postData).toHaveBeenCalledTimes(2);
+
+    await jest.advanceTimersByTimeAsync(1599);
+    expect(postData).toHaveBeenCalledTimes(2);
+    await jest.advanceTimersByTimeAsync(1);
+
+    await expect(promise).resolves.toBe(true);
+    expect(postData).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns true when the second attempt succeeds', async () => {
     (postData as jest.Mock)
       .mockRejectedValueOnce(new Error('503 cold start'))
       .mockResolvedValueOnce({});
 
     const promise = provisionBackendUser();
-    await jest.advanceTimersByTimeAsync(1000);
+    await jest.advanceTimersByTimeAsync(800);
 
     await expect(promise).resolves.toBe(true);
     expect(postData).toHaveBeenCalledTimes(2);

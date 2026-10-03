@@ -25,6 +25,13 @@ import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { Icon } from '@/app/ui/icons/Icon';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
+import { useExtensionPoint } from '@/app/features/plugins';
+import { logger } from '@/app/lib/logger';
+import type {
+  FormDetailTabExtension,
+  FormDetailActionExtension,
+  RegisteredExtension,
+} from '@/app/features/plugins/types';
 
 const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
@@ -95,29 +102,19 @@ const getModalTitle = (activeForm: FormsProps, canMutateLegacyForm: boolean) => 
   return 'View form';
 };
 
-const FormInfo = ({
-  showModal,
-  setShowModal,
+type FormDetailActionProps = React.ComponentProps<FormDetailActionExtension['component']>;
+
+const FormInfoContent = ({
   activeForm,
-  onEdit,
   serviceOptions,
-  canEdit = true,
-}: FormInfoProps) => {
+  primaryOrgId,
+}: Pick<FormInfoProps, 'activeForm' | 'serviceOptions'> & { primaryOrgId: string | null }) => {
   const orgType = useOrgStore((s) =>
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
-  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
     Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
-  const { showErrorTost, ErrorTostPopup } = useErrorTost();
-  const [publishLoading, setPublishLoading] = React.useState(false);
-  const [unpublishLoading, setUnpublishLoading] = React.useState(false);
-  const [archiveLoading, setArchiveLoading] = React.useState(false);
-  const actionLoading = publishLoading || unpublishLoading || archiveLoading;
-  const canEditTemplateStructure = canEdit;
-  const canMutateTemplateState = canEdit && Boolean(activeForm._id);
-  const modalTitle = getModalTitle(activeForm, canEditTemplateStructure);
   const usageData = React.useMemo(
     () => ({
       ...activeForm,
@@ -135,6 +132,17 @@ const FormInfo = ({
     }
     return [...serviceOptions, ...unavailable];
   }, [activeForm.services, serviceOptions]);
+  const formDetailContext = React.useMemo(
+    () => ({
+      type: 'forms' as const,
+      formId: activeForm._id ?? '',
+      organisationId: primaryOrgId ?? '',
+    }),
+    [activeForm._id, primaryOrgId]
+  );
+  const { extensions: formDetailTabExtensions } = useExtensionPoint<
+    React.ComponentProps<FormDetailTabExtension['component']>
+  >('forms.detail.tabs', formDetailContext);
   const detailsData = React.useMemo(
     () => ({
       ...activeForm,
@@ -171,6 +179,89 @@ const FormInfo = ({
     return fields;
   }, [activeForm.templateSource, effectiveOrgType]);
 
+  return (
+    <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto pr-1 scrollbar-hidden">
+      <div className="flex flex-col gap-6">
+        <EditableAccordion
+          key={`details-${activeForm._id || activeForm.name}`}
+          title="Form details"
+          fields={detailsFields}
+          data={detailsData}
+          defaultOpen={true}
+          showEditIcon={false}
+          readOnly
+        />
+        <EditableAccordion
+          key={`usage-${activeForm._id || activeForm.name}`}
+          title="Usage & visibility"
+          fields={[
+            ...UsageFields.slice(0, 1),
+            { ...UsageFields[1], options: usageServiceOptions },
+            ...UsageFields.slice(2),
+          ]}
+          data={usageData}
+          defaultOpen={true}
+          showEditIcon={false}
+          readOnly
+        />
+        {(activeForm.schema?.length ?? 0) > 0 &&
+          (activeForm.category === 'Task Template' ? (
+            <Accordion title="Tasks" defaultOpen showEditIcon={false} isEditing={true}>
+              <TaskTemplateSummary schema={activeForm.schema ?? []} />
+            </Accordion>
+          ) : (
+            <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
+              <FormRenderer
+                fields={activeForm.schema ?? []}
+                values={buildPreviewValues(activeForm.schema ?? [])}
+                onChange={() => {}}
+                readOnly
+              />
+            </Accordion>
+          ))}
+        {formDetailTabExtensions.map((ext) => (
+          <Accordion
+            key={ext.extension.id}
+            title={ext.extension.component.displayName || ext.extension.id}
+            defaultOpen
+            showEditIcon={false}
+            isEditing={true}
+          >
+            <ext.extension.component
+              formId={activeForm._id ?? ''}
+              organisationId={primaryOrgId ?? ''}
+              form={activeForm}
+            />
+          </Accordion>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const FormInfoFooter = ({
+  activeForm,
+  primaryOrgId,
+  formDetailActionExtensions,
+  canMutateTemplateState,
+  canEditTemplateStructure,
+  onClose,
+  onEdit,
+}: {
+  activeForm: FormsProps;
+  primaryOrgId: string | null;
+  formDetailActionExtensions: RegisteredExtension<FormDetailActionProps>[];
+  canMutateTemplateState: boolean;
+  canEditTemplateStructure: boolean;
+  onClose: () => void;
+  onEdit: (form: FormsProps) => void;
+}) => {
+  const { showErrorTost, ErrorTostPopup } = useErrorTost();
+  const [publishLoading, setPublishLoading] = React.useState(false);
+  const [unpublishLoading, setUnpublishLoading] = React.useState(false);
+  const [archiveLoading, setArchiveLoading] = React.useState(false);
+  const actionLoading = publishLoading || unpublishLoading || archiveLoading;
+
   const showActionError = (message: string) =>
     showErrorTost({
       message,
@@ -196,9 +287,9 @@ const FormInfo = ({
       } else {
         await publishForm(activeForm._id);
       }
-      setShowModal(false);
+      onClose();
     } catch (err: any) {
-      console.error('Failed to publish form', err);
+      logger.error('Failed to publish form', err);
       showActionError(err?.response?.data?.message || err?.message || 'Unable to publish form');
     } finally {
       setPublishLoading(false);
@@ -215,9 +306,9 @@ const FormInfo = ({
       } else {
         await unpublishForm(activeForm._id);
       }
-      setShowModal(false);
+      onClose();
     } catch (err: any) {
-      console.error('Failed to unpublish form', err);
+      logger.error('Failed to unpublish form', err);
       showActionError(err?.response?.data?.message || err?.message || 'Unable to unpublish form');
     } finally {
       setUnpublishLoading(false);
@@ -234,9 +325,9 @@ const FormInfo = ({
       } else {
         await archiveForm(activeForm._id);
       }
-      setShowModal(false);
+      onClose();
     } catch (err: any) {
-      console.error('Failed to archive form', err);
+      logger.error('Failed to archive form', err);
       showActionError(err?.response?.data?.message || err?.message || 'Unable to archive form');
     } finally {
       setArchiveLoading(false);
@@ -306,6 +397,67 @@ const FormInfo = ({
   };
 
   return (
+    <>
+      <ModalFooter align="stretch">
+        <div className="flex flex-col gap-3">
+          {canMutateTemplateState && renderActions()}
+          {formDetailActionExtensions.map((ext) => (
+            <ext.extension.component
+              key={ext.extension.id}
+              formId={activeForm._id ?? ''}
+              organisationId={primaryOrgId ?? ''}
+              form={activeForm}
+              onAction={onClose}
+            />
+          ))}
+          {canEditTemplateStructure ? (
+            <Secondary
+              href="#"
+              size="large"
+              text="Edit form"
+              onClick={() => {
+                onClose();
+                onEdit(activeForm);
+              }}
+              isDisabled={actionLoading}
+            />
+          ) : (
+            <Secondary href="#" size="large" text="Close" onClick={onClose} />
+          )}
+        </div>
+      </ModalFooter>
+      {ErrorTostPopup}
+    </>
+  );
+};
+
+const FormInfo = ({
+  showModal,
+  setShowModal,
+  activeForm,
+  onEdit,
+  serviceOptions,
+  canEdit = true,
+}: FormInfoProps) => {
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const formDetailContext = React.useMemo(
+    () => ({
+      type: 'forms' as const,
+      formId: activeForm._id ?? '',
+      organisationId: primaryOrgId ?? '',
+    }),
+    [activeForm._id, primaryOrgId]
+  );
+  const { extensions: formDetailActionExtensions } = useExtensionPoint<FormDetailActionProps>(
+    'forms.detail.actions',
+    formDetailContext
+  );
+  const canEditTemplateStructure = canEdit;
+  const canMutateTemplateState = canEdit && Boolean(activeForm._id);
+  const modalTitle = getModalTitle(activeForm, canEditTemplateStructure);
+  const closeModal = () => setShowModal(false);
+
+  return (
     <Modal
       key={activeForm._id || activeForm.name}
       showModal={showModal}
@@ -313,69 +465,21 @@ const FormInfo = ({
       size="md"
     >
       <div className="flex flex-col h-full gap-6">
-        <ModalHeader title={modalTitle} onClose={() => setShowModal(false)} />
-
-        <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto pr-1 scrollbar-hidden">
-          <div className="flex flex-col gap-6">
-            <EditableAccordion
-              key={`details-${activeForm._id || activeForm.name}`}
-              title="Form details"
-              fields={detailsFields}
-              data={detailsData}
-              defaultOpen={true}
-              showEditIcon={false}
-              readOnly
-            />
-            <EditableAccordion
-              key={`usage-${activeForm._id || activeForm.name}`}
-              title="Usage & visibility"
-              fields={[
-                ...UsageFields.slice(0, 1),
-                { ...UsageFields[1], options: usageServiceOptions },
-                ...UsageFields.slice(2),
-              ]}
-              data={usageData}
-              defaultOpen={true}
-              showEditIcon={false}
-              readOnly
-            />
-            {(activeForm.schema?.length ?? 0) > 0 &&
-              (activeForm.category === 'Task Template' ? (
-                <Accordion title="Tasks" defaultOpen showEditIcon={false} isEditing={true}>
-                  <TaskTemplateSummary schema={activeForm.schema ?? []} />
-                </Accordion>
-              ) : (
-                <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
-                  <FormRenderer
-                    fields={activeForm.schema ?? []}
-                    values={buildPreviewValues(activeForm.schema ?? [])}
-                    onChange={() => {}}
-                    readOnly
-                  />
-                </Accordion>
-              ))}
-          </div>
-        </div>
-        <ModalFooter align="stretch">
-          <div className="flex flex-col gap-3">
-            {canMutateTemplateState && renderActions()}
-            {canEditTemplateStructure ? (
-              <Secondary
-                href="#"
-                size="large"
-                text="Edit form"
-                onClick={() => {
-                  setShowModal(false);
-                  onEdit(activeForm);
-                }}
-                isDisabled={actionLoading}
-              />
-            ) : (
-              <Secondary href="#" size="large" text="Close" onClick={() => setShowModal(false)} />
-            )}
-          </div>
-        </ModalFooter>
-        {ErrorTostPopup}
+        <ModalHeader title={modalTitle} onClose={closeModal} />
+        <FormInfoContent
+          activeForm={activeForm}
+          serviceOptions={serviceOptions}
+          primaryOrgId={primaryOrgId}
+        />
+        <FormInfoFooter
+          activeForm={activeForm}
+          primaryOrgId={primaryOrgId}
+          formDetailActionExtensions={formDetailActionExtensions}
+          canMutateTemplateState={canMutateTemplateState}
+          canEditTemplateStructure={canEditTemplateStructure}
+          onClose={closeModal}
+          onEdit={onEdit}
+        />
       </div>
     </Modal>
   );

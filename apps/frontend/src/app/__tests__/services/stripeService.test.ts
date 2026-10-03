@@ -32,6 +32,12 @@ describe('stripeService', () => {
     });
 
     it('loads current finance subscription and usage snapshots', async () => {
+      useSubscriptionStore.getState().setSubscriptionForOrg('org-123', {
+        orgId: 'org-123',
+        connectChargesEnabled: true,
+        connectPayoutsEnabled: true,
+      });
+
       (axiosService.getData as jest.Mock)
         .mockResolvedValueOnce({
           data: {
@@ -86,6 +92,12 @@ describe('stripeService', () => {
       expect(useSubscriptionStore.getState().getSubscriptionByOrgId('org-123')?.plan).toBe(
         'business'
       );
+      expect(
+        useSubscriptionStore.getState().getSubscriptionByOrgId('org-123')?.connectChargesEnabled
+      ).toBe(true);
+      expect(
+        useSubscriptionStore.getState().getSubscriptionByOrgId('org-123')?.connectPayoutsEnabled
+      ).toBe(true);
       expect(useCounterStore.getState().getCounterByOrgId('org-123')?.freeAppointmentsLimit).toBe(
         120
       );
@@ -148,7 +160,7 @@ describe('stripeService', () => {
 
     it('returns client secret from API', async () => {
       (axiosService.postData as jest.Mock).mockResolvedValue({
-        data: { client_secret: 'secret_123' },
+        data: { client_secret: 'fixture-value' },
       });
 
       const clientSecret = await onBoardConnectedAccount('org-999');
@@ -156,7 +168,7 @@ describe('stripeService', () => {
       expect(axiosService.postData).toHaveBeenCalledWith(
         '/v1/stripe/organisation/org-999/onboarding'
       );
-      expect(clientSecret).toBe('secret_123');
+      expect(clientSecret).toBe('fixture-value');
     });
   });
 });

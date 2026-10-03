@@ -700,6 +700,25 @@ describe('expenseService', () => {
       expect(() => new Date(result[0].date).toISOString()).not.toThrow();
       expect(Number.isNaN(new Date(result[0].date).getTime())).toBe(false);
     });
+
+    it('falls back to the current time when the date is empty', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({data: [{date: ''}]});
+      const before = Date.now();
+
+      const result = await expenseApi.fetchExpenses({
+        companionId: 'c1',
+        accessToken: 't',
+      });
+
+      for (const value of [
+        result[0].date,
+        result[0].createdAt,
+        result[0].updatedAt,
+      ]) {
+        expect(Date.parse(value)).toBeGreaterThanOrEqual(before);
+        expect(Date.parse(value)).toBeLessThanOrEqual(Date.now());
+      }
+    });
   });
 
   describe('createFinancePaymentSession clientSecret fallback', () => {
@@ -834,6 +853,34 @@ describe('attachment upload bounds', () => {
 
     expect(peak).toBeLessThanOrEqual(3);
     expect(documentApi.uploadAttachment).toHaveBeenCalledTimes(9);
+  });
+
+  it('starts no further batch once a batch has failed', async () => {
+    (documentApi.uploadAttachment as jest.Mock).mockClear();
+    (documentApi.uploadAttachment as jest.Mock).mockImplementation(
+      async ({file}: {file: {id: string}}) => {
+        if (file.id === 'a0') {
+          throw new Error('upload failed');
+        }
+        return {key: 'k', url: 'u'};
+      },
+    );
+
+    const attachments = Array.from({length: 6}, (_, index) => ({
+      id: `a${index}`,
+      name: `file-${index}`,
+      uri: `file:///tmp/${index}`,
+    }));
+
+    await expect(
+      expenseApi.createExternal({
+        input: {...(uploadBoundsInput as object), attachments} as never,
+        accessToken: 't',
+      }),
+    ).rejects.toThrow('upload failed');
+
+    // Only the first batch of three was ever started.
+    expect(documentApi.uploadAttachment).toHaveBeenCalledTimes(3);
   });
 
   it('uploads nothing when an attachment has no path', async () => {

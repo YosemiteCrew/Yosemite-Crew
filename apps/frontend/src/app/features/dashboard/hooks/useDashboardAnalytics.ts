@@ -382,7 +382,7 @@ export const useDashboardAnalytics = (duration: DashboardDuration) => {
     const key = `${primaryOrgId}:${duration}`;
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         const next = await loadAnalyticsData(primaryOrgId, duration, key);
         if (!cancelled) {

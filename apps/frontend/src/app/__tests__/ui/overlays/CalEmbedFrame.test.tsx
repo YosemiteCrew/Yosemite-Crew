@@ -67,6 +67,49 @@ describe('CalEmbedFrame', () => {
     expect(cal).not.toHaveBeenCalled();
   });
 
+  it('shows an accessible error when the Cal API fails to load', async () => {
+    mockedGetCalApi.mockRejectedValue(new Error('unavailable'));
+
+    render(<CalEmbedFrame calLink="yosemitecrew/demo" title="Book a demo" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The calendar could not be loaded. Please try again later.'
+    );
+  });
+
+  it('clears a stale load error when the same calendar later loads successfully', async () => {
+    const cal = jest.fn();
+    mockedGetCalApi.mockResolvedValue(cal);
+    mockedGetCalApi.mockRejectedValueOnce(new Error('unavailable'));
+
+    const { rerender } = render(<CalEmbedFrame calLink="yosemitecrew/demo" title="Book a demo" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The calendar could not be loaded. Please try again later.'
+    );
+
+    rerender(<CalEmbedFrame calLink="yosemitecrew/onboarding" title="Book a demo" />);
+    await waitFor(() => {
+      expect(cal).toHaveBeenCalledWith(
+        'inline',
+        expect.objectContaining({
+          calLink: 'yosemitecrew/onboarding',
+        })
+      );
+    });
+
+    rerender(<CalEmbedFrame calLink="yosemitecrew/demo" title="Book a demo" />);
+    await waitFor(() => {
+      expect(cal).toHaveBeenCalledWith(
+        'inline',
+        expect.objectContaining({
+          calLink: 'yosemitecrew/demo',
+        })
+      );
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
   it('cleans up a mounted Cal embed on unmount', async () => {
     const cal = jest.fn((action: string, payload?: { elementOrSelector?: HTMLElement }) => {
       if (action === 'inline' && payload?.elementOrSelector) {

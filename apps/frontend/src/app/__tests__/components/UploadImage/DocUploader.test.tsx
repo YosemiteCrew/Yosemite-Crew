@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import DocUploader from '@/app/ui/widgets/UploadImage/DocUploader';
 import { postData } from '@/app/services/axios';
-import axios from 'axios';
 
 // --- Mocks ---
 
@@ -11,8 +10,6 @@ import axios from 'axios';
 jest.mock('@/app/services/axios', () => ({
   postData: jest.fn(),
 }));
-
-jest.mock('axios');
 
 // 2. Mock Icons
 jest.mock(
@@ -110,9 +107,8 @@ describe('DocUploader Component', () => {
 
   it('handles file selection via input change', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: 'url', s3Key: 'key' },
+      data: { s3Key: 'key' },
     });
-    (axios.put as jest.Mock).mockResolvedValue({});
 
     render(
       <DocUploader
@@ -132,15 +128,17 @@ describe('DocUploader Component', () => {
     });
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
-    expect(postData).toHaveBeenCalled();
+    expect(postData).toHaveBeenCalledWith(mockApiUrl, expect.any(FormData), {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    expect((postData as jest.Mock).mock.calls[0][1].get('file')).toBe(file);
     expect(mockOnChange).toHaveBeenCalledWith('key', 'application/pdf', 1024);
   });
 
   it('handles file drop event', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: 'url', s3Key: 'key' },
+      data: { s3Key: 'key' },
     });
-    (axios.put as jest.Mock).mockResolvedValue({});
 
     render(
       <DocUploader
@@ -168,7 +166,9 @@ describe('DocUploader Component', () => {
     });
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
-    expect(postData).toHaveBeenCalled();
+    expect(postData).toHaveBeenCalledWith(mockApiUrl, expect.any(FormData), {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   });
 
   // --- Section 3: Validation Logic ---
@@ -240,11 +240,10 @@ describe('DocUploader Component', () => {
   });
 
   // --- Section 4: API & Error Handling ---
-  it('uploads file successfully (getSignedUrl -> uploadToS3 -> onChange)', async () => {
+  it('uploads file directly and calls onChange with the stored key', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: 'https://s3.url', s3Key: 'uploads/test.pdf' },
+      data: { s3Key: 'uploads/test.pdf' },
     });
-    (axios.put as jest.Mock).mockResolvedValue({});
 
     render(
       <DocUploader
@@ -263,18 +262,12 @@ describe('DocUploader Component', () => {
       fireEvent.change(input, { target: { files: [file] } });
     });
 
-    // 1. Verify Signed URL Request
-    expect(postData).toHaveBeenCalledWith(mockApiUrl, {
-      mimeType: 'application/pdf',
+    // Upload to the authenticated API rather than returning a storage URL to the browser.
+    expect(postData).toHaveBeenCalledWith(mockApiUrl, expect.any(FormData), {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
+    expect(((postData as jest.Mock).mock.calls[0][1] as FormData).get('file')).toBe(file);
 
-    // 2. Verify S3 Upload
-    expect(axios.put).toHaveBeenCalledWith('https://s3.url', file, {
-      headers: { 'Content-Type': 'application/pdf' },
-      withCredentials: false,
-    });
-
-    // 3. Verify Callback
     expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024);
   });
 

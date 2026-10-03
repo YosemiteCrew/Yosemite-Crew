@@ -1,18 +1,8 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { Newsreader } from 'next/font/google';
 import './globals.css';
 
-// Warm-bone display serif for page titles + greeting moments. Self-hosted by next/font
-// at build time (served from /_next, so it satisfies the strict app-route CSP), exposed
-// as --font-newsreader-src which the --font-newsreader token consumes (see globals.css).
 // no-story: root Next.js layout - returns a full <html>/<body> document, which cannot mount inside Storybook's own DOM; every component it renders (SkipLink, Cookies, PostHogBootstrap, etc.) is already storied on its own
-const newsreader = Newsreader({
-  subsets: ['latin'],
-  style: ['normal', 'italic'],
-  variable: '--font-newsreader-src',
-  display: 'swap',
-});
 
 import 'react-datepicker/dist/react-datepicker.css';
 import ToastProvider from '@/app/ui/layout/ToastProvider';
@@ -66,7 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={newsreader.variable}>
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* The session check is the first thing the app does after hydration and
             it goes cross-origin to the API, so the DNS lookup, TCP handshake and

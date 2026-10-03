@@ -29,6 +29,24 @@ describe('BaseButton', () => {
     );
     const link = screen.getByRole('link', { name: 'Go' });
     expect(link).toHaveAttribute('href', '/dashboard');
+    expect(link).not.toHaveAttribute('target');
+    expect(link).not.toHaveAttribute('rel');
+  });
+
+  it('opens the link in a new tab without an opener when target is _blank', () => {
+    render(
+      <BaseButton
+        text="Open"
+        href="https://example.com/page"
+        target="_blank"
+        sizeClasses={sizeClasses}
+        baseClasses={baseClasses}
+      />
+    );
+    const link = screen.getByRole('link', { name: 'Open' });
+    expect(link).toHaveAttribute('href', 'https://example.com/page');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('trims whitespace-only href down to a button', () => {

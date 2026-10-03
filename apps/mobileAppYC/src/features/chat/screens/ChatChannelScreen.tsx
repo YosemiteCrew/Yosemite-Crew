@@ -65,14 +65,15 @@ const PrefilledMessageInput: React.FC<{initialMessage?: string}> = ({
   initialMessage,
 }) => {
   const composer = useMessageComposer();
-  const applied = React.useRef(false);
+  // The route's message is applied once, on top of any draft already there.
+  const appliedRef = React.useRef(false);
   React.useEffect(() => {
-    if (!applied.current && initialMessage) {
+    if (!appliedRef.current && initialMessage) {
       const existingText = composer.textComposer.text.trim();
       composer.textComposer.setText(
         existingText ? `${existingText}\n\n${initialMessage}` : initialMessage,
       );
-      applied.current = true;
+      appliedRef.current = true;
     }
   }, [composer, initialMessage]);
   return <MessageComposer />;

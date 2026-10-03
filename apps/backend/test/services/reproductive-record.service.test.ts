@@ -117,6 +117,31 @@ describe("ReproductiveRecordService.update", () => {
     expect(result.pregnancyStatus).toBe("CONFIRMED");
   });
 
+  it("clears nullable details when explicitly nulled", async () => {
+    mockFindFirst.mockResolvedValue(baseRecord);
+    mockUpdate.mockResolvedValue(baseRecord);
+
+    await ReproductiveRecordService.update("rr-1", "org-1", {
+      lastHeatDate: null,
+      sireName: null,
+      pregnancyStatus: null,
+      litterSizeAlive: null,
+      notes: null,
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          lastHeatDate: null,
+          sireName: null,
+          pregnancyStatus: null,
+          litterSizeAlive: null,
+          notes: null,
+        }),
+      }),
+    );
+  });
+
   it("throws 404 when not found", async () => {
     mockFindFirst.mockResolvedValue(null);
     await expect(

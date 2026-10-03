@@ -181,7 +181,7 @@ export const useInventoryInfoActions = ({
     }
   };
 
-  const handleSecondaryAction = async () => {
+  const handleSecondaryAction = () => {
     if (isSectionEditing) {
       if (isBatchSection) {
         batchActions.current?.cancel?.();

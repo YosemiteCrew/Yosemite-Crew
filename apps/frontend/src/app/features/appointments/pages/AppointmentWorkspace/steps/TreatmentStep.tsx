@@ -713,6 +713,260 @@ const getTreatmentSaveErrorMessage = (error: unknown): string =>
     getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.')
   );
 
+type TreatmentPrescription = AppointmentEncounter['prescription'][number];
+type SavedPrescription = Awaited<ReturnType<typeof savePrescriptionArtifact>>;
+type SavedInHouseArtifact = { id: string; version: number | undefined };
+
+const normalizeTreatmentPrescriptions = (
+  prescriptions: AppointmentEncounter['prescription']
+): AppointmentEncounter['prescription'] =>
+  prescriptions.map((prescription) => ({
+    ...prescription,
+    durationUnit: prescription.durationUnit?.trim() || DEFAULT_DURATION_UNIT,
+  }));
+
+const getFirstPrescriptionSaveError = (
+  prescriptions: AppointmentEncounter['prescription']
+): string | undefined =>
+  prescriptions.flatMap((prescription) =>
+    prescription.finalized ? [] : getPrescriptionSaveErrors(prescription)
+  )[0];
+
+const resolveTreatmentEncounterId = async (
+  organisationId: string | undefined,
+  encounterId: string | undefined,
+  ensureEncounterId: TreatmentStepProps['ensureEncounterId']
+): Promise<string | undefined> => {
+  if (!organisationId || encounterId || !ensureEncounterId) return encounterId;
+  try {
+    return await ensureEncounterId();
+  } catch (error) {
+    console.error('Failed to resolve an encounter for treatment:', error);
+    return undefined;
+  }
+};
+
+const authorisePrescriptionRefills = async (
+  organisationId: string,
+  prescription: TreatmentPrescription,
+  savedPrescription: SavedPrescription
+) => {
+  if (!prescription.refillValidUntil) return;
+  const itemId = savedPrescription.prescriptionItemId;
+  const additionalFills = Number(prescription.refill);
+  const quantity = resolvePrescriptionFillQuantity(prescription);
+  const quantityUnit = prescription.doseUnit?.trim() || prescription.dosageForm?.trim();
+  if (
+    !itemId ||
+    !Number.isInteger(additionalFills) ||
+    additionalFills < 0 ||
+    quantity === undefined ||
+    !quantityUnit
+  ) {
+    throw new Error(
+      'Complete the refill count, dispense quantity, and unit before authorising refills.'
+    );
+  }
+  await authoriseFills(organisationId, itemId, {
+    validUntil: new Date(prescription.refillValidUntil).toISOString(),
+    maxAdditionalFills: additionalFills,
+    perFillQuantity: quantity,
+    perFillQuantityUnit: quantityUnit,
+  });
+};
+
+type SaveTreatmentPrescriptionOptions = {
+  organisationId: string;
+  appointmentId: string;
+  encounterId: string;
+  authorId?: string;
+  prescription: TreatmentPrescription;
+};
+
+const saveTreatmentPrescription = async ({
+  organisationId,
+  appointmentId,
+  encounterId,
+  authorId,
+  prescription,
+}: SaveTreatmentPrescriptionOptions): Promise<{
+  prescription: TreatmentPrescription;
+  inHouseArtifact?: SavedInHouseArtifact;
+}> => {
+  if (prescription.finalized) return { prescription };
+  const saved = await savePrescriptionArtifact(
+    { organisationId, appointmentId, encounterId, authorId },
+    prescription
+  );
+  await authorisePrescriptionRefills(organisationId, prescription, saved);
+  const id = (saved as { id?: string } | undefined)?.id ?? prescription.id;
+  const version = artifactVersionFromMeta(saved);
+  return {
+    prescription: {
+      ...prescription,
+      id,
+      prescriptionItemId: saved.prescriptionItemId ?? prescription.prescriptionItemId,
+      artifactVersion: version ?? prescription.artifactVersion,
+    },
+    inHouseArtifact:
+      id && prescription.fulfillment !== 'PRESCRIPTION_ONLY' ? { id, version } : undefined,
+  };
+};
+
+const saveTreatmentPrescriptions = async (
+  options: Omit<SaveTreatmentPrescriptionOptions, 'prescription'>,
+  prescriptions: AppointmentEncounter['prescription']
+) => {
+  const saved = await Promise.all(
+    prescriptions.map((prescription) => saveTreatmentPrescription({ ...options, prescription }))
+  );
+  return {
+    prescriptions: saved.map((result) => result.prescription),
+    inHouseArtifacts: saved.flatMap((result) =>
+      result.inHouseArtifact ? [result.inHouseArtifact] : []
+    ),
+  };
+};
+
+const getFinalizeFailure = async (
+  organisationId: string,
+  artifacts: SavedInHouseArtifact[]
+): Promise<unknown> => {
+  const outcomes = await Promise.allSettled(
+    artifacts.map(({ id, version }) =>
+      version === undefined
+        ? Promise.reject(new Error(UNVERSIONED_FINALIZE_MESSAGE))
+        : finalizePrescription(organisationId, id, { expectedVersion: version })
+    )
+  );
+  return outcomes.find((outcome) => outcome.status === 'rejected')?.reason;
+};
+
+type PersistTreatmentSaveOptions = {
+  organisationId: string;
+  appointmentId: string;
+  encounterId: string;
+  authorId?: string;
+  encounter: AppointmentEncounter;
+  prescriptions: AppointmentEncounter['prescription'];
+  setPrescriptions: ReturnType<typeof useAppointmentWorkspaceStore.getState>['setPrescriptions'];
+  mergeEncounterData: ReturnType<
+    typeof useAppointmentWorkspaceStore.getState
+  >['mergeEncounterData'];
+};
+
+const persistTreatmentSave = async ({
+  organisationId,
+  appointmentId,
+  encounterId,
+  authorId,
+  encounter,
+  prescriptions,
+  setPrescriptions,
+  mergeEncounterData,
+}: PersistTreatmentSaveOptions) => {
+  await persistTreatmentItems(organisationId, encounterId, encounter.services);
+  const saved = await saveTreatmentPrescriptions(
+    { organisationId, appointmentId, encounterId, authorId },
+    prescriptions
+  );
+  const deduped = Array.from(
+    new Map(saved.prescriptions.map((prescription) => [prescription.id, prescription])).values()
+  );
+  setPrescriptions(appointmentId, deduped);
+  const [finalizeFailure, bootstrap] = await Promise.all([
+    getFinalizeFailure(organisationId, saved.inHouseArtifacts),
+    getAppointmentWorkspaceBootstrap(organisationId, appointmentId),
+  ]);
+  mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
+  if (finalizeFailure) throw finalizeFailure;
+};
+
+/**
+ * Save-treatment flow: validates prescriptions, persists services and
+ * prescriptions, finalizes in-house prescriptions, re-hydrates the encounter,
+ * then completes the step and opens the invoice.
+ */
+const useTreatmentSave = ({
+  appointmentId,
+  organisationId,
+  encounterId,
+  authorId,
+  encounter,
+  ensureEncounterId,
+  onOpenInvoice,
+  prescriptionItems,
+  setPrescriptionError,
+}: Pick<
+  TreatmentStepProps,
+  | 'appointmentId'
+  | 'organisationId'
+  | 'encounterId'
+  | 'authorId'
+  | 'encounter'
+  | 'ensureEncounterId'
+  | 'onOpenInvoice'
+> & {
+  prescriptionItems: AppointmentEncounter['prescription'];
+  setPrescriptionError: (message: string | null) => void;
+}) => {
+  const setPrescriptions = useAppointmentWorkspaceStore((s) => s.setPrescriptions);
+  const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
+  const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
+  const [treatmentSaveError, setTreatmentSaveError] = useState<string | null>(null);
+  const [isSavingTreatment, setIsSavingTreatment] = useState(false);
+
+  const handleSaveTreatment = async () => {
+    if (isSavingTreatment) return;
+    setTreatmentSaveError(null);
+    const normalizedPrescriptions = normalizeTreatmentPrescriptions(prescriptionItems);
+    const prescriptionError = getFirstPrescriptionSaveError(normalizedPrescriptions);
+    if (prescriptionError) {
+      setPrescriptionError(prescriptionError);
+      setTreatmentSaveError('Complete all prescription details before saving.');
+      return;
+    }
+    setPrescriptionError(null);
+    setIsSavingTreatment(true);
+    let activeEncounterId = encounterId;
+    if (organisationId && !activeEncounterId && ensureEncounterId) {
+      activeEncounterId = await resolveTreatmentEncounterId(
+        organisationId,
+        encounterId,
+        ensureEncounterId
+      );
+    }
+    if (!organisationId || !activeEncounterId) {
+      setStepStatus(appointmentId, 'TREATMENT', 'COMPLETED');
+      setIsSavingTreatment(false);
+      onOpenInvoice();
+      return;
+    }
+    try {
+      await persistTreatmentSave({
+        organisationId,
+        appointmentId,
+        encounterId: activeEncounterId,
+        authorId,
+        encounter,
+        prescriptions: normalizedPrescriptions,
+        setPrescriptions,
+        mergeEncounterData,
+      });
+    } catch (error) {
+      console.error('Failed to save treatment items:', error);
+      setTreatmentSaveError(getTreatmentSaveErrorMessage(error));
+      setIsSavingTreatment(false);
+      return;
+    }
+    setStepStatus(appointmentId, 'TREATMENT', 'COMPLETED');
+    setIsSavingTreatment(false);
+    onOpenInvoice();
+  };
+
+  return { treatmentSaveError, isSavingTreatment, handleSaveTreatment };
+};
+
 /**
  * Treatment step: services/packages, prescription, and inpatient schedule.
  * Add/edit actions update the workspace store; backend-backed catalog and
@@ -732,13 +986,8 @@ const TreatmentStep = ({
   const addLineItem = useAppointmentWorkspaceStore((s) => s.addLineItem);
   const updateLineItem = useAppointmentWorkspaceStore((s) => s.updateLineItem);
   const removeLineItem = useAppointmentWorkspaceStore((s) => s.removeLineItem);
-  const setPrescriptions = useAppointmentWorkspaceStore((s) => s.setPrescriptions);
-  const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
-  const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
   const setActiveSideAction = useAppointmentWorkspaceStore((s) => s.setActiveSideAction);
   const openTaskInQuickActions = useAppointmentWorkspaceStore((s) => s.openTaskInQuickActions);
-  const [treatmentSaveError, setTreatmentSaveError] = useState<string | null>(null);
-  const [isSavingTreatment, setIsSavingTreatment] = useState(false);
   const readOnly = encounter.viewOnly;
   // Once the encounter is ready for billing, destructive removal of un-billed
   // items is locked. Already-billed items lock per-row inside each editor (read
@@ -748,7 +997,7 @@ const TreatmentStep = ({
   const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
   // The outpatient visit schedule is built from the companion's real upcoming
   // appointments already in the store (there is no dedicated outpatient "series" data
-  // model). It degrades to an empty state when no future visits are available — e.g. on
+  // model). It degrades to an empty state when no future visits are available - e.g. on
   // a direct deep-link where the appointment list has not been loaded.
   const currentAppointment = appointmentsById[appointmentId];
   const companionId = useMemo(
@@ -816,157 +1065,17 @@ const TreatmentStep = ({
     prescriptionItems,
   });
 
-  const handleSaveTreatment = async () => {
-    if (isSavingTreatment) return;
-    setTreatmentSaveError(null);
-    // Normalize before validating/saving: the duration unit defaults to "days" (the value shown
-    // on the card), so a row the clinician left at the default is complete and persists correctly.
-    const normalizedPrescriptions = prescriptionItems.map((rx) => ({
-      ...rx,
-      durationUnit: rx.durationUnit?.trim() || DEFAULT_DURATION_UNIT,
-    }));
-    // Save-time validation gate: never advance with an incomplete prescription. This runs
-    // BEFORE the persist/no-persist branch so it blocks even when org/encounter haven't hydrated
-    // (otherwise the step would silently advance without validating). Each row must carry the
-    // required clinical instructions (frequency, duration, quantity, route, form) and pass every
-    // number-format rule. Finalized rows are read-only and skipped by the save loop, so exclude
-    // them: an older/external finalized record missing a now-required field must not wedge the
-    // save behind a validation error the clinician cannot fix.
-    const prescriptionErrors = normalizedPrescriptions.flatMap((rx) =>
-      rx.finalized ? [] : getPrescriptionSaveErrors(rx)
-    );
-    if (prescriptionErrors.length > 0) {
-      setPrescriptionError(prescriptionErrors[0]);
-      setTreatmentSaveError('Complete all prescription details before saving.');
-      return;
-    }
-    setPrescriptionError(null);
-
-    setIsSavingTreatment(true);
-    // Resolve the encounter id, creating one (via check-in) when the appointment hasn't started —
-    // an outpatient appointment has no encounter until then, so without this treatment/prescriptions
-    // would only ever live locally and vanish on refresh.
-    let activeEncounterId = encounterId;
-    if (organisationId && !activeEncounterId && ensureEncounterId) {
-      try {
-        activeEncounterId = await ensureEncounterId();
-      } catch (error) {
-        console.error('Failed to resolve an encounter for treatment:', error);
-      }
-    }
-    // Still no org/encounter (e.g. check-in unavailable) → keep the legacy local-only behaviour.
-    if (!organisationId || !activeEncounterId) {
-      setStepStatus(appointmentId, 'TREATMENT', 'COMPLETED');
-      setIsSavingTreatment(false);
-      onOpenInvoice();
-      return;
-    }
-    // Saved prescription ids captured from the create/update responses, so finalize targets the
-    // real artifact id (not the local `local-rx-…` id) and the post-save bootstrap merge — not a
-    // local append — becomes the single source of truth for the list (avoids duplicate rows).
-    const savedInHouseArtifacts: Array<{ id: string; version: number | undefined }> = [];
-    try {
-      // Persist any staged service/package rows.
-      await persistTreatmentItems(organisationId, activeEncounterId, encounter.services);
-      // Persist prescription rows with their fully-entered clinical values (strength / route /
-      // frequency / duration / quantity / refills). We save the inventory-BACKFILLED rows
-      // (`prescriptionItems`), not the raw store rows, so inventory-owned fields the clinician
-      // sees on the card (brand, strength unit, form, route, controlled flag, schedule) are
-      // included in the payload even when the originally-hydrated record was missing them.
-      // create-or-update is keyed off the row id.
-      const reconciledPrescriptions = await Promise.all(
-        normalizedPrescriptions.map(async (rx) => {
-          // A finalized/billed prescription is a locked clinical record (its `finalized` flag is
-          // only ever set from persisted server state, so it always carries a real id). Re-POSTing
-          // it - or PATCHing it back to draft - returns 409 and fails the whole save, so leave the
-          // already-persisted, already-dispensed row untouched instead of re-saving it.
-          if (rx.finalized) {
-            return rx;
-          }
-          const savedRx = await savePrescriptionArtifact(
-            { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
-            rx
-          );
-          if (rx.refillValidUntil) {
-            const itemId = savedRx.prescriptionItemId;
-            const additionalFills = Number(rx.refill);
-            const quantity = resolvePrescriptionFillQuantity(rx);
-            const quantityUnit = rx.doseUnit?.trim() || rx.dosageForm?.trim();
-            if (
-              !itemId ||
-              !Number.isInteger(additionalFills) ||
-              additionalFills < 0 ||
-              quantity === undefined ||
-              !quantityUnit
-            ) {
-              throw new Error(
-                'Complete the refill count, dispense quantity, and unit before authorising refills.'
-              );
-            }
-            await authoriseFills(organisationId, itemId, {
-              validUntil: new Date(rx.refillValidUntil).toISOString(),
-              maxAdditionalFills: additionalFills,
-              perFillQuantity: quantity,
-              perFillQuantityUnit: quantityUnit,
-            });
-          }
-          const savedId = (savedRx as { id?: string } | undefined)?.id ?? rx.id;
-          const savedVersion = artifactVersionFromMeta(savedRx);
-          // Collect every in-house row, version or not. A row whose response carried no usable
-          // version must not be quietly dropped from finalize — it is reported below instead.
-          if (savedId && rx.fulfillment !== 'PRESCRIPTION_ONLY') {
-            savedInHouseArtifacts.push({ id: savedId, version: savedVersion });
-          }
-          return {
-            ...rx,
-            id: savedId,
-            prescriptionItemId: savedRx.prescriptionItemId ?? rx.prescriptionItemId,
-            artifactVersion: savedVersion ?? rx.artifactVersion,
-          };
-        })
-      );
-      // Authoritatively replace the list with exactly the saved rows (deduped by backend id) so
-      // there is never a stale local + persisted duplicate — even before the bootstrap lands or
-      // when the bootstrap returns the still-draft prescription differently.
-      const dedupedById = Array.from(
-        new Map(reconciledPrescriptions.map((rx) => [rx.id, rx])).values()
-      );
-      setPrescriptions(appointmentId, dedupedById);
-      // Finalize in-house prescriptions (triggers inventory dispense) using the real saved ids.
-      // `allSettled` so one conflicted row does not abandon the rest mid-flight; the outcomes are
-      // inspected below, after the re-hydrate, so a failure is reported rather than discarded.
-      // A row with no usable version is never finalized unconditionally - it fails here rather
-      // than silently skipping the dispense.
-      const finalizeOutcomes = await Promise.allSettled(
-        savedInHouseArtifacts.map(({ id, version }) =>
-          version === undefined
-            ? Promise.reject(new Error(UNVERSIONED_FINALIZE_MESSAGE))
-            : finalizePrescription(organisationId, id, { expectedVersion: version })
-        )
-      );
-      // Re-hydrate from the authoritative server state — replaces the staged local rows so the
-      // saved prescription appears exactly once.
-      const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
-      mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
-      // A rejected finalize leaves that prescription a draft and its inventory dispense
-      // untriggered. Reported only now, so the re-hydrate above has already refreshed the
-      // versions a retry needs - but before the step can claim COMPLETED and open Invoice.
-      const failedFinalize = finalizeOutcomes.find((outcome) => outcome.status === 'rejected');
-      if (failedFinalize) {
-        throw (failedFinalize as PromiseRejectedResult).reason;
-      }
-    } catch (error) {
-      // Do NOT open Invoice when persistence fails — staged rows would otherwise
-      // appear billable without a backing record.
-      console.error('Failed to save treatment items:', error);
-      setTreatmentSaveError(getTreatmentSaveErrorMessage(error));
-      setIsSavingTreatment(false);
-      return;
-    }
-    setStepStatus(appointmentId, 'TREATMENT', 'COMPLETED');
-    setIsSavingTreatment(false);
-    onOpenInvoice();
-  };
+  const { treatmentSaveError, isSavingTreatment, handleSaveTreatment } = useTreatmentSave({
+    appointmentId,
+    organisationId,
+    encounterId,
+    authorId,
+    encounter,
+    ensureEncounterId,
+    onOpenInvoice,
+    prescriptionItems,
+    setPrescriptionError,
+  });
 
   // Count and total only what the invoice step will ACTUALLY offer as a
   // candidate: it excludes rows that are already billed, and excludes

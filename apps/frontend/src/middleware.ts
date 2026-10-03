@@ -56,12 +56,16 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/public-booking-setup',
   '/reset-password',
   '/settings',
+  // A practice's published website. Under (routes)/(book) like the booking
+  // page, and dynamic for the same reason.
+  '/site',
   '/signin',
   '/signup',
   '/stripe-onboarding',
   '/tasks',
   '/team-onboarding',
   '/verify-email',
+  '/website-builder',
 ];
 
 const createNonce = () => {

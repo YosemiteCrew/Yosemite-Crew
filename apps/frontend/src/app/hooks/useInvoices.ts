@@ -70,7 +70,7 @@ export const useInvoicesForPrimaryOrgAppointment = (
       }
     };
 
-    loadMissingAppointmentInvoices();
+    void loadMissingAppointmentInvoices();
   }, [primaryOrgId, appointmentId, invoices.length]);
 
   return invoices;

@@ -33,7 +33,9 @@
     "report:build-routes": "node ./scripts/export-build-report.mjs",
     "doctor": "pnpm exec react-doctor",
     "test:storybook": "test-storybook",
-    "test:storybook:ci": "test-storybook --maxWorkers=2"
+    "test:storybook:ci": "test-storybook --maxWorkers=2",
+    "storybook:serve-static": "http-server storybook-static --port 6006 --silent",
+    "storybook:wait": "wait-on -t 120000 http://127.0.0.1:6006/index.json"
   },
   "dependencies": {
     "@calcom/embed-react": "^1.5.3",
@@ -51,7 +53,7 @@
     "gray-matter": "^4.0.3",
     "hast-util-to-jsx-runtime": "^2.3.6",
     "libphonenumber-js": "^1.13.13",
-    "next": "15.5.25",
+    "next": "15.5.27",
     "posthog-js": "^1.391.7",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.0",
@@ -109,7 +111,6 @@
     "jest": "^30.5.2",
     "jest-axe": "^11.0.0",
     "jest-environment-jsdom": "^30.5.2",
-    "playwright-core": "1.63.0",
     "postcss": "^8.5.28",
     "storybook": "^10.5.10",
     "tailwindcss": "^4.3.3",

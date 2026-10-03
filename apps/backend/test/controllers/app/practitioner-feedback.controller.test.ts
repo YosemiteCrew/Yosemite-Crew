@@ -14,6 +14,7 @@ jest.mock("src/services/authUserMobile.service", () => ({
 
 jest.mock("src/services/practitioner-feedback.service", () => ({
   PractitionerFeedbackService: {
+    getForParent: jest.fn(),
     getForAppointment: jest.fn(),
     rateAppointment: jest.fn(),
   },
@@ -54,6 +55,50 @@ describe("PractitionerFeedbackController", () => {
     (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
       parentId: "parent-1",
     });
+  });
+
+  it("returns batch feedback for the verified parent", async () => {
+    const response = makeResponse();
+    const feedbackByAppointment = { "appointment-1": { isRated: false } };
+    (PractitionerFeedbackService.getForParent as jest.Mock).mockResolvedValue(
+      feedbackByAppointment,
+    );
+
+    await PractitionerFeedbackController.getForParent(
+      makeRequest({}, {}),
+      response,
+    );
+
+    expect(PractitionerFeedbackService.getForParent).toHaveBeenCalledWith(
+      "parent-1",
+    );
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(response.json).toHaveBeenCalledWith({ feedbackByAppointment });
+  });
+
+  it("rejects batch lookups without a verified identity", async () => {
+    (resolveVerifiedUserId as jest.Mock).mockReturnValue(null);
+    const response = makeResponse();
+
+    await PractitionerFeedbackController.getForParent(
+      makeRequest({}, {}),
+      response,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect(PractitionerFeedbackService.getForParent).not.toHaveBeenCalled();
+  });
+
+  it("rejects caller-supplied appointment filters for batch lookup", async () => {
+    const response = makeResponse();
+
+    await PractitionerFeedbackController.getForParent(
+      makeRequest({}, { appointmentIds: ["another-parent-appointment"] }),
+      response,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(PractitionerFeedbackService.getForParent).not.toHaveBeenCalled();
   });
 
   it("returns existing feedback for the verified parent", async () => {

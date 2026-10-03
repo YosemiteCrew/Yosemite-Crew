@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import AppointmentMerckSearch from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch';
@@ -25,15 +25,11 @@ jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
+  Primary: ({ text, onClick, isDisabled, ariaLabel }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled} aria-label={ariaLabel}>
       {text}
     </button>
   ),
-}));
-
-jest.mock('@/app/ui/overlays/Loader', () => ({
-  YosemiteLoader: ({ label, testId }: any) => <div data-testid={testId}>{label}</div>,
 }));
 
 jest.mock('react-icons/io5', () => ({
@@ -43,11 +39,6 @@ jest.mock('react-icons/io5', () => ({
   IoCopyOutline: () => <span>copy-icon</span>,
   IoOpenOutline: () => <span>open-icon</span>,
   IoOptionsOutline: () => <span>options-icon</span>,
-}));
-
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
-  __esModule: true,
-  default: () => <span>close</span>,
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
@@ -221,21 +212,22 @@ describe('AppointmentMerckSearch', () => {
     expect(searchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('opens reader, opens external tab and copies URL', async () => {
+  it('opens the manual in a new tab from Open and copies its URL', async () => {
     render(<AppointmentMerckSearch activeAppointment={null} />);
     fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'query' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    expect(await screen.findByLabelText('Close Merck reader')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open in new tab' }));
+    expect(screen.getByText('Manual pages open in a new tab.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Canine Fever in a new tab' }));
+    expect(globalThis.open).toHaveBeenCalledTimes(1);
     expect(globalThis.open).toHaveBeenCalledWith(
       'https://www.merckvetmanual.com/topic',
       '_blank',
       'noopener,noreferrer'
     );
+    // No in-app reader or frame is mounted any more.
+    expect(document.querySelector('iframe')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy manual URL' }));
     await waitFor(() =>
@@ -246,7 +238,7 @@ describe('AppointmentMerckSearch', () => {
     expect(await screen.findByText('URL copied')).toBeInTheDocument();
   });
 
-  it('shows API and copy errors and blocks disallowed reader URLs', async () => {
+  it('shows API and copy errors and blocks disallowed manual URLs', async () => {
     searchMock.mockRejectedValueOnce(new Error('search failed'));
     render(<AppointmentMerckSearch activeAppointment={null} />);
 
@@ -263,10 +255,11 @@ describe('AppointmentMerckSearch', () => {
     expect(await screen.findByText('Unable to copy URL.')).toBeInTheDocument();
 
     isAllowedMerckUrlMock.mockReturnValue(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Canine Fever in a new tab' }));
     expect(
       screen.getByText('Blocked URL: only Merck/MSD Manual links are allowed.')
     ).toBeInTheDocument();
+    expect(globalThis.open).not.toHaveBeenCalled();
   });
 
   it('surfaces server-provided and fallback error messages', async () => {
@@ -307,7 +300,7 @@ describe('AppointmentMerckSearch', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     expect(await screen.findByText('No summary available.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Overview' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Overview/ })).not.toBeInTheDocument();
   });
 
   it('does not search when there is no primary org', async () => {
@@ -322,84 +315,26 @@ describe('AppointmentMerckSearch', () => {
     expect(searchMock).not.toHaveBeenCalled();
   });
 
-  it('clears the reader loader once the iframe loads', async () => {
+  it('opens the result title and sub-topic pills in a new tab', async () => {
     render(<AppointmentMerckSearch activeAppointment={null} />);
     fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     await screen.findByText('Canine Fever');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    const iframe = await screen.findByTitle('Canine Fever');
-    expect(screen.getByTestId('appointment-merck-reader-loader')).toBeInTheDocument();
-    // Without allow-same-origin, MSD's app throws reading document.cookie and the
-    // frame hangs on its own loader forever.
-    expect(iframe).toHaveAttribute(
-      'sandbox',
-      'allow-scripts allow-popups allow-forms allow-same-origin'
+    fireEvent.click(screen.getByRole('button', { name: 'Overview (opens in a new tab)' }));
+    expect(globalThis.open).toHaveBeenLastCalledWith(
+      'https://www.merckvetmanual.com/topic/overview',
+      '_blank',
+      'noopener,noreferrer'
     );
 
-    fireEvent.load(iframe);
-    await waitFor(() =>
-      expect(screen.queryByTestId('appointment-merck-reader-loader')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Canine Fever (opens in a new tab)' }));
+    expect(globalThis.open).toHaveBeenLastCalledWith(
+      'https://www.merckvetmanual.com/topic',
+      '_blank',
+      'noopener,noreferrer'
     );
-  });
-
-  it('falls back to the new-tab prompt when the reader never fires load', async () => {
-    render(<AppointmentMerckSearch activeAppointment={null} />);
-    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
-    await screen.findByText('Canine Fever');
-
-    jest.useFakeTimers();
-    try {
-      fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-      expect(screen.getByTestId('appointment-merck-reader-loader')).toBeInTheDocument();
-
-      act(() => {
-        jest.advanceTimersByTime(12000);
-      });
-
-      expect(screen.getByText(/didn.t load/)).toBeInTheDocument();
-      expect(screen.queryByTestId('appointment-merck-reader-loader')).not.toBeInTheDocument();
-
-      fireEvent.click(screen.getAllByRole('button', { name: 'Open in new tab' }).at(-1)!);
-      expect(globalThis.open).toHaveBeenCalledWith(
-        'https://www.merckvetmanual.com/topic',
-        '_blank',
-        'noopener,noreferrer'
-      );
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  it('opens the reader from the result title and sub-topic pills', async () => {
-    render(<AppointmentMerckSearch activeAppointment={null} />);
-    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
-    await screen.findByText('Canine Fever');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Close Merck reader'));
-    await waitFor(() => expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole('button', { name: 'Canine Fever' }));
-    expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
-  });
-
-  it('closes the reader via the header close button', async () => {
-    render(<AppointmentMerckSearch activeAppointment={null} />);
-    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
-    await screen.findByText('Canine Fever');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    const closeBtn = await screen.findByLabelText('Close Merck reader');
-    fireEvent.mouseDown(closeBtn);
-    fireEvent.click(closeBtn);
-
-    await waitFor(() => expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument());
+    expect(globalThis.open).toHaveBeenCalledTimes(2);
   });
 
   it('switches the language pill and closes the refine panel from its own close button', async () => {

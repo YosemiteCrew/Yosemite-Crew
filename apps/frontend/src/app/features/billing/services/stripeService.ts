@@ -146,7 +146,7 @@ const normalizeCounter = (
 };
 
 export const checkStatus = async (orgId: string | null) => {
-  const { setSubscriptionForOrg } = useSubscriptionStore.getState();
+  const { upsertSubscription } = useSubscriptionStore.getState();
   const { setCounterForOrg } = useCounterStore.getState();
   if (!orgId) {
     throw new Error('OrgId does not exist');
@@ -167,7 +167,7 @@ export const checkStatus = async (orgId: string | null) => {
     }
     const orgBilling = normalizeSubscription(orgId, current);
     const orgUsage = normalizeCounter(orgId, current, snapshots);
-    setSubscriptionForOrg(orgId, orgBilling);
+    upsertSubscription(orgBilling);
     setCounterForOrg(orgId, orgUsage);
     return { orgBilling, orgUsage };
   } catch (err: any) {

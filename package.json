@@ -47,6 +47,7 @@
   "pnpm": {
     "overrides": {
       "protobufjs": "8.8.0",
+      "@axe-core/playwright>playwright-core": "1.63.0",
       "@protobufjs/utf8": "1.1.1",
       "qs": "6.16.0",
       "serialize-javascript": "7.0.5",
@@ -120,7 +121,8 @@
       "@opentelemetry/sdk-trace-base@2.2.0": "2.8.0",
       "protobufjs@7.5.5": "8.8.0",
       "qs@6.14.2": "6.16.0",
-      "shell-quote@1.8.3": "1.9.0",
+      "shell-quote@1.8.3": "1.11.0",
+      "shell-quote@1": "1.11.0",
       "tmp@0.2.5": "0.2.7",
       "undici@7.24.0": "7.29.1",
       "vite@7.3.3": "7.3.5",
@@ -131,7 +133,7 @@
       "multer": "2.4.0",
       "aws-cdk-lib": "2.270.0",
       "@babel/core@7.29.0": "7.29.6",
-      "next": "15.5.25",
+      "next": "15.5.27",
       "sitemap": "9.0.0",
       "@tiptap/core@<3.30.5": "3.30.5",
       "@jsonjoy.com/fs-snapshot@<=4.57.7": "4.57.7",
@@ -177,6 +179,13 @@
       "cosmiconfig-typescript-loader>typescript": "5.9.3",
       "@noble/hashes@1": "2.4.0",
       "image-size": "2.0.3"
+    },
+    "packageExtensions": {
+      "react-native-bootsplash": {
+        "dependencies": {
+          "semver": "^7.7.4"
+        }
+      }
     },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch",

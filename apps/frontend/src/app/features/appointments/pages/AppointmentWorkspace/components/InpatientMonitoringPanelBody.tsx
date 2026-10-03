@@ -1,7 +1,7 @@
 'use client';
 
 // no-story: Exercised through InpatientMonitoringPanel.stories.tsx with the full data flow.
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import { Button, Text } from '@/app/ui';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import { usePermissions } from '@/app/hooks/usePermissions';
@@ -169,7 +169,7 @@ type PanelContentProps = {
   isSaving: boolean;
   formError: string | null;
   onOpenForm: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onSave: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
   onCloseForm: () => void;
 };
 

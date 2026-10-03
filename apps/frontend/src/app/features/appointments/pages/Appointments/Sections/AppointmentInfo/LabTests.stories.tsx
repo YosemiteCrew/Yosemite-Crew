@@ -413,12 +413,11 @@ const meta = {
           'The IDEXX lab panel inside an appointment: the order builder (reference lab or ' +
           'in-house), the order and requisition status, and the returned results with their ' +
           'reference-range meters. Everything here is our own UI over our own service layer - ' +
-          'nothing vendor-hosted is embedded except the ordering frame, which these stories ' +
-          'deliberately never open.\n\n' +
-          'Two actions are left unclicked on purpose. **Create IDEXX order** opens the vendor ' +
-          'ordering iframe against a live vetconnectplus URL the moment the POST returns, and ' +
-          '**Follow up / Continue** does the same, so the stories assert the enabled/disabled ' +
-          'contract around those buttons instead of firing them.\n\n' +
+          'nothing vendor-hosted is embedded. IDEXX ordering opens in its own browser tab.\n\n' +
+          '**Create IDEXX order** and **Follow up / Continue** open a dialog with a link that ' +
+          'launches IDEXX in a new tab, and start polling the order until IDEXX reports it ' +
+          'submitted. The dialog has its own stories under `Appointments/IdexxOrderLaunchDialog`, ' +
+          'so these stories assert the enabled/disabled contract around those buttons.\n\n' +
           'Read the states from the Canvas rather than the Docs page: every example shares one ' +
           'org store and one axios adapter, so on Docs the last story to mount wins.',
       },
@@ -670,7 +669,7 @@ export const OrderSubmitted: Story = {
     // The older order's uiUrl is on a host outside the IDEXX allowlist, so
     // `getSafeIdexxIframeUrl` returns nothing and the action must be inert. This
     // is the silent one: the button looks identical either way, and a regression
-    // in the allowlist would only show as a frame pointed at an arbitrary host.
+    // in the allowlist would only show as a link pointed at an arbitrary host.
     await expect(canvas.getByRole('button', { name: 'Continue' })).toBeDisabled();
 
     // Same story for the acknowledgment: the submitted order has a PDF, the

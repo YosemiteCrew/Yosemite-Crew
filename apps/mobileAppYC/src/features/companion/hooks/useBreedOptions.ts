@@ -42,6 +42,8 @@ export interface UseBreedOptionsResult {
   retryBreeds: () => void;
 }
 
+const NO_BREEDS: Breed[] = [];
+
 export const useBreedOptions = ({
   category,
   speciesQueryFor,
@@ -51,6 +53,18 @@ export const useBreedOptions = ({
   const [breedOptions, setBreedOptions] = useState<Breed[]>([]);
   const [breedLoadFailed, setBreedLoadFailed] = useState(false);
   const [breedLoading, setBreedLoading] = useState(false);
+
+  // Clearing the category resets the picker in the same render, so choosing a
+  // new category afterwards never starts from the old species' breeds.
+  const [previousCategory, setPreviousCategory] = useState(category);
+  if (category !== previousCategory) {
+    setPreviousCategory(category);
+    if (!category) {
+      setBreedOptions([]);
+      setBreedLoadFailed(false);
+      setBreedLoading(false);
+    }
+  }
 
   // Bumped on every lookup. A response only wins while its ticket is still the
   // current one, so switching category mid-flight cannot land the old
@@ -118,9 +132,6 @@ export const useBreedOptions = ({
       // Invalidate anything in flight, so a late response cannot repopulate the
       // picker after the user cleared the category.
       requestTicket.current += 1;
-      setBreedOptions([]);
-      setBreedLoadFailed(false);
-      setBreedLoading(false);
       return;
     }
 
@@ -135,5 +146,15 @@ export const useBreedOptions = ({
     load(category).catch(() => undefined);
   }, [category, breedLoading, load]);
 
+  // Without a category there is nothing to show, even if a response raced the
+  // invalidation above.
+  if (!category) {
+    return {
+      breedOptions: NO_BREEDS,
+      breedLoadFailed: false,
+      breedLoading: false,
+      retryBreeds,
+    };
+  }
   return {breedOptions, breedLoadFailed, breedLoading, retryBreeds};
 };

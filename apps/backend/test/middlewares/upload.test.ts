@@ -11,6 +11,7 @@ import {
   setupLifecyclePolicy,
   generatePresignedDownloadUrl,
   isAllowedMimeType,
+  isValidPdfUpload,
   ATTACHMENT_MIME_TYPES,
   IMAGE_ONLY_MIME_TYPES,
 } from "../../src/middlewares/upload";
@@ -112,6 +113,27 @@ describe("Upload Middleware", () => {
 
     it("returns empty string for unknown mime types", () => {
       expect(mimeTypeToExtension("unknown/type")).toBe("");
+    });
+  });
+
+  describe("isValidPdfUpload", () => {
+    it("accepts only real PDF files no larger than 20 MB", () => {
+      const validFile = {
+        mimetype: "application/pdf",
+        size: 8,
+        data: Buffer.from("%PDF-1.7"),
+      };
+
+      expect(isValidPdfUpload(validFile)).toBe(true);
+      expect(
+        isValidPdfUpload({ ...validFile, data: Buffer.from("not pdf") }),
+      ).toBe(false);
+      expect(isValidPdfUpload({ ...validFile, mimetype: "image/png" })).toBe(
+        false,
+      );
+      expect(
+        isValidPdfUpload({ ...validFile, size: 20 * 1024 * 1024 + 1 }),
+      ).toBe(false);
     });
   });
 

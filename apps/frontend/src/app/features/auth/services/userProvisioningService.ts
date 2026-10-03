@@ -26,16 +26,17 @@ export const provisionBackendUser = async (): Promise<boolean> => {
         role: pendingSignUp.role,
       }
     : undefined;
-  for (let attempt = 0; attempt < PROVISION_MAX_ATTEMPTS; attempt++) {
+
+  for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt++) {
     try {
+      if (attempt > 1) {
+        await delay(PROVISION_RETRY_BASE_MS * (attempt - 1));
+      }
       await postData('/fhir/v1/user', body);
       return true;
     } catch (error) {
       if (isAuthRedirectError(error)) throw error;
-      logger.warn(`Backend user provisioning attempt ${attempt + 1} failed`, error);
-      if (attempt < PROVISION_MAX_ATTEMPTS - 1) {
-        await delay(PROVISION_RETRY_BASE_MS * 2 ** attempt);
-      }
+      logger.warn(`Backend user provisioning attempt ${attempt} failed`, error);
     }
   }
   return false;

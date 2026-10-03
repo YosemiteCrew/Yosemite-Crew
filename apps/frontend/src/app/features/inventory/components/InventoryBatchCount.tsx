@@ -41,14 +41,12 @@ const isCountable = (batch: BatchValues) => {
   return Number.isNaN(expiresAt) || expiresAt > Date.now();
 };
 
-const InventoryBatchCount = ({
+const useInventoryBatchCount = ({
   organisationId,
   itemId,
-  itemName,
   batches,
-  disabled = false,
   onRefresh,
-}: InventoryBatchCountProps) => {
+}: Pick<InventoryBatchCountProps, 'organisationId' | 'itemId' | 'batches' | 'onRefresh'>) => {
   const countableBatches = batches.filter(isCountable);
   const [isOpen, setIsOpen] = useState(false);
   const [scanValue, setScanValue] = useState('');
@@ -143,6 +141,209 @@ const InventoryBatchCount = ({
     }
   };
 
+  return {
+    canSubmit,
+    countableBatches,
+    countNotes,
+    error,
+    handleRecord,
+    handleResolve,
+    handleScanChange,
+    isOpen,
+    isSaving,
+    message,
+    pendingCount,
+    physicalCount,
+    resetCount,
+    resolutionNotes,
+    scanValue,
+    selectedBatch,
+    selectedBatchId,
+    setCountNotes,
+    setIsOpen,
+    setPhysicalCount,
+    setResolutionNotes,
+    setSelectedBatchId,
+  };
+};
+
+type CountEntryProps = Pick<
+  ReturnType<typeof useInventoryBatchCount>,
+  | 'canSubmit'
+  | 'countableBatches'
+  | 'countNotes'
+  | 'handleRecord'
+  | 'handleScanChange'
+  | 'isSaving'
+  | 'physicalCount'
+  | 'scanValue'
+  | 'selectedBatch'
+  | 'selectedBatchId'
+  | 'setCountNotes'
+  | 'setPhysicalCount'
+  | 'setSelectedBatchId'
+> & {
+  onCancel: () => void;
+};
+
+const CountEntry = ({
+  canSubmit,
+  countableBatches,
+  countNotes,
+  handleRecord,
+  handleScanChange,
+  isSaving,
+  onCancel,
+  physicalCount,
+  scanValue,
+  selectedBatch,
+  selectedBatchId,
+  setCountNotes,
+  setPhysicalCount,
+  setSelectedBatchId,
+}: CountEntryProps) => (
+  <>
+    <label className="flex flex-col gap-1.5">
+      <Text as="span" variant="caption-1" className="text-text-secondary">
+        Scan barcode or enter batch number
+      </Text>
+      <Input
+        placeholder="Scan or enter a batch"
+        value={scanValue}
+        onChange={(event) => handleScanChange(event.target.value)}
+        list="inventory-count-batches"
+        autoComplete="off"
+      />
+      <datalist id="inventory-count-batches">
+        {countableBatches.map((batch, index) => (
+          <option key={batch._id} value={batch.barcode || batch.batch || batch.serial || ''}>
+            {getBatchLabel(batch, index)}
+          </option>
+        ))}
+      </datalist>
+    </label>
+    <label className="flex flex-col gap-1.5">
+      <Text as="span" variant="caption-1" className="text-text-secondary">
+        Batch
+      </Text>
+      <select
+        aria-label="Batch"
+        className="h-10 rounded-xl border border-input-border-default bg-screen px-3 text-body-4 text-text-primary focus:border-input-border-active focus:outline-none"
+        value={selectedBatchId}
+        onChange={(event) => setSelectedBatchId(event.target.value)}
+      >
+        <option value="">Choose a batch</option>
+        {countableBatches.map((batch, index) => (
+          <option key={batch._id} value={batch._id}>
+            {getBatchLabel(batch, index)}
+          </option>
+        ))}
+      </select>
+    </label>
+    {selectedBatch && (
+      <Text variant="caption-1" className="text-text-secondary">
+        System quantity: {selectedBatch.quantity ?? 'Not available'}
+        {selectedBatch.allocated ? ` · ${selectedBatch.allocated} allocated` : ''}
+      </Text>
+    )}
+    <label className="flex flex-col gap-1.5">
+      <Text as="span" variant="caption-1" className="text-text-secondary">
+        Counted quantity
+      </Text>
+      <Input
+        type="number"
+        min="0"
+        step="1"
+        placeholder="Enter the physical count"
+        value={physicalCount}
+        onChange={(event) => setPhysicalCount(event.target.value)}
+      />
+    </label>
+    <label className="flex flex-col gap-1.5">
+      <Text as="span" variant="caption-1" className="text-text-secondary">
+        Notes (optional)
+      </Text>
+      <Textarea
+        aria-label="Count notes (optional)"
+        value={countNotes}
+        onChange={(event) => setCountNotes(event.target.value)}
+        placeholder="Add context for this count"
+      />
+    </label>
+    <div className="flex flex-wrap gap-2">
+      <Primary
+        href="#"
+        text={isSaving ? 'Saving…' : 'Record count'}
+        onClick={handleRecord}
+        isDisabled={!canSubmit || isSaving}
+      />
+      <Secondary href="#" text="Cancel" onClick={onCancel} isDisabled={isSaving} />
+    </div>
+  </>
+);
+
+type CountResolutionProps = Pick<
+  ReturnType<typeof useInventoryBatchCount>,
+  'handleResolve' | 'isSaving' | 'pendingCount' | 'resolutionNotes' | 'setResolutionNotes'
+> & { itemName: string };
+
+const CountResolution = ({
+  handleResolve,
+  isSaving,
+  itemName,
+  pendingCount,
+  resolutionNotes,
+  setResolutionNotes,
+}: CountResolutionProps) => {
+  if (!pendingCount) return null;
+  return (
+    <div className="flex flex-col gap-3 rounded-xl bg-[var(--inset)] p-4">
+      <Text as="h4" variant="body-4-emphasis" className="text-text-primary">
+        {itemName}: {pendingCount.systemCount} in stock, {pendingCount.physicalCount} counted
+      </Text>
+      <Text variant="body-4" className="text-text-secondary">
+        Difference: {pendingCount.discrepancy > 0 ? '+' : ''}
+        {pendingCount.discrepancy}
+      </Text>
+      <label className="flex flex-col gap-1.5">
+        <Text as="span" variant="caption-1" className="text-text-secondary">
+          Reason if stock stays unchanged
+        </Text>
+        <Textarea
+          aria-label="Reason if stock stays unchanged"
+          value={resolutionNotes}
+          onChange={(event) => setResolutionNotes(event.target.value)}
+          placeholder="Explain why stock should remain unchanged"
+        />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <Primary
+          href="#"
+          text={isSaving ? 'Saving…' : 'Adjust stock to count'}
+          onClick={() => handleResolve('STOCK_ADJUSTED')}
+          isDisabled={isSaving}
+        />
+        <Secondary
+          href="#"
+          text="Leave stock unchanged"
+          onClick={() => handleResolve('NO_CHANGE')}
+          isDisabled={isSaving}
+        />
+      </div>
+    </div>
+  );
+};
+
+const InventoryBatchCount = ({
+  organisationId,
+  itemId,
+  itemName,
+  batches,
+  disabled = false,
+  onRefresh,
+}: InventoryBatchCountProps) => {
+  const { countableBatches, error, isOpen, message, pendingCount, resetCount, ...flow } =
+    useInventoryBatchCount({ organisationId, itemId, batches, onRefresh });
   if (countableBatches.length === 0) return null;
 
   return (
@@ -160,7 +361,7 @@ const InventoryBatchCount = ({
           <Secondary
             href="#"
             text="Start count"
-            onClick={() => setIsOpen(true)}
+            onClick={() => flow.setIsOpen(true)}
             isDisabled={disabled}
           />
         )}
@@ -169,134 +370,17 @@ const InventoryBatchCount = ({
       {isOpen && (
         <div className="mt-4 flex flex-col gap-4">
           {!pendingCount && !message && (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <Text as="span" variant="caption-1" className="text-text-secondary">
-                  Scan barcode or enter batch number
-                </Text>
-                <Input
-                  placeholder="Scan or enter a batch"
-                  value={scanValue}
-                  onChange={(event) => handleScanChange(event.target.value)}
-                  list="inventory-count-batches"
-                  autoComplete="off"
-                />
-                <datalist id="inventory-count-batches">
-                  {countableBatches.map((batch, index) => (
-                    <option
-                      key={batch._id}
-                      value={batch.barcode || batch.batch || batch.serial || ''}
-                    >
-                      {getBatchLabel(batch, index)}
-                    </option>
-                  ))}
-                </datalist>
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <Text as="span" variant="caption-1" className="text-text-secondary">
-                  Batch
-                </Text>
-                <select
-                  aria-label="Batch"
-                  className="h-10 rounded-xl border border-input-border-default bg-screen px-3 text-body-4 text-text-primary focus:border-input-border-active focus:outline-none"
-                  value={selectedBatchId}
-                  onChange={(event) => setSelectedBatchId(event.target.value)}
-                >
-                  <option value="">Choose a batch</option>
-                  {countableBatches.map((batch, index) => (
-                    <option key={batch._id} value={batch._id}>
-                      {getBatchLabel(batch, index)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {selectedBatch && (
-                <Text variant="caption-1" className="text-text-secondary">
-                  System quantity: {selectedBatch.quantity ?? 'Not available'}
-                  {selectedBatch.allocated ? ` · ${selectedBatch.allocated} allocated` : ''}
-                </Text>
-              )}
-              <label className="flex flex-col gap-1.5">
-                <Text as="span" variant="caption-1" className="text-text-secondary">
-                  Counted quantity
-                </Text>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="Enter the physical count"
-                  value={physicalCount}
-                  onChange={(event) => setPhysicalCount(event.target.value)}
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <Text as="span" variant="caption-1" className="text-text-secondary">
-                  Notes (optional)
-                </Text>
-                <Textarea
-                  aria-label="Count notes (optional)"
-                  value={countNotes}
-                  onChange={(event) => setCountNotes(event.target.value)}
-                  placeholder="Add context for this count"
-                />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <Primary
-                  href="#"
-                  text={isSaving ? 'Saving…' : 'Record count'}
-                  onClick={handleRecord}
-                  isDisabled={!canSubmit || isSaving}
-                />
-                <Secondary
-                  href="#"
-                  text="Cancel"
-                  onClick={() => {
-                    resetCount();
-                    setIsOpen(false);
-                  }}
-                  isDisabled={isSaving}
-                />
-              </div>
-            </>
+            <CountEntry
+              {...flow}
+              countableBatches={countableBatches}
+              onCancel={() => {
+                resetCount();
+                flow.setIsOpen(false);
+              }}
+            />
           )}
 
-          {pendingCount ? (
-            <div className="flex flex-col gap-3 rounded-xl bg-[var(--inset)] p-4">
-              <Text as="h4" variant="body-4-emphasis" className="text-text-primary">
-                {itemName}: {pendingCount.systemCount} in stock, {pendingCount.physicalCount}{' '}
-                counted
-              </Text>
-              <Text variant="body-4" className="text-text-secondary">
-                Difference: {pendingCount.discrepancy > 0 ? '+' : ''}
-                {pendingCount.discrepancy}
-              </Text>
-              <label className="flex flex-col gap-1.5">
-                <Text as="span" variant="caption-1" className="text-text-secondary">
-                  Reason if stock stays unchanged
-                </Text>
-                <Textarea
-                  aria-label="Reason if stock stays unchanged"
-                  value={resolutionNotes}
-                  onChange={(event) => setResolutionNotes(event.target.value)}
-                  placeholder="Explain why stock should remain unchanged"
-                />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <Primary
-                  href="#"
-                  text={isSaving ? 'Saving…' : 'Adjust stock to count'}
-                  onClick={() => handleResolve('STOCK_ADJUSTED')}
-                  isDisabled={isSaving}
-                />
-                <Secondary
-                  href="#"
-                  text="Leave stock unchanged"
-                  onClick={() => handleResolve('NO_CHANGE')}
-                  isDisabled={isSaving}
-                />
-              </div>
-            </div>
-          ) : null}
+          <CountResolution {...flow} itemName={itemName} pendingCount={pendingCount} />
 
           {message && (
             <div className="flex flex-wrap items-center justify-between gap-3">

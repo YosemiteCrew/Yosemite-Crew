@@ -1,9 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PdfDocUploader from '@/app/ui/widgets/UploadImage/PdfDocUploader';
-import axios from 'axios';
-
-jest.mock('axios');
 
 jest.mock('react-icons/io5', () => ({
   IoCloudUploadOutline: () => <span data-testid="icon-cloud" />,
@@ -14,7 +11,7 @@ jest.mock('react-icons/io5', () => ({
 describe('PdfDocUploader', () => {
   const mockOnChange = jest.fn();
   const mockSetFile = jest.fn();
-  const mockGetSignedUrl = jest.fn();
+  const mockUploadFile = jest.fn();
   const placeholder = 'Upload PDF';
 
   const createPdfFile = (name = 'test.pdf', size = 1024) => {
@@ -34,7 +31,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     expect(screen.getByText(placeholder)).toBeInTheDocument();
@@ -49,7 +46,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={file}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     expect(screen.getByText('preview.pdf')).toBeInTheDocument();
@@ -63,7 +60,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -73,8 +70,7 @@ describe('PdfDocUploader', () => {
   });
 
   it('uploads a valid pdf: sets file, requests signed url, uploads to s3, and calls onChange', async () => {
-    mockGetSignedUrl.mockResolvedValue({ uploadUrl: 'https://s3.url', s3Key: 'uploads/test.pdf' });
-    (axios.put as jest.Mock).mockResolvedValue({});
+    mockUploadFile.mockResolvedValue({ s3Key: 'uploads/test.pdf' });
 
     render(
       <PdfDocUploader
@@ -82,7 +78,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
 
@@ -94,17 +90,12 @@ describe('PdfDocUploader', () => {
     });
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
-    expect(mockGetSignedUrl).toHaveBeenCalledWith(file);
-    expect(axios.put).toHaveBeenCalledWith('https://s3.url', file, {
-      headers: { 'Content-Type': 'application/pdf' },
-      withCredentials: false,
-    });
+    expect(mockUploadFile).toHaveBeenCalledWith(file);
     expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024);
   });
 
   it('handles a file drop the same as a picked file', async () => {
-    mockGetSignedUrl.mockResolvedValue({ uploadUrl: 'https://s3.url', s3Key: 'key' });
-    (axios.put as jest.Mock).mockResolvedValue({});
+    mockUploadFile.mockResolvedValue({ s3Key: 'key' });
 
     render(
       <PdfDocUploader
@@ -112,7 +103,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
 
@@ -125,7 +116,7 @@ describe('PdfDocUploader', () => {
     });
 
     expect(mockSetFile).toHaveBeenCalledWith(file);
-    expect(mockGetSignedUrl).toHaveBeenCalledWith(file);
+    expect(mockUploadFile).toHaveBeenCalledWith(file);
   });
 
   it('ignores non-pdf files', async () => {
@@ -135,7 +126,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const invalidFile = new File(['content'], 'test.png', { type: 'image/png' });
@@ -146,7 +137,7 @@ describe('PdfDocUploader', () => {
     });
 
     expect(mockSetFile).not.toHaveBeenCalled();
-    expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    expect(mockUploadFile).not.toHaveBeenCalled();
   });
 
   it('ignores pdf files over the 20MB size limit', async () => {
@@ -156,7 +147,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const largeFile = createPdfFile('large.pdf', 21 * 1024 * 1024);
@@ -176,7 +167,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -191,7 +182,7 @@ describe('PdfDocUploader', () => {
   it('logs the error and skips onChange when the upload flow rejects', async () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     const error = new Error('signed url failed');
-    mockGetSignedUrl.mockRejectedValue(error);
+    mockUploadFile.mockRejectedValue(error);
 
     render(
       <PdfDocUploader
@@ -199,7 +190,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={null}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     const file = createPdfFile();
@@ -222,7 +213,7 @@ describe('PdfDocUploader', () => {
         onChange={mockOnChange}
         file={file}
         setFile={mockSetFile}
-        getSignedUrl={mockGetSignedUrl}
+        uploadFile={mockUploadFile}
       />
     );
     fireEvent.click(screen.getByTestId('icon-trash').closest('button')!);

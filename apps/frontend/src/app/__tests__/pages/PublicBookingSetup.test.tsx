@@ -738,6 +738,29 @@ describe('PublicBookingSetup', () => {
       );
     });
 
+    it('follows the stored publish setting once it loads, even after an earlier toggle', async () => {
+      let release: (value: unknown) => void = () => {};
+      getConfigMock.mockReturnValue(
+        new Promise((resolve) => {
+          release = resolve;
+        })
+      );
+      render(<PublicBookingSetup />);
+      fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
+      const toggle = screen.getByRole('switch', { name: 'Open my booking page' });
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+
+      await act(async () => {
+        release(config({ configured: true, publicBookingEnabled: false }));
+      });
+
+      expect(screen.getByRole('switch', { name: 'Open my booking page' })).toHaveAttribute(
+        'aria-checked',
+        'false'
+      );
+    });
+
     it('reports a save failure without claiming anything was stored', async () => {
       saveConfigMock.mockRejectedValue(new Error('500'));
       await goToBranding();

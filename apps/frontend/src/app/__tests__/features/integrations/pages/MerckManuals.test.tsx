@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -44,8 +44,14 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled, className }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled} className={className}>
+  Primary: ({ text, onClick, isDisabled, className, ariaLabel }: any) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isDisabled}
+      className={className}
+      aria-label={ariaLabel}
+    >
       {text}
     </button>
   ),
@@ -64,11 +70,6 @@ jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
       <input aria-label={inlabel || inname} value={value} onChange={onChange} />
     </label>
   ),
-}));
-
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
-  __esModule: true,
-  default: () => <span>close</span>,
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
@@ -106,6 +107,7 @@ jest.mock('@/app/lib/date', () => ({
 }));
 
 describe('MerckManuals page', () => {
+  let openSpy: jest.SpyInstance;
   const baseEntry = {
     id: 'entry-1',
     title: 'Canine Fever',
@@ -136,6 +138,11 @@ describe('MerckManuals page', () => {
     Object.assign(navigator, {
       clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
     });
+    openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
+  });
+
+  afterEach(() => {
+    openSpy.mockRestore();
   });
 
   it('shows disabled state when integration is disabled', () => {
@@ -167,7 +174,8 @@ describe('MerckManuals page', () => {
       })
     );
     expect(screen.getByText('Canine Fever')).toBeInTheDocument();
-    expect(screen.getByText('Open')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Canine Fever in a new tab' })).toBeEnabled();
+    expect(screen.getByText('Manual pages open in a new tab.')).toBeInTheDocument();
   });
 
   it('aligns the search row along the bottom with a 48px Search button, matching the field height (regression for search-row alignment)', () => {
@@ -231,29 +239,17 @@ describe('MerckManuals page', () => {
     await waitFor(() => expect(screen.getByText('Unable to copy URL.')).toBeInTheDocument());
   });
 
-  it('opens and closes embedded reader for allowed URLs', async () => {
+  it('opens the manual in a new tab from Open, without an in-app frame', async () => {
     render(<ProtectedMerckManuals />);
     fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
     fireEvent.click(screen.getByText('Search'));
 
     await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Open'));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Canine Fever in a new tab' }));
 
-    await waitFor(() => expect(screen.getByTitle('Canine Fever')).toBeInTheDocument());
-    expect(document.body.querySelector('[data-merck-reader-overlay="true"]')).toHaveClass(
-      'fixed',
-      'inset-0',
-      'z-10000'
-    );
-    expect(screen.getByTitle('Canine Fever')).toHaveAttribute('referrerpolicy', 'strict-origin');
-    // Without allow-same-origin, MSD's app throws reading document.cookie and the
-    // frame hangs on its own loader forever.
-    expect(screen.getByTitle('Canine Fever')).toHaveAttribute(
-      'sandbox',
-      'allow-scripts allow-popups allow-forms allow-same-origin'
-    );
-    fireEvent.click(screen.getByLabelText('Close Merck reader'));
-    await waitFor(() => expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument());
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(baseEntry.primaryUrl, '_blank', 'noopener,noreferrer');
+    expect(document.querySelector('iframe')).toBeNull();
   });
 
   it('shows blocked URL error for disallowed open action', async () => {
@@ -269,6 +265,7 @@ describe('MerckManuals page', () => {
     expect(
       screen.getByText('Blocked URL: only Merck/MSD Vet Manual links are allowed.')
     ).toBeInTheDocument();
+    expect(openSpy).not.toHaveBeenCalled();
   });
 
   it('auto-searches when q query param exists and integration is enabled', async () => {
@@ -335,30 +332,6 @@ describe('MerckManuals page', () => {
     expect(await screen.findByText('1 results for “fever”')).toBeInTheDocument();
   });
 
-  it('renders the reader chrome with the audience badge and copies from the reader', async () => {
-    render(<ProtectedMerckManuals />);
-    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
-    fireEvent.click(screen.getByText('Search'));
-
-    await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Open'));
-
-    await waitFor(() => expect(screen.getByTitle('Canine Fever')).toBeInTheDocument());
-    const overlay = document.body.querySelector(
-      '[data-merck-reader-overlay="true"]'
-    ) as HTMLElement;
-    expect(within(overlay).getByText('PROFESSIONAL')).toBeInTheDocument();
-    expect(
-      within(overlay).getByText(
-        "Content © MSD Veterinary Manual · displayed under your clinic's integration"
-      )
-    ).toBeInTheDocument();
-
-    fireEvent.click(within(overlay).getByRole('button', { name: 'Copy manual URL' }));
-    await waitFor(() => expect(screen.getByText('Copied URL to clipboard.')).toBeInTheDocument());
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(baseEntry.primaryUrl);
-  });
-
   it('re-runs the search when the audience changes after a query', async () => {
     render(<ProtectedMerckManuals />);
     fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
@@ -406,121 +379,22 @@ describe('MerckManuals page', () => {
     expect(await screen.findByText('Unable to search manuals right now.')).toBeInTheDocument();
   });
 
-  it('clears the reader loader once the iframe finishes loading', async () => {
+  it('opens the result title and sub-topic pills in a new tab', async () => {
     render(<ProtectedMerckManuals />);
     fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
     fireEvent.click(screen.getByText('Search'));
     await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByText('Open'));
-    const iframe = await screen.findByTitle('Canine Fever');
-    expect(screen.getByText(/Fetching/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Overview (opens in a new tab)' }));
+    expect(openSpy).toHaveBeenLastCalledWith(
+      baseEntry.subLinks[0].url,
+      '_blank',
+      'noopener,noreferrer'
+    );
 
-    fireEvent.load(iframe);
-    await waitFor(() => expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument());
-  });
-
-  it('falls back to open-in-new-tab when the reader load times out (framing refused)', async () => {
-    jest.useFakeTimers();
-    try {
-      render(<ProtectedMerckManuals />);
-      fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
-      fireEvent.click(screen.getByText('Search'));
-      await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByText('Open'));
-      await screen.findByTitle('Canine Fever');
-      expect(screen.getByText(/Fetching/)).toBeInTheDocument();
-
-      act(() => {
-        jest.advanceTimersByTime(12000);
-      });
-
-      const fallback = screen.getByText('This manual didn’t load').closest('div') as HTMLElement;
-      expect(fallback).toBeInTheDocument();
-      // The infinite spinner and the un-renderable iframe are both gone.
-      expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument();
-      expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument();
-      // The fallback reuses the "Open in new tab" action pointing at the original URL.
-      const fallbackLink = within(fallback).getByRole('link', { name: /Open in new tab/ });
-      expect(fallbackLink).toHaveAttribute('href', baseEntry.primaryUrl);
-      expect(fallbackLink).toHaveAttribute('target', '_blank');
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  it('does not fall back when the iframe loads before the timeout elapses', async () => {
-    jest.useFakeTimers();
-    try {
-      render(<ProtectedMerckManuals />);
-      fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
-      fireEvent.click(screen.getByText('Search'));
-      await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByText('Open'));
-      const iframe = await screen.findByTitle('Canine Fever');
-
-      act(() => {
-        fireEvent.load(iframe);
-      });
-      act(() => {
-        jest.advanceTimersByTime(12000);
-      });
-
-      expect(screen.queryByText('This manual didn’t load')).not.toBeInTheDocument();
-      expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument();
-      expect(screen.getByTitle('Canine Fever')).toBeInTheDocument();
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  it('resets the blocked fallback when a new reader is opened', async () => {
-    jest.useFakeTimers();
-    try {
-      render(<ProtectedMerckManuals />);
-      fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
-      fireEvent.click(screen.getByText('Search'));
-      await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByText('Open'));
-      await screen.findByTitle('Canine Fever');
-      act(() => {
-        jest.advanceTimersByTime(12000);
-      });
-      expect(screen.getByText('This manual didn’t load')).toBeInTheDocument();
-
-      fireEvent.click(screen.getByLabelText('Close Merck reader'));
-      fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-
-      expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
-      expect(screen.queryByText('This manual didn’t load')).not.toBeInTheDocument();
-      expect(screen.getByText(/Fetching/)).toBeInTheDocument();
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  it('opens the reader from the title button, sub-topic pill and supports open-in-new-tab', async () => {
-    const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
-    render(<ProtectedMerckManuals />);
-    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
-    fireEvent.click(screen.getByText('Search'));
-    await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
-
-    fireEvent.click(screen.getByTitle('Open in new tab'));
-    expect(openSpy).toHaveBeenCalledWith(baseEntry.primaryUrl, '_blank', 'noopener,noreferrer');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Close Merck reader'));
-    await waitFor(() => expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole('button', { name: 'Canine Fever' }));
-    expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
-
-    openSpy.mockRestore();
+    fireEvent.click(screen.getByRole('button', { name: 'Canine Fever (opens in a new tab)' }));
+    expect(openSpy).toHaveBeenLastCalledWith(baseEntry.primaryUrl, '_blank', 'noopener,noreferrer');
+    expect(openSpy).toHaveBeenCalledTimes(2);
   });
 
   it('renders a fallback summary when an entry has no summary text', async () => {

@@ -16,6 +16,11 @@ export type BaseButtonProps = {
   /** Render the icon after the text (e.g. trailing "→"). Defaults to `left`. */
   iconPosition?: 'left' | 'right';
   href?: string;
+  /**
+   * `_blank` opens `href` in a new browser tab, with `rel="noopener noreferrer"`
+   * so the opened page gets no handle back to this one.
+   */
+  target?: '_blank';
   onClick?: React.MouseEventHandler<HTMLAnchorElement | HTMLButtonElement>;
   style?: React.CSSProperties;
   className?: string;
@@ -48,6 +53,7 @@ const BaseButton = ({
   icon,
   iconPosition = 'left',
   href,
+  target,
   onClick,
   style,
   className,
@@ -79,6 +85,8 @@ const BaseButton = ({
     return (
       <Link
         href={normalizedHref}
+        target={target}
+        rel={target ? 'noopener noreferrer' : undefined}
         aria-disabled={isDisabled}
         tabIndex={isDisabled ? -1 : undefined}
         aria-label={ariaLabel}

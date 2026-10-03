@@ -136,6 +136,17 @@ describe('NetworkDirectory', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('keeps the unavailable state when the notification itself fails', async () => {
+    (listDirectory as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    mockNotify.mockImplementationOnce(() => {
+      throw new Error('notification unavailable');
+    });
+
+    render(<NetworkDirectory />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Clinic directory unavailable');
+  });
+
   it('reports unavailable when the API answers 200 but flags the authority as unreachable', async () => {
     // The backend degrades gracefully rather than erroring, so a successful
     // response can still mean "could not load". Without honouring the flag this
