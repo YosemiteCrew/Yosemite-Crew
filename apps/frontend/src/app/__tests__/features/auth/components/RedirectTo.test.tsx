@@ -14,4 +14,19 @@ describe('RedirectTo', () => {
     expect(redirectMock).toHaveBeenCalledWith('/dashboard');
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('keeps the query and hash of a same-origin path', () => {
+    render(<RedirectTo route="/appointments?view=day#top" />);
+    expect(redirectMock).toHaveBeenCalledWith('/appointments?view=day#top');
+  });
+
+  it.each([
+    'https://evil.example/path',
+    '//evil.example',
+    '/\t/evil.example',
+    'javascript:alert(1)',
+  ])('sends %s to the home page instead of leaving the app', (route) => {
+    render(<RedirectTo route={route} />);
+    expect(redirectMock).toHaveBeenCalledWith('/');
+  });
 });
