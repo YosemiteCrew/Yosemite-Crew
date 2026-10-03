@@ -14,6 +14,7 @@ import "./migration-audit.worker";
 import "./superadmin-contact.worker";
 import "./developer-meter.worker";
 import "./care-reminder.worker";
+import "./report-delivery.worker";
 import logger from "src/utils/logger";
 
 logger.info("👷 BullMQ workers running...");

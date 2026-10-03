@@ -1229,8 +1229,51 @@ model Organization {
   practiceWebsite     PracticeWebsite?
   bookingSlugHistory  BookingSlugReservation[]
   publicBookingRequests PublicBookingRequest[]
+  savedReportViews    SavedReportView[]
+  reportSchedules     ReportDeliverySchedule[]
 
   @@index([googlePlacesId, name])
+}
+
+model SavedReportView {
+  id             String   @id @default(uuid())
+  organisationId String
+  createdBy      String
+  name           String
+  reportType     String
+  parameters     Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organization             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  schedules    ReportDeliverySchedule[]
+
+  @@unique([organisationId, name])
+  @@index([organisationId, createdAt])
+}
+
+model ReportDeliverySchedule {
+  id             String    @id @default(uuid())
+  organisationId String
+  viewId         String
+  recipients     String[]
+  cronExpression String
+  timezone       String
+  active         Boolean   @default(true)
+  nextRunAt      DateTime
+  claimUntil     DateTime?
+  lastRunAt      DateTime?
+  lastSuccessAt  DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organisation Organization    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  view         SavedReportView @relation(fields: [viewId], references: [id], onDelete: Cascade)
+
+  @@index([active, nextRunAt])
+  @@index([organisationId, createdAt])
+  @@index([viewId])
 }
 
 model PracticeProfileField {
