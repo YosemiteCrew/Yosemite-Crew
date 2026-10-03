@@ -38,6 +38,7 @@ const db = new PrismaClient({
 const mockReceiptDb = db;
 const firstDate = new Date("2026-09-18T10:00:00.000Z");
 const laterDate = new Date("2026-09-20T10:00:00.000Z");
+const legacyId = randomUUID();
 
 beforeAll(async () => {
   await admin.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
@@ -96,6 +97,50 @@ beforeAll(async () => {
     },
   );
   if (result.status !== 0) throw new Error(result.stderr || result.stdout);
+  await db.providerReceipt.create({
+    data: {
+      id: legacyId,
+      provider: "STRIPE",
+      merchantAccountRef: "legacy",
+      paymentRef: "legacy",
+      amount: 100,
+      currency: "gbp",
+      capturedAt: firstDate,
+      refundedAmount: 50,
+    },
+  });
+  await db.$executeRawUnsafe(
+    'ALTER TABLE "ProviderReceipt" DROP COLUMN "undatedRefundAmount"',
+  );
+  const completeness = spawnSync(
+    process.execPath,
+    [
+      require.resolve("prisma/build/index.js"),
+      "db",
+      "execute",
+      "--stdin",
+      "--schema",
+      resolve(root, "packages/database/prisma/schema.prisma"),
+    ],
+    {
+      cwd: root,
+      input: readFileSync(
+        resolve(
+          root,
+          "packages/database/prisma/migrations/20261003220000_undated_receipt_refunds/migration.sql",
+        ),
+        "utf8",
+      ),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        DATABASE_URL: connection.toString(),
+        DIRECT_URL: connection.toString(),
+      },
+    },
+  );
+  if (completeness.status !== 0)
+    throw new Error(completeness.stderr || completeness.stdout);
 }, 30_000);
 
 afterAll(async () => {
@@ -240,4 +285,61 @@ it("retains dated refund history when its receipt is removed", async () => {
   expect(await history(receipt.id)).toMatchObject([
     { cumulativeAmount: 20, occurredAt: firstDate },
   ]);
+});
+
+it("preserves pre-existing undated refunds when a newer total arrives", async () => {
+  const receipt = await db.providerReceipt.findUniqueOrThrow({
+    where: { id: legacyId },
+  });
+  expect(receipt.undatedRefundAmount).toBe(50);
+  expect(await refund(receipt, 70, "newer", laterDate)).toMatchObject({
+    applied: true,
+    refundedAmount: 70,
+  });
+  expect(
+    await db.providerReceipt.findUnique({ where: { id: legacyId } }),
+  ).toMatchObject({ refundedAmount: 70, undatedRefundAmount: 50 });
+});
+
+it("preserves a refund without a notification while accepting later dated totals", async () => {
+  const receipt = await createReceipt();
+  expect(
+    await ProviderReceiptService.recordRefund({
+      provider: receipt.provider,
+      merchantAccountRef: receipt.merchantAccountRef,
+      paymentRef: receipt.paymentRef,
+      currency: receipt.currency,
+      refundedAmount: 20,
+    }),
+  ).toMatchObject({ applied: true });
+  await refund(receipt, 70, "later", laterDate);
+  expect(
+    await db.providerReceipt.findUnique({ where: { id: receipt.id } }),
+  ).toMatchObject({ refundedAmount: 70, undatedRefundAmount: 20 });
+});
+
+it("keeps dated concurrent refund retries free of undated amounts", async () => {
+  const receipt = await createReceipt();
+  await Promise.all([
+    refund(receipt, 20, "first", firstDate),
+    refund(receipt, 20, "first", firstDate),
+  ]);
+  expect(
+    await db.providerReceipt.findUnique({ where: { id: receipt.id } }),
+  ).toMatchObject({ refundedAmount: 20, undatedRefundAmount: 0 });
+});
+
+it("preserves undated refunds on imported receipts", async () => {
+  const receipt = await db.providerReceipt.create({
+    data: {
+      provider: "STRIPE",
+      merchantAccountRef: randomUUID(),
+      paymentRef: randomUUID(),
+      amount: 100,
+      currency: "gbp",
+      capturedAt: firstDate,
+      refundedAmount: 30,
+    },
+  });
+  expect(receipt.undatedRefundAmount).toBe(30);
 });

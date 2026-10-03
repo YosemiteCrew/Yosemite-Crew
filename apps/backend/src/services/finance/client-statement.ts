@@ -88,6 +88,7 @@ export type StatementReceipt = {
   amount: number;
   allocatedAmount: number;
   refundedAmount: number;
+  undatedRefundAmount?: number;
   capturedAt: Date;
   refunds: Array<{
     id: string;
@@ -454,6 +455,7 @@ const receiptMovements = (
     refunded = refund.cumulativeAmount;
   }
   if (
+    receipt.undatedRefundAmount ||
     quantize(currency, refunded) !== quantize(currency, receipt.refundedAmount)
   )
     throw incompleteReceiptHistory();
@@ -1059,6 +1061,7 @@ export const ClientStatementService = {
             capturedAt: true,
             allocatedAmount: true,
             refundedAmount: true,
+            undatedRefundAmount: true,
           },
         });
         const refundWhere = {

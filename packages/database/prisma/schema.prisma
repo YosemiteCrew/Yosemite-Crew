@@ -7598,6 +7598,7 @@ model ProviderReceipt {
   /// way so a redelivered or out-of-order refund webhook is absorbed by
   /// comparison instead of being added twice.
   refundedAmount     Float                 @default(0)
+  undatedRefundAmount Float                @default(0)
   /// How much of this capture an operator has applied to invoices, cumulative
   /// over every allocation against it. The residual an operator may still
   /// allocate is `amount - refundedAmount - allocatedAmount`, and that

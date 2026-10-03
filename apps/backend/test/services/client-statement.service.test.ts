@@ -2230,6 +2230,49 @@ describe("receipt account movements", () => {
       where: { receiptId: { in: ["receipt-1"] } },
     });
   });
+  it("refuses a later cumulative refund that contains undated earlier refunds", () => {
+    expect(() =>
+      build([
+        receipt({
+          refundedAmount: 70,
+          undatedRefundAmount: 50,
+          refunds: [
+            {
+              id: "later",
+              cumulativeAmount: 70,
+              currency: "gbp",
+              occurredAt: new Date("2026-09-10"),
+            },
+          ],
+        }),
+      ]),
+    ).toThrow("A receipt is missing its dated payment history.");
+  });
+  it("loads undated refund evidence before storing a statement", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([paidInvoice()]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      {
+        ...receipt({ refundedAmount: 70, undatedRefundAmount: 50 }),
+        provider: "STRIPE",
+        paymentRef: "capture-1",
+      },
+    ]);
+    mockedPrisma.providerReceiptRefund.findMany.mockResolvedValue([
+      {
+        id: "later",
+        receiptId: "receipt-1",
+        cumulativeAmount: 70,
+        currency: "gbp",
+        occurredAt: new Date("2026-09-10"),
+      },
+    ]);
+    await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+    expect(
+      mockedPrisma.providerReceipt.findMany.mock.calls[0][0].select
+        .undatedRefundAmount,
+    ).toBe(true);
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
   it("loads dated refunds into stored account balances", async () => {
     mockedPrisma.invoice.findMany.mockResolvedValue([paidInvoice()]);
     mockedPrisma.providerReceipt.findMany.mockResolvedValue([

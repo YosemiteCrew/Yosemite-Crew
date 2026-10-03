@@ -21,6 +21,8 @@ Past statements can distinguish successive partial refunds. The current total an
 
 Older refunds without dated evidence remain incomplete rather than being assigned an invented date. Statements for those periods require the missing records to be recovered.
 
+Keep the known undated refund amount on each receipt, including refunds already present when dated history starts. Recording a newer cumulative total does not erase that amount. Refund totals can still advance, but statements remain unavailable until the missing dates are recovered. Receipt writes preserve undated amounts in the same database operation.
+
 ## Alternatives considered
 
 Using the latest total for every period was rejected because it changes past balances. Recording only increases as notifications arrive was rejected because it loses earlier events delivered late.
