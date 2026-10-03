@@ -874,8 +874,10 @@ const persistTreatmentSave = async ({
     new Map(saved.prescriptions.map((prescription) => [prescription.id, prescription])).values()
   );
   setPrescriptions(appointmentId, deduped);
-  const finalizeFailure = await getFinalizeFailure(organisationId, saved.inHouseArtifacts);
-  const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
+  const [finalizeFailure, bootstrap] = await Promise.all([
+    getFinalizeFailure(organisationId, saved.inHouseArtifacts),
+    getAppointmentWorkspaceBootstrap(organisationId, appointmentId),
+  ]);
   mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
   if (finalizeFailure) throw finalizeFailure;
 };
