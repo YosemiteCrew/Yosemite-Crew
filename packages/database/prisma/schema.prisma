@@ -4394,6 +4394,22 @@ model ClientPaymentTerm {
   @@index([organisationId])
 }
 
+model ClientStatement {
+  id             String   @id @default(uuid())
+  organisationId String
+  parentId       String
+  periodStart    DateTime
+  periodEnd      DateTime
+  idempotencyKey String
+  generatedById  String
+  snapshot       Json
+  createdAt      DateTime @default(now())
+
+  @@unique([organisationId, parentId, idempotencyKey])
+  @@index([organisationId, parentId, createdAt])
+  @@index([organisationId, id])
+}
+
 model InvoiceTaxSnapshot {
   id                  String       @id @default(uuid())
   invoiceId           String       @unique

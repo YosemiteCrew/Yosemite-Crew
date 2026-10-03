@@ -20,6 +20,10 @@ import { StripeService } from "../../src/services/stripe.service";
 import { ProviderReceiptService } from "../../src/services/finance/provider-receipt";
 import { ProviderReceiptAuditService } from "../../src/services/finance/provider-receipt-audit";
 import { ClientAccountService } from "../../src/services/finance/client-account";
+import {
+  ClientStatementError,
+  ClientStatementService,
+} from "../../src/services/finance/client-statement";
 import { encodeKeysetCursor } from "../../src/services/shared/pagination";
 import { Request, Response } from "express";
 
@@ -165,6 +169,22 @@ jest.mock("../../src/services/finance/client-account", () => ({
     getAccountCredit: jest.fn(),
     proposeAllocation: jest.fn(),
     applyAllocation: jest.fn(),
+  },
+}));
+jest.mock("../../src/services/finance/client-statement", () => ({
+  __esModule: true,
+  ClientStatementService: {
+    generate: jest.fn(),
+    getById: jest.fn(),
+  },
+  ClientStatementError: class ClientStatementError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "ClientStatementError";
+    }
   },
 }));
 jest.mock("src/utils/logger", () => ({
@@ -2680,5 +2700,177 @@ describe("FinanceController.applyClientAccountAllocation", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
+  });
+
+  describe("client statements", () => {
+    const ORG_ID = "11111111-1111-4111-8111-111111111111";
+    const PARENT_ID = "22222222-2222-4222-8222-222222222222";
+    const STATEMENT_ID = "33333333-3333-4333-8333-333333333333";
+    const buildStatementReq = (overrides: Partial<Request> = {}) =>
+      ({
+        params: { organisationId: ORG_ID, parentId: PARENT_ID },
+        organisationId: ORG_ID,
+        userId: "staff-1",
+        body: {
+          periodStart: "2026-01-01T00:00:00Z",
+          periodEnd: "2026-02-01T00:00:00Z",
+          idempotencyKey: "statement-1",
+        },
+        ...overrides,
+      }) as unknown as Request;
+    const buildStatementRes = () =>
+      ({
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      }) as unknown as Response;
+
+    it("generates a statement for the authorized client account", async () => {
+      const record = { id: STATEMENT_ID };
+      (ClientStatementService.generate as jest.Mock).mockResolvedValue(record);
+      const res = buildStatementRes();
+
+      await FinanceController.generateClientStatement(buildStatementReq(), res);
+
+      expect(ClientStatementService.generate).toHaveBeenCalledWith({
+        organisationId: ORG_ID,
+        parentId: PARENT_ID,
+        generatedById: "staff-1",
+        idempotencyKey: "statement-1",
+        periodStart: new Date("2026-01-01T00:00:00Z"),
+        periodEnd: new Date("2026-02-01T00:00:00Z"),
+      });
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ data: record, error: null });
+    });
+
+    it("requires a verified actor before generating a statement", async () => {
+      const res = buildStatementRes();
+
+      await FinanceController.generateClientStatement(
+        buildStatementReq({ userId: undefined } as Partial<Request>),
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(ClientStatementService.generate).not.toHaveBeenCalled();
+    });
+
+    it("rejects malformed statement input", async () => {
+      const res = buildStatementRes();
+
+      await FinanceController.generateClientStatement(
+        buildStatementReq({ body: { periodStart: "not-a-date" } }),
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(ClientStatementService.generate).not.toHaveBeenCalled();
+    });
+
+    it("returns statement service errors without losing their status", async () => {
+      (ClientStatementService.generate as jest.Mock).mockRejectedValue(
+        new ClientStatementError("Period conflict", 409),
+      );
+      const res = buildStatementRes();
+
+      await FinanceController.generateClientStatement(buildStatementReq(), res);
+
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({ message: "Period conflict" });
+    });
+
+    it("returns an internal error when statement generation fails unexpectedly", async () => {
+      (ClientStatementService.generate as jest.Mock).mockRejectedValue(
+        new Error("database unavailable"),
+      );
+      const res = buildStatementRes();
+
+      await FinanceController.generateClientStatement(buildStatementReq(), res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
+    });
+
+    it("reads the same stored statement by its scoped id", async () => {
+      const record = { id: STATEMENT_ID };
+      (ClientStatementService.getById as jest.Mock).mockResolvedValue(record);
+      const res = buildStatementRes();
+      const req = buildStatementReq({
+        params: {
+          organisationId: ORG_ID,
+          parentId: PARENT_ID,
+          statementId: STATEMENT_ID,
+        },
+      });
+
+      await FinanceController.getClientStatement(req, res);
+
+      expect(ClientStatementService.getById).toHaveBeenCalledWith({
+        organisationId: ORG_ID,
+        parentId: PARENT_ID,
+        statementId: STATEMENT_ID,
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ data: record, error: null });
+    });
+
+    it("answers a missing stored statement with not found", async () => {
+      (ClientStatementService.getById as jest.Mock).mockResolvedValue(null);
+      const res = buildStatementRes();
+      const req = buildStatementReq({
+        params: {
+          organisationId: ORG_ID,
+          parentId: PARENT_ID,
+          statementId: STATEMENT_ID,
+        },
+      });
+
+      await FinanceController.getClientStatement(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it("rejects a malformed statement id", async () => {
+      const res = buildStatementRes();
+
+      await FinanceController.getClientStatement(
+        buildStatementReq({
+          params: {
+            organisationId: ORG_ID,
+            parentId: PARENT_ID,
+            statementId: "not-a-statement-id",
+          },
+        }),
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(ClientStatementService.getById).not.toHaveBeenCalled();
+    });
+
+    it("returns an internal error when statement readback fails", async () => {
+      (ClientStatementService.getById as jest.Mock).mockRejectedValue(
+        new Error("database unavailable"),
+      );
+      const res = buildStatementRes();
+
+      await FinanceController.getClientStatement(
+        buildStatementReq({
+          params: {
+            organisationId: ORG_ID,
+            parentId: PARENT_ID,
+            statementId: STATEMENT_ID,
+          },
+        }),
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
+    });
   });
 });
