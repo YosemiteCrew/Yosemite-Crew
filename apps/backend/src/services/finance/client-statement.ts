@@ -1,9 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
-import {
-  quantizeMoney,
-  resolveLedgerExponent,
-} from "src/services/finance/currency";
+import { roundMoney } from "src/services/finance/pricing";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const INCLUDED_PAYMENT_STATUSES = [
@@ -96,7 +93,7 @@ export class ClientStatementError extends Error {
 const currencyKey = (currency: string): string => currency.trim().toLowerCase();
 
 const quantize = (currency: string, value: number): number =>
-  quantizeMoney(value, resolveLedgerExponent(currency));
+  roundMoney(value, currency);
 
 const add = (currency: string, left: number, right: number): number =>
   quantize(currency, left + right);
@@ -150,12 +147,16 @@ const buildInvoiceMovements = (
       currency,
     }),
   ];
-  let paidAtPeriodEnd = 0;
+  let collectedAtPeriodEnd = 0;
 
   for (const payment of invoice.payments) {
     const paymentAt = payment.paidAt ?? payment.createdAt;
     if (paymentAt <= periodEnd) {
-      paidAtPeriodEnd = add(currency, paidAtPeriodEnd, payment.amount);
+      collectedAtPeriodEnd = add(
+        currency,
+        collectedAtPeriodEnd,
+        payment.amount,
+      );
     }
     movements.push(
       movement({
@@ -169,9 +170,6 @@ const buildInvoiceMovements = (
       }),
     );
     for (const refund of payment.refunds) {
-      if (refund.createdAt <= periodEnd) {
-        paidAtPeriodEnd = add(currency, paidAtPeriodEnd, -refund.amount);
-      }
       movements.push(
         movement({
           id: `refund:${refund.id}`,
@@ -188,7 +186,7 @@ const buildInvoiceMovements = (
 
   const depositFallback = quantize(
     currency,
-    Math.max(0, invoice.depositCollectedAmount - paidAtPeriodEnd),
+    Math.max(0, invoice.depositCollectedAmount - collectedAtPeriodEnd),
   );
   if (depositFallback > 0 && invoice.paidAt && invoice.paidAt <= periodEnd) {
     movements.push(
@@ -385,7 +383,11 @@ const findIdempotentStatement = (input: {
 }) =>
   prisma.clientStatement.findUnique({
     where: {
-      organisationId_parentId_idempotencyKey: input,
+      organisationId_parentId_idempotencyKey: {
+        organisationId: input.organisationId,
+        parentId: input.parentId,
+        idempotencyKey: input.idempotencyKey,
+      },
     },
   });
 
