@@ -61,7 +61,7 @@ describe("pesticideRecordRetention", () => {
       pesticideRecordRetention({
         recordClass: "disposal",
         latestEventOn: "2026-02-28",
-        governedByRcra: false,
+        rcraCompliance: "not-governed",
       }),
     ).toEqual({
       keepUntil: "2046-02-28",
@@ -71,18 +71,48 @@ describe("pesticideRecordRetention", () => {
     });
   });
 
-  it("does not add a duplicate disposal duty when RCRA governs the record", () => {
+  it("does not add a duplicate disposal duty when RCRA compliance is met", () => {
     expect(
       pesticideRecordRetention({
         recordClass: "disposal",
         latestEventOn: "2026-02-28",
-        governedByRcra: true,
+        rcraCompliance: "complying",
       }),
     ).toEqual({
       keepUntil: null,
       mayForwardAfter: null,
       awaitingConfirmation: false,
       reason: "governed-by-rcra",
+    });
+  });
+
+  it("applies 20-year retention when disposal is governed by RCRA but not complying", () => {
+    expect(
+      pesticideRecordRetention({
+        recordClass: "disposal",
+        latestEventOn: "2026-02-28",
+        rcraCompliance: "not-complying",
+      }),
+    ).toEqual({
+      keepUntil: "2046-02-28",
+      mayForwardAfter: "2029-02-28",
+      awaitingConfirmation: true,
+      reason: "twenty-years-or-forward-after-three",
+    });
+  });
+
+  it("applies 20-year retention when disposal is not governed by RCRA", () => {
+    expect(
+      pesticideRecordRetention({
+        recordClass: "disposal",
+        latestEventOn: "2026-02-28",
+        rcraCompliance: "not-governed",
+      }),
+    ).toEqual({
+      keepUntil: "2046-02-28",
+      mayForwardAfter: "2029-02-28",
+      awaitingConfirmation: true,
+      reason: "twenty-years-or-forward-after-three",
     });
   });
 
@@ -137,6 +167,20 @@ describe("pesticideRecordRetention", () => {
       }),
     ).toThrow(RangeError);
   });
+
+  it("keeps inventory records until replaced by a current inventory", () => {
+    expect(
+      pesticideRecordRetention({
+        recordClass: "inventory",
+        latestEventOn: "2026-02-28",
+      }),
+    ).toEqual({
+      keepUntil: null,
+      mayForwardAfter: null,
+      awaitingConfirmation: true,
+      reason: "until-replaced-by-current-inventory",
+    });
+  });
 });
 
 describe("pesticideNoticeDueOn", () => {
@@ -189,7 +233,11 @@ describe("pesticideNoticeDueOn", () => {
     ],
     [
       "emergency-suspension follow-up",
-      { kind: "emergency-suspension", effectiveOn: "2026-01-01" } as const,
+      {
+        kind: "emergency-suspension",
+        effectiveOn: "2026-01-01",
+        precedesIntentToCancel: true,
+      } as const,
       "2026-04-01",
     ],
     [
@@ -258,6 +306,18 @@ describe("pesticideNoticeDueOn", () => {
         "2026-01-02",
       ),
     ).toThrow(RangeError);
+  });
+
+  it("throws when emergency-suspension does not precede intent-to-cancel", () => {
+    expect(() =>
+      pesticideNoticeDueOn({
+        kind: "emergency-suspension",
+        effectiveOn: "2026-01-01",
+        precedesIntentToCancel: false,
+      }),
+    ).toThrow(
+      "Emergency suspension follow-up only applies when it precedes an intent-to-cancel notice",
+    );
   });
 });
 

@@ -21,6 +21,9 @@ export const FIXED_RETENTION_RECORD_CLASSES = [
 export type FixedRetentionRecordClass =
   (typeof FIXED_RETENTION_RECORD_CLASSES)[number];
 
+export type RcraComplianceState =
+  "complying" | "not-complying" | "not-governed";
+
 export type PesticideRecordRetentionInput =
   | {
       recordClass: FixedRetentionRecordClass;
@@ -31,9 +34,10 @@ export type PesticideRecordRetentionInput =
   | {
       recordClass: "disposal";
       latestEventOn: string;
-      governedByRcra: boolean;
+      rcraCompliance: RcraComplianceState;
     }
   | { recordClass: "human-test"; latestEventOn: string }
+  | { recordClass: "inventory"; latestEventOn: string }
   | {
       recordClass: "research-data";
       registrationValid: boolean;
@@ -50,7 +54,8 @@ export type PesticideRecordRetention = {
     | "two-years-after-contract-expiry"
     | "twenty-years-or-forward-after-three"
     | "governed-by-rcra"
-    | "while-registration-valid-and-company-in-business";
+    | "while-registration-valid-and-company-in-business"
+    | "until-replaced-by-current-inventory";
 };
 
 /**
@@ -88,7 +93,7 @@ export const pesticideRecordRetention = (
         reason: "two-years-after-contract-expiry",
       };
     case "disposal":
-      if (record.governedByRcra) {
+      if (record.rcraCompliance === "complying") {
         return {
           keepUntil: null,
           mayForwardAfter: null,
@@ -108,6 +113,13 @@ export const pesticideRecordRetention = (
         mayForwardAfter: addCalendarYears(record.latestEventOn, 3),
         awaitingConfirmation: true,
         reason: "twenty-years-or-forward-after-three",
+      };
+    case "inventory":
+      return {
+        keepUntil: null,
+        mayForwardAfter: null,
+        awaitingConfirmation: true,
+        reason: "until-replaced-by-current-inventory",
       };
     case "research-data":
       return {
@@ -133,7 +145,11 @@ export type PesticideNotice =
     }
   | { kind: "conditional-registration"; receivedOn: string }
   | { kind: "imminent-hazard-suspension"; receivedOn: string }
-  | { kind: "emergency-suspension"; effectiveOn: string }
+  | {
+      kind: "emergency-suspension";
+      effectiveOn: string;
+      precedesIntentToCancel: boolean;
+    }
   | { kind: "missed-data-suspension"; receivedOn: string }
   | { kind: "voluntary-cancellation-comment"; publishedOn: string }
   | { kind: "minor-use-cancellation-wait"; publishedOn: string }
@@ -158,6 +174,11 @@ export const pesticideNoticeDueOn = (notice: PesticideNotice): string => {
     case "imminent-hazard-suspension":
       return addCalendarDays(notice.receivedOn, 5);
     case "emergency-suspension":
+      if (!notice.precedesIntentToCancel) {
+        throw new Error(
+          "Emergency suspension follow-up only applies when it precedes an intent-to-cancel notice",
+        );
+      }
       return addCalendarDays(notice.effectiveOn, 90);
     case "missed-data-suspension":
       return addCalendarDays(notice.receivedOn, 30);
