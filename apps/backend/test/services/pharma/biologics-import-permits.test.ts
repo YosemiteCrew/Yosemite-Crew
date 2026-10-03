@@ -10,46 +10,65 @@ import {
   type ImportPermit,
 } from "../../../src/services/pharma/biologics-import-permits";
 
-const permit: ImportPermit = {
+const basePermit: ImportPermit = {
   purpose: "distribution-sale",
+  productId: "product-1",
   holderId: "importer-1",
   status: "active",
+  issuedOn: "2026-06-01",
   useBy: "2026-06-30",
   shipmentIds: [],
 };
 
-const shipment = {
+const baseShipment = {
   id: "shipment-1",
-  arrivalOn: "2026-06-30",
+  arrivalOn: "2026-06-15",
   importerId: "importer-1",
+  productId: "product-1",
+  intendedPurpose: "distribution-sale" as const,
+  originCountry: "CA",
+  destinationCountry: "US",
+  carrier: "Air Canada",
+  transferSchedule: null,
 };
 
 describe("canUsePermitForShipment", () => {
   it("allows the first shipment on the permit's last usable day", () => {
-    expect(canUsePermitForShipment(permit, shipment)).toEqual({
+    expect(canUsePermitForShipment(basePermit, baseShipment)).toEqual({
       allowed: true,
     });
   });
 
   it("refuses a permit with no usable date", () => {
     expect(
-      canUsePermitForShipment({ ...permit, useBy: null }, shipment),
+      canUsePermitForShipment({ ...basePermit, useBy: null }, baseShipment),
     ).toEqual({ allowed: false, reason: "permit-date-required" });
   });
 
   it("refuses an arrival after the permit date", () => {
     expect(
-      canUsePermitForShipment(permit, {
-        ...shipment,
+      canUsePermitForShipment(basePermit, {
+        ...baseShipment,
         arrivalOn: "2026-07-01",
       }),
     ).toEqual({ allowed: false, reason: "permit-expired" });
   });
 
+  it("refuses an arrival before the permit issuance date", () => {
+    expect(
+      canUsePermitForShipment(basePermit, {
+        ...baseShipment,
+        arrivalOn: "2026-05-31",
+      }),
+    ).toEqual({ allowed: false, reason: "permit-not-yet-issued" });
+  });
+
   it.each(["suspended", "revoked"] as const)(
     "refuses a %s permit",
     (status) => {
-      expect(canUsePermitForShipment({ ...permit, status }, shipment)).toEqual({
+      expect(
+        canUsePermitForShipment({ ...basePermit, status }, baseShipment),
+      ).toEqual({
         allowed: false,
         reason: "permit-not-active",
       });
@@ -58,18 +77,36 @@ describe("canUsePermitForShipment", () => {
 
   it("refuses an importer other than the permit holder", () => {
     expect(
-      canUsePermitForShipment(permit, {
-        ...shipment,
+      canUsePermitForShipment(basePermit, {
+        ...baseShipment,
         importerId: "affiliate-2",
       }),
     ).toEqual({ allowed: false, reason: "permit-holder-mismatch" });
   });
 
+  it("refuses a shipment with a different product than the permit", () => {
+    expect(
+      canUsePermitForShipment(basePermit, {
+        ...baseShipment,
+        productId: "product-2",
+      }),
+    ).toEqual({ allowed: false, reason: "product-mismatch" });
+  });
+
+  it("refuses a shipment with a different intended purpose than the permit", () => {
+    expect(
+      canUsePermitForShipment(basePermit, {
+        ...baseShipment,
+        intendedPurpose: "research-evaluation",
+      }),
+    ).toEqual({ allowed: false, reason: "purpose-mismatch" });
+  });
+
   it("refuses a second shipment without a covering authorisation", () => {
     expect(
       canUsePermitForShipment(
-        { ...permit, shipmentIds: ["shipment-1"] },
-        { ...shipment, id: "shipment-2" },
+        { ...basePermit, shipmentIds: ["shipment-1"] },
+        { ...baseShipment, id: "shipment-2" },
       ),
     ).toEqual({
       allowed: false,
@@ -77,9 +114,19 @@ describe("canUsePermitForShipment", () => {
     });
   });
 
+  it("allows the original shipment when rechecked after being recorded", () => {
+    const permitWithRecordedShipment: ImportPermit = {
+      ...basePermit,
+      shipmentIds: ["shipment-1"],
+    };
+    expect(
+      canUsePermitForShipment(permitWithRecordedShipment, baseShipment),
+    ).toEqual({ allowed: true });
+  });
+
   it("allows only the shipments and dates named by a successive-shipment authorisation", () => {
     const successivePermit: ImportPermit = {
-      ...permit,
+      ...basePermit,
       shipmentIds: ["shipment-1"],
       successiveShipmentAuthorisation: {
         shipmentIds: ["shipment-2"],
@@ -89,13 +136,13 @@ describe("canUsePermitForShipment", () => {
     };
     expect(
       canUsePermitForShipment(successivePermit, {
-        ...shipment,
+        ...baseShipment,
         id: "shipment-2",
       }),
     ).toEqual({ allowed: true });
     expect(
       canUsePermitForShipment(successivePermit, {
-        ...shipment,
+        ...baseShipment,
         id: "shipment-3",
       }),
     ).toEqual({
@@ -104,23 +151,117 @@ describe("canUsePermitForShipment", () => {
     });
     expect(
       canUsePermitForShipment(successivePermit, {
-        ...shipment,
+        ...baseShipment,
         id: "shipment-2",
-        arrivalOn: "2026-05-31",
+        arrivalOn: "2026-06-01",
+      }),
+    ).toEqual({
+      allowed: true,
+    });
+    expect(
+      canUsePermitForShipment(successivePermit, {
+        ...baseShipment,
+        id: "shipment-2",
+        arrivalOn: "2026-06-30",
+      }),
+    ).toEqual({
+      allowed: true,
+    });
+    expect(
+      canUsePermitForShipment(successivePermit, {
+        ...baseShipment,
+        id: "shipment-2",
+        arrivalOn: "2026-07-01",
       }),
     ).toEqual({
       allowed: false,
-      reason: "successive-shipment-authorisation-required",
+      reason: "permit-expired",
     });
   });
 
   it("refuses malformed arrival and permit dates", () => {
     expect(() =>
-      canUsePermitForShipment(permit, { ...shipment, arrivalOn: "tomorrow" }),
+      canUsePermitForShipment(basePermit, {
+        ...baseShipment,
+        arrivalOn: "tomorrow",
+      }),
     ).toThrow(RangeError);
     expect(() =>
-      canUsePermitForShipment({ ...permit, useBy: "2026-02-30" }, shipment),
+      canUsePermitForShipment(
+        { ...basePermit, useBy: "2026-02-30" },
+        baseShipment,
+      ),
     ).toThrow(RangeError);
+    expect(() =>
+      canUsePermitForShipment(
+        { ...basePermit, issuedOn: "not-a-date" },
+        baseShipment,
+      ),
+    ).toThrow(RangeError);
+  });
+
+  describe("transit-only permits", () => {
+    const transitPermit: ImportPermit = {
+      ...basePermit,
+      purpose: "transit-only",
+    };
+    const transitShipment = {
+      ...baseShipment,
+      intendedPurpose: "transit-only" as const,
+      originCountry: "CA",
+      destinationCountry: "MX",
+      carrier: "FedEx",
+      transferSchedule: {
+        transferPort: "LAX",
+        scheduledDeparture: "2026-06-20",
+        forwardingAccount: "FWD-123",
+      },
+    };
+
+    it("allows a valid transit shipment", () => {
+      expect(canUsePermitForShipment(transitPermit, transitShipment)).toEqual({
+        allowed: true,
+      });
+    });
+
+    it("refuses transit shipment with same origin and destination", () => {
+      expect(
+        canUsePermitForShipment(transitPermit, {
+          ...transitShipment,
+          destinationCountry: "CA",
+        }),
+      ).toEqual({ allowed: false, reason: "transit-routing-invalid" });
+    });
+
+    it("refuses transit shipment without carrier", () => {
+      expect(
+        canUsePermitForShipment(transitPermit, {
+          ...transitShipment,
+          carrier: undefined,
+        }),
+      ).toEqual({
+        allowed: false,
+        reason: "transit-carrier-confinement-required",
+      });
+    });
+
+    it("refuses transit shipment without transfer schedule", () => {
+      expect(
+        canUsePermitForShipment(transitPermit, {
+          ...transitShipment,
+          transferSchedule: null,
+        }),
+      ).toEqual({ allowed: false, reason: "transit-schedule-required" });
+    });
+
+    it("refuses transit shipment with distribution-sale purpose", () => {
+      expect(
+        canUsePermitForShipment(transitPermit, {
+          ...transitShipment,
+          intendedPurpose: "distribution-sale",
+        }),
+      ).toEqual({ allowed: false, reason: "purpose-mismatch" });
+    });
   });
 });
 
@@ -159,64 +300,148 @@ describe("application and serial controls", () => {
         madeAtUsEstablishment: false,
         inVitroReturn: false,
         permitHolderIsProducer: false,
+        productIsLicensed: true,
+        isSmallQuantity: true,
+        endangersLivestockOrPoultry: false,
       }),
     ).toEqual({ allowed: true });
   });
 
-  it("allows a domestic serial only for an in-vitro research return held by its producer", () => {
+  it("allows a domestic serial only for an in-vitro research return held by its producer with all conditions met", () => {
     expect(
       canImportDomesticSerial({
         purpose: "research-evaluation",
         madeAtUsEstablishment: true,
         inVitroReturn: true,
         permitHolderIsProducer: true,
+        productIsLicensed: true,
+        isSmallQuantity: true,
+        endangersLivestockOrPoultry: false,
       }),
     ).toEqual({ allowed: true });
-    for (const input of [
-      {
+  });
+
+  it.each([
+    {
+      name: "wrong purpose (distribution-sale)",
+      input: {
         purpose: "distribution-sale" as const,
         inVitroReturn: true,
         permitHolderIsProducer: true,
+        productIsLicensed: true,
+        isSmallQuantity: true,
+        endangersLivestockOrPoultry: false,
       },
-      {
+      reason: "domestic-serial-not-importable",
+    },
+    {
+      name: "not in-vitro return",
+      input: {
         purpose: "research-evaluation" as const,
         inVitroReturn: false,
         permitHolderIsProducer: true,
+        productIsLicensed: true,
+        isSmallQuantity: true,
+        endangersLivestockOrPoultry: false,
       },
-      {
+      reason: "domestic-serial-not-importable",
+    },
+    {
+      name: "holder is not producer",
+      input: {
         purpose: "research-evaluation" as const,
         inVitroReturn: true,
         permitHolderIsProducer: false,
+        productIsLicensed: true,
+        isSmallQuantity: true,
+        endangersLivestockOrPoultry: false,
       },
-    ]) {
-      expect(
-        canImportDomesticSerial({ ...input, madeAtUsEstablishment: true }),
-      ).toEqual({
-        allowed: false,
-        reason: "domestic-serial-not-importable",
-      });
-    }
+      reason: "domestic-serial-not-importable",
+    },
+    {
+      name: "unlicensed product",
+      input: {
+        purpose: "research-evaluation" as const,
+        inVitroReturn: true,
+        permitHolderIsProducer: true,
+        productIsLicensed: false,
+        isSmallQuantity: true,
+        endangersLivestockOrPoultry: false,
+      },
+      reason: "unlicensed-product",
+    },
+    {
+      name: "quantity exceeds small lot",
+      input: {
+        purpose: "research-evaluation" as const,
+        inVitroReturn: true,
+        permitHolderIsProducer: true,
+        productIsLicensed: true,
+        isSmallQuantity: false,
+        endangersLivestockOrPoultry: false,
+      },
+      reason: "quantity-exceeds-small-lot",
+    },
+    {
+      name: "endangers livestock or poultry",
+      input: {
+        purpose: "research-evaluation" as const,
+        inVitroReturn: true,
+        permitHolderIsProducer: true,
+        productIsLicensed: true,
+        isSmallQuantity: true,
+        endangersLivestockOrPoultry: true,
+      },
+      reason: "endangers-livestock-poultry",
+    },
+  ])("refuses domestic serial when $name", ({ input, reason }) => {
+    expect(
+      canImportDomesticSerial({ ...input, madeAtUsEstablishment: true }),
+    ).toEqual({ allowed: false, reason });
   });
 
-  it("keeps each imported serial quarantined until that shipment is released", () => {
+  it("keeps each imported serial quarantined until that shipment and serial is released", () => {
     expect(
       importedSerialAvailability({
         purpose: "distribution-sale",
         shipmentId: "shipment-1",
+        serialNumber: "serial-A",
       }),
     ).toBe("quarantined");
     expect(
       importedSerialAvailability({
         purpose: "distribution-sale",
         shipmentId: "shipment-2",
-        release: { shipmentId: "shipment-1", releasedOn: "2026-06-10" },
+        serialNumber: "serial-B",
+        release: {
+          shipmentId: "shipment-1",
+          serialNumbers: ["serial-A"],
+          releasedOn: "2026-06-10",
+        },
       }),
     ).toBe("quarantined");
     expect(
       importedSerialAvailability({
         purpose: "distribution-sale",
         shipmentId: "shipment-1",
-        release: { shipmentId: "shipment-1", releasedOn: "2026-06-10" },
+        serialNumber: "serial-B",
+        release: {
+          shipmentId: "shipment-1",
+          serialNumbers: ["serial-A"],
+          releasedOn: "2026-06-10",
+        },
+      }),
+    ).toBe("quarantined");
+    expect(
+      importedSerialAvailability({
+        purpose: "distribution-sale",
+        shipmentId: "shipment-1",
+        serialNumber: "serial-A",
+        release: {
+          shipmentId: "shipment-1",
+          serialNumbers: ["serial-A"],
+          releasedOn: "2026-06-10",
+        },
       }),
     ).toBe("released");
   });
@@ -228,7 +453,12 @@ describe("application and serial controls", () => {
         importedSerialAvailability({
           purpose,
           shipmentId: "shipment-1",
-          release: { shipmentId: "shipment-1", releasedOn: "2026-06-10" },
+          serialNumber: "serial-A",
+          release: {
+            shipmentId: "shipment-1",
+            serialNumbers: ["serial-A"],
+            releasedOn: "2026-06-10",
+          },
         }),
       ).toBe("quarantined");
     },
@@ -239,35 +469,113 @@ describe("research transfers", () => {
   const authorisations = [
     {
       destinationId: "trial-site-1",
+      productId: "product-1",
+      serialNumbers: ["serial-A", "serial-B"],
+      authorizedQuantity: 100,
       validFrom: "2026-06-01",
       validUntil: "2026-06-30",
     },
   ];
 
-  it("allows a destination covered on the transfer date", () => {
+  it("allows a destination covered on the transfer date with matching product, serials, and quantity", () => {
     expect(
       canTransferResearchStock({
         destinationId: "trial-site-1",
-        transferOn: "2026-06-30",
+        productId: "product-1",
+        serialNumbers: ["serial-A"],
+        quantity: 50,
+        transferOn: "2026-06-15",
         authorisations,
       }),
     ).toEqual({ allowed: true });
   });
 
-  it.each([
-    ["trial-site-2", "2026-06-15"],
-    ["trial-site-1", "2026-07-01"],
-  ])("refuses uncovered destination %s on %s", (destinationId, transferOn) => {
+  it("refuses when destination is not authorised", () => {
     expect(
       canTransferResearchStock({
-        destinationId,
-        transferOn,
+        destinationId: "trial-site-2",
+        productId: "product-1",
+        serialNumbers: ["serial-A"],
+        quantity: 50,
+        transferOn: "2026-06-15",
         authorisations,
       }),
-    ).toEqual({
-      allowed: false,
-      reason: "shipping-authorisation-required",
-    });
+    ).toEqual({ allowed: false, reason: "shipping-authorisation-required" });
+  });
+
+  it("refuses when transfer date is outside authorisation window", () => {
+    expect(
+      canTransferResearchStock({
+        destinationId: "trial-site-1",
+        productId: "product-1",
+        serialNumbers: ["serial-A"],
+        quantity: 50,
+        transferOn: "2026-07-01",
+        authorisations,
+      }),
+    ).toEqual({ allowed: false, reason: "shipping-authorisation-required" });
+  });
+
+  it("refuses when product does not match authorisation", () => {
+    expect(
+      canTransferResearchStock({
+        destinationId: "trial-site-1",
+        productId: "product-2",
+        serialNumbers: ["serial-A"],
+        quantity: 50,
+        transferOn: "2026-06-15",
+        authorisations,
+      }),
+    ).toEqual({ allowed: false, reason: "shipping-authorisation-required" });
+  });
+
+  it("refuses when serial is not in authorisation", () => {
+    expect(
+      canTransferResearchStock({
+        destinationId: "trial-site-1",
+        productId: "product-1",
+        serialNumbers: ["serial-C"],
+        quantity: 50,
+        transferOn: "2026-06-15",
+        authorisations,
+      }),
+    ).toEqual({ allowed: false, reason: "shipping-authorisation-required" });
+  });
+
+  it("refuses when quantity exceeds authorisation", () => {
+    expect(
+      canTransferResearchStock({
+        destinationId: "trial-site-1",
+        productId: "product-1",
+        serialNumbers: ["serial-A"],
+        quantity: 150,
+        transferOn: "2026-06-15",
+        authorisations,
+      }),
+    ).toEqual({ allowed: false, reason: "shipping-authorisation-required" });
+  });
+
+  it("refuses when authorisation has malformed dates", () => {
+    const badAuth = [
+      {
+        destinationId: "trial-site-1",
+        productId: "product-1",
+        serialNumbers: ["serial-A"],
+        authorizedQuantity: 100,
+        validFrom: "not-a-date",
+        validUntil: "2026-06-30",
+      },
+    ];
+    expect(
+      canTransferResearchStock({
+        destinationId: "trial-site-1",
+        productId: "product-1",
+        serialNumbers: ["serial-A"],
+        quantity: 50,
+        transferOn: "2026-06-15",
+        authorisations: badAuth,
+      }),
+    ).toEqual({ allowed: false, reason: "shipping-authorisation-required" });
   });
 });
 

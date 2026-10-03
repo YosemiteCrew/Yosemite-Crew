@@ -16,8 +16,10 @@ export type ShipmentAuthorisation = {
 
 export type ImportPermit = {
   purpose: BiologicsPermitPurpose;
+  productId: string;
   holderId: string;
   status: "active" | "suspended" | "revoked";
+  issuedOn: string;
   useBy: string | null;
   shipmentIds: readonly string[];
   successiveShipmentAuthorisation?: ShipmentAuthorisation | null;
@@ -27,6 +29,16 @@ export type ImportShipment = {
   id: string;
   arrivalOn: string;
   importerId: string;
+  productId: string;
+  intendedPurpose: BiologicsPermitPurpose;
+  originCountry: string;
+  destinationCountry: string;
+  carrier?: string;
+  transferSchedule?: {
+    transferPort: string;
+    scheduledDeparture: string;
+    forwardingAccount: string;
+  } | null;
 };
 
 export type PermitUseDecision =
@@ -38,25 +50,45 @@ export type PermitUseDecision =
         | "permit-expired"
         | "permit-not-active"
         | "permit-holder-mismatch"
-        | "successive-shipment-authorisation-required";
+        | "successive-shipment-authorisation-required"
+        | "permit-not-yet-issued"
+        | "purpose-mismatch"
+        | "product-mismatch"
+        | "transit-routing-invalid"
+        | "transit-carrier-confinement-required"
+        | "transit-schedule-required";
     };
+
+const parseCalendarDate = (value: string): string => {
+  const parsed = addCalendarDays(value, 0);
+  return parsed;
+};
 
 const authorisesShipment = (
   authorisation: ShipmentAuthorisation | null | undefined,
   shipment: ImportShipment,
-): boolean =>
-  Boolean(
-    authorisation &&
-    authorisation.shipmentIds.includes(shipment.id) &&
-    shipment.arrivalOn >= authorisation.validFrom &&
-    shipment.arrivalOn <= authorisation.validUntil,
-  );
+): boolean => {
+  if (!authorisation) return false;
 
-/** Checks the rules that determine whether a permit can cover an arrival. */
-export const canUsePermitForShipment = (
+  try {
+    const validFrom = parseCalendarDate(authorisation.validFrom);
+    const validUntil = parseCalendarDate(authorisation.validUntil);
+    const arrivalOn = parseCalendarDate(shipment.arrivalOn);
+
+    return (
+      authorisation.shipmentIds.includes(shipment.id) &&
+      arrivalOn >= validFrom &&
+      arrivalOn <= validUntil
+    );
+  } catch {
+    return false;
+  }
+};
+
+const checkPermitDates = (
   permit: ImportPermit,
   shipment: ImportShipment,
-): PermitUseDecision => {
+): PermitUseDecision | null => {
   addCalendarDays(shipment.arrivalOn, 0);
   if (permit.useBy === null) {
     return { allowed: false, reason: "permit-date-required" };
@@ -65,14 +97,54 @@ export const canUsePermitForShipment = (
   if (shipment.arrivalOn > permit.useBy) {
     return { allowed: false, reason: "permit-expired" };
   }
+  addCalendarDays(permit.issuedOn, 0);
+  if (shipment.arrivalOn < permit.issuedOn) {
+    return { allowed: false, reason: "permit-not-yet-issued" };
+  }
+  return null;
+};
+
+const checkPermitStatus = (
+  permit: ImportPermit,
+  shipment: ImportShipment,
+): PermitUseDecision | null => {
   if (permit.status !== "active") {
     return { allowed: false, reason: "permit-not-active" };
   }
   if (shipment.importerId !== permit.holderId) {
     return { allowed: false, reason: "permit-holder-mismatch" };
   }
+  if (shipment.productId !== permit.productId) {
+    return { allowed: false, reason: "product-mismatch" };
+  }
+  if (shipment.intendedPurpose !== permit.purpose) {
+    return { allowed: false, reason: "purpose-mismatch" };
+  }
+  return null;
+};
+
+const checkTransitRequirements = (
+  shipment: ImportShipment,
+): PermitUseDecision | null => {
+  if (shipment.originCountry === shipment.destinationCountry) {
+    return { allowed: false, reason: "transit-routing-invalid" };
+  }
+  if (!shipment.carrier) {
+    return { allowed: false, reason: "transit-carrier-confinement-required" };
+  }
+  if (!shipment.transferSchedule) {
+    return { allowed: false, reason: "transit-schedule-required" };
+  }
+  return null;
+};
+
+const checkSuccessiveShipment = (
+  permit: ImportPermit,
+  shipment: ImportShipment,
+): PermitUseDecision | null => {
   if (
     permit.shipmentIds.length > 0 &&
+    !permit.shipmentIds.includes(shipment.id) &&
     !authorisesShipment(permit.successiveShipmentAuthorisation, shipment)
   ) {
     return {
@@ -80,6 +152,28 @@ export const canUsePermitForShipment = (
       reason: "successive-shipment-authorisation-required",
     };
   }
+  return null;
+};
+
+/** Checks the rules that determine whether a permit can cover an arrival. */
+export const canUsePermitForShipment = (
+  permit: ImportPermit,
+  shipment: ImportShipment,
+): PermitUseDecision => {
+  const dateCheck = checkPermitDates(permit, shipment);
+  if (dateCheck) return dateCheck;
+
+  const statusCheck = checkPermitStatus(permit, shipment);
+  if (statusCheck) return statusCheck;
+
+  if (permit.purpose === "transit-only") {
+    const transitCheck = checkTransitRequirements(shipment);
+    if (transitCheck) return transitCheck;
+  }
+
+  const successiveCheck = checkSuccessiveShipment(permit, shipment);
+  if (successiveCheck) return successiveCheck;
+
   return { allowed: true };
 };
 
@@ -111,62 +205,126 @@ export const canBePermitHolder = (organisation: {
 
 export type DomesticSerialDecision =
   | { allowed: true }
-  | { allowed: false; reason: "domestic-serial-not-importable" };
+  | {
+      allowed: false;
+      reason:
+        | "domestic-serial-not-importable"
+        | "unlicensed-product"
+        | "quantity-exceeds-small-lot"
+        | "endangers-livestock-poultry";
+    };
 
 export const canImportDomesticSerial = (input: {
   purpose: BiologicsPermitPurpose;
   madeAtUsEstablishment: boolean;
   inVitroReturn: boolean;
   permitHolderIsProducer: boolean;
+  productIsLicensed: boolean;
+  isSmallQuantity: boolean;
+  endangersLivestockOrPoultry: boolean;
 }): DomesticSerialDecision => {
   if (!input.madeAtUsEstablishment) return { allowed: true };
-  return input.purpose === "research-evaluation" &&
-    input.inVitroReturn &&
-    input.permitHolderIsProducer
-    ? { allowed: true }
-    : { allowed: false, reason: "domestic-serial-not-importable" };
+  if (input.purpose !== "research-evaluation") {
+    return { allowed: false, reason: "domestic-serial-not-importable" };
+  }
+  if (!input.inVitroReturn) {
+    return { allowed: false, reason: "domestic-serial-not-importable" };
+  }
+  if (!input.permitHolderIsProducer) {
+    return { allowed: false, reason: "domestic-serial-not-importable" };
+  }
+  if (!input.productIsLicensed) {
+    return { allowed: false, reason: "unlicensed-product" };
+  }
+  if (!input.isSmallQuantity) {
+    return { allowed: false, reason: "quantity-exceeds-small-lot" };
+  }
+  if (input.endangersLivestockOrPoultry) {
+    return { allowed: false, reason: "endangers-livestock-poultry" };
+  }
+  return { allowed: true };
 };
 
 export type SerialAvailability = "quarantined" | "released";
+
+export type ReleaseRecord = {
+  shipmentId: string;
+  serialNumbers: readonly string[];
+  releasedOn: string;
+};
 
 /** A release applies only to the serial on the shipment USDA released. */
 export const importedSerialAvailability = (input: {
   purpose: BiologicsPermitPurpose;
   shipmentId: string;
-  release?: { shipmentId: string; releasedOn: string } | null;
+  serialNumber: string;
+  release?: ReleaseRecord | null;
 }): SerialAvailability => {
   if (input.purpose !== "distribution-sale" || !input.release) {
     return "quarantined";
   }
   addCalendarDays(input.release.releasedOn, 0);
-  return input.release.shipmentId === input.shipmentId
+  return input.release.shipmentId === input.shipmentId &&
+    input.release.serialNumbers.includes(input.serialNumber)
     ? "released"
     : "quarantined";
 };
 
+export type ResearchTransferAuthorisation = {
+  destinationId: string;
+  productId: string;
+  serialNumbers: readonly string[];
+  authorizedQuantity: number;
+  validFrom: string;
+  validUntil: string;
+};
+
 export type ResearchTransferDecision =
   | { allowed: true }
-  | { allowed: false; reason: "shipping-authorisation-required" };
+  | {
+      allowed: false;
+      reason:
+        | "shipping-authorisation-required"
+        | "product-not-authorised"
+        | "serial-not-authorised"
+        | "quantity-exceeds-authorisation"
+        | "authorisation-date-invalid";
+    };
 
 export const canTransferResearchStock = (input: {
   destinationId: string;
+  productId: string;
+  serialNumbers: readonly string[];
+  quantity: number;
   transferOn: string;
-  authorisations: readonly {
-    destinationId: string;
-    validFrom: string;
-    validUntil: string;
-  }[];
+  authorisations: readonly ResearchTransferAuthorisation[];
 }): ResearchTransferDecision => {
   addCalendarDays(input.transferOn, 0);
-  const covered = input.authorisations.some(
-    (authorisation) =>
-      authorisation.destinationId === input.destinationId &&
-      input.transferOn >= authorisation.validFrom &&
-      input.transferOn <= authorisation.validUntil,
-  );
-  return covered
-    ? { allowed: true }
-    : { allowed: false, reason: "shipping-authorisation-required" };
+  const covered = input.authorisations.some((authorisation) => {
+    try {
+      const validFrom = parseCalendarDate(authorisation.validFrom);
+      const validUntil = parseCalendarDate(authorisation.validUntil);
+      const transferOn = parseCalendarDate(input.transferOn);
+
+      if (transferOn < validFrom || transferOn > validUntil) return false;
+      if (authorisation.destinationId !== input.destinationId) return false;
+      if (authorisation.productId !== input.productId) return false;
+      if (input.serialNumbers.length > 0) {
+        const allSerialsAuthorised = input.serialNumbers.every((sn) =>
+          authorisation.serialNumbers.includes(sn),
+        );
+        if (!allSerialsAuthorised) return false;
+      }
+      if (input.quantity > authorisation.authorizedQuantity) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (!covered) {
+    return { allowed: false, reason: "shipping-authorisation-required" };
+  }
+  return { allowed: true };
 };
 
 export const refusedShipmentDispositionDueOn = (input: {
