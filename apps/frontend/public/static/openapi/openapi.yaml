@@ -10369,7 +10369,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/MessageError'
         409:
-          description: The idempotency key belongs to another statement period, a credit note is missing its reversal date, or a deposit has incomplete dated payment history.
+          description: The idempotency key belongs to another statement period, or dated invoice, credit-note or deposit history is incomplete for the requested period.
           content:
             application/json:
               schema:

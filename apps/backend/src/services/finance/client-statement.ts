@@ -61,9 +61,15 @@ export type ClientStatementSnapshot = {
 type StatementPayment = {
   id: string;
   amount: number;
+  currency?: string;
   paidAt: Date | null;
   createdAt: Date;
-  refunds: Array<{ id: string; amount: number; createdAt: Date }>;
+  refunds: Array<{
+    id: string;
+    amount: number;
+    currency?: string;
+    createdAt: Date;
+  }>;
 };
 
 type StatementDeposit = { id: string; amount: number; occurredAt: Date };
@@ -79,6 +85,15 @@ export type StatementInvoice = {
   createdAt: Date;
   payments: StatementPayment[];
   deposits?: StatementDeposit[];
+  revisions?: Array<{
+    id: bigint;
+    totalAmount: number;
+    currency: string;
+    status: string;
+    dueAt: Date | null;
+    recordedAt: Date;
+    baseline: boolean;
+  }>;
   creditNotes: Array<{
     id: string;
     amount: number;
@@ -89,6 +104,8 @@ export type StatementInvoice = {
 
 type Movement = ClientStatementEntry & {
   at: Date;
+  currency: string;
+  openingOnly: boolean;
   signedAmount: number;
 };
 
@@ -133,6 +150,7 @@ const movement = (input: {
   direction: ClientStatementEntry["direction"];
   amount: number;
   currency: string;
+  openingOnly?: boolean;
 }): Movement => {
   const amount = quantize(input.currency, input.amount);
   return {
@@ -143,29 +161,127 @@ const movement = (input: {
     direction: input.direction,
     amount,
     at: input.at,
+    currency: currencyKey(input.currency),
+    openingOnly: input.openingOnly ?? false,
     signedAmount: input.direction === "DEBIT" ? amount : -amount,
   };
 };
 
-const buildInvoiceMovements = (
+const incompleteInvoiceHistory = () =>
+  new ClientStatementError(
+    "An invoice is missing its dated charge history.",
+    409,
+  );
+
+const invoiceRevisionsThrough = (
+  versions: NonNullable<StatementInvoice["revisions"]>,
+  createdAt: Date,
+  periodStart: Date,
+  periodEnd: Date,
+) => {
+  const revisions = [...versions].sort((left, right) =>
+    left.id < right.id ? -1 : 1,
+  );
+  const first = revisions[0];
+  if (
+    !first ||
+    (first.baseline && periodStart < first.recordedAt) ||
+    (createdAt <= periodEnd && first.recordedAt > periodEnd)
+  ) {
+    throw incompleteInvoiceHistory();
+  }
+  return revisions.filter((revision) => revision.recordedAt <= periodEnd);
+};
+
+const buildInvoiceCharges = (
   invoice: StatementInvoice,
-): { movements: Movement[]; dueAt: Date } => {
+  periodStart: Date,
+  periodEnd: Date,
+): { movements: Movement[]; dueDates: Map<string, Date> } => {
   const currency = currencyKey(invoice.currency);
   const chargedAt = invoice.finalizedAt ?? invoice.createdAt;
-  const dueAt = invoice.dueAt ?? chargedAt;
-  const movements: Movement[] = [
-    movement({
-      id: `invoice:${invoice.id}`,
-      invoiceId: invoice.id,
-      at: chargedAt,
-      kind: "INVOICE",
-      direction: "DEBIT",
-      amount: invoice.totalAmount,
-      currency,
-    }),
-  ];
+  if (!invoice.revisions) {
+    return {
+      movements: [
+        movement({
+          id: `invoice:${invoice.id}`,
+          invoiceId: invoice.id,
+          at: chargedAt,
+          kind: "INVOICE",
+          direction: "DEBIT",
+          amount: invoice.totalAmount,
+          currency,
+        }),
+      ],
+      dueDates: new Map([[currency, invoice.dueAt ?? chargedAt]]),
+    };
+  }
+  const revisions = invoiceRevisionsThrough(
+    invoice.revisions,
+    invoice.createdAt,
+    periodStart,
+    periodEnd,
+  );
+  const movements: Movement[] = [];
+  const dueDates = new Map<string, Date>();
+  let previousCurrency = currency;
+  let previousAmount = 0;
+  for (const revision of revisions) {
+    const nextCurrency = currencyKey(revision.currency);
+    if (nextCurrency !== previousCurrency && previousAmount !== 0) {
+      movements.push(
+        movement({
+          id: `invoice:${invoice.id}:revision:${revision.id}:previous`,
+          invoiceId: invoice.id,
+          at: revision.recordedAt,
+          kind: "INVOICE",
+          direction: "CREDIT",
+          amount: previousAmount,
+          currency: previousCurrency,
+        }),
+      );
+      previousAmount = 0;
+    }
+    const amount =
+      revision.status === "CANCELLED"
+        ? 0
+        : quantize(nextCurrency, revision.totalAmount);
+    const difference = add(nextCurrency, amount, -previousAmount);
+    if (difference !== 0) {
+      movements.push(
+        movement({
+          id: `invoice:${invoice.id}:revision:${revision.id}`,
+          invoiceId: invoice.id,
+          at: revision.recordedAt,
+          kind: "INVOICE",
+          direction: difference < 0 ? "CREDIT" : "DEBIT",
+          amount: Math.abs(difference),
+          currency: nextCurrency,
+          openingOnly: revision.baseline,
+        }),
+      );
+    }
+    dueDates.set(nextCurrency, revision.dueAt ?? revision.recordedAt);
+    previousAmount = amount;
+    previousCurrency = nextCurrency;
+  }
+  return { movements, dueDates };
+};
+
+const buildInvoiceMovements = (
+  invoice: StatementInvoice,
+  periodStart: Date,
+  periodEnd: Date,
+): { movements: Movement[]; dueDates: Map<string, Date> } => {
+  const currency = currencyKey(invoice.currency);
+  const { movements, dueDates } = buildInvoiceCharges(
+    invoice,
+    periodStart,
+    periodEnd,
+  );
   for (const payment of invoice.payments) {
     const paymentAt = payment.paidAt ?? payment.createdAt;
+    const paymentCurrency = payment.currency ?? currency;
     movements.push(
       movement({
         id: `payment:${payment.id}`,
@@ -174,7 +290,7 @@ const buildInvoiceMovements = (
         kind: "PAYMENT",
         direction: "CREDIT",
         amount: payment.amount,
-        currency,
+        currency: paymentCurrency,
       }),
     );
     for (const refund of payment.refunds) {
@@ -186,7 +302,7 @@ const buildInvoiceMovements = (
           kind: "REFUND",
           direction: "DEBIT",
           amount: refund.amount,
-          currency,
+          currency: refund.currency ?? paymentCurrency,
         }),
       );
     }
@@ -215,6 +331,10 @@ const buildInvoiceMovements = (
   }
 
   for (const note of invoice.creditNotes) {
+    const revision = invoice.revisions
+      ?.filter((version) => version.recordedAt <= note.createdAt)
+      .sort((left, right) => (left.id > right.id ? -1 : 1))[0];
+    const noteCurrency = revision?.currency ?? currency;
     movements.push(
       movement({
         id: `credit-note:${note.id}`,
@@ -223,7 +343,7 @@ const buildInvoiceMovements = (
         kind: "CREDIT_NOTE",
         direction: "CREDIT",
         amount: note.amount,
-        currency,
+        currency: noteCurrency,
       }),
     );
     if (note.voidedAt) {
@@ -235,7 +355,7 @@ const buildInvoiceMovements = (
           kind: "CREDIT_NOTE_VOID",
           direction: "DEBIT",
           amount: note.amount,
-          currency,
+          currency: noteCurrency,
         }),
       );
     }
@@ -243,7 +363,7 @@ const buildInvoiceMovements = (
 
   return {
     movements,
-    dueAt,
+    dueDates,
   };
 };
 
@@ -293,25 +413,37 @@ export const buildClientStatementSnapshot = (input: {
 }): ClientStatementSnapshot => {
   const byCurrency = new Map<string, CurrencyAccumulator>();
   for (const invoice of input.invoices) {
-    const currency = currencyKey(invoice.currency);
-    const invoiceSummary = buildInvoiceMovements(invoice);
-    const bucket = byCurrency.get(currency) ?? {
-      currency,
-      movements: [],
-      invoices: [],
-    };
-    bucket.movements.push(...invoiceSummary.movements);
-    const balanceAtPeriodEnd = invoiceSummary.movements
-      .filter((entry) => entry.at <= input.periodEnd)
-      .reduce(
-        (balance, entry) => add(currency, balance, entry.signedAmount),
-        0,
+    const invoiceSummary = buildInvoiceMovements(
+      invoice,
+      input.periodStart,
+      input.periodEnd,
+    );
+    const currencies = new Set([
+      ...invoiceSummary.dueDates.keys(),
+      ...invoiceSummary.movements.map((entry) => entry.currency),
+    ]);
+    for (const currency of currencies) {
+      const movements = invoiceSummary.movements.filter(
+        (entry) => entry.currency === currency,
       );
-    bucket.invoices.push({
-      dueAt: invoiceSummary.dueAt,
-      balance: Math.max(0, balanceAtPeriodEnd),
-    });
-    byCurrency.set(currency, bucket);
+      const bucket = byCurrency.get(currency) ?? {
+        currency,
+        movements: [],
+        invoices: [],
+      };
+      bucket.movements.push(...movements);
+      const balanceAtPeriodEnd = movements
+        .filter((entry) => entry.at <= input.periodEnd)
+        .reduce(
+          (balance, entry) => add(currency, balance, entry.signedAmount),
+          0,
+        );
+      bucket.invoices.push({
+        dueAt: invoiceSummary.dueDates.get(currency) ?? input.periodEnd,
+        balance: Math.max(0, balanceAtPeriodEnd),
+      });
+      byCurrency.set(currency, bucket);
+    }
   }
 
   const currencies = [...byCurrency.values()]
@@ -331,7 +463,7 @@ export const buildClientStatementSnapshot = (input: {
           closingBalance,
           entry.signedAmount,
         );
-        if (entry.at < input.periodStart) {
+        if (entry.at < input.periodStart || entry.openingOnly) {
           openingBalance = add(
             bucket.currency,
             openingBalance,
@@ -357,7 +489,9 @@ export const buildClientStatementSnapshot = (input: {
         openingBalance,
         closingBalance,
         entries: included
-          .filter((entry) => entry.at >= input.periodStart)
+          .filter(
+            (entry) => entry.at >= input.periodStart && !entry.openingOnly,
+          )
           .map(toEntry),
         aging,
       };
@@ -597,11 +731,7 @@ export const ClientStatementService = {
         const where: Prisma.InvoiceWhereInput = {
           organisationId: input.organisationId,
           parentId: input.parentId,
-          status: { not: "CANCELLED" },
-          OR: [
-            { finalizedAt: { lte: input.periodEnd } },
-            { finalizedAt: null, createdAt: { lte: input.periodEnd } },
-          ],
+          createdAt: { lte: input.periodEnd },
         };
         const paymentWhere: Prisma.PaymentWhereInput = {
           invoice: where,
@@ -642,11 +772,17 @@ export const ClientStatementService = {
               select: {
                 id: true,
                 amount: true,
+                currency: true,
                 paidAt: true,
                 createdAt: true,
                 refunds: {
                   where: { status: "SUCCEEDED" },
-                  select: { id: true, amount: true, createdAt: true },
+                  select: {
+                    id: true,
+                    amount: true,
+                    currency: true,
+                    createdAt: true,
+                  },
                 },
               },
             },
@@ -662,15 +798,40 @@ export const ClientStatementService = {
             },
           },
         });
+        const revisionWhere: Prisma.InvoiceRevisionWhereInput = {
+          organisationId: input.organisationId,
+          parentId: input.parentId,
+          invoiceId: { in: rows.map((invoice) => invoice.id) },
+        };
+        const rowCount =
+          rowCounts.reduce((total, count) => total + count, 0) +
+          (await tx.invoiceRevision.count({ where: revisionWhere }));
+        if (rowCount > MAX_STATEMENT_ROWS) {
+          throw new ClientStatementError(
+            "This client account exceeds the supported statement size.",
+            422,
+          );
+        }
+        const history = await tx.invoiceRevision.findMany({
+          where: revisionWhere,
+          orderBy: { id: "asc" },
+        });
+        const revisions = new Map<string, typeof history>();
+        for (const revision of history) {
+          const versions = revisions.get(revision.invoiceId) ?? [];
+          versions.push(revision);
+          revisions.set(revision.invoiceId, versions);
+        }
         const deposits = await loadDepositHistory(
           tx,
           input.organisationId,
           rows,
-          rowCounts.reduce((total, count) => total + count, 0),
+          rowCount,
         );
         return rows.map((invoice) => ({
           ...invoice,
           deposits: deposits.get(invoice.id),
+          revisions: revisions.get(invoice.id) ?? [],
         }));
       },
       {

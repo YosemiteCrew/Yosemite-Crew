@@ -15,6 +15,7 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     $transaction: jest.fn(),
     invoice: { findMany: jest.fn(), count: jest.fn() },
+    invoiceRevision: { findMany: jest.fn(), count: jest.fn() },
     payment: { count: jest.fn() },
     refund: { count: jest.fn() },
     creditNote: { count: jest.fn() },
@@ -33,6 +34,7 @@ jest.mock("src/config/prisma", () => ({
 const mockedPrisma = prisma as unknown as {
   $transaction: jest.Mock;
   invoice: { findMany: jest.Mock; count: jest.Mock };
+  invoiceRevision: { findMany: jest.Mock; count: jest.Mock };
   payment: { count: jest.Mock };
   refund: { count: jest.Mock };
   creditNote: { count: jest.Mock };
@@ -85,6 +87,406 @@ const snapshot = () =>
     invoices: [invoice()],
   });
 
+type Revision = NonNullable<StatementInvoice["revisions"]>[number];
+const revision = (over: Partial<Revision> = {}): Revision => ({
+  id: 1n,
+  totalAmount: 100,
+  currency: "GBP",
+  status: "AWAITING_PAYMENT",
+  dueAt: new Date("2026-08-20T00:00:00.000Z"),
+  recordedAt: new Date("2026-08-01T00:00:00.000Z"),
+  baseline: false,
+  ...over,
+});
+const historical = (
+  revisions: Revision[],
+  over: Partial<StatementInvoice> = {},
+) =>
+  buildClientStatementSnapshot({
+    client,
+    periodStart: PERIOD_START,
+    periodEnd: PERIOD_END,
+    generatedAt: NOW,
+    invoices: [
+      invoice({
+        totalAmount: 999,
+        dueAt: NOW,
+        finalizedAt: NOW,
+        ...over,
+        revisions,
+      }),
+    ],
+  });
+
+describe("dated invoice revisions", () => {
+  it("ignores later amendments and due dates when rebuilding a past period", () => {
+    const result = historical([
+      revision(),
+      revision({ id: 2n, totalAmount: 150, recordedAt: NOW, dueAt: NOW }),
+    ]);
+    expect(result.currencies[0]).toEqual(
+      expect.objectContaining({
+        openingBalance: 100,
+        closingBalance: 100,
+        entries: [],
+        aging: {
+          current: 0,
+          days1To30: 0,
+          days31To60: 100,
+          days61To90: 0,
+          days91Plus: 0,
+          totalOutstanding: 100,
+        },
+      }),
+    );
+  });
+
+  it("dates increases and reductions without changing the opening balance", () => {
+    const increase = new Date("2026-09-10T00:00:00.000Z");
+    const reduction = new Date("2026-09-20T00:00:00.000Z");
+    const result = historical([
+      revision(),
+      revision({ id: 2n, totalAmount: 150, recordedAt: increase }),
+      revision({ id: 3n, totalAmount: 120, recordedAt: reduction }),
+    ]).currencies[0];
+    expect(result.openingBalance).toBe(100);
+    expect(result.closingBalance).toBe(120);
+    expect(result.entries).toEqual([
+      {
+        id: "invoice:invoice-1:revision:2",
+        invoiceId: "invoice-1",
+        occurredAt: increase.toISOString(),
+        kind: "INVOICE",
+        direction: "DEBIT",
+        amount: 50,
+      },
+      {
+        id: "invoice:invoice-1:revision:3",
+        invoiceId: "invoice-1",
+        occurredAt: reduction.toISOString(),
+        kind: "INVOICE",
+        direction: "CREDIT",
+        amount: 30,
+      },
+    ]);
+  });
+
+  it("retains the earlier charge when cancellation is after the cutoff", () => {
+    expect(
+      historical([
+        revision(),
+        revision({ id: 2n, status: "CANCELLED", recordedAt: NOW }),
+      ]).currencies[0].closingBalance,
+    ).toBe(100);
+  });
+
+  it("reverses a charge on its cancellation date", () => {
+    const result = historical([
+      revision(),
+      revision({ id: 2n, status: "CANCELLED", recordedAt: PERIOD_START }),
+    ]).currencies[0];
+    expect(result.openingBalance).toBe(100);
+    expect(result.closingBalance).toBe(0);
+    expect(result.aging.totalOutstanding).toBe(0);
+    expect(result.entries).toEqual([
+      expect.objectContaining({
+        occurredAt: PERIOD_START.toISOString(),
+        direction: "CREDIT",
+        amount: 100,
+      }),
+    ]);
+  });
+
+  it("uses the latest due date at the cutoff even when the amount is unchanged", () => {
+    const result = historical([
+      revision(),
+      revision({
+        id: 2n,
+        recordedAt: PERIOD_START,
+        dueAt: new Date("2026-09-25T00:00:00.000Z"),
+      }),
+    ]).currencies[0];
+    expect(result.entries).toEqual([]);
+    expect(result.aging.days1To30).toBe(100);
+    expect(result.aging.days31To60).toBe(0);
+  });
+
+  it("uses a revision date while the invoice has no due date", () => {
+    const result = historical([
+      revision(),
+      revision({ id: 2n, recordedAt: PERIOD_END, dueAt: null }),
+    ]).currencies[0];
+    expect(result.aging.current).toBe(100);
+  });
+
+  it("orders changes by revision number when timestamps are equal", () => {
+    const result = historical([
+      revision({ id: 3n, totalAmount: 150, recordedAt: PERIOD_START }),
+      revision(),
+      revision({ id: 2n, totalAmount: 120, recordedAt: PERIOD_START }),
+    ]).currencies[0];
+    expect(result.closingBalance).toBe(150);
+    expect(result.entries.map(({ amount }) => amount)).toEqual([20, 30]);
+  });
+
+  it("includes the exact cutoff and excludes the following millisecond", () => {
+    const result = historical([
+      revision(),
+      revision({ id: 2n, totalAmount: 120, recordedAt: PERIOD_END }),
+      revision({
+        id: 3n,
+        totalAmount: 150,
+        recordedAt: new Date(PERIOD_END.getTime() + 1),
+      }),
+    ]).currencies[0];
+    expect(result.closingBalance).toBe(120);
+    expect(result.entries).toEqual([
+      expect.objectContaining({
+        amount: 20,
+        occurredAt: PERIOD_END.toISOString(),
+      }),
+    ]);
+  });
+
+  it("keeps an available baseline in the opening balance", () => {
+    const result = historical([revision({ baseline: true })]).currencies[0];
+    expect(result.openingBalance).toBe(100);
+    expect(result.closingBalance).toBe(100);
+    expect(result.entries).toEqual([]);
+  });
+
+  it.each([
+    { revisions: [] },
+    { revisions: [revision({ baseline: true, recordedAt: PERIOD_END })] },
+    { revisions: [revision({ recordedAt: NOW })] },
+  ])(
+    "refuses a period that needs unavailable invoice history (%#)",
+    ({ revisions }) => {
+      expect(() => historical(revisions)).toThrow(
+        "An invoice is missing its dated charge history.",
+      );
+    },
+  );
+
+  it("does not include an invoice first created after the period", () => {
+    expect(
+      historical([revision({ recordedAt: NOW })], { createdAt: NOW })
+        .currencies,
+    ).toEqual([]);
+  });
+
+  it("keeps zero-value invoices without inventing movements", () => {
+    const result = historical([revision({ totalAmount: 0 })]).currencies[0];
+    expect(result.closingBalance).toBe(0);
+    expect(result.entries).toEqual([]);
+  });
+
+  it("rounds each posted total before calculating the amendment", () => {
+    const result = historical([
+      revision({ currency: "JPY", totalAmount: 100.4 }),
+      revision({
+        id: 2n,
+        currency: "JPY",
+        totalAmount: 100.6,
+        recordedAt: PERIOD_START,
+      }),
+    ]).currencies[0];
+    expect(result.currency).toBe("jpy");
+    expect(result.openingBalance).toBe(100);
+    expect(result.closingBalance).toBe(101);
+    expect(result.entries).toEqual([expect.objectContaining({ amount: 1 })]);
+  });
+
+  it("normalizes currency labels without creating an exchange movement", () => {
+    const result = historical([
+      revision(),
+      revision({ id: 2n, currency: " gbp ", recordedAt: PERIOD_START }),
+    ]);
+    expect(result.currencies).toHaveLength(1);
+    expect(result.currencies[0].entries).toEqual([]);
+  });
+
+  it("keeps earlier payments, refunds and credit reversals in their original currency", () => {
+    const result = historical(
+      [
+        revision(),
+        revision({
+          id: 2n,
+          totalAmount: 150,
+          currency: "EUR",
+          recordedAt: new Date("2026-09-10T00:00:00Z"),
+        }),
+      ],
+      {
+        currency: "EUR",
+        payments: [
+          {
+            id: "paid",
+            amount: 40,
+            currency: "GBP",
+            paidAt: new Date("2026-08-20T00:00:00Z"),
+            createdAt: PERIOD_START,
+            refunds: [
+              {
+                id: "returned",
+                amount: 10,
+                currency: "GBP",
+                createdAt: new Date("2026-09-15T00:00:00Z"),
+              },
+            ],
+          },
+        ],
+        creditNotes: [
+          {
+            id: "note",
+            amount: 20,
+            createdAt: PERIOD_START,
+            voidedAt: new Date("2026-09-20T00:00:00Z"),
+          },
+        ],
+      },
+    );
+    expect(
+      result.currencies.map(({ currency, openingBalance, closingBalance }) => ({
+        currency,
+        openingBalance,
+        closingBalance,
+      })),
+    ).toEqual([
+      { currency: "eur", openingBalance: 0, closingBalance: 150 },
+      { currency: "gbp", openingBalance: 60, closingBalance: -30 },
+    ]);
+    expect(
+      result.currencies[1].entries.map(({ direction, amount }) => ({
+        direction,
+        amount,
+      })),
+    ).toEqual([
+      { direction: "CREDIT", amount: 20 },
+      { direction: "CREDIT", amount: 100 },
+      { direction: "DEBIT", amount: 10 },
+      { direction: "DEBIT", amount: 20 },
+    ]);
+  });
+
+  it("opens the new currency without reversing an already cancelled charge", () => {
+    const result = historical([
+      revision({ status: "CANCELLED" }),
+      revision({
+        id: 2n,
+        currency: "EUR",
+        totalAmount: 50,
+        recordedAt: PERIOD_START,
+      }),
+    ]);
+    expect(result.currencies[0].closingBalance).toBe(50);
+    expect(result.currencies[1].closingBalance).toBe(0);
+    expect(result.currencies[1].entries).toEqual([]);
+  });
+
+  it("uses recorded revision amounts for stored statements instead of the current row", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      {
+        ...invoice({ totalAmount: 150, finalizedAt: NOW }),
+        status: "CANCELLED",
+      },
+    ]);
+    mockedPrisma.invoiceRevision.findMany.mockResolvedValue([
+      { ...revision(), invoiceId: "invoice-1" },
+      {
+        ...revision({ id: 2n, totalAmount: 150, recordedAt: NOW }),
+        invoiceId: "invoice-1",
+      },
+    ]);
+    await generate();
+    expect(mockedPrisma.invoice.findMany.mock.calls[0][0].where).toEqual({
+      organisationId: ORG,
+      parentId: PARENT,
+      createdAt: { lte: PERIOD_END },
+    });
+    expect(
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0].closingBalance,
+    ).toBe(100);
+    const where = {
+      organisationId: ORG,
+      parentId: PARENT,
+      invoiceId: { in: ["invoice-1"] },
+    };
+    expect(mockedPrisma.invoiceRevision.count).toHaveBeenCalledWith({ where });
+    expect(mockedPrisma.invoiceRevision.findMany).toHaveBeenCalledWith({
+      where,
+      orderBy: { id: "asc" },
+    });
+  });
+
+  it("rejects missing stored revisions rather than falling back to today's invoice", async () => {
+    mockedPrisma.invoiceRevision.findMany.mockResolvedValue([]);
+    await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+
+  it("counts revisions before loading an oversized history", async () => {
+    mockedPrisma.invoiceRevision.count.mockResolvedValue(10_000);
+    await expect(generate()).rejects.toMatchObject({ statusCode: 422 });
+    expect(mockedPrisma.invoiceRevision.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts the exact combined limit including invoice revisions", async () => {
+    mockedPrisma.invoiceRevision.count.mockResolvedValue(9_999);
+    await expect(generate()).resolves.toMatchObject({ id: STATEMENT });
+  });
+
+  it("treats a baseline at the start as an opening balance rather than a new charge", () => {
+    const result = historical([
+      revision({ baseline: true, recordedAt: PERIOD_START }),
+    ]).currencies[0];
+    expect(result.openingBalance).toBe(100);
+    expect(result.closingBalance).toBe(100);
+    expect(result.entries).toEqual([]);
+  });
+
+  it("does not backdate ageing for a refund currency with no invoice due date", () => {
+    const result = historical([revision()], {
+      payments: [
+        {
+          id: "paid",
+          amount: 40,
+          currency: "GBP",
+          paidAt: PERIOD_START,
+          createdAt: PERIOD_START,
+          refunds: [
+            {
+              id: "returned",
+              amount: 10,
+              currency: "EUR",
+              createdAt: PERIOD_END,
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.currencies[0]).toEqual(
+      expect.objectContaining({
+        currency: "eur",
+        closingBalance: 10,
+        aging: {
+          current: 10,
+          days1To30: 0,
+          days31To60: 0,
+          days61To90: 0,
+          days91Plus: 0,
+          totalOutstanding: 10,
+        },
+      }),
+    );
+    expect(result.currencies[1]).toEqual(
+      expect.objectContaining({ currency: "gbp", closingBalance: 60 }),
+    );
+  });
+});
+
 const stored = (over: Partial<Record<string, unknown>> = {}) => ({
   id: STATEMENT,
   organisationId: ORG,
@@ -129,6 +531,23 @@ beforeEach(() => {
     run(mockedPrisma),
   );
   mockedPrisma.invoice.count.mockResolvedValue(1);
+  mockedPrisma.invoiceRevision.count.mockResolvedValue(1);
+  mockedPrisma.invoiceRevision.findMany.mockImplementation(async () => {
+    const rows: StatementInvoice[] =
+      await mockedPrisma.invoice.findMany.mock.results.at(-1)?.value;
+    return rows.map((row, index) => ({
+      id: BigInt(index + 1),
+      invoiceId: row.id,
+      organisationId: ORG,
+      parentId: PARENT,
+      totalAmount: row.totalAmount,
+      currency: row.currency,
+      status: "AWAITING_PAYMENT",
+      dueAt: row.dueAt,
+      recordedAt: row.finalizedAt ?? row.createdAt,
+      baseline: false,
+    }));
+  });
   mockedPrisma.payment.count.mockResolvedValue(0);
   mockedPrisma.refund.count.mockResolvedValue(0);
   mockedPrisma.creditNote.count.mockResolvedValue(0);
@@ -899,7 +1318,7 @@ describe("ClientStatementService.generate", () => {
     mockedPrisma.invoice.findMany.mockResolvedValue([
       invoice({ depositCollectedAmount: 40 }),
     ]);
-    mockedPrisma.financeEvent.count.mockResolvedValue(9_999);
+    mockedPrisma.financeEvent.count.mockResolvedValue(9_998);
     mockedPrisma.financeEvent.findMany.mockResolvedValue([depositEvent()]);
 
     await expect(generate()).resolves.toMatchObject({ id: STATEMENT });
@@ -1126,7 +1545,7 @@ describe("ClientStatementService.generate", () => {
   });
 
   it("accepts exactly 10,000 rows and counts within the same bounded snapshot", async () => {
-    mockedPrisma.payment.count.mockResolvedValue(9_999);
+    mockedPrisma.payment.count.mockResolvedValue(9_998);
 
     await generate();
 
@@ -1326,7 +1745,7 @@ describe("ClientStatementService.generate", () => {
         where: expect.objectContaining({
           organisationId: ORG,
           parentId: PARENT,
-          status: { not: "CANCELLED" },
+          createdAt: { lte: PERIOD_END },
         }),
         select: expect.objectContaining({ dueAt: true }),
       }),

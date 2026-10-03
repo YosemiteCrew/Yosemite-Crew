@@ -3,6 +3,16 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { ClientStatementService } from "src/services/finance/client-statement";
+
+jest.mock("src/config/prisma", () => ({
+  get prisma() {
+    return mockStatementDb;
+  },
+}));
+jest.mock("src/services/finance/client-collections", () => ({
+  resolvePracticeTimeZone: jest.fn().mockResolvedValue("UTC"),
+}));
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required for these tests.");
@@ -21,6 +31,7 @@ connection.searchParams.set("schema", schema);
 const isolatedUrl = connection.toString();
 const admin = new PrismaClient();
 const db = new PrismaClient({ datasources: { db: { url: isolatedUrl } } });
+const mockStatementDb = db;
 const root = resolve(__dirname, "../../..");
 const legacyId = randomUUID();
 const earlyDate = new Date("2001-01-01T00:00:00.000Z");
@@ -53,14 +64,64 @@ beforeAll(async () => {
     "BillingCollectionMode",
     "InvoiceVisitBillingStage",
     "TaxProvider",
+    "PaymentStatus",
+    "RefundStatus",
+    "CreditNoteStatus",
+    "ParentCreatedFrom",
+    "PaymentProvider",
+    "SettlementChannel",
   ]) {
+    const [{ labels }] = await admin.$queryRawUnsafe<
+      Array<{ labels: string[] }>
+    >(`SELECT enum_range(NULL::"public"."${type}")::text[] AS labels`);
+    const values = labels
+      .map((label) => `'${label.replaceAll("'", "''")}'`)
+      .join(", ");
     await admin.$executeRawUnsafe(
-      `CREATE DOMAIN "${schema}"."${type}" AS "public"."${type}"`,
+      `CREATE TYPE "${schema}"."${type}" AS ENUM (${values})`,
     );
   }
-  await admin.$executeRawUnsafe(
-    `CREATE TABLE "${schema}"."Invoice" (LIKE "public"."Invoice" INCLUDING ALL)`,
-  );
+  for (const table of [
+    "Invoice",
+    "Payment",
+    "Refund",
+    "CreditNote",
+    "Parent",
+    "ClientStatement",
+    "FinanceEvents",
+  ]) {
+    await admin.$executeRawUnsafe(
+      `CREATE TABLE "${schema}"."${table}" (LIKE "public"."${table}" INCLUDING ALL)`,
+    );
+    const columns = await admin.$queryRaw<
+      Array<{
+        column_name: string;
+        udt_name: string;
+        column_default: string | null;
+      }>
+    >`
+      SELECT column_name, udt_name, column_default
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = ${table}
+        AND data_type = 'USER-DEFINED'
+    `;
+    for (const column of columns) {
+      const target = `"${schema}"."${table}"`;
+      const name = `"${column.column_name}"`;
+      const type = `"${schema}"."${column.udt_name}"`;
+      await admin.$executeRawUnsafe(
+        `ALTER TABLE ${target} ALTER COLUMN ${name} DROP DEFAULT`,
+      );
+      await admin.$executeRawUnsafe(
+        `ALTER TABLE ${target} ALTER COLUMN ${name} TYPE ${type} USING ${name}::text::${type}`,
+      );
+      if (column.column_default !== null) {
+        await admin.$executeRawUnsafe(
+          `ALTER TABLE ${target} ALTER COLUMN ${name} SET DEFAULT (${column.column_default})::text::${type}`,
+        );
+      }
+    }
+  }
   await db.invoice.create({
     data: {
       id: legacyId,
@@ -370,4 +431,126 @@ it("does not confuse temporary rows with invoice history", async () => {
   expect(
     (await history(invoice.id)).map(({ totalAmount }) => totalAmount),
   ).toEqual([100, 125]);
+});
+
+it("rebuilds the same past statement after amendment, finalization and cancellation", async () => {
+  const parent = await db.parent.create({
+    data: {
+      firstName: "Synthetic",
+      email: `${randomUUID()}@example.test`,
+      createdFrom: "pms",
+    },
+  });
+  const invoice = await db.invoice.create({
+    data: {
+      organisationId: "history-practice",
+      parentId: parent.id,
+      items: [],
+      subtotal: 100,
+      totalAmount: 100,
+      currency: "GBP",
+      status: "AWAITING_PAYMENT",
+      finalizedAt: new Date(),
+      dueAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+    },
+  });
+  const original = (await history(invoice.id))[0];
+  const periodEnd = new Date(original.recordedAt.getTime() + 1);
+  await db.$queryRaw`SELECT pg_sleep(0.01)::text`;
+  const input = {
+    organisationId: "history-practice",
+    parentId: parent.id,
+    generatedById: "synthetic-staff",
+    periodStart: new Date(original.recordedAt.getTime() - 1000),
+    periodEnd,
+  };
+  for (const data of [
+    { totalAmount: 150, finalizedAt: null, dueAt: null },
+    { finalizedAt: new Date(), dueAt: new Date() },
+    { status: "CANCELLED" as const },
+  ]) {
+    await db.invoice.update({ where: { id: invoice.id }, data });
+    const result = await ClientStatementService.generate({
+      ...input,
+      idempotencyKey: randomUUID(),
+    });
+    expect(result.snapshot.currencies).toMatchObject([
+      {
+        currency: "gbp",
+        openingBalance: 0,
+        closingBalance: 100,
+        aging: { days31To60: 100, totalOutstanding: 100 },
+        entries: [
+          {
+            amount: 100,
+            direction: "DEBIT",
+            occurredAt: original.recordedAt.toISOString(),
+          },
+        ],
+      },
+    ]);
+    expect(
+      await ClientStatementService.getById({
+        ...input,
+        statementId: result.id,
+      }),
+    ).toEqual(result);
+  }
+});
+
+it("keeps stored statement history within the requested practice and client", async () => {
+  const parent = await db.parent.create({
+    data: {
+      firstName: "Synthetic",
+      email: `${randomUUID()}@example.test`,
+      createdFrom: "pms",
+    },
+  });
+  const invoice = await db.invoice.create({
+    data: {
+      organisationId: "history-practice",
+      parentId: parent.id,
+      items: [],
+      subtotal: 100,
+      totalAmount: 100,
+      currency: "GBP",
+    },
+  });
+  const original = (await history(invoice.id))[0];
+  await db.invoiceRevision.createMany({
+    data: [
+      {
+        invoiceId: invoice.id,
+        organisationId: "other-practice",
+        parentId: parent.id,
+        totalAmount: 900,
+        currency: "GBP",
+        status: "PENDING",
+        recordedAt: original.recordedAt,
+      },
+      {
+        invoiceId: invoice.id,
+        organisationId: "history-practice",
+        parentId: "other-client",
+        totalAmount: 800,
+        currency: "GBP",
+        status: "PENDING",
+        recordedAt: original.recordedAt,
+      },
+    ],
+  });
+  await db.$queryRaw`SELECT pg_sleep(0.01)::text`;
+  const result = await ClientStatementService.generate({
+    organisationId: "history-practice",
+    parentId: parent.id,
+    generatedById: "synthetic-staff",
+    idempotencyKey: randomUUID(),
+    periodStart: new Date(original.recordedAt.getTime() - 1000),
+    periodEnd: new Date(original.recordedAt.getTime() + 1),
+  });
+  expect(result.snapshot.currencies[0]).toMatchObject({
+    currency: "gbp",
+    closingBalance: 100,
+  });
+  expect(result.snapshot.currencies[0].entries).toHaveLength(1);
 });
