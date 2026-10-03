@@ -29,9 +29,11 @@ export type PesticideRecordRetentionInput =
   | { recordClass: "guaranty"; expiresOn: string }
   | { recordClass: "export-contract"; expiresOn: string }
   | {
-      recordClass: "disposal" | "human-test";
+      recordClass: "disposal";
       latestEventOn: string;
+      governedByRcra: boolean;
     }
+  | { recordClass: "human-test"; latestEventOn: string }
   | {
       recordClass: "research-data";
       registrationValid: boolean;
@@ -47,6 +49,7 @@ export type PesticideRecordRetention = {
     | "one-year-after-guaranty-expiry"
     | "two-years-after-contract-expiry"
     | "twenty-years-or-forward-after-three"
+    | "governed-by-rcra"
     | "while-registration-valid-and-company-in-business";
 };
 
@@ -85,6 +88,20 @@ export const pesticideRecordRetention = (
         reason: "two-years-after-contract-expiry",
       };
     case "disposal":
+      if (record.governedByRcra) {
+        return {
+          keepUntil: null,
+          mayForwardAfter: null,
+          awaitingConfirmation: false,
+          reason: "governed-by-rcra",
+        };
+      }
+      return {
+        keepUntil: addCalendarYears(record.latestEventOn, 20),
+        mayForwardAfter: addCalendarYears(record.latestEventOn, 3),
+        awaitingConfirmation: true,
+        reason: "twenty-years-or-forward-after-three",
+      };
     case "human-test":
       return {
         keepUntil: addCalendarYears(record.latestEventOn, 20),
@@ -119,8 +136,8 @@ export type PesticideNotice =
   | { kind: "emergency-suspension"; effectiveOn: string }
   | { kind: "missed-data-suspension"; receivedOn: string }
   | { kind: "voluntary-cancellation-comment"; publishedOn: string }
-  | { kind: "minor-use-cancellation-wait"; requestedOn: string }
-  | { kind: "registration-transfer-application"; transferOn: string };
+  | { kind: "minor-use-cancellation-wait"; publishedOn: string }
+  | { kind: "registration-transfer-application"; notifiedOn: string };
 
 /** Calendar-day deadline for a registration notice or follow-up. */
 export const pesticideNoticeDueOn = (notice: PesticideNotice): string => {
@@ -147,9 +164,9 @@ export const pesticideNoticeDueOn = (notice: PesticideNotice): string => {
     case "voluntary-cancellation-comment":
       return addCalendarDays(notice.publishedOn, 30);
     case "minor-use-cancellation-wait":
-      return addCalendarDays(notice.requestedOn, 180);
+      return addCalendarDays(notice.publishedOn, 180);
     case "registration-transfer-application":
-      return addCalendarDays(notice.transferOn, 30);
+      return addCalendarDays(notice.notifiedOn, 30);
   }
 };
 
@@ -161,11 +178,12 @@ export const pesticideNoticeStatus = (
   completedOn?: string | null,
 ): PesticideNoticeStatus => {
   assertCalendarDate(today);
+  const dueOn = pesticideNoticeDueOn(notice);
   if (completedOn) {
     assertCalendarDate(completedOn);
     return "completed";
   }
-  return today > pesticideNoticeDueOn(notice) ? "overdue" : "open";
+  return today > dueOn ? "overdue" : "open";
 };
 
 export type BatchRegistrationBasis = {
@@ -178,14 +196,24 @@ export type BatchRegistrationBasis = {
 };
 
 export type BatchStartDecision =
-  { allowed: true } | { allowed: false; reason: "registration-basis-required" };
+  | { allowed: true }
+  | {
+      allowed: false;
+      reason:
+        "establishment-registration-required" | "registration-basis-required";
+    };
 
-export const canStartPesticideBatch = (
-  basis?: BatchRegistrationBasis | null,
-): BatchStartDecision =>
-  basis?.reference.trim()
+export const canStartPesticideBatch = (input: {
+  establishmentRegistered: boolean;
+  basis?: BatchRegistrationBasis | null;
+}): BatchStartDecision => {
+  if (!input.establishmentRegistered) {
+    return { allowed: false, reason: "establishment-registration-required" };
+  }
+  return input.basis?.reference.trim()
     ? { allowed: true }
     : { allowed: false, reason: "registration-basis-required" };
+};
 
 export type ExperimentalPermitDispatchDecision =
   { allowed: true } | { allowed: false; reason: "permit-participant-required" };
@@ -193,7 +221,12 @@ export type ExperimentalPermitDispatchDecision =
 export const canDispatchUnderExperimentalPermit = (input: {
   consigneeId: string;
   participantIds: readonly string[];
-}): ExperimentalPermitDispatchDecision =>
-  input.participantIds.includes(input.consigneeId)
+}): ExperimentalPermitDispatchDecision => {
+  const consigneeId = input.consigneeId.trim();
+  return consigneeId !== "" &&
+    input.participantIds.some(
+      (participantId) => participantId.trim() === consigneeId,
+    )
     ? { allowed: true }
     : { allowed: false, reason: "permit-participant-required" };
+};

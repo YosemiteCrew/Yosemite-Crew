@@ -56,22 +56,49 @@ describe("pesticideRecordRetention", () => {
     });
   });
 
-  it.each(["disposal", "human-test"] as const)(
-    "keeps a %s record for twenty years or permits forwarding after three",
-    (recordClass) => {
-      expect(
-        pesticideRecordRetention({
-          recordClass,
-          latestEventOn: "2026-02-28",
-        }),
-      ).toEqual({
-        keepUntil: "2046-02-28",
-        mayForwardAfter: "2029-02-28",
-        awaitingConfirmation: true,
-        reason: "twenty-years-or-forward-after-three",
-      });
-    },
-  );
+  it("keeps a disposal record for twenty years or permits forwarding after three", () => {
+    expect(
+      pesticideRecordRetention({
+        recordClass: "disposal",
+        latestEventOn: "2026-02-28",
+        governedByRcra: false,
+      }),
+    ).toEqual({
+      keepUntil: "2046-02-28",
+      mayForwardAfter: "2029-02-28",
+      awaitingConfirmation: true,
+      reason: "twenty-years-or-forward-after-three",
+    });
+  });
+
+  it("does not add a duplicate disposal duty when RCRA governs the record", () => {
+    expect(
+      pesticideRecordRetention({
+        recordClass: "disposal",
+        latestEventOn: "2026-02-28",
+        governedByRcra: true,
+      }),
+    ).toEqual({
+      keepUntil: null,
+      mayForwardAfter: null,
+      awaitingConfirmation: false,
+      reason: "governed-by-rcra",
+    });
+  });
+
+  it("keeps a human-test record for twenty years or permits forwarding after three", () => {
+    expect(
+      pesticideRecordRetention({
+        recordClass: "human-test",
+        latestEventOn: "2026-02-28",
+      }),
+    ).toEqual({
+      keepUntil: "2046-02-28",
+      mayForwardAfter: "2029-02-28",
+      awaitingConfirmation: true,
+      reason: "twenty-years-or-forward-after-three",
+    });
+  });
 
   it("does not invent a calendar end for research data", () => {
     expect(
@@ -182,7 +209,7 @@ describe("pesticideNoticeDueOn", () => {
       "minor-use cancellation wait",
       {
         kind: "minor-use-cancellation-wait",
-        requestedOn: "2026-01-01",
+        publishedOn: "2026-01-01",
       } as const,
       "2026-06-30",
     ],
@@ -190,7 +217,7 @@ describe("pesticideNoticeDueOn", () => {
       "registration transfer application",
       {
         kind: "registration-transfer-application",
-        transferOn: "2026-01-01",
+        notifiedOn: "2026-01-01",
       } as const,
       "2026-01-31",
     ],
@@ -222,6 +249,16 @@ describe("pesticideNoticeDueOn", () => {
       ),
     ).toThrow(RangeError);
   });
+
+  it("validates the notice date even when the notice is completed", () => {
+    expect(() =>
+      pesticideNoticeStatus(
+        { kind: "conditional-registration", receivedOn: "not-a-date" },
+        "2026-01-02",
+        "2026-01-02",
+      ),
+    ).toThrow(RangeError);
+  });
 });
 
 describe("pesticide production and dispatch guards", () => {
@@ -231,20 +268,34 @@ describe("pesticide production and dispatch guards", () => {
     "pending-application",
     "export",
   ] as const)("starts a batch with a referenced %s basis", (kind) => {
-    expect(canStartPesticideBatch({ kind, reference: "basis-123" })).toEqual({
-      allowed: true,
-    });
+    expect(
+      canStartPesticideBatch({
+        establishmentRegistered: true,
+        basis: { kind, reference: "basis-123" },
+      }),
+    ).toEqual({ allowed: true });
   });
 
   it.each([undefined, null, { kind: "registration" as const, reference: " " }])(
     "refuses a batch without a complete registration basis",
     (basis) => {
-      expect(canStartPesticideBatch(basis)).toEqual({
-        allowed: false,
-        reason: "registration-basis-required",
-      });
+      expect(
+        canStartPesticideBatch({ establishmentRegistered: true, basis }),
+      ).toEqual({ allowed: false, reason: "registration-basis-required" });
     },
   );
+
+  it("refuses a batch at an unregistered producing establishment", () => {
+    expect(
+      canStartPesticideBatch({
+        establishmentRegistered: false,
+        basis: { kind: "registration", reference: "basis-123" },
+      }),
+    ).toEqual({
+      allowed: false,
+      reason: "establishment-registration-required",
+    });
+  });
 
   it("allows an experimental dispatch to a current permit participant", () => {
     expect(
@@ -262,6 +313,16 @@ describe("pesticide production and dispatch guards", () => {
         participantIds: ["site-1", "site-2"],
       }),
     ).toEqual({
+      allowed: false,
+      reason: "permit-participant-required",
+    });
+  });
+
+  it.each([
+    { consigneeId: "", participantIds: [""] },
+    { consigneeId: "  ", participantIds: ["  "] },
+  ])("refuses blank experimental permit participant data", (input) => {
+    expect(canDispatchUnderExperimentalPermit(input)).toEqual({
       allowed: false,
       reason: "permit-participant-required",
     });
