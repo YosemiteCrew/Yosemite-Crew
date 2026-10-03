@@ -47,6 +47,7 @@
   "pnpm": {
     "overrides": {
       "protobufjs": "8.8.0",
+      "@axe-core/playwright>playwright-core": "1.63.0",
       "@protobufjs/utf8": "1.1.1",
       "qs": "6.16.0",
       "serialize-javascript": "7.0.5",

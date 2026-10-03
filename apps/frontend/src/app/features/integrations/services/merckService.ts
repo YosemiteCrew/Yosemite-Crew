@@ -296,6 +296,7 @@ export const normalizeMerckSearchPayload = (
 export const isAllowedMerckUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
+    if (url.protocol !== 'https:') return false;
     const host = url.hostname.toLowerCase();
     return MERCK_MANUAL_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
   } catch {

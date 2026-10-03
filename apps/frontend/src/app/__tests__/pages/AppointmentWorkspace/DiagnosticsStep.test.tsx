@@ -608,27 +608,58 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(screen.queryByTestId('category-r2')).not.toBeInTheDocument();
   });
 
-  it('renders the order iframe overlay when showOrderIframe is set', () => {
-    renderStep({ showOrderIframe: true, iframeOrderUiUrl: 'https://idexx.test/frame' });
+  it('shows a refreshing message instead of the empty results message while refreshing', () => {
+    renderStep({ results: [], refreshingResults: true });
 
-    const iframe = screen.getByTitle('IDEXX order UI');
-    expect(iframe).toBeInTheDocument();
-    expect(iframe).toHaveAttribute(
-      'sandbox',
-      'allow-scripts allow-forms allow-popups allow-downloads allow-same-origin'
-    );
+    expect(screen.getByText('Refreshing results…')).toBeInTheDocument();
+    expect(screen.queryByText(/No results available yet/i)).not.toBeInTheDocument();
   });
 
-  it('shows the IDEXX loader when the follow-up iframe modal opens', () => {
+  it('shows a dash for a result that is not mapped to an order', () => {
+    renderStep({ results: [makeResult({ orderId: undefined } as Partial<LabResult>)] });
+
+    expect(screen.getByText('1. Order -')).toBeInTheDocument();
+  });
+
+  it('shows the IDEXX launch dialog when an order session is open', () => {
+    const { hook } = renderStep({
+      showOrderIframe: true,
+      iframeOrderUiUrl: 'https://idexx.test/frame',
+    });
+
+    expect(screen.getByRole('dialog', { name: 'IDEXX ordering' })).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Open IDEXX' });
+    expect(link).toHaveAttribute('href', 'https://idexx.test/frame');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(document.querySelector('iframe')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(hook.closeOrderIframeManually).toHaveBeenCalledTimes(1);
+  });
+
+  it('titles the launch dialog for follow-up ordering', () => {
     renderStep({
       showOrderIframe: true,
       iframeOrderUiUrl: 'https://idexx.test/follow-up',
       iframeOpenSource: 'followup',
     });
 
-    expect(screen.getByText('IDEXX follow-up ordering')).toBeInTheDocument();
-    expect(screen.getByTestId('idexx-order-loader')).toBeInTheDocument();
-    expect(screen.getByText('Loading IDEXX')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'IDEXX follow-up ordering' })).toBeInTheDocument();
+    expect(screen.getByText(/If IDEXX shows the order was submitted/i)).toBeInTheDocument();
+  });
+
+  it('falls back to the latest order URL when the session has no stored URL', () => {
+    renderStep({
+      showOrderIframe: true,
+      iframeOrderUiUrl: '',
+      latestOrder: makeOrder({ uiUrl: 'https://idexx.test/latest' } as Partial<LabOrder>),
+    });
+
+    expect(screen.getByRole('link', { name: 'Open IDEXX' })).toHaveAttribute(
+      'href',
+      'https://idexx.test/latest'
+    );
   });
 
   it('renders the PDF preview overlay when showPdfPreview is set', () => {
@@ -746,35 +777,21 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(screen.getByText(/No lab orders for this appointment yet/i)).toBeInTheDocument();
   });
 
-  it('resets the iframe loaded state when the overlay dependencies change', () => {
-    mockUseLabTests.mockReturnValue(baseHook({ showOrderIframe: false }));
+  it('hides the launch dialog until an order session opens', () => {
+    mockUseLabTests.mockReturnValue(
+      baseHook({ showOrderIframe: false, iframeOrderUiUrl: 'https://idexx.test/frame' })
+    );
     const { rerender } = render(
       <DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />
     );
-    expect(screen.queryByTitle('IDEXX order UI')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open IDEXX' })).not.toBeInTheDocument();
 
     mockUseLabTests.mockReturnValue(
       baseHook({ showOrderIframe: true, iframeOrderUiUrl: 'https://idexx.test/frame' })
     );
     rerender(<DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />);
 
-    expect(screen.getByTitle('IDEXX order UI')).toBeInTheDocument();
-  });
-
-  it('re-syncs iframe overlay deps without resetting loaded when the frame stays closed', () => {
-    mockUseLabTests.mockReturnValue(
-      baseHook({ showOrderIframe: false, iframeOrderUiUrl: 'https://idexx.test/a' })
-    );
-    const { rerender } = render(
-      <DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />
-    );
-
-    mockUseLabTests.mockReturnValue(
-      baseHook({ showOrderIframe: false, iframeOrderUiUrl: 'https://idexx.test/b' })
-    );
-    rerender(<DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />);
-
-    expect(screen.queryByTitle('IDEXX order UI')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open IDEXX' })).toBeInTheDocument();
   });
 
   it('logs an error when the post-order workspace refresh fails', async () => {

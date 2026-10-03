@@ -219,10 +219,6 @@
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
-    "apps/frontend/src/app/features/integrations/pages/MerckManuals/MerckReaderPortal.stories.tsx": {
-      "n": 1,
-      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
-    },
     "apps/frontend/src/app/features/legal/pages/DmcaCopyrightPolicy.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."

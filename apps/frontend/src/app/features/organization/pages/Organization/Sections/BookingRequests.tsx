@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -61,19 +61,28 @@ const BookingRequests = () => {
   // No `setLoading(true)` here: the state starts true and the effect only ever
   // clears it asynchronously. Setting it synchronously inside the effect
   // cascades a render for no benefit, since nothing can have cleared it yet.
-  const load = useCallback(() => {
+  // A response that arrives after the org changed or the section unmounted is
+  // dropped, so it can never overwrite the current org's requests.
+  useEffect(() => {
     if (!primaryOrgId) return;
+    let cancelled = false;
     bookingRequestsApi
       .list(primaryOrgId)
       .then((rows) => {
+        if (cancelled) return;
         setRequests(rows);
         setFailed(false);
       })
-      .catch(() => setFailed(true))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [primaryOrgId]);
-
-  useEffect(() => load(), [load]);
 
   // Nothing to show, and nothing to scope a request to. Returning early here
   // rather than guarding inside every handler means `primaryOrgId` is a string

@@ -76,7 +76,7 @@ const meta = {
           'Enabled, the panel is a header, an audience segment, the search field and the ' +
           'copyright line pinned to the foot; anything else - disabled, or not configured - ' +
           'collapses to a single bordered sentence. Both are drawn here at the 498px drawer ' +
-          'width. Searching, the refine panel and the reader overlay are storied under ' +
+          'width. Searching and the refine panel are storied under ' +
           'Appointments/AppointmentMerckSearch.',
       },
     },

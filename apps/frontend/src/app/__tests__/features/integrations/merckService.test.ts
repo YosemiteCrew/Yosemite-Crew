@@ -87,6 +87,11 @@ describe('isAllowedMerckUrl', () => {
     expect(isAllowedMerckUrl('')).toBe(false);
   });
 
+  it('disallows non-https links on an allowed host', () => {
+    expect(isAllowedMerckUrl('javascript://www.msdvetmanual.com/%0aalert(1)')).toBe(false);
+    expect(isAllowedMerckUrl('http://www.msdvetmanual.com/topic')).toBe(false);
+  });
+
   it('disallows relative URLs', () => {
     expect(isAllowedMerckUrl('/relative/url')).toBe(false);
   });

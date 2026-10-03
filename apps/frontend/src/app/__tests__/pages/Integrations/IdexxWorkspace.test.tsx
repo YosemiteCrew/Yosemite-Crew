@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -94,11 +94,16 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
+  Primary: ({ text, onClick, isDisabled, href, target }: any) =>
+    target ? (
+      <a href={href} target={target} rel="noopener noreferrer">
+        {text}
+      </a>
+    ) : (
+      <button type="button" onClick={onClick} disabled={isDisabled}>
+        {text}
+      </button>
+    ),
   Secondary: ({ text, onClick, isDisabled }: any) => (
     <button type="button" onClick={onClick} disabled={isDisabled}>
       {text}
@@ -345,13 +350,18 @@ describe('IDEXX Hub page', () => {
     await waitFor(() => expect(screen.getByText(/3 results awaiting review/)).toBeInTheDocument());
   });
 
-  it('shows Details action for non-complete results', async () => {
+  it('shows Details action for non-complete results and opens the result from it', async () => {
     listIdexxResultsMock.mockResolvedValue([
       makeResult({ resultId: 'result-2', status: 'PENDING' }),
     ]);
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
+    await screen.findByText('Order detail');
+    expect(getIdexxResultByIdMock).toHaveBeenCalledWith({
+      organisationId: 'org-1',
+      resultId: 'result-2',
+    });
   });
 
   it('renders status pills across statuses and patient fallbacks', async () => {
@@ -713,6 +723,42 @@ describe('IDEXX Hub page', () => {
     expect(await screen.findByRole('button', { name: 'Auto-refresh: Off' })).toBeInTheDocument();
   });
 
+  it('refreshes results every 30 seconds while auto-refresh is on', async () => {
+    jest.useFakeTimers();
+    try {
+      render(<ProtectedIdexxWorkspace />);
+      await findHeading();
+      await waitFor(() => expect(listIdexxResultsMock).toHaveBeenCalled());
+      const callsBefore = listIdexxResultsMock.mock.calls.length;
+
+      await act(async () => {
+        jest.advanceTimersByTime(30000);
+      });
+
+      expect(listIdexxResultsMock.mock.calls.length).toBe(callsBefore + 1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('returns to the first page when the header search changes', async () => {
+    listIdexxResultsMock.mockResolvedValue(
+      Array.from({ length: 7 }, (_, i) =>
+        makeResult({ resultId: `r-${i}`, patientName: `Pet ${i}` })
+      )
+    );
+    const { rerender } = render(<ProtectedIdexxWorkspace />);
+    await findHeading();
+    await waitFor(() => expect(showingText()).toContain('1-5 of 7'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(showingText()).toContain('6-7 of 7'));
+
+    mockSearchQuery = 'pet';
+    rerender(<ProtectedIdexxWorkspace />);
+
+    await waitFor(() => expect(showingText()).toContain('1-5 of 7'));
+  });
+
   it('shows the syncing skeleton and Refreshing label while loading', async () => {
     listIdexxResultsMock.mockImplementation(() => new Promise(() => {}));
     render(<ProtectedIdexxWorkspace />);
@@ -747,7 +793,7 @@ describe('IDEXX Hub page', () => {
     ).toBeInTheDocument();
   });
 
-  it('looks up an order and opens the follow-up frame and acknowledgment', async () => {
+  it('looks up an order and opens the follow-up in a new tab and the acknowledgment', async () => {
     getIdexxOrderByIdMock.mockResolvedValue({
       _id: 'o1',
       idexxOrderId: 'IDX-1',
@@ -765,19 +811,11 @@ describe('IDEXX Hub page', () => {
     await screen.findByText('Order IDX-1');
     expect(screen.getByText(/Submitted \(Resulted\)/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open follow-up' }));
-    await screen.findByText('IDEXX follow-up hub');
-    const followUpIframe = screen.getByTitle('IDEXX follow-up hub');
-    expect(followUpIframe).toHaveAttribute(
-      'sandbox',
-      'allow-scripts allow-popups allow-forms allow-same-origin'
-    );
-    // The iframe onLoad hides the loader.
-    fireEvent.load(followUpIframe);
-    await waitFor(() => expect(screen.queryByTestId('yosemite-loader')).not.toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close IDEXX follow-up frame' }));
-    await waitFor(() => expect(screen.queryByText('IDEXX follow-up hub')).not.toBeInTheDocument());
+    const followUp = screen.getByRole('link', { name: 'Open follow-up' });
+    expect(followUp).toHaveAttribute('href', 'https://idexx.example/ui');
+    expect(followUp).toHaveAttribute('target', '_blank');
+    expect(followUp).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(document.querySelector('iframe')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'View acknowledgment' }));
     await screen.findByTestId('pdf-preview');
@@ -798,8 +836,10 @@ describe('IDEXX Hub page', () => {
     fireEvent.change(screen.getByLabelText('IDEXX order ID'), { target: { value: 'IDX-3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lookup order' }));
     await screen.findByText('Order IDX-3');
-    fireEvent.click(screen.getByRole('button', { name: 'Open follow-up' }));
-    await screen.findByText('IDEXX follow-up hub');
+    expect(screen.getByRole('link', { name: 'Open follow-up' })).toHaveAttribute(
+      'href',
+      'https://nested.example/ui'
+    );
   });
 
   it('guards order actions when the order has no urls', async () => {
@@ -814,12 +854,18 @@ describe('IDEXX Hub page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lookup order' }));
     await screen.findByText('Order IDX-2');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open follow-up' }));
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        'Follow-up workspace URL is not available for this order.'
-      )
-    );
+    const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Open follow-up' }));
+      await waitFor(() =>
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          'Follow-up workspace URL is not available for this order.'
+        )
+      );
+      expect(openSpy).not.toHaveBeenCalled();
+    } finally {
+      openSpy.mockRestore();
+    }
 
     fireEvent.click(screen.getByRole('button', { name: 'View acknowledgment' }));
     await waitFor(() =>
