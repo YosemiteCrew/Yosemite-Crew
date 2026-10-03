@@ -23,6 +23,7 @@ jest.mock('next/link', () => ({
 jest.mock('react-icons/io5', () => ({
   IoArrowForward: () => <span data-testid="icon-forward" />,
   IoCalendarOutline: () => <span data-testid="icon-calendar" />,
+  IoGlobeOutline: () => <span data-testid="icon-globe" />,
 }));
 
 describe('OnlineBooking section', () => {
@@ -34,5 +35,15 @@ describe('OnlineBooking section', () => {
 
     const link = screen.getByRole('link', { name: /Set up/ });
     expect(link).toHaveAttribute('href', '/public-booking-setup');
+  });
+
+  it('links to the website builder', () => {
+    render(<OnlineBooking />);
+
+    expect(screen.getByText('Build your clinic website')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Open builder/ })).toHaveAttribute(
+      'href',
+      '/website-builder'
+    );
   });
 });
