@@ -51,7 +51,7 @@
     "gray-matter": "^4.0.3",
     "hast-util-to-jsx-runtime": "^2.3.6",
     "libphonenumber-js": "^1.13.13",
-    "next": "15.5.25",
+    "next": "15.5.27",
     "posthog-js": "^1.391.7",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.0",
