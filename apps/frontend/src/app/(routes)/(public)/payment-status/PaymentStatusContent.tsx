@@ -165,7 +165,7 @@ export function PaymentStatusContent() {
     <div
       data-yc-app
       data-yc-surface="light"
-      className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]"
+      className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-[calc(2.5rem_+_var(--yc-consent-inset,0px))] bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]"
     >
       {/* Opaque, not bg-white/80. The card pins its inks light because it is a
           receipt, but at 80% the themed page beneath it bled through: in dark the
@@ -174,6 +174,10 @@ export function PaymentStatusContent() {
           the pin only half-holds. */}
       <div className="w-full max-w-xl bg-white border border-card-border rounded-2xl px-6 py-10">
         <div className="flex flex-col items-center text-center gap-4">
+          <div className="order-first md:order-last flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <Secondary text="Return home" href="/" />
+          </div>
+
           <div className="relative flex items-center justify-center size-24 rounded-full">
             {(requestState === 'missing_session' || requestState === 'error') && (
               <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
@@ -274,10 +278,6 @@ export function PaymentStatusContent() {
                 Auto-check stopped
               </span>
             )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Secondary text="Return home" href="/" />
           </div>
         </div>
       </div>
