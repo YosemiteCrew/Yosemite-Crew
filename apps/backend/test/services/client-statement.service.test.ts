@@ -5,6 +5,7 @@ import {
   ClientStatementError,
   ClientStatementService,
   type StatementInvoice,
+  type StatementReceipt,
 } from "src/services/finance/client-statement";
 
 jest.mock("src/services/finance/client-collections", () => ({
@@ -17,6 +18,8 @@ jest.mock("src/config/prisma", () => ({
     invoice: { findMany: jest.fn(), count: jest.fn() },
     invoiceRevision: { findMany: jest.fn(), count: jest.fn() },
     providerReceiptAllocation: { findMany: jest.fn(), count: jest.fn() },
+    providerReceipt: { findMany: jest.fn(), count: jest.fn() },
+    providerReceiptRefund: { findMany: jest.fn(), count: jest.fn() },
     payment: { count: jest.fn() },
     refund: { count: jest.fn() },
     creditNote: { count: jest.fn() },
@@ -37,6 +40,8 @@ const mockedPrisma = prisma as unknown as {
   invoice: { findMany: jest.Mock; count: jest.Mock };
   invoiceRevision: { findMany: jest.Mock; count: jest.Mock };
   providerReceiptAllocation: { findMany: jest.Mock; count: jest.Mock };
+  providerReceipt: { findMany: jest.Mock; count: jest.Mock };
+  providerReceiptRefund: { findMany: jest.Mock; count: jest.Mock };
   payment: { count: jest.Mock };
   refund: { count: jest.Mock };
   creditNote: { count: jest.Mock };
@@ -535,6 +540,10 @@ beforeEach(() => {
   mockedPrisma.invoice.count.mockResolvedValue(1);
   mockedPrisma.invoiceRevision.count.mockResolvedValue(1);
   mockedPrisma.providerReceiptAllocation.count.mockResolvedValue(0);
+  mockedPrisma.providerReceipt.count.mockResolvedValue(0);
+  mockedPrisma.providerReceipt.findMany.mockResolvedValue([]);
+  mockedPrisma.providerReceiptRefund.count.mockResolvedValue(0);
+  mockedPrisma.providerReceiptRefund.findMany.mockResolvedValue([]);
   mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([]);
   mockedPrisma.invoiceRevision.findMany.mockImplementation(async () => {
     const rows: StatementInvoice[] =
@@ -1132,6 +1141,7 @@ describe("ClientStatementService.generate", () => {
           },
           select: {
             paymentId: true,
+            receiptId: true,
             invoiceId: true,
             amount: true,
             appliedAt: true,
@@ -1909,6 +1919,398 @@ describe("ClientStatementService.generate", () => {
 
     await expect(generate()).rejects.toBe(failure);
   });
+});
+
+describe("receipt account movements", () => {
+  const capturedAt = new Date("2026-09-05T12:00:00Z");
+  const receipt = (over: Partial<StatementReceipt> = {}): StatementReceipt => ({
+    id: "receipt-1",
+    invoiceId: "invoice-1",
+    currency: "gbp",
+    amount: 150,
+    allocatedAmount: 100,
+    refundedAmount: 0,
+    capturedAt,
+    refunds: [],
+    ...over,
+  });
+  const paidInvoice = (over: Partial<StatementInvoice> = {}) =>
+    invoice({
+      payments: [
+        {
+          id: "payment-1",
+          amount: 100,
+          currency: "gbp",
+          receiptId: "receipt-1",
+          provider: "STRIPE",
+          providerPaymentId: "capture-1",
+          paidAt: capturedAt,
+          createdAt: capturedAt,
+          refunds: [],
+        },
+      ],
+      ...over,
+    });
+  const build = (receipts = [receipt()], invoices = [paidInvoice()]) =>
+    buildClientStatementSnapshot({
+      client,
+      periodStart: PERIOD_START,
+      periodEnd: PERIOD_END,
+      generatedAt: NOW,
+      receipts,
+      invoices,
+    }).currencies[0];
+  it("includes excess captured credit once without changing paid invoice ageing", () => {
+    expect(build()).toMatchObject({
+      openingBalance: 100,
+      closingBalance: -50,
+      aging: { totalOutstanding: 0 },
+    });
+    expect(build().entries.filter((e) => e.kind === "RECEIPT")).toEqual([
+      expect.objectContaining({
+        amount: 150,
+        occurredAt: capturedAt.toISOString(),
+      }),
+    ]);
+  });
+  it("keeps unapplied captures separate from unpaid invoice ageing", () => {
+    expect(build([receipt({ allocatedAmount: 0 })], [invoice()])).toMatchObject(
+      { closingBalance: -50, aging: { totalOutstanding: 100 } },
+    );
+  });
+  it("records successive partial refunds as deltas even when delivered out of order", () => {
+    const result = build([
+      receipt({
+        refundedAmount: 50,
+        refunds: [
+          {
+            id: "second",
+            cumulativeAmount: 50,
+            currency: "GBP",
+            occurredAt: new Date("2026-09-20"),
+          },
+          {
+            id: "first",
+            cumulativeAmount: 20,
+            currency: "gbp",
+            occurredAt: new Date("2026-09-10"),
+          },
+        ],
+      }),
+    ]);
+    expect(result.closingBalance).toBe(0);
+    expect(
+      result.entries
+        .filter((e) => e.kind === "RECEIPT_REFUND")
+        .map((e) => e.amount),
+    ).toEqual([20, 30]);
+  });
+  it("does not bring a later refund into an earlier period", () => {
+    expect(
+      build([
+        receipt({
+          refundedAmount: 50,
+          refunds: [
+            {
+              id: "later",
+              cumulativeAmount: 50,
+              currency: "gbp",
+              occurredAt: new Date("2026-10-02"),
+            },
+          ],
+        }),
+      ]).closingBalance,
+    ).toBe(-50);
+  });
+  it("does not count an invoice refund twice", () => {
+    const date = new Date("2026-09-10");
+    const i = paidInvoice();
+    i.payments[0].refunds = [
+      { id: "invoice-refund", amount: 20, currency: "gbp", createdAt: date },
+    ];
+    expect(
+      build(
+        [
+          receipt({
+            refundedAmount: 20,
+            refunds: [
+              {
+                id: "receipt-refund",
+                cumulativeAmount: 20,
+                currency: "gbp",
+                occurredAt: date,
+              },
+            ],
+          }),
+        ],
+        [i],
+      ),
+    ).toMatchObject({ closingBalance: -30, aging: { totalOutstanding: 20 } });
+  });
+  it("keeps receipt-only currencies without ageing unapplied credit", () => {
+    expect(
+      build([receipt({ currency: "eur", allocatedAmount: 0 })], []),
+    ).toMatchObject({
+      currency: "eur",
+      closingBalance: -150,
+      aging: { totalOutstanding: 0 },
+    });
+  });
+  it("ignores repeated cumulative totals and orders equal-date refunds by amount", () => {
+    const date = new Date("2026-09-10");
+    const result = build([
+      receipt({
+        refundedAmount: 50,
+        refunds: [
+          {
+            id: "fifty",
+            cumulativeAmount: 50,
+            currency: "gbp",
+            occurredAt: date,
+          },
+          {
+            id: "twenty",
+            cumulativeAmount: 20,
+            currency: "gbp",
+            occurredAt: date,
+          },
+          {
+            id: "repeated",
+            cumulativeAmount: 50,
+            currency: "gbp",
+            occurredAt: new Date("2026-09-11"),
+          },
+        ],
+      }),
+    ]);
+    expect(result.closingBalance).toBe(0);
+    expect(
+      result.entries.filter((e) => e.kind === "RECEIPT_REFUND"),
+    ).toHaveLength(2);
+  });
+  it("rejects refund totals that decrease over time", () => {
+    expect(() =>
+      build([
+        receipt({
+          refundedAmount: 20,
+          refunds: [
+            {
+              id: "first",
+              cumulativeAmount: 50,
+              currency: "gbp",
+              occurredAt: new Date("2026-09-10"),
+            },
+            {
+              id: "later",
+              cumulativeAmount: 20,
+              currency: "gbp",
+              occurredAt: new Date("2026-09-11"),
+            },
+          ],
+        }),
+      ]),
+    ).toThrow("A receipt is missing its dated payment history.");
+  });
+  it.each(["payment currency", "payment date", "refund currency"])(
+    "rejects conflicting %s",
+    (field) => {
+      const i = paidInvoice();
+      if (field === "payment currency") i.payments[0].currency = "eur";
+      if (field === "payment date")
+        i.payments[0].paidAt = new Date("2026-09-01");
+      if (field === "refund currency")
+        i.payments[0].refunds = [
+          {
+            id: "bad",
+            amount: 20,
+            currency: "eur",
+            createdAt: new Date("2026-09-10"),
+          },
+        ];
+      expect(() => build([receipt()], [i])).toThrow(
+        "A receipt is missing its dated payment history.",
+      );
+    },
+  );
+  it("uses recorded payment creation and invoice currency for older payment rows", () => {
+    const i = paidInvoice();
+    i.payments[0].paidAt = null;
+    i.payments[0].currency = undefined;
+    i.payments[0].refunds = [
+      { id: "refund", amount: 20, createdAt: new Date("2026-09-10") },
+    ];
+    expect(
+      build(
+        [
+          receipt({
+            refundedAmount: 20,
+            refunds: [
+              {
+                id: "refund",
+                cumulativeAmount: 20,
+                currency: "gbp",
+                occurredAt: new Date("2026-09-10"),
+              },
+            ],
+          }),
+        ],
+        [i],
+      ).closingBalance,
+    ).toBe(-30);
+  });
+  it.each([
+    ["missing refund", { refundedAmount: 20 }],
+    ["missing application", { allocatedAmount: 120 }],
+    [
+      "refund currency",
+      {
+        refundedAmount: 20,
+        refunds: [
+          {
+            id: "bad",
+            cumulativeAmount: 20,
+            currency: "eur",
+            occurredAt: new Date("2026-09-10"),
+          },
+        ],
+      },
+    ],
+    [
+      "refund before capture",
+      {
+        refundedAmount: 20,
+        refunds: [
+          {
+            id: "bad",
+            cumulativeAmount: 20,
+            currency: "gbp",
+            occurredAt: new Date("2026-09-01"),
+          },
+        ],
+      },
+    ],
+    [
+      "refund beyond capture",
+      {
+        refundedAmount: 200,
+        refunds: [
+          {
+            id: "bad",
+            cumulativeAmount: 200,
+            currency: "gbp",
+            occurredAt: new Date("2026-09-10"),
+          },
+        ],
+      },
+    ],
+  ])("refuses incomplete %s history", (_name, changed) => {
+    expect(() =>
+      build([receipt(changed as Partial<StatementReceipt>)]),
+    ).toThrow("A receipt is missing its dated payment history.");
+  });
+  it("loads scoped receipts and their refund history for stored statements", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([paidInvoice()]);
+    mockedPrisma.providerReceipt.count.mockResolvedValue(1);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      { ...receipt(), provider: "STRIPE", paymentRef: "capture-1" },
+    ]);
+    await generate();
+    expect(
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0].closingBalance,
+    ).toBe(-50);
+    expect(
+      mockedPrisma.providerReceipt.findMany.mock.calls[0][0].where,
+    ).toEqual({
+      organisationId: ORG,
+      invoiceId: { in: ["invoice-1"] },
+      capturedAt: { lte: PERIOD_END },
+    });
+    expect(mockedPrisma.providerReceiptRefund.findMany).toHaveBeenCalledWith({
+      where: { receiptId: { in: ["receipt-1"] } },
+    });
+  });
+  it("loads dated refunds into stored account balances", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([paidInvoice()]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      {
+        ...receipt({ refundedAmount: 20 }),
+        provider: "STRIPE",
+        paymentRef: "capture-1",
+      },
+    ]);
+    mockedPrisma.providerReceiptRefund.findMany.mockResolvedValue([
+      {
+        id: "refund",
+        receiptId: "receipt-1",
+        cumulativeAmount: 20,
+        currency: "gbp",
+        occurredAt: new Date("2026-09-10"),
+      },
+    ]);
+    await generate();
+    expect(
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0].closingBalance,
+    ).toBe(-30);
+  });
+  it("matches credit applied to a different invoice through its allocation", async () => {
+    const target = paidInvoice({ id: "invoice-2" });
+    target.payments[0].providerPaymentId = "different-reference";
+    mockedPrisma.invoice.findMany.mockResolvedValue([invoice(), target]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      { ...receipt(), provider: "STRIPE", paymentRef: "capture-1" },
+    ]);
+    mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([
+      {
+        paymentId: "payment-1",
+        invoiceId: "invoice-2",
+        receiptId: "receipt-1",
+        amount: 100,
+        appliedAt: capturedAt,
+      },
+    ]);
+    await generate();
+    expect(
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0],
+    ).toMatchObject({ closingBalance: 50, aging: { totalOutstanding: 100 } });
+  });
+  it("refuses ambiguous capture references across receipts", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([paidInvoice()]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue(
+      ["receipt-1", "receipt-2"].map((id) => ({
+        ...receipt({ id }),
+        provider: "STRIPE",
+        paymentRef: "capture-1",
+      })),
+    );
+    await expect(generate()).rejects.toMatchObject({
+      statusCode: 409,
+      message: "A payment matches more than one receipt.",
+    });
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+  it("refuses a receipt without its account invoice", async () => {
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      {
+        ...receipt({ allocatedAmount: 0 }),
+        invoiceId: null,
+        provider: "STRIPE",
+        paymentRef: "capture-1",
+      },
+    ]);
+    await expect(generate()).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+  it.each(["providerReceipt", "providerReceiptRefund"] as const)(
+    "bounds %s with the other history",
+    async (table) => {
+      mockedPrisma[table].count.mockResolvedValue(10_000);
+      await expect(generate()).rejects.toMatchObject({ statusCode: 422 });
+      expect(mockedPrisma[table].findMany).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("ClientStatementService.getById", () => {

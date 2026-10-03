@@ -36050,7 +36050,19 @@ components:
           format: date-time
         kind:
           type: string
-          enum: [INVOICE, PAYMENT, REFUND, CREDIT_NOTE, CREDIT_NOTE_VOID, DEPOSIT]
+          enum:
+            [
+              INVOICE,
+              PAYMENT,
+              REFUND,
+              CREDIT_NOTE,
+              CREDIT_NOTE_VOID,
+              DEPOSIT,
+              RECEIPT,
+              RECEIPT_REFUND,
+              CREDIT_ALLOCATION,
+              CREDIT_ALLOCATION_REFUND,
+            ]
         direction:
           type: string
           enum: [DEBIT, CREDIT]

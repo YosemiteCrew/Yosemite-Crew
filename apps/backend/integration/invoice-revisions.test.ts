@@ -70,6 +70,7 @@ beforeAll(async () => {
     "ParentCreatedFrom",
     "PaymentProvider",
     "SettlementChannel",
+    "ProviderReceiptStatus",
   ]) {
     const [{ labels }] = await admin.$queryRawUnsafe<
       Array<{ labels: string[] }>
@@ -89,6 +90,9 @@ beforeAll(async () => {
     "Parent",
     "ClientStatement",
     "FinanceEvents",
+    "ProviderReceipt",
+    "ProviderReceiptAllocation",
+    "ProviderReceiptRefund",
   ]) {
     await admin.$executeRawUnsafe(
       `CREATE TABLE "${schema}"."${table}" (LIKE "public"."${table}" INCLUDING ALL)`,
@@ -496,6 +500,136 @@ it("rebuilds the same past statement after amendment, finalization and cancellat
       }),
     ).toEqual(result);
   }
+});
+
+it("keeps dated capture, later allocation and refund balances through the database", async () => {
+  const parent = await db.parent.create({
+    data: {
+      firstName: "Synthetic",
+      email: `${randomUUID()}@example.test`,
+      createdFrom: "pms",
+    },
+  });
+  const invoice = await db.invoice.create({
+    data: {
+      organisationId: "history-practice",
+      parentId: parent.id,
+      items: [],
+      subtotal: 100,
+      totalAmount: 100,
+      currency: "GBP",
+    },
+  });
+  const first = (await history(invoice.id))[0].recordedAt.getTime();
+  const at = (seconds: number) => new Date(first + seconds * 1000);
+  const receipt = await db.providerReceipt.create({
+    data: {
+      provider: "STRIPE",
+      merchantAccountRef: randomUUID(),
+      paymentRef: randomUUID(),
+      organisationId: "history-practice",
+      invoiceId: invoice.id,
+      amount: 150,
+      allocatedAmount: 100,
+      refundedAmount: 20,
+      currency: "gbp",
+      capturedAt: at(1),
+    },
+  });
+  const payment = await db.payment.create({
+    data: {
+      invoiceId: invoice.id,
+      provider: "STRIPE",
+      providerPaymentId: receipt.paymentRef,
+      amount: 100,
+      currency: "gbp",
+      status: "SUCCEEDED",
+      paidAt: at(1),
+    },
+  });
+  await db.providerReceiptAllocation.create({
+    data: {
+      receiptId: receipt.id,
+      invoiceId: invoice.id,
+      paymentId: payment.id,
+      amount: 100,
+      idempotencyKey: randomUUID(),
+      actorId: "synthetic-staff",
+      appliedAt: at(3),
+    },
+  });
+  await db.providerReceiptRefund.create({
+    data: {
+      receiptId: receipt.id,
+      providerEventId: randomUUID(),
+      cumulativeAmount: 20,
+      currency: "gbp",
+      occurredAt: at(5),
+    },
+  });
+  for (const [end, balance, outstanding] of [
+    [2, -50, 100],
+    [4, -50, 0],
+    [6, -30, 0],
+  ]) {
+    const result = await ClientStatementService.generate({
+      organisationId: "history-practice",
+      parentId: parent.id,
+      generatedById: "synthetic-staff",
+      idempotencyKey: randomUUID(),
+      periodStart: at(-1),
+      periodEnd: at(end),
+      now: at(10),
+    });
+    expect(result.snapshot.currencies[0]).toMatchObject({
+      closingBalance: balance,
+      aging: { totalOutstanding: outstanding },
+    });
+  }
+});
+
+it("keeps another practice's capture out of client credit", async () => {
+  const parent = await db.parent.create({
+    data: {
+      firstName: "Synthetic",
+      email: `${randomUUID()}@example.test`,
+      createdFrom: "pms",
+    },
+  });
+  const invoice = await db.invoice.create({
+    data: {
+      organisationId: "history-practice",
+      parentId: parent.id,
+      items: [],
+      subtotal: 100,
+      totalAmount: 100,
+      currency: "GBP",
+    },
+  });
+  const first = (await history(invoice.id))[0].recordedAt;
+  await db.providerReceipt.create({
+    data: {
+      provider: "STRIPE",
+      merchantAccountRef: randomUUID(),
+      paymentRef: randomUUID(),
+      organisationId: "other-practice",
+      invoiceId: invoice.id,
+      amount: 999,
+      currency: "gbp",
+      capturedAt: first,
+    },
+  });
+  const result = await ClientStatementService.generate({
+    organisationId: "history-practice",
+    parentId: parent.id,
+    generatedById: "synthetic-staff",
+    idempotencyKey: randomUUID(),
+    periodStart: new Date(first.getTime() - 1000),
+    periodEnd: new Date(first.getTime() + 1000),
+    now: new Date(first.getTime() + 2000),
+  });
+  expect(result.snapshot.currencies[0].closingBalance).toBe(100);
+  expect(result.snapshot.currencies[0].entries).toHaveLength(1);
 });
 
 it("keeps stored statement history within the requested practice and client", async () => {

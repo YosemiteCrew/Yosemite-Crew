@@ -23,6 +23,10 @@ export type ClientStatementEntry = {
     | "REFUND"
     | "CREDIT_NOTE"
     | "CREDIT_NOTE_VOID"
+    | "RECEIPT"
+    | "RECEIPT_REFUND"
+    | "CREDIT_ALLOCATION"
+    | "CREDIT_ALLOCATION_REFUND"
     | "DEPOSIT";
   direction: "DEBIT" | "CREDIT";
   amount: number;
@@ -60,6 +64,9 @@ export type ClientStatementSnapshot = {
 
 type StatementPayment = {
   id: string;
+  provider?: string;
+  providerPaymentId?: string | null;
+  receiptId?: string;
   amount: number;
   currency?: string;
   paidAt: Date | null;
@@ -73,6 +80,22 @@ type StatementPayment = {
 };
 
 type StatementDeposit = { id: string; amount: number; occurredAt: Date };
+
+export type StatementReceipt = {
+  id: string;
+  invoiceId: string;
+  currency: string;
+  amount: number;
+  allocatedAmount: number;
+  refundedAmount: number;
+  capturedAt: Date;
+  refunds: Array<{
+    id: string;
+    cumulativeAmount: number;
+    currency: string;
+    occurredAt: Date;
+  }>;
+};
 
 export type StatementInvoice = {
   id: string;
@@ -376,6 +399,105 @@ const emptyAging = (): ClientStatementAging => ({
   totalOutstanding: 0,
 });
 
+const incompleteReceiptHistory = () =>
+  new ClientStatementError(
+    "A receipt is missing its dated payment history.",
+    409,
+  );
+
+const receiptMovements = (
+  receipt: StatementReceipt,
+  payments: readonly {
+    invoiceId: string;
+    currency: string;
+    payment: StatementPayment;
+  }[],
+): Movement[] => {
+  const currency = currencyKey(receipt.currency);
+  const entries = [
+    movement({
+      id: `receipt:${receipt.id}`,
+      invoiceId: receipt.invoiceId,
+      at: receipt.capturedAt,
+      kind: "RECEIPT",
+      direction: "CREDIT",
+      amount: receipt.amount,
+      currency,
+    }),
+  ];
+  let refunded = 0;
+  for (const refund of [...receipt.refunds].sort(
+    (a, b) =>
+      a.occurredAt.getTime() - b.occurredAt.getTime() ||
+      a.cumulativeAmount - b.cumulativeAmount,
+  )) {
+    if (
+      currencyKey(refund.currency) !== currency ||
+      refund.occurredAt < receipt.capturedAt ||
+      refund.cumulativeAmount < refunded ||
+      refund.cumulativeAmount > receipt.amount
+    )
+      throw incompleteReceiptHistory();
+    const amount = add(currency, refund.cumulativeAmount, -refunded);
+    if (amount > 0)
+      entries.push(
+        movement({
+          id: `receipt-refund:${refund.id}`,
+          invoiceId: receipt.invoiceId,
+          at: refund.occurredAt,
+          kind: "RECEIPT_REFUND",
+          direction: "DEBIT",
+          amount,
+          currency,
+        }),
+      );
+    refunded = refund.cumulativeAmount;
+  }
+  if (
+    quantize(currency, refunded) !== quantize(currency, receipt.refundedAmount)
+  )
+    throw incompleteReceiptHistory();
+  let allocated = 0;
+  for (const { invoiceId, currency: invoiceCurrency, payment } of payments) {
+    const at = payment.paidAt ?? payment.createdAt;
+    if (
+      currencyKey(payment.currency ?? invoiceCurrency) !== currency ||
+      at < receipt.capturedAt
+    )
+      throw incompleteReceiptHistory();
+    allocated = add(currency, allocated, payment.amount);
+    entries.push(
+      movement({
+        id: `credit-allocation:${payment.id}`,
+        invoiceId,
+        at,
+        kind: "CREDIT_ALLOCATION",
+        direction: "DEBIT",
+        amount: payment.amount,
+        currency,
+      }),
+    );
+    for (const refund of payment.refunds) {
+      if (currencyKey(refund.currency ?? currency) !== currency)
+        throw incompleteReceiptHistory();
+      entries.push(
+        movement({
+          id: `credit-allocation-refund:${refund.id}`,
+          invoiceId,
+          at: refund.createdAt,
+          kind: "CREDIT_ALLOCATION_REFUND",
+          direction: "CREDIT",
+          amount: refund.amount,
+          currency,
+        }),
+      );
+    }
+  }
+  if (allocated !== quantize(currency, receipt.allocatedAmount))
+    throw incompleteReceiptHistory();
+  return entries;
+};
+
 const addAgedBalance = (
   aging: ClientStatementAging,
   currency: string,
@@ -410,6 +532,7 @@ export const buildClientStatementSnapshot = (input: {
   generatedAt: Date;
   timeZone?: string;
   invoices: readonly StatementInvoice[];
+  receipts?: readonly StatementReceipt[];
 }): ClientStatementSnapshot => {
   const byCurrency = new Map<string, CurrencyAccumulator>();
   for (const invoice of input.invoices) {
@@ -444,6 +567,35 @@ export const buildClientStatementSnapshot = (input: {
       });
       byCurrency.set(currency, bucket);
     }
+  }
+
+  const receiptPayments = new Map<
+    string,
+    Array<{ invoiceId: string; currency: string; payment: StatementPayment }>
+  >();
+  for (const invoice of input.invoices) {
+    for (const payment of invoice.payments) {
+      if (!payment.receiptId) continue;
+      const payments = receiptPayments.get(payment.receiptId) ?? [];
+      payments.push({
+        invoiceId: invoice.id,
+        currency: invoice.currency,
+        payment,
+      });
+      receiptPayments.set(payment.receiptId, payments);
+    }
+  }
+  for (const receipt of input.receipts ?? []) {
+    const currency = currencyKey(receipt.currency);
+    const bucket = byCurrency.get(currency) ?? {
+      currency,
+      movements: [],
+      invoices: [],
+    };
+    bucket.movements.push(
+      ...receiptMovements(receipt, receiptPayments.get(receipt.id) ?? []),
+    );
+    byCurrency.set(currency, bucket);
   }
 
   const currencies = [...byCurrency.values()]
@@ -679,6 +831,59 @@ const loadDepositHistory = async (
   );
 };
 
+const matchReceiptPayments = (
+  receipts: readonly {
+    id: string;
+    invoiceId: string | null;
+    provider: string;
+    paymentRef: string;
+  }[],
+  invoices: readonly StatementInvoice[],
+  allocations: readonly { paymentId: string | null; receiptId: string }[],
+) => {
+  const matched = new Map<string, string>();
+  const receiptIds = new Set(receipts.map((receipt) => receipt.id));
+  const references = new Map<string, string[]>();
+  for (const receipt of receipts) {
+    const key = JSON.stringify([
+      receipt.invoiceId,
+      receipt.provider,
+      receipt.paymentRef,
+    ]);
+    const ids = references.get(key) ?? [];
+    ids.push(receipt.id);
+    references.set(key, ids);
+  }
+  const allocated = new Map<string, string>();
+  for (const allocation of allocations) {
+    if (allocation.paymentId && receiptIds.has(allocation.receiptId))
+      allocated.set(allocation.paymentId, allocation.receiptId);
+  }
+  const payments = invoices.flatMap((invoice) =>
+    invoice.payments.map((payment) => ({ invoiceId: invoice.id, payment })),
+  );
+  for (const { invoiceId, payment } of payments) {
+    const candidates = new Set(
+      references.get(
+        JSON.stringify([
+          invoiceId,
+          payment.provider,
+          payment.providerPaymentId,
+        ]),
+      ) ?? [],
+    );
+    const appliedReceipt = allocated.get(payment.id);
+    if (appliedReceipt) candidates.add(appliedReceipt);
+    if (candidates.size > 1)
+      throw new ClientStatementError(
+        "A payment matches more than one receipt.",
+        409,
+      );
+    for (const id of candidates) matched.set(payment.id, id);
+  }
+  return matched;
+};
+
 export const ClientStatementService = {
   async generate(input: {
     organisationId: string;
@@ -726,7 +931,7 @@ export const ClientStatementService = {
       return assertSameRequest(existing, input.periodStart, input.periodEnd);
     }
 
-    const invoices = await prisma.$transaction(
+    const account = await prisma.$transaction(
       async (tx) => {
         const where: Prisma.InvoiceWhereInput = {
           organisationId: input.organisationId,
@@ -771,6 +976,8 @@ export const ClientStatementService = {
               where: { status: { in: [...INCLUDED_PAYMENT_STATUSES] } },
               select: {
                 id: true,
+                provider: true,
+                providerPaymentId: true,
                 amount: true,
                 currency: true,
                 paidAt: true,
@@ -812,12 +1019,18 @@ export const ClientStatementService = {
             ),
           },
         };
-        const rowCount =
+        const receiptWhere: Prisma.ProviderReceiptWhereInput = {
+          organisationId: input.organisationId,
+          invoiceId: { in: rows.map((invoice) => invoice.id) },
+          capturedAt: { lte: input.periodEnd },
+        };
+        let rowCount =
           rowCounts.reduce((total, count) => total + count, 0) +
           (await tx.invoiceRevision.count({ where: revisionWhere })) +
           (await tx.providerReceiptAllocation.count({
             where: allocationWhere,
-          }));
+          })) +
+          (await tx.providerReceipt.count({ where: receiptWhere }));
         if (rowCount > MAX_STATEMENT_ROWS) {
           throw new ClientStatementError(
             "This client account exceeds the supported statement size.",
@@ -834,6 +1047,34 @@ export const ClientStatementService = {
           versions.push(revision);
           revisions.set(revision.invoiceId, versions);
         }
+        const receiptRows = await tx.providerReceipt.findMany({
+          where: receiptWhere,
+          select: {
+            id: true,
+            invoiceId: true,
+            provider: true,
+            paymentRef: true,
+            amount: true,
+            currency: true,
+            capturedAt: true,
+            allocatedAmount: true,
+            refundedAmount: true,
+          },
+        });
+        const refundWhere = {
+          receiptId: { in: receiptRows.map((receipt) => receipt.id) },
+        };
+        rowCount += await tx.providerReceiptRefund.count({
+          where: refundWhere,
+        });
+        if (rowCount > MAX_STATEMENT_ROWS)
+          throw new ClientStatementError(
+            "This client account exceeds the supported statement size.",
+            422,
+          );
+        const receiptRefunds = await tx.providerReceiptRefund.findMany({
+          where: refundWhere,
+        });
         const deposits = await loadDepositHistory(
           tx,
           input.organisationId,
@@ -844,16 +1085,24 @@ export const ClientStatementService = {
           where: allocationWhere,
           select: {
             paymentId: true,
+            receiptId: true,
             invoiceId: true,
             amount: true,
             appliedAt: true,
           },
         });
         const appliedPayments = new Map<string, Date>();
+        const invoicePayments = new Map(
+          rows.flatMap((invoice) =>
+            invoice.payments.map(
+              (payment) =>
+                [JSON.stringify([invoice.id, payment.id]), payment] as const,
+            ),
+          ),
+        );
         for (const allocation of allocations) {
-          const invoice = rows.find((row) => row.id === allocation.invoiceId);
-          const payment = invoice?.payments.find(
-            (row) => row.id === allocation.paymentId,
+          const payment = invoicePayments.get(
+            JSON.stringify([allocation.invoiceId, allocation.paymentId]),
           );
           if (
             !payment ||
@@ -868,22 +1117,43 @@ export const ClientStatementService = {
           }
           appliedPayments.set(payment.id, allocation.appliedAt);
         }
-        return rows.map((invoice) => ({
+        const paymentReceipts = matchReceiptPayments(
+          receiptRows,
+          rows,
+          allocations,
+        );
+        const invoices = rows.map((invoice) => ({
           ...invoice,
           payments: invoice.payments.map((payment) => ({
             ...payment,
             paidAt: appliedPayments.get(payment.id) ?? payment.paidAt,
+            receiptId: paymentReceipts.get(payment.id),
           })),
           deposits: deposits.get(invoice.id),
           revisions: revisions.get(invoice.id) ?? [],
         }));
+        const refundsByReceipt = new Map<string, typeof receiptRefunds>();
+        for (const refund of receiptRefunds) {
+          const refunds = refundsByReceipt.get(refund.receiptId) ?? [];
+          refunds.push(refund);
+          refundsByReceipt.set(refund.receiptId, refunds);
+        }
+        const receipts = receiptRows.map((receipt) => {
+          if (!receipt.invoiceId) throw incompleteReceiptHistory();
+          return {
+            ...receipt,
+            invoiceId: receipt.invoiceId,
+            refunds: refundsByReceipt.get(receipt.id) ?? [],
+          };
+        });
+        return { invoices, receipts };
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
         timeout: 10_000,
       },
     );
-    if (invoices.length === 0) {
+    if (account.invoices.length === 0) {
       throw new ClientStatementError("Client account not found.", 404);
     }
 
@@ -901,7 +1171,8 @@ export const ClientStatementService = {
       periodEnd: input.periodEnd,
       generatedAt: now,
       timeZone: await resolvePracticeTimeZone(input.organisationId),
-      invoices: invoices.map((invoice) => ({
+      receipts: account.receipts,
+      invoices: account.invoices.map((invoice) => ({
         ...invoice,
         creditNotes: invoice.creditNotes.map((note) => ({
           ...note,
