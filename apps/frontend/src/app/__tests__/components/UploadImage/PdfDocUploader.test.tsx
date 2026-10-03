@@ -179,10 +179,8 @@ describe('PdfDocUploader', () => {
     expect(mockSetFile).not.toHaveBeenCalled();
   });
 
-  it('logs the error and skips onChange when the upload flow rejects', async () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    const error = new Error('signed url failed');
-    mockUploadFile.mockRejectedValue(error);
+  it('shows an error and skips onChange when the upload rejects', async () => {
+    mockUploadFile.mockRejectedValue(new Error('upload failed'));
 
     render(
       <PdfDocUploader
@@ -195,14 +193,100 @@ describe('PdfDocUploader', () => {
     );
     const file = createPdfFile();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
 
-    await waitFor(() => {
-      fireEvent.change(input, { target: { files: [file] } });
-    });
-
-    expect(consoleSpy).toHaveBeenCalledWith(error);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The PDF could not be uploaded. Try again.'
+    );
+    expect(mockSetFile).toHaveBeenCalledWith(file);
     expect(mockOnChange).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
+  });
+
+  it('shows upload progress and ignores another file until the current upload settles', async () => {
+    let resolveUpload: (uploaded: { s3Key: string }) => void = () => {};
+    mockUploadFile.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        })
+    );
+
+    render(
+      <PdfDocUploader
+        placeholder={placeholder}
+        onChange={mockOnChange}
+        file={null}
+        setFile={mockSetFile}
+        uploadFile={mockUploadFile}
+      />
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [createPdfFile()] } });
+
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
+    expect(screen.getByRole('status')).toHaveTextContent('Uploading PDF…');
+    expect(screen.getByRole('button', { name: placeholder })).toBeDisabled();
+
+    fireEvent.change(input, { target: { files: [createPdfFile('second.pdf')] } });
+    expect(mockUploadFile).toHaveBeenCalledTimes(1);
+
+    resolveUpload({ s3Key: 'uploads/test.pdf' });
+
+    await waitFor(() =>
+      expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024)
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('retries a failed upload without selecting the file again', async () => {
+    mockUploadFile
+      .mockRejectedValueOnce(new Error('upload failed'))
+      .mockResolvedValueOnce({ s3Key: 'uploads/test.pdf' });
+
+    render(
+      <PdfDocUploader
+        placeholder={placeholder}
+        onChange={mockOnChange}
+        file={null}
+        setFile={mockSetFile}
+        uploadFile={mockUploadFile}
+      />
+    );
+    const file = createPdfFile();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry upload' }));
+
+    await waitFor(() =>
+      expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024)
+    );
+    expect(mockUploadFile).toHaveBeenCalledTimes(2);
+    expect(mockUploadFile).toHaveBeenLastCalledWith(file);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('clears the upload error when the file is removed', async () => {
+    mockUploadFile.mockRejectedValue(new Error('upload failed'));
+    const file = createPdfFile();
+
+    render(
+      <PdfDocUploader
+        placeholder={placeholder}
+        onChange={mockOnChange}
+        file={file}
+        setFile={mockSetFile}
+        uploadFile={mockUploadFile}
+      />
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByRole('alert');
+
+    fireEvent.click(screen.getByRole('button', { name: `Remove ${file.name}` }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(mockSetFile).toHaveBeenLastCalledWith(null);
   });
 
   it('removes the selected file when the trash icon is clicked', () => {

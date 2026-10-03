@@ -271,10 +271,8 @@ describe('DocUploader Component', () => {
     expect(mockOnChange).toHaveBeenCalledWith('uploads/test.pdf', 'application/pdf', 1024);
   });
 
-  it('logs error if upload process fails', async () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    const error = new Error('Upload Failed');
-    (postData as jest.Mock).mockRejectedValue(error);
+  it('shows an upload error if the upload request fails', async () => {
+    (postData as jest.Mock).mockRejectedValue(new Error('Upload Failed'));
 
     render(
       <DocUploader
@@ -293,10 +291,10 @@ describe('DocUploader Component', () => {
       fireEvent.change(input, { target: { files: [file] } });
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(error);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The PDF could not be uploaded. Try again.'
+    );
     expect(mockOnChange).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it('removes the file when trash icon is clicked', () => {
