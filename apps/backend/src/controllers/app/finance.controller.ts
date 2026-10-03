@@ -29,6 +29,10 @@ import {
   ClientAccountService,
   type ClientAccountAllocationResult,
 } from "src/services/finance/client-account";
+import {
+  ClientStatementError,
+  ClientStatementService,
+} from "src/services/finance/client-statement";
 import { parseKeysetCursor } from "src/services/shared/pagination";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
@@ -262,6 +266,12 @@ const ListInvoicesQuerySchema = z.object({
   appointmentId: z.string().trim().min(1).optional(),
   parentId: z.string().trim().min(1).optional(),
   patientId: z.string().trim().min(1).optional(),
+});
+
+const GenerateClientStatementBodySchema = z.object({
+  periodStart: z.iso.datetime({ offset: true }),
+  periodEnd: z.iso.datetime({ offset: true }),
+  idempotencyKey: z.string().trim().min(1).max(200),
 });
 
 /**
@@ -2180,6 +2190,75 @@ export const FinanceController = {
       });
     } catch (error) {
       logger.error("Error auditing provider receipts against payments", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async generateClientStatement(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const actorId = resolveVerifiedUserId(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "Unauthenticated" });
+      }
+
+      const parentId = z.uuid().safeParse(req.params.parentId);
+      const body = GenerateClientStatementBodySchema.safeParse(req.body);
+      if (!parentId.success || !body.success) {
+        return res.status(400).json({ message: "Invalid statement request." });
+      }
+
+      const statement = await ClientStatementService.generate({
+        organisationId,
+        parentId: parentId.data,
+        generatedById: actorId,
+        idempotencyKey: body.data.idempotencyKey,
+        periodStart: new Date(body.data.periodStart),
+        periodEnd: new Date(body.data.periodEnd),
+      });
+
+      return res.status(201).json({ data: statement, error: null });
+    } catch (error) {
+      logger.error("Error generating client statement", error);
+      if (error instanceof ClientStatementError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async getClientStatement(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const parentId = z.uuid().safeParse(req.params.parentId);
+      const statementId = z.uuid().safeParse(req.params.statementId);
+      if (!parentId.success || !statementId.success) {
+        return res.status(400).json({ message: "Invalid statement request." });
+      }
+
+      const statement = await ClientStatementService.getById({
+        organisationId,
+        parentId: parentId.data,
+        statementId: statementId.data,
+      });
+      if (!statement) {
+        return res.status(404).json({ message: "Statement not found." });
+      }
+      return res.status(200).json({ data: statement, error: null });
+    } catch (error) {
+      logger.error("Error reading client statement", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },

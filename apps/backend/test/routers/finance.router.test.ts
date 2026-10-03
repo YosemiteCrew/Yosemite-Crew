@@ -70,6 +70,8 @@ const FinanceController = {
   getClientAccountCredit: jest.fn(),
   getClientAccountAllocationProposal: jest.fn(),
   applyClientAccountAllocation: jest.fn(),
+  generateClientStatement: jest.fn(),
+  getClientStatement: jest.fn(),
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
@@ -183,6 +185,30 @@ describe("finance.router", () => {
     expect(handlers).toContain(
       permissionGuard("all:billing:view:any+appointments:view:any"),
     );
+  });
+
+  it.each([
+    [
+      "post",
+      "/organisation/:organisationId/clients/:parentId/statements",
+      FinanceController.generateClientStatement,
+    ],
+    [
+      "get",
+      "/organisation/:organisationId/clients/:parentId/statements/:statementId",
+      FinanceController.getClientStatement,
+    ],
+  ])("guards the client statement %s route", (method, path, controller) => {
+    const handlers = findRoute(path, method)?.stack.map(
+      (layer) => layer.handle,
+    );
+
+    expect(handlers).toEqual([
+      requireWebAuth,
+      withOrgPermissionsMiddleware,
+      permissionGuard("billing:view:any"),
+      controller,
+    ]);
   });
 
   it("puts the reconciliation queue behind web auth, org scope and a permission", () => {
