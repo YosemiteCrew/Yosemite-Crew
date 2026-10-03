@@ -245,11 +245,9 @@ const meta = {
           '**Validation collects all four branches in one pass.** `handleSave` builds an errors ' +
           'object before it does anything else: the billing check, then email, then speciality, ' +
           'then role. Nothing short-circuits, so an empty form on a maxed-out plan reports four ' +
-          'problems at once - and the three field errors are reported by three different ' +
-          'components with three different accessibility contracts. Only `FormInput` emits a ' +
-          '`role="alert"` line wired to the input through `aria-describedby`; the two dropdowns ' +
-          'render a red message with no alert semantics at all, so assistive tech is told about ' +
-          'the email and not about the other two.\n\n' +
+          'problems at once. The three field errors come from three different components, but ' +
+          'all render through the shared `Field`: each is a `role="alert"` line wired to its ' +
+          'control through `aria-describedby`, so assistive tech is told about all three.\n\n' +
           '**The billing banner renders outside the accordion**, between the scrolling column ' +
           'and the footer, which is the reason it cannot be scrolled out of view while the ' +
           'button that produced it is on screen. It has two wordings and they mean different ' +
@@ -416,13 +414,18 @@ export const RequiredFieldErrors: Story = {
     await expect(panel.getByText('Speciality is required')).toBeInTheDocument();
     await expect(panel.getByText('Role is required')).toBeInTheDocument();
 
-    /* Three messages, ONE alert. Only `FormInput` announces itself and wires the
-       message to the field; the two dropdowns paint a red border and a red line
-       with no role and no `aria-describedby`, so two thirds of this response is
-       invisible to a screen reader. */
-    await expect(panel.queryAllByRole('alert')).toHaveLength(1);
+    /* Three messages, three alerts. The input and both dropdowns render their
+       message through the shared `Field`, which announces it and wires it to
+       the control, so none of this response is lost on a screen reader. */
+    await expect(panel.queryAllByRole('alert')).toHaveLength(3);
     await expect(panel.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true');
     await expect(panel.getByLabelText('Email')).toHaveAccessibleDescription('Email is required');
+    await expect(panel.getByRole('button', { name: 'Speciality' })).toHaveAccessibleDescription(
+      'Speciality is required'
+    );
+    await expect(panel.getByRole('button', { name: 'Role' })).toHaveAccessibleDescription(
+      'Role is required'
+    );
 
     // The plan has seats, so the billing branch stays quiet while the other
     // three fire - the four checks are independent.
