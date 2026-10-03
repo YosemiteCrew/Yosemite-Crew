@@ -75,14 +75,16 @@ export const useFetchPractitionerFeedbackIfNeeded = ({
             {...feedback, loading: false, loadError: false},
           ]),
         );
-        const missingFeedback = Object.fromEntries(
-          targets
-            .filter(appointmentId => !fetchedFeedback[appointmentId])
-            .map(appointmentId => [
-              appointmentId,
-              {isRated: false, loading: false, loadError: true},
-            ]),
-        );
+        const missingFeedback: Record<string, PractitionerFeedbackState> = {};
+        for (const appointmentId of targets) {
+          if (!fetchedFeedback[appointmentId]) {
+            missingFeedback[appointmentId] = {
+              isRated: false,
+              loading: false,
+              loadError: true,
+            };
+          }
+        }
         setFeedbackByAppointment(previous => ({
           ...previous,
           ...missingFeedback,
