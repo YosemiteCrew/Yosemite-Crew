@@ -25,3 +25,5 @@ CREATE INDEX "ClientStatement_organisationId_id_idx"
 ON "ClientStatement"("organisationId", "id");
 
 ALTER TABLE "ClientStatement" ENABLE ROW LEVEL SECURITY;
+
+-- deployed-code-survives: Existing releases do not query the newly created ClientStatement table.
