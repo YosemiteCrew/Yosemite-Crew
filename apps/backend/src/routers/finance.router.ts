@@ -121,6 +121,22 @@ router.post(
   FinanceController.applyClientAccountAllocation,
 );
 
+router.post(
+  "/organisation/:organisationId/clients/:parentId/statements",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.generateClientStatement,
+);
+
+router.get(
+  "/organisation/:organisationId/clients/:parentId/statements/:statementId",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.getClientStatement,
+);
+
 router.get(
   "/organisation/:organisationId/clients/:parentId/payment-terms",
   requireWebAuth,
