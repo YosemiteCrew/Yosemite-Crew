@@ -456,6 +456,52 @@ describe('ChatContainer', () => {
     });
   });
 
+  it.each([false, true])(
+    'tries chat identifiers in order and stops after success (retry: %s)',
+    async (retry) => {
+      mockClient.queryChannels.mockResolvedValue([]);
+      (chatService.fetchOrgUsers as jest.Mock).mockResolvedValue([
+        { id: 'u2', userId: 'user-2', practitionerId: 'practitioner-2', name: 'User Two' },
+      ]);
+      let finishFirst!: () => void;
+      const firstAttempt = new Promise((resolve, reject) => {
+        finishFirst = () =>
+          retry
+            ? reject(new Error('first identifier unavailable'))
+            : resolve({ channelId: 'channel-direct-1', organisationId: 'org-1' });
+      });
+      (chatService.createOrgDirectChat as jest.Mock).mockReturnValueOnce(firstAttempt);
+      const onChannelSelect = jest.fn();
+      await act(async () => {
+        render(<ChatContainer scope="colleagues" onChannelSelect={onChannelSelect} />);
+      });
+      const input = screen.getByPlaceholderText('Search teammate to chat');
+      fireEvent.change(input, { target: { value: 'User Two' } });
+      fireEvent.focus(input);
+      const userButton = await screen.findByText('User Two');
+      await act(async () => {
+        fireEvent.click(userButton.closest('button')!);
+      });
+      expect(chatService.createOrgDirectChat).toHaveBeenCalledTimes(1);
+      expect(chatService.createOrgDirectChat).toHaveBeenNthCalledWith(1, {
+        organisationId: 'org-1',
+        otherUserId: 'user-2',
+      });
+      await act(async () => {
+        finishFirst();
+      });
+      await waitFor(() => expect(onChannelSelect).toHaveBeenCalled());
+      expect(chatService.createOrgDirectChat).toHaveBeenCalledTimes(retry ? 2 : 1);
+      if (retry) {
+        expect(chatService.createOrgDirectChat).toHaveBeenNthCalledWith(2, {
+          organisationId: 'org-1',
+          otherUserId: 'practitioner-2',
+        });
+      }
+      expect(mockNotify).not.toHaveBeenCalledWith('error', expect.anything());
+    }
+  );
+
   it('reuses an existing direct channel without creating a new session', async () => {
     const onChannelSelect = jest.fn();
     const existingDirectChannel = {
