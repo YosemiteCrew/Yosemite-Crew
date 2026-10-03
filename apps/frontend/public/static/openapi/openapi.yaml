@@ -10282,6 +10282,174 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/clients/{parentId}/statements':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: Generate a fixed client statement
+      operationId: generateClientStatement
+      description: Stores and returns a fixed account snapshot for the selected period. Balances and aging totals remain separate by currency.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - periodStart
+                - periodEnd
+                - idempotencyKey
+              properties:
+                periodStart:
+                  type: string
+                  format: date-time
+                periodEnd:
+                  type: string
+                  format: date-time
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+      responses:
+        201:
+          description: Statement generated or returned for an idempotent retry.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientStatementRecord'
+                  error:
+                    nullable: true
+        400:
+          description: The request or statement period is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        401:
+          description: The request is not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        403:
+          description: The caller cannot view billing for this organisation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: The client account is not available to this organisation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        409:
+          description: The idempotency key belongs to another statement period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Statement generation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+  '/v1/finance/organisation/{organisationId}/clients/{parentId}/statements/{statementId}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: Read a fixed client statement
+      operationId: getClientStatement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: statementId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: The stored statement snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientStatementRecord'
+                  error:
+                    nullable: true
+        400:
+          description: A path identifier is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        403:
+          description: The caller cannot view billing for this organisation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        404:
+          description: The statement is not available to this client account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        500:
+          description: Statement readback failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
   '/v1/finance/organisation/{organisationId}/clients/{parentId}/payment-terms':
     get:
       tags:
@@ -35857,6 +36025,138 @@ components:
         createdAt:
           type: string
           format: date-time
+    ClientStatementEntry:
+      type: object
+      required:
+        - id
+        - invoiceId
+        - occurredAt
+        - kind
+        - direction
+        - amount
+      properties:
+        id:
+          type: string
+        invoiceId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        kind:
+          type: string
+          enum: [INVOICE, PAYMENT, REFUND, CREDIT_NOTE, DEPOSIT]
+        direction:
+          type: string
+          enum: [DEBIT, CREDIT]
+        amount:
+          type: number
+    ClientStatementAging:
+      type: object
+      required:
+        - current
+        - days1To30
+        - days31To60
+        - days61To90
+        - days91Plus
+        - totalOutstanding
+      properties:
+        current:
+          type: number
+        days1To30:
+          type: number
+        days31To60:
+          type: number
+        days61To90:
+          type: number
+        days91Plus:
+          type: number
+        totalOutstanding:
+          type: number
+    ClientStatementCurrency:
+      type: object
+      required:
+        - currency
+        - openingBalance
+        - closingBalance
+        - entries
+        - aging
+      properties:
+        currency:
+          type: string
+        openingBalance:
+          type: number
+        closingBalance:
+          type: number
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientStatementEntry'
+        aging:
+          $ref: '#/components/schemas/ClientStatementAging'
+    ClientStatementSnapshot:
+      type: object
+      required:
+        - version
+        - client
+        - period
+        - generatedAt
+        - currencies
+      properties:
+        version:
+          type: integer
+          enum: [1]
+        client:
+          type: object
+          required:
+            - id
+            - firstName
+            - lastName
+            - email
+          properties:
+            id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+              nullable: true
+            email:
+              type: string
+              format: email
+        period:
+          type: object
+          required:
+            - start
+            - end
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        generatedAt:
+          type: string
+          format: date-time
+        currencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientStatementCurrency'
+    ClientStatementRecord:
+      type: object
+      required:
+        - id
+        - createdAt
+        - snapshot
+      properties:
+        id:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        snapshot:
+          $ref: '#/components/schemas/ClientStatementSnapshot'
     MessageError:
       type: object
       required:
