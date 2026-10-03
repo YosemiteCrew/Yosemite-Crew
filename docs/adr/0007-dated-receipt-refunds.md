@@ -9,19 +9,19 @@ A past client statement needs the refund total that applied at its cutoff. The l
 
 ## Decision
 
-Keep each refund notification's date and cumulative amount alongside the receipt total. Repeated notifications preserve the original history, and earlier notifications remain available even after a later total has been recorded.
+Client statements use the original amount and date of each completed refund. Repeated notifications do not add a refund twice, and a later notification can supply earlier refund records.
 
 ## Consequences
 
 ### Good
 
-Past statements can distinguish successive partial refunds. The current total and its dated history are saved together or neither is saved.
+Past statements show earlier partial refunds on their original dates and show later refunds only after they happen. Each completed refund retains its original amount.
 
 ### Accepted trade-offs
 
 Older refunds without dated evidence remain incomplete rather than being assigned an invented date. Statements for those periods require the missing records to be recovered.
 
-Keep the known undated refund amount on each receipt, including refunds already present when dated history starts. Recording a newer cumulative total does not erase that amount. Refund totals can still advance, but statements remain unavailable until the missing dates are recovered. Receipt writes preserve undated amounts in the same database operation.
+Recording a newer total does not supply missing dates. Statements remain unavailable until the recovered refund amounts match the receipt's refunded total.
 
 ## Alternatives considered
 

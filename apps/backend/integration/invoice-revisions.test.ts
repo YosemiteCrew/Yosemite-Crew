@@ -563,6 +563,7 @@ it("keeps dated capture, later allocation and refund balances through the databa
       receiptId: receipt.id,
       providerEventId: randomUUID(),
       cumulativeAmount: 20,
+      amount: 20,
       currency: "gbp",
       occurredAt: at(5),
     },

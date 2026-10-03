@@ -24,7 +24,10 @@ const mStripe = {
   billingPortal: { sessions: { create: jest.fn() } },
   subscriptionItems: { update: jest.fn() },
   paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
-  refunds: { create: jest.fn() },
+  refunds: {
+    create: jest.fn(),
+    list: jest.fn().mockResolvedValue({ data: [], has_more: false }),
+  },
   webhooks: { constructEvent: jest.fn() },
   charges: { retrieve: jest.fn() },
   subscriptions: { retrieve: jest.fn() },
@@ -3529,6 +3532,9 @@ describe("provider receipt refund reversal", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mStripe.refunds.list
+      .mockReset()
+      .mockResolvedValue({ data: [], has_more: false });
     (ProviderReceiptService.journalCapture as jest.Mock).mockResolvedValue({
       id: "receipt-1",
       status: "UNATTRIBUTED",
@@ -3591,6 +3597,110 @@ describe("provider receipt refund reversal", () => {
         occurredAt: new Date(1790000000 * 1000),
       },
     });
+  });
+
+  const individualRefund = (id: string, amount: number, created: number) => ({
+    id,
+    amount,
+    created,
+    currency: "gbp",
+    charge: "ch_reversal",
+    status: "succeeded",
+  });
+  it("recovers earlier refund amounts and dates from a later notification", async () => {
+    await StripeService._handleRefund(
+      refundedCharge({
+        amount_refunded: 5000,
+        refunds: {
+          has_more: false,
+          data: [
+            individualRefund("later", 3000, 1790000000),
+            individualRefund("earlier", 2000, 1789900000),
+          ],
+        },
+      }),
+    );
+    expect(reversed()[0].refunds).toEqual([
+      { id: "later", amount: 30, occurredAt: new Date(1790000000 * 1000) },
+      { id: "earlier", amount: 20, occurredAt: new Date(1789900000 * 1000) },
+    ]);
+  });
+  it("loads all refund pages in the original connected account", async () => {
+    mStripe.refunds.list.mockResolvedValueOnce({
+      has_more: true,
+      data: [individualRefund("later", 3000, 1790000000)],
+    });
+    mStripe.refunds.list.mockResolvedValueOnce({
+      has_more: false,
+      data: [individualRefund("earlier", 2000, 1789900000)],
+    });
+    await StripeService._handleRefund(
+      refundedCharge({
+        amount_refunded: 5000,
+        refunds: { has_more: true, data: [] },
+      }),
+      "acct_1",
+    );
+    expect(mStripe.refunds.list.mock.calls).toEqual([
+      [{ charge: "ch_reversal", limit: 100 }, { stripeAccount: "acct_1" }],
+      [
+        { charge: "ch_reversal", limit: 100, starting_after: "later" },
+        { stripeAccount: "acct_1" },
+      ],
+    ]);
+    expect(reversed()[0].refunds).toHaveLength(2);
+  });
+  it("does not count failed or pending refunds as completed movements", async () => {
+    const completed = individualRefund("done", 2000, 1790000000);
+    await StripeService._handleRefund(
+      refundedCharge({
+        refunds: {
+          has_more: false,
+          data: [
+            completed,
+            { ...completed, id: "pending", status: "pending" },
+            { ...completed, id: "failed", status: "failed" },
+          ],
+        },
+      }),
+    );
+    expect(reversed()[0].refunds).toEqual([
+      { id: "done", amount: 20, occurredAt: new Date(1790000000 * 1000) },
+    ]);
+  });
+  it.each([
+    { charge: "other" },
+    { currency: "eur" },
+    { created: Number.NaN },
+    { amount: -1 },
+  ])("leaves inconsistent refund history incomplete %j", async (changed) => {
+    await StripeService._handleRefund(
+      refundedCharge({
+        refunds: {
+          has_more: false,
+          data: [
+            { ...individualRefund("refund", 2000, 1790000000), ...changed },
+          ],
+        },
+      }),
+    );
+    expect(reversed()[0].refunds).toBeUndefined();
+    expect(reversed()[0].refundedAmount).toBe(20);
+    expect(logger.error).toHaveBeenCalledWith(
+      "Could not read the dated refund history.",
+      expect.any(Error),
+    );
+  });
+  it("stops repeated refund pages without assigning a replacement date", async () => {
+    mStripe.refunds.list.mockResolvedValue({
+      has_more: true,
+      data: [individualRefund("same", 2000, 1790000000)],
+    });
+    await StripeService._handleRefund(
+      refundedCharge({ refunds: { has_more: true, data: [] } }),
+    );
+    expect(mStripe.refunds.list).toHaveBeenCalledTimes(2);
+    expect(reversed()[0].refunds).toBeUndefined();
   });
 
   it("leaves the notification date unknown when called without an event", async () => {

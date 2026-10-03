@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { ProviderReceiptService } from "src/services/finance/provider-receipt";
+import { buildClientStatementSnapshot } from "src/services/finance/client-statement";
 
 jest.mock("src/config/prisma", () => ({
   get prisma() {
@@ -141,6 +142,35 @@ beforeAll(async () => {
   );
   if (completeness.status !== 0)
     throw new Error(completeness.stderr || completeness.stdout);
+  const individual = spawnSync(
+    process.execPath,
+    [
+      require.resolve("prisma/build/index.js"),
+      "db",
+      "execute",
+      "--stdin",
+      "--schema",
+      resolve(root, "packages/database/prisma/schema.prisma"),
+    ],
+    {
+      cwd: root,
+      input: readFileSync(
+        resolve(
+          root,
+          "packages/database/prisma/migrations/20261003230000_individual_receipt_refunds/migration.sql",
+        ),
+        "utf8",
+      ),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        DATABASE_URL: connection.toString(),
+        DIRECT_URL: connection.toString(),
+      },
+    },
+  );
+  if (individual.status !== 0)
+    throw new Error(individual.stderr || individual.stdout);
 }, 30_000);
 
 afterAll(async () => {
@@ -200,6 +230,90 @@ it("preserves successive dated partial refund totals", async () => {
   expect(
     await db.providerReceipt.findUnique({ where: { id: receipt.id } }),
   ).toMatchObject({ refundedAmount: 70 });
+});
+
+it("rebuilds earlier balances from individual refunds first seen in a later delivery", async () => {
+  const receipt = await createReceipt();
+  const earlier = new Date("2026-09-18T10:00:00Z");
+  const later = new Date("2026-09-20T10:00:00Z");
+  const input = {
+    provider: receipt.provider,
+    merchantAccountRef: receipt.merchantAccountRef,
+    paymentRef: receipt.paymentRef,
+    currency: receipt.currency,
+    refundedAmount: 50,
+    refunds: [
+      { id: "later-refund", amount: 30, occurredAt: later },
+      { id: "earlier-refund", amount: 20, occurredAt: earlier },
+    ],
+  };
+  expect(await ProviderReceiptService.recordRefund(input)).toMatchObject({
+    applied: true,
+  });
+  expect(await ProviderReceiptService.recordRefund(input)).toMatchObject({
+    applied: false,
+  });
+  const persisted = await db.providerReceipt.findUniqueOrThrow({
+    where: { id: receipt.id },
+  });
+  const refunds = await history(receipt.id);
+  expect(refunds).toHaveLength(2);
+  expect(refunds.map((entry) => [entry.amount, entry.occurredAt])).toEqual([
+    [20, earlier],
+    [30, later],
+  ]);
+  const statement = buildClientStatementSnapshot({
+    client: {
+      id: "sample-client",
+      firstName: "Sample",
+      lastName: null,
+      email: "sample@example.invalid",
+    },
+    periodStart: new Date("2026-09-19"),
+    periodEnd: new Date("2026-09-21"),
+    generatedAt: new Date("2026-09-22"),
+    invoices: [],
+    receipts: [{ ...persisted, invoiceId: "sample-invoice", refunds }],
+  });
+  expect(statement.currencies[0]).toMatchObject({
+    openingBalance: -80,
+    closingBalance: -50,
+  });
+  expect(statement.currencies[0].entries).toEqual([
+    expect.objectContaining({ amount: 30, occurredAt: later.toISOString() }),
+  ]);
+});
+
+it("rolls back individual refunds when a conflicting stored amount is replayed", async () => {
+  const receipt = await createReceipt();
+  const input = {
+    provider: receipt.provider,
+    merchantAccountRef: receipt.merchantAccountRef,
+    paymentRef: receipt.paymentRef,
+    currency: receipt.currency,
+    refundedAmount: 20,
+    refunds: [{ id: "original", amount: 20, occurredAt: firstDate }],
+  };
+  expect(await ProviderReceiptService.recordRefund(input)).toMatchObject({
+    applied: true,
+  });
+  expect(
+    await ProviderReceiptService.recordRefund({
+      ...input,
+      refundedAmount: 70,
+      refunds: [
+        { id: "new", amount: 50, occurredAt: laterDate },
+        { id: "original", amount: 30, occurredAt: firstDate },
+      ],
+    }),
+  ).toBeNull();
+  expect(await history(receipt.id)).toMatchObject([
+    { amount: 20, providerEventId: "original" },
+  ]);
+  expect(await history(receipt.id)).toHaveLength(1);
+  expect(
+    await db.providerReceipt.findUnique({ where: { id: receipt.id } }),
+  ).toMatchObject({ refundedAmount: 20 });
 });
 
 it("retains an earlier notification delivered after a later total", async () => {

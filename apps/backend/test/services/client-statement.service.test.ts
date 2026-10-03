@@ -2035,12 +2035,14 @@ describe("receipt account movements", () => {
           {
             id: "second",
             cumulativeAmount: 50,
+            amount: 30,
             currency: "GBP",
             occurredAt: new Date("2026-09-20"),
           },
           {
             id: "first",
             cumulativeAmount: 20,
+            amount: 20,
             currency: "gbp",
             occurredAt: new Date("2026-09-10"),
           },
@@ -2063,6 +2065,7 @@ describe("receipt account movements", () => {
             {
               id: "later",
               cumulativeAmount: 50,
+              amount: 50,
               currency: "gbp",
               occurredAt: new Date("2026-10-02"),
             },
@@ -2086,6 +2089,7 @@ describe("receipt account movements", () => {
               {
                 id: "receipt-refund",
                 cumulativeAmount: 20,
+                amount: 20,
                 currency: "gbp",
                 occurredAt: date,
               },
@@ -2114,12 +2118,14 @@ describe("receipt account movements", () => {
           {
             id: "fifty",
             cumulativeAmount: 50,
+            amount: 30,
             currency: "gbp",
             occurredAt: date,
           },
           {
             id: "twenty",
             cumulativeAmount: 20,
+            amount: 20,
             currency: "gbp",
             occurredAt: date,
           },
@@ -2197,6 +2203,7 @@ describe("receipt account movements", () => {
               {
                 id: "refund",
                 cumulativeAmount: 20,
+                amount: 20,
                 currency: "gbp",
                 occurredAt: new Date("2026-09-10"),
               },
@@ -2218,6 +2225,7 @@ describe("receipt account movements", () => {
           {
             id: "bad",
             cumulativeAmount: 20,
+            amount: 20,
             currency: "eur",
             occurredAt: new Date("2026-09-10"),
           },
@@ -2232,6 +2240,7 @@ describe("receipt account movements", () => {
           {
             id: "bad",
             cumulativeAmount: 20,
+            amount: 20,
             currency: "gbp",
             occurredAt: new Date("2026-09-01"),
           },
@@ -2246,6 +2255,7 @@ describe("receipt account movements", () => {
           {
             id: "bad",
             cumulativeAmount: 200,
+            amount: 200,
             currency: "gbp",
             occurredAt: new Date("2026-09-10"),
           },
@@ -2297,6 +2307,56 @@ describe("receipt account movements", () => {
       ]),
     ).toThrow("A receipt is missing its dated payment history.");
   });
+  it("refuses cumulative totals without the individual refund amounts", () => {
+    expect(() =>
+      build([
+        receipt({
+          refundedAmount: 50,
+          refunds: [
+            {
+              id: "later",
+              cumulativeAmount: 50,
+              currency: "gbp",
+              occurredAt: new Date("2026-09-20"),
+            },
+          ],
+        }),
+      ]),
+    ).toThrow("A receipt is missing its dated payment history.");
+  });
+  it("recovers dated refunds even when only the later notification was delivered", () => {
+    const result = build([
+      receipt({
+        refundedAmount: 50,
+        undatedRefundAmount: 20,
+        refunds: [
+          {
+            id: "later",
+            cumulativeAmount: 50,
+            amount: 30,
+            currency: "gbp",
+            occurredAt: new Date("2026-09-20"),
+          },
+          {
+            id: "earlier",
+            cumulativeAmount: 50,
+            amount: 20,
+            currency: "gbp",
+            occurredAt: new Date("2026-09-10"),
+          },
+        ],
+      }),
+    ]);
+    expect(
+      result.entries
+        .filter((entry) => entry.kind === "RECEIPT_REFUND")
+        .map((entry) => [entry.amount, entry.occurredAt]),
+    ).toEqual([
+      [20, "2026-09-10T00:00:00.000Z"],
+      [30, "2026-09-20T00:00:00.000Z"],
+    ]);
+    expect(result.closingBalance).toBe(0);
+  });
   it("loads undated refund evidence before storing a statement", async () => {
     mockedPrisma.invoice.findMany.mockResolvedValue([paidInvoice()]);
     mockedPrisma.providerReceipt.findMany.mockResolvedValue([
@@ -2336,6 +2396,7 @@ describe("receipt account movements", () => {
         id: "refund",
         receiptId: "receipt-1",
         cumulativeAmount: 20,
+        amount: 20,
         currency: "gbp",
         occurredAt: new Date("2026-09-10"),
       },

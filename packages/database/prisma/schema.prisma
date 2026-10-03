@@ -7628,6 +7628,7 @@ model ProviderReceiptRefund {
   receiptId        String
   providerEventId  String
   cumulativeAmount Float
+  amount           Float?
   currency         String
   occurredAt       DateTime
   createdAt        DateTime @default(now())

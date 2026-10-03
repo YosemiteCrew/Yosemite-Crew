@@ -192,6 +192,54 @@ const journalCapture = async (
  * the refund then has a receipt to reduce. It is written UNATTRIBUTED: nothing
  * in a refund event says whose money it was.
  */
+const loadChargeRefundHistory = async (
+  charge: Stripe.Charge,
+  connectedAccountId: string | undefined,
+) => {
+  let page = charge.refunds;
+  const refunds: Stripe.Refund[] = [];
+  let cursor: string | undefined;
+  if (!page || page.has_more) {
+    page = await getStripeClient().refunds.list(
+      { charge: charge.id, limit: 100 },
+      connectedAccountId ? { stripeAccount: connectedAccountId } : undefined,
+    );
+  }
+  while (page) {
+    refunds.push(...page.data);
+    if (refunds.length > 10_000)
+      throw new Error("Refund history exceeds the supported size.");
+    if (!page.has_more) break;
+    const last = page.data.at(-1)?.id;
+    if (!last || last === cursor)
+      throw new Error("Refund history pagination did not advance.");
+    cursor = last;
+    page = await getStripeClient().refunds.list(
+      { charge: charge.id, limit: 100, starting_after: cursor },
+      connectedAccountId ? { stripeAccount: connectedAccountId } : undefined,
+    );
+  }
+  return refunds
+    .filter((refund) => refund.status === "succeeded")
+    .map((refund) => {
+      const chargeId =
+        typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
+      if (chargeId !== charge.id || refund.currency !== charge.currency) {
+        throw new Error("A refund does not match its original payment.");
+      }
+      return {
+        id: z.string().trim().min(1).parse(refund.id),
+        amount: fromStripeMinorUnits(
+          z.number().int().positive().parse(refund.amount),
+          refund.currency,
+        ),
+        occurredAt: new Date(
+          z.number().int().nonnegative().parse(refund.created) * 1000,
+        ),
+      };
+    });
+};
+
 const reverseJournalledCapture = async (
   charge: Stripe.Charge,
   connectedAccountId: string | undefined,
@@ -231,11 +279,18 @@ const reverseJournalledCapture = async (
       reason: `capture recovered from the refund event on charge ${charge.id}`,
     });
 
+    let refunds;
+    try {
+      refunds = await loadChargeRefundHistory(charge, connectedAccountId);
+    } catch (error) {
+      logger.error("Could not read the dated refund history.", error);
+    }
     await ProviderReceiptService.recordRefund({
       ...key,
       refundedAmount,
       currency: charge.currency,
       notification,
+      refunds,
     });
   } catch (error) {
     // The journal is a record of the refund, never a precondition for

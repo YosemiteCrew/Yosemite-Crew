@@ -452,6 +452,51 @@ export type RecordRefundInput = {
   refundedAmount: number;
   currency: string;
   notification?: { id: string; occurredAt: Date };
+  refunds?: Array<{ id: string; amount: number; occurredAt: Date }>;
+};
+
+const recordIndividualRefunds = async (
+  tx: Prisma.TransactionClient,
+  receiptId: string,
+  input: RecordRefundInput,
+): Promise<void> => {
+  const refunds = z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        amount: z.number().positive(),
+        occurredAt: z.date(),
+      }),
+    )
+    .max(10_000)
+    .parse(input.refunds ?? []);
+  const ids = new Set<string>();
+  for (const refund of refunds) {
+    if (ids.has(refund.id))
+      throw new Error("Refund history contains duplicate refunds.");
+    ids.add(refund.id);
+    const recorded = await tx.providerReceiptRefund.upsert({
+      where: {
+        receiptId_providerEventId: { receiptId, providerEventId: refund.id },
+      },
+      create: {
+        receiptId,
+        providerEventId: refund.id,
+        cumulativeAmount: input.refundedAmount,
+        amount: refund.amount,
+        currency: input.currency,
+        occurredAt: refund.occurredAt,
+      },
+      update: {},
+    });
+    if (
+      recorded.amount !== refund.amount ||
+      recorded.currency !== input.currency ||
+      recorded.occurredAt.getTime() !== refund.occurredAt.getTime()
+    ) {
+      throw new Error("The refund differs from its recorded history.");
+    }
+  }
 };
 
 const recordRefundNotification = async (
@@ -1274,6 +1319,7 @@ export const ProviderReceiptService = {
         });
 
         await recordRefundNotification(tx, existing.id, input);
+        await recordIndividualRefunds(tx, existing.id, input);
         const updated = await tx.providerReceipt.updateMany({
           where: {
             id: z.string().parse(existing.id),

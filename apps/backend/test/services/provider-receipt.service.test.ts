@@ -822,6 +822,103 @@ describe("receipt field values", () => {
   );
 });
 
+describe("individual receipt refunds", () => {
+  const refunds = [
+    { id: "refund-later", amount: 30, occurredAt: new Date("2026-09-20") },
+    { id: "refund-earlier", amount: 20, occurredAt: new Date("2026-09-10") },
+  ];
+  const input: RecordRefundInput = {
+    provider: "STRIPE",
+    paymentRef: "capture",
+    currency: "gbp",
+    refundedAmount: 50,
+    refunds,
+  };
+  beforeEach(() => {
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+      id: "receipt",
+      amount: 100,
+      currency: "gbp",
+      refundedAmount: 0,
+    });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 1 });
+    mockedPrisma.providerReceiptRefund.upsert.mockImplementation(
+      ({ create }: { create: object }) => Promise.resolve(create),
+    );
+  });
+  it("stores each refund's amount and original date in the receipt transaction", async () => {
+    expect(await ProviderReceiptService.recordRefund(input)).toMatchObject({
+      applied: true,
+    });
+    expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(
+      mockedPrisma.providerReceiptRefund.upsert.mock.calls.map(
+        ([call]) => call.create,
+      ),
+    ).toEqual(
+      refunds.map((refund) => ({
+        receiptId: "receipt",
+        providerEventId: refund.id,
+        amount: refund.amount,
+        cumulativeAmount: 50,
+        currency: "gbp",
+        occurredAt: refund.occurredAt,
+      })),
+    );
+  });
+  it("retains known refunds when an older total is replayed", async () => {
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+      id: "receipt",
+      amount: 100,
+      currency: "gbp",
+      refundedAmount: 100,
+    });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
+    expect(await ProviderReceiptService.recordRefund(input)).toMatchObject({
+      applied: false,
+      refundedAmount: 100,
+    });
+    expect(mockedPrisma.providerReceiptRefund.upsert).toHaveBeenCalledTimes(2);
+  });
+  it.each([
+    { amount: 0 },
+    { amount: -1 },
+    { amount: Number.NaN },
+    { id: " " },
+    { occurredAt: new Date("invalid") },
+  ])("rejects an invalid individual refund %j", async (changed) => {
+    expect(
+      await ProviderReceiptService.recordRefund({
+        ...input,
+        refunds: [{ ...refunds[0], ...changed }],
+      }),
+    ).toBeNull();
+    expect(mockedPrisma.providerReceiptRefund.upsert).not.toHaveBeenCalled();
+    expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+  });
+  it("rejects duplicated individual refunds before changing the receipt", async () => {
+    expect(
+      await ProviderReceiptService.recordRefund({
+        ...input,
+        refunds: [refunds[0], refunds[0]],
+      }),
+    ).toBeNull();
+    expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+  });
+  it.each([
+    { amount: 31 },
+    { currency: "eur" },
+    { occurredAt: new Date("2026-09-21") },
+  ])("rejects an altered stored refund %j", async (changed) => {
+    mockedPrisma.providerReceiptRefund.upsert.mockImplementation(
+      ({ create }: { create: object }) =>
+        Promise.resolve({ ...create, ...changed }),
+    );
+    expect(await ProviderReceiptService.recordRefund(input)).toBeNull();
+    expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+  });
+});
+
 describe("dated receipt refund notifications", () => {
   const occurredAt = new Date("2026-09-18T10:00:00.000Z");
   const input: RecordRefundInput = {

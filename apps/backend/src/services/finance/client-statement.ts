@@ -93,6 +93,7 @@ export type StatementReceipt = {
   refunds: Array<{
     id: string;
     cumulativeAmount: number;
+    amount?: number | null;
     currency: string;
     occurredAt: Date;
   }>;
@@ -410,6 +411,46 @@ const incompleteReceiptHistory = () =>
     409,
   );
 
+const receiptRefundMovements = (receipt: StatementReceipt): Movement[] => {
+  const currency = currencyKey(receipt.currency);
+  const entries: Movement[] = [];
+  let refunded = 0;
+  for (const refund of [...receipt.refunds].sort(
+    (a, b) =>
+      a.occurredAt.getTime() - b.occurredAt.getTime() ||
+      a.cumulativeAmount - b.cumulativeAmount,
+  )) {
+    if (refund.amount == null) continue;
+    if (
+      currencyKey(refund.currency) !== currency ||
+      refund.occurredAt < receipt.capturedAt ||
+      !Number.isFinite(refund.amount) ||
+      refund.amount <= 0
+    )
+      throw incompleteReceiptHistory();
+    const amount = quantize(currency, refund.amount);
+    if (amount > 0)
+      entries.push(
+        movement({
+          id: `receipt-refund:${refund.id}`,
+          invoiceId: receipt.invoiceId,
+          at: refund.occurredAt,
+          kind: "RECEIPT_REFUND",
+          direction: "DEBIT",
+          amount,
+          currency,
+        }),
+      );
+    refunded = add(currency, refunded, amount);
+  }
+  if (
+    refunded > receipt.amount ||
+    quantize(currency, refunded) !== quantize(currency, receipt.refundedAmount)
+  )
+    throw incompleteReceiptHistory();
+  return entries;
+};
+
 const receiptMovements = (
   receipt: StatementReceipt,
   payments: readonly {
@@ -429,40 +470,8 @@ const receiptMovements = (
       amount: receipt.amount,
       currency,
     }),
+    ...receiptRefundMovements(receipt),
   ];
-  let refunded = 0;
-  for (const refund of [...receipt.refunds].sort(
-    (a, b) =>
-      a.occurredAt.getTime() - b.occurredAt.getTime() ||
-      a.cumulativeAmount - b.cumulativeAmount,
-  )) {
-    if (
-      currencyKey(refund.currency) !== currency ||
-      refund.occurredAt < receipt.capturedAt ||
-      refund.cumulativeAmount < refunded ||
-      refund.cumulativeAmount > receipt.amount
-    )
-      throw incompleteReceiptHistory();
-    const amount = add(currency, refund.cumulativeAmount, -refunded);
-    if (amount > 0)
-      entries.push(
-        movement({
-          id: `receipt-refund:${refund.id}`,
-          invoiceId: receipt.invoiceId,
-          at: refund.occurredAt,
-          kind: "RECEIPT_REFUND",
-          direction: "DEBIT",
-          amount,
-          currency,
-        }),
-      );
-    refunded = refund.cumulativeAmount;
-  }
-  if (
-    receipt.undatedRefundAmount ||
-    quantize(currency, refunded) !== quantize(currency, receipt.refundedAmount)
-  )
-    throw incompleteReceiptHistory();
   let allocated = 0;
   for (const { invoiceId, currency: invoiceCurrency, payment } of payments) {
     const at = payment.paidAt ?? payment.createdAt;
