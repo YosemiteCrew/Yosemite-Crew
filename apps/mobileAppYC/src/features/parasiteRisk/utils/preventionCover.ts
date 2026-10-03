@@ -48,6 +48,36 @@ const daysBetween = (from: number, to: number): number =>
   Math.max(0, Math.floor((to - from) / MS_PER_DAY));
 
 /**
+ * Completed tasks with a readable date, newest first, and the due dates of
+ * outstanding tasks already in the past, oldest first.
+ */
+const splitByCompletion = (
+  relevant: readonly Task[],
+  now: number,
+): {completed: {task: Task; completedAt: number}[]; overdue: number[]} => {
+  const completed: {task: Task; completedAt: number}[] = [];
+  const overdue: number[] = [];
+  for (const task of relevant) {
+    if (isCompleted(task)) {
+      const completedAt = dueTimestamp({
+        ...task,
+        dueAt: task.completedAt ?? task.dueAt,
+      });
+      if (completedAt !== null) completed.push({task, completedAt});
+    } else {
+      const due = dueTimestamp(task);
+      if (due !== null && due < now) overdue.push(due);
+    }
+  }
+  // Sorted newest first, so the head is the most recent completion. Compared
+  // explicitly rather than relying on the default sort, which is a stringify
+  // comparison that only happens to work for ISO timestamps.
+  completed.sort((a, b) => b.completedAt - a.completedAt);
+  overdue.sort((a, b) => a - b);
+  return {completed, overdue};
+};
+
+/**
  * Resolve the pet's parasite prevention cover.
  *
  * `now` is injected so this stays deterministic under test.
@@ -62,29 +92,7 @@ export function resolvePreventionCover(
 
   if (relevant.length === 0) return {status: 'none'};
 
-  // Sorted newest first, so the head is the most recent completion. Compared
-  // explicitly rather than relying on the default sort, which is a stringify
-  // comparison that only happens to work for ISO timestamps.
-  const completed = relevant
-    .filter(isCompleted)
-    .map(task => ({
-      task,
-      completedAt: dueTimestamp({
-        ...task,
-        dueAt: task.completedAt ?? task.dueAt,
-      }),
-    }))
-    .filter(
-      (value): value is {task: Task; completedAt: number} =>
-        value.completedAt !== null,
-    )
-    .sort((a, b) => b.completedAt - a.completedAt);
-
-  const overdue = relevant
-    .filter(task => !isCompleted(task))
-    .map(dueTimestamp)
-    .filter((value): value is number => value !== null && value < now)
-    .sort((a, b) => a - b);
+  const {completed, overdue} = splitByCompletion(relevant, now);
 
   // An outstanding past-due task is the strongest signal, and we report the
   // oldest one because that is how long there has actually been a gap.

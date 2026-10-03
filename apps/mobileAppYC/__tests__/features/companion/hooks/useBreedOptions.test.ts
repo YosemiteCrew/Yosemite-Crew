@@ -150,6 +150,21 @@ describe('useBreedOptions', () => {
       expect(result.current.breedLoading).toBe(false);
     });
 
+    it('starts the next category from an empty list after a clear', async () => {
+      const {result, rerender} = renderHook((p: any) => useBreedOptions(p), {
+        initialProps: params,
+      });
+      await waitFor(() => expect(result.current.breedOptions).toHaveLength(1));
+
+      rerender({...params, category: null});
+      mockFetch.mockImplementation(() => new Promise(() => {}));
+      rerender({...params, category: 'cat' as any});
+
+      await waitFor(() => expect(result.current.breedLoading).toBe(true));
+      expect(result.current.breedOptions).toEqual([]);
+      expect(result.current.breedLoadFailed).toBe(false);
+    });
+
     // A slow response for a category the user has moved away from must not
     // land on the new one.
     it('discards a response from a superseded category', async () => {

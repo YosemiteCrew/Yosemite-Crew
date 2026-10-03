@@ -311,16 +311,19 @@ const ensureUploadedAttachments = async ({
     } as ExpenseAttachment;
   };
 
-  // A batch starts only once the one before it has finished, so each batch is
-  // chained onto the previous one rather than awaited inside a loop.
+  // A batch starts only once the one before it has finished (and never after
+  // one has failed), so the next batch is started from the previous batch's
+  // result rather than awaited inside a loop.
   const uploadFrom = async (offset: number): Promise<ExpenseAttachment[]> => {
     if (offset >= attachments.length) {
       return [];
     }
     const batch = attachments.slice(offset, offset + MAX_CONCURRENT_UPLOADS);
     const uploaded = await Promise.all(batch.map(uploadOne));
-    const rest = await uploadFrom(offset + MAX_CONCURRENT_UPLOADS);
-    return [...uploaded, ...rest];
+    return [
+      ...uploaded,
+      ...(await uploadFrom(offset + MAX_CONCURRENT_UPLOADS)),
+    ];
   };
 
   return uploadFrom(0);
