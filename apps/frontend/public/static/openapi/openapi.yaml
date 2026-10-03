@@ -29222,6 +29222,184 @@ paths:
           description: The organisation was not found.
         '409':
           description: Online booking must be turned on before the website can be published.
+  /v1/dashboard/views/{organisationId}:
+    get:
+      tags: ['Non-FHIR']
+      summary: List saved report views
+      operationId: get_v1_dashboard_views
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganisationIdPath'
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Saved report views
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SavedReportView' }
+    post:
+      tags: ['Non-FHIR']
+      summary: Save a report view
+      operationId: post_v1_dashboard_views
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganisationIdPath'
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedReportViewInput' }
+      responses:
+        '201':
+          description: Saved report view
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedReportView' }
+        '400': { description: Invalid report view }
+  /v1/dashboard/views/{organisationId}/{viewId}:
+    patch:
+      tags: ['Non-FHIR']
+      summary: Update a saved report view
+      operationId: patch_v1_dashboard_views
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganisationIdPath'
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+        - name: viewId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedReportViewInput' }
+      responses:
+        '200':
+          description: Updated report view
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedReportView' }
+        '404': { description: Saved report view not found }
+    delete:
+      tags: ['Non-FHIR']
+      summary: Delete a saved report view
+      operationId: delete_v1_dashboard_views
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganisationIdPath'
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+        - name: viewId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Saved report view deleted }
+        '404': { description: Saved report view not found }
+  /v1/dashboard/schedules/{organisationId}:
+    get:
+      tags: ['Non-FHIR']
+      summary: List report delivery schedules
+      operationId: get_v1_dashboard_schedules
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganisationIdPath'
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Report delivery schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReportDeliverySchedule' }
+    post:
+      tags: ['Non-FHIR']
+      summary: Schedule report delivery
+      operationId: post_v1_dashboard_schedules
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganisationIdPath'
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportDeliveryScheduleInput' }
+      responses:
+        '201':
+          description: Report delivery schedule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportDeliverySchedule' }
+        '400': { description: Invalid delivery schedule }
+  /v1/dashboard/schedules/{organisationId}/{scheduleId}:
+    patch:
+      tags: ['Non-FHIR']
+      summary: Update a report delivery schedule
+      operationId: patch_v1_dashboard_schedules
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganisationIdPath'
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+        - name: scheduleId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportDeliveryScheduleUpdate' }
+      responses:
+        '200':
+          description: Updated report delivery schedule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportDeliverySchedule' }
+        '404': { description: Report delivery schedule not found }
+    delete:
+      tags: ['Non-FHIR']
+      summary: Delete a report delivery schedule
+      operationId: delete_v1_dashboard_schedules
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganisationIdPath'
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+        - name: scheduleId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Report delivery schedule deleted }
+        '404': { description: Report delivery schedule not found }
   /public/site/{slug}:
     get:
       tags:
@@ -29255,6 +29433,12 @@ paths:
         '404':
           description: No published site exists at this address.
 components:
+  parameters:
+    OrganisationIdPath:
+      name: organisationId
+      in: path
+      required: true
+      schema: { type: string }
   securitySchemes:
     BearerAuth:
       type: http
@@ -29265,6 +29449,73 @@ components:
       scheme: bearer
       bearerFormat: 'yc_<live|test>_<secret> - a developer API key, not a session JWT'
   schemas:
+    SavedReportViewInput:
+      type: object
+      required: [name, reportType, parameters]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        reportType:
+          type: string
+          enum:
+            [
+              summary,
+              appointments_trend,
+              revenue_trend,
+              appointment_leaders,
+              revenue_leaders,
+              inventory_turnover,
+              product_turnover,
+            ]
+        parameters: { type: object, additionalProperties: true }
+    SavedReportView:
+      allOf:
+        - $ref: '#/components/schemas/SavedReportViewInput'
+        - type: object
+          required: [id, organisationId, createdBy, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            organisationId: { type: string }
+            createdBy: { type: string }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    ReportDeliveryScheduleInput:
+      type: object
+      required: [viewId, recipients, cronExpression, timezone]
+      properties:
+        viewId: { type: string, format: uuid }
+        recipients:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { type: string }
+        cronExpression: { type: string, minLength: 1, maxLength: 120 }
+        timezone: { type: string, minLength: 1, maxLength: 100 }
+        active: { type: boolean }
+    ReportDeliveryScheduleUpdate:
+      type: object
+      properties:
+        recipients:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { type: string }
+        cronExpression: { type: string, minLength: 1, maxLength: 120 }
+        timezone: { type: string, minLength: 1, maxLength: 100 }
+        active: { type: boolean }
+    ReportDeliverySchedule:
+      allOf:
+        - $ref: '#/components/schemas/ReportDeliveryScheduleInput'
+        - type: object
+          required: [id, organisationId, nextRunAt, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            organisationId: { type: string }
+            nextRunAt: { type: string, format: date-time }
+            lastRunAt: { type: string, format: date-time, nullable: true }
+            lastSuccessAt: { type: string, format: date-time, nullable: true }
+            lastError: { type: string, nullable: true }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
     PracticeWebsiteTemplateId:
       type: string
       enum:
