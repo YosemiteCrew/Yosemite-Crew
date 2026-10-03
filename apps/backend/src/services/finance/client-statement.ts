@@ -115,6 +115,9 @@ export type StatementInvoice = {
     totalAmount: number;
     currency: string;
     status: string;
+    finalizedAt: Date | null;
+    organisationId: string | null;
+    parentId: string | null;
     dueAt: Date | null;
     recordedAt: Date;
     baseline: boolean;
@@ -128,6 +131,7 @@ export type StatementInvoice = {
 };
 
 type Movement = ClientStatementEntry & {
+  revisionId?: bigint;
   at: Date;
   currency: string;
   openingOnly: boolean;
@@ -149,6 +153,18 @@ export class ClientStatementError extends Error {
     this.name = "ClientStatementError";
   }
 }
+
+const compareMovementOrder = (left: Movement, right: Movement): number => {
+  if (
+    left.invoiceId !== right.invoiceId ||
+    left.revisionId === undefined ||
+    right.revisionId === undefined ||
+    left.revisionId === right.revisionId
+  ) {
+    return left.id.localeCompare(right.id);
+  }
+  return left.revisionId < right.revisionId ? -1 : 1;
+};
 
 const currencyKey = (currency: string): string => currency.trim().toLowerCase();
 
@@ -175,6 +191,7 @@ const toEntry = (entry: Movement): ClientStatementEntry => ({
 });
 
 const movement = (input: {
+  revisionId?: bigint;
   id: string;
   invoiceId: string;
   at: Date;
@@ -187,6 +204,7 @@ const movement = (input: {
   const amount = quantize(input.currency, input.amount);
   return {
     id: input.id,
+    revisionId: input.revisionId,
     invoiceId: input.invoiceId,
     occurredAt: input.at.toISOString(),
     kind: input.kind,
@@ -259,11 +277,19 @@ const buildInvoiceCharges = (
   let previousCurrency = currency;
   let previousAmount = 0;
   for (const revision of revisions) {
+    if (
+      revision.status !== "CANCELLED" &&
+      revision.finalizedAt === null &&
+      !revision.baseline
+    ) {
+      continue;
+    }
     const nextCurrency = currencyKey(revision.currency);
     if (nextCurrency !== previousCurrency && previousAmount !== 0) {
       movements.push(
         movement({
           id: `invoice:${invoice.id}:revision:${revision.id}:previous`,
+          revisionId: revision.id,
           invoiceId: invoice.id,
           at: revision.recordedAt,
           kind: "INVOICE",
@@ -283,6 +309,7 @@ const buildInvoiceCharges = (
       movements.push(
         movement({
           id: `invoice:${invoice.id}:revision:${revision.id}`,
+          revisionId: revision.id,
           invoiceId: invoice.id,
           at: revision.recordedAt,
           kind: "INVOICE",
@@ -362,6 +389,10 @@ const buildInvoiceMovements = (
     );
   }
 
+  const cancellationDates = (invoice.revisions ?? [])
+    .filter((revision) => revision.status === "CANCELLED")
+    .map((revision) => revision.recordedAt)
+    .sort((left, right) => left.getTime() - right.getTime());
   for (const note of invoice.creditNotes) {
     const noteCurrency = invoiceCurrencyAt(invoice, note.createdAt);
     movements.push(
@@ -375,12 +406,17 @@ const buildInvoiceMovements = (
         currency: noteCurrency,
       }),
     );
-    if (note.voidedAt) {
+    const cancelledAt = cancellationDates.find((at) => at >= note.createdAt);
+    const reversedAt =
+      cancelledAt && (!note.voidedAt || cancelledAt < note.voidedAt)
+        ? cancelledAt
+        : note.voidedAt;
+    if (reversedAt) {
       movements.push(
         movement({
           id: `credit-note-void:${note.id}`,
           invoiceId: invoice.id,
-          at: note.voidedAt,
+          at: reversedAt,
           kind: "CREDIT_NOTE_VOID",
           direction: "DEBIT",
           amount: note.amount,
@@ -620,7 +656,7 @@ export const buildClientStatementSnapshot = (input: {
         .sort(
           (left, right) =>
             left.at.getTime() - right.at.getTime() ||
-            left.id.localeCompare(right.id),
+            compareMovementOrder(left, right),
         );
       let openingBalance = 0;
       let closingBalance = 0;
@@ -949,9 +985,33 @@ export const ClientStatementService = {
 
     const account = await prisma.$transaction(
       async (tx) => {
-        const where: Prisma.InvoiceWhereInput = {
+        const ownershipWhere: Prisma.InvoiceRevisionWhereInput = {
           organisationId: input.organisationId,
           parentId: input.parentId,
+          recordedAt: { lte: input.periodEnd },
+        };
+        if (
+          (await tx.invoiceRevision.count({ where: ownershipWhere })) >=
+          MAX_STATEMENT_ROWS
+        ) {
+          throw new ClientStatementError(
+            "This client account exceeds the supported statement size.",
+            422,
+          );
+        }
+        const historicalInvoices = await tx.invoiceRevision.findMany({
+          where: ownershipWhere,
+          select: { invoiceId: true },
+          distinct: ["invoiceId"],
+          take: MAX_STATEMENT_ROWS,
+        });
+        const where: Prisma.InvoiceWhereInput = {
+          OR: [
+            { organisationId: input.organisationId, parentId: input.parentId },
+            {
+              id: { in: historicalInvoices.map(({ invoiceId }) => invoiceId) },
+            },
+          ],
           createdAt: { lte: input.periodEnd },
         };
         const paymentWhere: Prisma.PaymentWhereInput = {
@@ -977,7 +1037,7 @@ export const ClientStatementService = {
             422,
           );
         }
-        const rows = await tx.invoice.findMany({
+        let rows = await tx.invoice.findMany({
           where,
           select: {
             id: true,
@@ -1022,31 +1082,11 @@ export const ClientStatementService = {
           },
         });
         const revisionWhere: Prisma.InvoiceRevisionWhereInput = {
-          organisationId: input.organisationId,
-          parentId: input.parentId,
           invoiceId: { in: rows.map((invoice) => invoice.id) },
-        };
-        const allocationWhere: Prisma.ProviderReceiptAllocationWhereInput = {
-          receipt: { organisationId: input.organisationId },
-          invoiceId: { in: rows.map((invoice) => invoice.id) },
-          paymentId: {
-            in: rows.flatMap((invoice) =>
-              invoice.payments.map((payment) => payment.id),
-            ),
-          },
-        };
-        const receiptWhere: Prisma.ProviderReceiptWhereInput = {
-          organisationId: input.organisationId,
-          invoiceId: { in: rows.map((invoice) => invoice.id) },
-          capturedAt: { lte: input.periodEnd },
         };
         let rowCount =
           rowCounts.reduce((total, count) => total + count, 0) +
-          (await tx.invoiceRevision.count({ where: revisionWhere })) +
-          (await tx.providerReceiptAllocation.count({
-            where: allocationWhere,
-          })) +
-          (await tx.providerReceipt.count({ where: receiptWhere }));
+          (await tx.invoiceRevision.count({ where: revisionWhere }));
         if (rowCount > MAX_STATEMENT_ROWS) {
           throw new ClientStatementError(
             "This client account exceeds the supported statement size.",
@@ -1062,6 +1102,41 @@ export const ClientStatementService = {
           const versions = revisions.get(revision.invoiceId) ?? [];
           versions.push(revision);
           revisions.set(revision.invoiceId, versions);
+        }
+        rows = rows.filter((invoice) => {
+          const atCutoff = revisions
+            .get(invoice.id)
+            ?.filter((revision) => revision.recordedAt <= input.periodEnd)
+            .at(-1);
+          return (
+            !atCutoff ||
+            (atCutoff.organisationId === input.organisationId &&
+              atCutoff.parentId === input.parentId)
+          );
+        });
+        const allocationWhere: Prisma.ProviderReceiptAllocationWhereInput = {
+          receipt: { organisationId: input.organisationId },
+          invoiceId: { in: rows.map((invoice) => invoice.id) },
+          paymentId: {
+            in: rows.flatMap((invoice) =>
+              invoice.payments.map((payment) => payment.id),
+            ),
+          },
+        };
+        const receiptWhere: Prisma.ProviderReceiptWhereInput = {
+          organisationId: input.organisationId,
+          invoiceId: { in: rows.map((invoice) => invoice.id) },
+          capturedAt: { lte: input.periodEnd },
+        };
+        rowCount +=
+          (await tx.providerReceiptAllocation.count({
+            where: allocationWhere,
+          })) + (await tx.providerReceipt.count({ where: receiptWhere }));
+        if (rowCount > MAX_STATEMENT_ROWS) {
+          throw new ClientStatementError(
+            "This client account exceeds the supported statement size.",
+            422,
+          );
         }
         const receiptRows = await tx.providerReceipt.findMany({
           where: receiptWhere,

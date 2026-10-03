@@ -100,6 +100,9 @@ const revision = (over: Partial<Revision> = {}): Revision => ({
   totalAmount: 100,
   currency: "GBP",
   status: "AWAITING_PAYMENT",
+  organisationId: ORG,
+  parentId: PARENT,
+  finalizedAt: new Date("2026-08-01T00:00:00.000Z"),
   dueAt: new Date("2026-08-20T00:00:00.000Z"),
   recordedAt: new Date("2026-08-01T00:00:00.000Z"),
   baseline: false,
@@ -253,6 +256,27 @@ describe("dated invoice revisions", () => {
     ]);
   });
 
+  it("reverses an active credit note when its unpaid invoice is cancelled", () => {
+    const cancelledAt = new Date("2026-09-20T00:00:00.000Z");
+    const versions = [
+      revision(),
+      revision({ id: 2n, status: "CANCELLED", recordedAt: cancelledAt }),
+    ];
+    const creditNotes = [{ id: "credit", amount: 20, createdAt: PERIOD_START }];
+    const before = historical([versions[0]], { creditNotes }).currencies[0];
+    expect(before.closingBalance).toBe(80);
+    const after = historical(versions, { creditNotes }).currencies[0];
+    expect(after.closingBalance).toBe(0);
+    expect(after.entries).toContainEqual(
+      expect.objectContaining({
+        id: "credit-note-void:credit",
+        direction: "DEBIT",
+        amount: 20,
+        occurredAt: cancelledAt.toISOString(),
+      }),
+    );
+  });
+
   it("uses the latest due date at the cutoff even when the amount is unchanged", () => {
     const result = historical([
       revision(),
@@ -283,6 +307,52 @@ describe("dated invoice revisions", () => {
     ]).currencies[0];
     expect(result.closingBalance).toBe(150);
     expect(result.entries.map(({ amount }) => amount)).toEqual([20, 30]);
+  });
+
+  it("keeps reopened amendments unposted until they are finalized again", () => {
+    const reopened = revision({
+      id: 2n,
+      totalAmount: 150,
+      finalizedAt: null,
+      recordedAt: PERIOD_START,
+      dueAt: NOW,
+    });
+    const before = historical([revision(), reopened]).currencies[0];
+    expect(before.closingBalance).toBe(100);
+    expect(before.entries).toEqual([]);
+    expect(before.aging.days31To60).toBe(100);
+    const finalizedAt = new Date("2026-09-20T00:00:00.000Z");
+    const after = historical([
+      revision(),
+      reopened,
+      revision({
+        id: 3n,
+        totalAmount: 150,
+        finalizedAt,
+        recordedAt: finalizedAt,
+      }),
+    ]).currencies[0];
+    expect(after.closingBalance).toBe(150);
+    expect(after.entries).toEqual([
+      expect.objectContaining({
+        id: "invoice:invoice-1:revision:3",
+        occurredAt: finalizedAt.toISOString(),
+        amount: 50,
+      }),
+    ]);
+  });
+
+  it("orders same-time multi-digit revisions by their numeric sequence", () => {
+    const result = historical([
+      revision(),
+      revision({ id: 10n, totalAmount: 150, recordedAt: PERIOD_START }),
+      revision({ id: 2n, totalAmount: 120, recordedAt: PERIOD_START }),
+    ]).currencies[0];
+    expect(result.entries.map(({ id, amount }) => ({ id, amount }))).toEqual([
+      { id: "invoice:invoice-1:revision:2", amount: 20 },
+      { id: "invoice:invoice-1:revision:10", amount: 30 },
+    ]);
+    expect(result.closingBalance).toBe(150);
   });
 
   it("includes the exact cutoff and excludes the following millisecond", () => {
@@ -456,8 +526,10 @@ describe("dated invoice revisions", () => {
     ]);
     await generate();
     expect(mockedPrisma.invoice.findMany.mock.calls[0][0].where).toEqual({
-      organisationId: ORG,
-      parentId: PARENT,
+      OR: [
+        { organisationId: ORG, parentId: PARENT },
+        { id: { in: ["invoice-1", "invoice-1"] } },
+      ],
       createdAt: { lte: PERIOD_END },
     });
     expect(
@@ -465,8 +537,6 @@ describe("dated invoice revisions", () => {
         .currencies[0].closingBalance,
     ).toBe(100);
     const where = {
-      organisationId: ORG,
-      parentId: PARENT,
       invoiceId: { in: ["invoice-1"] },
     };
     expect(mockedPrisma.invoiceRevision.count).toHaveBeenCalledWith({ where });
@@ -474,6 +544,114 @@ describe("dated invoice revisions", () => {
       where,
       orderBy: { id: "asc" },
     });
+  });
+
+  it.each([
+    { parentId: "other-client", organisationId: ORG },
+    { parentId: PARENT, organisationId: "other-practice" },
+  ])(
+    "selects historical invoices after later reassignment %j",
+    async (owner) => {
+      const row = { ...invoice(), ...owner };
+      mockedPrisma.invoice.findMany.mockImplementation(async ({ where }) =>
+        where.OR.some((scope: { id?: { in: string[] } }) =>
+          scope.id?.in.includes(row.id),
+        )
+          ? [row]
+          : [],
+      );
+      mockedPrisma.invoiceRevision.findMany.mockImplementation(
+        async ({ select }) =>
+          select
+            ? [{ invoiceId: row.id }]
+            : [
+                { ...revision(), invoiceId: row.id },
+                {
+                  ...revision({ id: 2n, recordedAt: NOW, ...owner }),
+                  invoiceId: row.id,
+                },
+              ],
+      );
+      await expect(generate()).resolves.toMatchObject({ id: STATEMENT });
+      expect(
+        mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+          .currencies[0].closingBalance,
+      ).toBe(100);
+      expect(mockedPrisma.invoiceRevision.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organisationId: ORG,
+            parentId: PARENT,
+            recordedAt: { lte: PERIOD_END },
+          },
+          select: { invoiceId: true },
+        }),
+      );
+      expect(mockedPrisma.invoiceRevision.findMany).toHaveBeenCalledWith({
+        where: { invoiceId: { in: [row.id] } },
+        orderBy: { id: "asc" },
+      });
+    },
+  );
+
+  it("excludes an invoice assigned to this client only after the cutoff", async () => {
+    mockedPrisma.invoiceRevision.findMany.mockImplementation(
+      async ({ select }) =>
+        select
+          ? []
+          : [
+              {
+                ...revision({ parentId: "other-client" }),
+                invoiceId: "invoice-1",
+              },
+              {
+                ...revision({ id: 2n, recordedAt: NOW }),
+                invoiceId: "invoice-1",
+              },
+            ],
+    );
+    await expect(generate()).rejects.toMatchObject({ statusCode: 404 });
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+
+  it("loads intervening ownership revisions when an invoice returns to the account", async () => {
+    const versions = [
+      { ...revision(), invoiceId: "invoice-1" },
+      {
+        ...revision({
+          id: 2n,
+          parentId: "other-client",
+          totalAmount: 150,
+          recordedAt: PERIOD_START,
+        }),
+        invoiceId: "invoice-1",
+      },
+      {
+        ...revision({
+          id: 3n,
+          totalAmount: 120,
+          recordedAt: new Date("2026-09-20T00:00:00.000Z"),
+        }),
+        invoiceId: "invoice-1",
+      },
+    ];
+    mockedPrisma.invoiceRevision.findMany.mockImplementation(
+      async ({ where, select }) =>
+        select
+          ? [{ invoiceId: "invoice-1" }]
+          : versions.filter(
+              (version) =>
+                !where.parentId || version.parentId === where.parentId,
+            ),
+    );
+    await generate();
+    const statement =
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies[0];
+    expect(statement.closingBalance).toBe(120);
+    expect(
+      statement.entries.map(({ amount }: { amount: number }) => amount),
+    ).toEqual([50, 30]);
   });
 
   it("rejects missing stored revisions rather than falling back to today's invoice", async () => {
@@ -486,6 +664,15 @@ describe("dated invoice revisions", () => {
     mockedPrisma.invoiceRevision.count.mockResolvedValue(10_000);
     await expect(generate()).rejects.toMatchObject({ statusCode: 422 });
     expect(mockedPrisma.invoiceRevision.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
+  });
+
+  it("bounds complete ownership history before loading its revisions", async () => {
+    mockedPrisma.invoiceRevision.count
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(10_000);
+    await expect(generate()).rejects.toMatchObject({ statusCode: 422 });
+    expect(mockedPrisma.invoiceRevision.findMany).toHaveBeenCalledTimes(1);
     expect(mockedPrisma.clientStatement.create).not.toHaveBeenCalled();
   });
 
@@ -594,7 +781,8 @@ beforeEach(() => {
   mockedPrisma.providerReceiptRefund.count.mockResolvedValue(0);
   mockedPrisma.providerReceiptRefund.findMany.mockResolvedValue([]);
   mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([]);
-  mockedPrisma.invoiceRevision.findMany.mockImplementation(async () => {
+  mockedPrisma.invoiceRevision.findMany.mockImplementation(async (args) => {
+    if (args?.select) return [{ invoiceId: "invoice-1" }];
     const rows: StatementInvoice[] =
       await mockedPrisma.invoice.findMany.mock.results.at(-1)?.value;
     return rows.map((row, index) => ({
@@ -605,6 +793,7 @@ beforeEach(() => {
       totalAmount: row.totalAmount,
       currency: row.currency,
       status: "AWAITING_PAYMENT",
+      finalizedAt: row.finalizedAt,
       dueAt: row.dueAt,
       recordedAt: row.finalizedAt ?? row.createdAt,
       baseline: false,
@@ -1895,8 +2084,10 @@ describe("ClientStatementService.generate", () => {
     expect(mockedPrisma.invoice.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          organisationId: ORG,
-          parentId: PARENT,
+          OR: [
+            { organisationId: ORG, parentId: PARENT },
+            { id: { in: ["invoice-1"] } },
+          ],
           createdAt: { lte: PERIOD_END },
         }),
         select: expect.objectContaining({ dueAt: true }),

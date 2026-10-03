@@ -518,6 +518,8 @@ it("keeps dated capture, later allocation and refund balances through the databa
       subtotal: 100,
       totalAmount: 100,
       currency: "GBP",
+      status: "AWAITING_PAYMENT",
+      finalizedAt: new Date(),
     },
   });
   const first = (await history(invoice.id))[0].recordedAt.getTime();
@@ -605,6 +607,8 @@ it("keeps another practice's capture out of client credit", async () => {
       subtotal: 100,
       totalAmount: 100,
       currency: "GBP",
+      status: "AWAITING_PAYMENT",
+      finalizedAt: new Date(),
     },
   });
   const first = (await history(invoice.id))[0].recordedAt;
@@ -649,32 +653,20 @@ it("keeps stored statement history within the requested practice and client", as
       subtotal: 100,
       totalAmount: 100,
       currency: "GBP",
+      status: "AWAITING_PAYMENT",
+      finalizedAt: new Date(),
     },
   });
   const original = (await history(invoice.id))[0];
-  await db.invoiceRevision.createMany({
-    data: [
-      {
-        invoiceId: invoice.id,
-        organisationId: "other-practice",
-        parentId: parent.id,
-        totalAmount: 900,
-        currency: "GBP",
-        status: "PENDING",
-        recordedAt: original.recordedAt,
-      },
-      {
-        invoiceId: invoice.id,
-        organisationId: "history-practice",
-        parentId: "other-client",
-        totalAmount: 800,
-        currency: "GBP",
-        status: "PENDING",
-        recordedAt: original.recordedAt,
-      },
-    ],
-  });
   await db.$queryRaw`SELECT pg_sleep(0.01)::text`;
+  await db.invoice.update({
+    where: { id: invoice.id },
+    data: { organisationId: "other-practice", totalAmount: 900 },
+  });
+  await db.invoice.update({
+    where: { id: invoice.id },
+    data: { parentId: "other-client", totalAmount: 800 },
+  });
   const result = await ClientStatementService.generate({
     organisationId: "history-practice",
     parentId: parent.id,

@@ -199,7 +199,7 @@ const loadChargeRefundHistory = async (
   let page = charge.refunds;
   const refunds: Stripe.Refund[] = [];
   let cursor: string | undefined;
-  if (!page || page.has_more) {
+  if (!page || (page.has_more && page.data.length === 0)) {
     page = await getStripeClient().refunds.list(
       { charge: charge.id, limit: 100 },
       connectedAccountId ? { stripeAccount: connectedAccountId } : undefined,

@@ -3505,6 +3505,7 @@ describe("provider receipt journal", () => {
  * no term to read for the last one.
  */
 describe("provider receipt refund reversal", () => {
+  const originalEnv = process.env;
   const journalled = () =>
     (ProviderReceiptService.journalCapture as jest.Mock).mock.calls.map(
       ([input]) => input,
@@ -3531,6 +3532,7 @@ describe("provider receipt refund reversal", () => {
     }) as any;
 
   beforeEach(() => {
+    process.env = { ...originalEnv, STRIPE_SECRET_KEY: "sk_test_mock" };
     jest.clearAllMocks();
     mStripe.refunds.list
       .mockReset()
@@ -3552,6 +3554,10 @@ describe("provider receipt refund reversal", () => {
       action: "REFUNDED",
       invoice: { id: "inv_reversal", parentId: "par_1" },
     });
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   it("reverses by what the provider gave back, not by what it captured", async () => {
@@ -3649,6 +3655,32 @@ describe("provider receipt refund reversal", () => {
       ],
     ]);
     expect(reversed()[0].refunds).toHaveLength(2);
+  });
+  it("continues from an already loaded refund page without fetching it again", async () => {
+    mStripe.refunds.list.mockResolvedValueOnce({
+      has_more: false,
+      data: [individualRefund("earlier", 2000, 1789900000)],
+    });
+    await StripeService._handleRefund(
+      refundedCharge({
+        amount_refunded: 5000,
+        refunds: {
+          has_more: true,
+          data: [individualRefund("later", 3000, 1790000000)],
+        },
+      }),
+      "acct_1",
+    );
+    expect(mStripe.refunds.list.mock.calls).toEqual([
+      [
+        { charge: "ch_reversal", limit: 100, starting_after: "later" },
+        { stripeAccount: "acct_1" },
+      ],
+    ]);
+    expect(reversed()[0].refunds).toEqual([
+      { id: "later", amount: 30, occurredAt: new Date(1790000000 * 1000) },
+      { id: "earlier", amount: 20, occurredAt: new Date(1789900000 * 1000) },
+    ]);
   });
   it("does not count failed or pending refunds as completed movements", async () => {
     const completed = individualRefund("done", 2000, 1790000000);
