@@ -2,11 +2,14 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import FormInfo from '@/app/features/forms/pages/Forms/Sections/FormInfo';
+import { registerPlugin, unregisterPlugin } from '@/app/features/plugins/registry';
+import type { FormsProps } from '@/app/features/forms/types/forms';
 
 const publishFormMock = jest.fn();
 const publishTemplateFormMock = jest.fn();
 const archiveTemplateFormMock = jest.fn();
 const unpublishTemplateFormMock = jest.fn();
+const mockShowErrorTost = jest.fn();
 
 jest.mock('@/app/features/forms/services/formService', () => ({
   archiveForm: jest.fn(),
@@ -31,7 +34,7 @@ jest.mock('@/app/stores/orgStore', () => ({
 
 jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
   useErrorTost: () => ({
-    showErrorTost: jest.fn(),
+    showErrorTost: mockShowErrorTost,
     ErrorTostPopup: () => <div>toast</div>,
   }),
 }));
@@ -107,7 +110,10 @@ describe('FormInfo', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    unregisterPlugin('form-info-test');
   });
+
+  afterEach(() => unregisterPlugin('form-info-test'));
 
   afterAll(() => {
     (console.error as jest.Mock).mockRestore?.();
@@ -217,6 +223,135 @@ describe('FormInfo', () => {
       'Unavailable service'
     );
     expect(screen.queryByText('missing-service-id')).not.toBeInTheDocument();
+  });
+
+  it('renders form previews and detail extensions with working actions', () => {
+    const setShowModal = jest.fn();
+    const onEdit = jest.fn();
+    const form = {
+      _id: 'f-extension',
+      name: 'Consent',
+      status: 'Draft',
+      schema: [{ id: 'consent', type: 'text' }],
+    } as any;
+    const DetailTab: React.FC<{
+      formId: string;
+      organisationId: string;
+      form: FormsProps;
+    }> = ({ formId, organisationId }) => <span>{`detail-tab-${formId}-${organisationId}`}</span>;
+    const DetailAction: React.FC<{
+      formId: string;
+      organisationId: string;
+      form: FormsProps;
+      onAction: () => void;
+    }> = ({ onAction }) => (
+      <button type="button" onClick={onAction}>
+        Plugin action
+      </button>
+    );
+
+    registerPlugin({
+      id: 'form-info-test',
+      name: 'Form info test',
+      version: '1.0.0',
+      extensions: [
+        { id: 'detail-tab', extensionPointId: 'forms.detail.tabs', component: DetailTab },
+        { id: 'detail-action', extensionPointId: 'forms.detail.actions', component: DetailAction },
+      ],
+    });
+
+    render(
+      <FormInfo
+        showModal
+        setShowModal={setShowModal}
+        activeForm={form}
+        onEdit={onEdit}
+        serviceOptions={[]}
+      />
+    );
+
+    expect(screen.getByText('Form preview')).toBeInTheDocument();
+    expect(screen.getByText('form-renderer')).toBeInTheDocument();
+    expect(screen.getByText('detail-tab-f-extension-org-1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Plugin action' }));
+    expect(setShowModal).toHaveBeenCalledWith(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit form' }));
+    expect(onEdit).toHaveBeenCalledWith(form);
+    expect(setShowModal).toHaveBeenCalledTimes(2);
+  });
+
+  it('closes after unpublishing and archiving a template-backed form', async () => {
+    const setShowModal = jest.fn();
+    unpublishTemplateFormMock.mockResolvedValue(undefined);
+    archiveTemplateFormMock.mockResolvedValue(undefined);
+
+    render(
+      <FormInfo
+        showModal
+        setShowModal={setShowModal}
+        activeForm={
+          {
+            _id: 'tpl-actions',
+            templateId: 'tpl-actions',
+            name: 'SOAP template',
+            status: 'Published',
+            schema: [],
+            isTemplateBacked: true,
+            templateSource: 'ORG_TEMPLATE',
+          } as any
+        }
+        onEdit={jest.fn()}
+        serviceOptions={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unpublish' }));
+    await waitFor(() => expect(unpublishTemplateFormMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    await waitFor(() => expect(archiveTemplateFormMock).toHaveBeenCalled());
+    expect(setShowModal).toHaveBeenCalledTimes(2);
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('keeps the form open and shows an error when a template action fails', async () => {
+    const setShowModal = jest.fn();
+    unpublishTemplateFormMock.mockRejectedValue(new Error('Unpublish failed'));
+    archiveTemplateFormMock.mockRejectedValue(new Error('Archive failed'));
+
+    render(
+      <FormInfo
+        showModal
+        setShowModal={setShowModal}
+        activeForm={
+          {
+            _id: 'tpl-actions',
+            templateId: 'tpl-actions',
+            name: 'SOAP template',
+            status: 'Published',
+            schema: [],
+            isTemplateBacked: true,
+            templateSource: 'ORG_TEMPLATE',
+          } as any
+        }
+        onEdit={jest.fn()}
+        serviceOptions={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unpublish' }));
+    await waitFor(() =>
+      expect(mockShowErrorTost).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Unpublish failed' })
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    await waitFor(() =>
+      expect(mockShowErrorTost).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Archive failed' })
+      )
+    );
+    expect(setShowModal).not.toHaveBeenCalled();
   });
 
   it('publishes editable organisation template records through template APIs', async () => {
