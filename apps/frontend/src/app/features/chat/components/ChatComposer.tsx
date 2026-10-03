@@ -87,7 +87,16 @@ export function ChatComposer() {
     setEmojiOpen(false);
   };
 
-  const insert = (text: string) => composer.textComposer.insertText({ text });
+  const insert = (text: string) => {
+    setUploadError(null);
+    try {
+      void Promise.resolve(composer.textComposer.insertText({ text })).catch(() => {
+        setUploadError('Could not insert the emoji. Please try again.');
+      });
+    } catch {
+      setUploadError('Could not insert the emoji. Please try again.');
+    }
+  };
 
   const onVoiceTranscript = (transcript: string) => {
     insert(transcript);
@@ -106,7 +115,15 @@ export function ChatComposer() {
       } else {
         setUploadError(null);
       }
-      if (allowed.length) void composer.attachmentManager.uploadFiles(allowed);
+      if (allowed.length) {
+        try {
+          void Promise.resolve(composer.attachmentManager.uploadFiles(allowed)).catch(() => {
+            setUploadError('Could not upload the selected files. Please try again.');
+          });
+        } catch {
+          setUploadError('Could not upload the selected files. Please try again.');
+        }
+      }
     }
     e.target.value = '';
     setAttachOpen(false);

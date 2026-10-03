@@ -21,7 +21,7 @@ export const useExploreMetrics = () => {
       return;
     }
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const res = await getExploreMetrics();
         if (!cancelled) setData(res);

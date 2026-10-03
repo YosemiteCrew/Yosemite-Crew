@@ -452,13 +452,13 @@ const GoogleSearchDropDown = ({
                   onMouseDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    selectPrediction(pred);
+                    void selectPrediction(pred);
                     inputRef.current?.focus();
                   }}
                   onPointerDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    selectPrediction(pred);
+                    void selectPrediction(pred);
                     inputRef.current?.focus();
                   }}
                 >

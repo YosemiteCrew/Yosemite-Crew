@@ -40,6 +40,7 @@ import {
   approveFollower,
   rejectFollower,
   respondToReferral,
+  sendReferral,
   updateLicenseToken,
   setDirectoryListed,
   announceEmergency,
@@ -431,6 +432,17 @@ describe('FederationSection', () => {
       await waitFor(() => expect(screen.getByText('No followers yet.')).toBeInTheDocument());
     });
 
+    it('shows an error instead of an empty state when followers cannot be loaded', async () => {
+      (listFollowers as jest.Mock).mockRejectedValueOnce(new Error('Unavailable'));
+
+      render(<FederationSection />);
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Could not load followers. Please try again.'
+      );
+      expect(screen.queryByText('No followers yet.')).not.toBeInTheDocument();
+    });
+
     it('renders pending follower with approve/reject buttons', async () => {
       (listFollowers as jest.Mock).mockResolvedValue([mockFollower]);
       render(<FederationSection />);
@@ -472,6 +484,17 @@ describe('FederationSection', () => {
       await waitFor(() =>
         expect(screen.getByText('Not following any instances yet.')).toBeInTheDocument()
       );
+    });
+
+    it('shows an error instead of an empty state when followed clinics cannot be loaded', async () => {
+      (listFollowing as jest.Mock).mockRejectedValueOnce(new Error('Unavailable'));
+
+      render(<FederationSection />);
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Could not load followed clinics. Please try again.'
+      );
+      expect(screen.queryByText('Not following any instances yet.')).not.toBeInTheDocument();
     });
 
     it('renders a following entry with unfollow button', async () => {
@@ -519,6 +542,17 @@ describe('FederationSection', () => {
       await waitFor(() =>
         expect(screen.getByText('No inbound referrals yet.')).toBeInTheDocument()
       );
+    });
+
+    it('shows an error instead of an empty state when referrals cannot be loaded', async () => {
+      (listInboundReferrals as jest.Mock).mockRejectedValueOnce(new Error('Unavailable'));
+
+      render(<FederationSection />);
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Could not load inbound referrals. Please try again.'
+      );
+      expect(screen.queryByText('No inbound referrals yet.')).not.toBeInTheDocument();
     });
 
     it('renders an inbound referral row', async () => {
@@ -598,6 +632,43 @@ describe('FederationSection', () => {
 
       await waitFor(() =>
         expect(screen.getByRole('button', { name: 'Send referral' })).not.toBeDisabled()
+      );
+    });
+
+    it('reports sent referrals separately when the sent list refresh fails', async () => {
+      (sendReferral as jest.Mock).mockResolvedValueOnce(undefined);
+      (listOutboundReferrals as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error('Unavailable'));
+      render(<FederationSection />);
+      await waitFor(() => screen.getByLabelText('Recipient actor URI *'));
+
+      fireEvent.change(screen.getByLabelText('Recipient actor URI *'), {
+        target: { value: 'https://remote.example/ap/organizations/r1' },
+      });
+      fireEvent.change(screen.getByLabelText('Species *'), { target: { value: 'Canine' } });
+      fireEvent.change(screen.getByLabelText('Chief complaint *'), {
+        target: { value: 'Limping' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Send referral' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Referral sent, but the sent list could not be refreshed.'
+      );
+      expect(sendReferral).toHaveBeenCalledTimes(1);
+      expect(mockNotify).toHaveBeenCalledWith('success', {
+        title: 'Referral sent',
+        text: 'Referral queued for delivery.',
+      });
+    });
+
+    it('shows when the initial sent referrals list cannot be loaded', async () => {
+      (listOutboundReferrals as jest.Mock).mockRejectedValueOnce(new Error('Unavailable'));
+
+      render(<FederationSection />);
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Could not load sent referrals. Please try again.'
       );
     });
   });

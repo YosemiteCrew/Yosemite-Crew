@@ -62,6 +62,15 @@ const isAllowedMimeType = (
   allowed: ReadonlySet<string> = ALLOWED_MIME_TYPES,
 ) => allowed.has(mimeType);
 
+export const isValidPdfUpload = (file: {
+  mimetype: string;
+  size: number;
+  data: Buffer;
+}) =>
+  file.mimetype === "application/pdf" &&
+  file.size <= 20 * 1024 * 1024 &&
+  file.data.subarray(0, 5).toString("ascii") === "%PDF-";
+
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,

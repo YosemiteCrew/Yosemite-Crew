@@ -88,7 +88,7 @@ const MedicationAdministrationPanel = ({
     setScheduledAt('');
   };
 
-  const saveScheduledDose = async (event: React.FormEvent<HTMLFormElement>) => {
+  const saveScheduledDose = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!organisationId || !patientId || !encounterId || !selectedPrescription || !scheduledAt) {
       return;

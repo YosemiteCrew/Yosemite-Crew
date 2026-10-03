@@ -980,7 +980,7 @@ const AppointmentChannelInitializer: FC<{
       }
     };
 
-    activateAppointmentChannel();
+    void activateAppointmentChannel();
 
     return () => {
       cancelled = true;
@@ -1303,7 +1303,7 @@ const useChatContainerView = ({
       }
     };
 
-    init();
+    void init();
 
     return () => {
       cancelled = true;

@@ -8,7 +8,11 @@ import {
   DocumentService,
   DocumentServiceError,
 } from "../../services/document.service";
-import { generatePresignedUrl } from "src/middlewares/upload";
+import {
+  generatePresignedUrl,
+  handleFileUpload,
+  isValidPdfUpload,
+} from "src/middlewares/upload";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { OrgRequest } from "src/middlewares/rbac";
 import {
@@ -51,6 +55,21 @@ type ListPmsQuery = ListDocumentsQuery & {
 
 type SignedDownloadUrlBody = { key?: string };
 
+const uploadCompanionPdf = async (
+  file: { name: string; mimetype: string; size: number; data: Buffer },
+  patientId: string,
+  res: Response,
+) => {
+  if (!isValidPdfUpload(file)) {
+    return res.status(400).json({
+      message: "Upload a valid PDF smaller than 20 MB.",
+    });
+  }
+
+  const { key } = await handleFileUpload(file, `companion/${patientId}`);
+  return res.status(200).json({ s3Key: key });
+};
+
 const getFirstQueryValue = (value: unknown): string | undefined => {
   if (typeof value === "string") return value;
   if (Array.isArray(value)) {
@@ -72,11 +91,16 @@ export const DocumentController = {
     try {
       const { patientId, companionId, mimeType } = req.body;
       const resolvedPatientId = patientId ?? companionId;
+      const uploadedFile = req.files?.file;
+      if (Array.isArray(uploadedFile)) {
+        return res.status(400).json({ message: "Upload one PDF at a time." });
+      }
+      const resolvedMimeType = uploadedFile?.mimetype ?? mimeType;
 
       if (
         typeof resolvedPatientId !== "string" ||
         !resolvedPatientId ||
-        !mimeType
+        !resolvedMimeType
       ) {
         return res.status(400).json({
           message: "patientId/companionId and mimeType are required.",
@@ -128,8 +152,12 @@ export const DocumentController = {
         }
       }
 
+      if (uploadedFile) {
+        return await uploadCompanionPdf(uploadedFile, resolvedPatientId, res);
+      }
+
       const { url, key } = await generatePresignedUrl(
-        mimeType,
+        resolvedMimeType,
         "companion",
         resolvedPatientId,
       );

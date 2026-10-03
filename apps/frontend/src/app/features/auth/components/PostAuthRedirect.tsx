@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 type PostAuthRedirectProps = {
@@ -17,9 +18,13 @@ const PostAuthRedirect = ({ fallbackRole }: PostAuthRedirectProps) => {
   // boundary performs the replace, and nothing is ever rendered at the wrong route.
   useEffect(() => {
     let cancelled = false;
-    resolvePostAuthRedirect({ fallbackRole }).then((nextRoute) => {
-      if (!cancelled) setRoute(nextRoute);
-    });
+    resolvePostAuthRedirect({ fallbackRole })
+      .then((nextRoute) => {
+        if (!cancelled) setRoute(nextRoute);
+      })
+      .catch(() => {
+        if (!cancelled) setRoute(resolveDefaultOpenScreenRoute(fallbackRole));
+      });
     return () => {
       cancelled = true;
     };

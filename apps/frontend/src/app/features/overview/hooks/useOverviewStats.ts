@@ -241,7 +241,7 @@ export const useOverviewStats = () => {
       }
     };
 
-    fetchRepoStats();
+    void fetchRepoStats();
   }, []);
 
   return {
