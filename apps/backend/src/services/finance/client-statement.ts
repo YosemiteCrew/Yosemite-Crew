@@ -151,6 +151,13 @@ export class ClientStatementError extends Error {
 
 const currencyKey = (currency: string): string => currency.trim().toLowerCase();
 
+const invoiceCurrencyAt = (invoice: StatementInvoice, at: Date): string => {
+  const revision = invoice.revisions
+    ?.filter((version) => version.recordedAt <= at)
+    .sort((left, right) => (left.id > right.id ? -1 : 1))[0];
+  return currencyKey(revision?.currency ?? invoice.currency);
+};
+
 const quantize = (currency: string, value: number): number =>
   roundMoney(value, currency);
 
@@ -349,16 +356,13 @@ const buildInvoiceMovements = (
         kind: "PAYMENT",
         direction: "CREDIT",
         amount: deposit.amount,
-        currency,
+        currency: invoiceCurrencyAt(invoice, deposit.occurredAt),
       }),
     );
   }
 
   for (const note of invoice.creditNotes) {
-    const revision = invoice.revisions
-      ?.filter((version) => version.recordedAt <= note.createdAt)
-      .sort((left, right) => (left.id > right.id ? -1 : 1))[0];
-    const noteCurrency = revision?.currency ?? currency;
+    const noteCurrency = invoiceCurrencyAt(invoice, note.createdAt);
     movements.push(
       movement({
         id: `credit-note:${note.id}`,
@@ -812,7 +816,8 @@ const loadDepositHistory = async (
     if (
       !account ||
       entityId !== payload.paymentId ||
-      currencyKey(payload.currency) !== currencyKey(account.invoice.currency)
+      currencyKey(payload.currency) !==
+        invoiceCurrencyAt(account.invoice, occurredAt)
     ) {
       throw incompleteDepositHistory();
     }
@@ -1081,7 +1086,10 @@ export const ClientStatementService = {
         const deposits = await loadDepositHistory(
           tx,
           input.organisationId,
-          rows,
+          rows.map((invoice) => ({
+            ...invoice,
+            revisions: revisions.get(invoice.id),
+          })),
           rowCount,
         );
         const allocations = await tx.providerReceiptAllocation.findMany({

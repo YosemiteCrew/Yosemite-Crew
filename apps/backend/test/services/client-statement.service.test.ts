@@ -126,6 +126,55 @@ const historical = (
   });
 
 describe("dated invoice revisions", () => {
+  it("keeps recovered deposits in the currency at their occurrence", () => {
+    const result = historical(
+      [revision(), revision({ id: 2n, currency: "EUR", recordedAt: NOW })],
+      {
+        currency: "EUR",
+        depositCollectedAmount: 40,
+        deposits: [{ id: "deposit", amount: 40, occurredAt: PERIOD_START }],
+      },
+    );
+    expect(result.currencies).toEqual([
+      expect.objectContaining({
+        currency: "gbp",
+        openingBalance: 100,
+        closingBalance: 60,
+        aging: expect.objectContaining({ totalOutstanding: 60 }),
+        entries: [
+          expect.objectContaining({ id: "payment:deposit", amount: 40 }),
+        ],
+      }),
+    ]);
+  });
+
+  it("validates recovered deposits against dated currency instead of the current invoice", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      invoice({ currency: "EUR", depositCollectedAmount: 40 }),
+    ]);
+    mockedPrisma.invoiceRevision.findMany.mockResolvedValue([
+      { ...revision(), invoiceId: "invoice-1" },
+      {
+        ...revision({ id: 2n, currency: "EUR", recordedAt: NOW }),
+        invoiceId: "invoice-1",
+      },
+    ]);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([depositEvent()]);
+
+    await expect(generate()).resolves.toMatchObject({ id: STATEMENT });
+
+    expect(
+      mockedPrisma.clientStatement.create.mock.calls[0][0].data.snapshot
+        .currencies,
+    ).toEqual([
+      expect.objectContaining({
+        currency: "gbp",
+        openingBalance: 100,
+        closingBalance: 60,
+      }),
+    ]);
+  });
+
   it("ignores later amendments and due dates when rebuilding a past period", () => {
     const result = historical([
       revision(),
