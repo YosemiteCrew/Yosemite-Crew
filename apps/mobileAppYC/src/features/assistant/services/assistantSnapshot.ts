@@ -58,21 +58,24 @@ const TERMINAL_STATUSES = new Set([
   'RESCHEDULED',
 ]);
 
-/** Builds the payload from the same context the in-app resolvers use. */
-export const buildSnapshot = (
-  context: AssistantContext,
-): AssistantSnapshotPayload => {
-  const pets = context.companions.slice(0, SNAPSHOT_PET_LIMIT);
-  const nameById = new Map(pets.map(pet => [pet.id, pet.name]));
-  const horizon = context.now.getTime() + UPCOMING_WINDOW_DAYS * MS_PER_DAY;
+type SnapshotAppointment = AssistantContext['appointments'][number];
+type SnapshotTask = AssistantContext['tasks'][number];
 
-  const upcomingAppointments: {
-    appointment: AssistantContext['appointments'][number];
-    startsAt: Date;
-  }[] = [];
+const isOpenTaskStatus = (task: SnapshotTask): boolean => {
+  const status = String(task.status ?? '').toUpperCase();
+  return status !== 'COMPLETED' && status !== 'CANCELLED';
+};
+
+/** Upcoming, non-terminal appointments for known pets, soonest first. */
+const upcomingAppointments = (
+  context: AssistantContext,
+  petIds: ReadonlyMap<string, string>,
+  horizon: number,
+): {appointment: SnapshotAppointment; startsAt: Date}[] => {
+  const entries: {appointment: SnapshotAppointment; startsAt: Date}[] = [];
   for (const appointment of context.appointments) {
     if (
-      !nameById.has(appointment.companionId) ||
+      !petIds.has(appointment.companionId) ||
       TERMINAL_STATUSES.has(appointment.status)
     ) {
       continue;
@@ -83,11 +86,46 @@ export const buildSnapshot = (
       startsAt.getTime() >= context.now.getTime() &&
       startsAt.getTime() <= horizon
     ) {
-      upcomingAppointments.push({appointment, startsAt});
+      entries.push({appointment, startsAt});
     }
   }
-  const appointments = upcomingAppointments
-    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+  entries.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+  return entries;
+};
+
+/** Open tasks for known pets, from a day ago up to the horizon, soonest first. */
+const dueTasks = (
+  context: AssistantContext,
+  petIds: ReadonlyMap<string, string>,
+  horizon: number,
+): {task: SnapshotTask; dueAt: Date}[] => {
+  const entries: {task: SnapshotTask; dueAt: Date}[] = [];
+  for (const task of context.tasks) {
+    if (!petIds.has(task.companionId) || !isOpenTaskStatus(task)) {
+      continue;
+    }
+    const dueAt = taskDueAt(task);
+    if (
+      dueAt !== null &&
+      dueAt.getTime() >= context.now.getTime() - MS_PER_DAY &&
+      dueAt.getTime() <= horizon
+    ) {
+      entries.push({task, dueAt});
+    }
+  }
+  entries.sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  return entries;
+};
+
+/** Builds the payload from the same context the in-app resolvers use. */
+export const buildSnapshot = (
+  context: AssistantContext,
+): AssistantSnapshotPayload => {
+  const pets = context.companions.slice(0, SNAPSHOT_PET_LIMIT);
+  const nameById = new Map(pets.map(pet => [pet.id, pet.name]));
+  const horizon = context.now.getTime() + UPCOMING_WINDOW_DAYS * MS_PER_DAY;
+
+  const appointments = upcomingAppointments(context, nameById, horizon)
     .slice(0, SNAPSHOT_ITEM_LIMIT)
     .map(entry => ({
       petId: entry.appointment.companionId,
@@ -97,27 +135,7 @@ export const buildSnapshot = (
       subtitle: entry.appointment.organisationName ?? undefined,
     }));
 
-  const dueTasks: {task: AssistantContext['tasks'][number]; dueAt: Date}[] = [];
-  for (const task of context.tasks) {
-    const status = String(task.status ?? '').toUpperCase();
-    if (
-      !nameById.has(task.companionId) ||
-      status === 'COMPLETED' ||
-      status === 'CANCELLED'
-    ) {
-      continue;
-    }
-    const dueAt = taskDueAt(task);
-    if (
-      dueAt !== null &&
-      dueAt.getTime() >= context.now.getTime() - MS_PER_DAY &&
-      dueAt.getTime() <= horizon
-    ) {
-      dueTasks.push({task, dueAt});
-    }
-  }
-  const tasks = dueTasks
-    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
+  const tasks = dueTasks(context, nameById, horizon)
     .slice(0, SNAPSHOT_ITEM_LIMIT)
     .map(entry => ({
       petId: entry.task.companionId,

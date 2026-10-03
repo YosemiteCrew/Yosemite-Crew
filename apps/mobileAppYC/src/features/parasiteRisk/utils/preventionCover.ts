@@ -48,20 +48,13 @@ const daysBetween = (from: number, to: number): number =>
   Math.max(0, Math.floor((to - from) / MS_PER_DAY));
 
 /**
- * Resolve the pet's parasite prevention cover.
- *
- * `now` is injected so this stays deterministic under test.
+ * Completed tasks with a readable date, newest first, and the due dates of
+ * outstanding tasks already in the past, oldest first.
  */
-export function resolvePreventionCover(
-  tasks: readonly Task[],
-  now: number = Date.now(),
-): PreventionCover {
-  const relevant = tasks.filter(
-    task => isParasitePreventionTask(task) && !isCancelled(task),
-  );
-
-  if (relevant.length === 0) return {status: 'none'};
-
+const splitByCompletion = (
+  relevant: readonly Task[],
+  now: number,
+): {completed: {task: Task; completedAt: number}[]; overdue: number[]} => {
   const completed: {task: Task; completedAt: number}[] = [];
   const overdue: number[] = [];
   for (const task of relevant) {
@@ -81,6 +74,25 @@ export function resolvePreventionCover(
   // comparison that only happens to work for ISO timestamps.
   completed.sort((a, b) => b.completedAt - a.completedAt);
   overdue.sort((a, b) => a - b);
+  return {completed, overdue};
+};
+
+/**
+ * Resolve the pet's parasite prevention cover.
+ *
+ * `now` is injected so this stays deterministic under test.
+ */
+export function resolvePreventionCover(
+  tasks: readonly Task[],
+  now: number = Date.now(),
+): PreventionCover {
+  const relevant = tasks.filter(
+    task => isParasitePreventionTask(task) && !isCancelled(task),
+  );
+
+  if (relevant.length === 0) return {status: 'none'};
+
+  const {completed, overdue} = splitByCompletion(relevant, now);
 
   // An outstanding past-due task is the strongest signal, and we report the
   // oldest one because that is how long there has actually been a gap.
