@@ -41,6 +41,7 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
+import Button from '@/app/ui/Button';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import {
   IoAddOutline,
@@ -1330,6 +1331,7 @@ const useInventoryContent = () => {
           {subtitle && <p className="text-[13.5px] text-[var(--ink-muted)]">{subtitle}</p>}
         </div>
         <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
+          <Button text="Purchase orders" href="/inventory/purchase-orders" variant="secondary" />
           <SegmentedPill
             ariaLabel="Inventory view"
             options={viewOptions}
