@@ -170,22 +170,6 @@ router.post(
 );
 
 router.post(
-  "/organisation/:organisationId/subscription/provider/:provider/checkout/completed",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("subscription:edit:any"),
-  FinanceController.recordSubscriptionCheckoutCompleted,
-);
-
-router.post(
-  "/organisation/:organisationId/subscription/provider/:provider/updated",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("subscription:edit:any"),
-  FinanceController.recordSubscriptionUpdated,
-);
-
-router.post(
   "/organisation/:organisationId/subscription/provider/:provider/deleted",
   requireWebAuth,
   withOrgPermissions(),

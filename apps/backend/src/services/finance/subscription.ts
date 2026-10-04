@@ -894,11 +894,11 @@ export const FinanceSubscriptionService = {
   },
 
   async recordBusinessCheckoutCompleted(input: BusinessCheckoutCompletedInput) {
-    const customerId = String(input.customerId);
-    const subscriptionId = String(input.subscriptionId);
-    const subscriptionItemId = String(input.subscriptionItemId);
-    const priceId = String(input.priceId);
-    const productId = input.productId ? String(input.productId) : null;
+    const customerId = input.customerId;
+    const subscriptionId = input.subscriptionId;
+    const subscriptionItemId = input.subscriptionItemId;
+    const priceId = input.priceId;
+    const productId = input.productId ?? null;
     const subscriptionStatus =
       toSubscriptionStatus(input.subscriptionStatus) ?? "none";
     const billingInterval = toBillingInterval(input.billingInterval) ?? null;
@@ -1002,7 +1002,7 @@ export const FinanceSubscriptionService = {
   },
 
   async recordSubscriptionUpdated(input: SubscriptionUpdatedInput) {
-    const subscriptionId = String(input.subscriptionId);
+    const subscriptionId = input.subscriptionId;
     const subscriptionStatus =
       toSubscriptionStatus(input.subscriptionStatus) ?? "none";
     const seatQuantity = toPositiveInteger(input.seatQuantity ?? 0);

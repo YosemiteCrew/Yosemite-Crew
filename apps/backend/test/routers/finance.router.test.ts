@@ -169,6 +169,21 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("finance.router", () => {
+  it("does not expose subscription state mutation routes to clients", () => {
+    expect(
+      findRoute(
+        "/organisation/:organisationId/subscription/provider/:provider/checkout/completed",
+        "post",
+      ),
+    ).toBeUndefined();
+    expect(
+      findRoute(
+        "/organisation/:organisationId/subscription/provider/:provider/updated",
+        "post",
+      ),
+    ).toBeUndefined();
+  });
+
   it("puts billing review behind web auth, org scope and billing READ permission", () => {
     const route = findRoute(
       "/organisation/:organisationId/completed-visits/billing-review",

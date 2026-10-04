@@ -45,25 +45,6 @@ Read-only list of completed visits whose billing is incomplete: no invoice, a dr
 - Body: `{ externalCustomerId: string }`
 - Controller: `FinanceController.recordSubscriptionCustomer`
 
-### POST /organisation/:organisationId/subscription/provider/:provider/checkout/completed
-
-- Auth: `requireWebAuth`
-- RBAC: `withOrgPermissions, requirePermission`
-- Params: `organisationId`, `provider`
-- Body: `SubscriptionCheckoutCompletedBodySchema`
-- Body fields: `customerId`, `subscriptionId`, `subscriptionItemId`, `priceId`, `productId`, `billingInterval` (`month`, `year`), `subscriptionStatus` (`none`, `trialing`, `active`, `past_due`, `unpaid`, `canceled`, `incomplete`, `incomplete_expired`, `paused`), `cancelAtPeriodEnd`, `currentPeriodStart`, `currentPeriodEnd`, `livemode`, `seatQuantity`
-- Controller: `FinanceController.recordSubscriptionCheckoutCompleted`
-- Response: `201`: keys `data`, `meta`, `error`
-
-### POST /organisation/:organisationId/subscription/provider/:provider/updated
-
-- Auth: `requireWebAuth`
-- RBAC: `withOrgPermissions, requirePermission`
-- Params: `organisationId`, `provider`
-- Body: `SubscriptionUpdatedBodySchema`
-- Body fields: `subscriptionId`, `subscriptionStatus`, `cancelAtPeriodEnd`, `canceledAt`, `seatQuantity`, `currentPeriodStart`, `currentPeriodEnd`
-- Controller: `FinanceController.recordSubscriptionUpdated`
-
 ### POST /organisation/:organisationId/subscription/provider/:provider/deleted
 
 - Auth: `requireWebAuth`
