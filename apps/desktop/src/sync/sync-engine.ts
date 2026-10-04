@@ -100,13 +100,14 @@ export const createSyncEngine = (deps: EngineDeps): SyncEngine => {
   // Tables sync one after another, in the order given.
   const fullSync = async (tables: string[]): Promise<SyncResult[]> => {
     const results: SyncResult[] = [];
-    let pending = Promise.resolve();
-    for (const table of tables) {
-      pending = pending.then(async () => {
-        results.push(await syncTable(table));
-      });
+    const syncResults = async function* () {
+      for (const table of tables) {
+        yield syncTable(table);
+      }
+    };
+    for await (const result of syncResults()) {
+      results.push(result);
     }
-    await pending;
     return results;
   };
 

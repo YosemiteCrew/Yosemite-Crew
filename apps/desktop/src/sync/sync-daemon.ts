@@ -1,6 +1,6 @@
 'use strict';
 
-import type { SyncQueue } from './sync-queue';
+import type { Mutation, SyncQueue } from './sync-queue';
 import type { DesktopLogger } from '../utils/logger';
 
 export type OnlineStatus = 'online' | 'offline';
@@ -34,11 +34,55 @@ interface SyncDaemonDeps {
   flushIntervalMs?: number;
 }
 
+type MutationOutcome =
+  | { mutation: Mutation; result: Awaited<ReturnType<SyncTransport['send']>> }
+  | { mutation: Mutation; error: unknown };
+
 export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
   let running = false;
   let timer: ReturnType<typeof setInterval> | null = null;
   let currentStatus: OnlineStatus = deps.isOnline() ? 'online' : 'offline';
   let flushing = false;
+
+  const sendMutation = async (mutation: Mutation): Promise<MutationOutcome> => {
+    try {
+      const result = await deps.transport.send({
+        type: mutation.type,
+        entityType: mutation.entityType,
+        entityId: mutation.entityId,
+        data: mutation.data,
+      });
+      return { mutation, result };
+    } catch (error) {
+      return { mutation, error };
+    }
+  };
+
+  const sendBatch = async function* (batch: Mutation[]): AsyncGenerator<MutationOutcome> {
+    for (const mutation of batch) {
+      yield sendMutation(mutation);
+    }
+  };
+
+  const applyOutcome = (outcome: MutationOutcome): void => {
+    const { mutation } = outcome;
+    try {
+      if ('error' in outcome) throw outcome.error;
+      if (outcome.result.ok) {
+        deps.queue.pop(mutation.id);
+        deps.logger.debug('sync_mutation_success', { id: mutation.id });
+      } else {
+        deps.queue.markFailed(mutation.id);
+        deps.logger.warn('sync_mutation_failed', {
+          id: mutation.id,
+          error: outcome.result.error,
+        });
+      }
+    } catch (error) {
+      deps.queue.markFailed(mutation.id);
+      deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
+    }
+  };
 
   const flush = async (): Promise<void> => {
     if (!deps.isOnline() || flushing) return;
@@ -48,34 +92,9 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
     flushing = true;
     try {
       deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-      let pending = Promise.resolve();
-      for (const mutation of batch) {
-        pending = pending.then(async () => {
-          try {
-            const result = await deps.transport.send({
-              type: mutation.type,
-              entityType: mutation.entityType,
-              entityId: mutation.entityId,
-              data: mutation.data,
-            });
-
-            if (result.ok) {
-              deps.queue.pop(mutation.id);
-              deps.logger.debug('sync_mutation_success', { id: mutation.id });
-            } else {
-              deps.queue.markFailed(mutation.id);
-              deps.logger.warn('sync_mutation_failed', {
-                id: mutation.id,
-                error: result.error,
-              });
-            }
-          } catch (error) {
-            deps.queue.markFailed(mutation.id);
-            deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
-          }
-        });
+      for await (const outcome of sendBatch(batch)) {
+        applyOutcome(outcome);
       }
-      await pending;
     } finally {
       flushing = false;
     }
