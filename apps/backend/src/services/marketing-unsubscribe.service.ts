@@ -5,7 +5,11 @@ import {
   randomBytes,
   timingSafeEqual,
 } from "node:crypto";
-import SESV2 from "aws-sdk/clients/sesv2.js";
+import {
+  SESv2Client,
+  UpdateContactCommand,
+  CreateContactCommand,
+} from "@aws-sdk/client-sesv2";
 import { stripTrailingSlash } from "src/utils/strip-trailing-slash";
 
 const TOKEN_SEPARATOR = ".";
@@ -51,7 +55,7 @@ const resolveRegion = (): string =>
   process.env.AWS_DEFAULT_REGION?.trim() ||
   "";
 
-const createClient = (): SESV2 => {
+const createClient = (): SESv2Client => {
   const region = resolveRegion();
   if (!region) {
     throw new MarketingUnsubscribeConfigError(
@@ -59,12 +63,12 @@ const createClient = (): SESV2 => {
     );
   }
 
-  return new SESV2({ region });
+  return new SESv2Client({ region });
 };
 
-let client: SESV2 | undefined;
+let client: SESv2Client | undefined;
 
-const getClient = (): SESV2 => {
+const getClient = (): SESv2Client => {
   client ??= createClient();
   return client;
 };
@@ -186,39 +190,39 @@ export const unsubscribeMarketingEmail = async (
   const ses = getClient();
 
   try {
-    await ses
-      .updateContact({
+    await ses.send(
+      new UpdateContactCommand({
         ContactListName: contactListName,
         EmailAddress: email,
         UnsubscribeAll: true,
-      })
-      .promise();
+      }),
+    );
   } catch (error) {
-    if ((error as { code?: string }).code !== "NotFoundException") {
+    if ((error as { name?: string }).name !== "NotFoundException") {
       throw error;
     }
 
     try {
-      await ses
-        .createContact({
+      await ses.send(
+        new CreateContactCommand({
           ContactListName: contactListName,
           EmailAddress: email,
           UnsubscribeAll: true,
-        })
-        .promise();
+        }),
+      );
     } catch (createError) {
       if (
-        (createError as { code?: string }).code !== "AlreadyExistsException"
+        (createError as { name?: string }).name !== "AlreadyExistsException"
       ) {
         throw createError;
       }
-      await ses
-        .updateContact({
+      await ses.send(
+        new UpdateContactCommand({
           ContactListName: contactListName,
           EmailAddress: email,
           UnsubscribeAll: true,
-        })
-        .promise();
+        }),
+      );
     }
   }
 };
