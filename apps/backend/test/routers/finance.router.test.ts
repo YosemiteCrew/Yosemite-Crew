@@ -169,6 +169,28 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("finance.router", () => {
+  it("does not expose subscription state mutation routes to clients", () => {
+    expect(
+      findRoute(
+        "/organisation/:organisationId/subscription/provider/:provider/customer",
+        "post",
+      ),
+    ).toBeUndefined();
+    expect(
+      findRoute(
+        "/organisation/:organisationId/subscription/provider/:provider/checkout/completed",
+        "post",
+      ),
+    ).toBeUndefined();
+    expect(
+      findRoute(
+        "/organisation/:organisationId/subscription/provider/:provider/updated",
+        "post",
+      ),
+    ).toBeUndefined();
+    expect(findRoute("/subscriptions", "post")).toBeUndefined();
+  });
+
   it("puts billing review behind web auth, org scope and billing READ permission", () => {
     const route = findRoute(
       "/organisation/:organisationId/completed-visits/billing-review",
@@ -576,9 +598,6 @@ describe("finance.router", () => {
         (layer) => layer.handle,
       ),
     ).toContain(FinanceController.getCurrentSubscription);
-    expect(
-      findRoute("/subscriptions", "post")?.stack.map((layer) => layer.handle),
-    ).toContain(FinanceController.upsertSubscription);
     expect(
       findRoute("/usage-events", "post")?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.recordUsageEvent);

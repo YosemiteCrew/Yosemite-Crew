@@ -14,6 +14,7 @@ jest.mock("src/config/prisma", () => ({
     financeProviderLink: {
       upsert: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
     },
     usageSnapshot: {
@@ -47,7 +48,7 @@ jest.mock("src/config/prisma", () => ({
 
 describe("FinanceSubscriptionService", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-06-18T00:00:00.000Z"));
     process.env.STRIPE_PRICE_BUSINESS_MONTH = "price_month_mock";
@@ -462,6 +463,7 @@ describe("FinanceSubscriptionService", () => {
     );
 
     await FinanceSubscriptionService.recordBusinessCheckoutCompleted({
+      orgId: "org_1",
       customerId: "cus_1",
       subscriptionId: "sub_1",
       subscriptionItemId: "item_1",
@@ -515,37 +517,150 @@ describe("FinanceSubscriptionService", () => {
         status: "ACTIVE",
       }),
     });
+    expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith({
+      where: { orgId: "org_1" },
+      data: expect.objectContaining({
+        plan: "business",
+        billingInterval: "month",
+        seatQuantity: 2,
+        subscriptionStatus: "active",
+        stripeSubscriptionId: "sub_1",
+      }),
+    });
   });
 
-  it("normalizes stripe subscription checkout completion into finance writes", async () => {
+  it("does not unlock business allowances for an incomplete checkout", async () => {
     (prisma.financeProviderLink.findMany as jest.Mock).mockResolvedValueOnce([
       { orgId: "org_1" },
     ]);
     (prisma.financeProviderLink.upsert as jest.Mock).mockResolvedValueOnce({});
-    (prisma.subscriptionEntitlement.upsert as jest.Mock).mockResolvedValueOnce(
-      {},
+
+    await FinanceSubscriptionService.recordBusinessCheckoutCompleted({
+      orgId: "org_1",
+      customerId: "cus_1",
+      subscriptionId: "sub_incomplete",
+      subscriptionItemId: "item_1",
+      priceId: "price_1",
+      billingInterval: "month",
+      subscriptionStatus: "incomplete",
+      seatQuantity: 2,
+    });
+
+    expect(prisma.organizationBilling.updateMany).not.toHaveBeenCalled();
+    expect(prisma.subscriptionEntitlement.upsert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["month", "price_month_mock"],
+    ["year", "price_year_mock"],
+  ] as const)(
+    "normalizes a %s stripe subscription checkout into finance writes",
+    async (interval, priceId) => {
+      (
+        prisma.financeProviderLink.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        externalCustomerId: "cus_1",
+      });
+      (prisma.financeProviderLink.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.financeProviderLink.upsert as jest.Mock).mockResolvedValueOnce(
+        {},
+      );
+      (
+        prisma.subscriptionEntitlement.upsert as jest.Mock
+      ).mockResolvedValueOnce({});
+
+      await FinanceSubscriptionService.recordStripeSubscriptionCheckoutCompleted(
+        {
+          customerId: "cus_1",
+          session: {
+            livemode: false,
+            customer: "cus_1",
+            subscription: "sub_1",
+            metadata: { orgId: "org_1", interval },
+          } as any,
+          subscription: {
+            id: "sub_1",
+            metadata: { orgId: "org_1" },
+            status: "active",
+            cancel_at_period_end: false,
+            items: {
+              data: [
+                {
+                  id: "item_1",
+                  quantity: 2,
+                  current_period_start: 1718668800,
+                  current_period_end: 1721260800,
+                  price: {
+                    id: priceId,
+                    recurring: { interval },
+                    product: "prod_1",
+                  },
+                },
+              ],
+            },
+          } as any,
+        },
+      );
+
+      expect(prisma.financeProviderLink.upsert).toHaveBeenCalled();
+      expect(prisma.subscriptionEntitlement.upsert).toHaveBeenCalled();
+    },
+  );
+
+  it.each<
+    [
+      string,
+      {
+        sessionOrgId?: string;
+        subscriptionOrgId?: string;
+        sessionCustomerId?: string;
+        sessionSubscriptionId?: string;
+        interval?: string;
+        priceId?: string;
+      },
+    ]
+  >([
+    ["missing organization metadata", { sessionOrgId: undefined }],
+    ["mismatched subscription organization", { subscriptionOrgId: "org_2" }],
+    ["mismatched session customer", { sessionCustomerId: "cus_2" }],
+    ["mismatched session subscription", { sessionSubscriptionId: "sub_2" }],
+    ["unconfigured billing interval", { interval: "week" }],
+    ["unexpected price", { priceId: "price_other" }],
+  ])("rejects checkout with %s", async (_label, overrides) => {
+    (prisma.financeProviderLink.findUnique as jest.Mock).mockResolvedValueOnce({
+      externalCustomerId: "cus_1",
+    });
+    (prisma.financeProviderLink.findFirst as jest.Mock).mockResolvedValueOnce(
+      null,
     );
 
     await FinanceSubscriptionService.recordStripeSubscriptionCheckoutCompleted({
       customerId: "cus_1",
       session: {
-        livemode: false,
+        customer: overrides.sessionCustomerId ?? "cus_1",
+        subscription: overrides.sessionSubscriptionId ?? "sub_1",
+        metadata: {
+          orgId: "sessionOrgId" in overrides ? overrides.sessionOrgId : "org_1",
+          interval: overrides.interval ?? "month",
+        },
       } as any,
       subscription: {
         id: "sub_1",
         status: "active",
         cancel_at_period_end: false,
+        metadata: {
+          orgId: overrides.subscriptionOrgId ?? "org_1",
+        },
         items: {
           data: [
             {
               id: "item_1",
               quantity: 2,
-              current_period_start: 1718668800,
-              current_period_end: 1721260800,
               price: {
-                id: "price_1",
+                id: overrides.priceId ?? "price_month_mock",
                 recurring: { interval: "month" },
-                product: "prod_1",
               },
             },
           ],
@@ -553,8 +668,81 @@ describe("FinanceSubscriptionService", () => {
       } as any,
     });
 
-    expect(prisma.financeProviderLink.upsert).toHaveBeenCalled();
-    expect(prisma.subscriptionEntitlement.upsert).toHaveBeenCalled();
+    expect(prisma.financeProviderLink.upsert).not.toHaveBeenCalled();
+    expect(prisma.organizationBilling.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects checkout for a customer not linked to the organization", async () => {
+    (prisma.financeProviderLink.findUnique as jest.Mock).mockResolvedValueOnce({
+      externalCustomerId: "cus_other",
+    });
+
+    await FinanceSubscriptionService.recordStripeSubscriptionCheckoutCompleted({
+      customerId: "cus_1",
+      session: {
+        customer: "cus_1",
+        subscription: "sub_1",
+        metadata: { orgId: "org_1", interval: "month" },
+      } as any,
+      subscription: {
+        id: "sub_1",
+        status: "active",
+        cancel_at_period_end: false,
+        metadata: { orgId: "org_1" },
+        items: {
+          data: [
+            {
+              id: "item_1",
+              quantity: 2,
+              price: {
+                id: "price_month_mock",
+                recurring: { interval: "month" },
+              },
+            },
+          ],
+        },
+      } as any,
+    });
+
+    expect(prisma.financeProviderLink.upsert).not.toHaveBeenCalled();
+    expect(prisma.financeProviderLink.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects checkout identifiers already linked to another organization", async () => {
+    process.env.STRIPE_PRICE_BUSINESS_MONTH = "price_1";
+    (prisma.financeProviderLink.findUnique as jest.Mock).mockResolvedValueOnce({
+      externalCustomerId: "cus_1",
+    });
+    (prisma.financeProviderLink.findFirst as jest.Mock).mockResolvedValueOnce({
+      orgId: "org_2",
+    });
+
+    await FinanceSubscriptionService.recordStripeSubscriptionCheckoutCompleted({
+      customerId: "cus_1",
+      session: {
+        customer: "cus_1",
+        subscription: "sub_1",
+        metadata: { orgId: "org_1", interval: "month" },
+      } as any,
+      subscription: {
+        id: "sub_1",
+        status: "active",
+        cancel_at_period_end: false,
+        metadata: { orgId: "org_1" },
+        items: {
+          data: [
+            {
+              id: "item_1",
+              quantity: 2,
+              price: { id: "price_1", recurring: { interval: "month" } },
+            },
+          ],
+        },
+      } as any,
+    });
+
+    expect(prisma.financeProviderLink.upsert).not.toHaveBeenCalled();
+    expect(prisma.organizationBilling.updateMany).not.toHaveBeenCalled();
   });
 
   it("records subscription updates and omits absent timestamps", async () => {
@@ -609,6 +797,15 @@ describe("FinanceSubscriptionService", () => {
         status: "ACTIVE",
       }),
     });
+    expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith({
+      where: { orgId: "org_1" },
+      data: expect.objectContaining({
+        plan: "business",
+        subscriptionStatus: "past_due",
+        seatQuantity: 6,
+        stripeSubscriptionId: "sub_1",
+      }),
+    });
   });
 
   it("normalizes stripe subscription updates into finance writes", async () => {
@@ -632,6 +829,50 @@ describe("FinanceSubscriptionService", () => {
         ],
       },
     } as any);
+  });
+
+  it("keeps repeated active updates on business allowances and removes them on cancellation", async () => {
+    (prisma.financeProviderLink.findMany as jest.Mock).mockResolvedValue([
+      { orgId: "org_1", metadata: null },
+    ]);
+    (prisma.financeProviderLink.upsert as jest.Mock).mockResolvedValue({});
+    (prisma.subscriptionEntitlement.upsert as jest.Mock).mockResolvedValue({});
+
+    const activeUpdate = {
+      subscriptionId: "sub_1",
+      subscriptionStatus: "active" as const,
+      cancelAtPeriodEnd: false,
+      seatQuantity: 4,
+    };
+    await FinanceSubscriptionService.recordSubscriptionUpdated(activeUpdate);
+    await FinanceSubscriptionService.recordSubscriptionUpdated(activeUpdate);
+    await FinanceSubscriptionService.recordSubscriptionUpdated({
+      ...activeUpdate,
+      subscriptionStatus: "canceled",
+      canceledAt: new Date("2026-06-18T00:00:00.000Z"),
+    });
+
+    expect(prisma.organizationBilling.updateMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({ plan: "business" }),
+      }),
+    );
+    expect(prisma.organizationBilling.updateMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ plan: "business" }),
+      }),
+    );
+    expect(prisma.organizationBilling.updateMany).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          plan: "free",
+          subscriptionStatus: "canceled",
+        }),
+      }),
+    );
   });
 
   it("records subscription lifecycle changes", async () => {
@@ -661,8 +902,10 @@ describe("FinanceSubscriptionService", () => {
       where: { orgId: "org_1" },
       data: expect.objectContaining({
         plan: "free",
+        seatQuantity: 0,
         subscriptionStatus: "canceled",
         cancelAtPeriodEnd: false,
+        accessState: "free",
       }),
     });
 
@@ -689,6 +932,10 @@ describe("FinanceSubscriptionService", () => {
       }),
       update: expect.objectContaining({
         externalSubscriptionId: "sub_1",
+        metadata: expect.objectContaining({
+          subscriptionStatus: "canceled",
+          seatQuantity: 0,
+        }),
       }),
     });
     expect(prisma.subscriptionEntitlement.upsert).toHaveBeenCalledWith({
