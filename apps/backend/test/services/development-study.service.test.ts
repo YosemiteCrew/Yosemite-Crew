@@ -195,6 +195,25 @@ describe("DevelopmentStudyService", () => {
       });
       expect(result).toEqual(expectedExperiment);
     });
+
+    it("applies the default design counts", async () => {
+      mockPrisma.designedExperiment.create.mockResolvedValue({});
+
+      await service.createExperiment({
+        studyId: "study-1",
+        name: "Defaults",
+        designType: ExperimentDesignType.SCREENING,
+        createdById: "user-1",
+      });
+
+      expect(mockPrisma.designedExperiment.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          centrePoints: 0,
+          blocks: 1,
+          replicates: 1,
+        }),
+      });
+    });
   });
 
   describe("addFactor", () => {
@@ -244,6 +263,50 @@ describe("DevelopmentStudyService", () => {
         },
       });
       expect(result).toEqual(expectedFactor);
+    });
+
+    it("applies factor defaults", async () => {
+      mockPrisma.experimentFactor.create.mockResolvedValue({});
+
+      await service.addFactor({
+        experimentId: "exp-1",
+        name: "Humidity",
+        type: FactorType.CONTINUOUS,
+      });
+
+      expect(mockPrisma.experimentFactor.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          role: FactorRole.INPUT,
+          isConstant: false,
+          sortOrder: 0,
+        }),
+      });
+    });
+  });
+
+  describe("addResponse", () => {
+    it("creates a response with the default sort order", async () => {
+      mockPrisma.experimentResponse.create.mockResolvedValue({});
+
+      await service.addResponse({
+        experimentId: "exp-1",
+        name: "Yield",
+        target: 95,
+      });
+
+      expect(mockPrisma.experimentResponse.create).toHaveBeenCalledWith({
+        data: {
+          experimentId: "exp-1",
+          name: "Yield",
+          displayName: undefined,
+          unit: undefined,
+          goal: undefined,
+          target: 95,
+          lowerSpec: undefined,
+          upperSpec: undefined,
+          sortOrder: 0,
+        },
+      });
     });
   });
 
@@ -514,6 +577,352 @@ describe("DevelopmentStudyService", () => {
       expect(result.isStale).toBe(true);
       expect(result.staledBy).toBe("user-1");
       expect(result.staleReason).toBe("Model refitted");
+    });
+  });
+
+  describe("study and experiment queries", () => {
+    it("scopes and orders study and experiment lists", async () => {
+      mockPrisma.developmentStudy.findMany.mockResolvedValue([]);
+      mockPrisma.designedExperiment.findMany.mockResolvedValue([]);
+
+      await service.getStudiesByOrganisation("org-1");
+      await service.getExperimentsByStudy("study-1");
+
+      expect(mockPrisma.developmentStudy.findMany).toHaveBeenCalledWith({
+        where: { organisationId: "org-1" },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(mockPrisma.designedExperiment.findMany).toHaveBeenCalledWith({
+        where: { studyId: "study-1" },
+        orderBy: { createdAt: "desc" },
+      });
+    });
+
+    it("loads an experiment with its ordered children", async () => {
+      mockPrisma.designedExperiment.findUnique.mockResolvedValue(null);
+
+      await service.getExperimentById("exp-1");
+
+      expect(mockPrisma.designedExperiment.findUnique).toHaveBeenCalledWith({
+        where: { id: "exp-1" },
+        include: {
+          factors: { orderBy: { sortOrder: "asc" } },
+          responses: { orderBy: { sortOrder: "asc" } },
+          runs: { orderBy: { runNumber: "asc" } },
+          models: { orderBy: { createdAt: "desc" } },
+          plots: true,
+        },
+      });
+    });
+
+    it("updates study and experiment statuses", async () => {
+      mockPrisma.developmentStudy.update.mockResolvedValue({});
+      mockPrisma.designedExperiment.update.mockResolvedValue({});
+
+      await service.updateStudyStatus("study-1", DevelopmentStudyStatus.ACTIVE);
+      await service.updateExperimentStatus(
+        "exp-1",
+        ExperimentStatus.IN_PROGRESS,
+      );
+
+      expect(mockPrisma.developmentStudy.update).toHaveBeenCalledWith({
+        where: { id: "study-1" },
+        data: { status: DevelopmentStudyStatus.ACTIVE },
+      });
+      expect(mockPrisma.designedExperiment.update).toHaveBeenCalledWith({
+        where: { id: "exp-1" },
+        data: { status: ExperimentStatus.IN_PROGRESS },
+      });
+    });
+  });
+
+  describe("run generation", () => {
+    it("rejects a missing experiment", async () => {
+      mockPrisma.designedExperiment.findUnique.mockResolvedValue(null);
+
+      await expect(service.generateRuns("missing")).rejects.toThrow(
+        "Experiment not found",
+      );
+    });
+
+    it("rejects an unlocked experiment", async () => {
+      mockPrisma.designedExperiment.findUnique.mockResolvedValue({
+        runOrderLocked: false,
+        factors: [],
+      });
+
+      await expect(service.generateRuns("exp-1")).rejects.toThrow(
+        "Run order must be locked before generating runs",
+      );
+    });
+
+    it("creates factorial runs and copies constant values", async () => {
+      mockPrisma.designedExperiment.findUnique.mockResolvedValue({
+        runOrderLocked: true,
+        replicates: 2,
+        factors: [
+          {
+            id: "categorical",
+            role: FactorRole.INPUT,
+            type: FactorType.CATEGORICAL,
+            levels: ["low", "high", "centre"],
+            isConstant: false,
+            constantValue: null,
+          },
+          {
+            id: "continuous",
+            role: FactorRole.INPUT,
+            type: FactorType.CONTINUOUS,
+            levels: null,
+            isConstant: false,
+            constantValue: null,
+          },
+          {
+            id: "constant",
+            role: FactorRole.CONSTANT,
+            type: FactorType.CONTINUOUS,
+            levels: null,
+            isConstant: true,
+            constantValue: 4,
+          },
+        ],
+      });
+      mockPrisma.experimentRun.create.mockImplementation(
+        async ({ data }: { data: { runNumber: number } }) => ({
+          id: `run-${data.runNumber}`,
+          ...data,
+        }),
+      );
+      mockPrisma.experimentRunFactorValue.create.mockResolvedValue({});
+
+      const runs = await service.generateRuns("exp-1");
+
+      expect(runs).toHaveLength(12);
+      expect(mockPrisma.experimentRun.create).toHaveBeenCalledTimes(12);
+      expect(mockPrisma.experimentRunFactorValue.create).toHaveBeenCalledTimes(
+        12,
+      );
+      expect(mockPrisma.experimentRunFactorValue.create).toHaveBeenCalledWith({
+        data: { runId: "run-1", factorId: "constant", value: 4 },
+      });
+    });
+
+    it("ignores categorical factors without levels and null constants", async () => {
+      mockPrisma.designedExperiment.findUnique.mockResolvedValue({
+        runOrderLocked: true,
+        replicates: 1,
+        factors: [
+          {
+            id: "categorical",
+            role: FactorRole.INPUT,
+            type: FactorType.CATEGORICAL,
+            levels: null,
+            isConstant: false,
+            constantValue: null,
+          },
+          {
+            id: "constant",
+            role: FactorRole.CONSTANT,
+            type: FactorType.CONTINUOUS,
+            levels: null,
+            isConstant: true,
+            constantValue: null,
+          },
+        ],
+      });
+      mockPrisma.experimentRun.create.mockResolvedValue({ id: "run-1" });
+
+      const runs = await service.generateRuns("exp-1");
+
+      expect(runs).toHaveLength(1);
+      expect(mockPrisma.experimentRunFactorValue.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("run persistence", () => {
+    it("creates and lists runs", async () => {
+      mockPrisma.experimentRun.create.mockResolvedValue({});
+      mockPrisma.experimentRun.findMany.mockResolvedValue([]);
+
+      await service.createRun({
+        experimentId: "exp-1",
+        runNumber: 2,
+        standardOrder: 1,
+        blockNumber: 3,
+        seed: "seed",
+      });
+      await service.getRunsByExperiment("exp-1");
+
+      expect(mockPrisma.experimentRun.create).toHaveBeenCalledWith({
+        data: {
+          experimentId: "exp-1",
+          runNumber: 2,
+          standardOrder: 1,
+          blockNumber: 3,
+          seed: "seed",
+          status: RunStatus.PENDING,
+        },
+      });
+      expect(mockPrisma.experimentRun.findMany).toHaveBeenCalledWith({
+        where: { experimentId: "exp-1" },
+        orderBy: { runNumber: "asc" },
+        include: {
+          factorValues: { include: { factor: true } },
+          responseValues: { include: { response: true } },
+        },
+      });
+    });
+
+    it("records completion details only for completed runs", async () => {
+      mockPrisma.experimentRun.update.mockResolvedValue({});
+
+      await service.updateRunStatus({
+        runId: "run-1",
+        status: RunStatus.COMPLETED,
+        deviationNotes: "late",
+        completedBy: "user-1",
+      });
+      await service.updateRunStatus({
+        runId: "run-2",
+        status: RunStatus.RUNNING,
+      });
+
+      expect(mockPrisma.experimentRun.update).toHaveBeenNthCalledWith(1, {
+        where: { id: "run-1" },
+        data: {
+          status: RunStatus.COMPLETED,
+          deviationNotes: "late",
+          completedAt: expect.any(Date),
+          completedBy: "user-1",
+        },
+      });
+      expect(mockPrisma.experimentRun.update).toHaveBeenNthCalledWith(2, {
+        where: { id: "run-2" },
+        data: { status: RunStatus.RUNNING },
+      });
+    });
+
+    it("upserts factor and response values", async () => {
+      mockPrisma.experimentRunFactorValue.upsert.mockResolvedValue({});
+      mockPrisma.experimentRunResponseValue.upsert.mockResolvedValue({});
+
+      await service.setRunFactorValue({
+        runId: "run-1",
+        factorId: "factor-1",
+        value: 3,
+      });
+      await service.setRunResponseValue({
+        runId: "run-1",
+        responseId: "response-1",
+        value: 7,
+      });
+
+      expect(mockPrisma.experimentRunFactorValue.upsert).toHaveBeenCalledWith({
+        where: { runId_factorId: { runId: "run-1", factorId: "factor-1" } },
+        create: { runId: "run-1", factorId: "factor-1", value: 3 },
+        update: { value: 3 },
+      });
+      expect(mockPrisma.experimentRunResponseValue.upsert).toHaveBeenCalledWith(
+        {
+          where: {
+            runId_responseId: { runId: "run-1", responseId: "response-1" },
+          },
+          create: { runId: "run-1", responseId: "response-1", value: 7 },
+          update: { value: 7 },
+        },
+      );
+    });
+  });
+
+  describe("model, plot, and range queries", () => {
+    it("reads and updates models", async () => {
+      mockPrisma.experimentModel.findMany.mockResolvedValue([]);
+      mockPrisma.experimentModel.update.mockResolvedValue({});
+
+      await service.getModelsByExperiment("exp-1");
+      await service.updateModelStatus("model-1", ModelFitStatus.STALE);
+
+      expect(mockPrisma.experimentModel.findMany).toHaveBeenCalledWith({
+        where: { experimentId: "exp-1" },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(mockPrisma.experimentModel.update).toHaveBeenCalledWith({
+        where: { id: "model-1" },
+        data: { status: ModelFitStatus.STALE },
+      });
+    });
+
+    it("creates and lists plots", async () => {
+      mockPrisma.experimentPlot.create.mockResolvedValue({});
+      mockPrisma.experimentPlot.findMany.mockResolvedValue([]);
+      const imageData = Uint8Array.from([1, 2]);
+
+      await service.createPlot({
+        experimentId: "exp-1",
+        modelId: "model-1",
+        type: PlotType.CONTOUR,
+        title: "Contour",
+        config: { x: "temperature" },
+        imageData,
+        pdfData: imageData,
+        spreadsheetData: { sheet: 1 },
+      });
+      await service.getPlotsByExperiment("exp-1");
+
+      expect(mockPrisma.experimentPlot.create).toHaveBeenCalledWith({
+        data: {
+          experimentId: "exp-1",
+          modelId: "model-1",
+          type: PlotType.CONTOUR,
+          title: "Contour",
+          config: { x: "temperature" },
+          imageData,
+          pdfData: imageData,
+          spreadsheetData: { sheet: 1 },
+        },
+      });
+      expect(mockPrisma.experimentPlot.findMany).toHaveBeenCalledWith({
+        where: { experimentId: "exp-1" },
+        orderBy: { createdAt: "desc" },
+      });
+    });
+
+    it("lists ranges and each link projection", async () => {
+      mockPrisma.processParameterRange.findMany.mockResolvedValue([]);
+      mockPrisma.processParameterRangeLink.findMany.mockResolvedValue([]);
+
+      await service.getParameterRangesByStudy("study-1");
+      await service.getRangeLinksByRange("range-1");
+      await service.getRangeLinksByExperiment("exp-1");
+      await service.getRangeLinksByModel("model-1");
+
+      expect(mockPrisma.processParameterRange.findMany).toHaveBeenCalledWith({
+        where: { studyId: "study-1" },
+        include: {
+          experimentLinks: {
+            include: { experiment: true, model: true },
+          },
+        },
+        orderBy: { parameterName: "asc" },
+      });
+      expect(
+        mockPrisma.processParameterRangeLink.findMany,
+      ).toHaveBeenNthCalledWith(1, {
+        where: { rangeId: "range-1" },
+        include: { experiment: true, model: true },
+      });
+      expect(
+        mockPrisma.processParameterRangeLink.findMany,
+      ).toHaveBeenNthCalledWith(2, {
+        where: { experimentId: "exp-1" },
+        include: { range: true, model: true },
+      });
+      expect(
+        mockPrisma.processParameterRangeLink.findMany,
+      ).toHaveBeenNthCalledWith(3, {
+        where: { modelId: "model-1" },
+        include: { range: true, experiment: true },
+      });
     });
   });
 });

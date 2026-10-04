@@ -13,18 +13,36 @@ import {
   PlotType,
 } from "@yosemite-crew/types";
 import { requireWebAuth, AuthenticatedRequest } from "../middlewares/auth.js";
+import {
+  withDesignedExperimentOrgPermissions,
+  withDevelopmentStudyOrgPermissions,
+  withExperimentModelOrgPermissions,
+  withExperimentRunOrgPermissions,
+  withOrgPermissions,
+  withProcessParameterRangeLinkOrgPermissions,
+  withProcessParameterRangeOrgPermissions,
+} from "../middlewares/rbac.js";
 
 const developmentStudyRouter = Router();
 const service = new DevelopmentStudyService();
+
+const sendRequestError = (res: Response, error: unknown, message: string) => {
+  if (error instanceof z.ZodError) {
+    res.status(400).json({ errors: z.flattenError(error).fieldErrors });
+  } else {
+    res.status(500).json({ error: message });
+  }
+};
 
 developmentStudyRouter.use(requireWebAuth);
 
 developmentStudyRouter.post(
   "/studies",
+  withOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        organisationId: z.string().uuid(),
+        organisationId: z.uuid(),
         productName: z.string().min(1),
         productCode: z.string().optional(),
         description: z.string().optional(),
@@ -36,17 +54,14 @@ developmentStudyRouter.post(
       });
       res.status(201).json(study);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to create study" });
-      }
+      sendRequestError(res, error, "Failed to create study");
     }
   },
 );
 
 developmentStudyRouter.get(
   "/studies",
+  withOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { organisationId } = req.query;
@@ -56,7 +71,7 @@ developmentStudyRouter.get(
       }
       const studies = await service.getStudiesByOrganisation(organisationId);
       res.json(studies);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch studies" });
     }
   },
@@ -64,6 +79,7 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.get(
   "/studies/:studyId",
+  withDevelopmentStudyOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const study = await service.getStudyById(req.params.studyId);
@@ -72,7 +88,7 @@ developmentStudyRouter.get(
         return;
       }
       res.json(study);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch study" });
     }
   },
@@ -80,32 +96,30 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.patch(
   "/studies/:studyId/status",
+  withDevelopmentStudyOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        status: z.nativeEnum(DevelopmentStudyStatus),
+        status: z.enum(DevelopmentStudyStatus),
       });
       const { status } = schema.parse(req.body);
       const study = await service.updateStudyStatus(req.params.studyId, status);
       res.json(study);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to update study status" });
-      }
+      sendRequestError(res, error, "Failed to update study status");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/studies/:studyId/experiments",
+  withDevelopmentStudyOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
-        designType: z.nativeEnum(ExperimentDesignType),
+        designType: z.enum(ExperimentDesignType),
         resolution: z.number().int().positive().optional(),
         aliases: z.any().optional(),
         centrePoints: z.number().int().nonnegative().optional(),
@@ -121,17 +135,14 @@ developmentStudyRouter.post(
       });
       res.status(201).json(experiment);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to create experiment" });
-      }
+      sendRequestError(res, error, "Failed to create experiment");
     }
   },
 );
 
 developmentStudyRouter.get(
   "/experiments/:experimentId",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const experiment = await service.getExperimentById(
@@ -142,7 +153,7 @@ developmentStudyRouter.get(
         return;
       }
       res.json(experiment);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch experiment" });
     }
   },
@@ -150,13 +161,14 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.get(
   "/studies/:studyId/experiments",
+  withDevelopmentStudyOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const experiments = await service.getExperimentsByStudy(
         req.params.studyId,
       );
       res.json(experiments);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch experiments" });
     }
   },
@@ -164,10 +176,11 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.patch(
   "/experiments/:experimentId/status",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        status: z.nativeEnum(ExperimentStatus),
+        status: z.enum(ExperimentStatus),
       });
       const { status } = schema.parse(req.body);
       const experiment = await service.updateExperimentStatus(
@@ -176,24 +189,21 @@ developmentStudyRouter.patch(
       );
       res.json(experiment);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to update experiment status" });
-      }
+      sendRequestError(res, error, "Failed to update experiment status");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/experiments/:experimentId/factors",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
         name: z.string().min(1),
         displayName: z.string().optional(),
-        type: z.nativeEnum(FactorType),
-        role: z.nativeEnum(FactorRole).optional(),
+        type: z.enum(FactorType),
+        role: z.enum(FactorRole).optional(),
         unit: z.string().optional(),
         lowLevel: z.number().optional(),
         highLevel: z.number().optional(),
@@ -210,17 +220,14 @@ developmentStudyRouter.post(
       });
       res.status(201).json(factor);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to add factor" });
-      }
+      sendRequestError(res, error, "Failed to add factor");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/experiments/:experimentId/responses",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
@@ -240,17 +247,14 @@ developmentStudyRouter.post(
       });
       res.status(201).json(response);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to add response" });
-      }
+      sendRequestError(res, error, "Failed to add response");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/experiments/:experimentId/lock-run-order",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
@@ -265,7 +269,7 @@ developmentStudyRouter.post(
       res.json(experiment);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
+        res.status(400).json({ errors: z.flattenError(error).fieldErrors });
       } else {
         res.status(500).json({
           error:
@@ -278,6 +282,7 @@ developmentStudyRouter.post(
 
 developmentStudyRouter.post(
   "/experiments/:experimentId/generate-runs",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const runs = await service.generateRuns(req.params.experimentId);
@@ -293,6 +298,7 @@ developmentStudyRouter.post(
 
 developmentStudyRouter.post(
   "/experiments/:experimentId/runs",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
@@ -308,22 +314,19 @@ developmentStudyRouter.post(
       });
       res.status(201).json(run);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to create run" });
-      }
+      sendRequestError(res, error, "Failed to create run");
     }
   },
 );
 
 developmentStudyRouter.get(
   "/experiments/:experimentId/runs",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const runs = await service.getRunsByExperiment(req.params.experimentId);
       res.json(runs);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch runs" });
     }
   },
@@ -331,10 +334,11 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.patch(
   "/runs/:runId/status",
+  withExperimentRunOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        status: z.nativeEnum(RunStatus),
+        status: z.enum(RunStatus),
         deviationNotes: z.string().optional(),
       });
       const input = schema.parse(req.body);
@@ -346,21 +350,18 @@ developmentStudyRouter.patch(
       });
       res.json(run);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to update run status" });
-      }
+      sendRequestError(res, error, "Failed to update run status");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/runs/:runId/factor-values",
+  withExperimentRunOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        factorId: z.string().uuid(),
+        factorId: z.uuid(),
         value: z.number(),
       });
       const input = schema.parse(req.body);
@@ -370,21 +371,18 @@ developmentStudyRouter.post(
       });
       res.json(value);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to set factor value" });
-      }
+      sendRequestError(res, error, "Failed to set factor value");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/runs/:runId/response-values",
+  withExperimentRunOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        responseId: z.string().uuid(),
+        responseId: z.uuid(),
         value: z.number(),
       });
       const input = schema.parse(req.body);
@@ -394,22 +392,19 @@ developmentStudyRouter.post(
       });
       res.json(value);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to set response value" });
-      }
+      sendRequestError(res, error, "Failed to set response value");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/experiments/:experimentId/models",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
         name: z.string().min(1),
-        type: z.nativeEnum(ModelType),
+        type: z.enum(ModelType),
         formula: z.string().min(1),
         terms: z.any(),
         anovaTable: z.any().optional(),
@@ -431,24 +426,21 @@ developmentStudyRouter.post(
       });
       res.status(201).json(model);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to fit model" });
-      }
+      sendRequestError(res, error, "Failed to fit model");
     }
   },
 );
 
 developmentStudyRouter.get(
   "/experiments/:experimentId/models",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const models = await service.getModelsByExperiment(
         req.params.experimentId,
       );
       res.json(models);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch models" });
     }
   },
@@ -456,31 +448,29 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.patch(
   "/models/:modelId/status",
+  withExperimentModelOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        status: z.nativeEnum(ModelFitStatus),
+        status: z.enum(ModelFitStatus),
       });
       const { status } = schema.parse(req.body);
       const model = await service.updateModelStatus(req.params.modelId, status);
       res.json(model);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to update model status" });
-      }
+      sendRequestError(res, error, "Failed to update model status");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/experiments/:experimentId/plots",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        modelId: z.string().uuid().optional(),
-        type: z.nativeEnum(PlotType),
+        modelId: z.uuid().optional(),
+        type: z.enum(PlotType),
         title: z.string().min(1),
         config: z.any(),
         imageData: z.string().optional(),
@@ -495,31 +485,28 @@ developmentStudyRouter.post(
         title: input.title,
         config: input.config,
         imageData: input.imageData
-          ? Buffer.from(input.imageData, "base64")
+          ? Uint8Array.from(Buffer.from(input.imageData, "base64"))
           : undefined,
         pdfData: input.pdfData
-          ? Buffer.from(input.pdfData, "base64")
+          ? Uint8Array.from(Buffer.from(input.pdfData, "base64"))
           : undefined,
         spreadsheetData: input.spreadsheetData,
       });
       res.status(201).json(plot);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to create plot" });
-      }
+      sendRequestError(res, error, "Failed to create plot");
     }
   },
 );
 
 developmentStudyRouter.get(
   "/experiments/:experimentId/plots",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const plots = await service.getPlotsByExperiment(req.params.experimentId);
       res.json(plots);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch plots" });
     }
   },
@@ -527,6 +514,7 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.post(
   "/studies/:studyId/ranges",
+  withDevelopmentStudyOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
@@ -544,24 +532,21 @@ developmentStudyRouter.post(
       });
       res.status(201).json(range);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to create parameter range" });
-      }
+      sendRequestError(res, error, "Failed to create parameter range");
     }
   },
 );
 
 developmentStudyRouter.get(
   "/studies/:studyId/ranges",
+  withDevelopmentStudyOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const ranges = await service.getParameterRangesByStudy(
         req.params.studyId,
       );
       res.json(ranges);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch parameter ranges" });
     }
   },
@@ -569,11 +554,12 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.post(
   "/ranges/:rangeId/links",
+  withProcessParameterRangeOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
-        experimentId: z.string().uuid(),
-        modelId: z.string().uuid().optional(),
+        experimentId: z.uuid(),
+        modelId: z.uuid().optional(),
         linkType: z.string().min(1),
       });
       const input = schema.parse(req.body);
@@ -584,17 +570,14 @@ developmentStudyRouter.post(
       });
       res.status(201).json(link);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to link range to experiment" });
-      }
+      sendRequestError(res, error, "Failed to link range to experiment");
     }
   },
 );
 
 developmentStudyRouter.post(
   "/range-links/:linkId/stale",
+  withProcessParameterRangeLinkOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const schema = z.object({
@@ -608,22 +591,19 @@ developmentStudyRouter.post(
       });
       res.json(link);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.flatten().fieldErrors });
-      } else {
-        res.status(500).json({ error: "Failed to mark range stale" });
-      }
+      sendRequestError(res, error, "Failed to mark range stale");
     }
   },
 );
 
 developmentStudyRouter.get(
   "/ranges/:rangeId/links",
+  withProcessParameterRangeOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const links = await service.getRangeLinksByRange(req.params.rangeId);
       res.json(links);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch range links" });
     }
   },
@@ -631,13 +611,14 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.get(
   "/experiments/:experimentId/range-links",
+  withDesignedExperimentOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const links = await service.getRangeLinksByExperiment(
         req.params.experimentId,
       );
       res.json(links);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch experiment range links" });
     }
   },
@@ -645,11 +626,12 @@ developmentStudyRouter.get(
 
 developmentStudyRouter.get(
   "/models/:modelId/range-links",
+  withExperimentModelOrgPermissions(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const links = await service.getRangeLinksByModel(req.params.modelId);
       res.json(links);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch model range links" });
     }
   },

@@ -1,4 +1,9 @@
-import { Prisma } from "@prisma/client";
+import {
+  Prisma,
+  FactorRole as PrismaFactorRole,
+  FactorType as PrismaFactorType,
+} from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import {
   DevelopmentStudyStatus,
@@ -131,8 +136,8 @@ export interface CreateExperimentPlotInput {
   type: PlotType;
   title: string;
   config: unknown;
-  imageData?: Buffer;
-  pdfData?: Buffer;
+  imageData?: Uint8Array<ArrayBuffer>;
+  pdfData?: Uint8Array<ArrayBuffer>;
   spreadsheetData?: unknown;
 }
 
@@ -297,8 +302,7 @@ export class DevelopmentStudyService {
   }
 
   async lockRunOrder(input: LockRunOrderInput): Promise<DesignedExperiment> {
-    const seed =
-      input.randomSeed ?? Math.random().toString(36).substring(2, 15);
+    const seed = input.randomSeed ?? randomUUID();
     return this.prisma.designedExperiment.update({
       where: { id: input.experimentId },
       data: {
@@ -328,18 +332,21 @@ export class DevelopmentStudyService {
     }
 
     const inputFactors = experiment.factors.filter(
-      (f: ExperimentFactor) => f.role === FactorRole.INPUT,
+      (factor) => factor.role === PrismaFactorRole.INPUT,
     );
     const constantFactors = experiment.factors.filter(
-      (f: ExperimentFactor) => f.isConstant,
+      (factor) => factor.isConstant,
     );
 
     let runCount = 1;
     for (const factor of inputFactors) {
-      if (factor.type === FactorType.CATEGORICAL && factor.levels) {
+      if (
+        factor.type === PrismaFactorType.CATEGORICAL &&
+        factor.levels !== null
+      ) {
         const levels = factor.levels as number[];
         runCount *= levels.length;
-      } else if (factor.type === FactorType.CONTINUOUS) {
+      } else if (factor.type === PrismaFactorType.CONTINUOUS) {
         runCount *= 2;
       }
     }
@@ -359,7 +366,7 @@ export class DevelopmentStudyService {
       runs.push(run);
 
       for (const factor of constantFactors) {
-        if (factor.constantValue !== undefined) {
+        if (factor.constantValue !== null) {
           await this.prisma.experimentRunFactorValue.create({
             data: {
               runId: run.id,
