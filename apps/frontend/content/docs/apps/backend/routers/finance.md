@@ -71,15 +71,6 @@ Read-only list of completed visits whose billing is incomplete: no invoice, a dr
 - Query: `organisationId`
 - Controller: `FinanceController.getCurrentSubscription`
 
-### POST /subscriptions
-
-- Auth: `requireWebAuth`
-- RBAC: `withOrgPermissions, requirePermission`
-- Body: `UpsertSubscriptionBodySchema`
-- Body fields: `organisationId`, `planCode`, `provider`, `providerSubscriptionId`, `quantity`
-- Controller: `FinanceController.upsertSubscription`
-- Response: `201`: keys `data`, `meta`, `error`
-
 ### POST /usage-events
 
 - Auth: `requireWebAuth`

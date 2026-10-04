@@ -188,6 +188,7 @@ describe("finance.router", () => {
         "post",
       ),
     ).toBeUndefined();
+    expect(findRoute("/subscriptions", "post")).toBeUndefined();
   });
 
   it("puts billing review behind web auth, org scope and billing READ permission", () => {
@@ -597,9 +598,6 @@ describe("finance.router", () => {
         (layer) => layer.handle,
       ),
     ).toContain(FinanceController.getCurrentSubscription);
-    expect(
-      findRoute("/subscriptions", "post")?.stack.map((layer) => layer.handle),
-    ).toContain(FinanceController.upsertSubscription);
     expect(
       findRoute("/usage-events", "post")?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.recordUsageEvent);

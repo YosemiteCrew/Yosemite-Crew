@@ -194,14 +194,6 @@ router.get(
 );
 
 router.post(
-  "/subscriptions",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("subscription:edit:any"),
-  FinanceController.upsertSubscription,
-);
-
-router.post(
   "/usage-events",
   requireWebAuth,
   withOrgPermissions(),
