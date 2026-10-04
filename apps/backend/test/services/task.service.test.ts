@@ -2835,6 +2835,67 @@ describe("TaskService", () => {
       }
     });
 
+    it.each(["ALL", "THIS_AND_FOLLOWING"] as const)(
+      "cancels parent recurring tasks without an organisation for scope=%s",
+      async (scope) => {
+        mockedPrisma.task.findFirst.mockResolvedValueOnce(
+          ownedTask({
+            organisationId: null,
+            assignedTo: "user-1",
+            recurrence: { type: "DAILY", isMaster: true },
+          }) as never,
+        );
+        mockedPrisma.task.findMany.mockResolvedValueOnce([
+          { id: "task-1", dueAt, createdBy: "user-1", assignedTo: "user-1" },
+        ] as never);
+        const txUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+        const txUpdate = jest.fn().mockResolvedValue({});
+        const txFindUnique = jest.fn().mockResolvedValue(null);
+        mockedPrisma.$transaction.mockImplementationOnce(
+          async (cb: (tx: unknown) => Promise<unknown>) =>
+            cb({
+              task: {
+                updateMany: txUpdateMany,
+                update: txUpdate,
+                findUnique: txFindUnique,
+              },
+            }),
+        );
+
+        await expect(
+          TaskService.deleteTask("task-1", "user-1", scope),
+        ).resolves.toBeUndefined();
+
+        expect(txUpdateMany).toHaveBeenCalledWith({
+          where: { id: { in: ["task-1"] }, organisationId: null },
+          data: { status: "CANCELLED" },
+        });
+      },
+    );
+
+    it("rejects malformed occurrence ids before issuing a bulk cancellation", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(
+        ownedTask({
+          assignedTo: "user-1",
+          recurrence: { type: "DAILY", isMaster: true },
+        }) as never,
+      );
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        {
+          id: { in: ["task-2"] },
+          dueAt,
+          createdBy: "user-1",
+          assignedTo: "user-1",
+        },
+      ] as never);
+
+      await expect(
+        TaskService.deleteTask("task-1", "user-1", "ALL", "org-1"),
+      ).rejects.toThrow();
+
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it("cancelling only the first occurrence (scope=THIS) on a master row does not touch its recurrence", async () => {
       // Regression for #3181: the master row IS occurrence #1, so a plain
       // "THIS" cancel on it must only flip that row's own status and must
