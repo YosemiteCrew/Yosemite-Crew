@@ -828,20 +828,6 @@ const saveTreatmentPrescriptions = async (
   };
 };
 
-const getFinalizeFailure = async (
-  organisationId: string,
-  artifacts: SavedInHouseArtifact[]
-): Promise<unknown> => {
-  const outcomes = await Promise.allSettled(
-    artifacts.map(({ id, version }) =>
-      version === undefined
-        ? Promise.reject(new Error(UNVERSIONED_FINALIZE_MESSAGE))
-        : finalizePrescription(organisationId, id, { expectedVersion: version })
-    )
-  );
-  return outcomes.find((outcome) => outcome.status === 'rejected')?.reason;
-};
-
 type PersistTreatmentSaveOptions = {
   organisationId: string;
   appointmentId: string;
@@ -874,12 +860,18 @@ const persistTreatmentSave = async ({
     new Map(saved.prescriptions.map((prescription) => [prescription.id, prescription])).values()
   );
   setPrescriptions(appointmentId, deduped);
-  const [finalizeFailure, bootstrap] = await Promise.all([
-    getFinalizeFailure(organisationId, saved.inHouseArtifacts),
-    getAppointmentWorkspaceBootstrap(organisationId, appointmentId),
-  ]);
-  mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
-  if (finalizeFailure) throw finalizeFailure;
+  await Promise.allSettled(
+    saved.inHouseArtifacts.map(({ id, version }) =>
+      version === undefined
+        ? Promise.reject(new Error(UNVERSIONED_FINALIZE_MESSAGE))
+        : finalizePrescription(organisationId, id, { expectedVersion: version })
+    )
+  ).then(async (outcomes) => {
+    const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
+    mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
+    const finalizeFailure = outcomes.find((outcome) => outcome.status === 'rejected');
+    if (finalizeFailure) throw finalizeFailure.reason;
+  });
 };
 
 /**
