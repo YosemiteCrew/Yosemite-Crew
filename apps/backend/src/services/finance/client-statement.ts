@@ -109,6 +109,8 @@ export type StatementInvoice = {
   dueAt: Date | null;
   paidAt: Date | null;
   createdAt: Date;
+  statementOrganisationId?: string;
+  statementParentId?: string;
   payments: StatementPayment[];
   deposits?: StatementDeposit[];
   revisions?: Array<{
@@ -129,6 +131,21 @@ export type StatementInvoice = {
     createdAt: Date;
     voidedAt?: Date | null;
   }>;
+};
+
+const invoiceBelongsToStatementAt = (
+  invoice: StatementInvoice,
+  at: Date,
+): boolean => {
+  if (!invoice.statementOrganisationId || !invoice.statementParentId)
+    return true;
+  const owner = invoice.revisions
+    ?.filter((revision) => revision.recordedAt <= at)
+    .sort((left, right) => (left.id > right.id ? -1 : 1))[0];
+  return (
+    owner?.organisationId === invoice.statementOrganisationId &&
+    owner.parentId === invoice.statementParentId
+  );
 };
 
 type Movement = ClientStatementEntry & {
@@ -302,9 +319,11 @@ const buildInvoiceCharges = (
       );
       previousAmount = 0;
     }
-    const amount = TERMINAL_INVOICE_STATUSES.has(revision.status)
-      ? 0
-      : quantize(nextCurrency, revision.totalAmount);
+    const amount =
+      TERMINAL_INVOICE_STATUSES.has(revision.status) ||
+      !invoiceBelongsToStatementAt(invoice, revision.recordedAt)
+        ? 0
+        : quantize(nextCurrency, revision.totalAmount);
     const difference = add(nextCurrency, amount, -previousAmount);
     if (difference !== 0) {
       movements.push(
@@ -339,7 +358,10 @@ const buildInvoiceMovements = (
     periodStart,
     periodEnd,
   );
-  for (const payment of invoice.payments) {
+  const ownedPayments = invoice.payments.filter((payment) =>
+    invoiceBelongsToStatementAt(invoice, payment.paidAt ?? payment.createdAt),
+  );
+  for (const payment of ownedPayments) {
     const paymentAt = payment.paidAt ?? payment.createdAt;
     const paymentCurrency = payment.currency ?? currency;
     movements.push(
@@ -353,7 +375,9 @@ const buildInvoiceMovements = (
         currency: paymentCurrency,
       }),
     );
-    for (const refund of payment.refunds) {
+    for (const refund of payment.refunds.filter((candidate) =>
+      invoiceBelongsToStatementAt(invoice, candidate.createdAt),
+    )) {
       movements.push(
         movement({
           id: `refund:${refund.id}`,
@@ -377,8 +401,11 @@ const buildInvoiceMovements = (
     throw incompleteDepositHistory();
   }
   const paymentIds = new Set(invoice.payments.map((payment) => payment.id));
-  for (const deposit of deposits) {
-    if (paymentIds.has(deposit.id)) continue;
+  for (const deposit of deposits.filter(
+    (candidate) =>
+      !paymentIds.has(candidate.id) &&
+      invoiceBelongsToStatementAt(invoice, candidate.occurredAt),
+  )) {
     movements.push(
       movement({
         id: `payment:${deposit.id}`,
@@ -392,11 +419,13 @@ const buildInvoiceMovements = (
     );
   }
 
-  const cancellationDates = (invoice.revisions ?? [])
-    .filter((revision) => revision.status === "CANCELLED")
+  const terminalDates = (invoice.revisions ?? [])
+    .filter((revision) => TERMINAL_INVOICE_STATUSES.has(revision.status))
     .map((revision) => revision.recordedAt)
     .sort((left, right) => left.getTime() - right.getTime());
-  for (const note of invoice.creditNotes) {
+  for (const note of invoice.creditNotes.filter((candidate) =>
+    invoiceBelongsToStatementAt(invoice, candidate.createdAt),
+  )) {
     const noteCurrency = invoiceCurrencyAt(invoice, note.createdAt);
     movements.push(
       movement({
@@ -409,10 +438,10 @@ const buildInvoiceMovements = (
         currency: noteCurrency,
       }),
     );
-    const cancelledAt = cancellationDates.find((at) => at >= note.createdAt);
+    const terminatedAt = terminalDates.find((at) => at >= note.createdAt);
     const reversedAt =
-      cancelledAt && (!note.voidedAt || cancelledAt < note.voidedAt)
-        ? cancelledAt
+      terminatedAt && (!note.voidedAt || terminatedAt < note.voidedAt)
+        ? terminatedAt
         : note.voidedAt;
     if (reversedAt) {
       movements.push(
@@ -991,7 +1020,7 @@ export const ClientStatementService = {
       );
     }
     if (
-      input.periodEnd.getTime() - input.periodStart.getTime() >=
+      input.periodEnd.getTime() - input.periodStart.getTime() >
       366 * DAY_MS
     ) {
       throw new ClientStatementError(
@@ -1105,6 +1134,7 @@ export const ClientStatementService = {
         });
         const revisionWhere: Prisma.InvoiceRevisionWhereInput = {
           invoiceId: { in: rows.map((invoice) => invoice.id) },
+          recordedAt: { lte: input.periodEnd },
         };
         let rowCount =
           rowCounts.reduce((total, count) => total + count, 0) +
@@ -1126,23 +1156,26 @@ export const ClientStatementService = {
           revisions.set(revision.invoiceId, versions);
         }
         rows = rows.filter((invoice) => {
-          const atCutoff = revisions
-            .get(invoice.id)
-            ?.find((revision) => revision.recordedAt <= input.periodEnd);
+          const versions = revisions.get(invoice.id) ?? [];
+          if (versions.length === 0) return true;
+          const ownedAtStart = versions.find(
+            (revision) => revision.recordedAt <= input.periodStart,
+          );
           return (
-            !atCutoff ||
-            (atCutoff.organisationId === input.organisationId &&
-              atCutoff.parentId === input.parentId)
+            (ownedAtStart?.organisationId === input.organisationId &&
+              ownedAtStart.parentId === input.parentId) ||
+            versions.some(
+              (revision) =>
+                revision.recordedAt >= input.periodStart &&
+                revision.recordedAt <= input.periodEnd &&
+                revision.organisationId === input.organisationId &&
+                revision.parentId === input.parentId,
+            )
           );
         });
         const allocationWhere: Prisma.ProviderReceiptAllocationWhereInput = {
           receipt: { organisationId: input.organisationId },
           invoiceId: { in: rows.map((invoice) => invoice.id) },
-          paymentId: {
-            in: rows.flatMap((invoice) =>
-              invoice.payments.map((payment) => payment.id),
-            ),
-          },
         };
         const receiptWhere: Prisma.ProviderReceiptWhereInput = {
           organisationId: input.organisationId,
@@ -1240,6 +1273,8 @@ export const ClientStatementService = {
         );
         const invoices = rows.map((invoice) => ({
           ...invoice,
+          statementOrganisationId: input.organisationId,
+          statementParentId: input.parentId,
           payments: invoice.payments.map((payment) => ({
             ...payment,
             paidAt: appliedPayments.get(payment.id) ?? payment.paidAt,

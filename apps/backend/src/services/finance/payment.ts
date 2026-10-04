@@ -2600,6 +2600,7 @@ export const FinancePaymentService = {
     amount: number;
     currency: string;
     reason?: string;
+    occurredAt?: Date;
   }) {
     const invoice = await findInvoiceForPaymentEvent(input);
 
@@ -2657,6 +2658,7 @@ export const FinancePaymentService = {
             currency: input.currency,
             status: "SUCCEEDED",
             reason: input.reason ?? undefined,
+            ...(input.occurredAt ? { createdAt: input.occurredAt } : {}),
             rawProviderPayload: {
               source: "finance.markInvoiceRefundedFromWebhook",
               invoiceId: lockedInvoice.id,
@@ -2681,11 +2683,25 @@ export const FinancePaymentService = {
               EMPTY_METADATA),
             refundId: input.chargeId ?? undefined,
             amount: input.amount,
-            refundDate: new Date().toISOString(),
+            refundDate: (input.occurredAt ?? new Date()).toISOString(),
             cancellationReason: input.reason ?? undefined,
           },
         },
       });
+
+      if (input.occurredAt) {
+        const revision = await tx.invoiceRevision.findFirst({
+          where: { invoiceId: lockedInvoice.id },
+          orderBy: { id: "desc" },
+          select: { id: true },
+        });
+        if (revision) {
+          await tx.invoiceRevision.update({
+            where: { id: revision.id },
+            data: { recordedAt: input.occurredAt },
+          });
+        }
+      }
 
       return { action: "REFUNDED" as const, invoice: updated };
     });

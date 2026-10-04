@@ -2188,6 +2188,39 @@ describe("StripeService", () => {
   });
 
   describe("_handleRefund guards", () => {
+    it("passes the provider refund occurrence to every invoice refund movement", async () => {
+      const occurredAt = new Date("2026-09-15T10:30:00.000Z");
+      (
+        FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+      ).mockResolvedValueOnce({ action: "ALREADY_REFUNDED", invoice: {} });
+
+      await StripeService._handleRefund({
+        id: "ch_dated",
+        payment_intent: "pi_dated",
+        amount: 500,
+        amount_refunded: 500,
+        currency: "usd",
+        metadata: { invoiceId: "inv_dated" },
+        refunds: {
+          data: [
+            {
+              id: "re_dated",
+              charge: "ch_dated",
+              amount: 500,
+              currency: "usd",
+              created: occurredAt.getTime() / 1000,
+              status: "succeeded",
+            },
+          ],
+          has_more: false,
+        },
+      } as any);
+
+      expect(
+        FinancePaymentService.markInvoiceRefundedFromWebhook,
+      ).toHaveBeenCalledWith(expect.objectContaining({ occurredAt }));
+    });
+
     it("keeps zero-decimal refund ledger and notification amounts unscaled", async () => {
       (
         FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock

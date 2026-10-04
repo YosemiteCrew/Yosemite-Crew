@@ -296,6 +296,7 @@ const reverseJournalledCapture = async (
       notification,
       refunds,
     });
+    return refunds;
   } catch (error) {
     // The journal is a record of the refund, never a precondition for
     // processing it. Letting it throw here would stop the invoice being marked
@@ -1326,6 +1327,7 @@ export const StripeService = {
       refundedMinorUnits ?? charge.amount,
       charge.currency,
     );
+    let refundOccurredAt: Date | undefined;
 
     if (refundedMinorUnits === null) {
       // Malformed for a refund event. The invoice path keeps the behaviour it
@@ -1335,12 +1337,17 @@ export const StripeService = {
         `Refund on charge ${charge.id} states no refunded amount; no journal reversal was recorded`,
       );
     } else {
-      await reverseJournalledCapture(
+      const refunds = await reverseJournalledCapture(
         charge,
         connectedAccountId,
         paymentIntentId,
         amount,
         notification,
+      );
+      refundOccurredAt = refunds?.reduce<Date | undefined>(
+        (latest, refund) =>
+          !latest || refund.occurredAt > latest ? refund.occurredAt : latest,
+        undefined,
       );
     }
 
@@ -1351,6 +1358,7 @@ export const StripeService = {
       amount,
       currency: charge.currency,
       reason: charge.refunded ? "Refunded via Stripe" : undefined,
+      occurredAt: refundOccurredAt,
     });
 
     if (result.action === "NO_INVOICE") {

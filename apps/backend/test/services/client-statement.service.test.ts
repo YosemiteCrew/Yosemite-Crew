@@ -277,6 +277,26 @@ describe("dated invoice revisions", () => {
     );
   });
 
+  it("reverses an active credit note when its invoice is refunded", () => {
+    const refundedAt = new Date("2026-09-20T00:00:00.000Z");
+    const result = historical(
+      [
+        revision(),
+        revision({ id: 2n, status: "REFUNDED", recordedAt: refundedAt }),
+      ],
+      { creditNotes: [{ id: "credit", amount: 20, createdAt: PERIOD_START }] },
+    ).currencies[0];
+    expect(result.closingBalance).toBe(0);
+    expect(result.entries).toContainEqual(
+      expect.objectContaining({
+        id: "credit-note-void:credit",
+        direction: "DEBIT",
+        amount: 20,
+        occurredAt: refundedAt.toISOString(),
+      }),
+    );
+  });
+
   it("uses the latest due date at the cutoff even when the amount is unchanged", () => {
     const result = historical([
       revision(),
@@ -568,6 +588,7 @@ describe("dated invoice revisions", () => {
     ).toBe(100);
     const where = {
       invoiceId: { in: ["invoice-1"] },
+      recordedAt: { lte: PERIOD_END },
     };
     expect(mockedPrisma.invoiceRevision.count).toHaveBeenCalledWith({ where });
     expect(mockedPrisma.invoiceRevision.findMany).toHaveBeenCalledWith({
@@ -618,7 +639,10 @@ describe("dated invoice revisions", () => {
         }),
       );
       expect(mockedPrisma.invoiceRevision.findMany).toHaveBeenCalledWith({
-        where: { invoiceId: { in: [row.id] } },
+        where: {
+          invoiceId: { in: [row.id] },
+          recordedAt: { lte: PERIOD_END },
+        },
         orderBy: { id: "desc" },
       });
     },
@@ -718,7 +742,7 @@ describe("dated invoice revisions", () => {
     expect(statement.closingBalance).toBe(120);
     expect(
       statement.entries.map(({ amount }: { amount: number }) => amount),
-    ).toEqual([50, 30]);
+    ).toEqual([100, 120]);
   });
 
   it("rejects missing stored revisions rather than falling back to today's invoice", async () => {
@@ -1482,7 +1506,6 @@ describe("ClientStatementService.generate", () => {
           where: {
             receipt: { organisationId: ORG },
             invoiceId: { in: ["invoice-1"] },
-            paymentId: { in: ["allocated-payment"] },
           },
           select: {
             paymentId: true,
@@ -1496,6 +1519,7 @@ describe("ClientStatementService.generate", () => {
     );
     it.each([
       ["date", { appliedAt: null }],
+      ["pending payment", { paymentId: null }],
       ["amount", { amount: 30 }],
       ["invoice", { invoiceId: "other" }],
     ])("refuses incomplete allocation %s", async (_name, changed) => {
@@ -1965,7 +1989,7 @@ describe("ClientStatementService.generate", () => {
     await expect(
       generate({
         periodStart: new Date("2025-09-01T00:00:00.000Z"),
-        periodEnd: new Date("2026-09-02T00:00:00.000Z"),
+        periodEnd: new Date("2026-09-02T00:00:00.001Z"),
       }),
     ).rejects.toMatchObject({
       statusCode: 400,
@@ -1979,6 +2003,15 @@ describe("ClientStatementService.generate", () => {
       generate({
         periodStart: new Date("2025-09-01T00:00:00.000Z"),
         periodEnd: new Date("2026-09-01T23:59:59.999Z"),
+      }),
+    ).resolves.toMatchObject({ id: STATEMENT });
+  });
+
+  it("accepts an exact 366-day period", async () => {
+    await expect(
+      generate({
+        periodStart: new Date("2025-09-01T00:00:00.000Z"),
+        periodEnd: new Date("2026-09-02T00:00:00.000Z"),
       }),
     ).resolves.toMatchObject({ id: STATEMENT });
   });
