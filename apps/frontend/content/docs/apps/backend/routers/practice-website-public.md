@@ -4,7 +4,7 @@ title: Practice Website Public API
 slug: /apps/backend/api/practice-website-public
 ---
 
-The unauthenticated read behind a practice's published website at `/site/<slug>`. No session is required. It shares the public booking page's read budget of 60 requests per 15 minutes per IP, and answers `404` unless the site is published and the practice's booking page is live.
+Displays a practice's published website at `/site/<slug>`, including its chosen template, information and booking link. The website is available while it is published and the practice's online booking page is live.
 
 ## Endpoints
 
