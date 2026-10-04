@@ -132,11 +132,7 @@ const syncStatusFromLines = async (purchaseOrderId: string, tx: Tx) => {
   const safePurchaseOrderId = queryId(purchaseOrderId);
   const lines = await tx.purchaseOrderLine.findMany({
     where: { purchaseOrderId: safePurchaseOrderId },
-    select: {
-      purchaseOrderId: true,
-      quantityOrdered: true,
-      quantityReceived: true,
-    },
+    select: { quantityOrdered: true, quantityReceived: true },
   });
   if (!lines.length) return;
 
@@ -148,7 +144,7 @@ const syncStatusFromLines = async (purchaseOrderId: string, tx: Tx) => {
 
   await tx.purchaseOrder.updateMany({
     where: {
-      id: { equals: lines[0].purchaseOrderId },
+      id: { equals: safePurchaseOrderId },
       status: { in: RECEIVING_STATUSES },
     },
     data: { status },

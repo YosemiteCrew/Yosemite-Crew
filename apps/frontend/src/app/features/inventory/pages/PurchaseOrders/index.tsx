@@ -861,59 +861,78 @@ const PurchaseOrdersLoading = () => (
   </div>
 );
 
-export const PurchaseOrdersContent = () => {
-  useLoadOrg();
-  const organisationId = useOrgStore((state) => state.primaryOrgId);
-  const canEdit = usePermissions().can(PERMISSIONS.INVENTORY_EDIT_ANY);
+const EMPTY_PURCHASE_ORDER_DATA: Omit<PurchaseOrderData, 'page'> = {
+  orders: [],
+  totalOrderCount: 0,
+  totalPages: 1,
+  vendors: [],
+  items: [],
+  outstandingLines: [],
+};
+
+const toDateTime = (date: string) => new Date(`${date}T00:00:00.000Z`).toISOString();
+
+const toCreateOrderInput = ({
+  vendorId,
+  currency,
+  expectedDate,
+  notes,
+  lines,
+}: CreateOrderForm): CreatePurchaseOrderInput => ({
+  vendorId,
+  currency,
+  ...(expectedDate ? { expectedDate: toDateTime(expectedDate) } : {}),
+  ...(notes.trim() ? { notes: notes.trim() } : {}),
+  lines: lines.map(({ itemId, quantityOrdered, unitCost }) => ({
+    itemId,
+    quantityOrdered,
+    unitCost,
+  })),
+});
+
+const toReceiptDraftLines = (order: PurchaseOrder): ReceiptDraftLine[] =>
+  order.lines.flatMap((line) => {
+    const quantityReceived = outstandingQuantity(line);
+    return quantityReceived > 0
+      ? [
+          {
+            purchaseOrderLineId: line.id,
+            quantityReceived,
+            batchNumber: '',
+            lotNumber: '',
+            expiryDate: '',
+          },
+        ]
+      : [];
+  });
+
+const toReceiptInputLines = (lines: ReceiptDraftLine[]) =>
+  lines.flatMap((line) => {
+    if (line.quantityReceived <= 0) return [];
+    return [
+      {
+        purchaseOrderLineId: line.purchaseOrderLineId,
+        quantityReceived: line.quantityReceived,
+        ...(line.batchNumber.trim() ? { batchNumber: line.batchNumber.trim() } : {}),
+        ...(line.lotNumber.trim() ? { lotNumber: line.lotNumber.trim() } : {}),
+        ...(line.expiryDate ? { expiryDate: toDateTime(line.expiryDate) } : {}),
+      },
+    ];
+  });
+
+const usePurchaseOrderData = (organisationId: string | null) => {
   const [data, updateData] = useReducer(mergeState<PurchaseOrderData>, {
-    orders: [],
+    ...EMPTY_PURCHASE_ORDER_DATA,
     page: 1,
-    totalOrderCount: 0,
-    totalPages: 1,
-    vendors: [],
-    items: [],
-    outstandingLines: [],
   });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [createForm, updateCreateForm] = useReducer(mergeState<CreateOrderForm>, {
-    show: false,
-    vendorId: '',
-    currency: 'EUR',
-    expectedDate: '',
-    notes: '',
-    lines: [createDraftLine()],
-  });
-  const [reviewingOrder, setReviewingOrder] = useState<PurchaseOrder | null>(null);
-  const [receiveForm, updateReceiveForm] = useReducer(mergeState<ReceiveOrderForm>, {
-    order: null,
-    lines: [],
-  });
-  const receiptIdempotencyKey = useRef('');
-  const [printOrder, setPrintOrder] = useState<PurchaseOrder | null>(null);
-  const { orders, page, totalOrderCount, totalPages, vendors, items, outstandingLines } = data;
-  const {
-    show: showCreateForm,
-    vendorId,
-    currency,
-    expectedDate,
-    notes,
-    lines: draftLines,
-  } = createForm;
-  const { order: receivingOrder, lines: receiptLines } = receiveForm;
+  const { page } = data;
 
   const loadData = useCallback(async () => {
     if (!organisationId) {
-      updateData({
-        orders: [],
-        totalOrderCount: 0,
-        totalPages: 1,
-        vendors: [],
-        items: [],
-        outstandingLines: [],
-      });
+      updateData(EMPTY_PURCHASE_ORDER_DATA);
       setLoading(false);
       return;
     }
@@ -947,6 +966,12 @@ export const PurchaseOrdersContent = () => {
     void Promise.resolve().then(loadData);
   }, [loadData]);
 
+  return { data, updateData, loading, error, setError, loadFailed, loadData };
+};
+
+const usePrintOrder = () => {
+  const [printOrder, setPrintOrder] = useState<PurchaseOrder | null>(null);
+
   useEffect(() => {
     if (!printOrder) return;
     const frame = window.requestAnimationFrame(() => {
@@ -955,6 +980,35 @@ export const PurchaseOrdersContent = () => {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [printOrder]);
+
+  return [printOrder, setPrintOrder] as const;
+};
+
+export const PurchaseOrdersContent = () => {
+  useLoadOrg();
+  const organisationId = useOrgStore((state) => state.primaryOrgId);
+  const canEdit = usePermissions().can(PERMISSIONS.INVENTORY_EDIT_ANY);
+  const { data, updateData, loading, error, setError, loadFailed, loadData } =
+    usePurchaseOrderData(organisationId);
+  const [saving, setSaving] = useState(false);
+  const [createForm, updateCreateForm] = useReducer(mergeState<CreateOrderForm>, {
+    show: false,
+    vendorId: '',
+    currency: 'EUR',
+    expectedDate: '',
+    notes: '',
+    lines: [createDraftLine()],
+  });
+  const [reviewingOrder, setReviewingOrder] = useState<PurchaseOrder | null>(null);
+  const [receiveForm, updateReceiveForm] = useReducer(mergeState<ReceiveOrderForm>, {
+    order: null,
+    lines: [],
+  });
+  const receiptIdempotencyKey = useRef('');
+  const [printOrder, setPrintOrder] = usePrintOrder();
+  const { orders, page, totalOrderCount, totalPages, vendors, items, outstandingLines } = data;
+  const { show: showCreateForm, vendorId, lines: draftLines } = createForm;
+  const { order: receivingOrder, lines: receiptLines } = receiveForm;
 
   const itemById = useMemo(() => new Map(items.map((item) => [item._id, item])), [items]);
   const vendorById = useMemo(
@@ -975,20 +1029,7 @@ export const PurchaseOrdersContent = () => {
     setSaving(true);
     setError(null);
     try {
-      const input: CreatePurchaseOrderInput = {
-        vendorId,
-        currency,
-        ...(expectedDate
-          ? { expectedDate: new Date(`${expectedDate}T00:00:00.000Z`).toISOString() }
-          : {}),
-        ...(notes.trim() ? { notes: notes.trim() } : {}),
-        lines: draftLines.map(({ itemId, quantityOrdered, unitCost }) => ({
-          itemId,
-          quantityOrdered,
-          unitCost,
-        })),
-      };
-      await createPurchaseOrder(organisationId, input);
+      await createPurchaseOrder(organisationId, toCreateOrderInput(createForm));
       updateCreateForm({
         show: false,
         vendorId: '',
@@ -1022,43 +1063,14 @@ export const PurchaseOrdersContent = () => {
   };
 
   const startReceiving = (order: PurchaseOrder) => {
-    updateReceiveForm({
-      order,
-      lines: order.lines.flatMap((line) => {
-        const quantityReceived = outstandingQuantity(line);
-        return quantityReceived > 0
-          ? [
-              {
-                purchaseOrderLineId: line.id,
-                quantityReceived,
-                batchNumber: '',
-                lotNumber: '',
-                expiryDate: '',
-              },
-            ]
-          : [];
-      }),
-    });
+    updateReceiveForm({ order, lines: toReceiptDraftLines(order) });
     receiptIdempotencyKey.current = crypto.randomUUID();
   };
 
   const submitReceipt = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!receivingOrder) return;
-    const lines = receiptLines.flatMap((line) => {
-      if (line.quantityReceived <= 0) return [];
-      return [
-        {
-          purchaseOrderLineId: line.purchaseOrderLineId,
-          quantityReceived: line.quantityReceived,
-          ...(line.batchNumber.trim() ? { batchNumber: line.batchNumber.trim() } : {}),
-          ...(line.lotNumber.trim() ? { lotNumber: line.lotNumber.trim() } : {}),
-          ...(line.expiryDate
-            ? { expiryDate: new Date(`${line.expiryDate}T00:00:00.000Z`).toISOString() }
-            : {}),
-        },
-      ];
-    });
+    const lines = toReceiptInputLines(receiptLines);
     if (!lines.length) {
       setError('Enter a quantity for at least one item.');
       return;
