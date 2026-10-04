@@ -13,5 +13,5 @@ export interface CreateOrganisationInviteInput {
   inviteeEmail: string;
   inviteeName?: string;
   role: string;
-  employmentType?: OrganisationInvite["employmentType"];
+  employmentType?: NonNullable<OrganisationInvite["employmentType"]>;
 }

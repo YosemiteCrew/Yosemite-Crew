@@ -1388,6 +1388,19 @@ describe("UserOrganizationService", () => {
       );
       expect(prisma.userOrganization.deleteMany).not.toHaveBeenCalled();
     });
+
+    it("rejects operator-like organisation identifiers before updating mappings", async () => {
+      await expect(
+        UserOrganizationService.deleteAllByOrganizationId(
+          `org-$where` as never,
+        ),
+      ).rejects.toMatchObject({
+        message: "Invalid character in Organization Identifier.",
+        statusCode: 400,
+      });
+
+      expect(prisma.userOrganization.updateMany).not.toHaveBeenCalled();
+    });
   });
 
   describe("effective permission resolution", () => {

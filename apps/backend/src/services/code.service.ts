@@ -22,11 +22,12 @@ export class CodeServiceError extends Error {
 }
 
 const syncCodeEntryToPostgres = (input: CodeEntryMongo) => {
-  const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
-    if (value === null) return Prisma.JsonNull;
-    if (value === undefined) return undefined;
-    return value as Prisma.InputJsonValue;
-  };
+  const toJsonInput = (
+    value: Record<string, unknown> | null | undefined,
+  ): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined =>
+    value === null
+      ? Prisma.JsonNull
+      : (value as Prisma.InputJsonValue | undefined);
 
   return prisma.codeEntry.upsert({
     where: {

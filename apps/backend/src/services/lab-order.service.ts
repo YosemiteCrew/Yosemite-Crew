@@ -67,17 +67,16 @@ const ensureOptionalStatus = (value: unknown): LabOrderStatus | undefined => {
   return asString as LabOrderStatus;
 };
 
-const ensureTestsProvided = (tests: string[] | undefined | null) => {
+const ensureTestsProvided = (tests: string[] | undefined | null): void => {
   if (!tests || tests.length === 0) {
     throw new LabOrderServiceError("tests are required.", 400);
   }
 };
 
-const toJsonInput = (value: unknown) => {
-  if (value === null) return Prisma.JsonNull;
-  if (value === undefined) return undefined;
-  return value as Prisma.InputJsonValue;
-};
+const toJsonInput = (
+  value: unknown,
+): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined =>
+  value === null ? Prisma.JsonNull : value;
 
 const nullableUpdateValue = <T>(
   next: T | null | undefined,
