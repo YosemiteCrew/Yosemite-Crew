@@ -40,7 +40,7 @@ describe('useResolvedMerckIntegrationForPrimaryOrg', () => {
   });
 
   it('loads integration and computes enabled state', async () => {
-    mockGetStatus.mockResolvedValue({ status: 'ENABLED', id: 'int-1' });
+    mockGetStatus.mockReturnValue({ status: 'ENABLED', id: 'int-1' });
 
     const { result } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
 
@@ -52,10 +52,39 @@ describe('useResolvedMerckIntegrationForPrimaryOrg', () => {
     expect(mockGetStatus).toHaveBeenCalledWith('org-1', []);
   });
 
+  it('resolves a synchronous status without an intermediate disabled state', () => {
+    mockGetStatus.mockReturnValue({ status: 'enabled', id: 'int-sync' });
+
+    const { result } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
+
+    expect(result.current.integration).toEqual({ status: 'enabled', id: 'int-sync' });
+    expect(result.current.isEnabled).toBe(true);
+  });
+
+  it('clears a previously resolved status when the synchronous resolver throws', async () => {
+    mockGetStatus
+      .mockReturnValueOnce({ status: 'enabled', id: 'int-sync' })
+      .mockImplementationOnce(() => {
+        throw new Error('status unavailable');
+      });
+
+    const { result } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
+
+    await waitFor(() => expect(result.current.isEnabled).toBe(true));
+    act(() => result.current.refresh());
+    await waitFor(() => {
+      expect(result.current.integration).toBeNull();
+      expect(result.current.isEnabled).toBe(false);
+    });
+    expect(mockGetStatus).toHaveBeenCalledTimes(2);
+  });
+
   it('refresh re-fetches integration and handles fetch errors', async () => {
     mockGetStatus
-      .mockResolvedValueOnce({ status: 'disabled', id: 'int-2' })
-      .mockRejectedValueOnce(new Error('fetch failed'));
+      .mockReturnValueOnce({ status: 'disabled', id: 'int-2' })
+      .mockImplementationOnce(() => {
+        throw new Error('fetch failed');
+      });
 
     const { result } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
 
