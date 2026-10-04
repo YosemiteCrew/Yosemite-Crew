@@ -68,6 +68,7 @@ describe('WebsiteBuilder', () => {
     servicesState = [
       {
         id: 's1',
+        organisationId: 'org-1',
         name: 'Wellness exam',
         description: '',
         durationMinutes: 30,
@@ -76,6 +77,7 @@ describe('WebsiteBuilder', () => {
       },
       {
         id: 's2',
+        organisationId: 'org-1',
         name: 'Hidden item',
         description: '',
         durationMinutes: 10,
@@ -84,11 +86,21 @@ describe('WebsiteBuilder', () => {
       },
       {
         id: 's3',
+        organisationId: 'org-1',
         name: 'Archived visit',
         description: '',
         durationMinutes: 10,
         isBookable: true,
         status: 'ARCHIVED',
+      },
+      {
+        id: 's4',
+        organisationId: 'org-2',
+        name: 'Other practice consultation',
+        description: '',
+        durationMinutes: 30,
+        isBookable: true,
+        status: 'ACTIVE',
       },
     ];
     loadCatalogMock.mockResolvedValue(undefined);
@@ -116,6 +128,79 @@ describe('WebsiteBuilder', () => {
     expect(getConfigMock).not.toHaveBeenCalled();
   });
 
+  it('clears the previous draft while the selected practice loads', async () => {
+    getConfigMock.mockResolvedValueOnce(config());
+    const { rerender } = render(<WebsiteBuilder />);
+    await screen.findByLabelText('Headline');
+    fireEvent.change(screen.getByLabelText('Headline'), { target: { value: 'Previous draft' } });
+
+    let resolve: (value: unknown) => void = () => undefined;
+    getConfigMock.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    primaryOrgId = 'org-2';
+    rerender(<WebsiteBuilder />);
+
+    expect(screen.getByText('Loading your website…')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Headline')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save draft' })).not.toBeInTheDocument();
+    expect(saveConfigMock).not.toHaveBeenCalled();
+
+    await act(async () =>
+      resolve(config({ organisationId: 'org-2', headline: 'Second practice' }))
+    );
+    expect(screen.getByLabelText('Headline')).toHaveValue('Second practice');
+    expect(getConfigMock).toHaveBeenLastCalledWith('org-2');
+  });
+
+  it('clears the editor when the selected practice is removed', async () => {
+    getConfigMock.mockResolvedValueOnce(config());
+    const { rerender } = render(<WebsiteBuilder />);
+    await screen.findByLabelText('Headline');
+
+    primaryOrgId = null;
+    rerender(<WebsiteBuilder />);
+
+    expect(screen.queryByLabelText('Headline')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save draft' })).not.toBeInTheDocument();
+    expect(getConfigMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['success', 'failure'])(
+    'ignores a previous practice save %s after switching',
+    async (outcome) => {
+      getConfigMock.mockResolvedValueOnce(config());
+      const { rerender } = render(<WebsiteBuilder />);
+      await screen.findByLabelText('Headline');
+
+      let resolve: (value: unknown) => void = () => undefined;
+      let reject: (reason: Error) => void = () => undefined;
+      saveConfigMock.mockReturnValueOnce(
+        new Promise((res, rej) => {
+          resolve = res;
+          reject = rej;
+        })
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+      expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+
+      getConfigMock.mockResolvedValueOnce(
+        config({ organisationId: 'org-2', headline: 'Second practice' })
+      );
+      primaryOrgId = 'org-2';
+      rerender(<WebsiteBuilder />);
+      await screen.findByLabelText('Headline');
+      expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+
+      await act(async () => {
+        if (outcome === 'success') resolve(config({ headline: 'Previous saved website' }));
+        else reject(new Error('previous save failed'));
+      });
+
+      expect(screen.getByLabelText('Headline')).toHaveValue('Second practice');
+      expect(notifyMock).not.toHaveBeenCalled();
+      expect(saveConfigMock).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('warns when the services for the preview cannot be loaded', async () => {
     getConfigMock.mockResolvedValue(config());
     loadCatalogMock.mockRejectedValue(new Error('network'));
@@ -142,6 +227,7 @@ describe('WebsiteBuilder', () => {
     expect(screen.getByText('Wellness exam')).toBeInTheDocument();
     expect(screen.queryByText('Hidden item')).not.toBeInTheDocument();
     expect(screen.queryByText('Archived visit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Other practice consultation')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Headline'), { target: { value: 'Open late' } });
     expect(screen.getAllByRole('heading', { level: 1 }).at(-1)).toHaveTextContent('Open late');
