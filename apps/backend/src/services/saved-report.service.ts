@@ -65,6 +65,22 @@ export const nextReportRunAt = (
   }
 };
 
+export const REPORT_RETRY_DELAY_MS = 15 * 60_000;
+
+export const nextReportRetryAt = (
+  cronExpression: string,
+  timezone: string,
+  currentDate = new Date(),
+) => {
+  const retryAt = new Date(currentDate.getTime() + REPORT_RETRY_DELAY_MS);
+  try {
+    const cronAt = nextReportRunAt(cronExpression, timezone, currentDate);
+    return cronAt < retryAt ? cronAt : retryAt;
+  } catch {
+    return retryAt;
+  }
+};
+
 const scopedView = async (organisationId: string, viewId: string) => {
   const view = await prisma.savedReportView.findFirst({
     where: { id: viewId, organisationId },
@@ -402,6 +418,11 @@ export const SavedReportService = {
               data: {
                 claimUntil: null,
                 lastRunAt: now,
+                nextRunAt: nextReportRetryAt(
+                  schedule.cronExpression,
+                  schedule.timezone,
+                  now,
+                ),
                 lastError:
                   error instanceof Error
                     ? error.message.slice(0, 500)

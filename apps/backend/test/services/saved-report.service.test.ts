@@ -1,7 +1,9 @@
 import { prisma } from "src/config/prisma";
 import { DashboardService } from "src/services/dashboard.service";
 import {
+  nextReportRetryAt,
   nextReportRunAt,
+  REPORT_RETRY_DELAY_MS,
   SavedReportService,
 } from "src/services/saved-report.service";
 import { sendEmail } from "src/utils/email";
@@ -270,6 +272,38 @@ describe("SavedReportService", () => {
           lastError: "No authorised recipients remain",
         }),
       }),
+    );
+  });
+
+  it("backs a failed schedule off instead of retrying on the next tick", async () => {
+    (prisma.reportDeliverySchedule.findMany as jest.Mock).mockResolvedValue([
+      { id: "schedule-1" },
+    ]);
+    (prisma.reportDeliverySchedule.updateMany as jest.Mock).mockResolvedValue({
+      count: 1,
+    });
+    (
+      prisma.reportDeliverySchedule.findUniqueOrThrow as jest.Mock
+    ).mockResolvedValue(schedule);
+    (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.reportDeliverySchedule.update as jest.Mock).mockResolvedValue(
+      schedule,
+    );
+    const now = new Date("2026-10-03T09:00:00Z");
+    await expect(SavedReportService.deliverDue(now)).resolves.toBe(0);
+    expect(prisma.reportDeliverySchedule.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          nextRunAt: new Date(now.getTime() + REPORT_RETRY_DELAY_MS),
+        }),
+      }),
+    );
+    expect(nextReportRetryAt("* * * * *", "UTC", now)).toEqual(
+      new Date("2026-10-03T09:01:00Z"),
+    );
+    expect(nextReportRetryAt("nonsense", "UTC", now)).toEqual(
+      new Date(now.getTime() + REPORT_RETRY_DELAY_MS),
     );
   });
 
