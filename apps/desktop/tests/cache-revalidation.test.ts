@@ -15,7 +15,7 @@ describe('cached response revalidation', () => {
     ['cookies', { 'cache-control': 'max-age=60', 'set-cookie': 'example=value' }],
     ['vary', { 'cache-control': 'max-age=60', vary: '*' }],
     ['zero freshness', { 'cache-control': 'max-age=0' }],
-  ])('revalidates %s responses even when stale reuse is requested', (_name, headers) => {
+  ])('respects %s response reuse rules', (name, headers) => {
     const policy = new CachePolicy({ url, method: 'GET', headers: {} }, { status: 200, headers });
     expect(
       policy.satisfiesWithoutRevalidation({
@@ -23,7 +23,7 @@ describe('cached response revalidation', () => {
         method: 'GET',
         headers: { 'cache-control': 'max-stale=3600' },
       })
-    ).toBe(false);
+    ).toBe(name === 'zero freshness');
   });
 
   test('reuses an ordinary fresh response', () => {
@@ -32,6 +32,41 @@ describe('cached response revalidation', () => {
       { status: 200, headers: { 'cache-control': 'public, max-age=60' } }
     );
     expect(policy.satisfiesWithoutRevalidation({ url, method: 'GET', headers: {} })).toBe(true);
+  });
+
+  test.each([
+    ['ordinary', {}, { shared: true }],
+    ['explicitly public cookies', { 'set-cookie': 'example=value' }, { shared: true }],
+    ['private cache', {}, { shared: false }],
+  ])('refreshes %s zero-freshness responses in the background', (_name, headers, options) => {
+    const policy = new CachePolicy(
+      { url, method: 'GET', headers: {} },
+      {
+        status: 200,
+        headers: { 'cache-control': 'public, max-age=0, stale-while-revalidate=60', ...headers },
+      },
+      options
+    );
+    const result = policy.evaluateRequest({ url, method: 'GET', headers: {} });
+    expect(result.response).toMatchObject({ status: 200 });
+    expect(result.revalidation).toMatchObject({ synchronous: false });
+  });
+
+  test.each([
+    ['no-store', { 'cache-control': 'no-store, max-age=0, stale-while-revalidate=60' }],
+    [
+      'cookies',
+      { 'cache-control': 'max-age=0, stale-while-revalidate=60', 'set-cookie': 'example=value' },
+    ],
+    [
+      'proxy revalidation',
+      { 'cache-control': 'public, proxy-revalidate, max-age=0, stale-while-revalidate=60' },
+    ],
+  ])('revalidates %s responses before reuse during a refresh window', (_name, headers) => {
+    const policy = new CachePolicy({ url, method: 'GET', headers: {} }, { status: 200, headers });
+    const result = policy.evaluateRequest({ url, method: 'GET', headers: {} });
+    expect(result.response).toBeUndefined();
+    expect(result.revalidation).toMatchObject({ synchronous: true });
   });
 
   test('reuses an ordinary expired response within the requested stale period', () => {

@@ -2,11 +2,17 @@ diff --git a/index.js b/index.js
 index 56c26025074cbcf218e3ec4d810662da93f8024e..c605a2ccaa58c8d5a7ff75c8fd03a4e79e07b6db 100644
 --- a/index.js
 +++ b/index.js
-@@ -395,6 +395,10 @@ module.exports = class CachePolicy {
+@@ -395,6 +395,16 @@ module.exports = class CachePolicy {
      evaluateRequest(req) {
          this._assertRequestHasHeaders(req);
  
-+        if (this.maxAge() <= 0) {
++        if (
++            !this.storable() || this._rescc['no-cache'] || this._resHeaders.vary === '*' ||
++            (this._isShared && (
++                this._rescc['proxy-revalidate'] ||
++                (this._resHeaders['set-cookie'] && !this._rescc.public && !this._rescc.immutable)
++            ))
++        ) {
 +            return this._evaluateRequestMissResult(req);
 +        }
 +

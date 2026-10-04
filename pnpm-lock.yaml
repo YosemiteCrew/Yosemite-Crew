@@ -156,7 +156,7 @@ patchedDependencies:
     hash: tsv45glydggi4waiimlgaertgu
     path: patches/braces@3.0.3.patch
   http-cache-semantics@4.3.0:
-    hash: cdhv4ch4fvdel44tk2jnuxbanu
+    hash: c4somfmdwpqswqg7hjo7csd5p4
     path: patches/http-cache-semantics@4.3.0.patch
   metro@0.83.7:
     hash: 7npt7igwfxcqdh3sogdu57amsu
@@ -12482,7 +12482,7 @@ packages:
     dependencies:
       clone-response: 1.0.3
       get-stream: 5.2.0
-      http-cache-semantics: 4.3.0(patch_hash=cdhv4ch4fvdel44tk2jnuxbanu)
+      http-cache-semantics: 4.3.0(patch_hash=c4somfmdwpqswqg7hjo7csd5p4)
       keyv: 4.5.4
       lowercase-keys: 2.0.0
       normalize-url: 6.1.0
@@ -16610,7 +16610,7 @@ packages:
       readable-stream: 3.6.2
     dev: true
 
-  /http-cache-semantics@4.3.0(patch_hash=cdhv4ch4fvdel44tk2jnuxbanu):
+  /http-cache-semantics@4.3.0(patch_hash=c4somfmdwpqswqg7hjo7csd5p4):
     resolution: {integrity: sha512-M5t5LlJpS1UHMjvwRQVdFHvPISGeLAxNcrWuJkeGh0KxsqCHZ1O3NXZU/8x7cD0BDcGW8kapxMKTvwlqrNkHkA==}
     dev: true
     patched: true
