@@ -984,9 +984,7 @@ const usePrintOrder = () => {
   return [printOrder, setPrintOrder] as const;
 };
 
-export const PurchaseOrdersContent = () => {
-  useLoadOrg();
-  const organisationId = useOrgStore((state) => state.primaryOrgId);
+const PracticePurchaseOrders = ({ organisationId }: { organisationId: string | null }) => {
   const canEdit = usePermissions().can(PERMISSIONS.INVENTORY_EDIT_ANY);
   const { data, updateData, loading, error, setError, loadFailed, loadData } =
     usePurchaseOrderData(organisationId);
@@ -1168,6 +1166,12 @@ export const PurchaseOrdersContent = () => {
       <PurchaseOrderPrintView order={printOrder} vendorById={vendorById} itemById={itemById} />
     </PermissionGate>
   );
+};
+
+export const PurchaseOrdersContent = () => {
+  useLoadOrg();
+  const organisationId = useOrgStore((state) => state.primaryOrgId);
+  return <PracticePurchaseOrders key={organisationId ?? ''} organisationId={organisationId} />;
 };
 
 export default PurchaseOrdersContent;

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PurchaseOrdersContent } from '@/app/features/inventory/pages/PurchaseOrders';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
@@ -103,6 +103,83 @@ beforeEach(() => {
 });
 
 describe('PurchaseOrdersContent', () => {
+  it.each(['draft', 'review', 'receipt'])(
+    'clears the previous practice %s on switching',
+    async (view) => {
+      const user = userEvent.setup();
+      const { rerender } = render(<PurchaseOrdersContent />);
+      await screen.findByText('PO-001');
+      if (view === 'draft') {
+        await user.click(screen.getByRole('button', { name: 'New order' }));
+        await user.selectOptions(screen.getByLabelText('Supplier'), 'vendor-1');
+        await user.selectOptions(screen.getByLabelText('Product'), 'item-1');
+        await user.type(screen.getByLabelText('Notes'), 'Previous practice draft');
+      } else {
+        await user.click(
+          screen.getByRole('button', { name: view === 'review' ? 'Review' : 'Receive' })
+        );
+      }
+
+      mockedFetchOrders.mockResolvedValue({
+        items: [],
+        page: 1,
+        pageSize: 25,
+        total: 0,
+        totalPages: 1,
+      });
+      mockedFetchVendors.mockResolvedValue([]);
+      mockedFetchItems.mockResolvedValue([]);
+      mockedFetchOutstanding.mockResolvedValue([]);
+      mockOrganisationId = 'org-2';
+      rerender(<PurchaseOrdersContent />);
+      await screen.findByText('No purchase orders yet');
+
+      expect(screen.queryByRole('heading', { name: 'New supplier order' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Review PO-001' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Record delivery' })).not.toBeInTheDocument();
+      expect(mockedCreateOrder).not.toHaveBeenCalled();
+      expect(mockedReceiveDelivery).not.toHaveBeenCalled();
+      expect(mockedFetchOrders).toHaveBeenLastCalledWith('org-2', 1);
+    }
+  );
+
+  it.each(['success', 'failure'])(
+    'ignores an old practice load %s after the new practice loads',
+    async (outcome) => {
+      let resolve: (value: Awaited<ReturnType<typeof fetchPurchaseOrders>>) => void = () =>
+        undefined;
+      let reject: (reason: Error) => void = () => undefined;
+      mockedFetchOrders.mockReturnValueOnce(
+        new Promise((res, rej) => {
+          resolve = res;
+          reject = rej;
+        })
+      );
+      const { rerender } = render(<PurchaseOrdersContent />);
+      await waitFor(() => expect(mockedFetchOrders).toHaveBeenCalledWith('org-1', 1));
+
+      mockedFetchOrders.mockResolvedValue({
+        items: [{ ...order(), id: 'order-2', orderNumber: 'PO-002' }],
+        page: 1,
+        pageSize: 25,
+        total: 1,
+        totalPages: 1,
+      });
+      mockOrganisationId = 'org-2';
+      rerender(<PurchaseOrdersContent />);
+      await screen.findByText('PO-002');
+      await act(async () => {
+        if (outcome === 'success')
+          resolve({ items: [order()], page: 1, pageSize: 25, total: 1, totalPages: 1 });
+        else reject(new Error('previous practice load failed'));
+      });
+
+      expect(screen.getByText('PO-002')).toBeVisible();
+      expect(screen.queryByText('PO-001')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    }
+  );
+
   it('shows the empty state without requesting data when there is no organisation', async () => {
     mockOrganisationId = '';
     render(<PurchaseOrdersContent />);

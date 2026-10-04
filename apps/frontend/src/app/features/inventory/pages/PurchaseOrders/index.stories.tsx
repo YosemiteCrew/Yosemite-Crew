@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import React from 'react';
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { expect, userEvent, within } from 'storybook/test';
 import api, { clearInFlightGetRequests } from '@/app/services/axios';
@@ -51,6 +52,22 @@ const respond = (config: InternalAxiosRequestConfig, data: unknown): AxiosRespon
 
 const adapter: AxiosAdapter = (config) => {
   const url = String(config.url ?? '');
+  if (url.includes('org-purchasing-second')) {
+    return Promise.resolve(
+      respond(
+        config,
+        url.includes('/outstanding') || url.endsWith('/vendors') || url.endsWith('/items')
+          ? []
+          : {
+              items: [],
+              page: 1,
+              pageSize: 25,
+              total: 0,
+              totalPages: 1,
+            }
+      )
+    );
+  }
   if (url.includes('/outstanding')) return Promise.resolve(respond(config, [ORDER.lines[0]]));
   if (url.endsWith('/vendors')) return Promise.resolve(respond(config, VENDORS));
   if (url.endsWith('/items')) return Promise.resolve(respond(config, ITEMS));
@@ -92,6 +109,43 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+export const SwitchPractice: Story = {
+  tags: ['practice-switch'],
+  render: () => (
+    <>
+      <button
+        type="button"
+        onClick={() =>
+          useOrgStore.setState({
+            primaryOrgId: 'org-purchasing-second',
+            membershipsByOrgId: {
+              [ORGANISATION_ID]: { roleCode: 'OWNER', active: true },
+              'org-purchasing-second': { roleCode: 'OWNER', active: true },
+            },
+          })
+        }
+      >
+        Switch practice
+      </button>
+      <PurchaseOrdersContent />
+    </>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText('PO-2026-041');
+    await userEvent.click(canvas.getByRole('button', { name: 'New order' }));
+    await userEvent.selectOptions(canvas.getByLabelText('Supplier'), 'vendor-story-1');
+    await userEvent.selectOptions(canvas.getByLabelText('Product'), 'item-story-1');
+    await userEvent.type(canvas.getByLabelText('Notes'), 'Previous practice draft');
+    await userEvent.click(canvas.getByRole('button', { name: 'Switch practice' }));
+    await expect(await canvas.findByText('No purchase orders yet')).toBeVisible();
+    await expect(
+      canvas.queryByRole('heading', { name: 'New supplier order' })
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Save draft' })).not.toBeInTheDocument();
+  },
+};
 
 export const OpenOrder: Story = {
   play: async ({ canvasElement }) => {
