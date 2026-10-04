@@ -2107,7 +2107,11 @@ export const TaskService = {
       await tx.task.updateMany({
         where: {
           id: { in: cancellableIds },
-          organisationId: z.string().min(1).parse(task.organisationId),
+          organisationId: z
+            .string()
+            .min(1)
+            .nullable()
+            .parse(task.organisationId),
         },
         data: { status: "CANCELLED" },
       });

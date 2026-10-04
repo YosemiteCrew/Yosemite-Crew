@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 
 const mockUseOrgStore = jest.fn();
@@ -68,10 +68,11 @@ describe('useResolvedMerckIntegrationForPrimaryOrg', () => {
         throw new Error('status unavailable');
       });
 
-    const { result } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
+    const { result, rerender } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
 
     await waitFor(() => expect(result.current.isEnabled).toBe(true));
-    act(() => result.current.refresh());
+    mockUseIntegrationsForPrimaryOrg.mockReturnValue([{ status: 'disabled', id: 'int-sync' }]);
+    rerender();
     await waitFor(() => {
       expect(result.current.integration).toBeNull();
       expect(result.current.isEnabled).toBe(false);
@@ -79,23 +80,22 @@ describe('useResolvedMerckIntegrationForPrimaryOrg', () => {
     expect(mockGetStatus).toHaveBeenCalledTimes(2);
   });
 
-  it('refresh re-fetches integration and handles fetch errors', async () => {
+  it('resolves a refreshed integration store and handles lookup errors', async () => {
     mockGetStatus
       .mockReturnValueOnce({ status: 'disabled', id: 'int-2' })
       .mockImplementationOnce(() => {
         throw new Error('fetch failed');
       });
 
-    const { result } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
+    const { result, rerender } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
 
     await waitFor(() => {
       expect(result.current.integration).toEqual({ status: 'disabled', id: 'int-2' });
       expect(result.current.isEnabled).toBe(false);
     });
 
-    act(() => {
-      result.current.refresh();
-    });
+    mockUseIntegrationsForPrimaryOrg.mockReturnValue([{ status: 'enabled', id: 'int-2' }]);
+    rerender();
 
     await waitFor(() => {
       expect(result.current.integration).toBeNull();
@@ -103,5 +103,16 @@ describe('useResolvedMerckIntegrationForPrimaryOrg', () => {
     });
 
     expect(mockGetStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('exposes only the resolved status without a separate refresh action', () => {
+    mockGetStatus.mockReturnValue({ status: 'enabled', id: 'int-sync' });
+    const { result } = renderHook(() => useResolvedMerckIntegrationForPrimaryOrg());
+
+    expect(Object.keys(result.current).sort()).toEqual([
+      'integration',
+      'isEnabled',
+      'primaryOrgId',
+    ]);
   });
 });
