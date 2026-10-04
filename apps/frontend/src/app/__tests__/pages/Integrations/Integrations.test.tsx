@@ -37,7 +37,7 @@ const enableIntegrationMock = jest.fn();
 const disableIntegrationMock = jest.fn();
 const enableMerckMock = jest.fn();
 const disableMerckMock = jest.fn();
-const refreshMerckIntegrationMock = jest.fn();
+let mockMerckEnabled = true;
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -82,9 +82,12 @@ jest.mock('@/app/hooks/useIntegrations', () => ({
 }));
 jest.mock('@/app/hooks/useMerckIntegration', () => ({
   useResolvedMerckIntegrationForPrimaryOrg: jest.fn(() => ({
-    integration: { provider: 'MERCK_MANUALS', status: 'enabled', source: 'backend' },
-    isEnabled: true,
-    refresh: refreshMerckIntegrationMock,
+    integration: {
+      provider: 'MERCK_MANUALS',
+      status: mockMerckEnabled ? 'enabled' : 'disabled',
+      source: 'backend',
+    },
+    isEnabled: mockMerckEnabled,
   })),
 }));
 
@@ -183,14 +186,14 @@ const clickFilterTab = (name: string) => {
 // jest.config sets clearMocks (not resetMocks), so implementations set with mockReturnValue
 // leak between tests. Any test that depends on the MSD state must set it explicitly.
 const setMerckEnabled = (isEnabled: boolean) => {
+  mockMerckEnabled = isEnabled;
   const useMerckModule = jest.requireMock('@/app/hooks/useMerckIntegration');
-  (useMerckModule.useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockReturnValue({
-    integration: isEnabled
+  (useMerckModule.useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockImplementation(() => ({
+    integration: mockMerckEnabled
       ? { provider: 'MERCK_MANUALS', status: 'enabled', source: 'backend' }
       : null,
-    isEnabled,
-    refresh: refreshMerckIntegrationMock,
-  });
+    isEnabled: mockMerckEnabled,
+  }));
 };
 
 const COMING_SOON_CARD_TITLES = ['RadAnalyzer', 'Vetnio', 'QuickBooks', 'Laika'];
@@ -204,6 +207,7 @@ const expectCardsHidden = (titles: string[]) => {
 
 describe('Integrations settings', () => {
   beforeEach(() => {
+    mockMerckEnabled = true;
     jest.clearAllMocks();
     // clearMocks does not restore implementations, so re-assert the default MSD state here
     // instead of letting a previous test's override leak into the next one.
@@ -351,7 +355,10 @@ describe('Integrations settings', () => {
     expect(screen.getByText('Integration settings')).toBeInTheDocument();
   });
 
-  it('reloads integrations and refreshes Merck status after toggling Merck', async () => {
+  it('reloads integrations and shows the updated status after toggling Merck', async () => {
+    loadIntegrationsForPrimaryOrgMock.mockImplementationOnce(async () => {
+      mockMerckEnabled = false;
+    });
     render(<ProtectedIntegrations />);
 
     const merckDisableButton = await screen.findByRole('button', {
@@ -362,8 +369,11 @@ describe('Integrations settings', () => {
     await waitFor(() => {
       expect(disableMerckMock).toHaveBeenCalledWith('org-1');
       expect(loadIntegrationsForPrimaryOrgMock).toHaveBeenCalledWith({ force: true, silent: true });
-      expect(refreshMerckIntegrationMock).toHaveBeenCalled();
     });
+    expect(await screen.findByRole('button', { name: 'Enable' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Disable MSD Veterinary Manual' })
+    ).not.toBeInTheDocument();
   });
 
   it('has no axe violations on initial render', async () => {
@@ -410,7 +420,6 @@ describe('Integrations settings', () => {
     (useMerckModule.useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockReturnValue({
       integration: null,
       isEnabled: false,
-      refresh: refreshMerckIntegrationMock,
     });
 
     render(<ProtectedIntegrations />);

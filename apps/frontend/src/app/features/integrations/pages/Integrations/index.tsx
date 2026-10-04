@@ -488,6 +488,9 @@ const useIdexxActions = (s: IdexxActionsState) => {
   };
 };
 
+const matchesIntegrationFilter = (filter: IntegrationFilterKey, enabled: boolean) =>
+  filter === 'all' || (filter === 'connected' && enabled) || (filter === 'available' && !enabled);
+
 const useIntegrationsPage = () => {
   const primaryOrg = usePrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -500,11 +503,8 @@ const useIntegrationsPage = () => {
   // so those reads are skipped rather than failing the page on open.
   const canViewLabs = useHasPermission(PERMISSIONS.LABS_VIEW_ANY);
   const integrations = useIntegrationsForPrimaryOrg();
-  const {
-    integration: merckIntegration,
-    isEnabled: merckEnabled,
-    refresh: refreshMerckIntegration,
-  } = useResolvedMerckIntegrationForPrimaryOrg();
+  const { integration: merckIntegration, isEnabled: merckEnabled } =
+    useResolvedMerckIntegrationForPrimaryOrg();
   const idexxIntegration = useIntegrationByProviderForPrimaryOrg('IDEXX');
   const integrationStatus = useIntegrationStore((s) => s.status);
   const integrationError = useIntegrationStore((s) => s.error);
@@ -618,14 +618,8 @@ const useIntegrationsPage = () => {
     (credentialsStatusKey && credentialsStatusKey !== 'missing') ||
     Boolean(idexxIntegration?.lastValidatedAt);
   const credentialsStatusLabel = `${credentialsStatusKey.charAt(0).toUpperCase()}${credentialsStatusKey.slice(1)}`;
-  const showIdexxCard =
-    activeFilter === 'all' ||
-    (activeFilter === 'connected' && idexxEnabled) ||
-    (activeFilter === 'available' && !idexxEnabled);
-  const showMerckCard =
-    activeFilter === 'all' ||
-    (activeFilter === 'connected' && merckEnabled) ||
-    (activeFilter === 'available' && !merckEnabled);
+  const showIdexxCard = matchesIntegrationFilter(activeFilter, idexxEnabled);
+  const showMerckCard = matchesIntegrationFilter(activeFilter, merckEnabled);
   const credentialsActionLabel = getCredentialsActionLabel(saving, hasStoredCredentials);
 
   const handleMerckEnableDisable = useCallback(async () => {
@@ -640,13 +634,12 @@ const useIntegrationsPage = () => {
         await gateway.enable(primaryOrgId);
       }
       await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
-      refreshMerckIntegration();
     } catch (e) {
       setError(getApiErrorMessage(e, 'Unable to update MSD Veterinary Manual status.'));
     } finally {
       setMerckSaving(false);
     }
-  }, [primaryOrgId, merckEnabled, merckSaving, refreshMerckIntegration]);
+  }, [primaryOrgId, merckEnabled, merckSaving]);
 
   return {
     confirmDialog,
