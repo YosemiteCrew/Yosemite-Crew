@@ -72,7 +72,11 @@ export interface DeviceTokenRecord {
 }
 
 export type SendOptions = {
-  data?: Record<string, string>; // extra payload (non-PII)
+  /**
+   * Extra payload for the app. The OS never draws this block, so record
+   * wording may travel here: the real title and body are added alongside it.
+   */
+  data?: Record<string, string>;
   dryRun?: boolean; // for testing
   /**
    * Stable id for the in-app row, for a message that may be sent again. A
@@ -90,6 +94,24 @@ export type SendResult = {
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+/**
+ * What the phone is allowed to draw while it is locked.
+ *
+ * A push is rendered by the operating system from the `notification` block
+ * and the APNs `alert`, before any code of ours runs - so whatever sits in
+ * them is what anyone who picks up the phone reads. These two strings carry
+ * no record content, no blinded value and no personal data.
+ */
+const LOCK_SCREEN_TITLE = "Yosemite Crew";
+const LOCK_SCREEN_BODY = "You have an update. Open the app to see it.";
+
+/**
+ * Marks the drawn block as our own generic wording rather than a record's, so
+ * the app can show the same sentence in the reader's language instead of
+ * echoing back the English we sent.
+ */
+const LOCK_SCREEN_GENERIC_MARKER = "generic";
+
 const buildFcmMessage = (
   token: string,
   payload: NotificationPayload,
@@ -97,11 +119,20 @@ const buildFcmMessage = (
 ): Message => {
   const msg: Message = {
     token,
+    // The OS draws this one, on the lock screen, with the app dead.
     notification: {
+      title: LOCK_SCREEN_TITLE,
+      body: LOCK_SCREEN_BODY,
+    },
+    // The OS never draws the data block. The app reads the real title and body
+    // from here once it is open, so the person sees the same wording in-app
+    // while a locked screen shows nothing from the record.
+    data: {
+      ...options?.data,
       title: payload.title,
       body: payload.body,
+      lockScreen: LOCK_SCREEN_GENERIC_MARKER,
     },
-    data: options?.data ?? {},
     android: {
       priority: "high",
       notification: {
@@ -112,8 +143,8 @@ const buildFcmMessage = (
       payload: {
         aps: {
           alert: {
-            title: payload.title,
-            body: payload.body,
+            title: LOCK_SCREEN_TITLE,
+            body: LOCK_SCREEN_BODY,
           },
           sound: "default",
         },
