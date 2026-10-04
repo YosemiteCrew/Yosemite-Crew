@@ -89,8 +89,8 @@ describe("NotificationService", () => {
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
           token: "valid-token",
-          notification: { title: "Test Title", body: "Test Body" },
-          data: { custom: "data" },
+          notification: expect.any(Object),
+          data: expect.objectContaining({ custom: "data" }),
           android: expect.any(Object),
           apns: expect.any(Object),
         }),
@@ -100,6 +100,75 @@ describe("NotificationService", () => {
         expect.stringContaining("Notification sent"),
       );
       expect(res).toEqual({ token: "valid-token", success: true });
+    });
+
+    describe("lock screen privacy", () => {
+      // The OS draws the `notification` block and the APNs `alert` before any
+      // of our code runs, so whatever sits in them is what a passer-by reads
+      // off a locked phone. Only the app, unlocked, may show record content.
+      const SENSITIVE = {
+        title: "Payment received",
+        body: "Use this code to continue: 483920. It's valid for 10 minutes!",
+        type: "TEST_TYPE" as any,
+      };
+
+      const sentMessage = async (options?: Record<string, unknown>) => {
+        mockSend.mockResolvedValueOnce("message-id-123");
+        await NotificationService.sendToDevice("valid-token", SENSITIVE, {
+          dryRun: true,
+          ...(options ?? {}),
+        });
+        return mockSend.mock.calls[0][0] as any;
+      };
+
+      it("keeps the real title and body out of the notification block the OS draws", async () => {
+        const message = await sentMessage();
+
+        expect(message.notification.title).not.toContain("Payment");
+        expect(message.notification.body).not.toContain("483920");
+        expect(message.notification.body).not.toContain(SENSITIVE.body);
+      });
+
+      it("keeps the real title and body out of the APNs alert", async () => {
+        const message = await sentMessage();
+        const alert = message.apns.payload.aps.alert;
+
+        expect(alert.title).not.toContain("Payment");
+        expect(alert.body).not.toContain("483920");
+        expect(alert.body).not.toContain(SENSITIVE.body);
+      });
+
+      it("puts the real title and body in the data block, which the OS never draws", async () => {
+        const message = await sentMessage();
+
+        expect(message.data.title).toBe(SENSITIVE.title);
+        expect(message.data.body).toBe(SENSITIVE.body);
+      });
+
+      it("keeps caller-supplied data alongside the title and body", async () => {
+        const message = await sentMessage({
+          data: { notificationId: "notif-row-1" },
+        });
+
+        expect(message.data).toEqual({
+          notificationId: "notif-row-1",
+          title: SENSITIVE.title,
+          body: SENSITIVE.body,
+        });
+      });
+
+      it("sends no body at all for an empty payload body", async () => {
+        mockSend.mockResolvedValueOnce("message-id-123");
+        await NotificationService.sendToDevice(
+          "valid-token",
+          { title: "Update", body: "", type: "TEST_TYPE" as any },
+          { dryRun: true },
+        );
+
+        const message = mockSend.mock.calls[0][0] as any;
+        expect(message.data.body).toBe("");
+        expect(message.notification.body).not.toBe("");
+      });
     });
 
     it("strips line breaks from the token prefix before logging it", async () => {
@@ -118,11 +187,11 @@ describe("NotificationService", () => {
       expect(logged).not.toContain("\r");
     });
 
-    it("uses default empty object for data if not provided", async () => {
+    it("sends only the title and body in data when none is provided", async () => {
       mockSend.mockResolvedValueOnce("msg-id");
       await NotificationService.sendToDevice("token", payload);
       expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({ data: {} }),
+        expect.objectContaining({ data: { title: "Test Title", body: "Test Body" } }),
         undefined,
       );
     });
@@ -253,6 +322,8 @@ describe("NotificationService", () => {
         expect(call[0].data).toEqual({
           deepLink: "/appointments/1",
           notificationId: "notif-row-1",
+          title: "Test Title",
+          body: "Test Body",
         });
       }
     });
@@ -282,6 +353,8 @@ describe("NotificationService", () => {
       });
       expect(mockSend.mock.calls[0][0].data).toEqual({
         notificationId: "reminder-1",
+        title: "Test Title",
+        body: "Test Body",
       });
     });
 
@@ -298,7 +371,10 @@ describe("NotificationService", () => {
 
       expect(res).toHaveLength(1);
       expect(res[0].success).toBe(true);
-      expect(mockSend.mock.calls[0][0].data).toEqual({});
+      expect(mockSend.mock.calls[0][0].data).toEqual({
+        title: "Test Title",
+        body: "Test Body",
+      });
     });
 
     it("loops through tokens, skips invalid records, and logs DB errors", async () => {
