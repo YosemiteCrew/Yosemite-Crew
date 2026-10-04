@@ -61,8 +61,8 @@ export function useVoiceRecordingSession({
     mic.releaseMicrophone();
     refs.resetTake();
     setErrorMessage(null);
-    setState('idle');
-  }, [mic, refs]);
+    setState(transcriber.isSupported() ? 'idle' : 'unsupported');
+  }, [mic, refs, transcriber]);
   const review = useTranscriptReview({
     announce,
     spokenRef: refs.finalTranscript,

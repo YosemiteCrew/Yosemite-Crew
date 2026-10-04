@@ -127,12 +127,13 @@ export function useRecordingSessionFinalization({
 
   const handleRecorderStopped = useCallback(
     (chunks: Blob[]) => {
+      if (unmountedRef.current || finalizeGuardRef.current) return;
       recorderSettledRef.current = true;
       onRecordingReady(chunks);
       mic.releaseMicrophone();
       finalize();
     },
-    [finalize, mic, onRecordingReady, recorderSettledRef]
+    [finalize, finalizeGuardRef, mic, onRecordingReady, recorderSettledRef, unmountedRef]
   );
 
   const stopRecording = useCallback(() => {
@@ -183,6 +184,7 @@ export function useRecordingSessionActions({
 }: RecordingSessionActionsOptions) {
   const {
     resetTake,
+    finalizeGuard: finalizeGuardRef,
     engineLive: engineLiveRef,
     outerState: outerStateRef,
     engineStarted: engineStartedRef,
@@ -220,6 +222,11 @@ export function useRecordingSessionActions({
     } catch (error) {
       logger.error('Failed to start recording:', error);
       engineLiveRef.current = false;
+      outerStateRef.current = 'idle';
+      finalizeGuardRef.current = true;
+      transcriber.abort();
+      mic.stopRecorder();
+      mic.releaseMicrophone();
       const message = describeStartFailure(error);
       setErrorMessage(message);
       announce(message);
@@ -234,6 +241,7 @@ export function useRecordingSessionActions({
     engineEndedRef,
     engineLiveRef,
     engineStartedRef,
+    finalizeGuardRef,
     finalTranscriptRef,
     outerStateRef,
     review,
