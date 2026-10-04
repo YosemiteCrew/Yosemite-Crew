@@ -1,6 +1,12 @@
-import { Prisma, BillingInterval, SubscriptionStatus } from "@prisma/client";
+import {
+  Prisma,
+  AccessState,
+  BillingInterval,
+  SubscriptionStatus,
+} from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import Stripe from "stripe";
+import { z } from "zod";
 import { FinanceEventService } from "./events";
 import { getOrgBillingCurrency } from "src/utils/billing";
 import { mapInSequence } from "src/utils/async-iteration";
@@ -27,6 +33,64 @@ const toBillingInterval = (
   if (value === "month" || value === "year") return value;
   return undefined;
 };
+
+const hasPaidPlanAllowances = (status?: SubscriptionStatus | null) =>
+  status === "active" || status === "trialing" || status === "past_due";
+
+const resolveAccessState = (
+  status?: SubscriptionStatus | null,
+): AccessState => {
+  if (!hasPaidPlanAllowances(status)) return "free";
+  return status === "past_due" ? "past_due" : "active";
+};
+
+const SubscriptionStatusSchema = z.enum([
+  "none",
+  "trialing",
+  "active",
+  "past_due",
+  "unpaid",
+  "canceled",
+  "incomplete",
+  "incomplete_expired",
+  "paused",
+]);
+
+const AccessStateSchema = z.enum(["free", "active", "past_due", "suspended"]);
+
+const BusinessBillingUpdateSchema = z.object({
+  stripeCustomerId: z.string(),
+  stripeSubscriptionId: z.string(),
+  stripeSubscriptionItemId: z.string(),
+  stripePriceId: z.string(),
+  stripeProductId: z.string().nullable(),
+  stripeLivemode: z.boolean(),
+  plan: z.literal("business"),
+  billingInterval: z.enum(["month", "year"]).nullable(),
+  seatQuantity: z.number().int().nonnegative(),
+  seatQuantityUpdatedAt: z.date(),
+  subscriptionStatus: SubscriptionStatusSchema,
+  cancelAtPeriodEnd: z.boolean(),
+  canceledAt: z.null(),
+  currentPeriodStart: z.date().nullable(),
+  currentPeriodEnd: z.date().nullable(),
+  upgradedAt: z.date(),
+  accessState: AccessStateSchema,
+});
+
+const SubscriptionBillingUpdateSchema = z.object({
+  stripeSubscriptionId: z.string(),
+  plan: z.enum(["free", "business"]),
+  seatQuantity: z.number().int().nonnegative(),
+  seatQuantityUpdatedAt: z.date(),
+  subscriptionStatus: SubscriptionStatusSchema,
+  cancelAtPeriodEnd: z.boolean(),
+  canceledAt: z.date().nullable(),
+  currentPeriodStart: z.date().nullable(),
+  currentPeriodEnd: z.date().nullable(),
+  accessState: AccessStateSchema,
+  downgradedAt: z.date().nullable(),
+});
 
 type SeatUsageInput = {
   orgId: string;
@@ -830,82 +894,145 @@ export const FinanceSubscriptionService = {
   },
 
   async recordBusinessCheckoutCompleted(input: BusinessCheckoutCompletedInput) {
+    const customerId = String(input.customerId);
+    const subscriptionId = String(input.subscriptionId);
+    const subscriptionItemId = String(input.subscriptionItemId);
+    const priceId = String(input.priceId);
+    const productId = input.productId ? String(input.productId) : null;
+    const subscriptionStatus =
+      toSubscriptionStatus(input.subscriptionStatus) ?? "none";
+    const billingInterval = toBillingInterval(input.billingInterval) ?? null;
+    const seatQuantity = toPositiveInteger(input.seatQuantity ?? 0);
+    const cancelAtPeriodEnd = input.cancelAtPeriodEnd === true;
+    const currentPeriodStart = input.currentPeriodStart ?? null;
+    const currentPeriodEnd = input.currentPeriodEnd ?? null;
     const rows =
       (await prisma.financeProviderLink.findMany({
         where: {
           provider: "STRIPE",
-          externalCustomerId: input.customerId,
+          externalCustomerId: customerId,
         },
         select: { orgId: true },
       })) ?? [];
 
     await Promise.all(
-      rows.map((row) =>
-        Promise.all([
-          this.upsertSubscriptionProviderLink({
-            orgId: row.orgId ?? input.customerId,
-            provider: "STRIPE",
-            externalCustomerId: input.customerId,
-            externalSubscriptionId: input.subscriptionId,
-            externalSubscriptionItemId: input.subscriptionItemId,
-            externalPriceId: input.priceId,
-            externalProductId: input.productId ?? null,
-            metadata: {
-              subscriptionStatus: input.subscriptionStatus ?? "none",
-              cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
-            },
-          }),
+      rows.map(async (row) => {
+        const orgId = row.orgId ?? customerId;
+        await this.upsertSubscriptionProviderLink({
+          orgId,
+          provider: "STRIPE",
+          externalCustomerId: customerId,
+          externalSubscriptionId: subscriptionId,
+          externalSubscriptionItemId: subscriptionItemId,
+          externalPriceId: priceId,
+          externalProductId: productId,
+          metadata: {
+            subscriptionStatus,
+            cancelAtPeriodEnd,
+          },
+        });
+
+        if (!hasPaidPlanAllowances(subscriptionStatus)) return;
+
+        const billingUpdate = BusinessBillingUpdateSchema.parse({
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+          stripeSubscriptionItemId: subscriptionItemId,
+          stripePriceId: priceId,
+          stripeProductId: productId,
+          stripeLivemode: input.livemode === true,
+          plan: "business",
+          billingInterval,
+          seatQuantity,
+          seatQuantityUpdatedAt: new Date(),
+          subscriptionStatus,
+          cancelAtPeriodEnd,
+          canceledAt: null,
+          currentPeriodStart,
+          currentPeriodEnd,
+          upgradedAt: new Date(),
+          accessState: resolveAccessState(subscriptionStatus),
+        });
+
+        await Promise.all([
           this.upsertSubscriptionEntitlement({
-            orgId: row.orgId ?? input.customerId,
+            orgId,
             code: "BUSINESS_PLAN",
             name: "Business subscription",
             value: {
               plan: "business",
-              billingInterval: input.billingInterval ?? null,
-              seatQuantity: input.seatQuantity ?? 0,
-              priceId: input.priceId,
-              productId: input.productId ?? null,
+              billingInterval,
+              seatQuantity,
+              priceId,
+              productId,
             },
             source: "STRIPE",
             status: "ACTIVE",
             grantedAt: new Date(),
             metadata: {
-              subscriptionStatus: input.subscriptionStatus ?? "none",
-              cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
-              currentPeriodStart: toIsoString(input.currentPeriodStart),
-              currentPeriodEnd: toIsoString(input.currentPeriodEnd),
-              seatQuantity: input.seatQuantity ?? 0,
+              subscriptionStatus,
+              cancelAtPeriodEnd,
+              currentPeriodStart: toIsoString(currentPeriodStart),
+              currentPeriodEnd: toIsoString(currentPeriodEnd),
+              seatQuantity,
             },
           }),
-        ]),
-      ),
+          prisma.organizationBilling.updateMany({
+            where: { orgId: String(orgId) },
+            data: billingUpdate,
+          }),
+        ]);
+      }),
     );
 
     await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? input.customerId,
+      organisationId: rows[0]?.orgId ?? customerId,
       eventType: "SUBSCRIPTION_STARTED",
       entityType: "SUBSCRIPTION",
-      entityId: input.subscriptionId,
+      entityId: subscriptionId,
       payload: {
-        customerId: input.customerId,
-        subscriptionItemId: input.subscriptionItemId,
-        billingInterval: input.billingInterval ?? null,
-        subscriptionStatus: input.subscriptionStatus ?? "none",
-        seatQuantity: input.seatQuantity ?? 0,
-        cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
+        customerId,
+        subscriptionItemId,
+        billingInterval,
+        subscriptionStatus,
+        seatQuantity,
+        cancelAtPeriodEnd,
       },
     });
   },
 
   async recordSubscriptionUpdated(input: SubscriptionUpdatedInput) {
+    const subscriptionId = String(input.subscriptionId);
+    const subscriptionStatus =
+      toSubscriptionStatus(input.subscriptionStatus) ?? "none";
+    const seatQuantity = toPositiveInteger(input.seatQuantity ?? 0);
+    const cancelAtPeriodEnd = input.cancelAtPeriodEnd === true;
+    const canceledAt = input.canceledAt ?? null;
+    const currentPeriodStart = input.currentPeriodStart ?? null;
+    const currentPeriodEnd = input.currentPeriodEnd ?? null;
     const rows =
       (await prisma.financeProviderLink.findMany({
         where: {
           provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
+          externalSubscriptionId: subscriptionId,
         },
         select: { orgId: true, metadata: true },
       })) ?? [];
+
+    const paidPlanActive = hasPaidPlanAllowances(subscriptionStatus);
+    const billingUpdate = SubscriptionBillingUpdateSchema.parse({
+      stripeSubscriptionId: subscriptionId,
+      plan: paidPlanActive ? "business" : "free",
+      seatQuantity,
+      seatQuantityUpdatedAt: new Date(),
+      subscriptionStatus,
+      cancelAtPeriodEnd,
+      canceledAt,
+      currentPeriodStart,
+      currentPeriodEnd,
+      accessState: resolveAccessState(subscriptionStatus),
+      downgradedAt: paidPlanActive ? null : new Date(),
+    });
 
     await Promise.all(
       rows.map((row) =>
@@ -913,13 +1040,13 @@ export const FinanceSubscriptionService = {
           this.upsertSubscriptionProviderLink({
             orgId: row.orgId,
             provider: "STRIPE",
-            externalSubscriptionId: input.subscriptionId,
+            externalSubscriptionId: subscriptionId,
             metadata: {
-              subscriptionStatus: input.subscriptionStatus ?? "none",
-              cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
-              seatQuantity: input.seatQuantity ?? 0,
-              currentPeriodStart: toIsoString(input.currentPeriodStart),
-              currentPeriodEnd: toIsoString(input.currentPeriodEnd),
+              subscriptionStatus,
+              cancelAtPeriodEnd,
+              seatQuantity,
+              currentPeriodStart: toIsoString(currentPeriodStart),
+              currentPeriodEnd: toIsoString(currentPeriodEnd),
             },
           }),
           prisma.subscriptionEntitlement.upsert({
@@ -934,40 +1061,42 @@ export const FinanceSubscriptionService = {
               code: "BUSINESS_PLAN",
               name: "Business subscription",
               source: "STRIPE",
-              status:
-                input.subscriptionStatus === "canceled" ? "INACTIVE" : "ACTIVE",
+              status: paidPlanActive ? "ACTIVE" : "INACTIVE",
               grantedAt: new Date(),
               metadata: {
-                subscriptionStatus: input.subscriptionStatus ?? "none",
-                cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
+                subscriptionStatus,
+                cancelAtPeriodEnd,
               },
             },
             update: {
               source: "STRIPE",
-              status:
-                input.subscriptionStatus === "canceled" ? "INACTIVE" : "ACTIVE",
+              status: paidPlanActive ? "ACTIVE" : "INACTIVE",
               metadata: {
-                subscriptionStatus: input.subscriptionStatus ?? "none",
-                cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
+                subscriptionStatus,
+                cancelAtPeriodEnd,
               },
             },
+          }),
+          prisma.organizationBilling.updateMany({
+            where: { orgId: String(row.orgId) },
+            data: billingUpdate,
           }),
         ]),
       ),
     );
 
     await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? input.subscriptionId,
+      organisationId: rows[0]?.orgId ?? subscriptionId,
       eventType: "SUBSCRIPTION_UPDATED",
       entityType: "SUBSCRIPTION",
-      entityId: input.subscriptionId,
+      entityId: subscriptionId,
       payload: {
-        subscriptionStatus: input.subscriptionStatus ?? "none",
-        cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
-        canceledAt: input.canceledAt ?? null,
-        seatQuantity: input.seatQuantity ?? 0,
-        currentPeriodStart: input.currentPeriodStart?.toISOString() ?? null,
-        currentPeriodEnd: input.currentPeriodEnd?.toISOString() ?? null,
+        subscriptionStatus,
+        cancelAtPeriodEnd,
+        canceledAt,
+        seatQuantity,
+        currentPeriodStart: currentPeriodStart?.toISOString() ?? null,
+        currentPeriodEnd: currentPeriodEnd?.toISOString() ?? null,
       },
     });
   },
@@ -1046,7 +1175,8 @@ export const FinanceSubscriptionService = {
             provider: "STRIPE",
             externalSubscriptionId: subscriptionId,
             metadata: {
-              status: "canceled",
+              subscriptionStatus: "canceled",
+              seatQuantity: 0,
               canceledAt: new Date().toISOString(),
             },
           }),
@@ -1087,12 +1217,15 @@ export const FinanceSubscriptionService = {
           // every free-plan limit indefinitely. `updateMany` so an org with no
           // billing row is a no-op rather than an error.
           prisma.organizationBilling.updateMany({
-            where: { orgId: row.orgId },
+            where: { orgId: String(row.orgId) },
             data: {
               plan: "free",
+              seatQuantity: 0,
               subscriptionStatus: "canceled",
               cancelAtPeriodEnd: false,
               canceledAt: new Date(),
+              accessState: "free",
+              downgradedAt: new Date(),
             },
           }),
           this.captureUsageSnapshot({

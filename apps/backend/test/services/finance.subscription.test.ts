@@ -515,6 +515,36 @@ describe("FinanceSubscriptionService", () => {
         status: "ACTIVE",
       }),
     });
+    expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith({
+      where: { orgId: "org_1" },
+      data: expect.objectContaining({
+        plan: "business",
+        billingInterval: "month",
+        seatQuantity: 2,
+        subscriptionStatus: "active",
+        stripeSubscriptionId: "sub_1",
+      }),
+    });
+  });
+
+  it("does not unlock business allowances for an incomplete checkout", async () => {
+    (prisma.financeProviderLink.findMany as jest.Mock).mockResolvedValueOnce([
+      { orgId: "org_1" },
+    ]);
+    (prisma.financeProviderLink.upsert as jest.Mock).mockResolvedValueOnce({});
+
+    await FinanceSubscriptionService.recordBusinessCheckoutCompleted({
+      customerId: "cus_1",
+      subscriptionId: "sub_incomplete",
+      subscriptionItemId: "item_1",
+      priceId: "price_1",
+      billingInterval: "month",
+      subscriptionStatus: "incomplete",
+      seatQuantity: 2,
+    });
+
+    expect(prisma.organizationBilling.updateMany).not.toHaveBeenCalled();
+    expect(prisma.subscriptionEntitlement.upsert).not.toHaveBeenCalled();
   });
 
   it("normalizes stripe subscription checkout completion into finance writes", async () => {
@@ -609,6 +639,15 @@ describe("FinanceSubscriptionService", () => {
         status: "ACTIVE",
       }),
     });
+    expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith({
+      where: { orgId: "org_1" },
+      data: expect.objectContaining({
+        plan: "business",
+        subscriptionStatus: "past_due",
+        seatQuantity: 6,
+        stripeSubscriptionId: "sub_1",
+      }),
+    });
   });
 
   it("normalizes stripe subscription updates into finance writes", async () => {
@@ -632,6 +671,50 @@ describe("FinanceSubscriptionService", () => {
         ],
       },
     } as any);
+  });
+
+  it("keeps repeated active updates on business allowances and removes them on cancellation", async () => {
+    (prisma.financeProviderLink.findMany as jest.Mock).mockResolvedValue([
+      { orgId: "org_1", metadata: null },
+    ]);
+    (prisma.financeProviderLink.upsert as jest.Mock).mockResolvedValue({});
+    (prisma.subscriptionEntitlement.upsert as jest.Mock).mockResolvedValue({});
+
+    const activeUpdate = {
+      subscriptionId: "sub_1",
+      subscriptionStatus: "active" as const,
+      cancelAtPeriodEnd: false,
+      seatQuantity: 4,
+    };
+    await FinanceSubscriptionService.recordSubscriptionUpdated(activeUpdate);
+    await FinanceSubscriptionService.recordSubscriptionUpdated(activeUpdate);
+    await FinanceSubscriptionService.recordSubscriptionUpdated({
+      ...activeUpdate,
+      subscriptionStatus: "canceled",
+      canceledAt: new Date("2026-06-18T00:00:00.000Z"),
+    });
+
+    expect(prisma.organizationBilling.updateMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({ plan: "business" }),
+      }),
+    );
+    expect(prisma.organizationBilling.updateMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ plan: "business" }),
+      }),
+    );
+    expect(prisma.organizationBilling.updateMany).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          plan: "free",
+          subscriptionStatus: "canceled",
+        }),
+      }),
+    );
   });
 
   it("records subscription lifecycle changes", async () => {
@@ -661,8 +744,10 @@ describe("FinanceSubscriptionService", () => {
       where: { orgId: "org_1" },
       data: expect.objectContaining({
         plan: "free",
+        seatQuantity: 0,
         subscriptionStatus: "canceled",
         cancelAtPeriodEnd: false,
+        accessState: "free",
       }),
     });
 
@@ -689,6 +774,10 @@ describe("FinanceSubscriptionService", () => {
       }),
       update: expect.objectContaining({
         externalSubscriptionId: "sub_1",
+        metadata: expect.objectContaining({
+          subscriptionStatus: "canceled",
+          seatQuantity: 0,
+        }),
       }),
     });
     expect(prisma.subscriptionEntitlement.upsert).toHaveBeenCalledWith({
