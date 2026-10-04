@@ -610,7 +610,7 @@ const mergeVitalRecordMetadata = (
       ? currentDisplay
       : nextRecordedByDisplay;
 
-  if (baseMetadata === null || typeof baseMetadata === "undefined") {
+  if (baseMetadata == null) {
     return display === null ? null : { recordedByDisplay: display };
   }
 
