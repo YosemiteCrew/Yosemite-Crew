@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import AWS from "aws-sdk";
+import { S3 } from "@aws-sdk/client-s3";
 import { randomUUID } from "node:crypto";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
 import {
@@ -102,9 +102,7 @@ export type RenderedDocumentPdfResult = {
 
 const renderedDocumentClient = prisma as unknown as RenderedDocumentWriteClient;
 
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+const s3 = new S3({
   region: process.env.AWS_REGION,
 });
 
@@ -185,25 +183,13 @@ const readPdfFromBucket = async (
       return null;
     }
 
-    const response = await s3
-      .getObject({
-        Bucket: getBucketName(),
-        Key: key,
-      })
-      .promise();
+    const response = await s3.getObject({
+      Bucket: getBucketName(),
+      Key: key,
+    });
 
     if (response.Body) {
-      if (Buffer.isBuffer(response.Body)) {
-        return response.Body;
-      }
-
-      if (response.Body instanceof Uint8Array) {
-        return Buffer.from(response.Body);
-      }
-
-      if (typeof response.Body === "string") {
-        return Buffer.from(response.Body);
-      }
+      return Buffer.from(await response.Body.transformToByteArray());
     }
   } catch {
     // Not an object we hold. This covers public URLs and non-S3 sources.

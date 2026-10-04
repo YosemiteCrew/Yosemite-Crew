@@ -1,3 +1,9 @@
+import { Readable } from "node:stream";
+import { createServer, request } from "node:http";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
+import { sdkStreamMixin } from "@smithy/util-stream";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import {
   handleFileUpload,
   handleMultipleFileUpload,
@@ -14,6 +20,7 @@ import {
   isValidPdfUpload,
   ATTACHMENT_MIME_TYPES,
   IMAGE_ONLY_MIME_TYPES,
+  readObjectBounded,
 } from "../../src/middlewares/upload";
 import { tempUploadPrefixFor } from "../../src/utils/upload-key";
 
@@ -25,25 +32,35 @@ const mockCopyObject = jest.fn();
 const mockDeleteObject = jest.fn();
 const mockGetBucketLifecycleConfiguration = jest.fn();
 const mockPutBucketLifecycleConfiguration = jest.fn();
+const mockHeadObject = jest.fn();
+const mockGetObject = jest.fn();
 
-jest.mock("aws-sdk", () => {
+jest.mock("@aws-sdk/client-s3", () => {
   return {
-    S3: jest.fn().mockImplementation(() => ({
-      upload: (params: any) => ({ promise: () => mockS3Upload(params) }),
-      getSignedUrlPromise: (...args: any[]) => mockGetSignedUrlPromise(...args),
-      copyObject: (params: any) => ({ promise: () => mockCopyObject(params) }),
-      deleteObject: (params: any) => ({
-        promise: () => mockDeleteObject(params),
-      }),
-      getBucketLifecycleConfiguration: (params: any) => ({
-        promise: () => mockGetBucketLifecycleConfiguration(params),
-      }),
-      putBucketLifecycleConfiguration: (params: any) => ({
-        promise: () => mockPutBucketLifecycleConfiguration(params),
-      }),
+    ...jest.requireActual("@aws-sdk/client-s3"),
+    S3: jest.fn().mockImplementation((config) => ({
+      config,
+      copyObject: (params: unknown) => mockCopyObject(params),
+      deleteObject: (params: unknown) => mockDeleteObject(params),
+      getBucketLifecycleConfiguration: (params: unknown) =>
+        mockGetBucketLifecycleConfiguration(params),
+      putBucketLifecycleConfiguration: (params: unknown) =>
+        mockPutBucketLifecycleConfiguration(params),
+      headObject: (params: unknown) => mockHeadObject(params),
+      getObject: (params: unknown) => mockGetObject(params),
     })),
   };
 });
+
+jest.mock("@aws-sdk/lib-storage", () => ({
+  Upload: jest
+    .fn()
+    .mockImplementation(({ params }) => ({ done: () => mockS3Upload(params) })),
+}));
+
+jest.mock("@aws-sdk/s3-request-presigner", () => ({
+  getSignedUrl: (...args: unknown[]) => mockGetSignedUrlPromise(...args),
+}));
 
 jest.mock("uuid", () => ({ v4: () => "mock-uuid" }));
 
@@ -172,6 +189,96 @@ describe("Upload Middleware", () => {
   });
 
   describe("uploadToS3", () => {
+    it.each([false, true])(
+      "handles multipart upload with a failed part: %s",
+      async (failPart) => {
+        const sdk =
+          jest.requireActual<typeof import("@aws-sdk/client-s3")>(
+            "@aws-sdk/client-s3",
+          );
+        const { Upload: ActualUpload } = jest.requireActual(
+          "@aws-sdk/lib-storage",
+        );
+        const { Upload } = jest.requireMock("@aws-sdk/lib-storage");
+        const client = new sdk.S3Client({ region: "us-east-1" });
+        const body = Buffer.alloc(6 * 1024 * 1024, 7);
+        const send = jest
+          .spyOn(client, "send")
+          .mockImplementation(async (command: unknown) => {
+            if (command instanceof sdk.CreateMultipartUploadCommand)
+              return { UploadId: "upload-1" };
+            if (command instanceof sdk.UploadPartCommand) {
+              if (failPart) throw new Error("Part upload failed");
+              return { ETag: `part-${command.input.PartNumber}` };
+            }
+            if (command instanceof sdk.CompleteMultipartUploadCommand)
+              return { Location: "https://files.example/report.pdf" };
+            if (command instanceof sdk.AbortMultipartUploadCommand) return {};
+            throw new Error("Unexpected upload command");
+          });
+        Upload.mockImplementationOnce(
+          ({ params }: { params: unknown }) =>
+            new ActualUpload({ client, params }),
+        );
+        try {
+          const upload = uploadToS3("report.pdf", body, "application/pdf");
+          if (failPart) {
+            await expect(upload).rejects.toThrow("Part upload failed");
+            expect(
+              send.mock.calls.some(
+                ([command]) =>
+                  command instanceof sdk.AbortMultipartUploadCommand,
+              ),
+            ).toBe(true);
+            expect(
+              send.mock.calls.some(
+                ([command]) =>
+                  command instanceof sdk.CompleteMultipartUploadCommand,
+              ),
+            ).toBe(false);
+          } else {
+            await expect(upload).resolves.toEqual({
+              location: "https://files.example/report.pdf",
+              key: "report.pdf",
+            });
+            const parts = send.mock.calls
+              .map(([command]) => command)
+              .filter((command) => command instanceof sdk.UploadPartCommand);
+            expect(
+              parts
+                .map((part) =>
+                  Buffer.isBuffer(part.input.Body)
+                    ? part.input.Body.byteLength
+                    : 0,
+                )
+                .sort((a, b) => a - b),
+            ).toEqual([1024 * 1024, 5 * 1024 * 1024]);
+            expect(
+              send.mock.calls
+                .map(([command]) => command)
+                .find(
+                  (command) =>
+                    command instanceof sdk.CreateMultipartUploadCommand,
+                )?.input,
+            ).toMatchObject({
+              Bucket: "test-bucket",
+              Key: "report.pdf",
+              ContentType: "application/pdf",
+              ContentDisposition: "inline",
+            });
+          }
+        } finally {
+          send.mockRestore();
+          client.destroy();
+        }
+      },
+    );
+    it("rejects a completed upload without a file location", async () => {
+      mockS3Upload.mockResolvedValueOnce({ Key: "file.png" });
+      await expect(uploadToS3("file.png", "", "image/png")).rejects.toThrow(
+        "Upload location unavailable.",
+      );
+    });
     it("uploads and returns location and key", async () => {
       mockS3Upload.mockResolvedValueOnce({
         Location: "s3://loc",
@@ -241,11 +348,168 @@ describe("Upload Middleware", () => {
   });
 
   describe("generatePresignedUrl", () => {
+    it("binds the allowed file type into the installed upload signature", async () => {
+      const sdk =
+        jest.requireActual<typeof import("@aws-sdk/client-s3")>(
+          "@aws-sdk/client-s3",
+        );
+      const { getSignedUrl } = jest.requireActual(
+        "@aws-sdk/s3-request-presigner",
+      );
+      let changedUrl = "";
+      let client: InstanceType<typeof sdk.S3Client> | undefined;
+      mockGetSignedUrlPromise.mockImplementationOnce(
+        async (configured, command, options) => {
+          client = new sdk.S3Client({
+            ...configured.config,
+            region: "us-east-1",
+            credentials: { accessKeyId: "test", secretAccessKey: "test" },
+          });
+          const signing = {
+            ...options,
+            signingDate: new Date("2026-01-01T00:00:00Z"),
+          };
+          changedUrl = await getSignedUrl(
+            client,
+            new sdk.PutObjectCommand({
+              ...command.input,
+              ContentType: "text/html",
+            }),
+            signing,
+          );
+          return getSignedUrl(client, command, signing);
+        },
+      );
+      try {
+        const result = await generatePresignedUrl(
+          "image/jpeg",
+          "user",
+          "user-1",
+        );
+        const original = new URL(result.url);
+        expect(
+          original.searchParams.get("X-Amz-SignedHeaders")?.split(";"),
+        ).toContain("content-type");
+        expect(original.searchParams.get("X-Amz-Signature")).not.toBe(
+          new URL(changedUrl).searchParams.get("X-Amz-Signature"),
+        );
+      } finally {
+        client?.destroy();
+      }
+    });
+    it("allows a non-empty PUT through an installed-client upload URL", async () => {
+      const sdk =
+        jest.requireActual<typeof import("@aws-sdk/client-s3")>(
+          "@aws-sdk/client-s3",
+        );
+      const { getSignedUrl } = jest.requireActual(
+        "@aws-sdk/s3-request-presigner",
+      );
+      const body = Buffer.from("uploaded picture content");
+      let received = Buffer.alloc(0);
+      const server = createServer(async (req, res) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        received = Buffer.concat(chunks);
+        const url = new URL(req.url!, "http://localhost");
+        res.statusCode = url.searchParams.has("x-amz-checksum-crc32")
+          ? 400
+          : 200;
+        res.end();
+      });
+      server.listen(0, "127.0.0.1");
+      await once(server, "listening");
+      let client: InstanceType<typeof sdk.S3Client> | undefined;
+      mockGetSignedUrlPromise.mockImplementationOnce(
+        (configured, command, options) => {
+          client = new sdk.S3Client({
+            ...configured.config,
+            region: "us-east-1",
+            credentials: { accessKeyId: "test", secretAccessKey: "test" },
+          });
+          return getSignedUrl(client, command, options);
+        },
+      );
+      try {
+        const result = await generatePresignedUrl(
+          "image/jpeg",
+          "user",
+          "user-1",
+        );
+        const signed = new URL(result.url);
+        const port = (server.address() as AddressInfo).port;
+        const status = await new Promise<number | undefined>(
+          (resolve, reject) => {
+            const upload = request(
+              {
+                hostname: "127.0.0.1",
+                port,
+                path: signed.pathname + signed.search,
+                method: "PUT",
+                headers: { "Content-Type": "image/jpeg" },
+              },
+              (res) => {
+                res.resume();
+                res.on("end", () => resolve(res.statusCode));
+              },
+            );
+            upload.on("error", reject);
+            upload.end(body);
+          },
+        );
+        expect(status).toBe(200);
+        expect(received).toEqual(body);
+        expect(signed.searchParams.has("x-amz-checksum-crc32")).toBe(false);
+      } finally {
+        client?.destroy();
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        );
+      }
+    });
+    it("signs a fifteen-minute upload URL with the installed client", async () => {
+      const { S3Client } = jest.requireActual("@aws-sdk/client-s3");
+      const { getSignedUrl } = jest.requireActual(
+        "@aws-sdk/s3-request-presigner",
+      );
+      const client = new S3Client({
+        region: "us-east-1",
+        credentials: { accessKeyId: "test", secretAccessKey: "test" },
+      });
+      mockGetSignedUrlPromise.mockImplementationOnce(
+        (_client, command, options) => getSignedUrl(client, command, options),
+      );
+      try {
+        const result = await generatePresignedUrl(
+          "image/jpeg",
+          "user",
+          "user-1",
+        );
+        const url = new URL(result.url);
+        expect(url.searchParams.get("X-Amz-Expires")).toBe("900");
+        expect(url.pathname).toBe("/users/user-1/mock-uuid.jpg");
+        expect(url.searchParams.get("X-Amz-Signature")).toMatch(
+          /^[a-f0-9]{64}$/,
+        );
+      } finally {
+        client.destroy();
+      }
+    });
     it("returns url and key", async () => {
       mockGetSignedUrlPromise.mockResolvedValueOnce("https://presigned");
       const res = await generatePresignedUrl("image/jpeg", "user", "user-1");
       expect(res.url).toBe("https://presigned");
       expect(res.key).toBe("users/user-1/mock-uuid.jpg");
+      expect(mockGetSignedUrlPromise).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.any(PutObjectCommand),
+        { expiresIn: 900, signableHeaders: new Set(["content-type"]) },
+      );
+      expect(mockGetSignedUrlPromise.mock.calls[0][1].input).toEqual({
+        Bucket: "test-bucket",
+        Key: "users/user-1/mock-uuid.jpg",
+        ContentType: "image/jpeg",
+      });
     });
 
     it("handles errors", async () => {
@@ -372,6 +636,44 @@ describe("Upload Middleware", () => {
     });
   });
 
+  describe("readObjectBounded", () => {
+    it("reads all chunks from an allowed stored object", async () => {
+      mockHeadObject.mockResolvedValueOnce({ ContentLength: 6 });
+      mockGetObject.mockResolvedValueOnce({
+        Body: sdkStreamMixin(
+          Readable.from([Buffer.from("first"), Buffer.from("!")]),
+        ),
+      });
+      await expect(readObjectBounded("report.csv", 6)).resolves.toEqual(
+        Buffer.from("first!"),
+      );
+      expect(mockHeadObject).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        Key: "report.csv",
+      });
+      expect(mockGetObject).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        Key: "report.csv",
+      });
+    });
+
+    it("refuses an oversized object before fetching its body", async () => {
+      mockHeadObject.mockResolvedValueOnce({ ContentLength: 7 });
+      await expect(readObjectBounded("report.csv", 6)).rejects.toThrow(
+        "exceeds",
+      );
+      expect(mockGetObject).not.toHaveBeenCalled();
+    });
+
+    it("returns an empty buffer when the stored object has no body", async () => {
+      mockHeadObject.mockResolvedValueOnce({});
+      mockGetObject.mockResolvedValueOnce({});
+      await expect(readObjectBounded("report.csv", 6)).resolves.toEqual(
+        Buffer.alloc(0),
+      );
+    });
+  });
+
   describe("handleFileUpload", () => {
     it("throws if no file provided", async () => {
       await expect(handleFileUpload(null as any, "folder")).rejects.toThrow(
@@ -459,7 +761,7 @@ describe("Upload Middleware", () => {
 
     it("creates new config if none exists (NoSuchLifecycleConfiguration)", async () => {
       mockGetBucketLifecycleConfiguration.mockRejectedValueOnce({
-        code: "NoSuchLifecycleConfiguration",
+        name: "NoSuchLifecycleConfiguration",
       });
       mockPutBucketLifecycleConfiguration.mockResolvedValueOnce({});
 
