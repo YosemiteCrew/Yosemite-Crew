@@ -34,17 +34,13 @@ interface SyncDaemonDeps {
   flushIntervalMs?: number;
 }
 
-type MutationOutcome =
-  | { mutation: Mutation; result: Awaited<ReturnType<SyncTransport['send']>> }
-  | { mutation: Mutation; error: unknown };
-
 export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
   let running = false;
   let timer: ReturnType<typeof setInterval> | null = null;
   let currentStatus: OnlineStatus = deps.isOnline() ? 'online' : 'offline';
   let flushing = false;
 
-  const sendMutation = async (mutation: Mutation): Promise<MutationOutcome> => {
+  const sendMutation = async (mutation: Mutation): Promise<void> => {
     try {
       const result = await deps.transport.send({
         type: mutation.type,
@@ -52,30 +48,14 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
         entityId: mutation.entityId,
         data: mutation.data,
       });
-      return { mutation, result };
-    } catch (error) {
-      return { mutation, error };
-    }
-  };
-
-  const sendBatch = async function* (batch: Mutation[]): AsyncGenerator<MutationOutcome> {
-    for (const mutation of batch) {
-      yield sendMutation(mutation);
-    }
-  };
-
-  const applyOutcome = (outcome: MutationOutcome): void => {
-    const { mutation } = outcome;
-    try {
-      if ('error' in outcome) throw outcome.error;
-      if (outcome.result.ok) {
+      if (result.ok) {
         deps.queue.pop(mutation.id);
         deps.logger.debug('sync_mutation_success', { id: mutation.id });
       } else {
         deps.queue.markFailed(mutation.id);
         deps.logger.warn('sync_mutation_failed', {
           id: mutation.id,
-          error: outcome.result.error,
+          error: result.error,
         });
       }
     } catch (error) {
@@ -92,9 +72,7 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
     flushing = true;
     try {
       deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-      for await (const outcome of sendBatch(batch)) {
-        applyOutcome(outcome);
-      }
+      await Array.fromAsync(batch, sendMutation);
     } finally {
       flushing = false;
     }
