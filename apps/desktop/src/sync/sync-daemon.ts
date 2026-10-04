@@ -48,31 +48,34 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
     flushing = true;
     try {
       deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-      await batch.reduce(async (previous, mutation) => {
-        await previous;
-        try {
-          const result = await deps.transport.send({
-            type: mutation.type,
-            entityType: mutation.entityType,
-            entityId: mutation.entityId,
-            data: mutation.data,
-          });
-
-          if (result.ok) {
-            deps.queue.pop(mutation.id);
-            deps.logger.debug('sync_mutation_success', { id: mutation.id });
-          } else {
-            deps.queue.markFailed(mutation.id);
-            deps.logger.warn('sync_mutation_failed', {
-              id: mutation.id,
-              error: result.error,
+      let pending = Promise.resolve();
+      for (const mutation of batch) {
+        pending = pending.then(async () => {
+          try {
+            const result = await deps.transport.send({
+              type: mutation.type,
+              entityType: mutation.entityType,
+              entityId: mutation.entityId,
+              data: mutation.data,
             });
+
+            if (result.ok) {
+              deps.queue.pop(mutation.id);
+              deps.logger.debug('sync_mutation_success', { id: mutation.id });
+            } else {
+              deps.queue.markFailed(mutation.id);
+              deps.logger.warn('sync_mutation_failed', {
+                id: mutation.id,
+                error: result.error,
+              });
+            }
+          } catch (error) {
+            deps.queue.markFailed(mutation.id);
+            deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
           }
-        } catch (error) {
-          deps.queue.markFailed(mutation.id);
-          deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
-        }
-      }, Promise.resolve());
+        });
+      }
+      await pending;
     } finally {
       flushing = false;
     }
