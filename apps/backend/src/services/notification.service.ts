@@ -105,6 +105,13 @@ const isNonEmptyString = (value: unknown): value is string =>
 const LOCK_SCREEN_TITLE = "Yosemite Crew";
 const LOCK_SCREEN_BODY = "You have an update. Open the app to see it.";
 
+/**
+ * Marks the drawn block as our own generic wording rather than a record's, so
+ * the app can show the same sentence in the reader's language instead of
+ * echoing back the English we sent.
+ */
+const LOCK_SCREEN_GENERIC_MARKER = "generic";
+
 const buildFcmMessage = (
   token: string,
   payload: NotificationPayload,
@@ -124,6 +131,7 @@ const buildFcmMessage = (
       ...(options?.data ?? {}),
       title: payload.title,
       body: payload.body,
+      lockScreen: LOCK_SCREEN_GENERIC_MARKER,
     },
     android: {
       priority: "high",

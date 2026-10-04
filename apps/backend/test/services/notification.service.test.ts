@@ -154,7 +154,28 @@ describe("NotificationService", () => {
           notificationId: "notif-row-1",
           title: SENSITIVE.title,
           body: SENSITIVE.body,
+          lockScreen: "generic",
         });
+      });
+
+      it("marks the drawn block as generic so the app can use its own language", async () => {
+        // The server cannot know the reader's language, so the block it draws is
+        // English. The marker tells the app that block is our placeholder rather
+        // than a record's wording, so it can substitute the same sentence in the
+        // reader's language instead of echoing ours back.
+        const message = await sentMessage();
+
+        expect(message.data.lockScreen).toBe("generic");
+      });
+
+      it("does not let a caller spoof the marker with their own data", async () => {
+        // The marker decides what the lock screen shows, so it is set after the
+        // caller's data is spread rather than before it.
+        const message = await sentMessage({
+          data: { lockScreen: "record-wording" },
+        });
+
+        expect(message.data.lockScreen).toBe("generic");
       });
 
       it("sends no body at all for an empty payload body", async () => {
@@ -192,7 +213,11 @@ describe("NotificationService", () => {
       await NotificationService.sendToDevice("token", payload);
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { title: "Test Title", body: "Test Body" },
+          data: {
+            title: "Test Title",
+            body: "Test Body",
+            lockScreen: "generic",
+          },
         }),
         undefined,
       );
@@ -326,6 +351,7 @@ describe("NotificationService", () => {
           notificationId: "notif-row-1",
           title: "Test Title",
           body: "Test Body",
+          lockScreen: "generic",
         });
       }
     });
@@ -357,6 +383,7 @@ describe("NotificationService", () => {
         notificationId: "reminder-1",
         title: "Test Title",
         body: "Test Body",
+        lockScreen: "generic",
       });
     });
 
@@ -376,6 +403,7 @@ describe("NotificationService", () => {
       expect(mockSend.mock.calls[0][0].data).toEqual({
         title: "Test Title",
         body: "Test Body",
+        lockScreen: "generic",
       });
     });
 

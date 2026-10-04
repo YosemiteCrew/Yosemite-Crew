@@ -22,6 +22,7 @@ import notifee, {
 } from '@notifee/react-native';
 import type {AppDispatch} from '@/app/store';
 import {addNotificationToList} from '@/features/notifications';
+import i18n from '@/localization';
 import type {
   CreateNotificationPayload,
   NotificationCategory,
@@ -41,11 +42,13 @@ const DEFAULT_FALLBACK_COMPANION_ID = 'default-companion';
 
 /**
  * Fallback wording for the locked-screen surface, used when a push arrives
- * without a notification block. Matches what the server puts in that block, so
- * a reader on a locked phone sees the same text either way.
+ * without a notification block, and in place of the server's generic block
+ * when it marks itself. Resolved through i18next so the reader gets their own
+ * language rather than the English the server happened to send.
  */
-const LOCK_SCREEN_TITLE = 'Yosemite Crew';
-const LOCK_SCREEN_BODY = 'You have an update. Open the app to see it.';
+const LOCK_SCREEN_GENERIC_MARKER = 'generic';
+const lockScreenTitle = () => i18n.t('notifications.lockScreen.title');
+const lockScreenBody = () => i18n.t('notifications.lockScreen.body');
 
 type DataRecord = Record<string, string>;
 type RemoteMessage = FirebaseMessagingTypes.RemoteMessage;
@@ -304,9 +307,16 @@ async function presentNotifeeNotification(
   // never falls back to `data`. The OS draws this one too, and the data block
   // is where the record wording now travels - a push with no notification
   // block (data-only, or an older server) still gets generic text rather than
-  // the record's own.
-  const title = notification?.title ?? LOCK_SCREEN_TITLE;
-  const body = notification?.body ?? LOCK_SCREEN_BODY;
+  // the record's own. A block the server marked generic is our own English
+  // placeholder, so it is replaced by the same sentence in the reader's
+  // language rather than shown as sent.
+  const genericBlock = data.lockScreen === LOCK_SCREEN_GENERIC_MARKER;
+  const title = genericBlock
+    ? lockScreenTitle()
+    : notification?.title ?? lockScreenTitle();
+  const body = genericBlock
+    ? lockScreenBody()
+    : notification?.body ?? lockScreenBody();
   const imageUrl = notification?.android?.imageUrl || data.largeIcon;
   const smallIcon =
     normalizeAndroidIconResource(data.smallIcon) ?? 'ic_launcher';
