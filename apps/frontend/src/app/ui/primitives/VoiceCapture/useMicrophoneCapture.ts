@@ -37,6 +37,7 @@ export function useMicrophoneCapture(): MicrophoneCapture {
   }, []);
 
   const startCapture = useCallback(async (onStopped: (chunks: Blob[]) => void) => {
+    captureRef.current = null;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     try {
       if (!liveRef.current) {
