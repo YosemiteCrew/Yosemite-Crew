@@ -77,7 +77,7 @@ ignore-packages:
   # license. Both are vendor SDKs for paid services the product integrates,
   # used at arm's length over the network, but their compatibility with
   # AGPL-3.0 distribution needs an explicit decision. Owner: maintainers.
-  # Re-review by: 2026-10-01 - do not renew silently.
+  # Re-review by: 2027-02-09 (or on version bump, whichever is first).
   - stream-chat
   - stream-chat-react
   - stream-chat-react-native
