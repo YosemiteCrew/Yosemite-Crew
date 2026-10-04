@@ -70,6 +70,24 @@ const validateSubStudies = (subStudies: readonly SubStudy[]): void => {
   );
 };
 
+const cloneSharedDefinition = (
+  protocol: Pick<
+    MasterProtocolVersion,
+    "sharedEligibility" | "sharedSchedule" | "controlArm"
+  >,
+): Pick<
+  MasterProtocolVersion,
+  "sharedEligibility" | "sharedSchedule" | "controlArm"
+> => ({
+  sharedEligibility: [...protocol.sharedEligibility],
+  sharedSchedule: [...protocol.sharedSchedule],
+  controlArm: {
+    ...protocol.controlArm,
+    eligibility: [...protocol.controlArm.eligibility],
+    schedule: [...protocol.controlArm.schedule],
+  },
+});
+
 export const createMasterProtocol = (input: {
   masterProtocolId: string;
   sharedEligibility: readonly string[];
@@ -82,15 +100,9 @@ export const createMasterProtocol = (input: {
   validateSubStudies(input.subStudies);
   return {
     ...input,
+    ...cloneSharedDefinition(input),
     version: 1,
     amendmentId: null,
-    sharedEligibility: [...input.sharedEligibility],
-    sharedSchedule: [...input.sharedSchedule],
-    controlArm: {
-      ...input.controlArm,
-      eligibility: [...input.controlArm.eligibility],
-      schedule: [...input.controlArm.schedule],
-    },
     subStudies: input.subStudies.map(cloneSubStudy),
   };
 };
@@ -125,15 +137,9 @@ export const amendMasterProtocol = (
 
   return {
     ...current,
+    ...cloneSharedDefinition(current),
     version: current.version + 1,
     amendmentId: amendment.id,
-    sharedEligibility: [...current.sharedEligibility],
-    sharedSchedule: [...current.sharedSchedule],
-    controlArm: {
-      ...current.controlArm,
-      eligibility: [...current.controlArm.eligibility],
-      schedule: [...current.controlArm.schedule],
-    },
     subStudies,
   };
 };
