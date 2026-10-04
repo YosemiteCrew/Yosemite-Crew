@@ -570,6 +570,54 @@ describe('VoiceCapture', () => {
     }
   });
 
+  it('ignores the failed recorder while retry microphone access is pending', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const user = userEvent.setup();
+      const transcriber = makeSupportedTranscriber();
+      const onStop = jest.fn();
+      jest.spyOn(transcriber, 'start').mockImplementationOnce(() => {
+        throw new DOMException('Speech recognition unavailable', 'InvalidStateError');
+      });
+      render(<VoiceCapture transcriber={transcriber} onStop={onStop} />);
+
+      await user.click(screen.getByLabelText('Start voice recording'));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Voice capture failed');
+      const failedRecorder = mediaRecorderInstance;
+      let grantMicrophone: (stream: { getTracks: () => { stop: jest.Mock }[] }) => void = () => {};
+      getUserMedia.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            grantMicrophone = resolve as typeof grantMicrophone;
+          })
+      );
+
+      await user.click(screen.getByLabelText('Start voice recording'));
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        failedRecorder?.ondataavailable?.({ data: new Blob(['previous recording']) });
+        failedRecorder?.onstop?.();
+      });
+
+      expect(onStop).not.toHaveBeenCalled();
+      expect(global.URL.createObjectURL).not.toHaveBeenCalled();
+      expect(screen.queryByText('Review transcript')).not.toBeInTheDocument();
+
+      await act(async () => {
+        grantMicrophone({ getTracks: () => [mockTrack] });
+      });
+      expect(await screen.findByText('Listening')).toBeInTheDocument();
+      await emit(transcriber, (current) => current.emitFinal('new recording'));
+      await stopRecordingFor(user);
+
+      expect(screen.getByText('Review transcript')).toBeInTheDocument();
+      expect(screen.getByLabelText('Transcript')).toHaveValue('new recording');
+      expect(onStop).toHaveBeenCalledTimes(1);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it('does not create playback audio when the recorder finishes after unmount', async () => {
     const user = userEvent.setup();
     const transcriber = makeSupportedTranscriber();
