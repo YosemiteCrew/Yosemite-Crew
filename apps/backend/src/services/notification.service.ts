@@ -128,7 +128,7 @@ const buildFcmMessage = (
     // from here once it is open, so the person sees the same wording in-app
     // while a locked screen shows nothing from the record.
     data: {
-      ...(options?.data ?? {}),
+      ...options?.data,
       title: payload.title,
       body: payload.body,
       lockScreen: LOCK_SCREEN_GENERIC_MARKER,
