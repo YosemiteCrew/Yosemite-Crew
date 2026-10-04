@@ -355,6 +355,36 @@ describe("dated invoice revisions", () => {
     expect(result.closingBalance).toBe(150);
   });
 
+  it("posts a paid-at-creation invoice without finalization metadata", () => {
+    const result = historical([revision({ status: "PAID", finalizedAt: null })])
+      .currencies[0];
+
+    expect(result.closingBalance).toBe(100);
+    expect(result.openingBalance).toBe(100);
+  });
+
+  it("reverses the invoice charge when a paid invoice is refunded", () => {
+    const refundedAt = new Date("2026-09-20T00:00:00.000Z");
+    const result = historical([
+      revision({ status: "PAID" }),
+      revision({
+        id: 2n,
+        status: "REFUNDED",
+        finalizedAt: null,
+        recordedAt: refundedAt,
+      }),
+    ]).currencies[0];
+
+    expect(result.closingBalance).toBe(0);
+    expect(result.entries).toEqual([
+      expect.objectContaining({
+        id: "invoice:invoice-1:revision:2",
+        direction: "CREDIT",
+        amount: 100,
+      }),
+    ]);
+  });
+
   it("includes the exact cutoff and excludes the following millisecond", () => {
     const result = historical([
       revision(),
@@ -1249,6 +1279,11 @@ describe("buildClientStatementSnapshot", () => {
               amount: 15,
               occurredAt: new Date("2026-09-05T00:00:00.000Z"),
             },
+            {
+              id: "recorded-payment",
+              amount: 25,
+              occurredAt: new Date("2026-09-05T00:00:00.000Z"),
+            },
           ],
           payments: [
             {
@@ -1269,6 +1304,31 @@ describe("buildClientStatementSnapshot", () => {
     ]);
   });
 
+  it("does not use an ordinary payment as evidence of an earlier deposit", () => {
+    expect(() =>
+      buildClientStatementSnapshot({
+        client,
+        periodStart: PERIOD_START,
+        periodEnd: PERIOD_END,
+        generatedAt: NOW,
+        invoices: [
+          invoice({
+            depositCollectedAmount: 40,
+            payments: [
+              {
+                id: "later-payment",
+                amount: 60,
+                paidAt: PERIOD_END,
+                createdAt: PERIOD_END,
+                refunds: [],
+              },
+            ],
+          }),
+        ],
+      }),
+    ).toThrow("A deposit is missing its dated payment history.");
+  });
+
   it("does not backdate a deposit collected after the statement period", () => {
     const result = buildClientStatementSnapshot({
       client,
@@ -1278,6 +1338,13 @@ describe("buildClientStatementSnapshot", () => {
       invoices: [
         invoice({
           depositCollectedAmount: 40,
+          deposits: [
+            {
+              id: "later-deposit",
+              amount: 40,
+              occurredAt: new Date("2026-10-02T00:00:00.000Z"),
+            },
+          ],
           payments: [
             {
               id: "later-deposit",
@@ -1308,6 +1375,9 @@ describe("buildClientStatementSnapshot", () => {
           invoice({
             depositCollectedAmount: 100,
             paidAt,
+            deposits: [
+              { id: "deposit-payment", amount: 100, occurredAt: paidAt },
+            ],
             payments: [
               {
                 id: "deposit-payment",
@@ -1629,6 +1699,18 @@ describe("ClientStatementService.generate", () => {
         payments: [
           { id: "paid", amount: 40, paidAt: NOW, createdAt: NOW, refunds: [] },
         ],
+      }),
+    ]);
+    mockedPrisma.financeEvent.findMany.mockResolvedValue([
+      depositEvent({
+        entityId: "paid",
+        occurredAt: NOW,
+        payload: {
+          invoiceId: "invoice-1",
+          paymentId: "paid",
+          amount: 40,
+          currency: "GBP",
+        },
       }),
     ]);
 
@@ -2254,6 +2336,11 @@ describe("receipt account movements", () => {
     expect(build([receipt({ allocatedAmount: 0 })], [invoice()])).toMatchObject(
       { closingBalance: -50, aging: { totalOutstanding: 100 } },
     );
+  });
+  it("accepts a booking receipt allocated directly without a Payment row", () => {
+    expect(
+      build([receipt({ amount: 100, allocatedAmount: 100 })], [invoice()]),
+    ).toMatchObject({ closingBalance: 0, aging: { totalOutstanding: 0 } });
   });
   it("records successive partial refunds as deltas even when delivered out of order", () => {
     const result = build([

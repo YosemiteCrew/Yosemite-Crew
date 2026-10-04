@@ -12,6 +12,7 @@ const INCLUDED_PAYMENT_STATUSES = [
   "PARTIALLY_REFUNDED",
   "REFUNDED",
 ] as const;
+const TERMINAL_INVOICE_STATUSES = new Set(["CANCELLED", "REFUNDED"]);
 
 export type ClientStatementEntry = {
   id: string;
@@ -141,7 +142,7 @@ type Movement = ClientStatementEntry & {
 type CurrencyAccumulator = {
   currency: string;
   movements: Movement[];
-  invoices: Array<{ dueAt: Date; balance: number }>;
+  invoices: Array<{ id: string; dueAt: Date; balance: number }>;
 };
 
 export class ClientStatementError extends Error {
@@ -278,9 +279,10 @@ const buildInvoiceCharges = (
   let previousAmount = 0;
   for (const revision of revisions) {
     if (
-      revision.status !== "CANCELLED" &&
       revision.finalizedAt === null &&
-      !revision.baseline
+      !revision.baseline &&
+      revision.status !== "PAID" &&
+      !TERMINAL_INVOICE_STATUSES.has(revision.status)
     ) {
       continue;
     }
@@ -300,10 +302,9 @@ const buildInvoiceCharges = (
       );
       previousAmount = 0;
     }
-    const amount =
-      revision.status === "CANCELLED"
-        ? 0
-        : quantize(nextCurrency, revision.totalAmount);
+    const amount = TERMINAL_INVOICE_STATUSES.has(revision.status)
+      ? 0
+      : quantize(nextCurrency, revision.totalAmount);
     const difference = add(nextCurrency, amount, -previousAmount);
     if (difference !== 0) {
       movements.push(
@@ -368,14 +369,16 @@ const buildInvoiceMovements = (
   }
 
   const deposits = invoice.deposits ?? [];
-  const recordedTotal = [...invoice.payments, ...deposits].reduce(
-    (total, payment) => add(currency, total, payment.amount),
+  const recordedTotal = deposits.reduce(
+    (total, deposit) => add(currency, total, deposit.amount),
     0,
   );
   if (quantize(currency, invoice.depositCollectedAmount - recordedTotal) > 0) {
     throw incompleteDepositHistory();
   }
+  const paymentIds = new Set(invoice.payments.map((payment) => payment.id));
   for (const deposit of deposits) {
+    if (paymentIds.has(deposit.id)) continue;
     movements.push(
       movement({
         id: `payment:${deposit.id}`,
@@ -487,6 +490,14 @@ const receiptRefundMovements = (receipt: StatementReceipt): Movement[] => {
   return entries;
 };
 
+const isDirectlyAllocated = (
+  receipt: StatementReceipt,
+  paymentCount: number,
+): boolean =>
+  paymentCount === 0 &&
+  quantize(receipt.currency, receipt.allocatedAmount) ===
+    quantize(receipt.currency, receipt.amount);
+
 const receiptMovements = (
   receipt: StatementReceipt,
   payments: readonly {
@@ -544,7 +555,10 @@ const receiptMovements = (
       );
     }
   }
-  if (allocated !== quantize(currency, receipt.allocatedAmount))
+  if (
+    !isDirectlyAllocated(receipt, payments.length) &&
+    allocated !== quantize(currency, receipt.allocatedAmount)
+  )
     throw incompleteReceiptHistory();
   return entries;
 };
@@ -613,6 +627,7 @@ export const buildClientStatementSnapshot = (input: {
           0,
         );
       bucket.invoices.push({
+        id: invoice.id,
         dueAt: invoiceSummary.dueDates.get(currency) ?? input.periodEnd,
         balance: Math.max(0, balanceAtPeriodEnd),
       });
@@ -638,14 +653,23 @@ export const buildClientStatementSnapshot = (input: {
   }
   for (const receipt of input.receipts ?? []) {
     const currency = currencyKey(receipt.currency);
+    const payments = receiptPayments.get(receipt.id) ?? [];
     const bucket = byCurrency.get(currency) ?? {
       currency,
       movements: [],
       invoices: [],
     };
-    bucket.movements.push(
-      ...receiptMovements(receipt, receiptPayments.get(receipt.id) ?? []),
-    );
+    bucket.movements.push(...receiptMovements(receipt, payments));
+    if (isDirectlyAllocated(receipt, payments.length)) {
+      const invoice = bucket.invoices.find(
+        (candidate) => candidate.id === receipt.invoiceId,
+      );
+      if (!invoice) throw incompleteReceiptHistory();
+      invoice.balance = Math.max(
+        0,
+        add(currency, invoice.balance, -receipt.allocatedAmount),
+      );
+    }
     byCurrency.set(currency, bucket);
   }
 
@@ -826,7 +850,6 @@ const loadDepositHistory = async (
         invoice.id,
         {
           invoice,
-          paymentIds: new Set(invoice.payments.map((payment) => payment.id)),
           deposits: new Map<string, StatementDeposit>(),
         },
       ]),
@@ -866,7 +889,6 @@ const loadDepositHistory = async (
     ) {
       throw incompleteDepositHistory();
     }
-    if (account.paymentIds.has(entityId)) continue;
     const deposit = { id: entityId, amount: payload.amount, occurredAt };
     const previous = account.deposits.get(entityId);
     if (
