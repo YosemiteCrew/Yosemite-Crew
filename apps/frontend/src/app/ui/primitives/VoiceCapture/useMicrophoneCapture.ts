@@ -16,26 +16,29 @@ export interface MicrophoneCapture {
   releaseMicrophone: () => void;
 }
 
+interface ActiveCapture {
+  recorder: MediaRecorder;
+  chunks: Blob[];
+  onStopped: (chunks: Blob[]) => void;
+}
+
 /**
  * Owns the recorder and the microphone track, and nothing else. The caller
  * decides what "stopped" means and cleans up in its own order, so the teardown
  * sequence stays with whoever also owns the session state.
  */
 export function useMicrophoneCapture(): MicrophoneCapture {
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const onStoppedRef = useRef<((chunks: Blob[]) => void) | null>(null);
+  const captureRef = useRef<ActiveCapture | null>(null);
   const stopRequestedRef = useRef(false);
   const liveRef = useRef(true);
 
   const releaseMicrophone = useCallback(() => {
-    recorderRef.current?.stream?.getTracks().forEach((track) => track.stop());
+    captureRef.current?.recorder.stream?.getTracks().forEach((track) => track.stop());
   }, []);
 
   const startCapture = useCallback(async (onStopped: (chunks: Blob[]) => void) => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     try {
-      onStoppedRef.current = onStopped;
       if (!liveRef.current) {
         // The panel went away while the browser was still asking for the
         // microphone. Release it rather than opening a recorder nobody can stop.
@@ -43,18 +46,20 @@ export function useMicrophoneCapture(): MicrophoneCapture {
         return false;
       }
       const recorder = new MediaRecorder(stream, { mimeType: getMediaRecorderType() });
-      chunksRef.current = [];
+      const capture: ActiveCapture = { recorder, chunks: [], onStopped };
+      captureRef.current = capture;
       stopRequestedRef.current = false;
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
+        if (event.data.size > 0) capture.chunks.push(event.data);
       };
-      recorder.onstop = () => onStoppedRef.current?.(chunksRef.current);
-      recorderRef.current = recorder;
+      recorder.onstop = () => {
+        if (captureRef.current !== capture) return;
+        capture.onStopped(capture.chunks);
+      };
       recorder.start(50);
       return true;
     } catch (error) {
-      recorderRef.current = null;
-      onStoppedRef.current = null;
+      captureRef.current = null;
       stream.getTracks().forEach((track) => track.stop());
       throw error;
     }
@@ -63,16 +68,17 @@ export function useMicrophoneCapture(): MicrophoneCapture {
   const requestStop = useCallback(() => {
     if (stopRequestedRef.current) return;
     stopRequestedRef.current = true;
-    const recorder = recorderRef.current;
+    const capture = captureRef.current;
+    const recorder = capture?.recorder;
     if (recorder && recorder.state !== 'inactive') {
       recorder.stop();
     } else {
-      onStoppedRef.current?.(chunksRef.current);
+      capture?.onStopped(capture.chunks);
     }
   }, []);
 
   const stopRecorder = useCallback(() => {
-    const recorder = recorderRef.current;
+    const recorder = captureRef.current?.recorder;
     if (recorder && recorder.state !== 'inactive') recorder.stop();
   }, []);
 

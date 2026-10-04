@@ -532,6 +532,44 @@ describe('VoiceCapture', () => {
     }
   });
 
+  it('ignores the failed recorder stop event after a retry starts', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const user = userEvent.setup();
+      const transcriber = makeSupportedTranscriber();
+      jest.spyOn(transcriber, 'start').mockImplementationOnce(() => {
+        throw new DOMException('Speech recognition unavailable', 'InvalidStateError');
+      });
+      render(<VoiceCapture transcriber={transcriber} />);
+
+      await user.click(screen.getByLabelText('Start voice recording'));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Voice capture failed');
+      const failedRecorder = mediaRecorderInstance;
+
+      await user.click(screen.getByLabelText('Start voice recording'));
+      expect(await screen.findByText('Listening')).toBeInTheDocument();
+      const retryRecorder = mediaRecorderInstance;
+
+      await act(async () => {
+        failedRecorder?.onstop?.();
+      });
+
+      expect(screen.getByText('Listening')).toBeInTheDocument();
+      expect(global.URL.createObjectURL).not.toHaveBeenCalled();
+
+      await emit(transcriber, (current) => current.emitFinal('retry succeeded'));
+      await user.click(screen.getByLabelText('Stop recording'));
+      await act(async () => {
+        retryRecorder?.onstop?.();
+      });
+
+      expect(screen.getByText('Review transcript')).toBeInTheDocument();
+      expect(screen.getByLabelText('Transcript')).toHaveValue('retry succeeded');
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it('does not create playback audio when the recorder finishes after unmount', async () => {
     const user = userEvent.setup();
     const transcriber = makeSupportedTranscriber();
