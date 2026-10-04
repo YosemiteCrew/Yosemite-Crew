@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import React from 'react';
 import { expect, userEvent, waitFor } from 'storybook/test';
 import type { Organisation } from '@yosemite-crew/types';
 
@@ -101,6 +102,48 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+let finishPracticeLoad: () => void = () => undefined;
+
+export const SwitchPractice: Story = {
+  tags: ['practice-switch'],
+  beforeEach: () => {
+    const restore = seed(config());
+    const nextId = 'org-storybook-second-practice';
+    const nextConfig = config({ organisationId: nextId, headline: 'Second practice' });
+    const pending = new Promise<PracticeWebsiteConfig>((resolve) => {
+      finishPracticeLoad = () => resolve(nextConfig);
+    });
+    practiceWebsiteApi.getConfig = (id) => (id === nextId ? pending : Promise.resolve(config()));
+    useOrgStore.setState({
+      orgsById: { [ORG_ID]: ORG, [nextId]: { ...ORG, _id: nextId, name: 'Second practice' } },
+    });
+    useRevampCatalogStore.setState({ loadOrganisationCatalog: async () => undefined });
+    return restore;
+  },
+  render: () => (
+    <>
+      <button
+        type="button"
+        onClick={() => useOrgStore.setState({ primaryOrgId: 'org-storybook-second-practice' })}
+      >
+        Switch practice
+      </button>
+      <WebsiteBuilder />
+    </>
+  ),
+  play: async ({ canvas }) => {
+    const headline = await canvas.findByLabelText('Headline');
+    await userEvent.clear(headline);
+    await userEvent.type(headline, 'Previous draft');
+    await userEvent.click(canvas.getByRole('button', { name: 'Switch practice' }));
+    await expect(await canvas.findByText('Loading your website…')).toBeInTheDocument();
+    await expect(canvas.queryByLabelText('Headline')).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Save draft' })).not.toBeInTheDocument();
+    finishPracticeLoad();
+    await expect(await canvas.findByLabelText('Headline')).toHaveValue('Second practice');
+  },
+};
 
 export const BookingNotLive: Story = {
   name: 'Draft, booking not live yet',

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/app/ui/icons/Icon';
 import Input, { Textarea } from '@/app/ui/Input';
@@ -218,7 +218,7 @@ const usePreviewPractice = (primaryOrgId: string | null | undefined, notify: Not
       city: null,
       country: null,
       services: services.flatMap((service) =>
-        service.isBookable && service.status === 'ACTIVE'
+        service.organisationId === primaryOrgId && service.isBookable && service.status === 'ACTIVE'
           ? [
               {
                 id: service.id,
@@ -230,7 +230,7 @@ const usePreviewPractice = (primaryOrgId: string | null | undefined, notify: Not
           : []
       ),
     }),
-    [primaryOrg?.name, services]
+    [primaryOrg?.name, primaryOrgId, services]
   );
 };
 
@@ -241,12 +241,19 @@ const usePreviewPractice = (primaryOrgId: string | null | undefined, notify: Not
  * The site's call to action is the practice's booking page, so publishing is
  * offered only once online booking is live. The API enforces the same rule.
  */
-const WebsiteBuilder = () => {
+const WebsiteEditor = ({ primaryOrgId }: { primaryOrgId: string | null | undefined }) => {
   const { notify } = useNotify();
-  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const [view, setView] = useWebsiteConfig(primaryOrgId);
   const previewPractice = usePreviewPractice(primaryOrgId, notify);
   const [saving, setSaving] = useState(false);
+  const active = useRef(true);
+
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
 
   if (view.status === 'failed') {
     return (
@@ -287,16 +294,20 @@ const WebsiteBuilder = () => {
         published,
       })
       .then((saved) => {
+        if (!active.current) return;
         setView({ status: 'ready', config: saved, draft: toContent(saved) });
         notify('success', { title: 'Website saved', text: statusText(saved) });
       })
       .catch(() => {
+        if (!active.current) return;
         notify('error', {
           title: 'Could not save your website',
           text: 'Nothing was changed. Please try again.',
         });
       })
-      .finally(() => setSaving(false));
+      .finally(() => {
+        if (active.current) setSaving(false);
+      });
   };
 
   return (
@@ -346,6 +357,11 @@ const WebsiteBuilder = () => {
       </div>
     </div>
   );
+};
+
+const WebsiteBuilder = () => {
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  return <WebsiteEditor key={primaryOrgId ?? ''} primaryOrgId={primaryOrgId} />;
 };
 
 export default WebsiteBuilder;
