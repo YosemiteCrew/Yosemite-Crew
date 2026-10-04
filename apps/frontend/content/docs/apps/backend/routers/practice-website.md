@@ -4,7 +4,7 @@ title: Practice Website API
 slug: /apps/backend/api/practice-website
 ---
 
-The authenticated editor for a practice's website: read the saved template and copy, and save or publish it. Reading needs `teams:view:any` and saving needs `teams:edit:any`, the same pair as the booking page. Publishing is refused with `409` until the practice's online booking page is live, because every template's booking button opens that page.
+Lets a practice choose its website template, edit its information, save a draft and publish or unpublish the website. Online booking must be live before publishing so visitors can use the website's booking button.
 
 ## Endpoints
 
