@@ -478,8 +478,7 @@ describe('firebaseNotifications Service', () => {
         await registeredCallback(message);
       };
 
-      const displayed = () =>
-        mockNotifee.displayNotification.mock.calls[0][0];
+      const displayed = () => mockNotifee.displayNotification.mock.calls[0][0];
 
       const seated = () =>
         require('@/features/notifications').addNotificationToList.mock

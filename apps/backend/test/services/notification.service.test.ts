@@ -191,7 +191,9 @@ describe("NotificationService", () => {
       mockSend.mockResolvedValueOnce("msg-id");
       await NotificationService.sendToDevice("token", payload);
       expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { title: "Test Title", body: "Test Body" } }),
+        expect.objectContaining({
+          data: { title: "Test Title", body: "Test Body" },
+        }),
         undefined,
       );
     });
