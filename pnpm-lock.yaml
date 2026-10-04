@@ -17,6 +17,7 @@ overrides:
   yauzl: 3.2.1
   '@tootallnate/once': 3.0.1
   node-forge: 1.4.0
+  http-cache-semantics: 4.3.0
   '@modelcontextprotocol/sdk': 1.30.0
   validator: 13.15.35
   '@modelcontextprotocol/sdk>raw-body': 4.0.0
@@ -151,6 +152,9 @@ patchedDependencies:
   body-parser@2.3.0:
     hash: volxp7tpztz57zfuiqqjphe3my
     path: patches/body-parser@2.3.0.patch
+  http-cache-semantics@4.3.0:
+    hash: cdhv4ch4fvdel44tk2jnuxbanu
+    path: patches/http-cache-semantics@4.3.0.patch
   metro@0.83.7:
     hash: 7npt7igwfxcqdh3sogdu57amsu
     path: patches/metro@0.83.7.patch
@@ -12471,7 +12475,7 @@ packages:
     dependencies:
       clone-response: 1.0.3
       get-stream: 5.2.0
-      http-cache-semantics: 4.2.0
+      http-cache-semantics: 4.3.0(patch_hash=cdhv4ch4fvdel44tk2jnuxbanu)
       keyv: 4.5.4
       lowercase-keys: 2.0.0
       normalize-url: 6.1.0
@@ -16599,9 +16603,10 @@ packages:
       readable-stream: 3.6.2
     dev: true
 
-  /http-cache-semantics@4.2.0:
-    resolution: {integrity: sha512-dTxcvPXqPvXBQpq5dUr6mEMJX4oIEFv6bwom3FDwKRDsuIjjJGANqhBuoAn9c1RQJIdAKav33ED65E2ys+87QQ==}
+  /http-cache-semantics@4.3.0(patch_hash=cdhv4ch4fvdel44tk2jnuxbanu):
+    resolution: {integrity: sha512-M5t5LlJpS1UHMjvwRQVdFHvPISGeLAxNcrWuJkeGh0KxsqCHZ1O3NXZU/8x7cD0BDcGW8kapxMKTvwlqrNkHkA==}
     dev: true
+    patched: true
 
   /http-errors@2.0.0:
     resolution: {integrity: sha512-FtwrG/euBzaEjYeRqOgly7G0qviiXoJWnvEH2Z1plBdXgbyjv34pHTSb9zoeHMyDy33+DWy5Wt9Wo+TURtOYSQ==}
