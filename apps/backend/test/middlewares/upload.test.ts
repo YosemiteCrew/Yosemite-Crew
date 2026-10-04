@@ -185,6 +185,90 @@ describe("Upload Middleware", () => {
   });
 
   describe("uploadToS3", () => {
+    it.each([false, true])(
+      "handles multipart upload with a failed part: %s",
+      async (failPart) => {
+        const sdk =
+          jest.requireActual<typeof import("@aws-sdk/client-s3")>(
+            "@aws-sdk/client-s3",
+          );
+        const { Upload: ActualUpload } = jest.requireActual(
+          "@aws-sdk/lib-storage",
+        );
+        const { Upload } = jest.requireMock("@aws-sdk/lib-storage");
+        const client = new sdk.S3Client({ region: "us-east-1" });
+        const body = Buffer.alloc(6 * 1024 * 1024, 7);
+        const send = jest
+          .spyOn(client, "send")
+          .mockImplementation(async (command: unknown) => {
+            if (command instanceof sdk.CreateMultipartUploadCommand)
+              return { UploadId: "upload-1" };
+            if (command instanceof sdk.UploadPartCommand) {
+              if (failPart) throw new Error("Part upload failed");
+              return { ETag: `part-${command.input.PartNumber}` };
+            }
+            if (command instanceof sdk.CompleteMultipartUploadCommand)
+              return { Location: "https://files.example/report.pdf" };
+            if (command instanceof sdk.AbortMultipartUploadCommand) return {};
+            throw new Error("Unexpected upload command");
+          });
+        Upload.mockImplementationOnce(
+          ({ params }: { params: unknown }) =>
+            new ActualUpload({ client, params }),
+        );
+        try {
+          const upload = uploadToS3("report.pdf", body, "application/pdf");
+          if (failPart) {
+            await expect(upload).rejects.toThrow("Part upload failed");
+            expect(
+              send.mock.calls.some(
+                ([command]) =>
+                  command instanceof sdk.AbortMultipartUploadCommand,
+              ),
+            ).toBe(true);
+            expect(
+              send.mock.calls.some(
+                ([command]) =>
+                  command instanceof sdk.CompleteMultipartUploadCommand,
+              ),
+            ).toBe(false);
+          } else {
+            await expect(upload).resolves.toEqual({
+              location: "https://files.example/report.pdf",
+              key: "report.pdf",
+            });
+            const parts = send.mock.calls
+              .map(([command]) => command)
+              .filter((command) => command instanceof sdk.UploadPartCommand);
+            expect(
+              parts
+                .map((part) =>
+                  Buffer.isBuffer(part.input.Body)
+                    ? part.input.Body.byteLength
+                    : 0,
+                )
+                .sort((a, b) => a - b),
+            ).toEqual([1024 * 1024, 5 * 1024 * 1024]);
+            expect(
+              send.mock.calls
+                .map(([command]) => command)
+                .find(
+                  (command) =>
+                    command instanceof sdk.CreateMultipartUploadCommand,
+                )?.input,
+            ).toMatchObject({
+              Bucket: "test-bucket",
+              Key: "report.pdf",
+              ContentType: "application/pdf",
+              ContentDisposition: "inline",
+            });
+          }
+        } finally {
+          send.mockRestore();
+          client.destroy();
+        }
+      },
+    );
     it("rejects a completed upload without a file location", async () => {
       mockS3Upload.mockResolvedValueOnce({ Key: "file.png" });
       await expect(uploadToS3("file.png", "", "image/png")).rejects.toThrow(
