@@ -184,6 +184,7 @@ type SeatSyncPlan = {
 };
 
 type BusinessCheckoutCompletedInput = {
+  orgId: string;
   customerId: string;
   subscriptionId: string;
   subscriptionItemId: string;
@@ -894,6 +895,7 @@ export const FinanceSubscriptionService = {
   },
 
   async recordBusinessCheckoutCompleted(input: BusinessCheckoutCompletedInput) {
+    const orgId = z.string().min(1).parse(input.orgId);
     const customerId = input.customerId;
     const subscriptionId = input.subscriptionId;
     const subscriptionItemId = input.subscriptionItemId;
@@ -906,87 +908,73 @@ export const FinanceSubscriptionService = {
     const cancelAtPeriodEnd = input.cancelAtPeriodEnd === true;
     const currentPeriodStart = input.currentPeriodStart ?? null;
     const currentPeriodEnd = input.currentPeriodEnd ?? null;
-    const rows =
-      (await prisma.financeProviderLink.findMany({
-        where: {
-          provider: "STRIPE",
-          externalCustomerId: customerId,
-        },
-        select: { orgId: true },
-      })) ?? [];
+    await this.upsertSubscriptionProviderLink({
+      orgId,
+      provider: "STRIPE",
+      externalCustomerId: customerId,
+      externalSubscriptionId: subscriptionId,
+      externalSubscriptionItemId: subscriptionItemId,
+      externalPriceId: priceId,
+      externalProductId: productId,
+      metadata: {
+        subscriptionStatus,
+        cancelAtPeriodEnd,
+      },
+    });
 
-    await Promise.all(
-      rows.map(async (row) => {
-        const orgId = row.orgId ?? customerId;
-        await this.upsertSubscriptionProviderLink({
+    if (hasPaidPlanAllowances(subscriptionStatus)) {
+      const billingUpdate = BusinessBillingUpdateSchema.parse({
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        stripeSubscriptionItemId: subscriptionItemId,
+        stripePriceId: priceId,
+        stripeProductId: productId,
+        stripeLivemode: input.livemode === true,
+        plan: "business",
+        billingInterval,
+        seatQuantity,
+        seatQuantityUpdatedAt: new Date(),
+        subscriptionStatus,
+        cancelAtPeriodEnd,
+        canceledAt: null,
+        currentPeriodStart,
+        currentPeriodEnd,
+        upgradedAt: new Date(),
+        accessState: resolveAccessState(subscriptionStatus),
+      });
+
+      await Promise.all([
+        this.upsertSubscriptionEntitlement({
           orgId,
-          provider: "STRIPE",
-          externalCustomerId: customerId,
-          externalSubscriptionId: subscriptionId,
-          externalSubscriptionItemId: subscriptionItemId,
-          externalPriceId: priceId,
-          externalProductId: productId,
+          code: "BUSINESS_PLAN",
+          name: "Business subscription",
+          value: {
+            plan: "business",
+            billingInterval,
+            seatQuantity,
+            priceId,
+            productId,
+          },
+          source: "STRIPE",
+          status: "ACTIVE",
+          grantedAt: new Date(),
           metadata: {
             subscriptionStatus,
             cancelAtPeriodEnd,
+            currentPeriodStart: toIsoString(currentPeriodStart),
+            currentPeriodEnd: toIsoString(currentPeriodEnd),
+            seatQuantity,
           },
-        });
-
-        if (!hasPaidPlanAllowances(subscriptionStatus)) return;
-
-        const billingUpdate = BusinessBillingUpdateSchema.parse({
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: subscriptionId,
-          stripeSubscriptionItemId: subscriptionItemId,
-          stripePriceId: priceId,
-          stripeProductId: productId,
-          stripeLivemode: input.livemode === true,
-          plan: "business",
-          billingInterval,
-          seatQuantity,
-          seatQuantityUpdatedAt: new Date(),
-          subscriptionStatus,
-          cancelAtPeriodEnd,
-          canceledAt: null,
-          currentPeriodStart,
-          currentPeriodEnd,
-          upgradedAt: new Date(),
-          accessState: resolveAccessState(subscriptionStatus),
-        });
-
-        await Promise.all([
-          this.upsertSubscriptionEntitlement({
-            orgId,
-            code: "BUSINESS_PLAN",
-            name: "Business subscription",
-            value: {
-              plan: "business",
-              billingInterval,
-              seatQuantity,
-              priceId,
-              productId,
-            },
-            source: "STRIPE",
-            status: "ACTIVE",
-            grantedAt: new Date(),
-            metadata: {
-              subscriptionStatus,
-              cancelAtPeriodEnd,
-              currentPeriodStart: toIsoString(currentPeriodStart),
-              currentPeriodEnd: toIsoString(currentPeriodEnd),
-              seatQuantity,
-            },
-          }),
-          prisma.organizationBilling.updateMany({
-            where: { orgId: String(orgId) },
-            data: billingUpdate,
-          }),
-        ]);
-      }),
-    );
+        }),
+        prisma.organizationBilling.updateMany({
+          where: { orgId },
+          data: billingUpdate,
+        }),
+      ]);
+    }
 
     await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? customerId,
+      organisationId: orgId,
       eventType: "SUBSCRIPTION_STARTED",
       entityType: "SUBSCRIPTION",
       entityId: subscriptionId,
@@ -1134,8 +1122,55 @@ export const FinanceSubscriptionService = {
 
     const productId =
       typeof price.product === "string" ? price.product : price.product?.id;
+    const orgId = input.session.metadata?.orgId?.trim();
+    const interval = toBillingInterval(input.session.metadata?.interval);
+    const subscriptionOrgId = input.subscription.metadata?.orgId?.trim();
+    const sessionCustomerId =
+      typeof input.session.customer === "string"
+        ? input.session.customer
+        : input.session.customer?.id;
+    const sessionSubscriptionId =
+      typeof input.session.subscription === "string"
+        ? input.session.subscription
+        : input.session.subscription?.id;
+    let expectedPriceId: string | undefined;
+    if (interval === "month") {
+      expectedPriceId = process.env.STRIPE_PRICE_BUSINESS_MONTH;
+    } else if (interval === "year") {
+      expectedPriceId = process.env.STRIPE_PRICE_BUSINESS_YEAR;
+    }
+    if (
+      !orgId ||
+      subscriptionOrgId !== orgId ||
+      sessionCustomerId !== input.customerId ||
+      sessionSubscriptionId !== input.subscription.id ||
+      !expectedPriceId ||
+      price.id !== expectedPriceId
+    ) {
+      return;
+    }
+
+    const providerLink = await prisma.financeProviderLink.findUnique({
+      where: { orgId_provider: { orgId, provider: "STRIPE" } },
+      select: { externalCustomerId: true },
+    });
+    if (providerLink?.externalCustomerId !== input.customerId) return;
+
+    const duplicateLink = await prisma.financeProviderLink.findFirst({
+      where: {
+        provider: "STRIPE",
+        orgId: { not: orgId },
+        OR: [
+          { externalCustomerId: input.customerId },
+          { externalSubscriptionId: input.subscription.id },
+        ],
+      },
+      select: { orgId: true },
+    });
+    if (duplicateLink) return;
 
     await this.recordBusinessCheckoutCompleted({
+      orgId,
       customerId: input.customerId,
       subscriptionId: input.subscription.id,
       subscriptionItemId: item.id,

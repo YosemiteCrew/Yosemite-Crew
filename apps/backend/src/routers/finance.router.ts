@@ -162,14 +162,6 @@ router.get(
 );
 
 router.post(
-  "/organisation/:organisationId/subscription/provider/:provider/customer",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("subscription:edit:any"),
-  FinanceController.recordSubscriptionCustomer,
-);
-
-router.post(
   "/organisation/:organisationId/subscription/provider/:provider/deleted",
   requireWebAuth,
   withOrgPermissions(),

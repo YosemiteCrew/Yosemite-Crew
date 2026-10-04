@@ -172,6 +172,12 @@ describe("finance.router", () => {
   it("does not expose subscription state mutation routes to clients", () => {
     expect(
       findRoute(
+        "/organisation/:organisationId/subscription/provider/:provider/customer",
+        "post",
+      ),
+    ).toBeUndefined();
+    expect(
+      findRoute(
         "/organisation/:organisationId/subscription/provider/:provider/checkout/completed",
         "post",
       ),

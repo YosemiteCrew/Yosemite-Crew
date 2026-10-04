@@ -37,14 +37,6 @@ Read-only list of completed visits whose billing is incomplete: no invoice, a dr
 - Params: `organisationId`
 - Controller: `FinanceController.getSubscriptionSeatSyncPlan`
 
-### POST /organisation/:organisationId/subscription/provider/:provider/customer
-
-- Auth: `requireWebAuth`
-- RBAC: `withOrgPermissions, requirePermission`
-- Params: `organisationId`, `provider`
-- Body: `{ externalCustomerId: string }`
-- Controller: `FinanceController.recordSubscriptionCustomer`
-
 ### POST /organisation/:organisationId/subscription/provider/:provider/deleted
 
 - Auth: `requireWebAuth`

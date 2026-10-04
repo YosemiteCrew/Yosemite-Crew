@@ -1465,6 +1465,7 @@ export const FinanceController = {
       }
 
       await FinanceSubscriptionService.recordBusinessCheckoutCompleted({
+        orgId: context.organisationId,
         customerId: body.data.customerId,
         subscriptionId: body.data.subscriptionId,
         subscriptionItemId: body.data.subscriptionItemId,
