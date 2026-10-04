@@ -141,15 +141,12 @@ const invoiceOwnershipPredicate = (
   const revisions = [...(invoice.revisions ?? [])].sort((left, right) =>
     left.id > right.id ? -1 : 1,
   );
-  const statementOwner = JSON.stringify([
-    invoice.statementOrganisationId,
-    invoice.statementParentId,
-  ]);
   return (at) => {
     const owner = revisions.find((revision) => revision.recordedAt <= at);
     if (!owner) return false;
     return (
-      JSON.stringify([owner.organisationId, owner.parentId]) === statementOwner
+      owner.organisationId === (invoice.statementOrganisationId ?? null) &&
+      owner.parentId === (invoice.statementParentId ?? null)
     );
   };
 };
