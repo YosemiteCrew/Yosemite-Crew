@@ -144,7 +144,7 @@ const syncStatusFromLines = async (purchaseOrderId: string, tx: Tx) => {
 
   await tx.purchaseOrder.updateMany({
     where: {
-      id: { equals: safePurchaseOrderId },
+      id: safePurchaseOrderId,
       status: { in: RECEIVING_STATUSES },
     },
     data: { status },

@@ -281,7 +281,7 @@ describe("PurchaseOrderService.receiveDelivery", () => {
     });
     expect(db.purchaseOrder.updateMany).toHaveBeenCalledWith({
       where: {
-        id: { equals: "po-1" },
+        id: "po-1",
         status: { in: ["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED"] },
       },
       data: { status: "PARTIALLY_RECEIVED" },
@@ -602,7 +602,7 @@ describe("PurchaseOrderService.returnDelivery", () => {
     });
     expect(db.purchaseOrder.updateMany.mock.calls[0][0]).toEqual({
       where: {
-        id: { equals: "po-1" },
+        id: "po-1",
         status: { in: ["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED"] },
       },
       data: { status: "PARTIALLY_RECEIVED" },
