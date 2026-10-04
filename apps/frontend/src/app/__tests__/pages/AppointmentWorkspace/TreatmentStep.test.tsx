@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import TreatmentStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/TreatmentStep';
@@ -1176,31 +1176,64 @@ describe('TreatmentStep', () => {
     );
   });
 
-  it('rehydrates while prescription finalization is still in progress', async () => {
-    let resolveFinalize: (() => void) | undefined;
-    const pendingFinalize = new Promise<void>((resolve) => {
-      resolveFinalize = resolve;
-    });
-    (finalizePrescription as jest.Mock).mockReturnValue(pendingFinalize);
-    const onOpenInvoice = jest.fn();
-    const enc = seedAndGet();
-    render(
-      <TreatmentStep
-        appointmentId={APPT}
-        organisationId={ORG}
-        encounterId="enc-1"
-        encounter={enc}
-        onOpenInvoice={onOpenInvoice}
-      />
-    );
+  it.each(['success', 'failure', 'empty failure'])(
+    'refreshes only after all prescriptions finish finalizing: %s',
+    async (outcome) => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      let resolveFinalize: (() => void) | undefined;
+      let rejectFinalize: ((reason?: unknown) => void) | undefined;
+      const pendingFinalize = new Promise<void>((resolve, reject) => {
+        resolveFinalize = resolve;
+        rejectFinalize = reject;
+      });
+      (finalizePrescription as jest.Mock)
+        .mockReturnValueOnce(pendingFinalize)
+        .mockResolvedValueOnce({});
+      let resolveBootstrap: ((value: object) => void) | undefined;
+      (getAppointmentWorkspaceBootstrap as jest.Mock).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveBootstrap = resolve;
+        })
+      );
+      const onOpenInvoice = jest.fn();
+      const enc = seedAndGet();
+      render(
+        <TreatmentStep
+          appointmentId={APPT}
+          organisationId={ORG}
+          encounterId="enc-1"
+          encounter={enc}
+          onOpenInvoice={onOpenInvoice}
+        />
+      );
 
-    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
-    await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT));
-    expect(onOpenInvoice).not.toHaveBeenCalled();
-    resolveFinalize?.();
-    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
-  });
+      await waitFor(() => expect(finalizePrescription).toHaveBeenCalledTimes(2));
+      expect(getAppointmentWorkspaceBootstrap).not.toHaveBeenCalled();
+      expect(onOpenInvoice).not.toHaveBeenCalled();
+      await act(async () => {
+        if (outcome === 'success') resolveFinalize?.();
+        else rejectFinalize?.(outcome === 'failure' ? new Error('Unable to finalize') : undefined);
+      });
+      await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT));
+      expect(onOpenInvoice).not.toHaveBeenCalled();
+      expect(screen.queryByText('Unable to finalize')).not.toBeInTheDocument();
+      await act(async () => {
+        resolveBootstrap?.({});
+      });
+      if (outcome === 'success') {
+        await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+      } else {
+        await waitFor(() => expect(errorSpy).toHaveBeenCalled());
+        expect(onOpenInvoice).not.toHaveBeenCalled();
+        expect(
+          useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+        ).not.toBe('COMPLETED');
+      }
+      errorSpy.mockRestore();
+    }
+  );
 
   // #1909: an already-finalized prescription (a locked clinical record) must NOT be re-saved on the
   // next Save Treatment - re-POSTing/PATCHing it returns 409 and would fail the whole save. It is
