@@ -98,13 +98,12 @@ export const createSyncEngine = (deps: EngineDeps): SyncEngine => {
   };
 
   // Tables sync one after another, in the order given.
-  const fullSync = async (tables: string[]): Promise<SyncResult[]> => {
-    const results: SyncResult[] = [];
-    for await (const table of tables) {
+  const fullSync = (tables: string[]): Promise<SyncResult[]> =>
+    tables.reduce(async (pendingResults, table) => {
+      const results = await pendingResults;
       results.push(await syncTable(table));
-    }
-    return results;
-  };
+      return results;
+    }, Promise.resolve<SyncResult[]>([]));
 
   const getLastSyncTimestamps = (): Record<string, number> => ({
     ...lastSyncAt,

@@ -48,7 +48,8 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
     flushing = true;
     try {
       deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-      for await (const mutation of batch) {
+      await batch.reduce(async (previous, mutation) => {
+        await previous;
         try {
           const result = await deps.transport.send({
             type: mutation.type,
@@ -71,7 +72,7 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
           deps.queue.markFailed(mutation.id);
           deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
         }
-      }
+      }, Promise.resolve());
     } finally {
       flushing = false;
     }
