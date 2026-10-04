@@ -55,10 +55,18 @@ jobs:
         # each is checked against the acceptances recorded for it.
         branch: [main, dev]
     steps:
-      - name: Checkout ${{ matrix.branch }}
+      - name: Checkout main
+        if: matrix.branch == 'main'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ matrix.branch }}
+          ref: main
+          persist-credentials: false
+
+      - name: Checkout dev
+        if: matrix.branch == 'dev'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: dev
           persist-credentials: false
 
       # A full install, because the check imports `semver` - the same resolver
