@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent } from 'storybook/test';
 import VoiceCapture from './VoiceCapture';
 import type { SpeechTranscriptionAdapter, SpeechTranscriptionEvents } from './speechTranscription';
 
@@ -61,6 +61,39 @@ export const Default: Story = {
 export const Unsupported: Story = {
   name: 'Unsupported browser',
   args: { transcriber: unsupportedTranscriber },
+};
+
+export const PhoneTypedFallback: Story = {
+  name: 'Typed fallback stays available on phones',
+  args: { transcriber: unsupportedTranscriber },
+  parameters: { layout: 'padded' },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
+  tags: ['phone-fallback'],
+  render: (args) => (
+    <div className="w-90 max-w-full">
+      <VoiceCapture {...args} />
+    </div>
+  ),
+  play: async ({ args, canvas, canvasElement }) => {
+    const capture = canvas.getByRole('region', { name: 'Voice capture' });
+    const bounds = capture.getBoundingClientRect();
+    await expect(bounds.width).toBeLessThanOrEqual(360);
+    await expect(bounds.left).toBeGreaterThanOrEqual(0);
+    await expect(bounds.right).toBeLessThanOrEqual(
+      canvasElement.ownerDocument.documentElement.clientWidth
+    );
+
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Transcript' }), 'First note');
+    await userEvent.click(canvas.getByRole('button', { name: 'Use text' }));
+    await expect(args.onTranscript).toHaveBeenNthCalledWith(1, 'First note');
+    await expect(canvas.getByRole('button', { name: 'Voice capture unavailable' })).toBeDisabled();
+    await expect(canvas.getByRole('textbox', { name: 'Transcript' })).toHaveValue('');
+
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Transcript' }), 'Second note{enter}');
+    await expect(args.onTranscript).toHaveBeenNthCalledWith(2, 'Second note');
+    await expect(canvas.getByRole('button', { name: 'Voice capture unavailable' })).toBeDisabled();
+    await expect(canvas.getByRole('textbox', { name: 'Transcript' })).toHaveValue('');
+  },
 };
 
 export const CustomPlaceholder: Story = {

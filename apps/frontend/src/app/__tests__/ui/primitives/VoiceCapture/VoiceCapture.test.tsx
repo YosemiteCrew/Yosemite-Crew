@@ -159,6 +159,29 @@ describe('VoiceCapture', () => {
     expect(onCorrection).not.toHaveBeenCalled();
   });
 
+  it('keeps the typed fallback available after repeated confirmations in an unsupported browser', async () => {
+    const user = userEvent.setup();
+    const transcriber = makeUnsupportedTranscriber();
+    const onTranscript = jest.fn();
+    render(<VoiceCapture transcriber={transcriber} onTranscript={onTranscript} />);
+
+    await user.type(screen.getByRole('textbox', { name: 'Transcript' }), 'First note{enter}');
+
+    expect(onTranscript).toHaveBeenNthCalledWith(1, 'First note');
+    expect(screen.getByRole('button', { name: 'Voice capture unavailable' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Transcript' })).toHaveValue('');
+
+    await user.type(screen.getByRole('textbox', { name: 'Transcript' }), 'Second note');
+    await user.click(screen.getByRole('button', { name: 'Use text' }));
+
+    expect(onTranscript).toHaveBeenNthCalledWith(2, 'Second note');
+    expect(onTranscript).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: 'Voice capture unavailable' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Transcript' })).toHaveValue('');
+    expect(transcriber.start).not.toHaveBeenCalled();
+    expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
   it('uses native landmarks for the capture area and playback controls', async () => {
     const user = userEvent.setup();
     const transcriber = makeSupportedTranscriber();
@@ -476,6 +499,53 @@ describe('VoiceCapture', () => {
     expect(global.MediaRecorder).toHaveBeenCalledWith(expect.any(Object), {
       mimeType: undefined,
     });
+  });
+
+  it('releases the recorder and microphone when speech recognition fails to start', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const user = userEvent.setup();
+      const transcriber = makeSupportedTranscriber();
+      jest.spyOn(transcriber, 'start').mockImplementationOnce(() => {
+        throw new DOMException('Speech recognition unavailable', 'InvalidStateError');
+      });
+      render(<VoiceCapture transcriber={transcriber} />);
+
+      await user.click(screen.getByLabelText('Start voice recording'));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Voice capture failed');
+      expect(mediaRecorderInstance?.start).toHaveBeenCalledTimes(1);
+      expect(mediaRecorderInstance?.stop).toHaveBeenCalledTimes(1);
+      expect(mockTrack.stop).toHaveBeenCalled();
+      expect(transcriber.abort).toHaveBeenCalled();
+      expect(screen.getByLabelText('Start voice recording')).toBeEnabled();
+
+      await act(async () => {
+        mediaRecorderInstance?.onstop?.();
+        transcriber.emitEnd();
+      });
+      expect(screen.getByText('Voice capture ready')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Transcript')).not.toBeInTheDocument();
+      expect(global.URL.createObjectURL).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('does not create playback audio when the recorder finishes after unmount', async () => {
+    const user = userEvent.setup();
+    const transcriber = makeSupportedTranscriber();
+    const { unmount } = render(<VoiceCapture transcriber={transcriber} />);
+
+    await startListening(user);
+    unmount();
+    await act(async () => {
+      mediaRecorderInstance?.onstop?.();
+    });
+
+    expect(mockTrack.stop).toHaveBeenCalled();
+    expect(global.URL.createObjectURL).not.toHaveBeenCalled();
+    expect(global.Audio).not.toHaveBeenCalled();
   });
 
   it('finalizes directly when the recorder was already inactive on manual stop', async () => {
