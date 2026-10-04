@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import React from 'react';
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { expect, userEvent, within } from 'storybook/test';
 import api, { clearInFlightGetRequests } from '@/app/services/axios';
