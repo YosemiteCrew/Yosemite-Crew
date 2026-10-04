@@ -142,6 +142,9 @@ overrides:
 packageExtensionsChecksum: 4c79c1a231c1aef09e03f04a4492b400
 
 patchedDependencies:
+  aws-cdk-lib@2.270.0:
+    hash: ldyynfhhkcih7bryt2c33mm3sa
+    path: patches/aws-cdk-lib@2.270.0.patch
   body-parser@1.20.6:
     hash: p2t6jd4nmjjqvfbrjflsm4awd4
     path: patches/body-parser@1.20.6.patch
@@ -179,7 +182,7 @@ importers:
         version: 13.0.5
       aws-cdk-lib:
         specifier: 2.270.0
-        version: 2.270.0(constructs@10.8.1)
+        version: 2.270.0(patch_hash=ldyynfhhkcih7bryt2c33mm3sa)(constructs@10.8.1)
       constructs:
         specifier: ^10.8.1
         version: 10.8.1
@@ -11721,7 +11724,7 @@ packages:
     dependencies:
       possible-typed-array-names: 1.1.0
 
-  /aws-cdk-lib@2.270.0(constructs@10.8.1):
+  /aws-cdk-lib@2.270.0(patch_hash=ldyynfhhkcih7bryt2c33mm3sa)(constructs@10.8.1):
     resolution: {integrity: sha512-xoO9FEqcVTTK39N6n+LxvAAsS5WZSGX/p+uv3l2W+LXDEIWctq6VECdluuFwdXnbyf4v4eIxo2btrkUepnEy0Q==}
     engines: {node: '>= 20.0.0'}
     peerDependencies:
@@ -11745,6 +11748,7 @@ packages:
       - semver
       - yaml
       - mime-types
+    patched: true
 
   /aws-sdk@2.1693.0:
     resolution: {integrity: sha512-cJmb8xEnVLT+R6fBS5sn/EFJiX7tUnDaPtOPZ1vFbOJtd0fnZn/Ky2XGgsvvoeliWeH7mL3TWSX5zXXGSQV6gQ==}

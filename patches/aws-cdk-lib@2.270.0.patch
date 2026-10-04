@@ -1,0 +1,325 @@
+diff --git a/node_modules/brace-expansion/dist/commonjs/index.d.ts b/node_modules/brace-expansion/dist/commonjs/index.d.ts
+index f3e2de9d87e1ce462517e49f35733bed8bdf85af..89d9051a5318b1218510f294886a00ba8ad93105 100644
+--- a/node_modules/brace-expansion/dist/commonjs/index.d.ts
++++ b/node_modules/brace-expansion/dist/commonjs/index.d.ts
+@@ -1,8 +1,11 @@
+ export declare const EXPANSION_MAX = 100000;
+ export declare const EXPANSION_MAX_LENGTH = 4000000;
++export declare const EXPANSION_MAX_DEPTH = 1000;
++export declare const EXPANSION_MAX_REWRITES = 1000;
+ export type BraceExpansionOptions = {
+     max?: number;
+     maxLength?: number;
++    maxDepth?: number;
++    maxRewrites?: number;
+ };
+ export declare function expand(str: string, options?: BraceExpansionOptions): string[];
+-//# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
+diff --git a/node_modules/brace-expansion/dist/commonjs/index.js b/node_modules/brace-expansion/dist/commonjs/index.js
+index 869a6bee23807b9f01c18c99ab8e952b4b242f97..82236954f6c6bd99b5c33ee800e4eee192a68700 100644
+--- a/node_modules/brace-expansion/dist/commonjs/index.js
++++ b/node_modules/brace-expansion/dist/commonjs/index.js
+@@ -1,6 +1,6 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+-exports.EXPANSION_MAX_LENGTH = exports.EXPANSION_MAX = void 0;
++exports.EXPANSION_MAX_REWRITES = exports.EXPANSION_MAX_DEPTH = exports.EXPANSION_MAX_LENGTH = exports.EXPANSION_MAX = void 0;
+ exports.expand = expand;
+ const balanced_match_1 = require("balanced-match");
+ const escSlash = '\0SLASH' + Math.random() + '\0';
+@@ -30,6 +30,13 @@ exports.EXPANSION_MAX = 100_000;
+ // realistic expansion (100k results hitting `EXPANSION_MAX` measure ~1M
+ // characters) so legitimate input is unaffected.
+ exports.EXPANSION_MAX_LENGTH = 4_000_000;
++exports.EXPANSION_MAX_DEPTH = 1_000;
++exports.EXPANSION_MAX_REWRITES = 1_000;
++function pushAll(target, items) {
++    for (let i = 0; i < items.length; i++) {
++        target.push(items[i]);
++    }
++}
+ function numeric(str) {
+     return !isNaN(str) ? parseInt(str, 10) : str.charCodeAt(0);
+ }
+@@ -55,31 +62,34 @@ function unescapeBraces(str) {
+  * treated as individual members, like {a,{b,c},d}
+  */
+ function parseCommaParts(str) {
+-    if (!str) {
+-        return [''];
+-    }
+     const parts = [];
+-    const m = (0, balanced_match_1.balanced)('{', '}', str);
+-    if (!m) {
+-        return str.split(',');
+-    }
+-    const { pre, body, post } = m;
+-    const p = pre.split(',');
+-    p[p.length - 1] += '{' + body + '}';
+-    const postParts = parseCommaParts(post);
+-    if (post.length) {
+-        ;
+-        p[p.length - 1] += postParts.shift();
+-        p.push.apply(p, postParts);
++    let carry = '';
++    for (;;) {
++        const m = (0, balanced_match_1.balanced)('{', '}', str);
++        if (!m) {
++            const tail = str.split(',');
++            tail[0] = carry + tail[0];
++            pushAll(parts, tail);
++            return parts;
++        }
++        const { pre, body, post } = m;
++        const p = pre.split(',');
++        p[0] = carry + p[0];
++        p[p.length - 1] += '{' + body + '}';
++        if (!post.length) {
++            pushAll(parts, p);
++            return parts;
++        }
++        carry = p.pop();
++        pushAll(parts, p);
++        str = post;
+     }
+-    parts.push.apply(parts, p);
+-    return parts;
+ }
+ function expand(str, options = {}) {
+     if (!str) {
+         return [];
+     }
+-    const { max = exports.EXPANSION_MAX, maxLength = exports.EXPANSION_MAX_LENGTH } = options;
++    const { max = exports.EXPANSION_MAX, maxLength = exports.EXPANSION_MAX_LENGTH, maxDepth = exports.EXPANSION_MAX_DEPTH, maxRewrites = exports.EXPANSION_MAX_REWRITES } = options;
+     // I don't know why Bash 4.3 does this, but it does.
+     // Anything starting with {} will have the first two bytes preserved
+     // but *only* at the top level, so {},a}b will not expand to anything,
+@@ -89,7 +99,7 @@ function expand(str, options = {}) {
+     if (str.slice(0, 2) === '{}') {
+         str = '\\{\\}' + str.slice(2);
+     }
+-    return expand_(escapeBraces(str), max, maxLength, true).map(unescapeBraces);
++    return expand_(escapeBraces(str), max, maxLength, maxDepth, 0, maxRewrites, true).map(unescapeBraces);
+ }
+ function embrace(str) {
+     return '{' + str + '}';
+@@ -184,7 +194,10 @@ function expandSequence(body, isAlphaSequence, max, maxLength) {
+     }
+     return N;
+ }
+-function expand_(str, max, maxLength, isTop) {
++function expand_(str, max, maxLength, maxDepth, depth, maxRewrites, isTop) {
++    if (depth > maxDepth) {
++        return [str];
++    }
+     // Consume the string's top-level brace groups left to right, threading a
+     // running set of combined prefixes (`acc`). Expanding the tail iteratively -
+     // rather than recursing on `m.post` once per group - keeps the native stack
+@@ -196,6 +209,7 @@ function expand_(str, max, maxLength, isTop) {
+     // comma set - a sequence like `{a..\}` may legitimately yield ''. The drop
+     // is on the final strings, so it is applied to whichever `combine` produces
+     // them (the one with no brace set left in the tail).
++    let rewrites = 0;
+     let dropEmpties = false;
+     let firstGroup = true;
+     for (;;) {
+@@ -220,7 +234,8 @@ function expand_(str, max, maxLength, isTop) {
+         const isOptions = m.body.indexOf(',') >= 0;
+         if (!isSequence && !isOptions) {
+             // {a},b}
+-            if (m.post.match(/,(?!,).*\}/)) {
++            if (rewrites < maxRewrites && m.post.match(/,(?!,).*\}/)) {
++                rewrites++;
+                 str = m.pre + '{' + m.body + escClose + m.post;
+                 isTop = true;
+                 continue;
+@@ -240,7 +255,7 @@ function expand_(str, max, maxLength, isTop) {
+             let n = parseCommaParts(m.body);
+             if (n.length === 1 && n[0] !== undefined) {
+                 // x{{a,b}}y ==> x{a}y x{b}y
+-                n = expand_(n[0], max, maxLength, false).map(embrace);
++                n = expand_(n[0], max, maxLength, maxDepth, depth + 1, maxRewrites, false).map(embrace);
+                 //XXX is this necessary? Can't seem to hit it in tests.
+                 /* c8 ignore start */
+                 if (n.length === 1) {
+@@ -266,7 +281,7 @@ function expand_(str, max, maxLength, isTop) {
+             values = [];
+             let valuesLength = 0;
+             outer: for (let j = 0; j < n.length; j++) {
+-                const expanded = expand_(n[j], max, maxLength, false);
++                const expanded = expand_(n[j], max, maxLength, maxDepth, depth + 1, maxRewrites, false);
+                 for (let k = 0; k < expanded.length; k++) {
+                     const v = expanded[k];
+                     if (dropsEmpties && !v)
+@@ -286,4 +301,3 @@ function expand_(str, max, maxLength, isTop) {
+     }
+     return acc;
+ }
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/node_modules/brace-expansion/dist/esm/index.d.ts b/node_modules/brace-expansion/dist/esm/index.d.ts
+index f3e2de9d87e1ce462517e49f35733bed8bdf85af..89d9051a5318b1218510f294886a00ba8ad93105 100644
+--- a/node_modules/brace-expansion/dist/esm/index.d.ts
++++ b/node_modules/brace-expansion/dist/esm/index.d.ts
+@@ -1,8 +1,11 @@
+ export declare const EXPANSION_MAX = 100000;
+ export declare const EXPANSION_MAX_LENGTH = 4000000;
++export declare const EXPANSION_MAX_DEPTH = 1000;
++export declare const EXPANSION_MAX_REWRITES = 1000;
+ export type BraceExpansionOptions = {
+     max?: number;
+     maxLength?: number;
++    maxDepth?: number;
++    maxRewrites?: number;
+ };
+ export declare function expand(str: string, options?: BraceExpansionOptions): string[];
+-//# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
+diff --git a/node_modules/brace-expansion/dist/esm/index.js b/node_modules/brace-expansion/dist/esm/index.js
+index fd68f57029207ac1bcafe7fb1c14ad5305b3ffa4..fa2d5e4c880de1f78a9249381ef7407ab203f40a 100644
+--- a/node_modules/brace-expansion/dist/esm/index.js
++++ b/node_modules/brace-expansion/dist/esm/index.js
+@@ -26,6 +26,13 @@ export const EXPANSION_MAX = 100_000;
+ // realistic expansion (100k results hitting `EXPANSION_MAX` measure ~1M
+ // characters) so legitimate input is unaffected.
+ export const EXPANSION_MAX_LENGTH = 4_000_000;
++export const EXPANSION_MAX_DEPTH = 1_000;
++export const EXPANSION_MAX_REWRITES = 1_000;
++function pushAll(target, items) {
++    for (let i = 0; i < items.length; i++) {
++        target.push(items[i]);
++    }
++}
+ function numeric(str) {
+     return !isNaN(str) ? parseInt(str, 10) : str.charCodeAt(0);
+ }
+@@ -51,31 +58,34 @@ function unescapeBraces(str) {
+  * treated as individual members, like {a,{b,c},d}
+  */
+ function parseCommaParts(str) {
+-    if (!str) {
+-        return [''];
+-    }
+     const parts = [];
+-    const m = balanced('{', '}', str);
+-    if (!m) {
+-        return str.split(',');
+-    }
+-    const { pre, body, post } = m;
+-    const p = pre.split(',');
+-    p[p.length - 1] += '{' + body + '}';
+-    const postParts = parseCommaParts(post);
+-    if (post.length) {
+-        ;
+-        p[p.length - 1] += postParts.shift();
+-        p.push.apply(p, postParts);
++    let carry = '';
++    for (;;) {
++        const m = balanced('{', '}', str);
++        if (!m) {
++            const tail = str.split(',');
++            tail[0] = carry + tail[0];
++            pushAll(parts, tail);
++            return parts;
++        }
++        const { pre, body, post } = m;
++        const p = pre.split(',');
++        p[0] = carry + p[0];
++        p[p.length - 1] += '{' + body + '}';
++        if (!post.length) {
++            pushAll(parts, p);
++            return parts;
++        }
++        carry = p.pop();
++        pushAll(parts, p);
++        str = post;
+     }
+-    parts.push.apply(parts, p);
+-    return parts;
+ }
+ export function expand(str, options = {}) {
+     if (!str) {
+         return [];
+     }
+-    const { max = EXPANSION_MAX, maxLength = EXPANSION_MAX_LENGTH } = options;
++    const { max = EXPANSION_MAX, maxLength = EXPANSION_MAX_LENGTH, maxDepth = EXPANSION_MAX_DEPTH, maxRewrites = EXPANSION_MAX_REWRITES } = options;
+     // I don't know why Bash 4.3 does this, but it does.
+     // Anything starting with {} will have the first two bytes preserved
+     // but *only* at the top level, so {},a}b will not expand to anything,
+@@ -85,7 +95,7 @@ export function expand(str, options = {}) {
+     if (str.slice(0, 2) === '{}') {
+         str = '\\{\\}' + str.slice(2);
+     }
+-    return expand_(escapeBraces(str), max, maxLength, true).map(unescapeBraces);
++    return expand_(escapeBraces(str), max, maxLength, maxDepth, 0, maxRewrites, true).map(unescapeBraces);
+ }
+ function embrace(str) {
+     return '{' + str + '}';
+@@ -180,7 +190,10 @@ function expandSequence(body, isAlphaSequence, max, maxLength) {
+     }
+     return N;
+ }
+-function expand_(str, max, maxLength, isTop) {
++function expand_(str, max, maxLength, maxDepth, depth, maxRewrites, isTop) {
++    if (depth > maxDepth) {
++        return [str];
++    }
+     // Consume the string's top-level brace groups left to right, threading a
+     // running set of combined prefixes (`acc`). Expanding the tail iteratively -
+     // rather than recursing on `m.post` once per group - keeps the native stack
+@@ -192,6 +205,7 @@ function expand_(str, max, maxLength, isTop) {
+     // comma set - a sequence like `{a..\}` may legitimately yield ''. The drop
+     // is on the final strings, so it is applied to whichever `combine` produces
+     // them (the one with no brace set left in the tail).
++    let rewrites = 0;
+     let dropEmpties = false;
+     let firstGroup = true;
+     for (;;) {
+@@ -216,7 +230,8 @@ function expand_(str, max, maxLength, isTop) {
+         const isOptions = m.body.indexOf(',') >= 0;
+         if (!isSequence && !isOptions) {
+             // {a},b}
+-            if (m.post.match(/,(?!,).*\}/)) {
++            if (rewrites < maxRewrites && m.post.match(/,(?!,).*\}/)) {
++                rewrites++;
+                 str = m.pre + '{' + m.body + escClose + m.post;
+                 isTop = true;
+                 continue;
+@@ -236,7 +251,7 @@ function expand_(str, max, maxLength, isTop) {
+             let n = parseCommaParts(m.body);
+             if (n.length === 1 && n[0] !== undefined) {
+                 // x{{a,b}}y ==> x{a}y x{b}y
+-                n = expand_(n[0], max, maxLength, false).map(embrace);
++                n = expand_(n[0], max, maxLength, maxDepth, depth + 1, maxRewrites, false).map(embrace);
+                 //XXX is this necessary? Can't seem to hit it in tests.
+                 /* c8 ignore start */
+                 if (n.length === 1) {
+@@ -262,7 +277,7 @@ function expand_(str, max, maxLength, isTop) {
+             values = [];
+             let valuesLength = 0;
+             outer: for (let j = 0; j < n.length; j++) {
+-                const expanded = expand_(n[j], max, maxLength, false);
++                const expanded = expand_(n[j], max, maxLength, maxDepth, depth + 1, maxRewrites, false);
+                 for (let k = 0; k < expanded.length; k++) {
+                     const v = expanded[k];
+                     if (dropsEmpties && !v)
+@@ -282,4 +297,3 @@ function expand_(str, max, maxLength, isTop) {
+     }
+     return acc;
+ }
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/node_modules/brace-expansion/package.json b/node_modules/brace-expansion/package.json
+index 4376400796c951434ba3036b784822cd70083a00..e1df2083fdf55aa9d62374c500813b7c8a48f51b 100644
+--- a/node_modules/brace-expansion/package.json
++++ b/node_modules/brace-expansion/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "brace-expansion",
+   "description": "Brace expansion as known from sh/bash",
+-  "version": "5.0.9",
++  "version": "5.0.12",
+   "files": [
+     "dist"
+   ],
