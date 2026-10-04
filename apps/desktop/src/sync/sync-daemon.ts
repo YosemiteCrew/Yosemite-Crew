@@ -40,7 +40,7 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
   let currentStatus: OnlineStatus = deps.isOnline() ? 'online' : 'offline';
   let flushing = false;
 
-  const sendMutation = async (mutation: Mutation): Promise<void> => {
+  const sendMutation = async (mutation: Mutation): Promise<boolean> => {
     try {
       const result = await deps.transport.send({
         type: mutation.type,
@@ -58,9 +58,11 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
           error: result.error,
         });
       }
+      return result.ok;
     } catch (error) {
       deps.queue.markFailed(mutation.id);
       deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
+      return false;
     }
   };
 
@@ -72,7 +74,9 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
     flushing = true;
     try {
       deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-      await Array.fromAsync(batch, sendMutation);
+      const outcomes = await Array.fromAsync(batch, sendMutation);
+      const sent = outcomes.filter(Boolean).length;
+      deps.logger.debug('sync_daemon_flushed', { sent, failed: outcomes.length - sent });
     } finally {
       flushing = false;
     }

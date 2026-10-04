@@ -290,6 +290,42 @@ describe('createSyncDaemon', () => {
       expect(queue.pop).toHaveBeenCalledTimes(1);
     });
 
+    it('reports successful and unsuccessful batch results', async () => {
+      queue.size.mockReturnValue(3);
+      queue.peek.mockReturnValue([
+        dummyMutation,
+        { ...dummyMutation, id: 'm2' },
+        { ...dummyMutation, id: 'm3' },
+      ]);
+      transport.send
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({ ok: false })
+        .mockRejectedValueOnce(new Error('network down'));
+      daemon.start();
+      onlineCb();
+      await drain();
+      expect(logger.debug).toHaveBeenCalledWith('sync_daemon_flushed', { sent: 1, failed: 2 });
+    });
+
+    it('reports completion only after the final mutation settles', async () => {
+      queue.size.mockReturnValue(1);
+      queue.peek.mockReturnValue([dummyMutation]);
+      let releaseSend: (value: { ok: boolean }) => void = () => {};
+      transport.send.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseSend = resolve;
+          })
+      );
+      daemon.start();
+      onlineCb();
+      await drain();
+      expect(logger.debug).not.toHaveBeenCalledWith('sync_daemon_flushed', expect.anything());
+      releaseSend({ ok: true });
+      await drain();
+      expect(logger.debug).toHaveBeenCalledWith('sync_daemon_flushed', { sent: 1, failed: 0 });
+    });
+
     it('logs debug on success', async () => {
       queue.size.mockReturnValue(1);
       queue.peek.mockReturnValue([dummyMutation]);
