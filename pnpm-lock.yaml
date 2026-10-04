@@ -16,7 +16,7 @@ overrides:
   hono: 4.13.7
   yauzl: 3.2.1
   '@tootallnate/once': 3.0.1
-  node-forge: 1.4.0
+  node-forge: https://codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65
   http-cache-semantics: 4.3.0
   '@modelcontextprotocol/sdk': 1.30.0
   validator: 13.15.35
@@ -317,8 +317,8 @@ importers:
         specifier: 2.4.0
         version: 2.4.0
       node-forge:
-        specifier: 1.4.0
-        version: 1.4.0
+        specifier: https://codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65
+        version: '@codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65'
       playwright:
         specifier: 1.62.1
         version: 1.62.1
@@ -20294,11 +20294,6 @@ packages:
       formdata-polyfill: 4.0.10
     dev: false
 
-  /node-forge@1.4.0:
-    resolution: {integrity: sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==}
-    engines: {node: '>= 6.13.0'}
-    dev: false
-
   /node-gyp-build-optional-packages@5.2.2:
     resolution: {integrity: sha512-s+w+rBWnpTMwSFbaE0UXsRlg7hU4FjekKU4eyAih5T8nJuNZT1nNsskXpxmeqSK9UzkBl6UgRlnKc8hz8IEqOw==}
     hasBin: true
@@ -26391,3 +26386,10 @@ packages:
 
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
+
+  '@codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65':
+    resolution: {tarball: https://codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65}
+    name: node-forge
+    version: 1.4.1-0
+    engines: {node: '>= 6.13.0'}
+    dev: false

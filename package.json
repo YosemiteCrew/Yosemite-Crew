@@ -57,7 +57,7 @@
       "hono": "4.13.7",
       "yauzl": "3.2.1",
       "@tootallnate/once": "3.0.1",
-      "node-forge": "1.4.0",
+      "node-forge": "https://codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65",
       "http-cache-semantics": "4.3.0",
       "@modelcontextprotocol/sdk": "1.30.0",
       "validator": "13.15.35",
