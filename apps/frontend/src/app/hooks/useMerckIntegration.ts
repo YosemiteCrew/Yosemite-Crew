@@ -18,7 +18,7 @@ export const useResolvedMerckIntegrationForPrimaryOrg = () => {
         return;
       }
       const gateway = getMerckGateway();
-      const status = await gateway.getStatus(primaryOrgId, integrations);
+      const status = await Promise.resolve(gateway.getStatus(primaryOrgId, integrations));
       if (mounted) setResolvedIntegration(status);
     };
 
