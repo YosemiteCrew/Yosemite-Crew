@@ -133,19 +133,25 @@ export type StatementInvoice = {
   }>;
 };
 
-const invoiceBelongsToStatementAt = (
+const invoiceOwnershipPredicate = (
   invoice: StatementInvoice,
-  at: Date,
-): boolean => {
+): ((at: Date) => boolean) => {
   if (!invoice.statementOrganisationId || !invoice.statementParentId)
-    return true;
-  const owner = invoice.revisions
-    ?.filter((revision) => revision.recordedAt <= at)
-    .sort((left, right) => (left.id > right.id ? -1 : 1))[0];
-  return (
-    owner?.organisationId === invoice.statementOrganisationId &&
-    owner.parentId === invoice.statementParentId
+    return () => true;
+  const revisions = [...(invoice.revisions ?? [])].sort((left, right) =>
+    left.id > right.id ? -1 : 1,
   );
+  const statementOwner = JSON.stringify([
+    invoice.statementOrganisationId,
+    invoice.statementParentId,
+  ]);
+  return (at) => {
+    const owner = revisions.find((revision) => revision.recordedAt <= at);
+    if (!owner) return false;
+    return (
+      JSON.stringify([owner.organisationId, owner.parentId]) === statementOwner
+    );
+  };
 };
 
 type Movement = ClientStatementEntry & {
@@ -265,6 +271,7 @@ const buildInvoiceCharges = (
   invoice: StatementInvoice,
   periodStart: Date,
   periodEnd: Date,
+  belongsAt: (at: Date) => boolean,
 ): { movements: Movement[]; dueDates: Map<string, Date> } => {
   const currency = currencyKey(invoice.currency);
   const chargedAt = invoice.finalizedAt ?? invoice.createdAt;
@@ -321,7 +328,7 @@ const buildInvoiceCharges = (
     }
     const amount =
       TERMINAL_INVOICE_STATUSES.has(revision.status) ||
-      !invoiceBelongsToStatementAt(invoice, revision.recordedAt)
+      !belongsAt(revision.recordedAt)
         ? 0
         : quantize(nextCurrency, revision.totalAmount);
     const difference = add(nextCurrency, amount, -previousAmount);
@@ -353,13 +360,15 @@ const buildInvoiceMovements = (
   periodEnd: Date,
 ): { movements: Movement[]; dueDates: Map<string, Date> } => {
   const currency = currencyKey(invoice.currency);
+  const belongsAt = invoiceOwnershipPredicate(invoice);
   const { movements, dueDates } = buildInvoiceCharges(
     invoice,
     periodStart,
     periodEnd,
+    belongsAt,
   );
   const ownedPayments = invoice.payments.filter((payment) =>
-    invoiceBelongsToStatementAt(invoice, payment.paidAt ?? payment.createdAt),
+    belongsAt(payment.paidAt ?? payment.createdAt),
   );
   for (const payment of ownedPayments) {
     const paymentAt = payment.paidAt ?? payment.createdAt;
@@ -376,7 +385,7 @@ const buildInvoiceMovements = (
       }),
     );
     for (const refund of payment.refunds.filter((candidate) =>
-      invoiceBelongsToStatementAt(invoice, candidate.createdAt),
+      belongsAt(candidate.createdAt),
     )) {
       movements.push(
         movement({
@@ -403,8 +412,7 @@ const buildInvoiceMovements = (
   const paymentIds = new Set(invoice.payments.map((payment) => payment.id));
   for (const deposit of deposits.filter(
     (candidate) =>
-      !paymentIds.has(candidate.id) &&
-      invoiceBelongsToStatementAt(invoice, candidate.occurredAt),
+      !paymentIds.has(candidate.id) && belongsAt(candidate.occurredAt),
   )) {
     movements.push(
       movement({
@@ -424,7 +432,7 @@ const buildInvoiceMovements = (
     .map((revision) => revision.recordedAt)
     .sort((left, right) => left.getTime() - right.getTime());
   for (const note of invoice.creditNotes.filter((candidate) =>
-    invoiceBelongsToStatementAt(invoice, candidate.createdAt),
+    belongsAt(candidate.createdAt),
   )) {
     const noteCurrency = invoiceCurrencyAt(invoice, note.createdAt);
     movements.push(
