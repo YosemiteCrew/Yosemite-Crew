@@ -1,4 +1,7 @@
 import { Readable } from "node:stream";
+import { createServer, request } from "node:http";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 import { sdkStreamMixin } from "@smithy/util-stream";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import {
@@ -35,7 +38,8 @@ const mockGetObject = jest.fn();
 jest.mock("@aws-sdk/client-s3", () => {
   return {
     ...jest.requireActual("@aws-sdk/client-s3"),
-    S3: jest.fn().mockImplementation(() => ({
+    S3: jest.fn().mockImplementation((config) => ({
+      config,
       copyObject: (params: unknown) => mockCopyObject(params),
       deleteObject: (params: unknown) => mockDeleteObject(params),
       getBucketLifecycleConfiguration: (params: unknown) =>
@@ -344,6 +348,76 @@ describe("Upload Middleware", () => {
   });
 
   describe("generatePresignedUrl", () => {
+    it("allows a non-empty PUT through an installed-client upload URL", async () => {
+      const sdk =
+        jest.requireActual<typeof import("@aws-sdk/client-s3")>(
+          "@aws-sdk/client-s3",
+        );
+      const { getSignedUrl } = jest.requireActual(
+        "@aws-sdk/s3-request-presigner",
+      );
+      const body = Buffer.from("uploaded picture content");
+      let received = Buffer.alloc(0);
+      const server = createServer(async (req, res) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        received = Buffer.concat(chunks);
+        const url = new URL(req.url!, "http://localhost");
+        res.statusCode = url.searchParams.has("x-amz-checksum-crc32")
+          ? 400
+          : 200;
+        res.end();
+      });
+      server.listen(0, "127.0.0.1");
+      await once(server, "listening");
+      let client: InstanceType<typeof sdk.S3Client> | undefined;
+      mockGetSignedUrlPromise.mockImplementationOnce(
+        (configured, command, options) => {
+          client = new sdk.S3Client({
+            ...configured.config,
+            region: "us-east-1",
+            credentials: { accessKeyId: "test", secretAccessKey: "test" },
+          });
+          return getSignedUrl(client, command, options);
+        },
+      );
+      try {
+        const result = await generatePresignedUrl(
+          "image/jpeg",
+          "user",
+          "user-1",
+        );
+        const signed = new URL(result.url);
+        const port = (server.address() as AddressInfo).port;
+        const status = await new Promise<number | undefined>(
+          (resolve, reject) => {
+            const upload = request(
+              {
+                hostname: "127.0.0.1",
+                port,
+                path: signed.pathname + signed.search,
+                method: "PUT",
+                headers: { "Content-Type": "image/jpeg" },
+              },
+              (res) => {
+                res.resume();
+                res.on("end", () => resolve(res.statusCode));
+              },
+            );
+            upload.on("error", reject);
+            upload.end(body);
+          },
+        );
+        expect(status).toBe(200);
+        expect(received).toEqual(body);
+        expect(signed.searchParams.has("x-amz-checksum-crc32")).toBe(false);
+      } finally {
+        client?.destroy();
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        );
+      }
+    });
     it("signs a fifteen-minute upload URL with the installed client", async () => {
       const { S3Client } = jest.requireActual("@aws-sdk/client-s3");
       const { getSignedUrl } = jest.requireActual(

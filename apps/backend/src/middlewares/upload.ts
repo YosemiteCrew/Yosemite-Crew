@@ -82,6 +82,11 @@ const s3 = new S3({
   region: process.env.AWS_REGION,
 });
 
+const uploadSigner = new S3({
+  region: process.env.AWS_REGION,
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
+
 const getBucketName = (): string => {
   const bucket = process.env.AWS_S3_BUCKET_NAME;
   if (!bucket) {
@@ -271,7 +276,7 @@ async function generatePresignedUrl(
   };
 
   try {
-    const url = await getSignedUrl(s3, new PutObjectCommand(params), {
+    const url = await getSignedUrl(uploadSigner, new PutObjectCommand(params), {
       expiresIn: 900,
     });
     return { url, key };
