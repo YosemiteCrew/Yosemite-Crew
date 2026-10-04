@@ -348,6 +348,55 @@ describe("Upload Middleware", () => {
   });
 
   describe("generatePresignedUrl", () => {
+    it("binds the allowed file type into the installed upload signature", async () => {
+      const sdk =
+        jest.requireActual<typeof import("@aws-sdk/client-s3")>(
+          "@aws-sdk/client-s3",
+        );
+      const { getSignedUrl } = jest.requireActual(
+        "@aws-sdk/s3-request-presigner",
+      );
+      let changedUrl = "";
+      let client: InstanceType<typeof sdk.S3Client> | undefined;
+      mockGetSignedUrlPromise.mockImplementationOnce(
+        async (configured, command, options) => {
+          client = new sdk.S3Client({
+            ...configured.config,
+            region: "us-east-1",
+            credentials: { accessKeyId: "test", secretAccessKey: "test" },
+          });
+          const signing = {
+            ...options,
+            signingDate: new Date("2026-01-01T00:00:00Z"),
+          };
+          changedUrl = await getSignedUrl(
+            client,
+            new sdk.PutObjectCommand({
+              ...command.input,
+              ContentType: "text/html",
+            }),
+            signing,
+          );
+          return getSignedUrl(client, command, signing);
+        },
+      );
+      try {
+        const result = await generatePresignedUrl(
+          "image/jpeg",
+          "user",
+          "user-1",
+        );
+        const original = new URL(result.url);
+        expect(
+          original.searchParams.get("X-Amz-SignedHeaders")?.split(";"),
+        ).toContain("content-type");
+        expect(original.searchParams.get("X-Amz-Signature")).not.toBe(
+          new URL(changedUrl).searchParams.get("X-Amz-Signature"),
+        );
+      } finally {
+        client?.destroy();
+      }
+    });
     it("allows a non-empty PUT through an installed-client upload URL", async () => {
       const sdk =
         jest.requireActual<typeof import("@aws-sdk/client-s3")>(
@@ -454,7 +503,7 @@ describe("Upload Middleware", () => {
       expect(mockGetSignedUrlPromise).toHaveBeenCalledWith(
         expect.anything(),
         expect.any(PutObjectCommand),
-        { expiresIn: 900 },
+        { expiresIn: 900, signableHeaders: new Set(["content-type"]) },
       );
       expect(mockGetSignedUrlPromise.mock.calls[0][1].input).toEqual({
         Bucket: "test-bucket",

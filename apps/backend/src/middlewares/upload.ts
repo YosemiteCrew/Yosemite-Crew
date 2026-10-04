@@ -278,6 +278,7 @@ async function generatePresignedUrl(
   try {
     const url = await getSignedUrl(uploadSigner, new PutObjectCommand(params), {
       expiresIn: 900,
+      signableHeaders: new Set(["content-type"]),
     });
     return { url, key };
   } catch (err: unknown) {
