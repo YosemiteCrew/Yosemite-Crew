@@ -1,0 +1,30 @@
+diff --git a/flash/PooledSocket.as b/flash/PooledSocket.as
+deleted file mode 100644
+index 024cd0b38dd87197e258a675f458062ff4c33b29..0000000000000000000000000000000000000000
+diff --git a/flash/README.md b/flash/README.md
+deleted file mode 100644
+index 1576ebf1a99dab1462caa81c14240864ed1454cb..0000000000000000000000000000000000000000
+diff --git a/flash/SocketEvent.as b/flash/SocketEvent.as
+deleted file mode 100644
+index a0ddc0f68056ccfe1a74fa8346f256f83aa33f59..0000000000000000000000000000000000000000
+diff --git a/flash/SocketPool.as b/flash/SocketPool.as
+deleted file mode 100644
+index 384400fd51207afc546eb098f229ea87b2f15b87..0000000000000000000000000000000000000000
+diff --git a/flash/mod_fsp/README b/flash/mod_fsp/README
+deleted file mode 100644
+index 0331e01176a7c58ee8d03e9777a8d08048ed3752..0000000000000000000000000000000000000000
+diff --git a/flash/mod_fsp/mod_fsp.c b/flash/mod_fsp/mod_fsp.c
+deleted file mode 100644
+index 8beb8248230839ae883f4ec136ef27f2f96088d2..0000000000000000000000000000000000000000
+diff --git a/flash/package.json b/flash/package.json
+deleted file mode 100644
+index 92689fa9b24e93a631d2b52572030d7e17ccb10f..0000000000000000000000000000000000000000
+diff --git a/flash/policyserver.js b/flash/policyserver.js
+deleted file mode 100644
+index 3f46bfc0421d7611d016264fb195eb305d9e8777..0000000000000000000000000000000000000000
+diff --git a/flash/policyserver.py b/flash/policyserver.py
+deleted file mode 100755
+index 09be2e05f0ae980719e6e3e81428000a007e5a59..0000000000000000000000000000000000000000
+diff --git a/flash/swf/SocketPool.swf b/flash/swf/SocketPool.swf
+deleted file mode 100644
+index 838e53bfb919d0877166c719fa8a88e196d913be..0000000000000000000000000000000000000000
