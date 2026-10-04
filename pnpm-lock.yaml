@@ -16,7 +16,7 @@ overrides:
   hono: 4.13.7
   yauzl: 3.2.1
   '@tootallnate/once': 3.0.1
-  node-forge: https://codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65
+  node-forge: github:digitalbazaar/forge#ceba34402e329f0365134f23fe19898756527d65
   http-cache-semantics: 4.3.0
   '@modelcontextprotocol/sdk': 1.30.0
   validator: 13.15.35
@@ -152,12 +152,18 @@ patchedDependencies:
   body-parser@2.3.0:
     hash: volxp7tpztz57zfuiqqjphe3my
     path: patches/body-parser@2.3.0.patch
+  braces@3.0.3:
+    hash: tsv45glydggi4waiimlgaertgu
+    path: patches/braces@3.0.3.patch
   http-cache-semantics@4.3.0:
     hash: cdhv4ch4fvdel44tk2jnuxbanu
     path: patches/http-cache-semantics@4.3.0.patch
   metro@0.83.7:
     hash: 7npt7igwfxcqdh3sogdu57amsu
     path: patches/metro@0.83.7.patch
+  node-forge@1.4.1-0:
+    hash: iv36xfbm56bb3kouvpueti2p34
+    path: patches/node-forge@1.4.1-0.patch
   pdfkit@0.20.2:
     hash: 4ycu5mjsz4d2syteqw2fmrkinu
     path: patches/pdfkit@0.20.2.patch
@@ -317,8 +323,8 @@ importers:
         specifier: 2.4.0
         version: 2.4.0
       node-forge:
-        specifier: https://codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65
-        version: '@codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65'
+        specifier: github:digitalbazaar/forge#ceba34402e329f0365134f23fe19898756527d65
+        version: github.com/digitalbazaar/forge/ceba34402e329f0365134f23fe19898756527d65(patch_hash=iv36xfbm56bb3kouvpueti2p34)
       playwright:
         specifier: 1.62.1
         version: 1.62.1
@@ -12212,11 +12218,12 @@ packages:
     dependencies:
       balanced-match: 4.0.4
 
-  /braces@3.0.3:
+  /braces@3.0.3(patch_hash=tsv45glydggi4waiimlgaertgu):
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
     engines: {node: '>=8'}
     dependencies:
       fill-range: 7.1.1
+    patched: true
 
   /brotli@1.3.3:
     resolution: {integrity: sha512-oTKjJdShmDuGW94SyyaoQvAjf30dZaHnjJ8uAF+u2/vGJkJbJPJAT1gDiOJP5v1Zb6f9KEyW/1HpuaWIXtGHPg==}
@@ -12598,7 +12605,7 @@ packages:
     engines: {node: '>= 8.10.0'}
     dependencies:
       anymatch: 3.1.3
-      braces: 3.0.3
+      braces: 3.0.3(patch_hash=tsv45glydggi4waiimlgaertgu)
       glob-parent: 5.1.2
       is-binary-path: 2.1.0
       is-glob: 4.0.3
@@ -19896,7 +19903,7 @@ packages:
     resolution: {integrity: sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==}
     engines: {node: '>=8.6'}
     dependencies:
-      braces: 3.0.3
+      braces: 3.0.3(patch_hash=tsv45glydggi4waiimlgaertgu)
       picomatch: 2.3.2
 
   /mime-db@1.52.0:
@@ -26387,9 +26394,11 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65':
+  github.com/digitalbazaar/forge/ceba34402e329f0365134f23fe19898756527d65(patch_hash=iv36xfbm56bb3kouvpueti2p34):
     resolution: {tarball: https://codeload.github.com/digitalbazaar/forge/tar.gz/ceba34402e329f0365134f23fe19898756527d65}
+    id: github.com/digitalbazaar/forge/ceba34402e329f0365134f23fe19898756527d65
     name: node-forge
     version: 1.4.1-0
     engines: {node: '>= 6.13.0'}
     dev: false
+    patched: true
