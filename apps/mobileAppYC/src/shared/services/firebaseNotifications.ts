@@ -39,6 +39,14 @@ const ANDROID_CHANNEL_NAME = 'Yosemite Crew';
 const PENDING_INTENT_STORAGE_KEY = '@yc/pending-notification-intent';
 const DEFAULT_FALLBACK_COMPANION_ID = 'default-companion';
 
+/**
+ * Fallback wording for the locked-screen surface, used when a push arrives
+ * without a notification block. Matches what the server puts in that block, so
+ * a reader on a locked phone sees the same text either way.
+ */
+const LOCK_SCREEN_TITLE = 'Yosemite Crew';
+const LOCK_SCREEN_BODY = 'You have an update. Open the app to see it.';
+
 type DataRecord = Record<string, string>;
 type RemoteMessage = FirebaseMessagingTypes.RemoteMessage;
 
@@ -292,8 +300,13 @@ async function presentNotifeeNotification(
   const notification = remoteMessage.notification;
   const data = normalizeDataRecord(remoteMessage.data);
 
-  const title = notification?.title ?? data.title ?? 'Yosemite Crew';
-  const body = notification?.body ?? data.body ?? '';
+  // This is the locked-screen surface, so it takes the notification block and
+  // never falls back to `data`. The OS draws this one too, and the data block
+  // is where the record wording now travels - a push with no notification
+  // block (data-only, or an older server) still gets generic text rather than
+  // the record's own.
+  const title = notification?.title ?? LOCK_SCREEN_TITLE;
+  const body = notification?.body ?? LOCK_SCREEN_BODY;
   const imageUrl = notification?.android?.imageUrl || data.largeIcon;
   const smallIcon =
     normalizeAndroidIconResource(data.smallIcon) ?? 'ic_launcher';
@@ -396,14 +409,21 @@ function convertToNotificationPayload(
   const companionId =
     data.companionId || data.ownerId || DEFAULT_FALLBACK_COMPANION_ID;
 
-  if (!notification?.title && !data.title) {
+  // The data block carries the record's own wording; the notification block
+  // carries only the generic text that is safe to draw on a locked screen.
+  // Inside the app we show the real thing, so the data block wins here - and
+  // `presentNotifeeNotification` reads them the other way up for the lock
+  // screen.
+  const title = data.title || notification?.title;
+
+  if (!title) {
     return null;
   }
 
   return {
     companionId,
-    title: notification?.title ?? data.title ?? 'Notification',
-    description: notification?.body ?? data.body ?? '',
+    title,
+    description: data.body ?? notification?.body ?? '',
     category,
     icon: data.icon || 'notificationIcon',
     avatarUrl: data.avatarUrl,

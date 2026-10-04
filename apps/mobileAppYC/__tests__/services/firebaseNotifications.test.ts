@@ -458,6 +458,93 @@ describe('firebaseNotifications Service', () => {
       await handleBackgroundRemoteMessage(bgMessage);
     });
 
+    describe('lock screen privacy', () => {
+      // A locked phone shows whatever Notifee is handed, so this surface may
+      // only ever carry the generic wording the server puts in the FCM
+      // notification block. The real title and body arrive in `data` and are
+      // for the in-app list only.
+      const SENSITIVE = {
+        title: 'Payment received',
+        body: 'Use this code to continue: 483920. Valid for 10 minutes!',
+      };
+
+      const deliverForeground = async (message: any) => {
+        const {initializeNotifications} = loadService();
+        await initializeNotifications({
+          dispatch: mockDispatch,
+          onNavigate: mockNavigate,
+        });
+        const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+        await registeredCallback(message);
+      };
+
+      const displayed = () =>
+        mockNotifee.displayNotification.mock.calls[0][0];
+
+      const seated = () =>
+        require('@/features/notifications').addNotificationToList.mock
+          .calls[0][0];
+
+      it('never puts the data body on the lock screen', async () => {
+        await deliverForeground({
+          messageId: 'msg_lock',
+          notification: {title: 'Yosemite Crew', body: 'You have an update.'},
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(displayed().body).toBe('You have an update.');
+        expect(displayed().body).not.toContain('483920');
+      });
+
+      it('never puts the data title on the lock screen', async () => {
+        await deliverForeground({
+          messageId: 'msg_lock',
+          notification: {title: 'Yosemite Crew', body: 'You have an update.'},
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(displayed().title).toBe('Yosemite Crew');
+        expect(displayed().title).not.toContain('Payment');
+      });
+
+      it('shows generic wording when the push carries no notification block', async () => {
+        // A data-only push never reaches the OS renderer, so Notifee presents it
+        // on its own. It must still not surface the record wording.
+        await deliverForeground({
+          messageId: 'msg_data_only',
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(displayed().body).not.toContain('483920');
+        expect(displayed().title).not.toContain('Payment');
+        expect(displayed().title).toBeTruthy();
+      });
+
+      it('still shows the real title and body in the in-app list', async () => {
+        await deliverForeground({
+          messageId: 'msg_lock',
+          notification: {title: 'Yosemite Crew', body: 'You have an update.'},
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(seated().title).toBe(SENSITIVE.title);
+        expect(seated().description).toBe(SENSITIVE.body);
+      });
+
+      it('prefers the data wording over the generic block in the in-app list', async () => {
+        // The data block is the record's own wording. When both are present the
+        // person inside the app should read the real one.
+        await deliverForeground({
+          messageId: 'msg_lock',
+          notification: {title: 'Yosemite Crew', body: 'You have an update.'},
+          data: {title: 'Task due', body: 'Walk the dog at 6pm.'},
+        });
+
+        expect(seated().title).toBe('Task due');
+        expect(seated().description).toBe('Walk the dog at 6pm.');
+      });
+    });
+
     it('normalizes a recognized relatedType and extracts metadata keys', async () => {
       const {initializeNotifications} = loadService();
       await initializeNotifications({
