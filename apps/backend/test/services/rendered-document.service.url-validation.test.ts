@@ -1,15 +1,15 @@
 import axios from "axios";
 import dns from "node:dns";
+import { Readable } from "node:stream";
+import { sdkStreamMixin } from "@smithy/util-stream";
 import { prisma } from "src/config/prisma";
 import { getPersistedRenderedDocumentPdf } from "../../src/services/rendered-document.service";
 
 const mockS3GetObject = jest.fn();
 
-jest.mock("aws-sdk", () => ({
+jest.mock("@aws-sdk/client-s3", () => ({
   S3: jest.fn().mockImplementation(() => ({
-    getObject: (params: unknown) => ({
-      promise: () => mockS3GetObject(params),
-    }),
+    getObject: (params: unknown) => mockS3GetObject(params),
   })),
 }));
 
@@ -219,7 +219,9 @@ describe("rendered-document service outbound PDF URL validation", () => {
 
     it("returns the stored object directly without an outbound request", async () => {
       mockS3GetObject.mockReset();
-      mockS3GetObject.mockResolvedValue({ Body: pdfBytes("stored") });
+      mockS3GetObject.mockResolvedValue({
+        Body: sdkStreamMixin(Readable.from([pdfBytes("stored")])),
+      });
 
       const result = (await fetchPdf(
         "https://203.0.113.10/rendered/invoice-1.pdf",
@@ -231,7 +233,9 @@ describe("rendered-document service outbound PDF URL validation", () => {
 
     it("derives the object key from the normalised URL", async () => {
       mockS3GetObject.mockReset();
-      mockS3GetObject.mockResolvedValue({ Body: pdfBytes("stored") });
+      mockS3GetObject.mockResolvedValue({
+        Body: sdkStreamMixin(Readable.from([pdfBytes("stored")])),
+      });
 
       await fetchPdf("https://203.0.113.10/rendered/invoice%201.pdf");
 
@@ -246,7 +250,9 @@ describe("rendered-document service outbound PDF URL validation", () => {
       ["a string", pdfBytes("stored").toString("latin1"), pdfBytes("stored")],
     ])("returns a stored body given as %s", async (_case, body, expected) => {
       mockS3GetObject.mockReset();
-      mockS3GetObject.mockResolvedValue({ Body: body });
+      mockS3GetObject.mockResolvedValue({
+        Body: sdkStreamMixin(Readable.from([body])),
+      });
 
       const result = (await fetchPdf(
         "https://203.0.113.10/rendered/invoice-1.pdf",
@@ -391,7 +397,9 @@ describe("rendered-document service outbound PDF URL validation", () => {
     it("rejects a stored object that is not a PDF", async () => {
       mockS3GetObject.mockReset();
       mockS3GetObject.mockResolvedValue({
-        Body: Buffer.from("<html>not a document</html>"),
+        Body: sdkStreamMixin(
+          Readable.from([Buffer.from("<html>not a document</html>")]),
+        ),
       });
 
       await expect(

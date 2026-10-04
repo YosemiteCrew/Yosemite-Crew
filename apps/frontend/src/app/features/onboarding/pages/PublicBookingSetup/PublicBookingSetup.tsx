@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import Image from 'next/image';
 import Switch from '@/app/ui/primitives/Switch/Switch';
 import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
@@ -480,6 +480,44 @@ const resolveSavedMessage = (saved: BookingPageConfig): string => {
   return 'Saved. Your booking page is closed to pet parents until you open it.';
 };
 
+/** The editable booking settings, seeded from the stored config once it loads. */
+type BookingSettings = {
+  bookingWindowDays: number;
+  bufferMinutes: number;
+  welcome: string;
+  replyTo: string;
+  /** Null until the practice touches the publish switch; the stored value applies. */
+  publishOverride: boolean | null;
+};
+
+type BookingSettingsAction =
+  | { type: 'loaded'; config: BookingPageConfig }
+  | { type: 'edited'; patch: Partial<BookingSettings> };
+
+const initBookingSettings = (orgName: string): BookingSettings => ({
+  bookingWindowDays: WINDOW_OPTIONS[1].days,
+  bufferMinutes: BUFFER_OPTIONS[1].minutes,
+  welcome: `Book a visit for your companion at ${orgName}.`,
+  replyTo: '',
+  publishOverride: null,
+});
+
+const bookingSettingsReducer = (
+  state: BookingSettings,
+  action: BookingSettingsAction
+): BookingSettings => {
+  if (action.type === 'edited') return { ...state, ...action.patch };
+  const { config } = action;
+  return {
+    bookingWindowDays: config.bookingWindowDays,
+    bufferMinutes: config.bufferMinutes,
+    // An empty stored message or address keeps the default shown in the form.
+    welcome: config.welcomeMessage || state.welcome,
+    replyTo: config.replyToEmail || state.replyTo,
+    publishOverride: null,
+  };
+};
+
 const PublicBookingSetup = () => {
   const { notify } = useNotify();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -506,15 +544,16 @@ const PublicBookingSetup = () => {
   // Every bookable service starts selected; `selectionOverride` holds the user's
   // explicit choices once they toggle, so selection derives from render, not an effect.
   const [selectionOverride, setSelectionOverride] = useState<Set<string> | null>(null);
-  const [bookingWindowDays, setBookingWindowDays] = useState(WINDOW_OPTIONS[1].days);
-  const [bufferMinutes, setBufferMinutes] = useState(BUFFER_OPTIONS[1].minutes);
-  const [welcome, setWelcome] = useState(`Book a visit for your companion at ${orgName}.`);
-  const [replyTo, setReplyTo] = useState('');
+  const [settings, dispatchSettings] = useReducer(
+    bookingSettingsReducer,
+    orgName,
+    initBookingSettings
+  );
+  const { bookingWindowDays, bufferMinutes, welcome, replyTo, publishOverride } = settings;
   const [copied, setCopied] = useState(false);
   const [config, setConfig] = useState<BookingPageConfig | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [publishOverride, setPublishOverride] = useState<boolean | null>(null);
 
   // A practice that has saved before gets its own selection back, including a
   // deliberate empty one; a practice that has never saved gets everything
@@ -566,11 +605,7 @@ const PublicBookingSetup = () => {
         if (cancelled) return;
         setLoadFailed(false);
         setConfig(loaded);
-        setBookingWindowDays(loaded.bookingWindowDays);
-        setBufferMinutes(loaded.bufferMinutes);
-        setPublishOverride(null);
-        if (loaded.welcomeMessage) setWelcome(loaded.welcomeMessage);
-        if (loaded.replyToEmail) setReplyTo(loaded.replyToEmail);
+        dispatchSettings({ type: 'loaded', config: loaded });
       })
       .catch(() => {
         // A failed load leaves the form on its defaults, which are NOT this
@@ -667,9 +702,13 @@ const PublicBookingSetup = () => {
             selected={selected}
             onToggleService={toggleService}
             bookingWindowDays={bookingWindowDays}
-            onBookingWindowChange={setBookingWindowDays}
+            onBookingWindowChange={(days) =>
+              dispatchSettings({ type: 'edited', patch: { bookingWindowDays: days } })
+            }
             bufferMinutes={bufferMinutes}
-            onBufferChange={setBufferMinutes}
+            onBufferChange={(minutes) =>
+              dispatchSettings({ type: 'edited', patch: { bufferMinutes: minutes } })
+            }
             onSkip={handleSkip}
             onContinue={() => setStep(2)}
           />
@@ -680,9 +719,13 @@ const PublicBookingSetup = () => {
             orgName={orgName}
             hasLogo={Boolean(primaryOrg?.imageURL)}
             welcome={welcome}
-            onWelcomeChange={setWelcome}
+            onWelcomeChange={(text) =>
+              dispatchSettings({ type: 'edited', patch: { welcome: text } })
+            }
             replyTo={replyTo}
-            onReplyToChange={setReplyTo}
+            onReplyToChange={(email) =>
+              dispatchSettings({ type: 'edited', patch: { replyTo: email } })
+            }
             slug={config?.slug ?? null}
             publicUrl={config?.publicUrl ?? null}
             publicBookingEnabled={config?.publicBookingEnabled ?? false}
@@ -694,7 +737,9 @@ const PublicBookingSetup = () => {
             saving={saving}
             loadFailed={loadFailed}
             publish={publish}
-            onTogglePublish={() => setPublishOverride(!publish)}
+            onTogglePublish={() =>
+              dispatchSettings({ type: 'edited', patch: { publishOverride: !publish } })
+            }
             hasBookableServices={hasBookableServices}
           />
         )}

@@ -91,4 +91,63 @@ describe('Header', () => {
     });
     await waitFor(() => expect(header).not.toHaveClass('yc-public-header-docked'));
   });
+
+  it('docks on first render when the page loads already scrolled past the threshold', () => {
+    Object.defineProperty(globalThis.window, 'innerHeight', { value: 800, configurable: true });
+    setWindowScrollY(600);
+
+    const { container } = render(<Header />);
+
+    expect(container.querySelector('header')).toHaveClass('yc-public-header-docked');
+  });
+
+  it('never docks the signed-in header and does not listen to scroll', () => {
+    Object.defineProperty(globalThis.window, 'innerHeight', { value: 800, configurable: true });
+    setWindowScrollY(600);
+    const addListener = jest.spyOn(globalThis.window, 'addEventListener');
+
+    const { container } = render(<Header user />);
+    act(() => {
+      fireEvent.scroll(globalThis.window);
+    });
+
+    expect(container.querySelector('header')).not.toHaveClass('yc-public-header-docked');
+    expect(addListener).not.toHaveBeenCalledWith('scroll', expect.any(Function), expect.anything());
+  });
+
+  it('reads the scroll position at most once per frame and cancels a pending frame on unmount', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    (globalThis.window.requestAnimationFrame as jest.Mock).mockImplementation(
+      (callback: FrameRequestCallback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+      }
+    );
+    const cancel = jest
+      .spyOn(globalThis.window, 'cancelAnimationFrame')
+      .mockImplementation(() => {});
+    Object.defineProperty(globalThis.window, 'innerHeight', { value: 800, configurable: true });
+
+    const { container, unmount } = render(<Header />);
+    const header = container.querySelector('header');
+
+    setWindowScrollY(600);
+    act(() => {
+      fireEvent.scroll(globalThis.window);
+      fireEvent.scroll(globalThis.window);
+      fireEvent(globalThis.window, new Event('resize'));
+    });
+    expect(callbacks).toHaveLength(1);
+    expect(header).not.toHaveClass('yc-public-header-docked');
+
+    act(() => callbacks[0](0));
+    expect(header).toHaveClass('yc-public-header-docked');
+
+    act(() => {
+      fireEvent.scroll(globalThis.window);
+    });
+    expect(callbacks).toHaveLength(2);
+    unmount();
+    expect(cancel).toHaveBeenCalledWith(2);
+  });
 });

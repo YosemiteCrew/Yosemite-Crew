@@ -1,24 +1,28 @@
-import type { ComponentProps } from 'react';
+import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import PdfDocUploader from './PdfDocUploader';
 
 type UploaderProps = ComponentProps<typeof PdfDocUploader>;
 
 /**
- * The signer is the component's only route to the network: it hands back the S3
- * URL that the PUT then targets. Returning a promise that never settles lets a
- * story pick a real file — the preview card appears — while guaranteeing no
- * request leaves Storybook.
+ * `uploadFile` is the component's only route to the network. Returning a promise
+ * that never settles lets a story pick a real file — the preview card appears —
+ * while guaranteeing no request leaves Storybook.
  */
-const stalledSigner: UploaderProps['getSignedUrl'] = () =>
+const stalledUpload: UploaderProps['uploadFile'] = () =>
   new Promise(() => {
     // Deliberately never resolves; see the note above.
   });
 
 /** Built inside a render so no `File` is constructed while the CSF module is analysed. */
 const makePdf = (name: string) => new File(['fixture'], name, { type: 'application/pdf' });
+
+const UploadFailurePreview = (args: UploaderProps) => {
+  const [file, setFile] = useState<File | null>(null);
+  return <PdfDocUploader {...args} file={file} setFile={setFile} />;
+};
 
 const meta = {
   title: 'Widgets/PdfDocUploader',
@@ -28,8 +32,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Single-file PDF upload well. Click or drop onto it, and the file goes straight to S3 ' +
-          'through a signed URL the caller supplies via `getSignedUrl` — which is why the same well ' +
+          'Single-file PDF upload well. Click or drop onto it, and the file is sent through the ' +
+          '`uploadFile` function the caller supplies — which is why the same well ' +
           'serves practice documents (`DocUploader`) and companion records (`CompanionDoc`) without ' +
           'knowing either endpoint. Anything that is not a PDF, or is over 20 MB, is dropped ' +
           'silently. The selected file is the caller’s state, so the preview card below the well ' +
@@ -43,7 +47,7 @@ const meta = {
     file: null,
     onChange: fn(),
     setFile: fn(),
-    getSignedUrl: stalledSigner,
+    uploadFile: stalledUpload,
   },
 } satisfies Meta<typeof PdfDocUploader>;
 
@@ -95,5 +99,27 @@ export const LongFileName: Story = {
           'file name cannot push the remove control off the card.',
       },
     },
+  },
+};
+
+export const UploadFailed: Story = {
+  name: 'Upload failed',
+  render: (args) => <UploadFailurePreview {...args} />,
+  args: {
+    uploadFile: async () => {
+      throw new Error('Upload failed');
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.upload(
+      canvas.getByLabelText('Upload signed consent form', { selector: 'input' }),
+      makePdf('failed-upload.pdf')
+    );
+    await expect(await canvas.findByRole('alert')).toHaveTextContent(
+      'The PDF could not be uploaded. Try again.'
+    );
+    await expect(canvas.getByRole('button', { name: 'Retry upload' })).toBeInTheDocument();
+    await expect(canvas.getByText('failed-upload.pdf')).toBeInTheDocument();
   },
 };

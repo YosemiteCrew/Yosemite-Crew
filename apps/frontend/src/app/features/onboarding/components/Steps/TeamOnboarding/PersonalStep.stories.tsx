@@ -160,12 +160,11 @@ const meta = {
           'The first and largest team-onboarding step. Its error builder raises seven messages and ' +
           'none of them had been drawn: they only appear after Next is pressed, and the field that ' +
           'owns each one decides how it is presented.\n\n' +
-          'That split is the thing worth looking at. Date of birth, city, state and postal code go ' +
-          'through `Datepicker`/`FormInput`, which wrap their message in `role="alert"` and point ' +
-          '`aria-describedby` at it. Gender, phone number and address line do not: gender and phone ' +
-          'are bare `.step-inline-error` divs the step renders itself, and the address message comes ' +
-          'from `GoogleSearchDropDown`, which has no role either. So four of the seven errors are ' +
-          'announced and three are silent.\n\n' +
+          'That split is the thing worth looking at. Date of birth, address line, city, state and ' +
+          'postal code go through `Datepicker`/`GoogleSearchDropDown`/`FormInput`, which wrap their ' +
+          'message in `role="alert"` and point `aria-describedby` at it. Gender and phone number do ' +
+          'not: they are bare `.step-inline-error` divs the step renders itself. So five of the ' +
+          'seven errors are announced and two are silent.\n\n' +
           '`.step-inline-error` is also declared in the **CreateOrg** `Step.css`, not the ' +
           'TeamOnboarding one this step imports, so in isolation the gender and phone messages lose ' +
           'their red. In the app the other stylesheet happens to be in the bundle.\n\n' +
@@ -301,21 +300,21 @@ export const RequiredErrors: Story = {
     await expect(canvas.getByText('State / Province is required')).toBeInTheDocument();
     await expect(canvas.getByText('Postal code is required')).toBeInTheDocument();
 
-    /* Four of the seven. Date of birth, city, state and postal code come from
-       components that wrap the message in `role="alert"`; gender, phone number
-       and address line render a plain div, so a screen reader is told nothing
+    /* Five of the seven. Date of birth, address line, city, state and postal
+       code come from components that wrap the message in `role="alert"`; gender
+       and phone number render a plain div, so a screen reader is told nothing
        when they appear. */
-    await expect(canvas.getAllByRole('alert')).toHaveLength(4);
+    await expect(canvas.getAllByRole('alert')).toHaveLength(5);
     await expect(canvas.getByText('Gender is required').closest('[role="alert"]')).toBeNull();
     await expect(canvas.getByText('Phone number is required').closest('[role="alert"]')).toBeNull();
-    await expect(canvas.getByText('Address is required').closest('[role="alert"]')).toBeNull();
+    await expect(canvas.getByText('Address is required').closest('[role="alert"]')).not.toBeNull();
 
     /* The field the validator actually rejected is the one left unmarked: the
        phone message is rendered by the step, outside `FormInput`, so the input
-       still reports itself valid while the three address inputs do not. */
-    await expect(canvas.getByRole('textbox', { name: 'Phone number' })).toHaveAttribute(
-      'aria-invalid',
-      'false'
+       still reports itself valid (no `aria-invalid` at all) while the three
+       address inputs do not. */
+    await expect(canvas.getByRole('textbox', { name: 'Phone number' })).not.toHaveAttribute(
+      'aria-invalid'
     );
     await expect(canvas.getByRole('textbox', { name: 'City' })).toHaveAttribute(
       'aria-invalid',

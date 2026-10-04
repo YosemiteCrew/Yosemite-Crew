@@ -160,7 +160,11 @@ export const Populated: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByLabelText('Companion')).toHaveValue('pat-marnie');
+    /* The companion picker is the themed Dropdown (9a4a7b1b2), a button rather than a
+       native select, so the pick is read off the trigger: its name carries the
+       chosen companion, and its face shows it. */
+    const companion = canvas.getByRole('button', { name: 'Companion: Marnie Whitlock' });
+    await expect(companion).toHaveTextContent('Marnie Whitlock');
     await expect(canvas.getByLabelText('Valid until (optional)')).toHaveValue('');
     await expect(canvas.getByLabelText('Notes (optional)')).toHaveValue(
       'Two-stage dental under general anaesthetic.'
@@ -190,7 +194,10 @@ export const FreshDraft: Story = {
   args: { initialPatientId: '', initialLines: undefined, initialNotes: '' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByLabelText('Companion')).toHaveValue('');
+    // Nothing picked: the trigger names only its field and shows the empty label.
+    await expect(canvas.getByRole('button', { name: 'Companion' })).toHaveTextContent(
+      'Choose a companion'
+    );
     // One empty line, so its Remove control is disabled - a draft cannot have zero lines.
     await expect(canvas.getByRole('button', { name: 'Remove line 1' })).toBeDisabled();
     await expect(canvas.getByLabelText('Line 1 quantity')).toHaveValue(1);

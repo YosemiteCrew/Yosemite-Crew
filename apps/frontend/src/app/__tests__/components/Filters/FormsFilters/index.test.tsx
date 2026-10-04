@@ -243,6 +243,18 @@ describe('FormsFilters Component', () => {
     expect(getTrigger()).toHaveTextContent('All categories');
   });
 
+  it('drops a category that is not allowed from the next reported change', () => {
+    setOrgType('HOSPITAL');
+    renderFilters({
+      status: 'All',
+      category: 'Boarder - Boarding Checklist' as FormsFilterState['category'],
+    });
+    expect(mockOnFiltersChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
+    expect(mockOnFiltersChange).toHaveBeenLastCalledWith({ status: 'Draft', category: 'All' });
+  });
+
   it('honours the org-type override env var', () => {
     const prev = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE;
     process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE = 'BOARDER';

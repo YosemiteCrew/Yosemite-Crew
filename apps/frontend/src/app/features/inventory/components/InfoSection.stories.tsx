@@ -207,10 +207,11 @@ export const BasicInfo: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    /* The title is printed twice on purpose-of-record: once as the 23px section
-       heading and again inside the accordion header. One match would mean the
-       accordion did not mount at all, which is the failure this guards. */
-    await expect(canvas.getAllByText('Basic Details')).toHaveLength(2);
+    /* The title is printed once, by the accordion itself: the separate 23px heading
+       above it was dropped so the section names itself (07380f6ad). A second match
+       would be that duplicate coming back; the Edit control named after the section
+       below is the proof the accordion mounted. */
+    await expect(canvas.getAllByText('Basic Details')).toHaveLength(1);
 
     await expect(
       labelsPresent(canvas, [
@@ -239,9 +240,7 @@ export const BasicInfo: Story = {
       description: {
         story:
           'What the modal opens on. Six labelled rows, then the product-image footer. The ' +
-          'section title appears twice - as the heading above the accordion and inside the ' +
-          'accordion header - which is worth a decision, because in the modal both sit within ' +
-          '60px of each other.',
+          'section title appears once, in the accordion header.',
       },
     },
   },

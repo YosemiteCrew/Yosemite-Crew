@@ -193,18 +193,20 @@ export const Default: Story = {
     await expect(canvas.getAllByRole('button', { name: /^Add range for / })).toHaveLength(5);
     await expect(canvas.getAllByRole('button', { name: 'dublicate-button' })).toHaveLength(5);
 
-    // The knob is positioned against the label, so its 3px -> 17px travel is the
+    // The knob is positioned against the label, so its 3px -> 19px travel is the
     // one part of the pill the global checkbox rule cannot reach (see the
     // component description). Height is likewise honoured; width is NOT, and is
     // deliberately not asserted here - see below.
     const on = pillOf(toggles[daysOfWeek.indexOf('Monday')]);
     const off = pillOf(toggles[daysOfWeek.indexOf('Sunday')]);
-    await expect(Math.round(on.track.getBoundingClientRect().height)).toBe(22);
+    // 40x24 with an 18px knob: the design system's `.switch`, the one size every
+    // switch in the product now shares.
+    await expect(Math.round(on.track.getBoundingClientRect().height)).toBe(24);
     const travel =
       on.knob.getBoundingClientRect().left -
       on.track.getBoundingClientRect().left -
       (off.knob.getBoundingClientRect().left - off.track.getBoundingClientRect().left);
-    await expect(Math.round(travel)).toBe(14);
+    await expect(Math.round(travel)).toBe(16);
   },
   parameters: {
     docs: {
@@ -213,17 +215,17 @@ export const Default: Story = {
           'The default week the API falls back to when a member has never saved hours: Monday to ' +
           'Friday open 9-5, the weekend closed.\n\n' +
           'Look closely at the weekend toggles. The knob renders **outside** its track, as a loose ' +
-          'dot to the left of the pill. Measured at 1280px: the track is 25.53px wide rather than ' +
-          "the 36px `w-9` asks for, and the off knob's left edge lands 11.47px to the left of the " +
-          "track's left edge, so only about 4.5px of a 16px knob overlaps the pill at all. The on " +
-          'knob is inside, but sits 2.53px from the left edge instead of hard right, which leaves ' +
+          'dot to the left of the pill. Measured at 1280px: the track is 26.42px wide rather than ' +
+          "the 40px `w-10` asks for, and the off knob's left edge lands 10.58px to the left of the " +
+          "track's left edge, so only about 7.4px of an 18px knob overlaps the pill at all. The on " +
+          'knob is inside, but sits 5.42px from the left edge instead of hard right, which leaves ' +
           'the two states reading almost the same.\n\n' +
           "Cause: `globals.css` styles `input[type='checkbox']` unlayered, with " +
           '`position: relative; width: 20px; height: 20px` and a border. Unlayered CSS beats every ' +
           "Tailwind utility regardless of specificity, so the input's `absolute size-full " +
           'opacity-0` loses on `position` and `width`. The "visually hidden" input therefore stays ' +
-          'in the flex flow as a real 20px box, shrinks to 14.47px, and squeezes the track into ' +
-          'the 25.53px left over in the 40px column. The knob is absolute against the label rather ' +
+          'in the flex flow as a real 20px box, shrinks to 13.58px, and squeezes the track into ' +
+          'the 26.42px left over in the 40px column. The knob is absolute against the label rather ' +
           'than the track, so it stays where the design put it while the track moves out from ' +
           'under it. Not fixed here - stories do not touch component source.',
       },

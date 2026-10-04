@@ -318,8 +318,13 @@ export const PhoneCards: Story = {
 
     /* Ten of twelve, and the same count line the table draws. This branch used
        to map the whole `filteredList`, so a large directory mounted every card
-       at once and the phone user never saw the total. */
-    await waitFor(() => expect(canvas.getAllByTitle('Open companion history')).toHaveLength(10));
+       at once and the phone user never saw the total.
+       `useIsPhone` flips after mount, and the desktop table's rows carry the same
+       title, so the count is only read once the desktop wrapper is gone. */
+    await waitFor(() => {
+      expect(canvasElement.querySelector('.table-wrapper')).toBeNull();
+      expect(canvas.getAllByTitle('Open companion history')).toHaveLength(10);
+    });
     await expect(footerText(canvas)).toBe('Showing 1-10 of 12 companions');
     await expect(canvas.queryByText('Comet · Whitfield')).not.toBeInTheDocument();
 

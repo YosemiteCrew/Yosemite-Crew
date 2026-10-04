@@ -250,6 +250,23 @@ describe('ChatChannelScreen', () => {
     );
   });
 
+  it('adds the visit notes only once across re-renders', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {
+        ...mockRouteParams,
+        initialMessage: 'Observations:\nLow appetite',
+      },
+    });
+
+    const {rerender} = render(<ChatChannelScreen />);
+    await waitFor(() => expect(mockSetComposerText).toHaveBeenCalled());
+
+    rerender(<ChatChannelScreen />);
+    rerender(<ChatChannelScreen />);
+
+    expect(mockSetComposerText).toHaveBeenCalledTimes(1);
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
   });

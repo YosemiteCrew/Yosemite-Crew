@@ -220,10 +220,18 @@ export const StatusMenuOpen: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Change status: Active' }));
     // The listbox portals to document.body, outside the story canvas.
-    const listbox = await within(document.body).findByLabelText('Change status');
+    // Queried by role: the open trigger carries the same "Change status" name.
+    const listbox = await within(document.body).findByRole('listbox', { name: 'Change status' });
     await expect(listbox).toHaveAttribute('data-portal-dropdown');
-    await expect(within(listbox).getAllByRole('button')).toHaveLength(3);
-    await expect(within(listbox).getByText('Archived')).toBeInTheDocument();
+    const options = within(listbox).getAllByRole('option');
+    await expect(options.map((option) => option.textContent?.trim())).toEqual([
+      'Active',
+      'Inactive',
+      'Archived',
+    ]);
+    await expect(within(listbox).getByRole('option', { selected: true })).toHaveTextContent(
+      'Active'
+    );
   },
   parameters: {
     docs: {

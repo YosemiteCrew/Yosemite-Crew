@@ -644,98 +644,87 @@ const useStartPacketSigning = ({
 
 type DischargeActionBarProps = {
   signError: string | null;
-  showDocumentActions: boolean;
-  isPacketSigned: boolean;
-  dischargeSaved: boolean;
-  isPrinting: boolean;
-  isSaving: boolean;
-  isSigning: boolean;
-  signDisabled: boolean;
-  signDisabledReason?: string;
-  viewOnly?: boolean;
-  onPrint: () => void;
-  onSave: () => void;
-  onDownloadSigned: () => void;
-  onSign: () => void;
+  children: React.ReactNode;
 };
 
 /**
- * The discharge step's action row: print, save, and sign or download the signed
- * packet.
- *
- * Its own component because which buttons appear is genuinely conditional -
- * document actions only once the summary is saved, sign only while the packet
- * is unsigned, and a tooltip variant when signing is blocked - and that belongs
- * next to the buttons rather than inflating the step that renders them.
+ * The discharge step's action row: before the summary is saved it holds the
+ * Save button, afterwards the document actions (print, then sign or download
+ * the signed packet).
  */
-const DischargeActionBar = ({
-  signError,
-  showDocumentActions,
-  isPacketSigned,
-  dischargeSaved,
-  isPrinting,
-  isSaving,
-  isSigning,
-  signDisabled,
-  signDisabledReason,
-  viewOnly,
-  onPrint,
-  onSave,
-  onDownloadSigned,
-  onSign,
-}: DischargeActionBarProps) => (
+const DischargeActionBar = ({ signError, children }: DischargeActionBarProps) => (
   <div className="flex flex-col items-end gap-2">
     {signError && (
       <p role="alert" className="text-body-4 text-text-error">
         {signError}
       </p>
     )}
-    <div className="flex flex-wrap items-center justify-end gap-3">
-      {showDocumentActions && (
-        <Secondary
-          text={isPrinting ? 'Preparing…' : 'Print All'}
-          icon={<IoPrintOutline aria-hidden="true" />}
-          onClick={onPrint}
-          isDisabled={isPrinting}
-        />
-      )}
-      {!dischargeSaved && (
-        <Secondary
-          text="Save"
-          icon={<IoSaveOutline aria-hidden="true" />}
-          onClick={onSave}
-          isDisabled={viewOnly || isSaving}
-        />
-      )}
-      {showDocumentActions && isPacketSigned && (
-        <Secondary
-          text="Download Signed"
-          icon={<IoDownloadOutline aria-hidden="true" />}
-          onClick={onDownloadSigned}
-          isDisabled={isPrinting}
-        />
-      )}
-      {showDocumentActions && !isPacketSigned && signDisabledReason && (
-        <GlassTooltip content={signDisabledReason} side="top">
-          <Secondary
-            text={isSigning ? 'Signing…' : 'Sign'}
-            icon={<IoDocumentTextOutline aria-hidden="true" />}
-            onClick={onSign}
-            isDisabled={signDisabled}
-          />
-        </GlassTooltip>
-      )}
-      {showDocumentActions && !isPacketSigned && !signDisabledReason && (
-        <Secondary
-          text={isSigning ? 'Signing…' : 'Sign'}
-          icon={<IoDocumentTextOutline aria-hidden="true" />}
-          onClick={onSign}
-          isDisabled={signDisabled}
-        />
-      )}
-    </div>
+    <div className="flex flex-wrap items-center justify-end gap-3">{children}</div>
   </div>
 );
+
+type DischargeDocumentActionsProps = {
+  isPacketSigned: boolean;
+  isPrinting: boolean;
+  isSigning: boolean;
+  signDisabled: boolean;
+  signDisabledReason?: string;
+  onPrint: () => void;
+  onDownloadSigned: () => void;
+  onSign: () => void;
+};
+
+/**
+ * Actions on the saved discharge packet. Sign shows only while the packet is
+ * unsigned, with a tooltip explaining why when signing is blocked.
+ */
+const DischargeDocumentActions = ({
+  isPacketSigned,
+  isPrinting,
+  isSigning,
+  signDisabled,
+  signDisabledReason,
+  onPrint,
+  onDownloadSigned,
+  onSign,
+}: DischargeDocumentActionsProps) => {
+  const signButton = (
+    <Secondary
+      text={isSigning ? 'Signing…' : 'Sign'}
+      icon={<IoDocumentTextOutline aria-hidden="true" />}
+      onClick={onSign}
+      isDisabled={signDisabled}
+    />
+  );
+  let packetAction: React.ReactNode = signButton;
+  if (isPacketSigned) {
+    packetAction = (
+      <Secondary
+        text="Download Signed"
+        icon={<IoDownloadOutline aria-hidden="true" />}
+        onClick={onDownloadSigned}
+        isDisabled={isPrinting}
+      />
+    );
+  } else if (signDisabledReason) {
+    packetAction = (
+      <GlassTooltip content={signDisabledReason} side="top">
+        {signButton}
+      </GlassTooltip>
+    );
+  }
+  return (
+    <>
+      <Secondary
+        text={isPrinting ? 'Preparing…' : 'Print All'}
+        icon={<IoPrintOutline aria-hidden="true" />}
+        onClick={onPrint}
+        isDisabled={isPrinting}
+      />
+      {packetAction}
+    </>
+  );
+};
 
 const useSummaryStepContent = ({
   appointmentId,
@@ -1221,22 +1210,27 @@ const useSummaryStepContent = ({
               </>
             )}
           </SectionContainer>
-          <DischargeActionBar
-            signError={signError}
-            showDocumentActions={showDocumentActions}
-            isPacketSigned={isPacketSigned}
-            dischargeSaved={dischargeSaved}
-            isPrinting={isPrinting}
-            isSaving={isSaving}
-            isSigning={isSigning}
-            signDisabled={signDisabled}
-            signDisabledReason={signDisabledReason}
-            viewOnly={encounter.viewOnly}
-            onPrint={handlePrint}
-            onSave={handleSave}
-            onDownloadSigned={handleDownloadSigned}
-            onSign={handleSign}
-          />
+          <DischargeActionBar signError={signError}>
+            {showDocumentActions ? (
+              <DischargeDocumentActions
+                isPacketSigned={isPacketSigned}
+                isPrinting={isPrinting}
+                isSigning={isSigning}
+                signDisabled={signDisabled}
+                signDisabledReason={signDisabledReason}
+                onPrint={handlePrint}
+                onDownloadSigned={handleDownloadSigned}
+                onSign={handleSign}
+              />
+            ) : (
+              <Secondary
+                text="Save"
+                icon={<IoSaveOutline aria-hidden="true" />}
+                onClick={handleSave}
+                isDisabled={encounter.viewOnly || isSaving}
+              />
+            )}
+          </DischargeActionBar>
         </div>
         <aside className="w-full lg:w-[400px] lg:shrink-0">
           <AllDocumentsTable

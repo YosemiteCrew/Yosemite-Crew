@@ -1,4 +1,3 @@
-import { useLayoutEffect, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import type { UserOrganization } from '@yosemite-crew/types';
 import { expect, fn, userEvent, within } from 'storybook/test';
@@ -18,19 +17,22 @@ const membership = (revokedPermissions: string[] = []): UserOrganization => ({
   revokedPermissions,
 });
 
-const OrgFixture = ({ children, revoked }: { children: ReactNode; revoked?: string[] }) => {
-  useLayoutEffect(() => {
-    const snapshot = useOrgStore.getState();
-    useOrgStore.setState({
-      primaryOrgId: ORG_ID,
-      membershipsByOrgId: { [ORG_ID]: membership(revoked) },
-      status: 'loaded',
-    });
-    return () => {
-      useOrgStore.setState(snapshot);
-    };
-  }, [revoked]);
-  return <>{children}</>;
+/**
+ * Seeds the membership the Send button's `PermissionGate` reads, before the story
+ * renders rather than from an effect after its first render, so the gate never
+ * answers for whatever organisation the previous story left in the store.
+ * `parameters.revokedPermissions` takes a right off, as a practice would.
+ */
+const seedOrg = ({ parameters }: { parameters: { revokedPermissions?: string[] } }) => {
+  const snapshot = useOrgStore.getState();
+  useOrgStore.setState({
+    primaryOrgId: ORG_ID,
+    membershipsByOrgId: { [ORG_ID]: membership(parameters.revokedPermissions) },
+    status: 'loaded',
+  });
+  return () => {
+    useOrgStore.setState(snapshot);
+  };
 };
 
 const base: CareReminder = {
@@ -80,13 +82,12 @@ const meta = {
     sendingId: null,
     onSend: fn(),
   },
+  beforeEach: seedOrg,
   decorators: [
-    (Story, { parameters }) => (
-      <OrgFixture revoked={parameters.revokedPermissions as string[] | undefined}>
-        <div className="w-full max-w-[640px]">
-          <Story />
-        </div>
-      </OrgFixture>
+    (Story) => (
+      <div className="w-full max-w-[640px]">
+        <Story />
+      </div>
     ),
   ],
 } satisfies Meta<typeof CareReminderList>;

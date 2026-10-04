@@ -97,9 +97,10 @@ const seed = () => {
   // by every story in the session, and `TaskInfo.stories` seeds a parent record
   // under this same id. Without this reset, viewing that file first makes the
   // board resolve `parent-marta` to "Marta Alvarez" through `useMemberMap` and
-  // the raw-id finding below silently changes with the order the stories were
-  // opened in. The board itself never loads parents - nothing on the tasks page
-  // does - so an empty parent store is also what a real /tasks visit starts from.
+  // the unresolved-assignee meta line below silently changes with the order the
+  // stories were opened in. The board itself never loads parents - nothing on the
+  // tasks page does - so an empty parent store is also what a real /tasks visit
+  // starts from.
   useParentStore.getState().clearParents();
   useAuthStore.setState({
     attributes: {
@@ -289,10 +290,9 @@ const meta = {
           'looking at directly.\n\n' +
           'Layout re-forms at `lg` (1024px): a four-track CSS grid above it, a row of fixed 320px ' +
           'columns in a horizontal scroller below. Both are drawn.\n\n' +
-          'One finding: a pet-parent card resolves its assignee through the team map only, so a ' +
-          'task addressed to an owner who is not a practitioner falls back to printing the raw ' +
-          'identifier in the meta line. The task drawer fixed exactly this with an "Unavailable ' +
-          'member" fallback; the board did not.',
+          'A pet-parent card resolves its assignee through the team map only, so a task ' +
+          'addressed to an owner who is not a practitioner has no name to print. The meta line ' +
+          'then reads just "Parent task" rather than falling back to the raw identifier.',
       },
     },
   },
@@ -365,9 +365,10 @@ export const BoardColumns: Story = {
     await expect(cardMeta(cardsIn(columns[COLUMN.cancelled])[0])).toBe(
       'Cancelled · Dr. Ravi Patel'
     );
-    // FINDING: a pet-parent task prints the raw assignee id where a name belongs,
-    // because the board resolves through the team map only.
-    await expect(cardMeta(cardsIn(columns[COLUMN.pending])[2])).toBe('Parent task · parent-marta');
+    // A pet-parent task resolves through the team map only, so its assignee has no
+    // name here. The line drops the name rather than printing the raw id.
+    await expect(cardMeta(cardsIn(columns[COLUMN.pending])[2])).toBe('Parent task');
+    await expect(columns[COLUMN.pending].textContent).not.toContain('parent-marta');
 
     // The card footer: assignee chip on the left, companion thumbnail on the right.
     // Initials rather than photos on both, because neither record carries an image.

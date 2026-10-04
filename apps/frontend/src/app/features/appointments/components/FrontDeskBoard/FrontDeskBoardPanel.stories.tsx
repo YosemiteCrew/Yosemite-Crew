@@ -257,13 +257,20 @@ const respond = (config: InternalAxiosRequestConfig, data: unknown): AxiosRespon
   config,
 });
 
+/**
+ * A refused request. The status is a plain 400 rather than a 5xx on purpose: the
+ * app client retries a failed read on 429 and 5xx up to three times with backoff
+ * (about 4 to 6 seconds in all) before the caller sees it, which would hold the
+ * loading skeleton past every query timeout here. A 400 reaches the panel's
+ * error state on the first answer.
+ */
 const axiosError = (config: InternalAxiosRequestConfig, message: string): unknown =>
   Object.assign(new Error(message), {
     isAxiosError: true,
     config,
     response: {
-      status: 500,
-      statusText: 'Internal Server Error',
+      status: 400,
+      statusText: 'Bad Request',
       data: { message },
       headers: {},
       config,

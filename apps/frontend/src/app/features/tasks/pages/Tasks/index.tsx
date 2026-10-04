@@ -69,43 +69,10 @@ const RescheduleTask = dynamic(
   () => import('@/app/features/tasks/pages/Tasks/Sections/Reschedule')
 );
 
-const Tasks = () => {
-  const tasks = useTasksForPrimaryOrg();
-  const permissions = usePermissions();
-  const canEditTasks = permissions.can(PERMISSIONS.TASKS_EDIT_ANY);
-  const query = useSearchStore((s) => s.query);
-  const searchParams = useSearchParams();
-  const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [activeStatus, setActiveStatus] = useState('all');
-  const [activeScope, setActiveScope] = useState('team');
-  const [addPopup, setAddPopup] = useState(false);
-  const [addTaskPrefill, setAddTaskPrefill] = useState<Partial<Task> | null>(null);
-  const [viewPopup, setViewPopup] = useState(false);
-  const [changeStatusPopup, setChangeStatusPopup] = useState(false);
-  const [changeStatusPreferredStatus, setChangeStatusPreferredStatus] = useState<TaskStatus | null>(
-    null
-  );
-  const [reschedulePopup, setReschedulePopup] = useState(false);
-  const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
-  const [activeCalendar, setActiveCalendar] = useState('week');
-  const [activeView, setActiveView] = useState('calendar');
-  const isPhone = useIsPhone();
-  // The phone planner swaps the grid for a day list and never renders the
-  // calendar header, so the pill row stays there. Deriving visibility once keeps
-  // the rendered controls and the filters they drive from drifting apart.
-  const showsTaskFilterBar = activeView === 'list' || (activeView === 'calendar' && isPhone);
-
-  // The planner header only carries the pet-parent pill, so an audience chosen
-  // in the list view cannot be shown or cleared from the calendar. Derive what
-  // actually applies rather than writing the state back: no extra render, and
-  // the list view keeps its own selection when the user returns to it.
-  const appliedFilter =
-    showsTaskFilterBar || activeFilter === PARENT_AUDIENCE_KEY ? activeFilter : 'all';
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
-  const { plannerSectionRef } = usePlannerAutoLock({ activeView });
-
+/**
+ * Matches a task's assignee against the signed-in user.
+ */
+const useIsAssignedToMe = () => {
   const teams = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
@@ -129,6 +96,18 @@ const Tasks = () => {
     },
     [authUserId, myPrimaryId, teams]
   );
+
+  return isAssignedToMe;
+};
+
+/**
+ * Planner date state. Switching to the week grid, or moving the date while on
+ * it, re-anchors the week start to the selected date.
+ */
+const useTaskCalendarDates = () => {
+  const [activeCalendar, setActiveCalendar] = useState('week');
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
 
   const handleActiveCalendarChange = useCallback(
     (next: SetStateAction<string>) => {
@@ -155,6 +134,60 @@ const Tasks = () => {
     },
     [activeCalendar]
   );
+
+  return {
+    activeCalendar,
+    handleActiveCalendarChange,
+    currentDate,
+    handleCurrentDateChange,
+    weekStart,
+    setWeekStart,
+  };
+};
+
+const Tasks = () => {
+  const tasks = useTasksForPrimaryOrg();
+  const permissions = usePermissions();
+  const canEditTasks = permissions.can(PERMISSIONS.TASKS_EDIT_ANY);
+  const query = useSearchStore((s) => s.query);
+  const searchParams = useSearchParams();
+  const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeStatus, setActiveStatus] = useState('all');
+  const [activeScope, setActiveScope] = useState('team');
+  const [addPopup, setAddPopup] = useState(false);
+  const [addTaskPrefill, setAddTaskPrefill] = useState<Partial<Task> | null>(null);
+  const [viewPopup, setViewPopup] = useState(false);
+  const [changeStatusPopup, setChangeStatusPopup] = useState(false);
+  const [changeStatusPreferredStatus, setChangeStatusPreferredStatus] = useState<TaskStatus | null>(
+    null
+  );
+  const [reschedulePopup, setReschedulePopup] = useState(false);
+  const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
+  const [activeView, setActiveView] = useState('calendar');
+  const isPhone = useIsPhone();
+  // The phone planner swaps the grid for a day list and never renders the
+  // calendar header, so the pill row stays there. Deriving visibility once keeps
+  // the rendered controls and the filters they drive from drifting apart.
+  const showsTaskFilterBar = activeView === 'list' || (activeView === 'calendar' && isPhone);
+
+  // The planner header only carries the pet-parent pill, so an audience chosen
+  // in the list view cannot be shown or cleared from the calendar. Derive what
+  // actually applies rather than writing the state back: no extra render, and
+  // the list view keeps its own selection when the user returns to it.
+  const appliedFilter =
+    showsTaskFilterBar || activeFilter === PARENT_AUDIENCE_KEY ? activeFilter : 'all';
+  const {
+    activeCalendar,
+    handleActiveCalendarChange,
+    currentDate,
+    handleCurrentDateChange,
+    weekStart,
+    setWeekStart,
+  } = useTaskCalendarDates();
+  const { plannerSectionRef } = usePlannerAutoLock({ activeView });
+
+  const isAssignedToMe = useIsAssignedToMe();
 
   // Reconcile the active task against the latest task list during render
   // (guarded by the previous list) instead of through an effect.

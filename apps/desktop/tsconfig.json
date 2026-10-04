@@ -5,7 +5,7 @@
     "moduleResolution": "node16",
     "rootDir": "src",
     "outDir": "build",
-    "lib": ["ES2021", "DOM"],
+    "lib": ["ES2021", "ESNext.Array", "DOM"],
     "types": ["node", "jest"],
     "strict": true,
     "esModuleInterop": true,

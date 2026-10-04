@@ -109,12 +109,16 @@ const MILO_MARKER_TITLE = 'Milo · Hartmann • Lameness recheck • Post-op rec
  * cross-origin requests from the canvas and log whatever came back. Swapping the
  * shared instance's adapter answers all of them locally with an empty payload,
  * and the real adapter goes back on unmount.
+ *
+ * The calendar-blocks list is the one read that returns a bare array rather than a
+ * `{ data }` envelope, and the planner filters it on arrival, so it gets `[]`: no
+ * blocks on the visible days.
  */
 const withOfflineApi = () => {
   const originalAdapter = api.defaults.adapter;
   api.defaults.adapter = ((config: InternalAxiosRequestConfig) =>
     Promise.resolve({
-      data: { data: [] },
+      data: config.url?.endsWith('/calendar-blocks') ? [] : { data: [] },
       status: 200,
       statusText: 'OK',
       headers: {},

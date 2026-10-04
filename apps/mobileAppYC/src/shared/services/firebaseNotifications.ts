@@ -22,6 +22,7 @@ import notifee, {
 } from '@notifee/react-native';
 import type {AppDispatch} from '@/app/store';
 import {addNotificationToList} from '@/features/notifications';
+import i18n from '@/localization';
 import type {
   CreateNotificationPayload,
   NotificationCategory,
@@ -38,6 +39,16 @@ const ANDROID_CHANNEL_ID = 'yc_general_notifications';
 const ANDROID_CHANNEL_NAME = 'Yosemite Crew';
 const PENDING_INTENT_STORAGE_KEY = '@yc/pending-notification-intent';
 const DEFAULT_FALLBACK_COMPANION_ID = 'default-companion';
+
+/**
+ * Fallback wording for the locked-screen surface, used when a push arrives
+ * without a notification block, and in place of the server's generic block
+ * when it marks itself. Resolved through i18next so the reader gets their own
+ * language rather than the English the server happened to send.
+ */
+const LOCK_SCREEN_GENERIC_MARKER = 'generic';
+const lockScreenTitle = () => i18n.t('notifications.lockScreen.title');
+const lockScreenBody = () => i18n.t('notifications.lockScreen.body');
 
 type DataRecord = Record<string, string>;
 type RemoteMessage = FirebaseMessagingTypes.RemoteMessage;
@@ -292,8 +303,20 @@ async function presentNotifeeNotification(
   const notification = remoteMessage.notification;
   const data = normalizeDataRecord(remoteMessage.data);
 
-  const title = notification?.title ?? data.title ?? 'Yosemite Crew';
-  const body = notification?.body ?? data.body ?? '';
+  // This is the locked-screen surface, so it takes the notification block and
+  // never falls back to `data`. The OS draws this one too, and the data block
+  // is where the record wording now travels - a push with no notification
+  // block (data-only, or an older server) still gets generic text rather than
+  // the record's own. A block the server marked generic is our own English
+  // placeholder, so it is replaced by the same sentence in the reader's
+  // language rather than shown as sent.
+  const genericBlock = data.lockScreen === LOCK_SCREEN_GENERIC_MARKER;
+  const title = genericBlock
+    ? lockScreenTitle()
+    : notification?.title ?? lockScreenTitle();
+  const body = genericBlock
+    ? lockScreenBody()
+    : notification?.body ?? lockScreenBody();
   const imageUrl = notification?.android?.imageUrl || data.largeIcon;
   const smallIcon =
     normalizeAndroidIconResource(data.smallIcon) ?? 'ic_launcher';
@@ -396,14 +419,21 @@ function convertToNotificationPayload(
   const companionId =
     data.companionId || data.ownerId || DEFAULT_FALLBACK_COMPANION_ID;
 
-  if (!notification?.title && !data.title) {
+  // The data block carries the record's own wording; the notification block
+  // carries only the generic text that is safe to draw on a locked screen.
+  // Inside the app we show the real thing, so the data block wins here - and
+  // `presentNotifeeNotification` reads them the other way up for the lock
+  // screen.
+  const title = data.title || notification?.title;
+
+  if (!title) {
     return null;
   }
 
   return {
     companionId,
-    title: notification?.title ?? data.title ?? 'Notification',
-    description: notification?.body ?? data.body ?? '',
+    title,
+    description: data.body ?? notification?.body ?? '',
     category,
     icon: data.icon || 'notificationIcon',
     avatarUrl: data.avatarUrl,

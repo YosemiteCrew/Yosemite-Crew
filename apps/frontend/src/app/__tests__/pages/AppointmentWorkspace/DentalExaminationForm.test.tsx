@@ -278,6 +278,34 @@ describe('DentalExaminationForm', () => {
     );
   });
 
+  it('disables saving and reports progress while the examination is pending', async () => {
+    let resolveSave: (
+      record: Awaited<ReturnType<typeof createDentalExamination>>
+    ) => void = () => {};
+    createExamMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      })
+    );
+    render(
+      <DentalExaminationForm
+        organisationId="org-1"
+        patientId="patient-1"
+        encounterId="enc-1"
+        species="dog"
+      />
+    );
+
+    fireEvent.change(await screen.findByLabelText(/Overall periodontal grade/), {
+      target: { value: 'GRADE_1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save examination' }));
+
+    expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+    resolveSave({ ...previousExam, id: 'exam-new', encounterId: 'enc-1' });
+    expect(await screen.findByText('Dental examination saved.')).toBeInTheDocument();
+  });
+
   it('retries when the previous dental record cannot be loaded', async () => {
     listExamsMock.mockRejectedValueOnce(new Error('request failed'));
     render(<DentalExaminationForm organisationId="org-1" patientId="patient-1" species="dog" />);

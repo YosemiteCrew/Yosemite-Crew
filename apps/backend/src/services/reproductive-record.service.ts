@@ -40,20 +40,20 @@ export interface CreateReproductiveRecordParams {
 
 export interface UpdateReproductiveRecordParams {
   reproductiveStatus?: ReproductiveStatus;
-  lastHeatDate?: Date;
-  nextHeatExpected?: Date;
-  matingDate?: Date;
-  sireId?: string;
-  sireName?: string;
-  pregnancyStatus?: PregnancyStatus;
-  pregnancyConfirmedAt?: Date;
-  expectedWhelp?: Date;
-  litterSizeUltrasound?: number;
-  litterSizeXray?: number;
-  actualWhelp?: Date;
-  litterSizeBorn?: number;
-  litterSizeAlive?: number;
-  notes?: string;
+  lastHeatDate?: Date | null;
+  nextHeatExpected?: Date | null;
+  matingDate?: Date | null;
+  sireId?: string | null;
+  sireName?: string | null;
+  pregnancyStatus?: PregnancyStatus | null;
+  pregnancyConfirmedAt?: Date | null;
+  expectedWhelp?: Date | null;
+  litterSizeUltrasound?: number | null;
+  litterSizeXray?: number | null;
+  actualWhelp?: Date | null;
+  litterSizeBorn?: number | null;
+  litterSizeAlive?: number | null;
+  notes?: string | null;
 }
 
 export interface ListReproductiveRecordsParams {

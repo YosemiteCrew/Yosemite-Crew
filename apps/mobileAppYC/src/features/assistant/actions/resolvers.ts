@@ -153,19 +153,20 @@ export const resolveNextAppointment = (
   const scopeIds = new Set(scope.map(companion => companion.id));
   const nameById = new Map(scope.map(c => [c.id, c.name]));
 
-  const upcoming = context.appointments
-    .filter(appointment => scopeIds.has(appointment.companionId))
-    .filter(appointment => !TERMINAL_STATUSES.has(appointment.status))
-    .map(appointment => ({
-      appointment,
-      startsAt: appointmentStartsAt(appointment),
-    }))
-    .filter(
-      (entry): entry is {appointment: Appointment; startsAt: Date} =>
-        entry.startsAt !== null &&
-        entry.startsAt.getTime() >= context.now.getTime(),
-    )
-    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+  const upcoming: {appointment: Appointment; startsAt: Date}[] = [];
+  for (const appointment of context.appointments) {
+    if (
+      !scopeIds.has(appointment.companionId) ||
+      TERMINAL_STATUSES.has(appointment.status)
+    ) {
+      continue;
+    }
+    const startsAt = appointmentStartsAt(appointment);
+    if (startsAt !== null && startsAt.getTime() >= context.now.getTime()) {
+      upcoming.push({appointment, startsAt});
+    }
+  }
+  upcoming.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 
   const next = upcoming[0];
   if (!next) {
@@ -313,17 +314,21 @@ export const resolveUpcomingTasks = (
     : // A named day means "through the end of that day", not "up to 9am".
       new Date(windowEnd).setHours(23, 59, 59, 999);
 
-  const due = context.tasks
-    .filter(task => scopeIds.has(task.companionId))
-    .filter(isOpenTask)
-    .map(task => ({task, dueAt: taskDueAt(task)}))
-    .filter(
-      (entry): entry is {task: Task; dueAt: Date} =>
-        entry.dueAt !== null &&
-        entry.dueAt.getTime() >= context.now.getTime() - MS_PER_DAY &&
-        entry.dueAt.getTime() <= endTime,
-    )
-    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  const due: {task: Task; dueAt: Date}[] = [];
+  for (const task of context.tasks) {
+    if (!scopeIds.has(task.companionId) || !isOpenTask(task)) {
+      continue;
+    }
+    const dueAt = taskDueAt(task);
+    if (
+      dueAt !== null &&
+      dueAt.getTime() >= context.now.getTime() - MS_PER_DAY &&
+      dueAt.getTime() <= endTime
+    ) {
+      due.push({task, dueAt});
+    }
+  }
+  due.sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
 
   if (due.length === 0) {
     return {

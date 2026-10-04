@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import type { Appointment } from '@yosemite-crew/types';
 
 import type { OrgIntegration } from '@/app/features/integrations/services/types';
 import { useIntegrationStore } from '@/app/stores/integrationStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import AppointmentMerckSearch, { MerckReaderOverlay } from './AppointmentMerckSearch';
+import AppointmentMerckSearch from './AppointmentMerckSearch';
 
 const ORG_ID = 'org-storybook-merck';
 
@@ -80,8 +80,7 @@ const meta = {
           'this surface where an active filter is drawn, and the active look is a token swap ' +
           '(`bg-blue-light` + `border-text-brand`) rather than a shape change, so a regression ' +
           'there is invisible without a story that opens the panel and reads the pill.\n\n' +
-          'The reader overlay is exercised separately, from its own export, because in the app ' +
-          'it is only ever mounted after a search returns an entry.',
+          'Manual pages open on the MSD site in a new tab, not inside the app.',
       },
     },
   },
@@ -236,89 +235,6 @@ export const IntegrationDisabled: Story = {
           'integration is off, so this card is only reached by an org that turns it off while ' +
           'the panel is open - and it is also the state the enabled panel renders for one frame ' +
           'before `getStatus` resolves.',
-      },
-    },
-  },
-};
-
-/**
- * In the app the reader is `createPortal`ed to `document.body` and only mounted once a
- * search has returned an entry, so these two stories render it directly. `render`
- * ignores the meta args on purpose - the overlay is fully prop-driven.
- */
-export const ReaderLoading: Story = {
-  name: 'Reader overlay - loading',
-  render: () => (
-    <MerckReaderOverlay
-      url="about:blank"
-      title="Canine Parvovirus"
-      loading
-      blocked={false}
-      onClose={fn()}
-      onLoad={fn()}
-      onError={fn()}
-    />
-  ),
-  play: async ({ canvasElement }) => {
-    // Rendered directly rather than portalled, so the overlay is inside the canvas.
-    const overlay = within(canvasElement);
-    await expect(overlay.getByLabelText('Loading Manual')).toBeInTheDocument();
-    await expect(overlay.getByText('Fetching “Canine Parvovirus” from MSD…')).toBeInTheDocument();
-    // The iframe is mounted underneath the spinner, not swapped in after it - that is
-    // what lets `onLoad` ever fire.
-    const frame = canvasElement.querySelector('iframe[title="Canine Parvovirus"]');
-    await expect(frame).toBeInTheDocument();
-    await expect(frame).toHaveAttribute(
-      'sandbox',
-      'allow-scripts allow-popups allow-forms allow-same-origin'
-    );
-  },
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'The state between opening a manual and MSD answering. `about:blank` stands in for ' +
-          'the real URL so the story loads nothing over the network; the spinner layer is ' +
-          '`absolute inset-0 z-10` over the live iframe, which is why the frame is asserted ' +
-          'here as well as the loader. The `allow-same-origin` in the sandbox list is ' +
-          'load-bearing - MSD reads `document.cookie` on boot and hangs on its own loader in an ' +
-          'opaque origin.',
-      },
-    },
-  },
-};
-
-export const ReaderBlocked: Story = {
-  name: 'Reader overlay - blocked fallback',
-  render: () => (
-    <MerckReaderOverlay
-      url="https://www.msdvetmanual.com/dog-owners"
-      title="Canine Parvovirus"
-      loading={false}
-      blocked
-      onClose={fn()}
-      onLoad={fn()}
-      onError={fn()}
-    />
-  ),
-  play: async ({ canvasElement }) => {
-    const overlay = within(canvasElement);
-    await expect(overlay.getByText('This manual didn’t load')).toBeInTheDocument();
-    await expect(
-      overlay.getByText('MSD took too long to respond. Open it in a new tab instead.')
-    ).toBeInTheDocument();
-    await expect(overlay.getByRole('button', { name: 'Open in new tab' })).toBeEnabled();
-    // The spinner is gone, not stacked behind the fallback.
-    await expect(overlay.queryByLabelText('Loading Manual')).not.toBeInTheDocument();
-  },
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Reached only after a 12-second timer with no `onLoad` and no `onError` - a stalled ' +
-          'MSD page fires neither - so it is unreachable in any normal session and had never ' +
-          'been drawn. It replaces the spinner with the one path that still works, opening the ' +
-          'manual in a real tab.',
       },
     },
   },

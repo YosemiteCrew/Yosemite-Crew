@@ -973,5 +973,11 @@
       "invalidated": "Device security changed. Sign in again.",
       "failed": "That check did not unlock the app."
     }
+  },
+  "notifications": {
+    "lockScreen": {
+      "title": "Yosemite Crew",
+      "body": "You have an update. Open the app to see it."
+    }
   }
 }

@@ -10,6 +10,11 @@ export const duplicatePairId = (match: PossibleDuplicate) =>
   [match.patientA.id, match.patientB.id].sort((left, right) => left.localeCompare(right)).join(':');
 
 type ReviewError = { organisationId: string; message: string };
+type MatchLoadResult = {
+  requestId: number;
+  matches: PossibleDuplicate[];
+  error: string | null;
+};
 
 export const useDuplicateReview = (organisationId: string | null) => {
   const [matches, setMatches] = useState<PossibleDuplicate[]>([]);
@@ -33,8 +38,40 @@ export const useDuplicateReview = (organisationId: string | null) => {
     ? (currentDismissError ?? currentLoadError)
     : 'Choose a clinic to review patient records.';
 
+  const loadMatches = useCallback(
+    async (targetOrganisationId: string): Promise<MatchLoadResult> => {
+      const requestId = ++latestLoadRequest.current;
+      try {
+        return {
+          requestId,
+          matches: await loadPossibleDuplicates(targetOrganisationId),
+          error: null,
+        };
+      } catch {
+        return {
+          requestId,
+          matches: [],
+          error: 'Possible matches could not be loaded. Try again.',
+        };
+      }
+    },
+    []
+  );
+
+  const applyLoadedMatches = useCallback(
+    (targetOrganisationId: string, result: MatchLoadResult) => {
+      if (result.requestId !== latestLoadRequest.current) return;
+      setMatches(result.matches);
+      setLoadError(
+        result.error ? { organisationId: targetOrganisationId, message: result.error } : null
+      );
+      setLoadedOrganisationId(targetOrganisationId);
+      setLoading(false);
+    },
+    []
+  );
+
   const refresh = useCallback(async () => {
-    const requestId = ++latestLoadRequest.current;
     if (!organisationId) {
       setMatches([]);
       setLoadError(null);
@@ -45,50 +82,21 @@ export const useDuplicateReview = (organisationId: string | null) => {
     setLoading(true);
     setLoadError(null);
     setDismissError(null);
-    try {
-      const result = await loadPossibleDuplicates(organisationId);
-      if (requestId !== latestLoadRequest.current) return;
-      setMatches(result);
-      setLoadedOrganisationId(organisationId);
-    } catch {
-      if (requestId !== latestLoadRequest.current) return;
-      setMatches([]);
-      setLoadError({ organisationId, message: 'Possible matches could not be loaded. Try again.' });
-      setLoadedOrganisationId(organisationId);
-    } finally {
-      if (requestId === latestLoadRequest.current) setLoading(false);
-    }
-  }, [organisationId]);
+    applyLoadedMatches(organisationId, await loadMatches(organisationId));
+  }, [applyLoadedMatches, loadMatches, organisationId]);
 
   useEffect(() => {
-    const requestId = ++latestLoadRequest.current;
     latestDismissRequest.current += 1;
-    if (!organisationId) {
-      return;
-    }
+    if (!organisationId) return;
     let active = true;
-    loadPossibleDuplicates(organisationId)
-      .then((result) => {
-        if (!active || requestId !== latestLoadRequest.current) return;
-        setMatches(result);
-        setLoadError(null);
-        setLoadedOrganisationId(organisationId);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!active || requestId !== latestLoadRequest.current) return;
-        setMatches([]);
-        setLoadError({
-          organisationId,
-          message: 'Possible matches could not be loaded. Try again.',
-        });
-        setLoadedOrganisationId(organisationId);
-        setLoading(false);
-      });
+    void loadMatches(organisationId).then((result) => {
+      if (active) applyLoadedMatches(organisationId, result);
+    });
     return () => {
       active = false;
+      latestLoadRequest.current += 1;
     };
-  }, [organisationId]);
+  }, [applyLoadedMatches, loadMatches, organisationId]);
 
   const dismiss = async (match: PossibleDuplicate) => {
     if (!organisationId || busyPair) return;

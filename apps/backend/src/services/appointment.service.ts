@@ -477,13 +477,12 @@ type ParsedPmsAppointmentUpdate = {
   durationMinutesFromDto?: number;
   statusProvided: boolean;
   concernProvided: boolean;
-  nextConcern?: string;
+  nextConcern?: string | null;
   startTimeProvided: boolean;
 };
 
 const parsePmsAppointmentUpdate = (
   dto: AppointmentRequestDTO,
-  extracted: ReturnType<typeof fromAppointmentRequestDTO>,
 ): ParsedPmsAppointmentUpdate => {
   const parseOptionalDate = (value: unknown): Date | undefined => {
     if (value instanceof Date) {
@@ -507,14 +506,12 @@ const parsePmsAppointmentUpdate = (
     durationMinutesFromDto = dtoAny.minutesDuration;
   }
 
+  const concernValue = Object.hasOwn(dtoAny, "concern")
+    ? dtoAny.concern
+    : dtoAny.description;
   const concernProvided =
-    typeof dtoAny.concern === "string" ||
-    typeof dtoAny.description === "string";
-  let nextConcern: string | undefined;
-  if (concernProvided) {
-    nextConcern =
-      typeof dtoAny.concern === "string" ? dtoAny.concern : extracted.concern;
-  }
+    concernValue === null || typeof concernValue === "string";
+  const nextConcern = concernProvided ? concernValue : undefined;
 
   const statusProvided = typeof dtoAny.status === "string";
 
@@ -588,8 +585,8 @@ type PmsUpdatePlan = {
   statusChanged: boolean;
   shouldUpdateEmergency: boolean;
   nextIsEmergency: boolean;
-  previousConcern?: string;
-  nextConcernValue?: string;
+  previousConcern: string | null;
+  nextConcernValue: string | null;
   concernChanged: boolean;
   emergencyChanged: boolean;
   rescheduled: boolean;
@@ -652,18 +649,17 @@ const buildPmsUpdatePlanFromPrisma = (args: {
   const previousConcern =
     typeof args.appointment.concern === "string"
       ? args.appointment.concern
-      : undefined;
+      : null;
   const nextConcernValue = args.parsed.concernProvided
-    ? args.parsed.nextConcern
-    : (previousConcern ?? undefined);
+    ? (args.parsed.nextConcern ?? null)
+    : previousConcern;
 
   const rescheduled =
     timesProvided &&
     (args.appointment.startTime.getTime() !== nextStartTime.getTime() ||
       args.appointment.endTime.getTime() !== nextEndTime.getTime());
   const concernChanged =
-    args.parsed.concernProvided &&
-    nextConcernValue !== (previousConcern ?? undefined);
+    args.parsed.concernProvided && nextConcernValue !== previousConcern;
   const emergencyChanged =
     shouldUpdateEmergency && nextIsEmergency !== args.appointment.isEmergency;
 
@@ -769,7 +765,9 @@ const updateAppointmentPMSFromPostgresRow = async ({
           ? dayjs(plan.nextStartTime).format("HH:mm")
           : appointment.timeSlot,
         durationMinutes: plan.nextDurationMinutes,
-        concern: plan.nextConcernValue ?? undefined,
+        concern: parsed.concernProvided
+          ? plan.nextConcernValue
+          : (plan.nextConcernValue ?? undefined),
         isEmergency: plan.nextIsEmergency ?? false,
         updatedAt: new Date(),
       },
@@ -811,7 +809,9 @@ const updateAppointmentPMSFromPostgresRow = async ({
         previousStatus: appointment.status,
         startTime: plan.nextStartTime,
         endTime: plan.nextEndTime,
-        concern: plan.nextConcernValue ?? undefined,
+        concern: parsed.concernProvided
+          ? plan.nextConcernValue
+          : (plan.nextConcernValue ?? undefined),
       },
     });
   }
@@ -2141,7 +2141,7 @@ export const AppointmentService = {
     }
 
     const extracted = fromAppointmentRequestDTO(dto);
-    const parsed = parsePmsAppointmentUpdate(dto, extracted);
+    const parsed = parsePmsAppointmentUpdate(dto);
 
     if (extracted.status === "CANCELLED") {
       return this.cancelAppointment(appointmentId, extracted.concern);

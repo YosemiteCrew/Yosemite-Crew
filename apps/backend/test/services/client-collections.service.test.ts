@@ -97,6 +97,16 @@ describe("calculateInvoiceDueAt", () => {
     ).toEqual(new Date("2026-10-30T23:59:59.999Z"));
   });
 
+  it("ends the due date after the spring daylight saving change", () => {
+    expect(
+      calculateInvoiceDueAt(
+        new Date("2026-03-07T17:00:00.000Z"),
+        1,
+        "America/New_York",
+      ),
+    ).toEqual(new Date("2026-03-09T03:59:59.999Z"));
+  });
+
   it("leaves due-on-receipt invoices due by the end of the finalizing day", () => {
     expect(calculateInvoiceDueAt(NOW, 0, "UTC")).toEqual(
       new Date("2026-09-26T23:59:59.999Z"),

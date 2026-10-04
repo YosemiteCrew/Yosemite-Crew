@@ -119,6 +119,7 @@ export const Consistency: StoryObj = {
             { key: 'role', label: 'Role' },
             { key: 'speciality', label: 'Speciality' },
           ]}
+          itemNoun="team members"
         />
       </div>
       <div>

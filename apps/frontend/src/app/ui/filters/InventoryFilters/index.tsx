@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -80,20 +80,15 @@ const InventoryFilters = ({
     [categories]
   );
 
-  const updateFilters = (patch: Partial<InventoryFiltersState>) => {
-    onChange({ ...filters, ...patch });
-  };
-
   // The selected category can disappear from `categories` (an org type change,
-  // a reload). Telling the parent from an effect rather than during render:
-  // `onChange` sets state in the PARENT, and doing that while this component
-  // renders is what React warns about - and re-renders in a loop if the parent
-  // does not replace the value immediately.
-  const categoryIsStale = filters.category !== 'all' && !categories.includes(filters.category);
-  useEffect(() => {
-    if (!categoryIsStale) return;
-    onChange({ ...filters, category: 'all' });
-  }, [categoryIsStale, filters, onChange]);
+  // a reload). It then reads as 'all', and every change is reported with that
+  // resolved value, so the stale one leaves the parent's state on the next change.
+  const effectiveCategory =
+    filters.category === 'all' || categories.includes(filters.category) ? filters.category : 'all';
+
+  const updateFilters = (patch: Partial<InventoryFiltersState>) => {
+    onChange({ ...filters, category: effectiveCategory, ...patch });
+  };
 
   useFilterDropdownDismiss(dropdownOpen, setDropdownOpen, triggerRef, panelRef);
 
@@ -210,7 +205,7 @@ const InventoryFilters = ({
           <LabelDropdown
             placeholder="Category"
             options={categoryOptions}
-            defaultOption={filters.category}
+            defaultOption={effectiveCategory}
             onSelect={(option) => updateFilters({ category: option.value })}
           />
         </div>

@@ -11,7 +11,7 @@ type ScheduleDoseFormProps = {
   isSaving: boolean;
   onPrescriptionChange: (prescriptionId: string) => void;
   onScheduledAtChange: (scheduledAt: string) => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
   onCancel: () => void;
 };
 

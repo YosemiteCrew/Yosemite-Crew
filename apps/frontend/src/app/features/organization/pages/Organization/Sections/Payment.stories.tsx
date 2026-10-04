@@ -109,8 +109,8 @@ const meta = {
           'The Stripe row on the organization page. One line of copy, one optional link, and ' +
           'four outcomes behind them - none of which any other story in the repo draws.\n\n' +
           '`resolveStatus` reads the two Connect flags in order: charges enabled decides ' +
-          '**connected**, and payouts only refines the wording ("Charges enabled · payouts ' +
-          'weekly" against "Charges enabled"). An account that can pay out but cannot take ' +
+          '**connected**, and payouts only refines the wording ("Charges and payouts enabled" ' +
+          'against "Charges enabled"). An account that can pay out but cannot take ' +
           'charges is reported as not connected, which is right - it cannot be sold through.\n\n' +
           'Two independent permission checks then decide how much of the row exists. ' +
           '`subscription:view:any` gates the whole card through a `PermissionGate` whose ' +
@@ -142,7 +142,7 @@ export const ChargesAndPayouts: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    const statusLine = canvas.getByText('Charges enabled · payouts weekly');
+    const statusLine = canvas.getByText('Charges and payouts enabled');
     const link = canvas.getByRole('link', { name: 'Manage' });
     await expect(link).toHaveAttribute('href', `/stripe-onboarding?orgId=${ORG_ID}`);
 
@@ -174,8 +174,8 @@ export const ChargesAndPayouts: Story = {
     docs: {
       description: {
         story:
-          'The healthy account. "payouts weekly" is copy, not data - nothing here reads a ' +
-          'payout schedule off Stripe, so an account on a monthly schedule is described wrongly.',
+          'The healthy account. The line names the two Connect capabilities and nothing more - ' +
+          'no payout schedule is claimed, because nothing here reads one off Stripe.',
       },
     },
   },
@@ -190,10 +190,10 @@ export const ChargesOnly: Story = {
     const canvas = within(canvasElement);
 
     /* Charges alone is still connected: the account can take money, and the link
-       stays "Manage" rather than reverting to "Connect". Payouts only shorten the
+       stays "Manage" rather than reverting to "Connect". Payouts only change the
        sentence. */
     await expect(canvas.getByText('Charges enabled')).toBeInTheDocument();
-    await expect(canvas.queryByText('Charges enabled · payouts weekly')).toBeNull();
+    await expect(canvas.queryByText('Charges and payouts enabled')).toBeNull();
     await expect(canvas.getByRole('link', { name: 'Manage' })).toBeInTheDocument();
   },
   parameters: {
@@ -279,7 +279,7 @@ export const ViewerCannotManage: Story = {
        `subscription:edit:any` alone. A regression that loosened the pair to
        `anyOf` would put a Manage link in front of every admin, and this is the
        only story that would catch it. */
-    await expect(canvas.getByText('Charges enabled · payouts weekly')).toBeInTheDocument();
+    await expect(canvas.getByText('Charges and payouts enabled')).toBeInTheDocument();
     await expect(canvas.queryAllByRole('link')).toHaveLength(0);
     await expect(canvas.queryByRole('status')).toBeNull();
   },

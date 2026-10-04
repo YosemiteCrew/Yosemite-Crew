@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { redirect } from '@storybook/nextjs-vite/navigation.mock';
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import type { Appointment, Invoice, Organisation, UserOrganization } from '@yosemite-crew/types';
 
@@ -218,18 +219,21 @@ const respond = (config: InternalAxiosRequestConfig, data: unknown): AxiosRespon
 
 /**
  * Finance itself makes no request of its own - `useInvoicesForPrimaryOrg` is a
- * plain store selector - but something in the guarded shell asks for the
- * subscription/usage endpoints the way Discounts and Estimates observed, so the
- * adapter answers those defensively and echoes anything else back empty rather
- * than letting a real request escape the story.
+ * plain store selector - but `OrgGuard` refreshes the billing status on mount
+ * (`checkStatus`), and whatever that request answers REPLACES the seeded
+ * subscription: `normalizeSubscription` rebuilds it from the response and
+ * never carries `connectChargesEnabled`. Answered at all, it would swap the
+ * story's own subscription (connected, GBP) for a derived one, so the Stripe
+ * pill, the banner and every currency on the page would describe the stub
+ * rather than the state the story names. The refresh is left pending instead,
+ * which is the one answer that leaves the seeded store as the page's source.
+ * Anything else is echoed back empty rather than letting a real request escape
+ * the story.
  */
 const buildAdapter = (): AxiosAdapter => (config: InternalAxiosRequestConfig) => {
   const url = String(config.url ?? '');
   if (url.includes('/v1/finance/subscriptions/current')) {
-    return Promise.resolve(respond(config, { data: { organisationId: ORG_ID, currency: 'GBP' } }));
-  }
-  if (url.includes('/v1/finance/usage-snapshots')) {
-    return Promise.resolve(respond(config, { data: [] }));
+    return new Promise<AxiosResponse>(() => undefined);
   }
   return Promise.resolve(respond(config, []));
 };
@@ -387,8 +391,12 @@ export const Loaded: Story = {
   name: 'Three invoices across statuses',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByRole('heading', { level: 1, name: /^Finance/ })).toBeVisible();
-    await expect(canvas.getByText('Finance (3)')).toBeVisible();
+    /* The title and its count are one heading, "Finance" plus a count span, so it is
+       matched by its accessible name in full. A loose `/^Finance/` also matches the
+       preview's sr-only story title, which is an <h1> inside the canvas too. */
+    await expect(
+      await canvas.findByRole('heading', { level: 1, name: 'Finance (3)' })
+    ).toBeVisible();
 
     // One PAID invoice paid just now, so the whole of it is "this week".
     // The other two are unsettled, so their totals (minus any deposit) sum
@@ -423,12 +431,19 @@ export const Loaded: Story = {
 
     await expect(canvas.getByRole('group', { name: 'Filter invoices by status' })).toBeVisible();
 
-    // One row per invoice, named by its own id rather than a shared label.
-    await expect(canvas.getByRole('button', { name: 'View invoice inv-paid' })).toBeVisible();
+    // One row per invoice, named by its own id rather than a shared label. The
+    // ledger is a `next/dynamic` chunk, so the first row gets time to arrive.
+    await expect(
+      await canvas.findByRole('button', { name: 'View invoice inv-paid' }, { timeout: 5000 })
+    ).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'View invoice inv-awaiting' })).toBeVisible();
-    // The estimate-converted invoice is named from the companion store fallback.
-    await expect(canvas.getByRole('button', { name: 'View invoice inv-converted' })).toBeVisible();
-    await expect(canvas.getByText('Otis Kowalczyk')).toBeVisible();
+    /* The estimate-converted invoice is named from the companion store fallback.
+       Read inside its own visible row: the ledger renders one band per width and
+       hides the other, so the name exists twice in the document. */
+    const converted = canvas.getByRole('button', { name: 'View invoice inv-converted' });
+    await expect(converted).toBeVisible();
+    const convertedRow = converted.closest('tr') as HTMLElement;
+    await expect(within(convertedRow).getByText('Otis Kowalczyk')).toBeVisible();
   },
 };
 
@@ -455,7 +470,9 @@ export const NoInvoices: Story = {
   beforeEach: prepare({ invoices: [] }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('Finance (0)')).toBeVisible();
+    await expect(
+      await canvas.findByRole('heading', { level: 1, name: 'Finance (0)' })
+    ).toBeVisible();
     await expect(canvas.getByText('£0.00 collected this week · £0.00 outstanding')).toBeVisible();
     // Both table bands render the same empty copy; only one is visible at this
     // width, but the text itself exists in each.
@@ -484,18 +501,27 @@ export const StatusFilterPaid: Story = {
     ).not.toBeInTheDocument();
     // The header total is unfiltered - it still sums every invoice, not just
     // the visible rows.
-    await expect(canvas.getByText('Finance (3)')).toBeVisible();
+    await expect(canvas.getByRole('heading', { level: 1, name: 'Finance (3)' })).toBeVisible();
   },
 };
 
 export const NoBillingAccess: Story = {
-  name: 'Billing view revoked',
-  beforeEach: prepare({ revoked: ['billing:view:any'] }),
+  name: 'Billing view revoked (redirects)',
+  beforeEach: () => {
+    const restore = prepare({ revoked: ['billing:view:any'] })();
+    /* `/finance` declares `billing:view:any`, so `OrgGuard` sends a membership
+       without it to its first accessible route before the page renders at all -
+       the page's own inline "can't view" fallback is never reached. `redirect()`
+       throws in the app; unmocked here it loops, because the Storybook router
+       never leaves the route. The mock records the call and returns instead. */
+    redirect.mockImplementation(() => undefined as never);
+    return restore;
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByText(/Your role \(Owner\) can.t view this section\./)
-    ).toBeVisible();
+    await waitFor(() => expect(redirect).toHaveBeenCalledWith('/dashboard'));
+    // Nothing billing-scoped ever mounts behind the guard.
+    await expect(canvas.queryByRole('heading', { level: 1, name: /^Finance \(/ })).toBeNull();
     await expect(
       canvas.queryByRole('button', { name: 'View invoice inv-paid' })
     ).not.toBeInTheDocument();
@@ -510,10 +536,14 @@ export const Phone: Story = {
   globals: { viewport: { value: 'mobile', isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByText('Collected · wk')).toBeVisible();
-    await expect(canvas.getByText('£250.00')).toBeVisible();
-    await expect(canvas.getByText('Outstanding')).toBeVisible();
-    await expect(canvas.getByText('£720.50')).toBeVisible();
+    /* Each figure is read off its own tile label: £250.00 is also the paid
+       invoice's total on its card below, so a bare text query matches twice. */
+    const collected = await canvas.findByText('Collected · wk');
+    await expect(collected).toBeVisible();
+    await expect(collected.nextElementSibling).toHaveTextContent('£250.00');
+    const outstanding = canvas.getByText('Outstanding');
+    await expect(outstanding).toBeVisible();
+    await expect(outstanding.nextElementSibling).toHaveTextContent('£720.50');
 
     // The desktop nav row's Estimates/Discounts/Insurance links have a phone
     // equivalent up top; without it there is no route to /finance/estimates
@@ -523,7 +553,8 @@ export const Phone: Story = {
       '/finance/estimates'
     );
 
-    await expect(canvas.getByRole('button', { name: 'View invoice inv-paid' })).toBeVisible();
+    // The phone card is named by its "#"-prefixed invoice number, as on its face.
+    await expect(canvas.getByRole('button', { name: 'View invoice #inv-paid' })).toBeVisible();
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   },
 };

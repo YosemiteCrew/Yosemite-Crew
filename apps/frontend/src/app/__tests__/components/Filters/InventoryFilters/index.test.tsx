@@ -76,7 +76,7 @@ describe('InventoryFilters', () => {
     expect(container.querySelector('.translate-x-0')).toBeInTheDocument();
   });
 
-  it('resets category to "all" when the current category is not in the list', () => {
+  it('treats a category that is not in the list as "all" and reports it on the next change', () => {
     const onChange = jest.fn();
     render(
       <InventoryFilters
@@ -85,7 +85,11 @@ describe('InventoryFilters', () => {
         categories={['Food']}
       />
     );
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ category: 'all' }));
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: 'ACTIVE', category: 'all' })
+    );
   });
 
   it('shows the selected non-ALL stock health label on the pill', () => {

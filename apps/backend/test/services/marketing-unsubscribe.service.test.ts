@@ -3,9 +3,23 @@ import { createHmac } from "node:crypto";
 const updateContact = jest.fn();
 const createContact = jest.fn();
 
-jest.mock("aws-sdk/clients/sesv2.js", () =>
-  jest.fn(() => ({ updateContact, createContact })),
-);
+jest.mock("@aws-sdk/client-sesv2", () => {
+  const actual = jest.requireActual("@aws-sdk/client-sesv2");
+  return {
+    ...actual,
+    SESv2Client: jest.fn(() => ({
+      send: jest.fn((command) => {
+        if (command instanceof actual.UpdateContactCommand) {
+          return updateContact(command.input);
+        }
+        if (command instanceof actual.CreateContactCommand) {
+          return createContact(command.input);
+        }
+        throw new Error("Unexpected contact command");
+      }),
+    })),
+  };
+});
 import {
   buildMarketingUnsubscribeUrl,
   createMarketingUnsubscribeToken,
@@ -19,8 +33,10 @@ import {
 describe("marketing-unsubscribe.service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    updateContact.mockReturnValue({ promise: jest.fn().mockResolvedValue({}) });
-    createContact.mockReturnValue({ promise: jest.fn().mockResolvedValue({}) });
+    updateContact.mockReset();
+    createContact.mockReset();
+    updateContact.mockResolvedValue({});
+    createContact.mockResolvedValue({});
     resetMarketingUnsubscribeClientForTests();
     process.env.AWS_SES_REGION = "us-east-1";
     process.env.MARKETING_UNSUBSCRIBE_SECRET = "test-secret";
@@ -151,9 +167,7 @@ describe("marketing-unsubscribe.service", () => {
   });
 
   it("creates an unsubscribed SES contact when it does not exist", async () => {
-    updateContact.mockReturnValue({
-      promise: jest.fn().mockRejectedValue({ code: "NotFoundException" }),
-    });
+    updateContact.mockRejectedValue({ name: "NotFoundException" });
     const token = createMarketingUnsubscribeToken("person@example.com");
 
     await unsubscribeMarketingEmail(token);
@@ -166,14 +180,10 @@ describe("marketing-unsubscribe.service", () => {
   });
 
   it("retries the update when concurrent contact creation wins", async () => {
-    const updatePromise = jest
-      .fn()
-      .mockRejectedValueOnce({ code: "NotFoundException" })
+    updateContact
+      .mockRejectedValueOnce({ name: "NotFoundException" })
       .mockResolvedValueOnce({});
-    updateContact.mockReturnValue({ promise: updatePromise });
-    createContact.mockReturnValue({
-      promise: jest.fn().mockRejectedValue({ code: "AlreadyExistsException" }),
-    });
+    createContact.mockRejectedValue({ name: "AlreadyExistsException" });
     const token = createMarketingUnsubscribeToken("person@example.com");
 
     await unsubscribeMarketingEmail(token);
@@ -183,30 +193,43 @@ describe("marketing-unsubscribe.service", () => {
   });
 
   it("propagates SES update failures", async () => {
-    updateContact.mockReturnValue({
-      promise: jest.fn().mockRejectedValue({ code: "AccessDeniedException" }),
-    });
+    updateContact.mockRejectedValue({ name: "AccessDeniedException" });
 
     await expect(
       unsubscribeMarketingEmail(
         createMarketingUnsubscribeToken("person@example.com"),
       ),
-    ).rejects.toEqual({ code: "AccessDeniedException" });
+    ).rejects.toEqual({ name: "AccessDeniedException" });
+  });
+
+  it("propagates a failed update after concurrent contact creation", async () => {
+    const failure = new Error("Contact update failed");
+    updateContact
+      .mockRejectedValueOnce({ name: "NotFoundException" })
+      .mockRejectedValueOnce(failure);
+    createContact.mockRejectedValueOnce({ name: "AlreadyExistsException" });
+
+    await expect(
+      unsubscribeMarketingEmail(
+        createMarketingUnsubscribeToken("person@example.com"),
+      ),
+    ).rejects.toBe(failure);
+    expect(updateContact).toHaveBeenNthCalledWith(2, {
+      ContactListName: "marketing",
+      EmailAddress: "person@example.com",
+      UnsubscribeAll: true,
+    });
   });
 
   it("propagates SES contact creation failures", async () => {
-    updateContact.mockReturnValue({
-      promise: jest.fn().mockRejectedValue({ code: "NotFoundException" }),
-    });
-    createContact.mockReturnValue({
-      promise: jest.fn().mockRejectedValue({ code: "AccessDeniedException" }),
-    });
+    updateContact.mockRejectedValue({ name: "NotFoundException" });
+    createContact.mockRejectedValue({ name: "AccessDeniedException" });
 
     await expect(
       unsubscribeMarketingEmail(
         createMarketingUnsubscribeToken("person@example.com"),
       ),
-    ).rejects.toEqual({ code: "AccessDeniedException" });
+    ).rejects.toEqual({ name: "AccessDeniedException" });
   });
 
   it("requires an SES region and contact list", async () => {

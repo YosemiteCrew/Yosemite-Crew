@@ -117,13 +117,13 @@ const DeveloperWebsiteBuilder = () => {
             icon={
               <Icon icon="ion:color-palette-outline" width={16} height={16} aria-hidden="true" />
             }
-            href="/contact-us"
+            href="/website-builder"
             style={{ maxWidth: 200 }}
           />
         </div>
 
         <p className="dev-wb-preview text-caption-2">
-          Preview · the website builder is coming soon. Templates below are samples.
+          Practices build and publish their site from the website builder in the practice app.
         </p>
 
         <section className="DevWebsiteBuilder">
@@ -148,9 +148,7 @@ const DeveloperWebsiteBuilder = () => {
 
           <div className="dev-wb-section-head">
             <h2 className="dev-wb-section-title">Templates</h2>
-            <span className="dev-wb-section-caption">
-              Coming soon · sample templates for preview
-            </span>
+            <span className="dev-wb-section-caption">Templates a practice can publish today</span>
           </div>
           <div className="dev-wb-grid">
             {TEMPLATES.map((template) => (

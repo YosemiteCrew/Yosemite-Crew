@@ -204,6 +204,10 @@ export const LongFirstNameOnPhone: Story = {
     ),
   ],
   parameters: {
+    /* Full-bleed: the runner sizes the page to 375, and the padded layout's own
+       16px gutters on top of the page's 12px ones would leave less than the
+       351px pinned above, so the canvas itself would scroll sideways. */
+    layout: 'fullscreen',
     docs: {
       description: {
         story:

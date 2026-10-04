@@ -3080,7 +3080,24 @@ describe("InventoryConsumptionService", () => {
           { inventoryItemId: "item-x", quantity: 3, sourceLineKey: "line-1" },
         ],
       }),
-    ).rejects.toThrow("Failed to consume full requested quantity");
+    ).rejects.toMatchObject({
+      message: "Insufficient non-expired stock",
+      statusCode: 409,
+    });
+    expect(mockedPrisma.inventoryBatch.findMany).toHaveBeenCalledWith({
+      where: {
+        itemId: "item-x",
+        organisationId: "org-1",
+        OR: [{ expiryDate: null }, { expiryDate: { gt: expect.any(Date) } }],
+      },
+      orderBy: [
+        { expiryDate: { sort: "asc", nulls: "last" } },
+        { createdAt: "asc" },
+      ],
+    });
+    expect(
+      mockedPrisma.inventoryStockMovement.createMany,
+    ).not.toHaveBeenCalled();
   });
 
   it("hydrates a dispense request with no display fields when the appointment is missing", async () => {

@@ -14,7 +14,7 @@ jest.mock('../../../../src/features/auth/sessionManager', () => ({
 jest.mock(
   '../../../../src/features/appointments/services/appointmentsService',
   () => ({
-    appointmentApi: {getPractitionerFeedback: jest.fn()},
+    appointmentApi: {getPractitionerFeedbackForParent: jest.fn()},
   }),
 );
 
@@ -46,27 +46,30 @@ describe('useFetchPractitionerFeedbackIfNeeded', () => {
       {initialProps: {feedbackByAppointment: {}}},
     );
 
-    await result.current(null);
+    await result.current([]);
     rerender({
-      feedbackByAppointment: {[appointmentId]: {isRated: false, loading: true}},
+      feedbackByAppointment: {[appointmentId]: {loading: true}},
     });
-    await result.current(appointmentId);
+    await result.current([appointmentId]);
     rerender({
       feedbackByAppointment: {
         [appointmentId]: {isRated: false, loading: false},
       },
     });
-    await result.current(appointmentId);
+    await result.current([appointmentId]);
     rerender({
       feedbackByAppointment: {[appointmentId]: {isRated: true, rating: 5}},
     });
-    await result.current(appointmentId);
+    await result.current([appointmentId]);
     expect(setFeedbackByAppointment).not.toHaveBeenCalled();
-    expect(appointmentApi.getPractitionerFeedback).not.toHaveBeenCalled();
+    expect(
+      appointmentApi.getPractitionerFeedbackForParent,
+    ).not.toHaveBeenCalled();
 
-    await result.current(appointmentId, true);
-    expect(appointmentApi.getPractitionerFeedback).toHaveBeenCalledWith({
-      appointmentId,
+    await result.current([appointmentId], true);
+    expect(
+      appointmentApi.getPractitionerFeedbackForParent,
+    ).toHaveBeenCalledWith({
       accessToken: 'token',
     });
     const loadingUpdate = setFeedbackByAppointment.mock.calls[0][0];
@@ -91,9 +94,11 @@ describe('useFetchPractitionerFeedbackIfNeeded', () => {
         }),
       );
 
-      await result.current(appointmentId);
+      await result.current([appointmentId]);
 
-      expect(appointmentApi.getPractitionerFeedback).not.toHaveBeenCalled();
+      expect(
+        appointmentApi.getPractitionerFeedbackForParent,
+      ).not.toHaveBeenCalled();
       const finalUpdate = setFeedbackByAppointment.mock.calls.at(-1)?.[0];
       expect(finalUpdate({})[appointmentId]).toEqual({
         isRated: false,
@@ -110,9 +115,11 @@ describe('useFetchPractitionerFeedbackIfNeeded', () => {
       review: 'Helpful visit',
       practitionerName: 'Dr Lee',
     };
-    (appointmentApi.getPractitionerFeedback as jest.Mock).mockResolvedValue(
-      feedback,
-    );
+    (
+      appointmentApi.getPractitionerFeedbackForParent as jest.Mock
+    ).mockResolvedValue({
+      [appointmentId]: feedback,
+    });
     const {result} = renderHook(() =>
       useFetchPractitionerFeedbackIfNeeded({
         feedbackByAppointment: {},
@@ -120,7 +127,7 @@ describe('useFetchPractitionerFeedbackIfNeeded', () => {
       }),
     );
 
-    await result.current(appointmentId);
+    await result.current([appointmentId, 'appointment-2']);
 
     const finalUpdate = setFeedbackByAppointment.mock.calls.at(-1)?.[0];
     expect(finalUpdate({})[appointmentId]).toEqual({
@@ -128,20 +135,25 @@ describe('useFetchPractitionerFeedbackIfNeeded', () => {
       loading: false,
       loadError: false,
     });
+    expect(finalUpdate({})['appointment-2']).toEqual({
+      isRated: false,
+      loading: false,
+      loadError: true,
+    });
   });
 
   it('marks API failures as retryable and logs the failure', async () => {
     const error = Object.assign(new Error('offline'), {
       config: {
         method: 'post',
-        url: '/v1/organisation-rating/practitioner-feedback',
+        url: '/v1/organisation-rating/practitioner-feedback/batch',
         headers: {Authorization: 'Bearer secret-token'},
       },
       response: {status: 503},
     });
-    (appointmentApi.getPractitionerFeedback as jest.Mock).mockRejectedValue(
-      error,
-    );
+    (
+      appointmentApi.getPractitionerFeedbackForParent as jest.Mock
+    ).mockRejectedValue(error);
     const {result} = renderHook(() =>
       useFetchPractitionerFeedbackIfNeeded({
         feedbackByAppointment: {},
@@ -149,11 +161,11 @@ describe('useFetchPractitionerFeedbackIfNeeded', () => {
       }),
     );
 
-    await result.current(appointmentId);
+    await result.current([appointmentId]);
 
     expect(console.warn).toHaveBeenCalledWith(
       '[Appointments] Failed to fetch veterinarian feedback',
-      'POST /v1/organisation-rating/practitioner-feedback failed (503): offline',
+      'POST /v1/organisation-rating/practitioner-feedback/batch failed (503): offline',
     );
     expect(
       JSON.stringify((console.warn as jest.Mock).mock.calls),

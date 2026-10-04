@@ -594,6 +594,7 @@ const KeyField = ({ id, value, error, onChange }: KeyFieldProps) => (
       autoComplete="off"
       spellCheck={false}
       value={value}
+      placeholder="yc_live_…"
       aria-invalid={error ? true : undefined}
       aria-describedby={describedBy(`${id}-hint`, `${id}-error`, error)}
       onChange={(e) => onChange(e.target.value)}

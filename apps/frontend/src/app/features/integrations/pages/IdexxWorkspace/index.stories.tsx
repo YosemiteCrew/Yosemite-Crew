@@ -620,7 +620,11 @@ export const ResultDetailOpened: Story = {
       'href',
       '/appointments?appointmentId=appt-5041&open=labs&subLabel=idexx-labs'
     );
-    await expect(modal.getByRole('button', { name: 'Open in appointment labs' })).toBeEnabled();
+    // With a real href the footer action renders as a link to the same labs tab.
+    await expect(modal.getByRole('link', { name: 'Open in appointment labs' })).toHaveAttribute(
+      'href',
+      '/appointments?appointmentId=appt-5041&open=labs&subLabel=idexx-labs'
+    );
     await expect(modal.getByRole('button', { name: 'Open results PDF' })).toBeEnabled();
   },
 };

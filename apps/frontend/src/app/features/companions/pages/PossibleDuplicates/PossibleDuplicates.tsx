@@ -151,7 +151,7 @@ const PossibleDuplicates = () => {
           <button
             type="button"
             onClick={() => void review.refresh()}
-            disabled={review.loading}
+            disabled={review.loading || review.isLoading}
             className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--hairline)] bg-[var(--screen)] px-3 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--field-bg)] disabled:cursor-wait disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
             <IoRefreshOutline aria-hidden="true" />

@@ -570,8 +570,12 @@ export const NewEstimateDialog: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Create a new estimate' }));
 
-    // The dialog portals to document.body; its picker holds the seeded companions.
-    const picker = await within(document.body).findByLabelText('Companion');
+    /* The dialog portals to document.body. Its picker is the themed Dropdown
+       (9a4a7b1b2): a trigger button whose listbox holds the seeded companions once
+       it is opened. */
+    const body = within(document.body);
+    await userEvent.click(await body.findByRole('button', { name: 'Companion' }));
+    const picker = await body.findByRole('listbox');
     await expect(
       within(picker).getByRole('option', { name: 'Marnie Whitlock' })
     ).toBeInTheDocument();

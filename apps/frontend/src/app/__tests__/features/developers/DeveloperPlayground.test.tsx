@@ -21,7 +21,7 @@ import DeveloperPlayground from '@/app/features/developers/pages/DeveloperPlaygr
 import PlaygroundPage from '@/app/(routes)/(app)/developers/(portal)/playground/page';
 
 const BASE = 'https://api.example.test';
-const KEY = 'synthetic-playground-key';
+const KEY = 'yc_live_EXAMPLE0000EXAMPLE0000EXAMPLE0000';
 
 type FakeResponse = { status: number; body: string; headers?: Record<string, string> };
 
@@ -107,6 +107,7 @@ describe('DeveloperPlayground', () => {
 
   it('does not send without a key', () => {
     render(<DeveloperPlayground baseUrl={BASE} />);
+    expect(screen.getByLabelText('API key')).toHaveAttribute('placeholder', 'yc_live_…');
     run();
     expect(screen.getByText('Paste an API key from the API keys page.')).toBeInTheDocument();
     expect(screen.getByLabelText('API key')).toHaveAttribute('aria-invalid', 'true');

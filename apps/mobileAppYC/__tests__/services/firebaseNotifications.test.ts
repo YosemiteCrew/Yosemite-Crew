@@ -96,6 +96,19 @@ jest.mock('@notifee/react-native', () => ({
   TimeUnit: {MINUTES: 'minutes'},
 }));
 
+// 7. Mock localization
+// The service resolves its lock-screen wording through i18next rather than
+// hardcoding English, so these stand in for a reader's chosen language.
+const TRANSLATIONS: Record<string, string> = {
+  'notifications.lockScreen.title': 'Yosemite Crew',
+  'notifications.lockScreen.body': 'You have an update. Open the app to see it.',
+};
+const mockT = jest.fn((key: string) => TRANSLATIONS[key] ?? key);
+jest.mock('@/localization', () => ({
+  __esModule: true,
+  default: {t: (key: string) => mockT(key)},
+}));
+
 describe('firebaseNotifications Service', () => {
   const mockDispatch = jest.fn();
   const mockNavigate = jest.fn();
@@ -113,7 +126,9 @@ describe('firebaseNotifications Service', () => {
     jest.clearAllMocks();
     jest.resetModules();
     mockFirebaseApps.getApps.mockReturnValue([{name: '[DEFAULT]'}]);
-
+    // clearAllMocks leaves implementations in place, so a test that returns
+    // another language must not leak into the next one.
+    mockT.mockImplementation((key: string) => TRANSLATIONS[key] ?? key);
     // Reset Platform
     Platform = require('react-native').Platform;
     Platform.OS = 'android';
@@ -456,6 +471,153 @@ describe('firebaseNotifications Service', () => {
       const bgMessage = {...mockRemoteMessage, data: {deepLink: 'bg://link'}};
 
       await handleBackgroundRemoteMessage(bgMessage);
+    });
+
+    describe('lock screen privacy', () => {
+      // A locked phone shows whatever Notifee is handed, so this surface may
+      // only ever carry the generic wording the server puts in the FCM
+      // notification block. The real title and body arrive in `data` and are
+      // for the in-app list only.
+      const SENSITIVE = {
+        title: 'Payment received',
+        body: 'Use this code to continue: 483920. Valid for 10 minutes!',
+      };
+
+      const deliverForeground = async (message: any) => {
+        const {initializeNotifications} = loadService();
+        await initializeNotifications({
+          dispatch: mockDispatch,
+          onNavigate: mockNavigate,
+        });
+        const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+        await registeredCallback(message);
+      };
+
+      const displayed = () => mockNotifee.displayNotification.mock.calls[0][0];
+
+      const seated = () =>
+        require('@/features/notifications').addNotificationToList.mock
+          .calls[0][0];
+
+      it('never puts the data body on the lock screen', async () => {
+        await deliverForeground({
+          messageId: 'msg_lock',
+          notification: {title: 'Yosemite Crew', body: 'You have an update.'},
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(displayed().body).toBe('You have an update.');
+        expect(displayed().body).not.toContain('483920');
+      });
+
+      it('never puts the data title on the lock screen', async () => {
+        await deliverForeground({
+          messageId: 'msg_lock',
+          notification: {title: 'Yosemite Crew', body: 'You have an update.'},
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(displayed().title).toBe('Yosemite Crew');
+        expect(displayed().title).not.toContain('Payment');
+      });
+
+      it('shows generic wording when the push carries no notification block', async () => {
+        // A data-only push never reaches the OS renderer, so Notifee presents it
+        // on its own. It must still not surface the record wording.
+        await deliverForeground({
+          messageId: 'msg_data_only',
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(displayed().body).not.toContain('483920');
+        expect(displayed().title).not.toContain('Payment');
+        expect(displayed().title).toBeTruthy();
+      });
+
+      it('resolves the fallback wording through i18next, not a hardcoded string', async () => {
+        await deliverForeground({
+          messageId: 'msg_data_only',
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(mockT).toHaveBeenCalledWith('notifications.lockScreen.title');
+        expect(mockT).toHaveBeenCalledWith('notifications.lockScreen.body');
+      });
+
+      it('shows the reader their own language when the server marked the block generic', async () => {
+        // The server marks its placeholder block so the app can substitute the
+        // same sentence in the reader's language. It must not echo the English
+        // the server happened to send.
+        mockT.mockImplementation((key: string) =>
+          key === 'notifications.lockScreen.body'
+            ? 'Tienes una actualización. Abre la aplicación para verla.'
+            : TRANSLATIONS[key],
+        );
+
+        await deliverForeground({
+          messageId: 'msg_marked',
+          notification: {
+            title: 'Yosemite Crew',
+            body: 'You have an update. Open the app to see it.',
+          },
+          data: {notificationId: 'row-1', lockScreen: 'generic', ...SENSITIVE},
+        });
+
+        expect(displayed().body).toBe(
+          'Tienes una actualización. Abre la aplicación para verla.',
+        );
+      });
+
+      it('still shows the in-app list the record wording when the block is marked generic', async () => {
+        await deliverForeground({
+          messageId: 'msg_marked',
+          notification: {
+            title: 'Yosemite Crew',
+            body: 'You have an update. Open the app to see it.',
+          },
+          data: {notificationId: 'row-1', lockScreen: 'generic', ...SENSITIVE},
+        });
+
+        expect(seated().title).toBe(SENSITIVE.title);
+        expect(seated().description).toBe(SENSITIVE.body);
+      });
+
+      it('leaves an unmarked notification block exactly as the server sent it', async () => {
+        // Not every server marks its block. An unmarked one may be the app's
+        // own wording and is passed through untouched.
+        await deliverForeground({
+          messageId: 'msg_unmarked',
+          notification: {title: 'Yosemite Crew', body: 'Something to read.'},
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(displayed().body).toBe('Something to read.');
+        expect(mockT).not.toHaveBeenCalled();
+      });
+
+      it('still shows the real title and body in the in-app list', async () => {
+        await deliverForeground({
+          messageId: 'msg_lock',
+          notification: {title: 'Yosemite Crew', body: 'You have an update.'},
+          data: {notificationId: 'row-1', ...SENSITIVE},
+        });
+
+        expect(seated().title).toBe(SENSITIVE.title);
+        expect(seated().description).toBe(SENSITIVE.body);
+      });
+
+      it('prefers the data wording over the generic block in the in-app list', async () => {
+        // The data block is the record's own wording. When both are present the
+        // person inside the app should read the real one.
+        await deliverForeground({
+          messageId: 'msg_lock',
+          notification: {title: 'Yosemite Crew', body: 'You have an update.'},
+          data: {title: 'Task due', body: 'Walk the dog at 6pm.'},
+        });
+
+        expect(seated().title).toBe('Task due');
+        expect(seated().description).toBe('Walk the dog at 6pm.');
+      });
     });
 
     it('normalizes a recognized relatedType and extracts metadata keys', async () => {
@@ -937,5 +1099,37 @@ describe('firebaseNotifications Service', () => {
         }),
       );
     });
+  });
+});
+
+describe('lock screen translation resources', () => {
+  // The service resolves these keys through i18next. A missing or untranslated
+  // key would show the raw key on a locked phone, so the resources themselves
+  // are asserted rather than trusted.
+  const locales = ['en', 'es'] as const;
+
+  it.each(locales)('defines the lock screen wording in %s', locale => {
+    const resource = require(`../../src/localization/resources/${locale}/common.json`);
+
+    expect(resource.notifications?.lockScreen?.title).toBeTruthy();
+    expect(resource.notifications?.lockScreen?.body).toBeTruthy();
+  });
+
+  it('translates the Spanish body rather than repeating the English one', () => {
+    const en = require('../../src/localization/resources/en/common.json');
+    const es = require('../../src/localization/resources/es/common.json');
+
+    expect(es.notifications.lockScreen.body).not.toBe(
+      en.notifications.lockScreen.body,
+    );
+  });
+
+  it('keeps the app name untranslated as the lock screen title', () => {
+    const en = require('../../src/localization/resources/en/common.json');
+    const es = require('../../src/localization/resources/es/common.json');
+
+    expect(es.notifications.lockScreen.title).toBe(
+      en.notifications.lockScreen.title,
+    );
   });
 });

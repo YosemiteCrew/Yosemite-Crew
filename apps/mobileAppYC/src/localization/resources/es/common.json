@@ -973,5 +973,11 @@
       "invalidated": "La seguridad del dispositivo cambió. Vuelve a iniciar sesión.",
       "failed": "La comprobación no desbloqueó la aplicación."
     }
+  },
+  "notifications": {
+    "lockScreen": {
+      "title": "Yosemite Crew",
+      "body": "Tienes una actualización. Abre la aplicación para verla."
+    }
   }
 }

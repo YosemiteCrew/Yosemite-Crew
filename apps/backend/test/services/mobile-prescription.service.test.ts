@@ -58,6 +58,7 @@ const prescriptionRow = (overrides: Record<string, unknown> = {}) => ({
   ],
   artifact: {
     encounterId: "enc-1",
+    patientId: null,
     organisationId: "org-1",
     status: "SIGNED",
     summary: "Post-op pain relief",
@@ -155,19 +156,20 @@ describe("listPrescriptionsForParent", () => {
     expect(mockPrescriptions).not.toHaveBeenCalled();
   });
 
-  it("scopes encounters to the permitted patients", async () => {
+  it("scopes encounter lookup to the permitted patients", async () => {
     mockLinks.mockResolvedValue([activeLink("pat-1")]);
-    mockEncounters.mockResolvedValue([]);
+    mockEncounters.mockResolvedValue([{ id: "enc-1", patientId: "pat-1" }]);
+    mockPrescriptions.mockResolvedValue([]);
 
     await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
 
     expect(mockEncounters).toHaveBeenCalledWith(
       expect.objectContaining({ where: { patientId: { in: ["pat-1"] } } }),
     );
-    expect(mockPrescriptions).not.toHaveBeenCalled();
+    expect(mockPrescriptions).toHaveBeenCalled();
   });
 
-  it("restricts prescriptions to those encounters and to finalised artifacts only", async () => {
+  it("matches prescriptions to the selected pet and older encounter-linked records", async () => {
     mockLinks.mockResolvedValue([activeLink("pat-1")]);
     mockEncounters.mockResolvedValue([{ id: "enc-1", patientId: "pat-1" }]);
     mockPrescriptions.mockResolvedValue([]);
@@ -175,8 +177,62 @@ describe("listPrescriptionsForParent", () => {
     await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
 
     const where = mockPrescriptions.mock.calls[0][0].where;
-    expect(where.artifact.encounterId).toEqual({ in: ["enc-1"] });
+    expect(where.artifact.OR).toEqual([
+      { patientId: { in: ["pat-1"] } },
+      { patientId: null, encounterId: { in: ["enc-1"] } },
+    ]);
     expect(where.artifact.status).toEqual({ in: ["COMPLETED", "SIGNED"] });
+  });
+
+  it("returns patient-bound prescriptions without an encounter", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1")]);
+    mockEncounters.mockResolvedValue([]);
+    mockPrescriptions.mockResolvedValue([
+      prescriptionRow({
+        artifact: {
+          encounterId: null,
+          patientId: "pat-1",
+          organisationId: "org-1",
+          status: "SIGNED",
+          summary: null,
+          signedAt: null,
+        },
+      }),
+    ]);
+
+    const result =
+      await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
+
+    expect(result.prescriptions).toMatchObject([
+      { id: "rx-1", patientId: "pat-1", organisationId: "org-1" },
+    ]);
+    expect(result.prescriptions[0]).not.toHaveProperty("encounterId");
+    expect(mockPrescriptions.mock.calls[0][0].where.artifact.OR).toEqual([
+      { patientId: { in: ["pat-1"] } },
+      { patientId: null, encounterId: { in: [] } },
+    ]);
+  });
+
+  it("does not list a record under a different pet", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1")]);
+    mockEncounters.mockResolvedValue([{ id: "enc-1", patientId: "pat-1" }]);
+    mockPrescriptions.mockResolvedValue([
+      prescriptionRow({
+        artifact: {
+          encounterId: "enc-1",
+          patientId: "pat-2",
+          organisationId: "org-1",
+          status: "SIGNED",
+          summary: null,
+          signedAt: null,
+        },
+      }),
+    ]);
+
+    const result =
+      await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
+
+    expect(result.prescriptions).toEqual([]);
   });
 
   it("maps a prescription onto the patient its encounter belongs to", async () => {
@@ -391,11 +447,6 @@ describe("listPrescriptionsForParent pagination", () => {
     expect(args.where).not.toHaveProperty("OR");
   });
 
-  /*
-   * A cursor is a position, never an access grant. Handing this endpoint an id
-   * lifted from someone else's response moves the window and must not widen the
-   * scope: the `where` is rebuilt from the permitted encounters every page.
-   */
   it("does not let a foreign cursor widen the scope", async () => {
     onePatientWithOneEncounter();
     mockPrescriptions.mockResolvedValue([]);
@@ -408,7 +459,10 @@ describe("listPrescriptionsForParent pagination", () => {
     });
 
     const where = mockPrescriptions.mock.calls[0][0].where;
-    expect(where.artifact.encounterId).toEqual({ in: ["enc-1"] });
+    expect(where.artifact.OR).toEqual([
+      { patientId: { in: ["pat-1"] } },
+      { patientId: null, encounterId: { in: ["enc-1"] } },
+    ]);
     expect(where.artifact.status).toEqual({ in: ["COMPLETED", "SIGNED"] });
   });
 

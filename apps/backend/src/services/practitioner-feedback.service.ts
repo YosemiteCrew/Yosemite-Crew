@@ -72,6 +72,19 @@ const feedbackKey = (appointmentId: string, userId: string) => ({
   appointmentId_userId: { appointmentId, userId },
 });
 
+const toFeedbackResponse = (
+  feedback:
+    | { rating: number; review: string | null; practitionerName: string | null }
+    | null
+    | undefined,
+  practitionerName: string,
+) => ({
+  isRated: Boolean(feedback),
+  rating: feedback?.rating ?? null,
+  review: feedback?.review ?? null,
+  practitionerName: feedback?.practitionerName ?? practitionerName,
+});
+
 const validateFeedback = (rating: number, review?: string) => {
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     throw new PractitionerFeedbackServiceError(
@@ -88,25 +101,64 @@ const validateFeedback = (rating: number, review?: string) => {
 };
 
 export const PractitionerFeedbackService = {
+  async getForParent(parentId: string) {
+    if (!parentId.trim()) {
+      throw new PractitionerFeedbackServiceError("Invalid parent", 400);
+    }
+
+    const appointments =
+      await AppointmentPrismaService.getAppointmentsForParent(parentId);
+    const completedAppointments = appointments.flatMap((row) => {
+      const appointment = fromFHIRAppointment(row);
+      const lead = appointment.lead;
+      const practitionerName = lead?.name.trim();
+      if (
+        appointment.status !== "COMPLETED" ||
+        !appointment.id ||
+        !lead?.id.trim() ||
+        !practitionerName
+      ) {
+        return [];
+      }
+
+      return [{ appointmentId: appointment.id, practitionerName }];
+    });
+
+    if (!completedAppointments.length) return {};
+
+    const savedFeedback = await prisma.organisationRating.findMany({
+      where: {
+        userId: parentId,
+        appointmentId: {
+          in: completedAppointments.map(({ appointmentId }) => appointmentId),
+        },
+      },
+      select: {
+        appointmentId: true,
+        rating: true,
+        review: true,
+        practitionerName: true,
+      },
+    });
+    const feedbackByAppointmentId = new Map(
+      savedFeedback.map((feedback) => [feedback.appointmentId, feedback]),
+    );
+
+    return Object.fromEntries(
+      completedAppointments.map(({ appointmentId, practitionerName }) => {
+        const feedback = feedbackByAppointmentId.get(appointmentId);
+        return [appointmentId, toFeedbackResponse(feedback, practitionerName)];
+      }),
+    );
+  },
+
   async getForAppointment(appointmentId: string, parentId: string) {
     const target = await getCompletedAppointmentTarget(appointmentId, parentId);
     const feedback = await prisma.organisationRating.findUnique({
       where: feedbackKey(appointmentId, parentId),
     });
 
-    return feedback
-      ? {
-          isRated: true,
-          rating: feedback.rating,
-          review: feedback.review,
-          practitionerName: feedback.practitionerName,
-        }
-      : {
-          isRated: false,
-          rating: null,
-          review: null,
-          practitionerName: target.feedback.practitionerName,
-        };
+    return toFeedbackResponse(feedback, target.feedback.practitionerName);
   },
 
   async rateAppointment(

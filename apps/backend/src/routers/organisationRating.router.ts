@@ -5,6 +5,12 @@ import { requireMobileAuth } from "src/middlewares/auth";
 const router = Router();
 
 router.post(
+  "/practitioner-feedback/batch",
+  requireMobileAuth,
+  PractitionerFeedbackController.getForParent,
+);
+
+router.post(
   "/practitioner-feedback",
   requireMobileAuth,
   PractitionerFeedbackController.getForAppointment,

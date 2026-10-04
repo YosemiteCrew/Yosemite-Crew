@@ -102,8 +102,12 @@ export const ScheduleAnotherDose: Story = {
       await canvas.findByText('No medication doses are scheduled for this inpatient stay.')
     ).toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Schedule a dose' }));
-    await expect(canvas.getByRole('combobox', { name: 'Medication' })).toBeInTheDocument();
-    await expect(canvas.getByRole('textbox', { name: 'Scheduled time' })).toBeInTheDocument();
+    const medication = canvas.getByRole('combobox', { name: 'Medication' });
+    // A datetime-local input has no implicit ARIA role, so it is found by its label.
+    await expect(canvas.getByLabelText('Scheduled time')).toHaveAttribute('type', 'datetime-local');
+    // The directions only appear once a prescription is chosen.
+    await expect(canvas.queryByText('Give with food.')).not.toBeInTheDocument();
+    await userEvent.selectOptions(medication, 'rx-line-1');
     await expect(canvas.getByText('Give with food.')).toBeInTheDocument();
   },
 };

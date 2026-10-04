@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChatComposer } from '@/app/features/chat/components/ChatComposer';
 
 const mockHandleSubmit = jest.fn();
@@ -41,9 +41,25 @@ describe('ChatComposer', () => {
     expect(screen.getByLabelText('Send message')).toBeInTheDocument();
   });
 
-  it('renders a disabled voice-message affordance', () => {
+  it('toggles the voice panel from the mic button', () => {
     render(<ChatComposer />);
-    expect(screen.getByLabelText('Voice message')).toBeDisabled();
+    expect(screen.getByLabelText('Voice message')).toBeEnabled();
+    fireEvent.click(screen.getByLabelText('Voice message'));
+    expect(screen.getByRole('region', { name: 'Voice capture' })).toBeInTheDocument();
+    expect(screen.getByText('Voice capture unavailable')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Voice message'));
+    expect(screen.queryByRole('region', { name: 'Voice capture' })).not.toBeInTheDocument();
+  });
+
+  it('inserts a typed transcript from the voice panel into the composer', () => {
+    render(<ChatComposer />);
+    fireEvent.click(screen.getByLabelText('Voice message'));
+    fireEvent.change(screen.getByLabelText('Transcript'), {
+      target: { value: 'Fluid therapy due' },
+    });
+    fireEvent.click(screen.getByText('Use text'));
+    expect(mockInsertText).toHaveBeenCalledWith({ text: 'Fluid therapy due' });
+    expect(screen.queryByRole('region', { name: 'Voice capture' })).not.toBeInTheDocument();
   });
 
   it('sends on the send button', () => {
@@ -74,6 +90,19 @@ describe('ChatComposer', () => {
     expect(mockInsertText).toHaveBeenCalledWith({ text: '🎉' });
   });
 
+  it('shows feedback when emoji insertion fails', async () => {
+    mockInsertText.mockRejectedValueOnce(new Error('insert failed'));
+    render(<ChatComposer />);
+    fireEvent.click(screen.getByLabelText('Emoji'));
+    fireEvent.click(screen.getByText('🎉'));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not insert the emoji. Please try again.'
+    );
+    fireEvent.click(screen.getByLabelText('Emoji'));
+    fireEvent.click(screen.getByText('🎉'));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
   it('fills the composer from a quick-reply chip (replaces, not appends)', () => {
     render(<ChatComposer />);
     fireEvent.click(screen.getByText('Appointment confirmed'));
@@ -91,6 +120,17 @@ describe('ChatComposer', () => {
     const file = new File(['x'], 'photo.png', { type: 'image/png' });
     fireEvent.change(fileInput, { target: { files: [file] } });
     expect(mockUploadFiles).toHaveBeenCalledWith([file]);
+  });
+
+  it('shows feedback when an allowed file upload fails', async () => {
+    mockUploadFiles.mockRejectedValueOnce(new Error('upload failed'));
+    const { container } = render(<ChatComposer />);
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['x'], 'photo.png', { type: 'image/png' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not upload the selected files. Please try again.'
+    );
   });
 
   it('blocks an executable file and warns instead of uploading', () => {

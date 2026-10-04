@@ -137,8 +137,19 @@ export const VoidedDoesNotCount: Story = {
     // "Credited" label rather than by text - the note's own amount is also 40,
     // so a bare getByText('£40') matches two nodes and proves nothing.
     const credited = canvas.getByText('Credited').nextElementSibling;
-    await expect(credited).toHaveTextContent('£40');
-    await expect(canvas.getByText(/CN-0002 \(voided\)/)).toBeInTheDocument();
+    await expect(credited).toHaveTextContent('£40.00');
+    /* The voided note keeps its row. Its reason leads with the "(voided)" marker and
+       the CN- reference captions it (c0a0d50c4), and its amount is struck through
+       rather than removed, so the reversed credit stays visible for reconciling. */
+    const voidedRow = canvas.getByTitle('CN-0002').closest('li') as HTMLElement;
+    await expect(
+      within(voidedRow).getByText('Raised against the wrong invoice (voided)')
+    ).toBeInTheDocument();
+    await expect(within(voidedRow).getByText('£60.00')).toHaveStyle({
+      textDecorationLine: 'line-through',
+    });
+    const issuedRow = canvas.getByTitle('CN-0001').closest('li') as HTMLElement;
+    await expect(issuedRow).not.toHaveTextContent('(voided)');
     // A voided note offers no Void control.
     await expect(
       canvas.queryByRole('button', { name: /Void credit note CN-0002/i })

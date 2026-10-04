@@ -303,8 +303,8 @@ const meta = {
           'Below that, the license card gates the directory card (an unverified clinic cannot ' +
           'list itself), the followers and following cards each carry their own ' +
           'loading/empty/ready states, and the send-referral and emergency cards are two ' +
-          'unguarded writes: one click on **Broadcast emergency** goes to every approved ' +
-          'follower with no confirmation step.\n\n' +
+          'lightly guarded writes: **Broadcast emergency** asks for confirmation, then goes to ' +
+          'every approved follower.\n\n' +
           'The stories swap the shared axios adapter, so every load is fixture data and every ' +
           'write is captured rather than sent.',
       },
@@ -348,7 +348,9 @@ export const Loading: Story = {
 
     // Only the actor is asked for. The eight cards' own loads are not started
     // until the actor resolves, so a slow actor call serialises the whole panel.
-    await expect(requests.length).toBeGreaterThan(0);
+    // The request reaches the adapter after axios' async request interceptors,
+    // so its arrival is awaited rather than read on the first frame.
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
     await expect(requests.every((r) => r.url === '/ap/manage/actor')).toBe(true);
   },
 };
@@ -425,15 +427,21 @@ export const Ready: Story = {
        carries the same layout with no controls, which is the branch that breaks
        silently: rendering the buttons for every state would let anyone
        "approve" a follower that is already in. */
-    await expect(canvas.getAllByRole('button', { name: 'Approve' })).toHaveLength(1);
+    // Each list card loads on its own after the actor, so the rows are awaited.
+    await expect(await canvas.findAllByRole('button', { name: 'Approve' }, WAIT)).toHaveLength(1);
     await expect(canvas.getAllByRole('button', { name: 'Reject' })).toHaveLength(1);
-    await expect(canvas.getAllByRole('button', { name: 'Unfollow' })).toHaveLength(2);
+    // One Unfollow on the approved follower, one on the Following card's row.
+    await waitFor(() =>
+      expect(canvas.getAllByRole('button', { name: 'Unfollow' })).toHaveLength(2)
+    );
 
     /* Referral identity lines are assembled from optional parts. With a breed
        and an age the separators appear; the outbound referral has neither, so
        its line must be the bare species with no dangling " - " or ", ". */
-    await expect(canvas.getByText('Canine - Labrador, 3 years')).toBeInTheDocument();
-    await expect(canvas.getByText('Feline')).toBeInTheDocument();
+    await expect(
+      await canvas.findByText('Canine - Labrador, 3 years', {}, WAIT)
+    ).toBeInTheDocument();
+    await expect(await canvas.findByText('Feline', {}, WAIT)).toBeInTheDocument();
     await expect(canvas.getByText('Sent referrals')).toBeInTheDocument();
 
     /* State badges are title-cased in JS and then uppercased again by the pill's
@@ -638,7 +646,12 @@ export const SendReferral: Story = {
     await expect(submit).toBeEnabled();
 
     // Breed and age are optional and stay out of the payload when untouched.
-    await userEvent.selectOptions(canvas.getByLabelText('Urgency'), 'URGENT');
+    // Urgency is the themed Dropdown: its options portal onto document.body.
+    await userEvent.click(canvas.getByRole('button', { name: 'Urgency: Routine' }));
+    await userEvent.click(
+      await within(globalThis.document.body).findByRole('option', { name: 'Urgent' })
+    );
+    await expect(canvas.getByRole('button', { name: 'Urgency: Urgent' })).toBeInTheDocument();
     const before = callsTo('get', '/ap/manage/referrals/outbound').length;
     await userEvent.click(submit);
 
@@ -670,8 +683,8 @@ export const EmergencyBroadcast: Story = {
     await expect(await canvas.findByText('Emergency broadcast', {}, WAIT)).toBeInTheDocument();
     const broadcast = canvas.getByRole('button', { name: 'Broadcast emergency' });
 
-    // Empty is the only guard. There is no confirmation step between this button
-    // and every approved follower on the network.
+    // Empty disarms the button; a filled box still has to get past a confirmation
+    // before anything reaches every approved follower on the network.
     await expect(broadcast).toBeDisabled();
 
     const box = canvas.getByPlaceholderText('Describe the emergency or critical notice...');
@@ -679,6 +692,19 @@ export const EmergencyBroadcast: Story = {
     await expect(broadcast).toBeEnabled();
 
     await userEvent.click(broadcast);
+
+    /* The first click only asks. Nothing is posted until the danger-toned
+       confirmation is accepted. */
+    const confirmDialog = within(
+      await within(globalThis.document.body).findByRole('dialog', { name: 'Broadcast emergency?' })
+    );
+    await expect(
+      confirmDialog.getByText(
+        'This sends this emergency notice to every approved federation follower.'
+      )
+    ).toBeInTheDocument();
+    await expect(callsTo('post', '/ap/manage/announce')).toHaveLength(0);
+    await userEvent.click(confirmDialog.getByRole('button', { name: 'Broadcast emergency' }));
 
     await waitFor(() => expect(callsTo('post', '/ap/manage/announce')).toHaveLength(1));
     /* Trimmed, and the urgency is hardcoded rather than read from the referral

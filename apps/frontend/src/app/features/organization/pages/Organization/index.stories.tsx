@@ -387,6 +387,13 @@ const prepare =
     };
   };
 
+/**
+ * The sections are dynamically imported and fed by several loaders, so the first
+ * data-bearing row can land a couple of seconds after the page heading - past
+ * the default 1s `findBy` window on a cold dev server.
+ */
+const WAIT = { timeout: 5000 };
+
 const meta = {
   title: 'Organization/Organization',
   component: Organization,
@@ -439,18 +446,25 @@ export const Verified: Story = {
       canvas.getByText('Clinic profile, team, rooms, specialities and the services you offer')
     ).toBeVisible();
 
-    // The clinic profile band, always drawn first regardless of verification.
-    await expect(canvas.getByText('Harbourside Veterinary Group')).toBeVisible();
+    // The clinic profile band, always drawn first regardless of verification. The
+    // sections are dynamically imported, so the band is awaited rather than read
+    // in the same tick as the page heading.
+    await expect(await canvas.findByText('Harbourside Veterinary Group', {}, WAIT)).toBeVisible();
     await expect(canvas.getByText('VERIFIED')).toBeVisible();
 
-    // Verified-only sections: team, rooms and payment sit in the right/left
-    // columns of the grid this branch renders.
-    await expect(canvas.getByRole('heading', { name: 'Team (2)' })).toBeVisible();
-    await expect(canvas.getByText('Dr. Elena Marsh')).toBeVisible();
-    await expect(canvas.getByText('Tom Reyes')).toBeVisible();
-    await expect(canvas.getByRole('heading', { name: 'Rooms (2)' })).toBeVisible();
+    /* Verified-only sections: team, rooms and payment sit in the right/left
+       columns of the grid this branch renders. Every section is its own dynamic
+       import, so each one's first landmark is awaited before its contents are
+       read - they arrive in whatever order their chunks load. */
+    const teamHeading = await canvas.findByRole('heading', { name: 'Team (2)' }, WAIT);
+    await expect(teamHeading).toBeVisible();
+    // Scoped to the card: the specialities section names the same vet as its head.
+    const team = within(teamHeading.closest('section') as HTMLElement);
+    await expect(team.getByText('Dr. Elena Marsh')).toBeVisible();
+    await expect(team.getByText('Tom Reyes')).toBeVisible();
+    await expect(await canvas.findByRole('heading', { name: 'Rooms (2)' }, WAIT)).toBeVisible();
     await expect(canvas.getByText('Surgery 1')).toBeVisible();
-    await expect(canvas.getByText('Payments · Stripe')).toBeVisible();
+    await expect(await canvas.findByText('Payments · Stripe', {}, WAIT)).toBeVisible();
     await expect(canvas.getByText('Charges and payouts enabled')).toBeVisible();
 
     // Specialities renders in both branches - here fed by the real catalog store.
@@ -458,23 +472,35 @@ export const Verified: Story = {
     // query keyed to ITS OWN width, not the viewport, so only the section
     // header is asserted here rather than which of the two layouts a
     // particular column width happens to select.
-    await expect(canvas.getByText('Specialities, services & packages')).toBeVisible();
+    await expect(
+      await canvas.findByText('Specialities, services & packages', {}, WAIT)
+    ).toBeVisible();
 
     // The rest of the verified-only content further down the page.
-    await expect(canvas.getByRole('heading', { name: 'Linked medical devices' })).toBeVisible();
-    await expect(canvas.getByRole('heading', { name: 'Documents' })).toBeVisible();
+    await expect(
+      await canvas.findByRole('heading', { name: 'Linked medical devices' }, WAIT)
+    ).toBeVisible();
+    await expect(await canvas.findByRole('heading', { name: 'Documents' }, WAIT)).toBeVisible();
     await expect(canvas.getByText('Surgical consent form')).toBeVisible();
-    await expect(canvas.getByRole('heading', { name: 'E-signing' })).toBeVisible();
-    await expect(canvas.getByRole('heading', { name: 'Online booking' })).toBeVisible();
-    await expect(canvas.getByRole('heading', { name: 'Booking requests' })).toBeVisible();
+    await expect(await canvas.findByRole('heading', { name: 'E-signing' }, WAIT)).toBeVisible();
+    await expect(
+      await canvas.findByRole('heading', { name: 'Online booking' }, WAIT)
+    ).toBeVisible();
+    await expect(
+      await canvas.findByRole('heading', { name: 'Booking requests' }, WAIT)
+    ).toBeVisible();
     await expect(
       await canvas.findByText(
-        'No booking requests yet. Confirmed requests from your public booking page appear here.'
+        'No booking requests yet. Confirmed requests from your public booking page appear here.',
+        {},
+        WAIT
       )
     ).toBeVisible();
 
     // OWNER holds `org:delete`, so the danger band sits at the bottom of the page.
-    await expect(canvas.getByRole('button', { name: 'Delete organization' })).toBeEnabled();
+    await expect(
+      await canvas.findByRole('button', { name: 'Delete organization' }, WAIT)
+    ).toBeEnabled();
   },
 };
 
@@ -486,11 +512,15 @@ export const Unverified: Story = {
     await expect(
       await canvas.findByRole('heading', { level: 1, name: 'Organization' })
     ).toBeVisible();
-    await expect(canvas.getByText('PENDING')).toBeVisible();
+    await expect(await canvas.findByText('PENDING', {}, WAIT)).toBeVisible();
 
     // The reduced branch: specialities and the delete control, nothing else.
-    await expect(canvas.getByText('Specialities, services & packages')).toBeVisible();
-    await expect(canvas.getByRole('button', { name: 'Delete organization' })).toBeEnabled();
+    await expect(
+      await canvas.findByText('Specialities, services & packages', {}, WAIT)
+    ).toBeVisible();
+    await expect(
+      await canvas.findByRole('button', { name: 'Delete organization' }, WAIT)
+    ).toBeEnabled();
 
     // None of the verified-only sections mount at all - not hidden, absent.
     await expect(canvas.queryByRole('heading', { name: /^Team/ })).not.toBeInTheDocument();
@@ -583,7 +613,13 @@ export const Phone: Story = {
     await expect(canvas.getByText('Team · 2')).toBeVisible();
     await expect(canvas.getByText('Dr. Elena Marsh')).toBeVisible();
     await expect(canvas.getByText('Specialities & services')).toBeVisible();
-    await expect(canvas.getByText('Dentistry · 0 services')).toBeVisible();
+    /* The count sits in a nested span, so the row is matched by its button name.
+       The testing-library name computation drops the lone space text node before
+       the separator ("Dentistry· 0 services") where Chromium keeps it, so the
+       space is optional here. */
+    await expect(
+      await canvas.findByRole('button', { name: /^Dentistry ?· 0 services$/ }, WAIT)
+    ).toBeVisible();
     await expect(canvas.getByText('Stripe payments connected')).toBeVisible();
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   },

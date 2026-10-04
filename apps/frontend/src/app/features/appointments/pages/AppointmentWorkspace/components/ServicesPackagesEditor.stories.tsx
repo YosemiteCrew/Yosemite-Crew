@@ -141,6 +141,8 @@ const meta = {
   args: {
     items: [SERVICE, PACKAGE, SECOND_PACKAGE],
     catalogItems: [],
+    // The encounter's currency; without it the amounts print as bare numbers.
+    currency: 'USD',
     readOnly: false,
     onAddItem: fn(),
     onUpdateItem: fn(),

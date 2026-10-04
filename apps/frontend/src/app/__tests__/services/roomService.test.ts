@@ -646,6 +646,67 @@ describe('Room Service', () => {
       );
     });
 
+    it('deactivates surplus units when reducing a group count without deleting their history', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
+      const group = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Large',
+        unitCount: 2,
+        isActive: true,
+      };
+      const units = [1, 2].map((number) => ({
+        id: `unit-${number}`,
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: `POD-${number}`,
+        displayName: `Pod ${number}`,
+        isActive: true,
+      }));
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedPutData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedDeleteData.mockResolvedValue({ data: units[1] });
+      mockedGetData.mockImplementation((url: string) => {
+        if (url === '/fhir/v1/organisation-room/room-1') {
+          return Promise.resolve({ data: mockResponseData });
+        }
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [group] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          return Promise.resolve({ data: units });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'INPATIENT',
+        availability: { species: ['CANINE'], totalUnits: 1 },
+        units: [{ id: 'group-1', name: 'Pod', size: 'Large', count: 1 }],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit/unit-2',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedDeleteData).not.toHaveBeenCalledWith('/fhir/v1/room-unit/unit-2');
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', [units[0]]);
+    });
+
     it('reuses a group deactivated during the same save instead of creating a duplicate', async () => {
       const mockDTO = { resourceType: 'Location', id: 'room-1' };
       const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
@@ -705,6 +766,94 @@ describe('Room Service', () => {
         '/fhir/v1/room-unit-group',
         expect.anything()
       );
+    });
+
+    it.each([
+      {
+        units: [
+          { id: 'unit-one', name: 'Pod A', size: 'Large', count: 1 },
+          { id: 'unit-two', name: 'Pod A', size: 'Small', count: 1 },
+        ],
+      },
+      {
+        units: [
+          { id: 'group-1', name: 'Pod A', size: 'Large', count: 1 },
+          { id: 'group-1', name: 'Pod B', size: 'Small', count: 1 },
+        ],
+      },
+    ])('rejects duplicate room unit group identities before writing', async ({ units }) => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockedToDTO.mockReturnValue({});
+      mockedPutData.mockResolvedValue({ data: { id: 'room-1' } });
+      mockedFromDTO.mockReturnValue({ id: 'room-1', type: 'INPATIENT' });
+      mockedGetData.mockResolvedValue({ data: [] });
+
+      try {
+        await expect(
+          updateRoom({
+            id: 'room-1',
+            type: 'INPATIENT',
+            availability: { totalUnits: 2 },
+            units,
+          } as OrganisationRoom & {
+            availability: { totalUnits: number };
+            units: Array<{ id: string; name: string; size: string; count: number }>;
+          })
+        ).rejects.toThrow('Room unit groups must have unique names and IDs.');
+
+        expect(mockedPostData).not.toHaveBeenCalledWith(
+          '/fhir/v1/room-unit-group',
+          expect.anything()
+        );
+        expect(mockSetRoomUnitGroupsForRoom).not.toHaveBeenCalled();
+      } finally {
+        consoleSpy.mockRestore();
+      }
+    });
+
+    it('syncs distinct room unit groups concurrently while preserving result order', async () => {
+      let activeGroupWrites = 0;
+      let maximumConcurrentGroupWrites = 0;
+      let releaseGroupWrites: () => void = () => {};
+      const groupWriteGate = new Promise<void>((resolve) => {
+        releaseGroupWrites = resolve;
+      });
+      mockedToDTO.mockReturnValue({});
+      mockedPutData.mockResolvedValue({ data: { id: 'room-1' } });
+      mockedFromDTO.mockReturnValue({ id: 'room-1', type: 'INPATIENT' });
+      mockedGetData.mockResolvedValue({ data: [] });
+      mockedPostData.mockImplementation(async (url: string, payload: unknown) => {
+        if (url === '/fhir/v1/room-unit-group') {
+          activeGroupWrites += 1;
+          maximumConcurrentGroupWrites = Math.max(maximumConcurrentGroupWrites, activeGroupWrites);
+          await groupWriteGate;
+          activeGroupWrites -= 1;
+        }
+        return { data: payload };
+      });
+
+      const updatePromise = updateRoom({
+        id: 'room-1',
+        type: 'INPATIENT',
+        availability: { totalUnits: 2 },
+        units: [
+          { id: 'unit-one', name: 'Pod A', size: 'Large', count: 1 },
+          { id: 'unit-two', name: 'Pod B', size: 'Small', count: 1 },
+        ],
+      } as OrganisationRoom & {
+        availability: { totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      releaseGroupWrites();
+      await updatePromise;
+
+      expect(maximumConcurrentGroupWrites).toBe(2);
+      expect(mockSetRoomUnitGroupsForRoom).toHaveBeenCalledWith('room-1', [
+        expect.objectContaining({ name: 'Pod A' }),
+        expect.objectContaining({ name: 'Pod B' }),
+      ]);
     });
   });
 });

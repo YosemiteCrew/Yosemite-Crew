@@ -1,5 +1,12 @@
 // helpers/upload.ts
-import AWS from "aws-sdk";
+import {
+  S3,
+  PutObjectCommand,
+  type PutObjectCommandInput,
+  type LifecycleRule,
+} from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import path from "node:path";
 import sanitizeFilename from "sanitize-filename";
 import { v4 as uuidv4 } from "uuid";
@@ -62,10 +69,22 @@ const isAllowedMimeType = (
   allowed: ReadonlySet<string> = ALLOWED_MIME_TYPES,
 ) => allowed.has(mimeType);
 
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+export const isValidPdfUpload = (file: {
+  mimetype: string;
+  size: number;
+  data: Buffer;
+}) =>
+  file.mimetype === "application/pdf" &&
+  file.size <= 20 * 1024 * 1024 &&
+  file.data.subarray(0, 5).toString("ascii") === "%PDF-";
+
+const s3 = new S3({
   region: process.env.AWS_REGION,
+});
+
+const uploadSigner = new S3({
+  region: process.env.AWS_REGION,
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 
 const getBucketName = (): string => {
@@ -123,6 +142,11 @@ const getErrorCode = (error: unknown): string | undefined => {
     return code == null ? undefined : String(code);
   }
 
+  if (error instanceof Error) return error.name;
+  if (typeof error === "object" && error !== null && "name" in error) {
+    return typeof error.name === "string" ? error.name : undefined;
+  }
+
   return undefined;
 };
 
@@ -172,7 +196,7 @@ async function uploadToS3(
   mimeType: string,
 ) {
   const bucket = getBucketName();
-  const params: AWS.S3.PutObjectRequest = {
+  const params: PutObjectCommandInput = {
     Bucket: bucket,
     Key: fileName,
     Body: fileContent,
@@ -181,7 +205,8 @@ async function uploadToS3(
   };
 
   try {
-    const data = await s3.upload(params).promise();
+    const data = await new Upload({ client: s3, params }).done();
+    if (!data.Location) throw new Error("Upload location unavailable.");
     return { location: data.Location, key: fileName };
   } catch (err: unknown) {
     console.error("Error uploading file to S3:", err);
@@ -248,11 +273,13 @@ async function generatePresignedUrl(
     Bucket: bucket,
     Key: key,
     ContentType: mimeType,
-    Expires: 900, // 15 minute validity
   };
 
   try {
-    const url = await s3.getSignedUrlPromise("putObject", params);
+    const url = await getSignedUrl(uploadSigner, new PutObjectCommand(params), {
+      expiresIn: 900,
+      signableHeaders: new Set(["content-type"]),
+    });
     return { url, key };
   } catch (err: unknown) {
     console.error("Error generating presigned URL:", err);
@@ -277,20 +304,16 @@ async function moveFile(
   const bucket = getBucketName();
   const CF_BASE = getCloufrontBaeUrl();
   try {
-    await s3
-      .copyObject({
-        Bucket: bucket,
-        CopySource: `${bucket}/${fromKey}`,
-        Key: toKey,
-      })
-      .promise();
+    await s3.copyObject({
+      Bucket: bucket,
+      CopySource: `${bucket}/${fromKey}`,
+      Key: toKey,
+    });
 
-    await s3
-      .deleteObject({
-        Bucket: bucket,
-        Key: fromKey,
-      })
-      .promise();
+    await s3.deleteObject({
+      Bucket: bucket,
+      Key: fromKey,
+    });
 
     return `https://${CF_BASE}/${toKey}`;
   } catch (err: unknown) {
@@ -318,28 +341,24 @@ async function readObjectBounded(
 ): Promise<Buffer> {
   const bucket = getBucketName();
 
-  const head = await s3.headObject({ Bucket: bucket, Key: s3Key }).promise();
+  const head = await s3.headObject({ Bucket: bucket, Key: s3Key });
   if (typeof head.ContentLength === "number" && head.ContentLength > maxBytes) {
     throw new Error(`Object ${s3Key} exceeds the ${maxBytes} byte limit.`);
   }
 
-  const response = await s3.getObject({ Bucket: bucket, Key: s3Key }).promise();
-
-  if (Buffer.isBuffer(response.Body)) return response.Body;
-  if (response.Body instanceof Uint8Array) return Buffer.from(response.Body);
-  if (typeof response.Body === "string") return Buffer.from(response.Body);
-  return Buffer.alloc(0);
+  const response = await s3.getObject({ Bucket: bucket, Key: s3Key });
+  return response.Body
+    ? Buffer.from(await response.Body.transformToByteArray())
+    : Buffer.alloc(0);
 }
 
 async function deleteFromS3(s3Key: string) {
   const bucket = getBucketName();
   try {
-    await s3
-      .deleteObject({
-        Bucket: bucket,
-        Key: s3Key,
-      })
-      .promise();
+    await s3.deleteObject({
+      Bucket: bucket,
+      Key: s3Key,
+    });
   } catch (error) {
     console.error("Error deleting S3 object:", error);
     throw error;
@@ -404,9 +423,9 @@ async function setupLifecyclePolicy(daysToKeep = 2) {
   const bucket = getBucketName();
 
   try {
-    const currentConfig = await s3
-      .getBucketLifecycleConfiguration({ Bucket: bucket })
-      .promise();
+    const currentConfig = await s3.getBucketLifecycleConfiguration({
+      Bucket: bucket,
+    });
 
     // Check if rule already exists
     const existingRule = currentConfig.Rules?.find((r) => r.ID === ruleName);
@@ -416,7 +435,7 @@ async function setupLifecyclePolicy(daysToKeep = 2) {
     }
 
     // Add new rule
-    const newRule: AWS.S3.LifecycleRule = {
+    const newRule: LifecycleRule = {
       ID: ruleName,
       Prefix: "temp/", // applies to everything under temp/
       Status: "Enabled",
@@ -425,12 +444,10 @@ async function setupLifecyclePolicy(daysToKeep = 2) {
 
     const updatedRules = [...(currentConfig.Rules || []), newRule];
 
-    await s3
-      .putBucketLifecycleConfiguration({
-        Bucket: bucket,
-        LifecycleConfiguration: { Rules: updatedRules },
-      })
-      .promise();
+    await s3.putBucketLifecycleConfiguration({
+      Bucket: bucket,
+      LifecycleConfiguration: { Rules: updatedRules },
+    });
 
     console.log(
       `Lifecycle rule added ✅: Delete temp/ files after ${daysToKeep} days`,
@@ -438,21 +455,19 @@ async function setupLifecyclePolicy(daysToKeep = 2) {
   } catch (err: unknown) {
     // If no existing lifecycle config found, create a new one
     if (getErrorCode(err) === "NoSuchLifecycleConfiguration") {
-      await s3
-        .putBucketLifecycleConfiguration({
-          Bucket: bucket,
-          LifecycleConfiguration: {
-            Rules: [
-              {
-                ID: ruleName,
-                Prefix: "temp/",
-                Status: "Enabled",
-                Expiration: { Days: daysToKeep },
-              },
-            ],
-          },
-        })
-        .promise();
+      await s3.putBucketLifecycleConfiguration({
+        Bucket: bucket,
+        LifecycleConfiguration: {
+          Rules: [
+            {
+              ID: ruleName,
+              Prefix: "temp/",
+              Status: "Enabled",
+              Expiration: { Days: daysToKeep },
+            },
+          ],
+        },
+      });
       console.log(
         `Lifecycle configuration created ✅: temp/ auto-delete after ${daysToKeep} days`,
       );

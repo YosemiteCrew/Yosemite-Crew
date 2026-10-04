@@ -183,7 +183,7 @@ describe('createSyncDaemon', () => {
       queue.peek.mockReturnValue([dummyMutation]);
       daemon.start();
       onlineCb();
-      await Promise.resolve();
+      await drain();
       expect(transport.send).toHaveBeenCalledWith({
         type: dummyMutation.type,
         entityType: dummyMutation.entityType,
@@ -199,7 +199,7 @@ describe('createSyncDaemon', () => {
       queue.peek.mockReturnValue([dummyMutation]);
       daemon.start();
       onlineCb();
-      await Promise.resolve();
+      await drain();
       expect(queue.markFailed).toHaveBeenCalledWith('m1');
       expect(queue.pop).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith('sync_mutation_failed', {
@@ -214,7 +214,7 @@ describe('createSyncDaemon', () => {
       queue.peek.mockReturnValue([dummyMutation]);
       daemon.start();
       onlineCb();
-      await Promise.resolve();
+      await drain();
       expect(queue.markFailed).toHaveBeenCalledWith('m1');
       expect(queue.pop).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith('sync_mutation_error', {
@@ -229,9 +229,7 @@ describe('createSyncDaemon', () => {
       queue.peek.mockReturnValue([dummyMutation, m2]);
       daemon.start();
       onlineCb();
-      // Each mutation needs its own microtask flush
-      await Promise.resolve();
-      await Promise.resolve();
+      await drain();
       expect(transport.send).toHaveBeenCalledTimes(2);
       expect(queue.pop).toHaveBeenCalledWith('m1');
       expect(queue.pop).toHaveBeenCalledWith('m2');
@@ -267,12 +265,73 @@ describe('createSyncDaemon', () => {
       expect(transport.send.mock.calls.map(([m]) => m.entityId)).toEqual(['p1', 'p2', 'p3']);
     });
 
+    it('does not send the same queued mutation from overlapping flush triggers', async () => {
+      queue.size.mockReturnValue(1);
+      queue.peek.mockReturnValue([dummyMutation]);
+      let releaseSend: (value: { ok: boolean }) => void = () => {};
+      transport.send.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseSend = resolve;
+          })
+      );
+      daemon.start();
+      onlineCb();
+      await drain();
+      expect(transport.send).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(30_000);
+      onlineCb();
+      await drain();
+
+      expect(transport.send).toHaveBeenCalledTimes(1);
+      releaseSend({ ok: true });
+      await drain();
+      expect(queue.pop).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports successful and unsuccessful batch results', async () => {
+      queue.size.mockReturnValue(3);
+      queue.peek.mockReturnValue([
+        dummyMutation,
+        { ...dummyMutation, id: 'm2' },
+        { ...dummyMutation, id: 'm3' },
+      ]);
+      transport.send
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({ ok: false })
+        .mockRejectedValueOnce(new Error('network down'));
+      daemon.start();
+      onlineCb();
+      await drain();
+      expect(logger.debug).toHaveBeenCalledWith('sync_daemon_flushed', { sent: 1, failed: 2 });
+    });
+
+    it('reports completion only after the final mutation settles', async () => {
+      queue.size.mockReturnValue(1);
+      queue.peek.mockReturnValue([dummyMutation]);
+      let releaseSend: (value: { ok: boolean }) => void = () => {};
+      transport.send.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseSend = resolve;
+          })
+      );
+      daemon.start();
+      onlineCb();
+      await drain();
+      expect(logger.debug).not.toHaveBeenCalledWith('sync_daemon_flushed', expect.anything());
+      releaseSend({ ok: true });
+      await drain();
+      expect(logger.debug).toHaveBeenCalledWith('sync_daemon_flushed', { sent: 1, failed: 0 });
+    });
+
     it('logs debug on success', async () => {
       queue.size.mockReturnValue(1);
       queue.peek.mockReturnValue([dummyMutation]);
       daemon.start();
       onlineCb();
-      await Promise.resolve();
+      await drain();
       expect(logger.debug).toHaveBeenCalledWith('sync_mutation_success', {
         id: 'm1',
       });
@@ -304,7 +363,7 @@ describe('createSyncDaemon', () => {
       });
       daemon.start();
       jest.advanceTimersByTime(5000);
-      await Promise.resolve();
+      await drain();
       expect(transport.send).toHaveBeenCalled();
     });
 
@@ -342,7 +401,7 @@ describe('createSyncDaemon', () => {
       expect(transport.send).not.toHaveBeenCalled();
     });
 
-    it('uses default flushIntervalMs of 30000 when not provided', () => {
+    it('uses default flushIntervalMs of 30000 when not provided', async () => {
       queue.size.mockReturnValue(1);
       queue.peek.mockReturnValue([dummyMutation]);
       daemon = createSyncDaemon({
@@ -357,6 +416,7 @@ describe('createSyncDaemon', () => {
       jest.advanceTimersByTime(29999);
       expect(transport.send).not.toHaveBeenCalled();
       jest.advanceTimersByTime(1);
+      await drain();
       expect(transport.send).toHaveBeenCalled();
     });
   });
@@ -369,7 +429,7 @@ describe('createSyncDaemon', () => {
       queue.peek.mockReturnValue([dummyMutation]);
       isOnline.mockReturnValue(true);
       onlineCb();
-      await Promise.resolve();
+      await drain();
       expect(daemon.getStatus().online).toBe('online');
       expect(transport.send).toHaveBeenCalled();
     });

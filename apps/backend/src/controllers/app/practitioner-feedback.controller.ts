@@ -18,6 +18,7 @@ const FeedbackBodySchema = z
 const FeedbackLookupSchema = z
   .object({ appointmentId: z.string().min(1) })
   .strict();
+const FeedbackBatchLookupSchema = z.object({}).strict();
 
 const resolveParentId = async (req: Request, res: Response) => {
   const verifiedUserId = resolveVerifiedUserId(req);
@@ -53,6 +54,24 @@ const sendError = (res: Response, action: string, error: unknown) => {
 };
 
 export const PractitionerFeedbackController = {
+  getForParent: async (req: Request, res: Response) => {
+    try {
+      const parentId = await resolveParentId(req, res);
+      if (!parentId) return;
+
+      const result = FeedbackBatchLookupSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid feedback request." });
+      }
+
+      const feedbackByAppointment =
+        await PractitionerFeedbackService.getForParent(parentId);
+      return res.status(200).json({ feedbackByAppointment });
+    } catch (error) {
+      return sendError(res, "load", error);
+    }
+  },
+
   getForAppointment: async (req: Request, res: Response) => {
     try {
       const parentId = await resolveParentId(req, res);

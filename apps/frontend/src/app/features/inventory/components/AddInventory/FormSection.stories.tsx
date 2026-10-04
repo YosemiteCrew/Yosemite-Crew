@@ -351,13 +351,12 @@ export const PricingUntouched: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    /* The state the drawer opens in, and the one worth arguing about: `toNumberSafe`
-       reads '' as 0, so the summary asserts a $0 profit and a $0 stock value on a
-       product with no prices at all. Margin is the only one that declines, and only
-       because a zero selling price is explicitly guarded against - not because the
-       field is empty. */
-    await expect(canvas.getAllByText('$0')).toHaveLength(2);
-    await expect(canvas.getByText(EM_DASH)).toBeInTheDocument();
+    /* The state the drawer opens in. Blank is unknown, not zero (44f500f12): with no
+       prices typed, profit, margin and stock value all decline with a dash rather
+       than claiming a $0 profit and a $0 stock value on a product nobody has
+       priced yet. */
+    await expect(canvas.getAllByText(EM_DASH)).toHaveLength(3);
+    await expect(canvas.queryByText('$0')).not.toBeInTheDocument();
   },
 };
 
@@ -537,15 +536,16 @@ export const RequiredFieldErrors: Story = {
       'Name is required'
     );
 
-    /* A dropdown does not. Both fields are failing, both draw a red border and a
-       12px line of red text, and only one of the two is reachable without sight:
-       there is exactly one alert on a section with two errors, and the Category
-       trigger carries neither aria-invalid nor aria-describedby. */
-    await expect(canvas.getAllByRole('alert')).toHaveLength(1);
-    await expect(canvas.getByText('Category is required')).toBeInTheDocument();
+    /* So does the Category dropdown, now that it renders through the canonical
+       `Field` (072d896f9): both errors are alerts, and the trigger points
+       aria-describedby at its own message, so neither failure is visual-only. */
+    await expect(canvas.getAllByRole('alert')).toHaveLength(2);
     const category = canvas.getByRole('button', { name: 'Category' });
-    await expect(category).not.toHaveAttribute('aria-invalid');
-    await expect(category).not.toHaveAttribute('aria-describedby');
+    const categoryDescribedBy = category.getAttribute('aria-describedby');
+    await expect(categoryDescribedBy).toBeTruthy();
+    await expect(
+      globalThis.document.getElementById(categoryDescribedBy ?? '')?.textContent
+    ).toContain('Category is required');
   },
 };
 

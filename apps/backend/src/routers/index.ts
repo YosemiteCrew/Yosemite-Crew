@@ -72,6 +72,8 @@ import companionCardRouter from "./companion-card.router";
 import companionCardPublicRouter from "./companion-card-public.router";
 import bookingPageRouter from "./booking-page.router";
 import bookingPagePublicRouter from "./booking-page-public.router";
+import practiceWebsiteRouter from "./practice-website.router";
+import practiceWebsitePublicRouter from "./practice-website-public.router";
 import petPassportRouter from "./pet-passport.router";
 import petPassportPublicRouter from "./pet-passport-public.router";
 import treatmentProtocolRouter from "./treatment-protocol.router";
@@ -221,6 +223,9 @@ export function registerRoutes(app: Express) {
   // Unauthenticated. Mounted under /public alongside the other anonymous
   // surfaces so the boundary is visible in the route table itself.
   app.use(`/public/booking`, bookingPagePublicRouter);
+  // The practice website built on top of that booking page, and its public read.
+  app.use(`/v1/practice-website`, practiceWebsiteRouter);
+  app.use(`/public/site`, practiceWebsitePublicRouter);
   app.use(`/v1/pet-passport`, petPassportRouter);
   app.use(`/public/pet-passport`, petPassportPublicRouter);
   app.use(`/v1`, treatmentProtocolRouter);

@@ -120,6 +120,26 @@ const resolveBodyOrganisationId = (
   return undefined;
 };
 
+type TenantGuardResult =
+  { ok: true } | { ok: false; reason: "malformed" | "mismatch" };
+
+const checkAppointmentTenant = (
+  body: unknown,
+  authorisedOrganisationId: string,
+): TenantGuardResult => {
+  const parsed = tenantGuardBodySchema.safeParse(body);
+  if (!parsed.success) return { ok: false, reason: "malformed" };
+
+  const bodyOrganisationId = resolveBodyOrganisationId(parsed.data);
+  if (
+    bodyOrganisationId &&
+    bodyOrganisationId !== bareOrganisationId(authorisedOrganisationId)
+  ) {
+    return { ok: false, reason: "mismatch" };
+  }
+  return { ok: true };
+};
+
 /**
  * The organisation the RBAC middleware authorized the caller against. On
  * resource-scoped routes that is the appointment's own organisation, not
@@ -279,11 +299,11 @@ export const AppointmentController = {
         return res.status(400).json({ message: "Missing organisationId" });
       }
 
-      // safeParse, not parse: `parseError` in the shared helper has no ZodError
-      // branch, so a thrown ZodError would leave here as a 500 carrying the
-      // serialised issue list. A body this guard cannot read is a bad request.
-      const parsedBody = tenantGuardBodySchema.safeParse(req.body);
-      if (!parsedBody.success) {
+      const tenantGuard = checkAppointmentTenant(
+        req.body,
+        authorisedOrganisationId,
+      );
+      if (!tenantGuard.ok && tenantGuard.reason === "malformed") {
         logger.warn(
           "Rejected an appointment whose participant list could not be read",
         );
@@ -291,12 +311,7 @@ export const AppointmentController = {
           message: "The appointment participants are malformed.",
         });
       }
-
-      const bodyOrganisationId = resolveBodyOrganisationId(parsedBody.data);
-      if (
-        bodyOrganisationId &&
-        bodyOrganisationId !== bareOrganisationId(authorisedOrganisationId)
-      ) {
+      if (!tenantGuard.ok) {
         logger.warn(
           "Rejected an appointment naming an organisation the caller is not authorised for",
         );
@@ -376,21 +391,16 @@ export const AppointmentController = {
           .status(400)
           .json({ message: "The weekly series is invalid." });
       }
-      const parsedAppointment = tenantGuardBodySchema.safeParse(
+      const tenantGuard = checkAppointmentTenant(
         parsed.data.appointment,
+        authorisedOrganisationId,
       );
-      if (!parsedAppointment.success) {
+      if (!tenantGuard.ok && tenantGuard.reason === "malformed") {
         return res
           .status(400)
           .json({ message: "The appointment details are invalid." });
       }
-      const bodyOrganisationId = resolveBodyOrganisationId(
-        parsedAppointment.data,
-      );
-      if (
-        bodyOrganisationId &&
-        bodyOrganisationId !== bareOrganisationId(authorisedOrganisationId)
-      ) {
+      if (!tenantGuard.ok) {
         return res.status(403).json({
           message:
             "The appointment names a different organisation from this request.",
@@ -655,19 +665,13 @@ export const AppointmentController = {
       if (!organisationId) {
         return res.status(400).json({ message: "Missing organisationId" });
       }
-      const parsedAppointment = tenantGuardBodySchema.safeParse(req.body);
-      if (!parsedAppointment.success) {
+      const tenantGuard = checkAppointmentTenant(req.body, organisationId);
+      if (!tenantGuard.ok && tenantGuard.reason === "malformed") {
         return res
           .status(400)
           .json({ message: "The appointment details are invalid." });
       }
-      const bodyOrganisationId = resolveBodyOrganisationId(
-        parsedAppointment.data,
-      );
-      if (
-        bodyOrganisationId &&
-        bodyOrganisationId !== bareOrganisationId(organisationId)
-      ) {
+      if (!tenantGuard.ok) {
         return res.status(403).json({
           message:
             "The appointment names a different organisation from this request.",

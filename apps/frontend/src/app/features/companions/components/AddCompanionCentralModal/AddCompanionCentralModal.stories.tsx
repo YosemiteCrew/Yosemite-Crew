@@ -80,9 +80,7 @@ export const WizardStepOne: Story = {
     const body = within(document.body);
 
     /* One dialog, and it is portalled - so `within(canvasElement)` sees none of
-       this. The confirm's own CenterModal is already mounted alongside it
-       without `open`, which is why absence is asserted against `dialog[open]`
-       rather than against the node existing. */
+       this. Counted over `dialog[open]` because a closed shell stays mounted. */
     await waitFor(() => expect(openDialogs()).toHaveLength(1));
 
     await expect(body.getByTestId('add-companion-step-subtitle')).toHaveTextContent(
@@ -94,11 +92,10 @@ export const WizardStepOne: Story = {
     // Step 2's fields are not merely hidden, they are unmounted - the wizard
     // renders one column at a time.
     await expect(body.queryByRole('textbox', { name: 'First name' })).not.toBeInTheDocument();
-    /* The confirm's copy is ALREADY in the DOM - its CenterModal is mounted
-       unconditionally and merely lacks `open` - so "not shown" has to be
-       asserted as not visible. `not.toBeInTheDocument()` here would fail against
-       a perfectly correct closed dialog. */
-    await expect(body.getByText('Discard changes?')).not.toBeVisible();
+    /* The confirm is mounted only while it is open - a closed CenterModal keeps
+       its content laid out, so a page hosting two editors used to carry two hidden
+       "Discard changes?" headings - so on a clean form its copy is absent. */
+    await expect(body.queryByText('Discard changes?')).not.toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -198,15 +195,14 @@ export const DiscardAndClose: Story = {
 
     await userEvent.click(body.getByRole('button', { name: 'Discard' }));
 
-    // Nothing open. Both dialogs are still in the DOM - they always are - so this
-    // has to be counted over `dialog[open]`.
+    // Nothing open. The shell stays in the DOM when it closes, so this has to be
+    // counted over `dialog[open]`.
     await waitFor(() => expect(openDialogs()).toHaveLength(0));
 
-    /* BOTH of them, checked separately. The count alone would be satisfied by a
-       single surviving-but-closed dialog if the other had been unmounted, and it
-       says nothing about which one closed - so the confirm's copy and the
-       wizard's own subtitle are each asserted invisible. */
-    await expect(body.getByText('Discard changes?')).not.toBeVisible();
+    /* BOTH of them, checked separately. The count says nothing about which one
+       closed - so the confirm is asserted unmounted (it only exists while open)
+       and the wizard's own subtitle invisible. */
+    await expect(body.queryByText('Discard changes?')).not.toBeInTheDocument();
     await expect(body.getByTestId('add-companion-step-subtitle')).not.toBeVisible();
     /* And the trap itself, pinned rather than avoided. A closed `<dialog>` is
        `display: none` per the UA sheet, but the panel's own `flex` class beats
@@ -229,9 +225,9 @@ export const DiscardAndClose: Story = {
     docs: {
       description: {
         story:
-          'The confirm closes itself and then closes the shell, in that order. Both dialogs stay ' +
-          'mounted and merely lose `open`, which is why "the modal is gone" is only true of the ' +
-          '`open` attribute.\n\n' +
+          'The confirm closes itself and then closes the shell, in that order. The confirm ' +
+          'unmounts; the shell stays mounted and merely loses `open`, which is why "the modal is ' +
+          'gone" is only true of the `open` attribute.\n\n' +
           'It is truer than that, even: the panel class list includes `flex`, which overrides ' +
           'the user-agent `dialog:not([open]) { display: none }`, so a closed shell keeps a ' +
           'laid-out subtree and is hidden by `opacity-0` and `pointer-events-none` alone. What ' +
@@ -283,14 +279,11 @@ export const PhoneSheet: Story = {
     await expect(within(footer).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
 
     /* The desktop `AppointmentCentralModalShell` is an early-return branch, so in
-       the phone create path it is never constructed at all. One `.yc-modal-dialog`
-       IS still in the DOM - the discard confirm's CenterModal, which both branches
-       render unconditionally - so this has to be counted over `[open]` rather than
-       over the class, and the confirm's copy is checked for visibility rather
-       than presence. */
-    await expect(body.getByText('Discard changes?')).not.toBeVisible();
-    await expect(document.querySelectorAll('.yc-modal-dialog')).toHaveLength(1);
-    await expect(document.querySelector('.yc-modal-dialog[open]')).toBeNull();
+       the phone create path it is never constructed at all, and the discard
+       confirm's CenterModal is mounted only while it is open - so on a clean
+       phone sheet there is no `.yc-modal-dialog` in the DOM at all. */
+    await expect(body.queryByText('Discard changes?')).not.toBeInTheDocument();
+    await expect(document.querySelectorAll('.yc-modal-dialog')).toHaveLength(0);
   },
   parameters: {
     docs: {

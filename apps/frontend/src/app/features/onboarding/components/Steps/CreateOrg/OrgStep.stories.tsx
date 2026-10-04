@@ -162,9 +162,9 @@ const meta = {
           'United States when the org has nothing. So `validateOrgBasics` can never raise its own ' +
           '"Country is required" on this step, and an untouched form quietly writes United States ' +
           'into the address.\n\n' +
-          'Announcement is uneven: the tax id, website, phone and DUNS messages are `FormInput` ' +
-          'alerts, while the organisation-name message (`GoogleSearchDropDown`) and the country ' +
-          'message (`LabelDropdown`) render the same warning icon and text with no role.\n\n' +
+          'Every message is announced: the tax id, website, phone and DUNS messages (`FormInput`), ' +
+          'the organisation-name message (`GoogleSearchDropDown`) and the country message ' +
+          '(`LabelDropdown`) all render through the shared `Field` with `role="alert"`.\n\n' +
           'The logo tile is inert in these stories by construction - `LogoUploader` only reaches ' +
           'the presigned-url endpoint once a file is picked - and no play function types into the ' +
           'organisation-name field, which would debounce a call to `places.googleapis.com`.',
@@ -317,13 +317,13 @@ export const ParentErrors: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // Six messages, four announced. The two silent ones are the first field in
-    // the form and the only message about the country.
-    await expect(canvas.getAllByRole('alert')).toHaveLength(4);
+    // Six messages, six announced - the first field in the form and the only
+    // message about the country included.
+    await expect(canvas.getAllByRole('alert')).toHaveLength(6);
     await expect(
       canvas.getByText('Organisation name is required').closest('[role="alert"]')
-    ).toBeNull();
-    await expect(canvas.getByText('Country is required').closest('[role="alert"]')).toBeNull();
+    ).not.toBeNull();
+    await expect(canvas.getByText('Country is required').closest('[role="alert"]')).not.toBeNull();
 
     await userEvent.type(canvas.getByRole('textbox', { name: 'Tax ID' }), 'DE1');
 
@@ -331,7 +331,7 @@ export const ParentErrors: Story = {
        previous `errors` identity, so the re-render typing causes does not repaint
        the parent's whole list over the field just fixed. */
     await waitFor(() => expect(canvas.queryByText('Tax ID is required')).not.toBeInTheDocument());
-    await expect(canvas.getAllByRole('alert')).toHaveLength(3);
+    await expect(canvas.getAllByRole('alert')).toHaveLength(5);
     await expect(canvas.getByText('Organisation name is required')).toBeInTheDocument();
   },
 };
@@ -345,8 +345,8 @@ export const LocalValidation: Story = {
     await expect(await canvas.findByText('Organisation name is required')).toBeInTheDocument();
     await expect(canvas.getByText('Tax ID is required')).toBeInTheDocument();
     await expect(canvas.getByText('Enter a valid phone number')).toBeInTheDocument();
-    // Two of the three are announced; the name message is not.
-    await expect(canvas.getAllByRole('alert')).toHaveLength(2);
+    // All three are announced, the name message included.
+    await expect(canvas.getAllByRole('alert')).toHaveLength(3);
 
     /* No country message, although the validator has one. `normalizedCountry`
        is read off the selected dial code, which always resolves, so this branch

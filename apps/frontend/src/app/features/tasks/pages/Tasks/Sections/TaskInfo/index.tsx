@@ -194,7 +194,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
     }
   };
 
-  const handleReuseTask = useCallback(async () => {
+  const handleReuseTask = useCallback(() => {
     if (!isCompletedTask || isReusing) return;
     setIsReusing(true);
     try {

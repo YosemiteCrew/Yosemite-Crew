@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import type { IconType } from 'react-icons';
@@ -16,6 +16,11 @@ import type { Appointment } from '@yosemite-crew/types';
 import type { SideAction } from '@/app/features/appointments/types/workspace';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
+import { useExtensionPoint } from '@/app/features/plugins';
+import type {
+  AppointmentWorkspaceSideModalPanelExtension,
+  ExtensionContext,
+} from '@/app/features/plugins/types';
 
 // Panels are heavy (vitals forms, document packets, the calculator registry) and
 // only one is ever mounted, so each ships as its own chunk and is fetched when
@@ -79,6 +84,12 @@ type NavItem = {
   icon: IconType;
 };
 
+type PluginNavItem = {
+  key: string;
+  label: string;
+  icon: IconType;
+};
+
 const NAV_ITEMS: NavItem[] = [
   { key: 'RECORD', label: 'Record', icon: IoPulseOutline },
   { key: 'TASKS', label: 'Tasks', icon: IoClipboardOutline },
@@ -97,12 +108,14 @@ const CALCULATORS_ITEM: NavItem = {
   icon: IoCalculatorOutline,
 };
 
+type NavButtonItem = NavItem | PluginNavItem;
+
 const NavButton = ({
   item,
   active,
   onClick,
 }: {
-  item: NavItem;
+  item: NavButtonItem;
   active: boolean;
   onClick: () => void;
 }) => {
@@ -131,12 +144,6 @@ const NavButton = ({
   );
 };
 
-/**
- * Quick-actions side modal — reuses the shared right-docked `Modal` drawer (same
- * size/styling as the Organization/Tasks side modals) with a top row of round
- * icon tabs (Record / Tasks / Documents / Chat / Activity / MSD). The active tab
- * routes to its panel below.
- */
 const QuickActionsModal = ({
   appointment,
   appointmentId,
@@ -150,6 +157,27 @@ const QuickActionsModal = ({
 }: QuickActionsModalProps) => {
   const open = activeAction != null;
   const companion = getAppointmentCompanion(appointment);
+
+  const context: ExtensionContext = useMemo(
+    () => ({ type: 'appointment', appointmentId, organisationId }),
+    [appointmentId, organisationId]
+  );
+
+  const { extensions: pluginPanelExtensions } = useExtensionPoint<
+    React.ComponentProps<AppointmentWorkspaceSideModalPanelExtension['component']>
+  >('appointment.workspace.sideModal.panels', context);
+
+  const pluginNavItems = useMemo<PluginNavItem[]>(
+    () =>
+      pluginPanelExtensions.map((ext) => ({
+        key: `${ext.pluginId}:${ext.extension.id}`,
+        label: ext.extension.component.displayName || ext.extension.id,
+        icon: ext.extension.component.icon || IoPulseOutline,
+      })),
+    [pluginPanelExtensions]
+  );
+
+  const isPluginAction = pluginNavItems.some((item) => item.key === activeAction);
 
   return (
     <Modal
@@ -210,6 +238,14 @@ const QuickActionsModal = ({
             active={activeAction === 'CALCULATORS'}
             onClick={() => onChangeAction('CALCULATORS')}
           />
+          {pluginNavItems.map((item) => (
+            <NavButton
+              key={item.key}
+              item={item}
+              active={activeAction === item.key}
+              onClick={() => onChangeAction(item.key as SideAction)}
+            />
+          ))}
         </nav>
 
         <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden pr-1">
@@ -249,6 +285,20 @@ const QuickActionsModal = ({
           {activeAction === 'ACTIVITY' && <ActivityPanel appointment={appointment} />}
           {activeAction === 'MSD' && <MsdPanel appointment={appointment} />}
           {activeAction === 'CALCULATORS' && <CalculatorsPanel appointment={appointment} />}
+          {isPluginAction && (
+            <>
+              {pluginPanelExtensions.map((ext) =>
+                activeAction === `${ext.pluginId}:${ext.extension.id}` ? (
+                  <ext.extension.component
+                    key={`${ext.pluginId}:${ext.extension.id}`}
+                    appointmentId={appointmentId}
+                    organisationId={organisationId}
+                    onClose={onClose}
+                  />
+                ) : null
+              )}
+            </>
+          )}
         </div>
       </div>
     </Modal>

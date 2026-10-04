@@ -28,22 +28,29 @@ type CareReminderPage = {
 
 const ENDPOINT = '/v1/care-reminders/mobile/due';
 const PAGE_SIZE = 100;
+export const MAX_CARE_REMINDER_PAGES = 50;
 
 export const careReminderApi = {
   /** Reads every page so the selected companion's reminders cannot be hidden by pagination. */
   async list(accessToken: string): Promise<MobileCareReminder[]> {
-    const readFrom = async (cursor?: string): Promise<MobileCareReminder[]> => {
+    const reminders: MobileCareReminder[] = [];
+    let cursor: string | undefined;
+    for (
+      let pagesFetched = 0;
+      pagesFetched < MAX_CARE_REMINDER_PAGES;
+      pagesFetched += 1
+    ) {
       const {data} = await apiClient.get<CareReminderPage>(ENDPOINT, {
         params: {limit: PAGE_SIZE, cursor},
         headers: withAuthHeaders(accessToken),
       });
-      const reminders = data.reminders ?? [];
+      reminders.push(...(data.reminders ?? []));
       if (!data.hasMore) return reminders;
       if (!data.nextCursor || data.nextCursor === cursor) {
         throw new Error('Care reminder pagination did not advance');
       }
-      return [...reminders, ...(await readFrom(data.nextCursor))];
-    };
-    return readFrom();
+      cursor = data.nextCursor;
+    }
+    throw new Error('Care reminder pagination exceeded the page limit');
   },
 };

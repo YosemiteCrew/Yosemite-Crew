@@ -149,6 +149,8 @@ describe('middleware', () => {
     // `unsafe-inline` policy the marketing routes carry.
     '/book/park-veterinary',
     '/book/park-veterinary/confirm',
+    // The practice website sits in front of that booking page.
+    '/site/park-veterinary',
   ])('serves %s with a nonce CSP instead of unsafe-inline scripts', (pathname) => {
     const response = middleware(createRequest(pathname)) as ReturnType<typeof createResponse>;
     const nextOptions = mockNext.mock.calls[0][0];

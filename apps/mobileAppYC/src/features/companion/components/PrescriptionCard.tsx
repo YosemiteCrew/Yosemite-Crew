@@ -63,15 +63,17 @@ export const PrescriptionCard: React.FC<PrescriptionCardProps> = ({
           {t('prescriptions.recorded', {date: recordedOn})}
         </Text>
       ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t(labelKey, {medication})}
-        accessibilityState={{disabled: isRequesting, busy: isRequesting}}
-        disabled={isRequesting}
-        onPress={() => onRequestRefill(prescription.id)}
-        style={[styles.button, isRequesting && styles.buttonDisabled]}>
-        <Text style={styles.buttonLabel}>{t(textKey)}</Text>
-      </Pressable>
+      {prescription.encounterId ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t(labelKey, {medication})}
+          accessibilityState={{disabled: isRequesting, busy: isRequesting}}
+          disabled={isRequesting}
+          onPress={() => onRequestRefill(prescription.id)}
+          style={[styles.button, isRequesting && styles.buttonDisabled]}>
+          <Text style={styles.buttonLabel}>{t(textKey)}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 };

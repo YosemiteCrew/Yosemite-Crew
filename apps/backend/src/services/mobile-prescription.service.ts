@@ -79,7 +79,7 @@ export type MobilePrescriptionItem = {
 export type MobilePrescription = {
   id: string;
   patientId: string;
-  encounterId: string;
+  encounterId?: string;
   organisationId: string;
   status: ClinicalArtifactStatus;
   summary?: string;
@@ -113,20 +113,7 @@ export type ListPrescriptionsForParentOptions = {
   cursor?: KeysetCursor;
 };
 
-/**
- * Prescriptions the parent may read, newest first.
- *
- * Fail-closed on the binding. `ClinicalArtifact` has no companion column, and
- * its `appointmentId`, `caseId` and `encounterId` are all nullable, so the only
- * trustworthy path to the animal is `encounterId -> Encounter.patientId`. An
- * artifact with no encounter has nothing tying it to a patient, and this returns
- * nothing rather than guessing from an organisation or a body-supplied id.
- *
- * The consequence is deliberate and worth stating: a prescription written
- * outside an encounter never reaches the owner's app, and nothing tells them it
- * exists. That is the safe direction of a wrong answer here - the unsafe one
- * would show an owner another client's medication.
- */
+/** Prescriptions the parent may read, newest first. */
 export const listPrescriptionsForParent = async (
   parentId: string,
   options: ListPrescriptionsForParentOptions = {},
@@ -162,10 +149,6 @@ export const listPrescriptionsForParent = async (
     where: { patientId: { in: patientIds } },
     select: { id: true, patientId: true },
   });
-  if (encounters.length === 0) {
-    return empty;
-  }
-
   const patientIdByEncounter = new Map(
     encounters.map((encounter) => [encounter.id, encounter.patientId]),
   );
@@ -190,15 +173,17 @@ export const listPrescriptionsForParent = async (
    * one prescription is never returned on any page while `hasMore: false` says
    * the list is complete. This form is exclusive by construction and a cursor
    * row that has left the set is simply behind the window.
-   *
-   * The cursor is a position, never an access grant. `where` is rebuilt from
-   * `patientIdByEncounter` on every page, so a cursor lifted from another
-   * parent's response moves the window and widens nothing.
    */
   const rows = await prisma.prescription.findMany({
     where: {
       artifact: {
-        encounterId: { in: [...patientIdByEncounter.keys()] },
+        OR: [
+          { patientId: { in: patientIds } },
+          {
+            patientId: null,
+            encounterId: { in: [...patientIdByEncounter.keys()] },
+          },
+        ],
         status: { in: OWNER_VISIBLE_ARTIFACT_STATUSES },
       },
       ...(options.cursor
@@ -218,6 +203,7 @@ export const listPrescriptionsForParent = async (
       artifact: {
         select: {
           encounterId: true,
+          patientId: true,
           organisationId: true,
           status: true,
           summary: true,
@@ -243,13 +229,10 @@ export const listPrescriptionsForParent = async (
 
   const prescriptions = items.flatMap((prescription) => {
     const encounterId = prescription.artifact.encounterId;
-    // Narrowing only. The query already excluded null encounters; a row that
-    // reaches here without one would be a scoping hole, so it is dropped.
-    if (!encounterId) {
-      return [];
-    }
-    const patientId = patientIdByEncounter.get(encounterId);
-    if (!patientId) {
+    const patientId =
+      prescription.artifact.patientId ??
+      (encounterId ? patientIdByEncounter.get(encounterId) : undefined);
+    if (!patientId || !patientIds.includes(patientId)) {
       return [];
     }
 
@@ -257,7 +240,7 @@ export const listPrescriptionsForParent = async (
       {
         id: prescription.id,
         patientId,
-        encounterId,
+        ...(encounterId ? { encounterId } : {}),
         organisationId: prescription.artifact.organisationId,
         status: prescription.artifact.status,
         summary: prescription.artifact.summary ?? undefined,

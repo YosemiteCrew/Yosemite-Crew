@@ -267,17 +267,20 @@ export const EmptyState: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     /* Two nodes: the table band and the card band each carry their own copy, and
-       both are mounted at every width. "No items" is the footer summary, a
-       different string from the empty state. */
+       both are mounted at every width. Since the catalog moved onto GenericTable and
+       PaginatedCardList (b22383f2f) the footer only renders when there is a second
+       page, so an empty catalog ends on the empty state with no pager or summary
+       line under it. */
     await expect(canvas.getAllByText('No items yet')).toHaveLength(2);
-    await expect(canvas.getByText('No items')).toBeInTheDocument();
+    await expect(canvas.queryByText('No items')).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /^Page \d/ })).not.toBeInTheDocument();
   },
   parameters: {
     docs: {
       description: {
         story:
           'No rows: the header track stays, the body is replaced by a single centred line, and ' +
-          'the footer summary reads "No items" rather than a range.',
+          'no footer renders because there is no second page to reach.',
       },
     },
   },

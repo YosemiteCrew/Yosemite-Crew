@@ -119,6 +119,28 @@ describe('CompanionDocumentsSection', () => {
     expect(screen.getByRole('button', { name: 'Request from pet parent' })).toBeDisabled();
   });
 
+  it('clears previous records when the next companion load fails', async () => {
+    loadCompanionDocumentMock
+      .mockResolvedValueOnce([
+        {
+          id: 'doc-1',
+          title: 'Previous companion record',
+          category: 'HEALTH',
+          subcategory: 'VACCINATION',
+          issueDate: '2026-01-01T10:00:00Z',
+          attachments: [{ mimeType: 'application/pdf' }],
+        },
+      ])
+      .mockRejectedValueOnce(new Error('network failed'));
+
+    const { rerender } = render(<CompanionDocumentsSection companionId="comp-1" />);
+    await waitFor(() => expect(screen.getByText('Previous companion record')).toBeInTheDocument());
+
+    rerender(<CompanionDocumentsSection companionId="comp-2" />);
+    await waitFor(() => expect(screen.getByText('No records yet')).toBeInTheDocument());
+    expect(screen.queryByText('Previous companion record')).not.toBeInTheDocument();
+  });
+
   it('renders a grouped record row and opens the file on row click', async () => {
     loadCompanionDocumentMock.mockResolvedValue([
       {

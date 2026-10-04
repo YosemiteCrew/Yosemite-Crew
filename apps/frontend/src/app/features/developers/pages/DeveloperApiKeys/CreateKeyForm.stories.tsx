@@ -90,13 +90,17 @@ export const TestEnvironment: Story = {
   name: 'Switching to the test environment',
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const environment = canvas.getByLabelText('Environment');
 
-    // The select opens on Live, so a key is production unless someone changes it.
-    await expect(environment).toHaveValue('live');
+    // The dropdown opens on Live, so a key is production unless someone changes it.
+    const environment = canvas.getByRole('button', { name: 'Environment: Live' });
 
     await userEvent.type(canvas.getByLabelText('Key name'), 'CI runner');
-    await userEvent.selectOptions(environment, 'test');
+    await userEvent.click(environment);
+    // The themed Dropdown portals its options onto document.body.
+    await userEvent.click(
+      await within(globalThis.document.body).findByRole('option', { name: 'Test' })
+    );
+    await expect(canvas.getByRole('button', { name: 'Environment: Test' })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Create' }));
 
     /* The submitted value is the enum, not the "Test" label shown in the

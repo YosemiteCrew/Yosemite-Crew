@@ -187,25 +187,27 @@ const openRecord = async (canvasElement: HTMLElement): Promise<HTMLElement> => {
 };
 
 /**
- * Every read-mode row label in the open pane, in render order.
+ * The label cell of every read-mode row in the open pane, in render order.
  *
- * Keyed on the label cell's own class rather than on its text, because the
- * labels are not unique in the tree: "Parent information" is both a sub-tab and
- * an accordion header, and "Status" is an accordion title as well as part of two
- * row labels. `CompanionRow` and `EditableAccordion`'s `FieldValueRow` are the
- * only things rendering `text-body-4-emphasis`, so this counts rows and nothing
- * else - a field silently dropped from a config shows up here as a shorter list.
+ * Keyed on the row's shape rather than on its text, because the labels are not
+ * unique in the tree: "Parent information" is both a sub-tab and an accordion
+ * header, and "Status" is an accordion title as well as part of two row labels.
+ * `CompanionRow` and `EditableAccordion`'s `FieldValueRow` both draw a
+ * hairline-topped `justify-between` pair, label first and value second, and
+ * nothing else in the drawer has that shape - so this counts rows and nothing
+ * else, and a field silently dropped from a config shows up as a shorter list.
  */
+const rowLabelCells = (scope: HTMLElement): Element[] => [
+  ...scope.querySelectorAll('.border-t.justify-between > :first-child'),
+];
+
+/** Every read-mode row label in the open pane, in render order. */
 const rowLabels = (scope: HTMLElement): string[] =>
-  [...scope.querySelectorAll('.text-body-4-emphasis')].map((cell) =>
-    (cell.textContent ?? '').trim()
-  );
+  rowLabelCells(scope).map((cell) => (cell.textContent ?? '').trim());
 
 /** The value rendered beside one row label. */
 const rowValue = (scope: HTMLElement, label: string): string => {
-  const cell = [...scope.querySelectorAll('.text-body-4-emphasis')].find(
-    (node) => (node.textContent ?? '').trim() === label
-  );
+  const cell = rowLabelCells(scope).find((node) => (node.textContent ?? '').trim() === label);
   if (!cell) {
     throw new Error(`No "${label}" row is being rendered.`);
   }

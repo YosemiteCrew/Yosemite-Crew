@@ -236,10 +236,11 @@ export const PhoneCards: Story = {
 export const DesktopEmpty: Story = {
   name: 'Desktop: the other empty state',
   args: { filteredList: [] },
-  // 1440 rather than the 1280 laptop preset: the desktop band is `xl:flex`, and
-  // at exactly 1280 a preview scrollbar can take the viewport under the breakpoint
-  // and silently swap which band this story is about.
-  globals: { viewport: { value: 'desktop', isRotated: false } },
+  // The ledger band is `2xl:flex` (>= 1536) since 7588bc79f moved laptops onto the
+  // six-column table, so this pins the 1920 `wide` preset: the 1440 `desktop` one
+  // now renders the tablet/laptop band, and 1536 itself would leave no room for a
+  // preview scrollbar before the bands swap.
+  globals: { viewport: { value: 'wide', isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const { desktop, tablet, phone } = bands(canvasElement);

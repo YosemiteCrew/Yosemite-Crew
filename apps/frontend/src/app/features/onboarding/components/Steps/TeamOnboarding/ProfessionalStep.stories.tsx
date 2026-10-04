@@ -221,15 +221,13 @@ export const Prefilled: Story = {
     // pair off. The Phone story covers the other half of that media query.
     await expect(rowOverlap(specialisation, qualification)).toBeGreaterThan(20);
 
-    /* The bio box is 72px tall, not the 112px this step asks for: the
-       `min-h-28` it passes down loses to `FormDesc`'s own `min-h-[72px]` -
-       same specificity, and Tailwind emits the arbitrary utility last. It is
-       an inert class, which is invisible until someone measures it, and with
-       `resize-none` a long biography scrolls inside those two lines rather
-       than growing the card. */
+    /* The bio box is the 112px this step asks for: the `min-h-28` it passes
+       down outranks the shared `Textarea`'s own `min-h-22` (88px) floor, so the
+       step's class is the one that takes effect. Measured because a dropped or
+       overridden class is invisible until someone does. */
     await expect(
       canvas.getByRole('textbox', { name: 'Short bio (optional)' }).getBoundingClientRect().height
-    ).toBe(72);
+    ).toBe(112);
     await expect(canvas.queryAllByRole('alert')).toHaveLength(0);
   },
   parameters: {
@@ -237,10 +235,8 @@ export const Prefilled: Story = {
       description: {
         story:
           'A saved draft reopened, and the story that measures the bio box. The step asks for ' +
-          '`min-h-28` (112px) and gets 72px: `FormDesc` already sets `min-h-[72px]`, the two ' +
-          'utilities have the same specificity, and Tailwind emits the arbitrary one last. So the ' +
-          'class the step passes has no effect, and with `resize-none` a long biography scrolls ' +
-          'inside two lines.',
+          '`min-h-28` (112px) and gets it: `FormDesc` renders the shared `Textarea`, whose own ' +
+          'floor is the smaller `min-h-22`, so the class the step passes takes effect.',
       },
     },
   },

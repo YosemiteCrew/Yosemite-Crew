@@ -246,7 +246,8 @@ export const OrgsWithInvite: Story = {
     await expect(await canvas.findByText('You belong to 2 organizations')).toBeInTheDocument();
 
     const orgRow = canvas.getByRole('button', { name: /Sunrise Veterinary/ });
-    const accept = canvas.getByRole('button', { name: 'Accept' });
+    // The invitations load separately from the org store, so the row is awaited.
+    const accept = await canvas.findByRole('button', { name: 'Accept' });
     const createLink = canvas.getByRole('link', { name: 'Create a new organization' });
 
     // Order is the page's whole job: organisations you already have, then the
@@ -465,6 +466,8 @@ export const Phone: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('button', { name: /Sunrise Veterinary/ });
+    // The invitation row loads after the orgs; measure only once it is on screen.
+    const acceptButton = await canvas.findByRole('button', { name: 'Accept' });
 
     // Names truncate rather than wrap, and the accept/decline pair is
     // `shrink-0`, so a name long enough to win the fight widens the page.
@@ -476,7 +479,7 @@ export const Phone: Story = {
     // is the first thing to give at 375. Compared on their centres, not their
     // tops: only Decline carries a border, so it is 2px taller and its top sits
     // 1px higher inside the `items-center` row even when nothing has wrapped.
-    const accept = canvas.getByRole('button', { name: 'Accept' }).getBoundingClientRect();
+    const accept = acceptButton.getBoundingClientRect();
     const decline = canvas.getByRole('button', { name: 'Decline' }).getBoundingClientRect();
     await expect(accept.top + accept.height / 2).toBeCloseTo(decline.top + decline.height / 2, 1);
   },

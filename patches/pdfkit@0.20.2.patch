@@ -1,0 +1,98 @@
+diff --git a/js/pdfkit.browser.js b/js/pdfkit.browser.js
+index 61c22660a9fdd0ddeac3531de63d8a0d1144b1a8..5b2ff5393d14871381799f87a15f0d181af5bffb 100644
+--- a/js/pdfkit.browser.js
++++ b/js/pdfkit.browser.js
+@@ -2,7 +2,7 @@
+ 
+ Object.defineProperty(exports, '__esModule', { value: true });
+ 
+-var utils = require('@noble/hashes/utils');
++var utils = require('@noble/hashes/utils.js');
+ var fflate = require('fflate');
+ var aes = require('@noble/ciphers/aes');
+ var fontkit = require('fontkit');
+diff --git a/js/pdfkit.browser.mjs b/js/pdfkit.browser.mjs
+index 7401f93dec8c8279631fe9e525cf945c6bfbd97b..459d8b218b5820f94a959612d1046fdada784900 100644
+--- a/js/pdfkit.browser.mjs
++++ b/js/pdfkit.browser.mjs
+@@ -1,4 +1,4 @@
+-import { bytesToHex, concatBytes } from '@noble/hashes/utils';
++import { bytesToHex, concatBytes } from '@noble/hashes/utils.js';
+ import { zlibSync } from 'fflate';
+ import { cbc, ecb } from '@noble/ciphers/aes';
+ import { create } from 'fontkit';
+diff --git a/js/pdfkit.browser.old.js b/js/pdfkit.browser.old.js
+index a1ce1adf569c20cfb29c45ce4184014281e1e836..26045c9c04b049caed5b77a59f0b9d05814b3183 100644
+--- a/js/pdfkit.browser.old.js
++++ b/js/pdfkit.browser.old.js
+@@ -1,6 +1,6 @@
+ 'use strict';
+ 
+-var utils = require('@noble/hashes/utils');
++var utils = require('@noble/hashes/utils.js');
+ var fflate = require('fflate');
+ var aes = require('@noble/ciphers/aes');
+ var fontkit = require('fontkit');
+diff --git a/js/pdfkit.browser.old.mjs b/js/pdfkit.browser.old.mjs
+index 7971167a8df9f980fb5760f6a5820ba2888742ff..1fc7fcbbc3cf2afb93c750fa428f14bb2ad63f94 100644
+--- a/js/pdfkit.browser.old.mjs
++++ b/js/pdfkit.browser.old.mjs
+@@ -1,4 +1,4 @@
+-import { bytesToHex, concatBytes } from '@noble/hashes/utils';
++import { bytesToHex, concatBytes } from '@noble/hashes/utils.js';
+ import { zlibSync } from 'fflate';
+ import { cbc, ecb } from '@noble/ciphers/aes';
+ import { create } from 'fontkit';
+diff --git a/js/pdfkit.js b/js/pdfkit.js
+index 1a862078b3ad5a87b3ed5a4e1d9ca014ff0197d6..c2e5ff95057c94f5c11f096ca2bc7a9ef5622dd8 100644
+--- a/js/pdfkit.js
++++ b/js/pdfkit.js
+@@ -4,7 +4,22 @@ Object.defineProperty(exports, '__esModule', { value: true });
+ 
+ var module$1 = require('module');
+ var stream = require('stream');
+-var utils = require('@noble/hashes/utils');
++var utils = {
++  bytesToHex(bytes) {
++    let hex = '';
++    for (const byte of bytes) hex += byte.toString(16).padStart(2, '0');
++    return hex;
++  },
++  concatBytes(...arrays) {
++    const result = new Uint8Array(arrays.reduce((length, array) => length + array.length, 0));
++    let offset = 0;
++    for (const array of arrays) {
++      result.set(array, offset);
++      offset += array.length;
++    }
++    return result;
++  }
++};
+ var zlib$1 = require('zlib');
+ var aes = require('@noble/ciphers/aes');
+ var fs$1 = require('fs');
+diff --git a/js/pdfkit.node.mjs b/js/pdfkit.node.mjs
+index af7b80be2a449cefd2230bc7ab304df71b59b6c1..3149607df34daf6bdd13b3d8552bce6c95fdaae9 100644
+--- a/js/pdfkit.node.mjs
++++ b/js/pdfkit.node.mjs
+@@ -1,6 +1,6 @@
+ import { createRequire } from 'module';
+ import stream from 'stream';
+-import { bytesToHex, concatBytes } from '@noble/hashes/utils';
++import { bytesToHex, concatBytes } from '@noble/hashes/utils.js';
+ import zlib$1 from 'zlib';
+ import { cbc, ecb } from '@noble/ciphers/aes';
+ import { statSync, readFileSync } from 'fs';
+diff --git a/js/pdfkit.old.js b/js/pdfkit.old.js
+index bc6434f7617a81e8f968351683bb720e3f868861..bd23f03379bc21beec68b4d6f744451200a9d9c0 100644
+--- a/js/pdfkit.old.js
++++ b/js/pdfkit.old.js
+@@ -1,7 +1,7 @@
+ 'use strict';
+ 
+ var stream = require('stream');
+-var utils = require('@noble/hashes/utils');
++var utils = require('@noble/hashes/utils.js');
+ var zlib$1 = require('zlib');
+ var aes = require('@noble/ciphers/aes');
+ var fs$1 = require('fs');

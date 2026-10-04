@@ -162,30 +162,6 @@ router.get(
 );
 
 router.post(
-  "/organisation/:organisationId/subscription/provider/:provider/customer",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("subscription:edit:any"),
-  FinanceController.recordSubscriptionCustomer,
-);
-
-router.post(
-  "/organisation/:organisationId/subscription/provider/:provider/checkout/completed",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("subscription:edit:any"),
-  FinanceController.recordSubscriptionCheckoutCompleted,
-);
-
-router.post(
-  "/organisation/:organisationId/subscription/provider/:provider/updated",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("subscription:edit:any"),
-  FinanceController.recordSubscriptionUpdated,
-);
-
-router.post(
   "/organisation/:organisationId/subscription/provider/:provider/deleted",
   requireWebAuth,
   withOrgPermissions(),
@@ -215,14 +191,6 @@ router.get(
   withOrgPermissions(),
   requirePermission("subscription:view:any"),
   FinanceController.getCurrentSubscription,
-);
-
-router.post(
-  "/subscriptions",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("subscription:edit:any"),
-  FinanceController.upsertSubscription,
 );
 
 router.post(

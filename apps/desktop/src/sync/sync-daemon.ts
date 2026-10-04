@@ -38,13 +38,9 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
   let running = false;
   let timer: ReturnType<typeof setInterval> | null = null;
   let currentStatus: OnlineStatus = deps.isOnline() ? 'online' : 'offline';
+  let flushing = false;
 
-  // Sends batch[index] and then the rest, one at a time and in queue order: a
-  // later change to a record must never reach the server before an earlier
-  // one. Each send starts as soon as the one before it has settled.
-  const sendFrom = async (batch: Mutation[], index: number): Promise<void> => {
-    const mutation = batch[index];
-    if (!mutation) return;
+  const sendMutation = async (mutation: Mutation): Promise<boolean> => {
     try {
       const result = await deps.transport.send({
         type: mutation.type,
@@ -52,7 +48,6 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
         entityId: mutation.entityId,
         data: mutation.data,
       });
-
       if (result.ok) {
         deps.queue.pop(mutation.id);
         deps.logger.debug('sync_mutation_success', { id: mutation.id });
@@ -63,21 +58,28 @@ export const createSyncDaemon = (deps: SyncDaemonDeps): SyncDaemon => {
           error: result.error,
         });
       }
+      return result.ok;
     } catch (error) {
       deps.queue.markFailed(mutation.id);
       deps.logger.warn('sync_mutation_error', { id: mutation.id, error });
+      return false;
     }
-    return sendFrom(batch, index + 1);
   };
 
   const flush = async (): Promise<void> => {
-    if (!deps.isOnline()) return;
+    if (!deps.isOnline() || flushing) return;
     const batch = deps.queue.peek(10);
     if (batch.length === 0) return;
 
-    deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
-
-    await sendFrom(batch, 0);
+    flushing = true;
+    try {
+      deps.logger.debug('sync_daemon_flush', { batchSize: batch.length });
+      const outcomes = await Array.fromAsync(batch, sendMutation);
+      const sent = outcomes.filter(Boolean).length;
+      deps.logger.debug('sync_daemon_flushed', { sent, failed: outcomes.length - sent });
+    } finally {
+      flushing = false;
+    }
   };
 
   const start = (): void => {

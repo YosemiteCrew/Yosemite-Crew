@@ -1,0 +1,30 @@
+diff --git a/build/index.es.js b/build/index.es.js
+index a2eaf93c1e8d1106df5fff9f008c79c689508947..0b96bbe70e1ce92f358a0372d973b7d937a01147 100644
+--- a/build/index.es.js
++++ b/build/index.es.js
+@@ -37,8 +37,8 @@ import * as pvtsutils from 'pvtsutils';
+ import { BufferSourceConverter } from 'pvtsutils';
+ import * as pvutils from 'pvutils';
+ import * as bs from 'bytestreamjs';
+-import { sha1 } from '@noble/hashes/sha1';
+-import { sha512, sha384, sha256 } from '@noble/hashes/sha2';
++import { sha1 } from '@noble/hashes/legacy.js';
++import { sha512, sha384, sha256 } from '@noble/hashes/sha2.js';
+ 
+ const EMPTY_BUFFER = new ArrayBuffer(0);
+ const EMPTY_STRING = "";
+diff --git a/build/index.js b/build/index.js
+index 9be93024b2d1cfc91b5565b513e6fcc92ff9f3f4..422d0b8da8862581827b3038769e97a882e6470b 100644
+--- a/build/index.js
++++ b/build/index.js
+@@ -38,8 +38,8 @@ var asn1js = require('asn1js');
+ var pvtsutils = require('pvtsutils');
+ var pvutils = require('pvutils');
+ var bs = require('bytestreamjs');
+-var sha1 = require('@noble/hashes/sha1');
+-var sha2 = require('@noble/hashes/sha2');
++var sha1 = require('@noble/hashes/legacy.js');
++var sha2 = require('@noble/hashes/sha2.js');
+ 
+ function _interopNamespaceDefault(e) {
+   var n = Object.create(null);

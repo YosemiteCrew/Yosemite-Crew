@@ -50,12 +50,6 @@ const seed = () => {
   };
 };
 
-const SWITCHES = [
-  'Sign in the pet parent app',
-  'Sign on clinic tablet',
-  'Require signature before surgery check-in',
-] as const;
-
 /**
  * Which branch of `DocSigningPortal` is on screen, or `null` while it is still
  * resolving. Identified by ROLE rather than by copy: the error branch prints
@@ -82,15 +76,15 @@ const meta = {
     docs: {
       description: {
         component:
-          'The e-signing preferences card. The card itself was reachable; the **portal ' +
-          'expander at the bottom of it was not**, and it is the only thing on this card that ' +
-          'changes the page rather than a colour.\n\n' +
-          'Worth separating the two kinds of control here, because they look alike and behave ' +
-          'nothing alike. The three switches are local `useState` toggles that repaint a track ' +
-          'and slide a knob - they gate nothing, reveal nothing, and the Save pill beside them ' +
-          'only raises a toast. The last row is the real branch: it flips `showPortal`, swaps ' +
-          'its own label between "Manage document signing portal" and "Hide", and mounts ' +
-          '`<DocSigningPortal embedded />` into a region that does not exist while collapsed.\n\n' +
+          'The e-signing card: a line of copy, the sealing note and the **portal expander**, ' +
+          'which is the only control on it.\n\n' +
+          'The card used to carry three channel switches and a Save pill. They were local ' +
+          '`useState` literals that nothing loaded or persisted - every clinic saw the same ' +
+          'invented configuration and Save only raised a toast - so they were removed rather ' +
+          'than left asserting settings nothing records. What remains is the real branch: the ' +
+          'expander flips `showPortal`, swaps its own label between "Manage document signing ' +
+          'portal" and "Hide", and mounts `<DocSigningPortal embedded />` into a region that ' +
+          'does not exist while collapsed.\n\n' +
           'Storybook has no Documenso backend and no session, so the mounted portal cannot ' +
           'reach its redirect endpoint. What is drawn below is therefore the expander contract ' +
           'and the portal in whichever offline state it settles into - the reveal, the label ' +
@@ -117,17 +111,21 @@ export const Resting: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    /* Two of three start on. The default matters: this card ships opinionated -
-       both signing channels enabled, the surgery block off - so a reviewer sees
-       the shipped configuration rather than a blank form. */
-    await expect(canvas.getByRole('switch', { name: SWITCHES[0] })).toBeChecked();
-    await expect(canvas.getByRole('switch', { name: SWITCHES[1] })).toBeChecked();
-    await expect(canvas.getByRole('switch', { name: SWITCHES[2] })).not.toBeChecked();
+    await expect(canvas.getByRole('heading', { name: 'E-signing' })).toBeInTheDocument();
+    await expect(canvas.getByText('How consent documents get signed')).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        'Signed documents are sealed with a timestamp and signer identity, stored in the medical record.'
+      )
+    ).toBeInTheDocument();
 
-    await expect(canvas.getByText("Send documents to the parent's phone")).toBeInTheDocument();
-    await expect(canvas.getByText('Blocks check-in until consent is signed')).toBeInTheDocument();
-    await expect(canvas.getByText('Changes apply org-wide')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    /* No channel switches and no Save: nothing persisted them, so the card no
+       longer offers settings that would silently revert. The expander is the
+       only control left on it. */
+    await expect(canvas.queryAllByRole('switch')).toHaveLength(0);
+    await expect(canvas.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    await expect(canvas.queryByText('Changes apply org-wide')).not.toBeInTheDocument();
+    await expect(canvas.getAllByRole('button')).toHaveLength(1);
 
     // The expander, collapsed. The region it controls does not exist yet -
     // it is not hidden, there is no node.
@@ -139,43 +137,9 @@ export const Resting: Story = {
     docs: {
       description: {
         story:
-          'The resting card. The blue shield note between the switches and the footer is copy, ' +
-          'not a control - it explains what sealing a signed document means, and it is the only ' +
-          'inset panel on the organisation page.',
-      },
-    },
-  },
-};
-
-export const SwitchToggled: Story = {
-  name: 'Switch toggled (a colour, not a gate)',
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const surgery = canvas.getByRole('switch', { name: SWITCHES[2] });
-    const before = getComputedStyle(surgery).backgroundColor;
-
-    await userEvent.click(surgery);
-
-    await expect(surgery).toBeChecked();
-    /* Polled, not read once: the track carries `transition-colors`, so a single
-       synchronous read catches an interpolated value halfway between --inset and
-       --blue and compares two mid-transition colours. */
-    await waitFor(() => {
-      expect(getComputedStyle(surgery).backgroundColor).not.toBe(before);
-    });
-    // It is a local toggle: nothing else on the card moved.
-    const expander = canvas.getByRole('button', { name: 'Manage document signing portal' });
-    await expect(expander).toHaveAttribute('aria-expanded', 'false');
-    await expect(canvas.getByRole('switch', { name: SWITCHES[0] })).toBeChecked();
-  },
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Proof that the three switches are presentation only. `aria-checked` moves, the track ' +
-          'repaints from `--inset` to `--blue` and the knob translates 18px, and nothing else on ' +
-          'the card changes - no section appears, no request is made, and Save is the only thing ' +
-          'that would persist any of it.',
+          'The resting card. The blue shield note above the expander is copy, not a control - ' +
+          'it explains what sealing a signed document means, and it is the only inset panel on ' +
+          'the organisation page.',
       },
     },
   },

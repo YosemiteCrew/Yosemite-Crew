@@ -11,7 +11,8 @@ import type {
 } from '@/app/features/companionHistory/services/patientAllergyService';
 import AllergyListPanel from './AllergyListPanel';
 
-const ORG_ID = 'org-storybook-companion-history';
+/** UUID-shaped: the service refuses an organisation id that is not a UUID or ObjectId. */
+const ORG_ID = '5c2e8f4a-1b3d-4e6f-8a9b-0c1d2e3f4a5b';
 const COMPANION_ID = 'patient-storybook-fenn';
 
 const membership = (revoked: string[] = []): UserOrganization => ({
@@ -42,7 +43,7 @@ const allergy = (
 });
 
 const PENICILLIN = allergy({
-  id: 'allergy-penicillin',
+  id: '0a6f1c2e-5b7d-4c1a-9e3f-1a2b3c4d5e01',
   allergen: 'Penicillin',
   allergyType: 'DRUG',
   severity: 'LIFE_THREATENING',
@@ -52,7 +53,7 @@ const PENICILLIN = allergy({
   notes: 'Confirmed by intradermal test.',
 });
 const CHICKEN = allergy({
-  id: 'allergy-chicken',
+  id: '0a6f1c2e-5b7d-4c1a-9e3f-1a2b3c4d5e02',
   allergen: 'Chicken protein',
   allergyType: 'FOOD',
   severity: 'MODERATE',
@@ -61,7 +62,7 @@ const CHICKEN = allergy({
   onsetDate: '2026-01-04T00:00:00.000Z',
 });
 const GRASS = allergy({
-  id: 'allergy-grass',
+  id: '0a6f1c2e-5b7d-4c1a-9e3f-1a2b3c4d5e03',
   allergen: 'Grass pollen',
   allergyType: 'ENVIRONMENTAL',
   severity: 'MILD',
@@ -118,7 +119,7 @@ const buildAdapter =
         respond(
           config,
           allergy({
-            id: 'allergy-new',
+            id: '0a6f1c2e-5b7d-4c1a-9e3f-1a2b3c4d5e04',
             allergen: body.allergen,
             allergyType: body.allergyType,
             severity: body.severity,
@@ -197,6 +198,17 @@ const muteExpectedFailureLogs = () => {
   };
 };
 
+/**
+ * Everything the story rendered, minus the preview's own sr-only story title. The
+ * preview wraps every story in a `<main>` headed by that title, so the canvas is
+ * never empty even when the component returns null.
+ */
+const storyOutput = (canvasElement: HTMLElement): Element[] => {
+  const main = canvasElement.querySelector('main');
+  if (!main) throw new Error('The preview did not wrap the story in its <main>.');
+  return [...main.children].filter((node) => node.id !== 'storybook-story-title');
+};
+
 const allergyListPanelMeta = {
   title: 'CompanionHistory/AllergyListPanel',
   component: AllergyListPanel,
@@ -239,7 +251,8 @@ export const Default: AllergyListPanelStory = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole('heading', { level: 2, name: 'Allergies' })).toBeVisible();
-    await expect(canvas.getByText('Penicillin')).toBeVisible();
+    // The heading renders before the list arrives, so the first row is awaited.
+    await expect(await canvas.findByText('Penicillin')).toBeVisible();
     await expect(canvas.getByText('Life-threatening')).toBeVisible();
     await expect(canvas.getByText('Chicken protein')).toBeVisible();
     await expect(canvas.getByText('Grass pollen')).toBeVisible();
@@ -326,6 +339,6 @@ export const NoAccess: AllergyListPanelStory = {
     revoked: ['appointments:view:any'],
   }),
   play: async ({ canvasElement }) => {
-    await waitFor(() => expect(canvasElement).toBeEmptyDOMElement(), { timeout: 10000 });
+    await waitFor(() => expect(storyOutput(canvasElement)).toHaveLength(0), { timeout: 10000 });
   },
 };

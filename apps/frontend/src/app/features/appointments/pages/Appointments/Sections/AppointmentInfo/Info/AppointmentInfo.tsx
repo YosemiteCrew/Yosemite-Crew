@@ -536,7 +536,7 @@ const useAppointmentInfoView = ({
       return;
     }
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const slots = await getSlotsForServiceAndDateForPrimaryOrg(
           appointmentValues.serviceId,

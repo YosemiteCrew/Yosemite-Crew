@@ -263,6 +263,10 @@ export const OrgMinutesWin: Story = {
 export const Phone: Story = {
   name: 'Phone: the two steppers wrap',
   globals: { viewport: { value: 'mobile', isRotated: false } },
+  /* Full-bleed rather than centred: the centred layout shrink-wraps the root,
+     so the card's `max-w-full` resolved against its own fixed width and the
+     card stayed wider than the phone the runner now sizes the page to. */
+  parameters: { layout: 'fullscreen' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const outpatient = canvas.getByLabelText('Outpatient') as HTMLInputElement;

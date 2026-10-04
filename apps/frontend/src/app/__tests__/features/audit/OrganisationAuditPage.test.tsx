@@ -56,6 +56,15 @@ describe('OrganisationAuditPage', () => {
     await waitFor(() => expect(screen.getAllByText('patient-1')).toHaveLength(2));
   });
 
+  it('requests the first page only once when the page opens', async () => {
+    getFeed.mockResolvedValueOnce({ entries: [], nextCursor: null });
+
+    render(<OrganisationAuditPage />);
+
+    expect(await screen.findByText('No activity to show yet.')).toBeInTheDocument();
+    expect(getFeed).toHaveBeenCalledTimes(1);
+  });
+
   it('offers a retry after the feed fails', async () => {
     getFeed
       .mockRejectedValueOnce(new Error('unavailable'))
@@ -104,6 +113,7 @@ describe('OrganisationAuditPage', () => {
         nextCursor: null,
       });
     const view = render(<OrganisationAuditPage />);
+    await waitFor(() => expect(getFeed).toHaveBeenCalledTimes(1));
 
     mockOrgId = 'org-b';
     view.rerender(<OrganisationAuditPage />);

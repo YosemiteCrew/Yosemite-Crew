@@ -176,19 +176,21 @@ export const FullPanel: Story = {
 export const Muted: Story = {
   name: 'Muted (switch on)',
   args: { muted: true },
-  play: async ({ canvasElement }) => {
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const toggle = canvas.getByRole('switch', { name: 'Mute notifications' });
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
     // The knob is a plain span, so assert the class that moves it rather than a role.
-    await expect(toggle.firstElementChild).toHaveClass('left-[17px]');
+    // This is the shared 40x24 `Switch`, whose on-state knob sits 19px in.
+    await expect(toggle.firstElementChild).toHaveClass('translate-x-[19px]');
     await userEvent.click(toggle);
+    await expect(args.onToggleMute).toHaveBeenCalledTimes(1);
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The on state of the 36x22 switch: `--cta` track and the knob at `left-[17px]`. Clicking ' +
+          'The on state of the shared 40x24 `Switch`: the knob at `translate-x-[19px]`. Clicking ' +
           'it fires `onToggleMute` - the panel is presentational, so the checked state stays where ' +
           'the prop put it rather than moving on its own.',
       },

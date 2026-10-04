@@ -15,6 +15,9 @@ describe('InvoiceStatusFilterPills', () => {
       <InvoiceStatusFilterPills options={options} activeStatus="paid" setActiveStatus={jest.fn()} />
     );
 
+    const group = screen.getByRole('group', { name: 'Filter invoices by status' });
+    expect(group).toHaveClass('flex');
+    expect(group).not.toHaveClass('flex-wrap');
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Paid' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Pending' })).toHaveAttribute(

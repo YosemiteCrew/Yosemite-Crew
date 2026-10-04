@@ -170,6 +170,34 @@ describe('CounterSaleDialog', () => {
     expect(onCreated).toHaveBeenCalledWith({ ...invoice, pdfUrl: 'receipt.pdf' });
   });
 
+  it('opens the saved invoice when receipt generation fails', async () => {
+    (finalizeFinanceInvoice as jest.Mock).mockRejectedValueOnce(
+      new Error('Receipt service unavailable')
+    );
+    render(
+      <CounterSaleDialog
+        open
+        setOpen={setOpen}
+        organisationId="org-1"
+        currency="USD"
+        onCreated={onCreated}
+      />
+    );
+    const itemPicker = await screen.findByRole('combobox', { name: 'Item' });
+    await screen.findByRole('option', { name: /Bandage/ });
+    await user.selectOptions(itemPicker, 'bandage');
+    await user.click(screen.getByRole('button', { name: 'Create counter sale' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('sale was saved');
+    expect(createCounterSale).toHaveBeenCalledTimes(1);
+    expect(onCreated).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Open saved counter-sale invoice' }));
+    expect(onCreated).toHaveBeenCalledWith(invoice);
+    expect(setOpen).toHaveBeenCalledWith(false);
+    expect(createCounterSale).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the dialog open and explains a failed save', async () => {
     (createCounterSale as jest.Mock).mockRejectedValue({
       response: { data: { message: 'Insufficient stock' } },

@@ -99,8 +99,13 @@ const PAID_CLAIM = buildClaim({
   paidAt: '2026-08-02T09:00:00.000Z',
 });
 
-const statusForm = (canvasElement: HTMLElement) =>
-  within(canvasElement).getByLabelText('Move claim to');
+/**
+ * The status picker is the themed Dropdown (9a4a7b1b2), a trigger button rather
+ * than a native select, so its current target is read off the trigger's name:
+ * "Move claim to: <status label>".
+ */
+const statusTrigger = (canvasElement: HTMLElement, statusLabel: string) =>
+  within(canvasElement).getByRole('button', { name: `Move claim to: ${statusLabel}` });
 
 const meta = {
   title: 'InsuranceClaims/InsuranceClaimDetail',
@@ -156,7 +161,7 @@ export const AwaitingReview: Story = {
       canvas.queryByRole('button', { name: 'Submit this claim to the insurer' })
     ).toBeNull();
     // The default target is "Under review", which needs no amount yet.
-    await expect(statusForm(canvasElement)).toHaveValue('UNDER_REVIEW');
+    await expect(statusTrigger(canvasElement, 'Under review')).toHaveTextContent('Under review');
     await expect(canvas.queryByLabelText('Approved amount')).toBeNull();
   },
 };
@@ -183,7 +188,7 @@ export const ApprovedAwaitingPayment: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     // The only remaining transition is PAID, which needs a paid amount.
-    await expect(statusForm(canvasElement)).toHaveValue('PAID');
+    await expect(statusTrigger(canvasElement, 'Paid')).toHaveTextContent('Paid');
     const paidInput = canvas.getByLabelText('Paid amount');
     const update = canvas.getByRole('button', { name: "Update this claim's status" });
 

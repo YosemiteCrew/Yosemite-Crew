@@ -285,20 +285,33 @@ export const SubmitValidationErrors: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    /* Only two of the six errors are announced. `FieldError` carries role="alert" and
-       is used by the patient picker and the time dropdown; the LabelDropdown and
-       FormDesc errors are plain rows. Asserting the exact contents of the alert set is
-       the point - a change that dropped the role would still leave all six visible. */
+    /* All six errors are announced. The patient picker and the time dropdown use
+       `FieldError`, and the LabelDropdown and FormDesc controls now sit in the canonical
+       `Field` shell, which renders its message as role="alert" too. Asserting the exact
+       contents of the alert set is the point - a change that dropped the role from any
+       one of them would still leave all six visible. */
     const alerts = canvas.getAllByRole('alert').map((node) => node.textContent?.trim());
-    await expect(alerts).toContain('Select a patient');
-    await expect(alerts).toContain('Select a time slot');
-    await expect(alerts).toHaveLength(2);
+    await expect(alerts).toEqual([
+      'Select a patient',
+      'Select a time slot',
+      'Select a lead',
+      'Select a speciality',
+      'Select a service',
+      'Describe the reason for the visit',
+    ]);
 
-    // The other four are on screen, just not announced.
-    await expect(canvas.getByText('Select a lead')).toBeInTheDocument();
-    await expect(canvas.getByText('Select a speciality')).toBeInTheDocument();
-    await expect(canvas.getByText('Select a service')).toBeInTheDocument();
-    await expect(canvas.getByText('Describe the reason for the visit')).toBeInTheDocument();
+    // The Field-shell messages are also tied to their controls by aria-describedby.
+    for (const [name, message] of [
+      ['Lead', 'Select a lead'],
+      ['Speciality', 'Select a speciality'],
+      ['Services / packages', 'Select a service'],
+    ]) {
+      const alert = canvas.getByText(message);
+      await expect(canvas.getByRole('button', { name })).toHaveAttribute(
+        'aria-describedby',
+        alert.id
+      );
+    }
 
     // The error state is a border swap on the control itself as well as a message.
     await waitFor(() => {
@@ -314,9 +327,9 @@ export const SubmitValidationErrors: Story = {
     docs: {
       description: {
         story:
-          'What Book produces on an empty form. Six messages at once, in four different ' +
-          'renderings - two alerts, two dropdown rows, one textarea row - which is the ' +
-          'inconsistency this story exists to make visible.',
+          'What Book produces on an empty form: six messages at once, every one of them a ' +
+          'live alert, in two renderings - `FieldError` under the patient picker and the time ' +
+          'dropdown, and the canonical `Field` message under the dropdowns and the textarea.',
       },
     },
   },

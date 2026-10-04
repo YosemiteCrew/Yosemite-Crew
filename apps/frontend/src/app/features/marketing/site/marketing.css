@@ -512,6 +512,7 @@
   color: var(--blue-text);
   text-decoration: underline !important;
   text-underline-offset: 0.14em;
+  overflow-wrap: anywhere;
 }
 .yc-doc a:hover {
   text-decoration: underline;

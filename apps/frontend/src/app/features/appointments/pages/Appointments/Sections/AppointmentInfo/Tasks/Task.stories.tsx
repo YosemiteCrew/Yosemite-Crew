@@ -347,19 +347,18 @@ export const NoTeamMembers: Story = {
     );
     await expect(createdTask()).toBeUndefined();
 
-    /* And it is not announced. `LabelDropdown` renders its error as a plain div - no
-       `role="alert"`, no `aria-describedby` on the trigger, no `aria-invalid` - so the
-       only signal is a red border. The name is filled here on purpose: the assignee is
-       then the ONLY thing wrong with the form, and the live region count is zero, so a
-       screen-reader user presses Save and is told nothing at all. `FormInput` does
-       raise an alert for its own error, which is why this is a dropdown problem rather
-       than a form-wide one. Asserted rather than left as a comment so that fixing the
-       dropdown fails this line and brings someone back to read the rest. */
+    /* And it is announced. `LabelDropdown` sits in the canonical `Field` shell, which
+       renders the message as a `role="alert"` live region and points the trigger's
+       `aria-describedby` at it. The name is filled here on purpose: the assignee is
+       then the ONLY thing wrong with the form, so the single alert is this one, and a
+       screen-reader user who presses Save hears why. The trigger carries no
+       `aria-invalid`: it is a button, and the described-by message is the signal. */
     const assignee = canvas.getByRole('button', { name: 'Assigned to' });
     await expect(assignee).not.toHaveAttribute('aria-invalid');
-    await expect(assignee).not.toHaveAttribute('aria-describedby');
-    const alerts = canvas.queryAllByRole('alert');
-    await expect(alerts).toHaveLength(0);
+    const alerts = canvas.getAllByRole('alert');
+    await expect(alerts).toHaveLength(1);
+    await expect(alerts[0]).toHaveTextContent('Please select a companion or staff');
+    await expect(assignee).toHaveAttribute('aria-describedby', alerts[0].id);
   },
   parameters: {
     docs: {

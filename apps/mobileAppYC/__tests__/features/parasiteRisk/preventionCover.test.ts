@@ -173,6 +173,28 @@ describe('resolvePreventionCover', () => {
       daysOverdue: 2,
     });
   });
+  it('ignores a completed task whose date cannot be read', () => {
+    const cover = resolvePreventionCover(
+      [
+        task({
+          id: 'a',
+          status: 'completed',
+          completedAt: 'not-a-date',
+          date: 'not-a-date',
+        }),
+        task({id: 'b', dueAt: daysAhead(5), status: 'pending'}),
+      ],
+      NOW,
+    );
+
+    expect(cover).toEqual({status: 'covered', lastCompletedAt: null});
+  });
+
+  it('does not count an undated pending task as overdue', () => {
+    const undated = task({dueAt: undefined, date: ''});
+
+    expect(resolvePreventionCover([undated], NOW)).toEqual({status: 'none'});
+  });
 });
 
 // The cover check is only as good as what survives hydration, so this walks a

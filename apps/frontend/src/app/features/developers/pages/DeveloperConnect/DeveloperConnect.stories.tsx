@@ -41,6 +41,12 @@ export const EditorJourney: Story = {
     await expect(
       canvas.getByText('the extension connection settings', { exact: false })
     ).toBeVisible();
+    // Choosing a tool lands on the key step; an existing key moves on to setup.
+    await expect(canvas.getByRole('link', { name: 'Create a test key' })).toHaveAttribute(
+      'href',
+      '/developers/api-keys?setup=appointment-test'
+    );
+    await userEvent.click(canvas.getByRole('button', { name: 'I have a key' }));
     await userEvent.click(canvas.getByRole('button', { name: 'Connection added' }));
     await expect(
       canvas.getByText('List the practices available to me.', { exact: false })
