@@ -41,8 +41,14 @@ jest.mock('@/app/features/marketing/site', () => {
   const React_ = jest.requireActual<typeof import('react')>('react');
   return {
     __esModule: true,
-    Reveal: ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) =>
-      React_.createElement('div', { style }, children),
+    // Passes extra props through, as the real Reveal does: the home page hangs its
+    // responsive data-* hooks on it.
+    Reveal: ({
+      children,
+      style,
+      ...rest
+    }: { children: React.ReactNode; style?: React.CSSProperties } & Record<string, unknown>) =>
+      React_.createElement('div', { style, ...rest }, children),
     Spotlight: ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) =>
       React_.createElement('div', { style }, children),
     HeroVideo: () => null,
@@ -155,6 +161,38 @@ describe('Home marketing page', () => {
     const lanes = matches[matches.length - 1];
     expect(lanes.tagName).toBe('DIV');
     expect(lanes.parentElement?.tagName).not.toBe('SPAN');
+  });
+
+  it('places the release lanes after the hero call to action in the source', () => {
+    // A phone shows the strip below the buttons, so the keyboard and screen readers must
+    // reach the headline and the call to action first; wider screens only move it visually.
+    const lanes = screen.getAllByText('PIMS Desktop Mobile Backend MCP').at(-1) as HTMLElement;
+    const heroCta = screen.getAllByText(/Get started free/)[0];
+    const headline = screen.getByText('whole');
+    expect(heroCta.compareDocumentPosition(lanes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(headline.compareDocumentPosition(lanes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(lanes.closest('[data-hero-lead]')).not.toBeNull();
+  });
+
+  it('gives every schedule status a beside-the-name and an under-the-name badge', () => {
+    // CSS shows exactly one of the pair: under the name on small phones, beside it elsewhere.
+    for (const label of ['CHECKED IN', 'IN PROGRESS', 'UPCOMING', 'REQUESTED']) {
+      // The pet-parent phone mockup shows some of the same labels; only the schedule's count.
+      const badges = screen.getAllByText(label);
+      expect(badges.filter((badge) => badge.hasAttribute('data-show-s'))).toHaveLength(1);
+      expect(badges.filter((badge) => badge.hasAttribute('data-hide-s'))).toHaveLength(1);
+    }
+  });
+
+  it('marks every principle cell for the single-column reset', () => {
+    const cells = document.querySelectorAll('[data-flush-cell-m]');
+    expect(cells).toHaveLength(4);
+    expect(Array.from(cells, (cell) => cell.querySelector('h3')?.textContent)).toEqual([
+      'Leaving is free.',
+      'No toll booth.',
+      'Built for the worst afternoon.',
+      'Your data answers to your flag.',
+    ]);
   });
 
   it('renders the closing CTA', () => {

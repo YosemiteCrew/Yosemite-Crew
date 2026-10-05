@@ -590,6 +590,7 @@ function HeroUpperCards() {
     <div
       data-hide-m="true"
       data-hero-upper-cards="true"
+      data-hero-lead="true"
       aria-hidden="true"
       style={{ position: 'relative', alignSelf: 'stretch', height: 0, zIndex: -1 }}
     >
@@ -815,21 +816,6 @@ function Hero() {
           maxWidth: 1040,
         }}
       >
-        {/* div, not span: ReleaseLanes renders a flex container, and a div inside a
-            span is invalid HTML that the browser repairs before React hydrates,
-            producing a mismatch on the hero. The pill this replaced returned an
-            anchor, which was legal here. */}
-        <div
-          data-order-last-s="true"
-          style={{
-            opacity: 0,
-            animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
-          }}
-        >
-          <ReleaseLanes />
-        </div>
-        <HeroUpperCards />
-
         <HeroHeading />
 
         <p style={HERO_SUBTITLE_STYLE}>
@@ -841,6 +827,24 @@ function Hero() {
         <HeroCtaButtons primaryRef={primaryRef} starRef={starRef} />
 
         <HeroSocialProof />
+
+        {/* Last in the source, so a phone reader, a screen reader and the keyboard meet the
+            headline and the call to action before the release links; wider screens lift this
+            strip, and the cards hanging from its bottom edge, back above the headline.
+            div, not span: ReleaseLanes renders a flex container, and a div inside a
+            span is invalid HTML that the browser repairs before React hydrates,
+            producing a mismatch on the hero. The pill this replaced returned an
+            anchor, which was legal here. */}
+        <div
+          data-hero-lead="true"
+          style={{
+            opacity: 0,
+            animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
+          }}
+        >
+          <ReleaseLanes />
+        </div>
+        <HeroUpperCards />
       </div>
 
       {/* scroll hint */}

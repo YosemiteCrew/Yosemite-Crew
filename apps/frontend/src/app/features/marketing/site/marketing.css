@@ -466,10 +466,15 @@
   [data-show-s] {
     display: inline-block !important;
   }
-  /* Moves an item to the end of its flex column, e.g. the release strip below the hero CTA. */
-  [data-order-last-s] {
-    order: 99 !important;
+  [data-hero-lead] {
     margin-top: 40px;
+  }
+}
+/* Home hero: the release strip and the cards anchored to it come last in the source, the
+   order a phone and a keyboard meet them; wider screens show them above the headline. */
+@media (min-width: 621px) {
+  [data-hero-lead] {
+    order: -1;
   }
 }
 

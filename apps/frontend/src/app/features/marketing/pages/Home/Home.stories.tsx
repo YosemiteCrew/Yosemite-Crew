@@ -784,9 +784,14 @@ export const Phone: Story = {
       await expect(getComputedStyle(badge).display === 'none').toBe(smallPhone);
     }
 
-    /* On a small phone the headline leads: the release strip drops below the call to action
-       instead of filling the first screen above it. */
-    const releaseStrip = canvasElement.querySelector('[data-order-last-s]') as HTMLElement;
+    /* On a small phone the headline leads: the release strip sits below the call to action
+       instead of filling the first screen above it. It is placed there in the SOURCE, so the
+       keyboard and a screen reader reach the headline and the call to action before its
+       links; wider screens only lift it visually. */
+    const releaseStrip = canvasElement.querySelector('[data-hero-lead]') as HTMLElement;
+    await expect(
+      stacks[0].compareDocumentPosition(releaseStrip) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     // Scoped to the hero column: the story decorator renders its own h1 title above the page.
     const headline = (releaseStrip.parentElement as HTMLElement).querySelector('h1') as HTMLElement;
     if (smallPhone) {
