@@ -47,7 +47,7 @@
     "cors": "2.8.6",
     "cron-parser": "^5.10.1",
     "csv-parse": "^7.0.2",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.1",
     "express": "4.21.2",
     "express-fileupload": "1.5.2",
     "express-mongo-sanitize": "^2.2.0",
