@@ -443,6 +443,12 @@
     align-items: center !important;
     justify-items: center !important;
   }
+  /* Two-column cells carry a gutter on their inner side and a divider between
+     them; stacked in one column those make alternate cells look boxed. */
+  [data-flush-cell-m] {
+    padding: 32px 0 !important;
+    border-left: none !important;
+  }
 }
 @media (max-width: 700px) {
   [data-stack-m] {
@@ -450,9 +456,20 @@
     align-items: stretch !important;
   }
 }
+[data-show-s] {
+  display: none !important;
+}
 @media (max-width: 620px) {
   [data-hide-s] {
     display: none !important;
+  }
+  [data-show-s] {
+    display: inline-block !important;
+  }
+  /* Moves an item to the end of its flex column, e.g. the release strip below the hero CTA. */
+  [data-order-last-s] {
+    order: 99 !important;
+    margin-top: 40px;
   }
 }
 

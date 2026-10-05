@@ -750,6 +750,55 @@ export const Phone: Story = {
       );
     }
 
+    /* Stacked into one column, the principles keep no desktop gutter or divider: on a phone
+       cells 02 and 04 otherwise sit indented behind a left rule, as if boxed, while 01 and 03
+       run flush. All four text edges must line up. */
+    const cells = all('[data-flush-cell-m]');
+    await expect(cells).toHaveLength(4);
+    if (phoneHelpers) {
+      const textEdges = cells.map((cell) =>
+        Math.round(
+          cell.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(cell).paddingLeft)
+        )
+      );
+      await expect(new Set(textEdges).size).toBe(1);
+      for (const cell of cells) {
+        await expect(getComputedStyle(cell).borderLeftStyle).toBe('none');
+      }
+    } else {
+      await expect(getComputedStyle(cells[1]).borderLeftStyle).toBe('solid');
+    }
+
+    /* Each schedule row carries its status badge twice: beside the name, and under it for
+       small phones, where the side badge squeezed "Miso · Domestic Shorthair" onto three
+       lines. Exactly one of each pair may show. */
+    const smallPhone = globalThis.matchMedia('(max-width: 620px)').matches;
+    const underBadges = all('[data-show-s]');
+    const sideBadges = all('[data-hide-s]');
+    await expect(underBadges).toHaveLength(4);
+    await expect(sideBadges).toHaveLength(4);
+    for (const badge of underBadges) {
+      await expect(getComputedStyle(badge).display === 'none').toBe(!smallPhone);
+    }
+    for (const badge of sideBadges) {
+      await expect(getComputedStyle(badge).display === 'none').toBe(smallPhone);
+    }
+
+    /* On a small phone the headline leads: the release strip drops below the call to action
+       instead of filling the first screen above it. */
+    const releaseStrip = canvasElement.querySelector('[data-order-last-s]') as HTMLElement;
+    // Scoped to the hero column: the story decorator renders its own h1 title above the page.
+    const headline = (releaseStrip.parentElement as HTMLElement).querySelector('h1') as HTMLElement;
+    if (smallPhone) {
+      await expect(releaseStrip.getBoundingClientRect().top).toBeGreaterThan(
+        stacks[0].getBoundingClientRect().bottom
+      );
+    } else {
+      await expect(releaseStrip.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        headline.getBoundingClientRect().top
+      );
+    }
+
     /* Nothing pushes the page sideways. The hero glows are wider than the viewport and the
        floating cards hang off both edges, so both rely on `overflow: hidden` on their
        section - which is exactly the kind of thing a refactor drops. */

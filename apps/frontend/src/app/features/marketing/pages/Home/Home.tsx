@@ -820,6 +820,7 @@ function Hero() {
             producing a mismatch on the hero. The pill this replaced returned an
             anchor, which was legal here. */}
         <div
+          data-order-last-s="true"
           style={{
             opacity: 0,
             animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
@@ -1046,6 +1047,16 @@ function ScheduleRow({
   badgeBg,
   badgeColor,
 }: ScheduleRowProps) {
+  const badgeStyle: CSSProperties = {
+    flex: 'none',
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.04em',
+    padding: '5px 9px',
+    borderRadius: 9999,
+    background: badgeBg,
+    color: badgeColor,
+  };
   return (
     <div
       style={{
@@ -1086,19 +1097,11 @@ function ScheduleRow({
         >
           {detail}
         </span>
+        <span data-show-s="true" style={{ ...badgeStyle, alignSelf: 'flex-start', marginTop: 6 }}>
+          {badgeLabel}
+        </span>
       </div>
-      <span
-        style={{
-          flex: 'none',
-          fontSize: 12,
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          padding: '5px 9px',
-          borderRadius: 9999,
-          background: badgeBg,
-          color: badgeColor,
-        }}
-      >
+      <span data-hide-s="true" style={badgeStyle}>
         {badgeLabel}
       </span>
     </div>
@@ -1781,6 +1784,7 @@ function PrincipleCell({
   return (
     <Reveal
       delay={delay}
+      data-flush-cell-m="true"
       style={{
         padding,
         borderBottom: '1px solid var(--divider)',
