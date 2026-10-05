@@ -59,7 +59,7 @@
       "@tootallnate/once": "3.0.1",
       "node-forge": "github:digitalbazaar/forge#ceba34402e329f0365134f23fe19898756527d65",
       "http-cache-semantics": "4.3.0",
-      "@modelcontextprotocol/sdk": "1.30.0",
+      "@modelcontextprotocol/sdk": "1.30.1",
       "validator": "13.15.35",
       "@modelcontextprotocol/sdk>raw-body": "4.0.0",
       "axios": "1.20.0",
