@@ -35,12 +35,12 @@
     "constructs": "^10.8.1",
     "eslint": "^9.33.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.5.1",
-    "prettier": "^3.9.8",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
     "react-doctor": "^0.2.14",
     "secretlint": "^13.0.5",
     "semver": "7.8.5",
-    "turbo": "^2.11.2"
+    "turbo": "^2.11.5"
   },
   "packageManager": "pnpm@8.15.6",
   "name": "yosemitecrew",
