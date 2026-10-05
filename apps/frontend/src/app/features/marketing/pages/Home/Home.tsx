@@ -19,7 +19,8 @@ import {
   IoExtensionPuzzleOutline,
 } from 'react-icons/io5';
 import {
-  ReleaseLanes,
+  ReleaseLanesBar,
+  useReleaseLanes,
   Reveal,
   Spotlight,
   HeroVideo,
@@ -773,6 +774,7 @@ function Hero() {
   const parallaxRef = useParallax<HTMLElement>();
   const primaryRef = useMagnet<HTMLAnchorElement>();
   const starRef = useMagnet<HTMLAnchorElement>();
+  const lanes = useReleaseLanes();
 
   return (
     <section ref={parallaxRef} id="top" data-hero style={HERO_SECTION_STYLE}>
@@ -815,17 +817,18 @@ function Hero() {
           maxWidth: 1040,
         }}
       >
-        {/* div, not span: ReleaseLanes renders a flex container, and a div inside a
+        {/* div, not span: the lanes bar renders a flex container, and a div inside a
             span is invalid HTML that the browser repairs before React hydrates,
             producing a mismatch on the hero. The pill this replaced returned an
             anchor, which was legal here. */}
         <div
+          data-hide-s="true"
           style={{
             opacity: 0,
             animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
           }}
         >
-          <ReleaseLanes />
+          <ReleaseLanesBar lanes={lanes} />
         </div>
         <HeroUpperCards />
 
@@ -840,6 +843,20 @@ function Hero() {
         <HeroCtaButtons primaryRef={primaryRef} starRef={starRef} />
 
         <HeroSocialProof />
+
+        {/* The same strip for small phones, after the call to action: there it would fill the
+            first screen above the headline. Exactly one copy shows, and display: none keeps the
+            other out of the keyboard and screen reader order, so both match what is seen. */}
+        <div
+          data-show-s="true"
+          style={{
+            marginTop: 40,
+            opacity: 0,
+            animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
+          }}
+        >
+          <ReleaseLanesBar lanes={lanes} />
+        </div>
       </div>
 
       {/* scroll hint */}
@@ -1046,6 +1063,16 @@ function ScheduleRow({
   badgeBg,
   badgeColor,
 }: ScheduleRowProps) {
+  const badgeStyle: CSSProperties = {
+    flex: 'none',
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.04em',
+    padding: '5px 9px',
+    borderRadius: 9999,
+    background: badgeBg,
+    color: badgeColor,
+  };
   return (
     <div
       style={{
@@ -1086,19 +1113,11 @@ function ScheduleRow({
         >
           {detail}
         </span>
+        <span data-show-s="true" style={{ ...badgeStyle, alignSelf: 'flex-start', marginTop: 6 }}>
+          {badgeLabel}
+        </span>
       </div>
-      <span
-        style={{
-          flex: 'none',
-          fontSize: 12,
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          padding: '5px 9px',
-          borderRadius: 9999,
-          background: badgeBg,
-          color: badgeColor,
-        }}
-      >
+      <span data-hide-s="true" style={badgeStyle}>
         {badgeLabel}
       </span>
     </div>
@@ -1781,6 +1800,7 @@ function PrincipleCell({
   return (
     <Reveal
       delay={delay}
+      data-flush-cell-m="true"
       style={{
         padding,
         borderBottom: '1px solid var(--divider)',

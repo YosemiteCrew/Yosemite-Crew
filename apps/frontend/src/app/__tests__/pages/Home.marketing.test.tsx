@@ -31,6 +31,8 @@ type CloudUsersShape = { totalUsers: string | null; latestSignupAt: string | nul
 const DEFAULT_CLOUD_USERS: CloudUsersShape = { totalUsers: '346', latestSignupAt: null };
 const EMPTY_CLOUD_USERS: CloudUsersShape = { totalUsers: null, latestSignupAt: null };
 let mockCloudUsers: CloudUsersShape = DEFAULT_CLOUD_USERS;
+const mockLanes = [{ key: 'pims' }, { key: 'desktop' }];
+const mockUseReleaseLanes = jest.fn(() => mockLanes);
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -41,8 +43,14 @@ jest.mock('@/app/features/marketing/site', () => {
   const React_ = jest.requireActual<typeof import('react')>('react');
   return {
     __esModule: true,
-    Reveal: ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) =>
-      React_.createElement('div', { style }, children),
+    // Passes extra props through, as the real Reveal does: the home page hangs its
+    // responsive data-* hooks on it.
+    Reveal: ({
+      children,
+      style,
+      ...rest
+    }: { children: React.ReactNode; style?: React.CSSProperties } & Record<string, unknown>) =>
+      React_.createElement('div', { style, ...rest }, children),
     Spotlight: ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) =>
       React_.createElement('div', { style }, children),
     HeroVideo: () => null,
@@ -51,7 +59,13 @@ jest.mock('@/app/features/marketing/site', () => {
     // A div, matching what the real component renders. A span here would hide a
     // div-inside-span nesting error in the hero, which jest.setup turns into a
     // test failure via console.error.
-    ReleaseLanes: () => React_.createElement('div', null, 'PIMS Desktop Mobile Backend MCP'),
+    ReleaseLanesBar: ({ lanes }: { lanes: unknown[] }) =>
+      React_.createElement(
+        'div',
+        { 'data-lane-count': lanes.length },
+        'PIMS Desktop Mobile Backend MCP'
+      ),
+    useReleaseLanes: () => mockUseReleaseLanes(),
     CountUp: ({ value }: { value: string }) => React_.createElement('span', null, value),
     useMagnet: () => React_.createRef(),
     useParallax: () => React_.createRef(),
@@ -155,6 +169,43 @@ describe('Home marketing page', () => {
     const lanes = matches[matches.length - 1];
     expect(lanes.tagName).toBe('DIV');
     expect(lanes.parentElement?.tagName).not.toBe('SPAN');
+  });
+
+  it('renders one release strip per screen size, each where it shows, from one fetch', () => {
+    // Exactly one copy shows (CSS hides the other with display: none), so each must sit in
+    // the source where it is seen: above the headline on wider screens, after the call to
+    // action on small phones. Both read the hero's single lanes fetch.
+    const [upper, lower] = screen.getAllByText('PIMS Desktop Mobile Backend MCP');
+    const heroCta = screen.getAllByText(/Get started free/)[0];
+    const headline = screen.getByText('whole');
+    expect(upper.closest('[data-hide-s]')).not.toBeNull();
+    expect(upper.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(lower.closest('[data-show-s]')).not.toBeNull();
+    expect(heroCta.compareDocumentPosition(lower) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    for (const strip of [upper, lower]) {
+      expect(strip).toHaveAttribute('data-lane-count', String(mockLanes.length));
+    }
+  });
+
+  it('gives every schedule status a beside-the-name and an under-the-name badge', () => {
+    // CSS shows exactly one of the pair: under the name on small phones, beside it elsewhere.
+    for (const label of ['CHECKED IN', 'IN PROGRESS', 'UPCOMING', 'REQUESTED']) {
+      // The pet-parent phone mockup shows some of the same labels; only the schedule's count.
+      const badges = screen.getAllByText(label);
+      expect(badges.filter((badge) => badge.hasAttribute('data-show-s'))).toHaveLength(1);
+      expect(badges.filter((badge) => badge.hasAttribute('data-hide-s'))).toHaveLength(1);
+    }
+  });
+
+  it('marks every principle cell for the single-column reset', () => {
+    const cells = document.querySelectorAll('[data-flush-cell-m]');
+    expect(cells).toHaveLength(4);
+    expect(Array.from(cells, (cell) => cell.querySelector('h3')?.textContent)).toEqual([
+      'Leaving is free.',
+      'No toll booth.',
+      'Built for the worst afternoon.',
+      'Your data answers to your flag.',
+    ]);
   });
 
   it('renders the closing CTA', () => {

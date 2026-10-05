@@ -111,8 +111,11 @@ function LaneSegment({ lane }: Readonly<{ lane: ReleaseLane }>) {
  * pills read as five competing objects, where this reads as one status strip.
  */
 export function ReleaseLanes() {
-  const lanes = useReleaseLanes();
+  return <ReleaseLanesBar lanes={useReleaseLanes()} />;
+}
 
+/** The strip for a caller that already holds the lanes, so one fetch can feed several copies. */
+export function ReleaseLanesBar({ lanes }: Readonly<{ lanes: ReleaseLane[] }>) {
   return (
     <div style={BAR_STYLE} data-yc-lanes>
       <Dot />

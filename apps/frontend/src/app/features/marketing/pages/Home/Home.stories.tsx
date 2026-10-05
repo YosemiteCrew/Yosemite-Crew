@@ -248,8 +248,14 @@ const heroOf = (canvasElement: HTMLElement) =>
 const heroWordsOf = (canvasElement: HTMLElement) =>
   Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-hero] h1 > *'));
 
+/* The hero renders the strip twice, one copy per screen size; these read the first, the
+   copy wider screens show. The Phone story checks which copy shows where. */
 const laneSegmentsOf = (canvasElement: HTMLElement) =>
-  Array.from(canvasElement.querySelectorAll<HTMLAnchorElement>('[data-yc-lane]'));
+  Array.from(
+    (
+      canvasElement.querySelector('[data-yc-lanes]') as HTMLElement
+    ).querySelectorAll<HTMLAnchorElement>('[data-yc-lane]')
+  );
 
 /** Each lane segment is `label`, `version` and - only when a date resolved - `date`. */
 const laneVersionsOf = (canvasElement: HTMLElement) =>
@@ -547,6 +553,16 @@ export const Default: Story = {
     await expect(ink.ownerSVGElement).toHaveAttribute('aria-hidden', 'true');
     await expect(ink).toHaveAttribute('stroke-width', '2.4');
     await expect(Number.parseFloat(ink.style.strokeDasharray)).toBeGreaterThan(0);
+
+    /* The small-phone copies (the lower release strip, the badges under each schedule name)
+       stay out of a wide layout entirely, or it shows two strips and every status twice. */
+    if (!globalThis.matchMedia('(max-width: 620px)').matches) {
+      const phoneOnly = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-show-s]'));
+      await expect(phoneOnly).toHaveLength(5);
+      for (const node of phoneOnly) {
+        await expect(getComputedStyle(node).display).toBe('none');
+      }
+    }
   },
   parameters: {
     docs: {
@@ -747,6 +763,68 @@ export const Phone: Story = {
     } else {
       await expect(copy.getBoundingClientRect().left).toBeGreaterThan(
         mockup.getBoundingClientRect().left
+      );
+    }
+
+    /* Stacked into one column, the principles keep no desktop gutter or divider: on a phone
+       cells 02 and 04 otherwise sit indented behind a left rule, as if boxed, while 01 and 03
+       run flush. All four text edges must line up. */
+    const cells = all('[data-flush-cell-m]');
+    await expect(cells).toHaveLength(4);
+    if (phoneHelpers) {
+      const textEdges = cells.map((cell) =>
+        Math.round(
+          cell.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(cell).paddingLeft)
+        )
+      );
+      await expect(new Set(textEdges).size).toBe(1);
+      for (const cell of cells) {
+        await expect(getComputedStyle(cell).borderLeftStyle).toBe('none');
+      }
+    } else {
+      await expect(getComputedStyle(cells[1]).borderLeftStyle).toBe('solid');
+    }
+
+    /* Each schedule row carries its status badge twice: beside the name, and under it for
+       small phones, where the side badge squeezed "Miso · Domestic Shorthair" onto three
+       lines. Exactly one of each pair may show. */
+    const smallPhone = globalThis.matchMedia('(max-width: 620px)').matches;
+    const underBadges = all('span[data-show-s]');
+    const sideBadges = all('span[data-hide-s]');
+    await expect(underBadges).toHaveLength(4);
+    await expect(sideBadges).toHaveLength(4);
+    for (const badge of underBadges) {
+      await expect(getComputedStyle(badge).display === 'none').toBe(!smallPhone);
+    }
+    for (const badge of sideBadges) {
+      await expect(getComputedStyle(badge).display === 'none').toBe(smallPhone);
+    }
+
+    /* On a small phone the headline leads: the release strip shows below the call to action
+       instead of filling the first screen above it. The hero carries one copy per position and
+       shows exactly one, so the keyboard and a screen reader always meet the links where they
+       are seen: above the headline on wider screens, after the call to action on a phone. */
+    const strips = all('[data-yc-lanes]');
+    await expect(strips).toHaveLength(2);
+    const [upperStrip, lowerStrip] = strips;
+    const headline = (
+      upperStrip.closest('[data-hide-s]')?.parentElement as HTMLElement
+    ).querySelector('h1') as HTMLElement;
+    await expect(
+      upperStrip.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    await expect(
+      stacks[0].compareDocumentPosition(lowerStrip) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    const shownStrips = strips.filter((strip) => strip.getClientRects().length > 0);
+    await expect(shownStrips).toEqual([smallPhone ? lowerStrip : upperStrip]);
+    if (smallPhone) {
+      await expect(lowerStrip.getBoundingClientRect().top).toBeGreaterThan(
+        stacks[0].getBoundingClientRect().bottom
+      );
+    } else {
+      await expect(upperStrip.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        headline.getBoundingClientRect().top
       );
     }
 
