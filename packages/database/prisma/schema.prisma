@@ -1593,6 +1593,23 @@ enum OrgDocumentVisibility {
   PUBLIC
 }
 
+enum ControlledDocumentVersionStatus {
+  DRAFT
+  EFFECTIVE
+  SUPERSEDED
+}
+
+enum DocumentAuthoringLockKind {
+  CHECK_OUT
+  CO_AUTHORING
+}
+
+enum AuthoringSessionStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
 enum RoomType {
   EXAM_ROOM
   TREATMENT
@@ -1842,6 +1859,109 @@ model OrganizationDocumentAcknowledgement {
   @@index([organisationId, documentId, category])
   @@index([userId, organisationId])
   @@map("OrganizationDocumentAcknowledgements")
+}
+
+/// A controlled document is the stable identity shared by all immutable
+/// versions. Working editor state never belongs on this record.
+model ControlledDocument {
+  id              String   @id @default(uuid())
+  organisationId  String
+  title           String
+  latestVersionId String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  latestVersion ControlledDocumentVersion?  @relation("LatestControlledDocumentVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)
+  versions      ControlledDocumentVersion[] @relation("ControlledDocumentVersions")
+  sessions      AuthoringSession[]
+  authoringLock DocumentAuthoringLock?
+
+  @@index([organisationId, updatedAt])
+}
+
+/// Immutable content admitted to the controlled-document lifecycle. Draft
+/// editor state becomes a version only when an authoring session closes.
+model ControlledDocumentVersion {
+  id                   String                          @id @default(uuid())
+  documentId           String
+  majorVersion         Int                             @default(1)
+  minorVersion         Int                             @default(0)
+  status               ControlledDocumentVersionStatus @default(DRAFT)
+  content              Json
+  renditionUrl         String
+  renditionContentType String
+  contributorIds       String[]                        @default([])
+  createdBy            String
+  supersedesVersionId  String?                         @unique
+  createdAt            DateTime                        @default(now())
+
+  document          ControlledDocument         @relation("ControlledDocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  latestForDocument ControlledDocument?        @relation("LatestControlledDocumentVersion")
+  supersedes        ControlledDocumentVersion? @relation("ControlledDocumentVersionLineage", fields: [supersedesVersionId], references: [id], onDelete: Restrict)
+  supersededBy      ControlledDocumentVersion? @relation("ControlledDocumentVersionLineage")
+  basedSessions     AuthoringSession[]         @relation("AuthoringSessionBaseVersion")
+  producedBySession AuthoringSession?          @relation("AuthoringSessionProducedVersion")
+
+  @@unique([documentId, majorVersion, minorVersion])
+  @@index([documentId, createdAt])
+}
+
+/// One exclusive namespace for download/check-in and browser co-authoring.
+/// A document can have at most one row, regardless of lock kind.
+model DocumentAuthoringLock {
+  documentId String                    @id
+  kind       DocumentAuthoringLockKind
+  holderId   String
+  sessionId  String?                   @unique
+  acquiredAt DateTime                  @default(now())
+
+  document ControlledDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  session  AuthoringSession?  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+/// Provider-neutral working state for a browser editing session. This state is
+/// mutable and deliberately separate from immutable controlled versions.
+model AuthoringSession {
+  id                String                 @id @default(uuid())
+  organisationId    String
+  documentId        String
+  baseVersionId     String
+  status            AuthoringSessionStatus @default(OPEN)
+  editorProvider    String
+  providerSessionId String?
+  workingState      Json
+  revision          Int                    @default(0)
+  invitedMemberIds  String[]               @default([])
+  contributorIds    String[]               @default([])
+  openedBy          String
+  closedBy          String?
+  producedVersionId String?                @unique
+  openedAt          DateTime               @default(now())
+  closedAt          DateTime?
+  updatedAt         DateTime               @updatedAt
+
+  document        ControlledDocument         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  baseVersion     ControlledDocumentVersion  @relation("AuthoringSessionBaseVersion", fields: [baseVersionId], references: [id], onDelete: Restrict)
+  producedVersion ControlledDocumentVersion? @relation("AuthoringSessionProducedVersion", fields: [producedVersionId], references: [id], onDelete: SetNull)
+  lock            DocumentAuthoringLock?
+  members         AuthoringSessionMember[]
+
+  @@index([organisationId, documentId, status])
+  @@index([baseVersionId])
+}
+
+model AuthoringSessionMember {
+  sessionId     String
+  userId        String
+  invitedAt     DateTime  @default(now())
+  joinedAt      DateTime?
+  lastActiveAt  DateTime?
+  contributedAt DateTime?
+
+  session AuthoringSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, userId])
+  @@index([userId, lastActiveAt])
 }
 
 model OrganisationRoom {
