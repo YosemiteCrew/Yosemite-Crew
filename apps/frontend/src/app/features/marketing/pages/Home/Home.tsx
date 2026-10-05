@@ -19,7 +19,8 @@ import {
   IoExtensionPuzzleOutline,
 } from 'react-icons/io5';
 import {
-  ReleaseLanes,
+  ReleaseLanesBar,
+  useReleaseLanes,
   Reveal,
   Spotlight,
   HeroVideo,
@@ -590,7 +591,6 @@ function HeroUpperCards() {
     <div
       data-hide-m="true"
       data-hero-upper-cards="true"
-      data-hero-lead="true"
       aria-hidden="true"
       style={{ position: 'relative', alignSelf: 'stretch', height: 0, zIndex: -1 }}
     >
@@ -774,6 +774,7 @@ function Hero() {
   const parallaxRef = useParallax<HTMLElement>();
   const primaryRef = useMagnet<HTMLAnchorElement>();
   const starRef = useMagnet<HTMLAnchorElement>();
+  const lanes = useReleaseLanes();
 
   return (
     <section ref={parallaxRef} id="top" data-hero style={HERO_SECTION_STYLE}>
@@ -816,6 +817,21 @@ function Hero() {
           maxWidth: 1040,
         }}
       >
+        {/* div, not span: the lanes bar renders a flex container, and a div inside a
+            span is invalid HTML that the browser repairs before React hydrates,
+            producing a mismatch on the hero. The pill this replaced returned an
+            anchor, which was legal here. */}
+        <div
+          data-hide-s="true"
+          style={{
+            opacity: 0,
+            animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
+          }}
+        >
+          <ReleaseLanesBar lanes={lanes} />
+        </div>
+        <HeroUpperCards />
+
         <HeroHeading />
 
         <p style={HERO_SUBTITLE_STYLE}>
@@ -828,23 +844,19 @@ function Hero() {
 
         <HeroSocialProof />
 
-        {/* Last in the source, so a phone reader, a screen reader and the keyboard meet the
-            headline and the call to action before the release links; wider screens lift this
-            strip, and the cards hanging from its bottom edge, back above the headline.
-            div, not span: ReleaseLanes renders a flex container, and a div inside a
-            span is invalid HTML that the browser repairs before React hydrates,
-            producing a mismatch on the hero. The pill this replaced returned an
-            anchor, which was legal here. */}
+        {/* The same strip for small phones, after the call to action: there it would fill the
+            first screen above the headline. Exactly one copy shows, and display: none keeps the
+            other out of the keyboard and screen reader order, so both match what is seen. */}
         <div
-          data-hero-lead="true"
+          data-show-s="true"
           style={{
+            marginTop: 40,
             opacity: 0,
             animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
           }}
         >
-          <ReleaseLanes />
+          <ReleaseLanesBar lanes={lanes} />
         </div>
-        <HeroUpperCards />
       </div>
 
       {/* scroll hint */}

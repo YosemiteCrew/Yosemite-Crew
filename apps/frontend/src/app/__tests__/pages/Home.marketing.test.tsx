@@ -31,6 +31,8 @@ type CloudUsersShape = { totalUsers: string | null; latestSignupAt: string | nul
 const DEFAULT_CLOUD_USERS: CloudUsersShape = { totalUsers: '346', latestSignupAt: null };
 const EMPTY_CLOUD_USERS: CloudUsersShape = { totalUsers: null, latestSignupAt: null };
 let mockCloudUsers: CloudUsersShape = DEFAULT_CLOUD_USERS;
+const mockLanes = [{ key: 'pims' }, { key: 'desktop' }];
+const mockUseReleaseLanes = jest.fn(() => mockLanes);
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -57,7 +59,13 @@ jest.mock('@/app/features/marketing/site', () => {
     // A div, matching what the real component renders. A span here would hide a
     // div-inside-span nesting error in the hero, which jest.setup turns into a
     // test failure via console.error.
-    ReleaseLanes: () => React_.createElement('div', null, 'PIMS Desktop Mobile Backend MCP'),
+    ReleaseLanesBar: ({ lanes }: { lanes: unknown[] }) =>
+      React_.createElement(
+        'div',
+        { 'data-lane-count': lanes.length },
+        'PIMS Desktop Mobile Backend MCP'
+      ),
+    useReleaseLanes: () => mockUseReleaseLanes(),
     CountUp: ({ value }: { value: string }) => React_.createElement('span', null, value),
     useMagnet: () => React_.createRef(),
     useParallax: () => React_.createRef(),
@@ -163,15 +171,20 @@ describe('Home marketing page', () => {
     expect(lanes.parentElement?.tagName).not.toBe('SPAN');
   });
 
-  it('places the release lanes after the hero call to action in the source', () => {
-    // A phone shows the strip below the buttons, so the keyboard and screen readers must
-    // reach the headline and the call to action first; wider screens only move it visually.
-    const lanes = screen.getAllByText('PIMS Desktop Mobile Backend MCP').at(-1) as HTMLElement;
+  it('renders one release strip per screen size, each where it shows, from one fetch', () => {
+    // Exactly one copy shows (CSS hides the other with display: none), so each must sit in
+    // the source where it is seen: above the headline on wider screens, after the call to
+    // action on small phones. Both read the hero's single lanes fetch.
+    const [upper, lower] = screen.getAllByText('PIMS Desktop Mobile Backend MCP');
     const heroCta = screen.getAllByText(/Get started free/)[0];
     const headline = screen.getByText('whole');
-    expect(heroCta.compareDocumentPosition(lanes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(headline.compareDocumentPosition(lanes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(lanes.closest('[data-hero-lead]')).not.toBeNull();
+    expect(upper.closest('[data-hide-s]')).not.toBeNull();
+    expect(upper.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(lower.closest('[data-show-s]')).not.toBeNull();
+    expect(heroCta.compareDocumentPosition(lower) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    for (const strip of [upper, lower]) {
+      expect(strip).toHaveAttribute('data-lane-count', String(mockLanes.length));
+    }
   });
 
   it('gives every schedule status a beside-the-name and an under-the-name badge', () => {

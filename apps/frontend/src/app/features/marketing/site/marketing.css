@@ -466,16 +466,6 @@
   [data-show-s] {
     display: inline-block !important;
   }
-  [data-hero-lead] {
-    margin-top: 40px;
-  }
-}
-/* Home hero: the release strip and the cards anchored to it come last in the source, the
-   order a phone and a keyboard meet them; wider screens show them above the headline. */
-@media (min-width: 621px) {
-  [data-hero-lead] {
-    order: -1;
-  }
 }
 
 /* ---- Legal / trust document prose (shared by all legal pages) ---- */
