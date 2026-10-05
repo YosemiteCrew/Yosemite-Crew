@@ -24,7 +24,10 @@ const mStripe = {
   billingPortal: { sessions: { create: jest.fn() } },
   subscriptionItems: { update: jest.fn() },
   paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
-  refunds: { create: jest.fn() },
+  refunds: {
+    create: jest.fn(),
+    list: jest.fn().mockResolvedValue({ data: [], has_more: false }),
+  },
   webhooks: { constructEvent: jest.fn() },
   charges: { retrieve: jest.fn() },
   subscriptions: { retrieve: jest.fn() },
@@ -2185,6 +2188,39 @@ describe("StripeService", () => {
   });
 
   describe("_handleRefund guards", () => {
+    it("passes the provider refund occurrence to every invoice refund movement", async () => {
+      const occurredAt = new Date("2026-09-15T10:30:00.000Z");
+      (
+        FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+      ).mockResolvedValueOnce({ action: "ALREADY_REFUNDED", invoice: {} });
+
+      await StripeService._handleRefund({
+        id: "ch_dated",
+        payment_intent: "pi_dated",
+        amount: 500,
+        amount_refunded: 500,
+        currency: "usd",
+        metadata: { invoiceId: "inv_dated" },
+        refunds: {
+          data: [
+            {
+              id: "re_dated",
+              charge: "ch_dated",
+              amount: 500,
+              currency: "usd",
+              created: occurredAt.getTime() / 1000,
+              status: "succeeded",
+            },
+          ],
+          has_more: false,
+        },
+      } as any);
+
+      expect(
+        FinancePaymentService.markInvoiceRefundedFromWebhook,
+      ).toHaveBeenCalledWith(expect.objectContaining({ occurredAt }));
+    });
+
     it("keeps zero-decimal refund ledger and notification amounts unscaled", async () => {
       (
         FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
@@ -2353,6 +2389,52 @@ describe("StripeService", () => {
   });
 
   describe("_handleAccountUpdated fallbacks", () => {
+    it.each([
+      ["id", { id: { not: null } }],
+      ["currency", { default_currency: { set: "usd" } }],
+      ["charges", { charges_enabled: { set: true } }],
+      ["payouts", { payouts_enabled: { set: true } }],
+      [
+        "disabled reason",
+        { requirements: { disabled_reason: { set: "other" } } },
+      ],
+      [
+        "current requirements",
+        { requirements: { currently_due: [{ not: null }] } },
+      ],
+      [
+        "future requirements",
+        { requirements: { eventually_due: [{ not: null }] } },
+      ],
+      ["past requirements", { requirements: { past_due: [{ not: null }] } }],
+      [
+        "pending requirements",
+        { requirements: { pending_verification: [{ not: null }] } },
+      ],
+      ["error code", { requirements: { errors: [{ code: { not: null } }] } }],
+      [
+        "error reason",
+        { requirements: { errors: [{ reason: { not: null } }] } },
+      ],
+      [
+        "error requirement",
+        { requirements: { errors: [{ requirement: { not: null } }] } },
+      ],
+    ])(
+      "rejects malformed account %s before changing billing details",
+      async (_name, changed) => {
+        await expect(
+          StripeService._handleAccountUpdated({
+            id: "acct_valid",
+            ...changed,
+          } as unknown as Parameters<
+            typeof StripeService._handleAccountUpdated
+          >[0]),
+        ).rejects.toThrow();
+        expect(prisma.organizationBilling.updateMany).not.toHaveBeenCalled();
+      },
+    );
+
     it("replays account snapshots idempotently with absolute values", async () => {
       const account = {
         id: "acct_replay",
@@ -2693,6 +2775,29 @@ describe("StripeService", () => {
       latest_charge: "ch_1",
       metadata: { appointmentId: "appt_1" },
     };
+
+    it.each(["appointment", "payment"])(
+      "rejects non-string booking %s details",
+      async (field) => {
+        bookingAppointment();
+        (prisma.invoice.findUnique as jest.Mock).mockResolvedValue(null);
+        (prisma.invoice.updateMany as jest.Mock).mockResolvedValue({
+          count: 0,
+        });
+        const event =
+          field === "appointment"
+            ? { ...bookingEvent, metadata: { appointmentId: { not: null } } }
+            : { ...bookingEvent, id: { not: null } };
+        await expect(
+          StripeService._handleAppointmentBookingPayment(
+            event as unknown as Parameters<
+              typeof StripeService._handleAppointmentBookingPayment
+            >[0],
+          ),
+        ).rejects.toThrow();
+        expect(prisma.invoice.updateMany).not.toHaveBeenCalled();
+      },
+    );
 
     it("no-ops when an invoice is already bound to this payment intent", async () => {
       // The replay case. Stripe redelivers on any non-2xx and nothing upstream
@@ -3433,6 +3538,7 @@ describe("provider receipt journal", () => {
  * no term to read for the last one.
  */
 describe("provider receipt refund reversal", () => {
+  const originalEnv = process.env;
   const journalled = () =>
     (ProviderReceiptService.journalCapture as jest.Mock).mock.calls.map(
       ([input]) => input,
@@ -3459,7 +3565,11 @@ describe("provider receipt refund reversal", () => {
     }) as any;
 
   beforeEach(() => {
+    process.env = { ...originalEnv, STRIPE_SECRET_KEY: "sk_test_mock" };
     jest.clearAllMocks();
+    mStripe.refunds.list
+      .mockReset()
+      .mockResolvedValue({ data: [], has_more: false });
     (ProviderReceiptService.journalCapture as jest.Mock).mockResolvedValue({
       id: "receipt-1",
       status: "UNATTRIBUTED",
@@ -3477,6 +3587,10 @@ describe("provider receipt refund reversal", () => {
       action: "REFUNDED",
       invoice: { id: "inv_reversal", parentId: "par_1" },
     });
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   it("reverses by what the provider gave back, not by what it captured", async () => {
@@ -3507,6 +3621,156 @@ describe("provider receipt refund reversal", () => {
       provider: "STRIPE",
       paymentRef: "pi_reversal",
     });
+  });
+
+  it("preserves the refund notification date rather than the capture date", async () => {
+    await StripeService.handleWebhookEvent({
+      id: "evt_dated_refund",
+      created: 1790000000,
+      type: "charge.refunded",
+      data: { object: refundedCharge() },
+    } as Parameters<typeof StripeService.handleWebhookEvent>[0]);
+    expect(reversed()[0]).toMatchObject({
+      notification: {
+        id: "evt_dated_refund",
+        occurredAt: new Date(1790000000 * 1000),
+      },
+    });
+  });
+
+  const individualRefund = (id: string, amount: number, created: number) => ({
+    id,
+    amount,
+    created,
+    currency: "gbp",
+    charge: "ch_reversal",
+    status: "succeeded",
+  });
+  it("recovers earlier refund amounts and dates from a later notification", async () => {
+    await StripeService._handleRefund(
+      refundedCharge({
+        amount_refunded: 5000,
+        refunds: {
+          has_more: false,
+          data: [
+            individualRefund("later", 3000, 1790000000),
+            individualRefund("earlier", 2000, 1789900000),
+          ],
+        },
+      }),
+    );
+    expect(reversed()[0].refunds).toEqual([
+      { id: "later", amount: 30, occurredAt: new Date(1790000000 * 1000) },
+      { id: "earlier", amount: 20, occurredAt: new Date(1789900000 * 1000) },
+    ]);
+  });
+  it("loads all refund pages in the original connected account", async () => {
+    mStripe.refunds.list.mockResolvedValueOnce({
+      has_more: true,
+      data: [individualRefund("later", 3000, 1790000000)],
+    });
+    mStripe.refunds.list.mockResolvedValueOnce({
+      has_more: false,
+      data: [individualRefund("earlier", 2000, 1789900000)],
+    });
+    await StripeService._handleRefund(
+      refundedCharge({
+        amount_refunded: 5000,
+        refunds: { has_more: true, data: [] },
+      }),
+      "acct_1",
+    );
+    expect(mStripe.refunds.list.mock.calls).toEqual([
+      [{ charge: "ch_reversal", limit: 100 }, { stripeAccount: "acct_1" }],
+      [
+        { charge: "ch_reversal", limit: 100, starting_after: "later" },
+        { stripeAccount: "acct_1" },
+      ],
+    ]);
+    expect(reversed()[0].refunds).toHaveLength(2);
+  });
+  it("continues from an already loaded refund page without fetching it again", async () => {
+    mStripe.refunds.list.mockResolvedValueOnce({
+      has_more: false,
+      data: [individualRefund("earlier", 2000, 1789900000)],
+    });
+    await StripeService._handleRefund(
+      refundedCharge({
+        amount_refunded: 5000,
+        refunds: {
+          has_more: true,
+          data: [individualRefund("later", 3000, 1790000000)],
+        },
+      }),
+      "acct_1",
+    );
+    expect(mStripe.refunds.list.mock.calls).toEqual([
+      [
+        { charge: "ch_reversal", limit: 100, starting_after: "later" },
+        { stripeAccount: "acct_1" },
+      ],
+    ]);
+    expect(reversed()[0].refunds).toEqual([
+      { id: "later", amount: 30, occurredAt: new Date(1790000000 * 1000) },
+      { id: "earlier", amount: 20, occurredAt: new Date(1789900000 * 1000) },
+    ]);
+  });
+  it("does not count failed or pending refunds as completed movements", async () => {
+    const completed = individualRefund("done", 2000, 1790000000);
+    await StripeService._handleRefund(
+      refundedCharge({
+        refunds: {
+          has_more: false,
+          data: [
+            completed,
+            { ...completed, id: "pending", status: "pending" },
+            { ...completed, id: "failed", status: "failed" },
+          ],
+        },
+      }),
+    );
+    expect(reversed()[0].refunds).toEqual([
+      { id: "done", amount: 20, occurredAt: new Date(1790000000 * 1000) },
+    ]);
+  });
+  it.each([
+    { charge: "other" },
+    { currency: "eur" },
+    { created: Number.NaN },
+    { amount: -1 },
+  ])("leaves inconsistent refund history incomplete %j", async (changed) => {
+    await StripeService._handleRefund(
+      refundedCharge({
+        refunds: {
+          has_more: false,
+          data: [
+            { ...individualRefund("refund", 2000, 1790000000), ...changed },
+          ],
+        },
+      }),
+    );
+    expect(reversed()[0].refunds).toBeUndefined();
+    expect(reversed()[0].refundedAmount).toBe(20);
+    expect(logger.error).toHaveBeenCalledWith(
+      "Could not read the dated refund history.",
+      expect.any(Error),
+    );
+  });
+  it("stops repeated refund pages without assigning a replacement date", async () => {
+    mStripe.refunds.list.mockResolvedValue({
+      has_more: true,
+      data: [individualRefund("same", 2000, 1790000000)],
+    });
+    await StripeService._handleRefund(
+      refundedCharge({ refunds: { has_more: true, data: [] } }),
+    );
+    expect(mStripe.refunds.list).toHaveBeenCalledTimes(2);
+    expect(reversed()[0].refunds).toBeUndefined();
+  });
+
+  it("leaves the notification date unknown when called without an event", async () => {
+    await StripeService._handleRefund(refundedCharge());
+    expect(reversed()[0].notification).toBeUndefined();
   });
 
   it("journals the capture it is reversing before reducing it", async () => {

@@ -152,6 +152,38 @@ beforeEach(() => {
   jest.resetAllMocks();
 });
 
+describe("receipt allocation field values", () => {
+  it("refuses a malformed version before reserving credit", async () => {
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce(
+      receipt({ merchantAccountRef: "PLATFORM" }),
+    );
+    mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([]);
+    mockedPrisma.invoice.findMany.mockResolvedValue([eligibleInvoice()]);
+    mockedSummaries.mockResolvedValue(
+      financialSummaries([INVOICE_ID, { paid: 0, credited: 0, balance: 100 }]),
+    );
+    const tx = runTransaction();
+    mockedPrisma.payment.findFirst.mockResolvedValue(null);
+    mockedPayments.recordInvoicePayment.mockResolvedValue({
+      payment: { id: "pay-1" },
+      appliedAmount: 100,
+    });
+    mockedPrisma.providerReceiptAllocation.update.mockResolvedValue({});
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue(
+      readback({
+        merchantAccountRef: "PLATFORM",
+        allocatedAmount: 100,
+        status: "ALLOCATED",
+      }),
+    );
+    await expect(
+      ProviderReceiptService.allocate(request({ expectedVersion: { not: 0 } })),
+    ).rejects.toThrow();
+    expect(tx.providerReceipt.updateMany).not.toHaveBeenCalled();
+    expect(tx.providerReceiptAllocation.create).not.toHaveBeenCalled();
+  });
+});
+
 describe("allocatableResidual", () => {
   it("subtracts what was given back and what was already applied", () => {
     // Two different guards, and the oracle in #3170 needs both terms: money

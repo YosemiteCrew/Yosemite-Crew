@@ -47,6 +47,10 @@ jest.mock("src/config/prisma", () => ({
       create: jest.fn(),
       findFirst: jest.fn(),
     },
+    invoiceRevision: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
     creditNote: {
       findMany: jest.fn(),
     },
@@ -6100,6 +6104,58 @@ describe("FinancePaymentService", () => {
     });
 
     expect(result.action).toBe("REFUNDED");
+  });
+
+  it("dates every stored refund movement from the provider occurrence", async () => {
+    const occurredAt = new Date("2026-09-15T10:30:00.000Z");
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_dated",
+      status: "PAID",
+      metadata: {},
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
+      id: "inv_dated",
+      status: "PAID",
+      metadata: {},
+    });
+    (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pay_dated",
+      provider: "STRIPE",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_dated",
+      status: "REFUNDED",
+    });
+    (prisma.invoiceRevision.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: 42n,
+    });
+
+    await FinancePaymentService.markInvoiceRefundedFromWebhook({
+      invoiceId: "inv_dated",
+      chargeId: "ch_dated",
+      amount: 20,
+      currency: "usd",
+      occurredAt,
+    });
+
+    expect(prisma.refund.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ createdAt: occurredAt }),
+      }),
+    );
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            refundDate: occurredAt.toISOString(),
+          }),
+        }),
+      }),
+    );
+    expect(prisma.invoiceRevision.update).toHaveBeenCalledWith({
+      where: { id: 42n },
+      data: { recordedAt: occurredAt },
+    });
   });
 
   it("marks an invoice refunded with null charge, reason, and metadata", async () => {

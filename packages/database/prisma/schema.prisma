@@ -4424,6 +4424,23 @@ model Invoice {
   @@index([taxProvider])
 }
 
+model InvoiceRevision {
+  id             BigInt        @id @default(autoincrement())
+  invoiceId      String
+  organisationId String?
+  parentId       String?
+  totalAmount    Float
+  currency       String
+  status         InvoiceStatus
+  finalizedAt    DateTime?
+  dueAt          DateTime?
+  recordedAt     DateTime      @default(now())
+  baseline       Boolean      @default(false)
+
+  @@index([organisationId, parentId, recordedAt])
+  @@index([invoiceId, id])
+}
+
 model ClientPaymentTerm {
   id             String   @id @default(uuid())
   organisationId String
@@ -4435,6 +4452,22 @@ model ClientPaymentTerm {
 
   @@unique([organisationId, parentId])
   @@index([organisationId])
+}
+
+model ClientStatement {
+  id             String   @id @default(uuid())
+  organisationId String
+  parentId       String
+  periodStart    DateTime
+  periodEnd      DateTime
+  idempotencyKey String
+  generatedById  String
+  snapshot       Json
+  createdAt      DateTime @default(now())
+
+  @@unique([organisationId, parentId, idempotencyKey])
+  @@index([organisationId, parentId, createdAt])
+  @@index([organisationId, id])
 }
 
 model InvoiceTaxSnapshot {
@@ -7608,6 +7641,7 @@ model ProviderReceipt {
   /// way so a redelivered or out-of-order refund webhook is absorbed by
   /// comparison instead of being added twice.
   refundedAmount     Float                 @default(0)
+  undatedRefundAmount Float                @default(0)
   /// How much of this capture an operator has applied to invoices, cumulative
   /// over every allocation against it. The residual an operator may still
   /// allocate is `amount - refundedAmount - allocatedAmount`, and that
@@ -7630,6 +7664,20 @@ model ProviderReceipt {
   @@index([invoiceId])
   @@index([appointmentId])
   @@index([capturedAt])
+}
+
+model ProviderReceiptRefund {
+  id               String   @id @default(uuid())
+  receiptId        String
+  providerEventId  String
+  cumulativeAmount Float
+  amount           Float?
+  currency         String
+  occurredAt       DateTime
+  createdAt        DateTime @default(now())
+
+  @@unique([receiptId, providerEventId])
+  @@index([receiptId, occurredAt])
 }
 
 /// One operator decision to apply part of a captured payment to one invoice
