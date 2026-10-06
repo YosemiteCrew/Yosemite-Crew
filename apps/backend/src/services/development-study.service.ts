@@ -28,7 +28,7 @@ import {
   ProcessParameterRangeLink,
 } from "@yosemite-crew/types";
 
-const MAX_GENERATED_RUNS = 1_000;
+export const MAX_GENERATED_RUNS = 1_000;
 
 export interface CreateDevelopmentStudyInput {
   organisationId: string;

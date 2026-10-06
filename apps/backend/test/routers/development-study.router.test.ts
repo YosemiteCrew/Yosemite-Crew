@@ -55,6 +55,7 @@ jest.mock("../../src/middlewares/rbac", () => ({
   withProcessParameterRangeLinkOrgPermissions: () => pass,
 }));
 jest.mock("../../src/services/development-study.service", () => ({
+  MAX_GENERATED_RUNS: 1_000,
   DevelopmentStudyService: jest.fn(() => service),
 }));
 
@@ -463,6 +464,20 @@ describe("developmentStudyRouter", () => {
       });
       expect(res.status).toHaveBeenCalledWith(400);
     }
+  });
+
+  it("rejects experiment replicate counts above the run limit", async () => {
+    const res = await invoke("post", "/studies/:studyId/experiments", {
+      params: { studyId: uuid },
+      body: {
+        name: "Oversized trial",
+        designType: ExperimentDesignType.FULL_FACTORIAL,
+        replicates: 1_001,
+      },
+    });
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(service.createExperiment).not.toHaveBeenCalled();
   });
 
   it("returns not found for missing studies and experiments", async () => {

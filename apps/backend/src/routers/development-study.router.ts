@@ -1,6 +1,9 @@
 import { Router, Response } from "express";
 import { z } from "zod";
-import { DevelopmentStudyService } from "../services/development-study.service.js";
+import {
+  DevelopmentStudyService,
+  MAX_GENERATED_RUNS,
+} from "../services/development-study.service.js";
 import {
   DevelopmentStudyStatus,
   ExperimentDesignType,
@@ -124,7 +127,12 @@ developmentStudyRouter.post(
         aliases: z.any().optional(),
         centrePoints: z.number().int().nonnegative().optional(),
         blocks: z.number().int().positive().optional(),
-        replicates: z.number().int().positive().optional(),
+        replicates: z
+          .number()
+          .int()
+          .positive()
+          .max(MAX_GENERATED_RUNS)
+          .optional(),
         randomSeed: z.string().optional(),
       });
       const input = schema.parse(req.body);
