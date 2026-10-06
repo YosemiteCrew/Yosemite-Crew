@@ -22,6 +22,12 @@ jest.mock("../../src/config/prisma", () => ({
     task: {
       findUnique: jest.fn(),
     },
+    developmentStudy: { findUnique: jest.fn() },
+    designedExperiment: { findUnique: jest.fn() },
+    experimentRun: { findUnique: jest.fn() },
+    experimentModel: { findUnique: jest.fn() },
+    processParameterRange: { findUnique: jest.fn() },
+    processParameterRangeLink: { findUnique: jest.fn() },
     inventoryItem: {
       findUnique: jest.fn(),
     },
@@ -52,7 +58,11 @@ import {
   type OrgRequest,
   withAppointmentOrgPermissions,
   withCaseOrgPermissions,
+  withDesignedExperimentOrgPermissions,
+  withDevelopmentStudyOrgPermissions,
   withEncounterOrgPermissions,
+  withExperimentModelOrgPermissions,
+  withExperimentRunOrgPermissions,
   withInventoryItemOrgPermissions,
   withInvoiceOrgPermissions,
   withOrgPermissions,
@@ -60,6 +70,8 @@ import {
   withPaymentOrgPermissions,
   withPurchaseOrderDeliveryOrgPermissions,
   withPurchaseOrderOrgPermissions,
+  withProcessParameterRangeLinkOrgPermissions,
+  withProcessParameterRangeOrgPermissions,
   withRenderedDocumentOrgPermissions,
   withRoomUnitGroupOrgPermissions,
   withRoomUnitOrgPermissions,
@@ -675,6 +687,69 @@ describe("rbac middleware", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: "Missing appointmentId" });
     expect(prisma.appointment.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("derives development study resource organisations from the target record", async () => {
+    const cases = [
+      {
+        middleware: withDevelopmentStudyOrgPermissions,
+        model: prisma.developmentStudy,
+        paramName: "studyId",
+        value: { organisationId: "org_1" },
+      },
+      {
+        middleware: withDesignedExperimentOrgPermissions,
+        model: prisma.designedExperiment,
+        paramName: "experimentId",
+        value: { study: { organisationId: "org_1" } },
+      },
+      {
+        middleware: withExperimentRunOrgPermissions,
+        model: prisma.experimentRun,
+        paramName: "runId",
+        value: { experiment: { study: { organisationId: "org_1" } } },
+      },
+      {
+        middleware: withExperimentModelOrgPermissions,
+        model: prisma.experimentModel,
+        paramName: "modelId",
+        value: { experiment: { study: { organisationId: "org_1" } } },
+      },
+      {
+        middleware: withProcessParameterRangeOrgPermissions,
+        model: prisma.processParameterRange,
+        paramName: "rangeId",
+        value: { study: { organisationId: "org_1" } },
+      },
+      {
+        middleware: withProcessParameterRangeLinkOrgPermissions,
+        model: prisma.processParameterRangeLink,
+        paramName: "linkId",
+        value: { range: { study: { organisationId: "org_1" } } },
+      },
+    ];
+
+    for (const testCase of cases) {
+      jest.clearAllMocks();
+      (testCase.model.findUnique as jest.Mock).mockResolvedValue(
+        testCase.value as never,
+      );
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+        membership() as never,
+      );
+      const req = {
+        userId: "user_1",
+        params: { [testCase.paramName]: "resource_1" },
+        headers: {},
+      } as unknown as Request;
+      const middlewareNext = next();
+
+      await testCase.middleware()(req, mockRes(), middlewareNext);
+
+      expect(testCase.model.findUnique).toHaveBeenCalled();
+      expect(req.params.organisationId).toBe("org_1");
+      expect(middlewareNext).toHaveBeenCalled();
+    }
   });
 
   it("returns 400 when the resource loader throws", async () => {

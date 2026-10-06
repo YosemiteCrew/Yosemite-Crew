@@ -7904,3 +7904,329 @@ model SupplierEntry {
   @@index([paymentId])
   @@index([createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Development Study & Designed Experiments
+// ---------------------------------------------------------------------------
+
+enum DevelopmentStudyStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ExperimentDesignType {
+  FULL_FACTORIAL
+  FRACTIONAL_FACTORIAL
+  SCREENING
+  CENTRAL_COMPOSITE
+  BOX_BEHNKEN
+  RESPONSE_SURFACE
+}
+
+enum FactorType {
+  CONTINUOUS
+  CATEGORICAL
+  BLOCK
+  MIXTURE
+}
+
+enum FactorRole {
+  INPUT
+  CONSTANT
+  RESPONSE
+}
+
+enum ExperimentStatus {
+  DESIGNED
+  RUN_ORDER_LOCKED
+  IN_PROGRESS
+  COMPLETED
+  ANALYZED
+  ARCHIVED
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  DEVIATED
+  SKIPPED
+}
+
+enum ModelType {
+  LINEAR
+  INTERACTION
+  QUADRATIC
+  CUSTOM
+}
+
+enum ModelFitStatus {
+  FITTED
+  REFINED
+  STALE
+}
+
+enum PlotType {
+  PARETO
+  HALF_NORMAL
+  INTERACTION
+  CONTOUR
+  SURFACE
+  PREDICTED_OPERATING_REGION
+  RESIDUALS
+  ANOVA
+}
+
+model DevelopmentStudy {
+  id              String                   @id @default(uuid())
+  organisationId  String
+  productName     String
+  productCode     String?
+  description     String?
+  status          DevelopmentStudyStatus   @default(DRAFT)
+  createdById     String
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  experiments     DesignedExperiment[]
+  ranges          ProcessParameterRange[]
+
+  @@index([organisationId])
+  @@index([organisationId, status])
+  @@index([productCode])
+}
+
+model DesignedExperiment {
+  id                  String                @id @default(uuid())
+  studyId             String
+  name                String
+  description         String?
+  designType          ExperimentDesignType
+  resolution          Int?
+  aliases             Json?
+  centrePoints        Int                   @default(0)
+  blocks              Int                   @default(1)
+  replicates          Int                   @default(1)
+  randomSeed          String?
+  runOrderLocked      Boolean               @default(false)
+  runOrderLockedAt    DateTime?
+  runOrderLockedBy    String?
+  status              ExperimentStatus      @default(DESIGNED)
+  createdById         String
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  study               DevelopmentStudy      @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  factors             ExperimentFactor[]
+  responses           ExperimentResponse[]
+  runs                ExperimentRun[]
+  models              ExperimentModel[]
+  plots               ExperimentPlot[]
+  rangeLinks          ProcessParameterRangeLink[]
+
+  @@index([studyId])
+  @@index([studyId, status])
+  @@index([designType])
+}
+
+model ExperimentFactor {
+  id              String       @id @default(uuid())
+  experimentId    String
+  name            String
+  displayName     String?
+  type            FactorType
+  role            FactorRole   @default(INPUT)
+  unit            String?
+  lowLevel        Float?
+  highLevel       Float?
+  levels          Json?
+  goal            String?
+  isConstant      Boolean      @default(false)
+  constantValue   Float?
+  sortOrder       Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  experiment      DesignedExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  runValues       ExperimentRunFactorValue[]
+
+  @@unique([experimentId, name])
+  @@index([experimentId, sortOrder])
+}
+
+model ExperimentResponse {
+  id              String       @id @default(uuid())
+  experimentId    String
+  name            String
+  displayName     String?
+  unit            String?
+  goal            String?
+  target          Float?
+  lowerSpec       Float?
+  upperSpec       Float?
+  sortOrder       Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  experiment      DesignedExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  runValues       ExperimentRunResponseValue[]
+
+  @@unique([experimentId, name])
+  @@index([experimentId, sortOrder])
+}
+
+model ExperimentRun {
+  id              String       @id @default(uuid())
+  experimentId    String
+  runNumber       Int
+  standardOrder   Int?
+  blockNumber     Int?
+  status          RunStatus    @default(PENDING)
+  seed            String?
+  deviationNotes  String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  completedBy     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  experiment      DesignedExperiment      @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  factorValues    ExperimentRunFactorValue[]
+  responseValues  ExperimentRunResponseValue[]
+
+  @@unique([experimentId, runNumber])
+  @@index([experimentId, standardOrder])
+  @@index([experimentId, blockNumber])
+  @@index([experimentId, status])
+}
+
+model ExperimentRunFactorValue {
+  id           String            @id @default(uuid())
+  runId        String
+  factorId     String
+  value        Float
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  run          ExperimentRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  factor       ExperimentFactor  @relation(fields: [factorId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, factorId])
+  @@index([runId])
+  @@index([factorId])
+}
+
+model ExperimentRunResponseValue {
+  id           String                @id @default(uuid())
+  runId        String
+  responseId   String
+  value        Float?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  run          ExperimentRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  response     ExperimentResponse    @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, responseId])
+  @@index([runId])
+  @@index([responseId])
+}
+
+model ExperimentModel {
+  id                   String          @id @default(uuid())
+  experimentId         String
+  name                 String
+  type                 ModelType
+  formula              String
+  terms                Json
+  anovaTable           Json?
+  lackOfFit            Json?
+  estimates            Json?
+  residuals            Json?
+  rSquared             Float?
+  rSquaredAdjusted     Float?
+  rSquaredPredicted    Float?
+  pValue               Float?
+  status               ModelFitStatus  @default(FITTED)
+  fittedAt             DateTime        @default(now())
+  fittedBy             String
+  environmentHash      String?
+  environmentSnapshot  Json?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  experiment           DesignedExperiment          @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  rangeLinks           ProcessParameterRangeLink[]
+  plots                ExperimentPlot[]
+
+  @@index([experimentId])
+  @@index([experimentId, status])
+}
+
+model ExperimentPlot {
+  id              String       @id @default(uuid())
+  experimentId    String
+  modelId         String?
+  type            PlotType
+  title           String
+  config          Json
+  imageData       Bytes?
+  pdfData         Bytes?
+  spreadsheetData Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  experiment      DesignedExperiment  @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  model           ExperimentModel?    @relation(fields: [modelId], references: [id], onDelete: SetNull)
+
+  @@index([experimentId])
+  @@index([experimentId, type])
+}
+
+model ProcessParameterRange {
+  id              String       @id @default(uuid())
+  studyId         String
+  parameterName   String
+  lowerBound      Float
+  upperBound      Float
+  unit            String?
+  confidenceLevel Float?
+  evidenceType    String?
+  isStale         Boolean      @default(false)
+  staleReason     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  study           DevelopmentStudy          @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  experimentLinks ProcessParameterRangeLink[]
+
+  @@index([studyId])
+  @@index([studyId, parameterName])
+}
+
+model ProcessParameterRangeLink {
+  id                String       @id @default(uuid())
+  rangeId           String
+  experimentId      String
+  modelId           String?
+  linkType          String
+  linkedAt          DateTime     @default(now())
+  linkedBy          String
+  isStale           Boolean      @default(false)
+  staledAt          DateTime?
+  staledBy          String?
+  staleReason       String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  range             ProcessParameterRange   @relation(fields: [rangeId], references: [id], onDelete: Cascade)
+  experiment        DesignedExperiment      @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  model             ExperimentModel?        @relation(fields: [modelId], references: [id], onDelete: SetNull)
+
+  @@unique([rangeId, experimentId, modelId])
+  @@index([rangeId])
+  @@index([experimentId])
+  @@index([modelId])
+}

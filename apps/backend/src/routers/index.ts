@@ -150,6 +150,7 @@ import developerApiKeyRouter from "./developer-api-key.router";
 import developerBillingRouter from "./developer-billing.router";
 import developerDataRouter from "./developer-data.router";
 import developerUsageRouter from "./developer-usage.router";
+import developmentStudyRouter from "./development-study.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -317,5 +318,6 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/catalog`, catalogRouter);
   app.use(`/v1/email-preferences`, marketingUnsubscribeRouter);
   app.use(`/v1/reminder-preferences`, careReminderOptOutRouter);
+  app.use(`/v1/development-studies`, developmentStudyRouter);
   app.use(`/ap`, activityPubRouter);
 }

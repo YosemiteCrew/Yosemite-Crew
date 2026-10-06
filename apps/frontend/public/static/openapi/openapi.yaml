@@ -29400,6 +29400,426 @@ paths:
       responses:
         '204': { description: Report delivery schedule deleted }
         '404': { description: Report delivery schedule not found }
+  /v1/development-studies/studies:
+    post:
+      tags: ['Non-FHIR']
+      summary: Create a development study
+      operationId: post_v1_development_studies_studies
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        '201': { description: Development study created }
+        '400': { description: Invalid study }
+    get:
+      tags: ['Non-FHIR']
+      summary: List development studies
+      operationId: get_v1_development_studies_studies
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: x-org-id
+          in: header
+          required: false
+          schema: { type: string }
+        - name: organisationId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Development studies }
+  /v1/development-studies/studies/{studyId}:
+    get:
+      tags: ['Non-FHIR']
+      summary: Get a development study
+      operationId: get_v1_development_studies_studies_studyId
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: studyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Development study }
+        '404': { description: Development study not found }
+  /v1/development-studies/studies/{studyId}/status:
+    patch:
+      tags: ['Non-FHIR']
+      summary: Update a development study status
+      operationId: patch_v1_development_studies_studies_studyId_status
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: studyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Development study updated }
+        '400': { description: Invalid status }
+  /v1/development-studies/studies/{studyId}/experiments:
+    post:
+      tags: ['Non-FHIR']
+      summary: Create a designed experiment
+      operationId: post_v1_development_studies_studies_studyId_experiments
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: studyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Designed experiment created }
+        '400': { description: Invalid experiment }
+    get:
+      tags: ['Non-FHIR']
+      summary: List a study's designed experiments
+      operationId: get_v1_development_studies_studies_studyId_experiments
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: studyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Designed experiments }
+  /v1/development-studies/experiments/{experimentId}:
+    get:
+      tags: ['Non-FHIR']
+      summary: Get a designed experiment
+      operationId: get_v1_development_studies_experiments_experimentId
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Designed experiment }
+        '404': { description: Designed experiment not found }
+  /v1/development-studies/experiments/{experimentId}/status:
+    patch:
+      tags: ['Non-FHIR']
+      summary: Update a designed experiment status
+      operationId: patch_v1_development_studies_experiments_experimentId_status
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Designed experiment updated }
+        '400': { description: Invalid status }
+  /v1/development-studies/experiments/{experimentId}/factors:
+    post:
+      tags: ['Non-FHIR']
+      summary: Add an experiment factor
+      operationId: post_v1_development_studies_experiments_experimentId_factors
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Experiment factor created }
+        '400': { description: Invalid factor }
+  /v1/development-studies/experiments/{experimentId}/responses:
+    post:
+      tags: ['Non-FHIR']
+      summary: Add an experiment response
+      operationId: post_v1_development_studies_experiments_experimentId_responses
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Experiment response created }
+        '400': { description: Invalid response }
+  /v1/development-studies/experiments/{experimentId}/lock-run-order:
+    post:
+      tags: ['Non-FHIR']
+      summary: Lock an experiment's run order
+      operationId: post_v1_development_studies_experiments_experimentId_lock_run_order
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Run order locked }
+        '400': { description: Invalid request }
+  /v1/development-studies/experiments/{experimentId}/generate-runs:
+    post:
+      tags: ['Non-FHIR']
+      summary: Generate experiment runs
+      operationId: post_v1_development_studies_experiments_experimentId_generate_runs
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Experiment runs generated }
+  /v1/development-studies/experiments/{experimentId}/runs:
+    post:
+      tags: ['Non-FHIR']
+      summary: Create an experiment run
+      operationId: post_v1_development_studies_experiments_experimentId_runs
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Experiment run created }
+        '400': { description: Invalid run }
+    get:
+      tags: ['Non-FHIR']
+      summary: List experiment runs
+      operationId: get_v1_development_studies_experiments_experimentId_runs
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Experiment runs }
+  /v1/development-studies/runs/{runId}/status:
+    patch:
+      tags: ['Non-FHIR']
+      summary: Update an experiment run status
+      operationId: patch_v1_development_studies_runs_runId_status
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Experiment run updated }
+        '400': { description: Invalid status }
+  /v1/development-studies/runs/{runId}/factor-values:
+    post:
+      tags: ['Non-FHIR']
+      summary: Record an experiment factor value
+      operationId: post_v1_development_studies_runs_runId_factor_values
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Factor value recorded }
+        '400': { description: Invalid factor value }
+  /v1/development-studies/runs/{runId}/response-values:
+    post:
+      tags: ['Non-FHIR']
+      summary: Record an experiment response value
+      operationId: post_v1_development_studies_runs_runId_response_values
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Response value recorded }
+        '400': { description: Invalid response value }
+  /v1/development-studies/experiments/{experimentId}/models:
+    post:
+      tags: ['Non-FHIR']
+      summary: Fit an experiment model
+      operationId: post_v1_development_studies_experiments_experimentId_models
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Experiment model fitted }
+        '400': { description: Invalid model }
+    get:
+      tags: ['Non-FHIR']
+      summary: List experiment models
+      operationId: get_v1_development_studies_experiments_experimentId_models
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Experiment models }
+  /v1/development-studies/models/{modelId}/status:
+    patch:
+      tags: ['Non-FHIR']
+      summary: Update an experiment model status
+      operationId: patch_v1_development_studies_models_modelId_status
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: modelId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Experiment model updated }
+        '400': { description: Invalid status }
+  /v1/development-studies/experiments/{experimentId}/plots:
+    post:
+      tags: ['Non-FHIR']
+      summary: Create an experiment plot
+      operationId: post_v1_development_studies_experiments_experimentId_plots
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Experiment plot created }
+        '400': { description: Invalid plot }
+    get:
+      tags: ['Non-FHIR']
+      summary: List experiment plots
+      operationId: get_v1_development_studies_experiments_experimentId_plots
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Experiment plots }
+  /v1/development-studies/studies/{studyId}/ranges:
+    post:
+      tags: ['Non-FHIR']
+      summary: Create a process parameter range
+      operationId: post_v1_development_studies_studies_studyId_ranges
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: studyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Process parameter range created }
+        '400': { description: Invalid parameter range }
+    get:
+      tags: ['Non-FHIR']
+      summary: List process parameter ranges
+      operationId: get_v1_development_studies_studies_studyId_ranges
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: studyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Process parameter ranges }
+  /v1/development-studies/ranges/{rangeId}/links:
+    post:
+      tags: ['Non-FHIR']
+      summary: Link a parameter range to an experiment
+      operationId: post_v1_development_studies_ranges_rangeId_links
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: rangeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Parameter range linked }
+        '400': { description: Invalid range link }
+    get:
+      tags: ['Non-FHIR']
+      summary: List links for a parameter range
+      operationId: get_v1_development_studies_ranges_rangeId_links
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: rangeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Parameter range links }
+  /v1/development-studies/range-links/{linkId}/stale:
+    post:
+      tags: ['Non-FHIR']
+      summary: Mark a parameter range link stale
+      operationId: post_v1_development_studies_range_links_linkId_stale
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: linkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Parameter range link marked stale }
+        '400': { description: Invalid stale reason }
+  /v1/development-studies/experiments/{experimentId}/range-links:
+    get:
+      tags: ['Non-FHIR']
+      summary: List parameter range links for an experiment
+      operationId: get_v1_development_studies_experiments_experimentId_range_links
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Parameter range links }
+  /v1/development-studies/models/{modelId}/range-links:
+    get:
+      tags: ['Non-FHIR']
+      summary: List parameter range links for a model
+      operationId: get_v1_development_studies_models_modelId_range_links
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/XOrgIdHeader'
+        - name: modelId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Parameter range links }
   /public/site/{slug}:
     get:
       tags:
@@ -29438,6 +29858,11 @@ components:
       name: organisationId
       in: path
       required: true
+      schema: { type: string }
+    XOrgIdHeader:
+      name: x-org-id
+      in: header
+      required: false
       schema: { type: string }
   securitySchemes:
     BearerAuth:

@@ -307,6 +307,100 @@ export function withTaskOrgPermissions() {
   );
 }
 
+export function withDevelopmentStudyOrgPermissions() {
+  return withResourceOrgPermissions(
+    "studyId",
+    "Development study not found",
+    async (studyId) => {
+      const study = await prisma.developmentStudy.findUnique({
+        where: { id: studyId },
+        select: { organisationId: true },
+      });
+      return study?.organisationId ?? null;
+    },
+  );
+}
+
+export function withDesignedExperimentOrgPermissions() {
+  return withResourceOrgPermissions(
+    "experimentId",
+    "Designed experiment not found",
+    async (experimentId) => {
+      const experiment = await prisma.designedExperiment.findUnique({
+        where: { id: experimentId },
+        select: { study: { select: { organisationId: true } } },
+      });
+      return experiment?.study.organisationId ?? null;
+    },
+  );
+}
+
+export function withExperimentRunOrgPermissions() {
+  return withResourceOrgPermissions(
+    "runId",
+    "Experiment run not found",
+    async (runId) => {
+      const run = await prisma.experimentRun.findUnique({
+        where: { id: runId },
+        select: {
+          experiment: {
+            select: { study: { select: { organisationId: true } } },
+          },
+        },
+      });
+      return run?.experiment.study.organisationId ?? null;
+    },
+  );
+}
+
+export function withExperimentModelOrgPermissions() {
+  return withResourceOrgPermissions(
+    "modelId",
+    "Experiment model not found",
+    async (modelId) => {
+      const model = await prisma.experimentModel.findUnique({
+        where: { id: modelId },
+        select: {
+          experiment: {
+            select: { study: { select: { organisationId: true } } },
+          },
+        },
+      });
+      return model?.experiment.study.organisationId ?? null;
+    },
+  );
+}
+
+export function withProcessParameterRangeOrgPermissions() {
+  return withResourceOrgPermissions(
+    "rangeId",
+    "Process parameter range not found",
+    async (rangeId) => {
+      const range = await prisma.processParameterRange.findUnique({
+        where: { id: rangeId },
+        select: { study: { select: { organisationId: true } } },
+      });
+      return range?.study.organisationId ?? null;
+    },
+  );
+}
+
+export function withProcessParameterRangeLinkOrgPermissions() {
+  return withResourceOrgPermissions(
+    "linkId",
+    "Process parameter range link not found",
+    async (linkId) => {
+      const link = await prisma.processParameterRangeLink.findUnique({
+        where: { id: linkId },
+        select: {
+          range: { select: { study: { select: { organisationId: true } } } },
+        },
+      });
+      return link?.range.study.organisationId ?? null;
+    },
+  );
+}
+
 export function withTaskTemplateOrgPermissions() {
   return withResourceOrgPermissions(
     "templateId",
