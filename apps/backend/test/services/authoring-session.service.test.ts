@@ -247,6 +247,83 @@ describe("authoring session service", () => {
     });
   });
 
+  it("refuses a missing document and a base that changes during open", async () => {
+    database.controlledDocument.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      service.open({
+        organisationId: "org-1",
+        documentId: "document-1",
+        baseVersionId: "version-1",
+        openedBy: "author-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    database.controlledDocument.findFirst
+      .mockResolvedValueOnce({
+        id: "document-1",
+        organisationId: "org-1",
+        latestVersion: baseVersion,
+      })
+      .mockResolvedValueOnce({
+        id: "document-1",
+        organisationId: "org-1",
+        latestVersion: { ...baseVersion, id: "version-2" },
+      });
+
+    await expect(
+      service.open({
+        organisationId: "org-1",
+        documentId: "document-1",
+        baseVersionId: "version-1",
+        openedBy: "author-1",
+      }),
+    ).rejects.toThrow("no longer current");
+  });
+
+  it("refuses a version that becomes read-only during open", async () => {
+    database.controlledDocument.findFirst
+      .mockResolvedValueOnce({
+        id: "document-1",
+        organisationId: "org-1",
+        latestVersion: baseVersion,
+      })
+      .mockResolvedValueOnce({
+        id: "document-1",
+        organisationId: "org-1",
+        latestVersion: { ...baseVersion, status: "EFFECTIVE" },
+      });
+
+    await expect(
+      service.open({
+        organisationId: "org-1",
+        documentId: "document-1",
+        baseVersionId: "version-1",
+        openedBy: "author-1",
+      }),
+    ).rejects.toThrow("read-only");
+  });
+
+  it("preserves non-lock failures from opening a session", async () => {
+    database.controlledDocument.findFirst.mockResolvedValue({
+      id: "document-1",
+      organisationId: "org-1",
+      latestVersion: baseVersion,
+    });
+    database.authoringSession.create.mockRejectedValue(
+      new Error("database unavailable"),
+    );
+
+    await expect(
+      service.open({
+        organisationId: "org-1",
+        documentId: "document-1",
+        baseVersionId: "version-1",
+        openedBy: "author-1",
+      }),
+    ).rejects.toThrow("database unavailable");
+  });
+
   it("applies an invited contributor update with optimistic revision control", async () => {
     database.authoringSession.findFirst.mockResolvedValue(openSession);
     database.authoringSession.updateMany.mockResolvedValue({ count: 1 });
@@ -303,6 +380,28 @@ describe("authoring session service", () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
+  it("refuses missing, closed, and concurrently changed syncs", async () => {
+    database.authoringSession.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ ...openSession, status: "CLOSED" })
+      .mockResolvedValueOnce(openSession);
+
+    const input = {
+      organisationId: "org-1",
+      sessionId: "session-1",
+      userId: "author-1",
+      expectedRevision: 0,
+      update: {},
+    };
+    await expect(service.sync(input)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    await expect(service.sync(input)).rejects.toThrow("session is closed");
+
+    database.authoringSession.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.sync(input)).rejects.toThrow("working draft changed");
+  });
+
   it("returns active presence for both named contributors", async () => {
     database.authoringSession.findFirst.mockResolvedValue(openSession);
     database.authoringSessionMember.upsert.mockResolvedValue({});
@@ -323,6 +422,22 @@ describe("authoring session service", () => {
         where: expect.objectContaining({ sessionId: "session-1" }),
       }),
     );
+  });
+
+  it("refuses presence for missing and closed sessions", async () => {
+    database.authoringSession.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ ...openSession, status: "CLOSED" });
+    const input = {
+      organisationId: "org-1",
+      sessionId: "session-1",
+      userId: "author-1",
+    };
+
+    await expect(service.presence(input)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    await expect(service.presence(input)).rejects.toThrow("session is closed");
   });
 
   it("closes into exactly one next minor version and releases the lock", async () => {
@@ -384,6 +499,72 @@ describe("authoring session service", () => {
 
     expect(database.controlledDocumentVersion.create).not.toHaveBeenCalled();
     expect(rendition.render).not.toHaveBeenCalled();
+  });
+
+  it("refuses a non-open session without a produced version", async () => {
+    database.authoringSession.findFirst.mockResolvedValue({
+      ...openSession,
+      status: "CLOSED",
+      baseVersion,
+    });
+
+    await expect(
+      service.close({
+        organisationId: "org-1",
+        sessionId: "session-1",
+        closedBy: "author-1",
+      }),
+    ).rejects.toThrow("cannot be closed");
+  });
+
+  it("handles close races without creating a second version", async () => {
+    database.authoringSession.findFirst
+      .mockResolvedValueOnce({ ...openSession, baseVersion })
+      .mockResolvedValueOnce({
+        ...openSession,
+        status: "CLOSED",
+        producedVersionId: "version-2",
+        baseVersion,
+        document: { latestVersionId: "version-2" },
+      });
+    database.controlledDocumentVersion.findUniqueOrThrow.mockResolvedValue({
+      ...baseVersion,
+      id: "version-2",
+      minorVersion: 1,
+    });
+
+    await expect(
+      service.close({
+        organisationId: "org-1",
+        sessionId: "session-1",
+        closedBy: "author-1",
+      }),
+    ).resolves.toMatchObject({ id: "version-2" });
+    expect(database.controlledDocumentVersion.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses close when the transaction loses the session or base version", async () => {
+    database.authoringSession.findFirst
+      .mockResolvedValueOnce({ ...openSession, baseVersion })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ ...openSession, baseVersion })
+      .mockResolvedValueOnce({
+        ...openSession,
+        baseVersion,
+        document: { latestVersionId: "version-2" },
+      });
+
+    const input = {
+      organisationId: "org-1",
+      sessionId: "session-1",
+      closedBy: "author-1",
+    };
+    await expect(service.close(input)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    await expect(service.close(input)).rejects.toThrow(
+      "base version is no longer current",
+    );
   });
 
   it("rejects invalid identifiers and revision numbers", async () => {
