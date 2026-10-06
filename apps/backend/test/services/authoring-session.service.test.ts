@@ -585,5 +585,14 @@ describe("authoring session service", () => {
         update: {},
       }),
     ).rejects.toThrow("non-negative integer");
+    await expect(
+      service.sync({
+        organisationId: "org-1",
+        sessionId: "session-1",
+        userId: "author-1",
+        expectedRevision: 0.5,
+        update: {},
+      }),
+    ).rejects.toThrow("non-negative integer");
   });
 });
