@@ -656,6 +656,39 @@ describe("DevelopmentStudyService", () => {
       );
     });
 
+    it("rejects factor combinations above the run limit", async () => {
+      mockPrisma.designedExperiment.findUnique.mockResolvedValue({
+        runOrderLocked: true,
+        replicates: 1,
+        factors: Array.from({ length: 10 }, (_, index) => ({
+          id: `factor-${index}`,
+          role: FactorRole.INPUT,
+          type: FactorType.CONTINUOUS,
+          levels: null,
+          isConstant: false,
+          constantValue: null,
+        })),
+      });
+
+      await expect(service.generateRuns("exp-1")).rejects.toThrow(
+        "Experiment design exceeds the run limit",
+      );
+      expect(mockPrisma.experimentRun.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects replicates above the run limit", async () => {
+      mockPrisma.designedExperiment.findUnique.mockResolvedValue({
+        runOrderLocked: true,
+        replicates: 1_001,
+        factors: [],
+      });
+
+      await expect(service.generateRuns("exp-1")).rejects.toThrow(
+        "Experiment design exceeds the run limit",
+      );
+      expect(mockPrisma.experimentRun.create).not.toHaveBeenCalled();
+    });
+
     it("creates factorial runs and copies constant values", async () => {
       mockPrisma.designedExperiment.findUnique.mockResolvedValue({
         runOrderLocked: true,

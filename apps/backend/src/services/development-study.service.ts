@@ -28,6 +28,8 @@ import {
   ProcessParameterRangeLink,
 } from "@yosemite-crew/types";
 
+const MAX_GENERATED_RUNS = 1_000;
+
 export interface CreateDevelopmentStudyInput {
   organisationId: string;
   productName: string;
@@ -338,20 +340,26 @@ export class DevelopmentStudyService {
       (factor) => factor.isConstant,
     );
 
-    let runCount = 1;
-    for (const factor of inputFactors) {
+    const runsPerReplicate = inputFactors.reduce((count, factor) => {
       if (
         factor.type === PrismaFactorType.CATEGORICAL &&
         factor.levels !== null
       ) {
         const levels = factor.levels as number[];
-        runCount *= levels.length;
-      } else if (factor.type === PrismaFactorType.CONTINUOUS) {
-        runCount *= 2;
+        return count * levels.length;
       }
-    }
 
-    runCount *= experiment.replicates;
+      if (factor.type === PrismaFactorType.CONTINUOUS) {
+        return count * 2;
+      }
+
+      return count;
+    }, 1);
+
+    const runCount = runsPerReplicate * experiment.replicates;
+    if (!Number.isSafeInteger(runCount) || runCount > MAX_GENERATED_RUNS) {
+      throw new Error("Experiment design exceeds the run limit");
+    }
 
     const runs: ExperimentRun[] = [];
     for (let i = 1; i <= runCount; i++) {

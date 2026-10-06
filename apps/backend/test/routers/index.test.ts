@@ -72,6 +72,7 @@ const MARKER_ROUTER_MODULES = [
   "encounter.router",
   "room-unit.router",
   "room-unit-group.router",
+  "development-study.router",
   "marketing-unsubscribe.router",
   // Federation router: mounted at /ap by registerRoutes. Left unmocked it loads
   // the AP service, which imports the delivery/inbox BullMQ queues and stalls
