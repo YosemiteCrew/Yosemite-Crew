@@ -89,6 +89,9 @@ ALTER TABLE "DocumentAuthoringLock" ADD CONSTRAINT "DocumentAuthoringLock_docume
 ALTER TABLE "DocumentAuthoringLock" ADD CONSTRAINT "DocumentAuthoringLock_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "AuthoringSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "AuthoringSessionMember" ADD CONSTRAINT "AuthoringSessionMember_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "AuthoringSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- deployed-code-survives: all five tables below are created earlier in this
+-- migration and no deployed code reads them yet, so enabling RLS changes no
+-- existing API query.
 ALTER TABLE "ControlledDocument" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ControlledDocumentVersion" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AuthoringSession" ENABLE ROW LEVEL SECURITY;
