@@ -61,7 +61,7 @@
     "moment": "2.31.0",
     "moment-timezone": "^0.6.4",
     "multer": "2.4.0",
-    "node-forge": "1.4.0",
+    "node-forge": "1.4.1",
     "playwright": "1.62.1",
     "safe-stable-stringify": "^2.5.0",
     "sanitize-filename": "^1.6.4",
