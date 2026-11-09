@@ -15,10 +15,11 @@ configurations.all {
 }
 
 // Patched versions for transitive Maven coordinates flagged by the supply-chain scan.
-def pinnedNettyVersion = "4.1.137.Final"
+def pinnedNettyVersion = "4.1.138.Final"
 def pinnedProtobufVersion = "3.25.9"
 def pinnedPlayServicesBasementVersion = "18.5.0"
 def pinnedOkioVersion = "3.9.1"
+def pinnedKotlinStdlibJdkVersion = "2.1.0"
 
 // AGP builds its Unified Test Platform classpaths itself and drags netty 4.1.93/4.1.110
 // and protobuf 3.22/3.24 in through grpc-netty and the test platform artifacts, so these
@@ -34,6 +35,11 @@ configurations.all {
         if (details.requested.group == "com.google.protobuf" && details.requested.version?.startsWith("3.")) {
             details.useVersion pinnedProtobufVersion
             details.because "CVE-2024-7254 affects protobuf-java and protobuf-kotlin below 3.25.5"
+        }
+        if (details.requested.group == "org.jetbrains.kotlin" &&
+                (details.requested.module.name == "kotlin-stdlib-jdk7" || details.requested.module.name == "kotlin-stdlib-jdk8")) {
+            details.useVersion pinnedKotlinStdlibJdkVersion
+            details.because "AIKIDO-2026-550292 affects kotlin-stdlib-jdk7/jdk8 below 2.1.0"
         }
     }
 }
