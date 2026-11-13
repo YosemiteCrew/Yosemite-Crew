@@ -20,7 +20,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "supertokens-node": "^24.0.3",
+    "supertokens-node": "^24.0.4",
     "jsonwebtoken": "9.0.3",
     "jwks-rsa": "^4.1.0"
   },
