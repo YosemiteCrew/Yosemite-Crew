@@ -20,9 +20,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "supertokens-node": "^24.0.3",
     "jsonwebtoken": "9.0.3",
-    "jwks-rsa": "^4.1.0"
+    "jwks-rsa": "^4.1.0",
+    "supertokens-node": "^24.1.0"
   },
   "peerDependencies": {
     "cors": "^2.8.5",
@@ -31,8 +31,8 @@
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^26.6.3",
-    "typescript": "5.9.3",
-    "@types/jsonwebtoken": "^9.0.9"
+    "typescript": "5.9.3"
   }
 }
